@@ -29,6 +29,10 @@ const prefixes = {
   adAttribution: "att",
   conversionEvent: "cve",
   capiSettings: "capi",
+  // 020 — roles y asignación
+  assignmentEvent: "cae",
+  salesTeam: "team",
+  assignmentBatch: "batch",
 } as const;
 
 export type IdKind = keyof typeof prefixes;

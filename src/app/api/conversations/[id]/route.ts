@@ -18,17 +18,22 @@ export const PATCH = withAuth(async (session, req: Request, ctx: Params) => {
   const body = await parseBody(req, patchSchema);
   if (!body.ok) return body.response;
 
-  const updated = await updateConversation(session.organizationId, id, body.data);
+  // 020: primero, ¿la puede ver? La de otro asesor es un 404, no un 403.
+  const visible = await getConversation(session.access, id);
+  if (!visible) return apiError(404, "not_found", "Conversación no encontrada");
+
+  const updated = await updateConversation(session.access, id, body.data);
   if (!updated) return apiError(404, "not_found", "Conversación no encontrada");
 
-  const row = await getConversation(session.organizationId, id);
+  const row = await getConversation(session.access, id);
   if (row) {
     const dto = serializeConversation(
       row.conversation,
       row.contact,
       null,
       null,
-      row.anuncio
+      row.anuncio,
+      row.assigneeName
     );
     publish(session.organizationId, {
       type: "conversation.updated",

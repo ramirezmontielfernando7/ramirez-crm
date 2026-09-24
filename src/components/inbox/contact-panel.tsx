@@ -23,6 +23,8 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { FichaPanel } from "@/components/ficha-panel";
+import { AssignmentCard } from "@/components/assignment/assignment-card";
+import { useViewer } from "@/components/viewer-context";
 
 const HANDOFF_LABELS: Record<string, string> = {
   cliente: "El cliente pidió un humano",
@@ -62,6 +64,14 @@ export function ContactPanel({
   const [brain, setBrain] = useState<BrainStatusDto | null>(null);
 
   const contactId = conversation.contact.id;
+  const viewer = useViewer();
+  // 020: a quién le toca el handoff. Al asesor asignado se le dice que es a
+  // él; sin asignar, quien reparte ve que falta alguien.
+  const handoffOwner = !conversation.assignee
+    ? "sin asignar"
+    : conversation.assignee.id === viewer.userId
+      ? "te toca a ti"
+      : conversation.assignee.name;
 
   const aiConfigured = brain?.embedded.configured ?? false;
   const agentReady = brain?.embedded.answering ?? false;
@@ -210,6 +220,7 @@ export function ContactPanel({
             <div className="mt-3 rounded-md border border-warning-soft bg-warning-tint p-3">
               <p className="flex items-center gap-1.5 text-[13px] font-medium text-warning-text">
                 <UserRound className="h-4 w-4" strokeWidth={1.7} /> Atención humana
+                <span className="font-normal opacity-80">· {handoffOwner}</span>
               </p>
               <p className="mt-1 text-xs text-warning-text opacity-80">
                 {HANDOFF_LABELS[conversation.handoffReason ?? ""] ??
@@ -322,6 +333,9 @@ export function ContactPanel({
             </div>
           )}
         </section>
+
+        {/* 020: quién atiende, reasignar y el historial. */}
+        <AssignmentCard contactId={contactId} refreshKey={refreshKey} />
 
         {/* Stepper de etapa */}
         {stages.length > 0 && leadId && (

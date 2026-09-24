@@ -29,6 +29,7 @@ import type { WeeklyHours } from "@/server/agenda/settings";
 import { cn } from "@/lib/utils";
 import { AgendaList } from "./agenda-list";
 import { BlockDialog } from "./block-dialog";
+import { useViewer } from "@/components/viewer-context";
 import { BookingDrawer, type ActResult } from "./booking-drawer";
 import type { Booking } from "./booking-look";
 import { CalendarToolbar } from "./calendar-toolbar";
@@ -86,6 +87,7 @@ export function BookingsClient({
   timezone: string;
   weeklyHours: WeeklyHours;
 }) {
+  const canBlock = useViewer().can("scope.all");
   // La vista se resuelve al montar (URL › última usada › tamaño de pantalla):
   // el servidor no sabe si esto es un celular.
   const [view, setView] = useState<CalendarView | null>(null);
@@ -275,6 +277,9 @@ export function BookingsClient({
 
   /** Bloquear: en el hueco tocado o, desde la barra, en la próxima media hora. */
   function openBlock(day?: string, time?: string) {
+    // 020: bloquear la agenda del negocio es de quien ve todo (la API lo
+    // exige); un asesor solo trabaja las citas de sus clientes.
+    if (!canBlock) return;
     setSelectedId(null);
     if (day && time) {
       setBlockDraft({ day, time });
@@ -331,7 +336,7 @@ export function BookingsClient({
         onJump={setAnchor}
         onView={changeView}
         onListRange={changeListRange}
-        onBlock={() => openBlock()}
+        onBlock={canBlock ? () => openBlock() : undefined}
       />
 
       {/* En escritorio ancho el panel de la cita EMPUJA el calendario en vez

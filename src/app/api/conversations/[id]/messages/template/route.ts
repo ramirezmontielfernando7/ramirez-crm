@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { apiError, parseBody, withAuth } from "@/lib/api";
+import { getConversation } from "@/server/inbox/queries";
 import { SendError } from "@/server/inbox/send";
 import {
   sendTemplate,
@@ -20,6 +21,10 @@ const bodySchema = z.object({
 
 export const POST = withAuth(async (session, req: Request, ctx: Params) => {
   const { id } = await ctx.params;
+  // 020: escribir en un chat ajeno es tan 404 como leerlo.
+  if (!(await getConversation(session.access, id))) {
+    return apiError(404, "not_found", "Conversación no encontrada");
+  }
   const body = await parseBody(req, bodySchema);
   if (!body.ok) return body.response;
 

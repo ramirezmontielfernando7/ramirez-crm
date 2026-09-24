@@ -10,14 +10,14 @@ type Params = { params: Promise<{ id: string }> };
 
 export const GET = withAuth(async (session, req: Request, ctx: Params) => {
   const { id } = await ctx.params;
-  const row = await getConversation(session.organizationId, id);
+  const row = await getConversation(session.access, id);
   if (!row) return apiError(404, "not_found", "Conversación no encontrada");
 
   const url = new URL(req.url);
   const sinceParam = url.searchParams.get("since");
   const since = sinceParam ? new Date(sinceParam) : undefined;
   const messages = await listMessages(
-    session.organizationId,
+    session.access,
     id,
     since && !Number.isNaN(since.getTime()) ? since : undefined
   );
@@ -68,6 +68,10 @@ const SEND_ERROR_STATUS: Record<SendError["code"], number> = {
 
 export const POST = withAuth(async (session, req: Request, ctx: Params) => {
   const { id } = await ctx.params;
+  // 020: escribir en un chat ajeno es tan 404 como leerlo.
+  if (!(await getConversation(session.access, id))) {
+    return apiError(404, "not_found", "Conversación no encontrada");
+  }
   const body = await parseBody(req, sendSchema);
   if (!body.ok) return body.response;
 

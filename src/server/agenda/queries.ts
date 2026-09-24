@@ -1,6 +1,6 @@
-import { asc, desc, eq, gte, lt } from "drizzle-orm";
+import { asc, desc, eq, gte, isNull, lt, or, type SQL } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
-import { scoped } from "@/lib/db/tenant";
+import { assignedTo, scoped, scopedContacts, type Access } from "@/lib/db/tenant";
 import type { DateRange } from "@/lib/time/calendar";
 import { addDaysISO, partsInTz, zonedWallClockToUtc } from "@/lib/time/slots";
 import { getSettings, type CalendarSettings } from "@/server/agenda/settings";
@@ -63,14 +63,55 @@ function baseQuery() {
     .leftJoin(schema.contact, eq(schema.booking.contactId, schema.contact.id));
 }
 
+/**
+ * 020 — Qué citas ve la sesión. Quien ve todo, todas. Un asesor, las de SUS
+ * contactos más los bloqueos (no tienen cliente y le dicen qué horas están
+ * ocupadas); jamás la cita del cliente de otro.
+ */
+export function bookingsVisibleTo(access: Access): SQL | undefined {
+  if (access.seesAll) return undefined;
+  return or(
+    isNull(schema.booking.contactId),
+    assignedTo(access, schema.booking.contactId)
+  );
+}
+
+/** ¿Puede esta sesión tocar esta cita? Los bloqueos, solo quien ve todo. */
+export async function canTouchBooking(
+  access: Access,
+  bookingId: string
+): Promise<boolean> {
+  const rows = await getDb()
+    .select({ id: schema.booking.id })
+    .from(schema.booking)
+    .where(
+      scopedContacts(
+        schema.booking.organizationId,
+        access,
+        schema.booking.contactId,
+        eq(schema.booking.id, bookingId),
+        access.seesAll ? undefined : eq(schema.booking.kind, "session")
+      )
+    )
+    .limit(1);
+  return rows.length > 0;
+}
+
 /** Las últimas 200 citas: el listado de siempre, para quien no pide rango. */
 export async function listBookings(
-  organizationId: string,
+  access: Access,
   settings?: CalendarSettings
 ): Promise<BookingListItem[]> {
+  const organizationId = access.organizationId;
   const resolved = settings ?? (await getSettings(organizationId));
   const rows = await baseQuery()
-    .where(scoped(schema.booking.organizationId, organizationId))
+    .where(
+      // scoped-ok: `bookingsVisibleTo` es el filtro de asignación de citas
+      // (las del asesor + los bloqueos, que no tienen cliente).
+      access.seesAll
+        ? scoped(schema.booking.organizationId, organizationId)
+        : scoped(schema.booking.organizationId, organizationId, bookingsVisibleTo(access))
+    )
     .orderBy(desc(schema.booking.scheduledAt))
     .limit(LIST_LIMIT);
   return rows.map((r) => toListItem(r, resolved.timezone));
@@ -84,10 +125,11 @@ export async function listBookings(
  * después de las 18:00 en México caería en la columna del día siguiente).
  */
 export async function listBookingsInRange(
-  organizationId: string,
+  access: Access,
   range: DateRange,
   settings?: CalendarSettings
 ): Promise<{ bookings: BookingListItem[]; truncated: boolean }> {
+  const organizationId = access.organizationId;
   const resolved = settings ?? (await getSettings(organizationId));
   const tz = resolved.timezone;
   // Fechas ya validadas (`parseRangeQuery`): la conversión no puede fallar.
@@ -96,11 +138,13 @@ export async function listBookingsInRange(
 
   const rows = await baseQuery()
     .where(
+      // scoped-ok: `bookingsVisibleTo` (abajo) es el filtro de asignación.
       scoped(
         schema.booking.organizationId,
         organizationId,
         gte(schema.booking.scheduledAt, new Date(start.getTime() - LOOKBACK_MS)),
-        lt(schema.booking.scheduledAt, end)
+        lt(schema.booking.scheduledAt, end),
+        bookingsVisibleTo(access)
       )
     )
     .orderBy(asc(schema.booking.scheduledAt))

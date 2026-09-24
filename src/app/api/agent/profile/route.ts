@@ -26,7 +26,7 @@ export const GET = withAuth(async (session) => {
     },
     aiConfigured: isAiConfigured(),
   });
-});
+}, { permission: "agent.manage" });
 
 const putSchema = z.object({
   enabled: z.boolean().optional(),
@@ -49,4 +49,4 @@ export const PUT = withAuth(async (session, req: Request) => {
     .returning();
   if (!updated[0]) return apiError(404, "not_found", "Perfil no encontrado");
   return Response.json({ ok: true });
-});
+}, { permission: "agent.manage" });

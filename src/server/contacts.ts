@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
-import { scoped } from "@/lib/db/tenant";
+import { scopedContacts, type Access } from "@/lib/db/tenant";
 import { effectiveSource } from "@/server/contact-source";
 import type { FichaDto, PriorityValue } from "@/lib/types";
 
@@ -20,24 +20,26 @@ export function serializeContact(
     archivedAt: c.archivedAt?.toISOString() ?? null,
     source: effectiveSource(c.source, llegoPorAnuncio),
     priority,
+    /** 020: quién lo atiende; null = sin asignar. */
+    assignedUserId: c.assignedUserId,
+    assignedAt: c.assignedAt?.toISOString() ?? null,
     // Viaja siempre, aunque esté vacía: la pantalla necesita distinguir "aún
     // no la han llenado" de "este contacto no la trae".
     ficha: (c.ficha as FichaDto | null) ?? {},
   };
 }
 
-export async function getContactById(
-  organizationId: string,
-  contactId: string
-) {
+/** El contacto, SOLO si la sesión puede verlo (020); si no, null → 404. */
+export async function getContactById(access: Access, contactId: string) {
   const db = getDb();
   const rows = await db
     .select()
     .from(schema.contact)
     .where(
-      scoped(
+      scopedContacts(
         schema.contact.organizationId,
-        organizationId,
+        access,
+        schema.contact.id,
         eq(schema.contact.id, contactId)
       )
     )
@@ -46,10 +48,7 @@ export async function getContactById(
 }
 
 /** Etapa actual del lead del contacto (si existe). */
-export async function getContactStage(
-  organizationId: string,
-  contactId: string
-) {
+export async function getContactStage(access: Access, contactId: string) {
   const db = getDb();
   const rows = await db
     .select({ stage: schema.pipelineStage, lead: schema.lead })
@@ -59,9 +58,10 @@ export async function getContactStage(
       eq(schema.lead.stageId, schema.pipelineStage.id)
     )
     .where(
-      scoped(
+      scopedContacts(
         schema.lead.organizationId,
-        organizationId,
+        access,
+        schema.lead.contactId,
         eq(schema.lead.contactId, contactId)
       )
     )

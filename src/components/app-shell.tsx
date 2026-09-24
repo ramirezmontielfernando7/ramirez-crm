@@ -8,6 +8,7 @@ import type { ThemePreference } from "@/lib/theme";
 import type { ResolvedCommit } from "@/lib/version";
 import { AppNav } from "@/components/app-nav";
 import { BrandLogo } from "@/components/brand-mark";
+import { ViewerProvider } from "@/components/viewer-context";
 
 /**
  * Cascarón de la app en dos modos:
@@ -25,6 +26,7 @@ export function AppShell({
   branding,
   userName,
   role,
+  userId,
   theme,
   commit,
   agenda = false,
@@ -33,6 +35,8 @@ export function AppShell({
   branding: Branding;
   userName: string;
   role: string;
+  /** 020 — para el contexto del que mira (rol y permisos en pantalla). */
+  userId: string;
   theme: ThemePreference;
   /** Commit resuelto en el servidor, con su procedencia (ver `resolveCommit`). */
   commit?: ResolvedCommit;
@@ -59,44 +63,46 @@ export function AppShell({
   }, [navOpen]);
 
   return (
-    <div className="flex h-dvh overflow-hidden bg-background">
-      {navOpen && (
-        <button
-          aria-label="Cerrar el menú"
-          tabIndex={-1}
-          onClick={() => setNavOpen(false)}
-          className="fixed inset-0 z-40 bg-overlay lg:hidden"
-        />
-      )}
-
-      <AppNav
-        branding={branding}
-        commit={commit}
-        userName={userName}
-        role={role}
-        theme={theme}
-        agenda={agenda}
-        open={navOpen}
-        onClose={() => setNavOpen(false)}
-      />
-
-      <div className="flex min-w-0 flex-1 flex-col">
-        {/* Misma pieza que la barra lateral (`nav-dark`): en el teléfono la
-            franja azul marino de arriba es lo que queda del bicolor. */}
-        <header className="nav-dark flex h-12 shrink-0 items-center gap-1.5 border-b bg-subtle px-2 text-foreground lg:hidden">
+    <ViewerProvider userId={userId} role={role}>
+      <div className="flex h-dvh overflow-hidden bg-background">
+        {navOpen && (
           <button
-            onClick={() => setNavOpen(true)}
-            aria-label="Abrir el menú"
-            aria-expanded={navOpen}
-            className="rounded-md p-2 text-text-2 hover:bg-accent hover:text-foreground"
-          >
-            <Menu className="h-5 w-5" strokeWidth={1.8} />
-          </button>
-          <BrandLogo branding={branding} className="min-w-0" />
-        </header>
+            aria-label="Cerrar el menú"
+            tabIndex={-1}
+            onClick={() => setNavOpen(false)}
+            className="fixed inset-0 z-40 bg-overlay lg:hidden"
+          />
+        )}
 
-        <main className="min-h-0 min-w-0 flex-1 overflow-hidden">{children}</main>
+        <AppNav
+          branding={branding}
+          commit={commit}
+          userName={userName}
+          role={role}
+          theme={theme}
+          agenda={agenda}
+          open={navOpen}
+          onClose={() => setNavOpen(false)}
+        />
+
+        <div className="flex min-w-0 flex-1 flex-col">
+          {/* Misma pieza que la barra lateral (`nav-dark`): en el teléfono la
+              franja azul marino de arriba es lo que queda del bicolor. */}
+          <header className="nav-dark flex h-12 shrink-0 items-center gap-1.5 border-b bg-subtle px-2 text-foreground lg:hidden">
+            <button
+              onClick={() => setNavOpen(true)}
+              aria-label="Abrir el menú"
+              aria-expanded={navOpen}
+              className="rounded-md p-2 text-text-2 hover:bg-accent hover:text-foreground"
+            >
+              <Menu className="h-5 w-5" strokeWidth={1.8} />
+            </button>
+            <BrandLogo branding={branding} className="min-w-0" />
+          </header>
+
+          <main className="min-h-0 min-w-0 flex-1 overflow-hidden">{children}</main>
+        </div>
       </div>
-    </div>
+    </ViewerProvider>
   );
 }

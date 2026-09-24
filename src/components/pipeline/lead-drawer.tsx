@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PriorityPicker } from "./priority-picker";
 import type { BoardLead } from "./pipeline-client";
+import { AssignmentCard } from "@/components/assignment/assignment-card";
 
 /**
  * El trato, abierto, sin salir del tablero.
@@ -168,6 +169,9 @@ export function LeadDrawer({
               </div>
             )}
           </section>
+
+          {/* 020: quién lo atiende, reasignar y el historial. */}
+          <AssignmentCard contactId={lead.contact.id} />
 
           {/* Cuánto */}
           <section className="border-b p-4">

@@ -53,7 +53,7 @@ beforeEach(() => {
 
 describe("botBlock y la bandera AGENDA", () => {
   it("apagada: `sessions` es null y la tabla de citas no se consulta", async () => {
-    const b = await botBlock("org_1", periodo, false);
+    const b = await botBlock({ organizationId: "org_1", userId: "usr_1", seesAll: true }, periodo, false);
     expect(b.sessions).toBeNull();
     expect(db.tablas).not.toContain(schema.booking);
     // Lo demás del agente sigue ahí.
@@ -62,7 +62,7 @@ describe("botBlock y la bandera AGENDA", () => {
   });
 
   it("encendida: cuenta las citas del periodo", async () => {
-    const b = await botBlock("org_1", periodo, true);
+    const b = await botBlock({ organizationId: "org_1", userId: "usr_1", seesAll: true }, periodo, true);
     expect(b.sessions).toEqual({
       booked: 0,
       done: 0,

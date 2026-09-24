@@ -24,7 +24,7 @@ export const GET = withAuth(async (session) => {
       fields: { clientId: creds.clientId, calendarId: creds.calendarId },
     },
   });
-});
+}, { permission: "settings.manage" });
 
 const credsSchema = z.object({
   clientId: z.string().trim().min(1),
@@ -59,10 +59,10 @@ export const PUT = withAuth(async (session, req: Request) => {
       fields: { clientId: body.data.clientId, calendarId },
     },
   });
-});
+}, { permission: "settings.manage" });
 
 export const DELETE = withAuth(async (session) => {
   if (!agendaEnabled()) return agendaDisabledResponse();
   await deleteGoogleCredentials(session.organizationId);
   return Response.json({ ok: true });
-});
+}, { permission: "settings.manage" });

@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { apiError, parseBody, withAuth } from "@/lib/api";
 import { getDb, schema } from "@/lib/db";
-import { scoped } from "@/lib/db/tenant";
+import { scopedContacts } from "@/lib/db/tenant";
 import { getContactById } from "@/server/contacts";
 import { getOrCreateConversation } from "@/server/inbox/ingest";
 import { SendError } from "@/server/inbox/send";
@@ -32,7 +32,7 @@ const bodySchema = z.object({
  */
 export const POST = withAuth(async (session, req: Request, ctx: Params) => {
   const { id } = await ctx.params;
-  const contact = await getContactById(session.organizationId, id);
+  const contact = await getContactById(session.access, id);
   if (!contact) return apiError(404, "not_found", "Contacto no encontrado");
   if (!contact.phone && !contact.waIdentity) {
     return apiError(422, "no_identity", "Este contacto no tiene a dónde escribir");
@@ -46,9 +46,10 @@ export const POST = withAuth(async (session, req: Request, ctx: Params) => {
     .select({ id: schema.conversation.id, lastInboundAt: schema.conversation.lastInboundAt })
     .from(schema.conversation)
     .where(
-      scoped(
+      scopedContacts(
         schema.conversation.organizationId,
-        session.organizationId,
+        session.access,
+        schema.conversation.contactId,
         eq(schema.conversation.contactId, id),
         eq(schema.conversation.isTest, false)
       )

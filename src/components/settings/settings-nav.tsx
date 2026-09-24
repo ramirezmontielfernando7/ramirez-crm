@@ -26,10 +26,13 @@ export function SettingsNav({
   agenda = false,
   atribucion = false,
   messenger = false,
+  allowed,
 }: {
   agenda?: boolean;
   atribucion?: boolean;
   messenger?: boolean;
+  /** 020 — pestañas que el rol puede abrir (`/settings/<clave>`); lo decide el servidor. */
+  allowed?: string[];
 }) {
   const pathname = usePathname();
   // Qué pestañas existen lo decide el servidor y baja por prop: este es un
@@ -41,7 +44,7 @@ export function SettingsNav({
     ...TABS.slice(1),
     ...(agenda ? [AGENDA_TAB] : []),
     ...(atribucion ? [ADS_TAB] : []),
-  ];
+  ].filter((t) => !allowed || allowed.includes(t.href.replace("/settings/", "")));
   return (
     <nav className="flex shrink-0 gap-1 overflow-x-auto border-b p-2 sm:w-44 sm:flex-col sm:space-y-1 sm:overflow-visible sm:border-b-0 sm:border-r sm:p-3">
       {tabs.map((t) => (

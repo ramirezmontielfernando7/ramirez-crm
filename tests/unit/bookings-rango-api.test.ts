@@ -28,8 +28,8 @@ const state = vi.hoisted(() => ({
 
 vi.mock("@/lib/auth/session", () => ({
   UnauthorizedError: class UnauthorizedError extends Error {},
-  requireSession: async () => ({ userId: "usr_1", organizationId: "org_a", role: "owner" }),
-  getSessionOrNull: async () => ({ userId: "usr_1", organizationId: "org_a", role: "owner" }),
+  requireSession: async () => ({ userId: "usr_1", organizationId: "org_a", role: "owner", access: { organizationId: "org_a", userId: "usr_1", seesAll: true } }),
+  getSessionOrNull: async () => ({ userId: "usr_1", organizationId: "org_a", role: "owner", access: { organizationId: "org_a", userId: "usr_1", seesAll: true } }),
 }));
 
 vi.mock("@/server/agenda/flag", async (importOriginal) => {

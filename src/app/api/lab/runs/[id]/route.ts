@@ -50,4 +50,4 @@ export const GET = withAuth(async (session, _req: Request, ctx: Params) => {
       transcript: c.transcript ?? [],
     })),
   });
-});
+}, { permission: "agent.manage" });

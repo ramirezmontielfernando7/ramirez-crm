@@ -1,11 +1,15 @@
 import { headers } from "next/headers";
 import { getAuth } from "@/lib/auth";
+import { can } from "@/lib/auth/permissions";
+import type { Access } from "@/lib/db/tenant";
 import { resolveMembership } from "@/server/auth/on-signup";
 
 export type SessionContext = {
   userId: string;
   organizationId: string;
   role: string;
+  /** 020 — qué datos de clientes ve esta sesión (ver `scopedContacts`). */
+  access: Access;
 };
 
 export class UnauthorizedError extends Error {
@@ -13,6 +17,24 @@ export class UnauthorizedError extends Error {
     super(message);
     this.name = "UnauthorizedError";
   }
+}
+
+/** Arma el contexto a partir de la membresía (fuente de verdad del rol). */
+export function sessionContext(
+  userId: string,
+  organizationId: string,
+  role: string
+): SessionContext {
+  return {
+    userId,
+    organizationId,
+    role,
+    access: {
+      organizationId,
+      userId,
+      seesAll: can({ role }, "scope.all"),
+    },
+  };
 }
 
 /**
@@ -29,11 +51,11 @@ export async function requireSession(): Promise<SessionContext> {
   if (!membership) {
     throw new UnauthorizedError("Sesión sin organización activa");
   }
-  return {
-    userId: session.user.id,
-    organizationId: membership.organizationId,
-    role: membership.role,
-  };
+  return sessionContext(
+    session.user.id,
+    membership.organizationId,
+    membership.role
+  );
 }
 
 /** Igual que requireSession pero devuelve null en vez de lanzar. */

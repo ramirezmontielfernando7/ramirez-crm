@@ -19,6 +19,19 @@ export type SseEvent =
       };
     }
   | { type: "conversation.updated"; data: { conversation: unknown } }
+  /**
+   * 020 — cambió quién atiende a uno o más contactos. Solo ids: la bandeja
+   * refetchea. `/api/events` se lo entrega a quien ve todo y a los asesores
+   * involucrados (el que lo recibe y el que lo pierde).
+   */
+  | {
+      type: "assignment.changed";
+      data: {
+        contactIds: string[];
+        toUserId: string | null;
+        fromUserIds: string[];
+      };
+    }
   /** 015 — algo cambió en la agenda: la pantalla de Citas se refresca sola. */
   | { type: "booking.updated"; data: { bookingId: string } }
   | {

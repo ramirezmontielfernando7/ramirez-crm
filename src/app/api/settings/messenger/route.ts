@@ -29,7 +29,7 @@ export const GET = withAuth(async (session) => {
       tokenLast4: tokenLast4(creds.token),
     },
   });
-});
+}, { permission: "settings.manage" });
 
 const putSchema = z.object({
   source: z.enum(["zernio", "meta"]).default("meta"),
@@ -46,9 +46,6 @@ const putSchema = z.object({
  */
 export const PUT = withAuth(async (session, req: Request) => {
   if (!isChannelEnabled("messenger")) return channelDisabledResponse();
-  if (session.role !== "owner") {
-    return apiError(403, "forbidden", "Solo el propietario puede conectar la página");
-  }
   const body = await parseBody(req, putSchema);
   if (!body.ok) return body.response;
   // `.default()` deja el tipo opcional aunque Zod siempre lo rellene: se fija
@@ -84,7 +81,7 @@ export const PUT = withAuth(async (session, req: Request) => {
   });
 
   return Response.json({ ok: true, pageName: check.pageName });
-});
+}, { permission: "settings.manage" });
 
 type Check =
   | { ok: true; pageName: string | null }

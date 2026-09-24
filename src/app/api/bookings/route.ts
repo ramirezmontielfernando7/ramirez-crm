@@ -1,8 +1,10 @@
 import { z } from "zod";
-import { apiError, parseBody, withAuth } from "@/lib/api";
+import { apiError, forbidden, parseBody, withAuth } from "@/lib/api";
 import { parseRangeQuery } from "@/lib/time/calendar";
 import { agendaDisabledResponse, agendaEnabled } from "@/server/agenda/flag";
 import { listBookings, listBookingsInRange } from "@/server/agenda/queries";
+import { getContactById } from "@/server/contacts";
+
 import { getSettings } from "@/server/agenda/settings";
 import { createBlock, createSessionBooking } from "@/server/agenda/service";
 import { bookingErrorResponse, bookingPayload } from "@/server/agenda/http";
@@ -26,13 +28,13 @@ export const GET = withAuth(async (session, req: Request) => {
   const query = parseRangeQuery(url.searchParams.get("from"), url.searchParams.get("to"));
   if (!query.ok) return apiError(422, "invalid_range", query.message);
   if (!query.range) {
-    const bookings = await listBookings(session.organizationId);
+    const bookings = await listBookings(session.access);
     return Response.json({ bookings });
   }
 
   const settings = await getSettings(session.organizationId);
   const { bookings, truncated } = await listBookingsInRange(
-    session.organizationId,
+    session.access,
     query.range,
     settings
   );
@@ -75,6 +77,16 @@ export const POST = withAuth(async (session, req: Request) => {
   if (!agendaEnabled()) return agendaDisabledResponse();
   const body = await parseBody(req, postSchema);
   if (!body.ok) return body.response;
+
+  // 020: bloquear la agenda del negocio es de quien ve todo; agendar, solo
+  // para un cliente que la sesión puede ver (el ajeno es 404).
+  if (body.data.kind === "block" && !session.access.seesAll) return forbidden();
+  if (
+    body.data.kind === "session" &&
+    !(await getContactById(session.access, body.data.contactId))
+  ) {
+    return apiError(404, "not_found", "Contacto no encontrado");
+  }
 
   try {
     if (body.data.kind === "block") {

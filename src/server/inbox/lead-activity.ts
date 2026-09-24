@@ -1,6 +1,8 @@
 import { and, asc, eq, sql } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
+import { assignContacts } from "@/server/assignment/assign";
+import { strategyFor } from "@/server/assignment/strategy";
 import { recordLeadCreated } from "@/server/leads/stage-history";
 import type { StageChangeSource } from "@/lib/types";
 
@@ -113,6 +115,29 @@ export async function createLeadForContact(input: {
     actorUserId: input.actorUserId ?? null,
     source: input.source ?? "sistema",
   });
+
+  // 020 — Reparto del lead nuevo. Hoy la estrategia es `manual` y devuelve
+  // null: el lead llega SIN ASIGNAR y lo reparte el coordinador. Aquí queda
+  // el enchufe para el round-robin (ver `server/assignment/strategy.ts`).
+  // Best-effort: repartir jamás tumba la ingesta de un mensaje.
+  try {
+    const strategy = await strategyFor(input.organizationId);
+    const toUserId = await strategy.pick({
+      organizationId: input.organizationId,
+      contactId: input.contactId,
+    });
+    if (toUserId) {
+      await assignContacts({
+        organizationId: input.organizationId,
+        contactIds: [input.contactId],
+        toUserId,
+        actorUserId: null,
+        source: "auto",
+      });
+    }
+  } catch (err) {
+    console.error("[assignment] reparto automático falló:", err);
+  }
 
   return creado;
 }

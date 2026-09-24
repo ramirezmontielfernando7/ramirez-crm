@@ -1,5 +1,6 @@
 import { requireSession, UnauthorizedError } from "@/lib/auth/session";
-import { subscribe } from "@/server/events/bus";
+import { subscribe, type SseEvent } from "@/server/events/bus";
+import { canSeeEvent } from "@/server/events/visibility";
 
 /**
  * Canal SSE de la bandeja (contrato sse.md).
@@ -21,7 +22,7 @@ export async function GET(req: Request) {
     }
     throw err;
   }
-  const { organizationId } = session;
+  const { organizationId, access } = session;
 
   let cleanup: (() => void) | null = null;
 
@@ -37,12 +38,30 @@ export async function GET(req: Request) {
 
       send(`: conectado\n\n`);
 
-      const unsubscribe = subscribe(organizationId, (event) => {
+      const write = (event: SseEvent) =>
         send(
           `event: ${event.type}\n` +
             `id: ${Date.now()}\n` +
             `data: ${JSON.stringify(event.data)}\n\n`
         );
+
+      // 020: a un asesor solo le llega lo suyo. La visibilidad se resuelve
+      // con una consulta, así que los eventos se encadenan para no llegar
+      // desordenados; quien ve todo no paga nada.
+      let queue = Promise.resolve();
+      const unsubscribe = subscribe(organizationId, (event) => {
+        if (access.seesAll) {
+          write(event);
+          return;
+        }
+        queue = queue
+          .then(async () => {
+            if (await canSeeEvent(access, event)) write(event);
+          })
+          .catch(() => {
+            // Ante la duda no se reenvía: el cliente se pone al día con
+            // su refetch normal.
+          });
       });
 
       const heartbeat = setInterval(() => send(`: ping\n\n`), HEARTBEAT_MS);

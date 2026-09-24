@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { apiError, parseBody, withAuth } from "@/lib/api";
 import { getDb, schema } from "@/lib/db";
-import { scoped } from "@/lib/db/tenant";
+import { scopedContacts } from "@/lib/db/tenant";
 import {
   getContactById,
   getContactStage,
@@ -21,10 +21,10 @@ type Params = { params: Promise<{ id: string }> };
 
 export const GET = withAuth(async (session, _req: Request, ctx: Params) => {
   const { id } = await ctx.params;
-  const contact = await getContactById(session.organizationId, id);
+  const contact = await getContactById(session.access, id);
   if (!contact) return apiError(404, "not_found", "Contacto no encontrado");
   const [stageRow, anuncio] = await Promise.all([
-    getContactStage(session.organizationId, id),
+    getContactStage(session.access, id),
     anuncioDelContacto(session.organizationId, id),
   ]);
   // 018 — Sin imagen todavía: se reintenta en segundo plano y llega por SSE.
@@ -65,6 +65,12 @@ export const PATCH = withAuth(async (session, req: Request, ctx: Params) => {
   const body = await parseBody(req, patchSchema);
   if (!body.ok) return body.response;
 
+  // 020: el contacto de otro asesor no existe para este (404), y eso vale
+  // también para la ficha, que va por otra puerta.
+  if (!(await getContactById(session.access, id))) {
+    return apiError(404, "not_found", "Contacto no encontrado");
+  }
+
   // La ficha va por su propia puerta —la MISMA que usa el cerebro externo en
   // `PUT /api/bot/ficha`— para heredar el merge y las cotas. Escribirla aquí
   // con un `set` plano sería un segundo camino con otras reglas.
@@ -93,9 +99,10 @@ export const PATCH = withAuth(async (session, req: Request, ctx: Params) => {
     .update(schema.contact)
     .set(set)
     .where(
-      scoped(
+      scopedContacts(
         schema.contact.organizationId,
-        session.organizationId,
+        session.access,
+        schema.contact.id,
         eq(schema.contact.id, id)
       )
     )
