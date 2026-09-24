@@ -79,6 +79,7 @@ function createAuth() {
         if (ctx.path === "/sign-up/email") {
           if (!isInternalSignup() && !(await isPublicSignupAllowed())) {
             throw new APIError("FORBIDDEN", {
+              code: "SIGNUP_CLOSED",
               message:
                 "El registro está cerrado: esta instancia ya tiene su organización",
             });
