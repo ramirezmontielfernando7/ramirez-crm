@@ -66,6 +66,13 @@ control de acceso del plugin `organization` de better-auth (`createAccessControl
   queda sin asignar, `owner` intacto, y el antiguo `member` pasa a
   `coordinador` (convertirlo en asesor le vaciaría la bandeja de golpe).
 
+- **D11 — El alta de un duplicado no delata a nadie.** Si el teléfono ya
+  existe, `POST /api/contacts` solo dice «Ya existe un contacto con ese
+  teléfono» (409 `duplicate`) a quien puede ver ese contacto (Propietario,
+  Coordinador o el asesor asignado). A un asesor sin acceso le responde como a
+  un dato inválido: 422 `invalid`, «No se pudo crear el contacto, verifica los
+  datos e intenta de nuevo».
+
 ## Fuera de alcance
 
 Reparto automático (round-robin), interfaz de equipos de ventas y la

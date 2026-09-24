@@ -3,7 +3,7 @@ import { z } from "zod";
 import { apiError, parseBody, withAuth } from "@/lib/api";
 import { getDb, schema } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
-import { scopedContacts } from "@/lib/db/tenant";
+import { scopedContacts, type Access } from "@/lib/db/tenant";
 import { normalizeMx } from "@/lib/meta/client";
 import { digitsOnly, normalizeText } from "@/lib/search";
 import { serializeContact } from "@/server/contacts";
@@ -104,6 +104,37 @@ export const GET = withAuth(async (session, req: Request) => {
   return Response.json({ contacts });
 });
 
+/** 020 — Lo que ve un asesor cuando el teléfono choca con un contacto que NO es suyo. */
+const DUPLICADO_GENERICO =
+  "No se pudo crear el contacto, verifica los datos e intenta de nuevo";
+
+/**
+ * 020 — El teléfono ya existe. Decir "ya existe" solo a quien puede ver ese
+ * contacto (propietario, coordinador o el asesor asignado): a un asesor sin
+ * acceso le confirmaría que el cliente de otro está en la base. Para él la
+ * respuesta es la de un dato inválido — mismo estado (422), mismo código —,
+ * sin rastro de que el número exista.
+ */
+async function respuestaDeDuplicado(access: Access, phone: string): Promise<Response> {
+  const visible = await getDb()
+    .select({ id: schema.contact.id })
+    .from(schema.contact)
+    .where(
+      scopedContacts(
+        schema.contact.organizationId,
+        access,
+        schema.contact.id,
+        eq(schema.contact.channel, "whatsapp"),
+        eq(schema.contact.waIdentity, phone)
+      )
+    )
+    .limit(1);
+  if (visible[0]) {
+    return apiError(409, "duplicate", "Ya existe un contacto con ese teléfono");
+  }
+  return apiError(422, "invalid", DUPLICADO_GENERICO);
+}
+
 const createSchema = z.object({
   name: z.string().trim().min(1).max(120),
   /**
@@ -154,7 +185,7 @@ export const POST = withAuth(async (session, req: Request) => {
     })
     .returning();
   if (!inserted[0]) {
-    return apiError(409, "duplicate", "Ya existe un contacto con ese teléfono");
+    return respuestaDeDuplicado(session.access, phone);
   }
 
   // Y su lead: un contacto sin lead es invisible en el Pipeline, que es la

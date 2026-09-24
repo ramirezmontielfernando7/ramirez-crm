@@ -276,6 +276,27 @@ async function main() {
   }
   const busquedaB = (await asesorB.api(`/api/contacts?q=${encodeURIComponent(nombre1)}`)).json;
   ok("B no lo encuentra en Contactos", (busquedaB?.contacts ?? []).length === 0);
+  // Dar de alta el mismo teléfono tampoco le confirma que existe…
+  const altaB = await asesorB.api("/api/contacts", {
+    method: "POST",
+    body: JSON.stringify({ name: "Intento de B", phone: tel1 }),
+  });
+  ok(
+    "B da de alta ese teléfono → error genérico (422, sin «ya existe»)",
+    altaB.res.status === 422 && altaB.json?.error?.code === "invalid" &&
+      !/existe|duplic/i.test(JSON.stringify(altaB.json)),
+    `status=${altaB.res.status} ${JSON.stringify(altaB.json)}`
+  );
+  // …pero a quien sí lo ve (A, su asesor) se le dice que es un duplicado.
+  const altaA = await asesorA.api("/api/contacts", {
+    method: "POST",
+    body: JSON.stringify({ name: "Intento de A", phone: tel1 }),
+  });
+  ok(
+    "A (su asesor) da de alta ese teléfono → 409 duplicado",
+    altaA.res.status === 409 && altaA.json?.error?.code === "duplicate",
+    `status=${altaA.res.status} ${JSON.stringify(altaA.json)}`
+  );
 
   console.log("\n== A trabaja SU lead, pero no configura nada ==");
   const etapas = (await asesorA.api("/api/pipeline/stages")).json?.stages ?? [];
