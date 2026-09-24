@@ -24,10 +24,12 @@ export default function RegisterPage() {
     const { error: err } = await signUp.email({ name, email, password });
     setLoading(false);
     if (err) {
-      if (err.status === 403) {
+      if (err.code === "SIGNUP_CLOSED") {
         setError(
           "El registro está cerrado: esta instancia ya tiene su organización. Pide acceso al propietario."
         );
+      } else if (err.code === "INVALID_ORIGIN") {
+        setError("Este dominio no está autorizado. Revisa la variable APP_BASE_URL.");
       } else if (err.status === 429) {
         setError("Demasiados intentos. Espera unos minutos.");
       } else {
