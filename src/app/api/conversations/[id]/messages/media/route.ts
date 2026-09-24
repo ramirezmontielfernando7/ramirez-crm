@@ -24,7 +24,7 @@ const SEND_ERROR_STATUS: Record<SendError["code"], number> = {
  */
 export const POST = withAuth(async (session, req: Request, ctx: Params) => {
   const { id } = await ctx.params;
-  const conv = await getConversation(session.organizationId, id);
+  const conv = await getConversation(session.access, id);
   if (!conv) return apiError(404, "not_found", "Conversación no encontrada");
 
   const form = await req.formData().catch(() => null);

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Megaphone, Search, Sparkles, UserRound, X } from "lucide-react";
+import { CheckSquare, Megaphone, Search, Sparkles, UserRound, X } from "lucide-react";
 import type { ConversationDto } from "@/lib/types";
 import { etiquetaDeOrigen, titularDeOrigen } from "@/lib/anuncios";
 import { CHANNEL_LABEL, type Channel } from "@/lib/channels";
@@ -11,6 +11,8 @@ import { cn } from "@/lib/utils";
 import { ContactAvatar } from "@/components/avatar";
 import { Button } from "@/components/ui/button";
 import { formatTime, previewText } from "./helpers";
+import { useViewer } from "@/components/viewer-context";
+import { assignContacts, useAssignees } from "@/components/assignment/use-assignees";
 
 /* Puntos de etapa: los tokens del tema, no hex copiados del tema claro —
    así siguen al acento white-label y se recalculan en oscuro. */
@@ -86,10 +88,23 @@ export function ConversationList({
   onSeeded: () => void;
 }) {
   const [query, setQuery] = useState("");
-  const [filter, setFilter] = useState<"all" | "unread" | "anuncios">("all");
+  const [filter, setFilter] = useState<"all" | "unread" | "anuncios" | "humano">("all");
   const [stage, setStage] = useState<string>("all");
   const [inbox, setInbox] = useState<Channel | "all">("all");
   const inputRef = useRef<HTMLInputElement>(null);
+  // 020: quién atiende. "all" | "mine" | "unassigned" | <userId>. Solo lo
+  // ve quien ve a todo el equipo; al asesor el servidor ya le manda lo suyo.
+  const viewer = useViewer();
+  const seesAll = viewer.can("scope.all");
+  const canAssign = viewer.can("assignment.manage");
+  const assignees = useAssignees();
+  const [owner, setOwner] = useState<string>("all");
+  // Selección para asignar en lote.
+  const [selecting, setSelecting] = useState(false);
+  const [picked, setPicked] = useState<Set<string>>(new Set());
+  const [bulkTo, setBulkTo] = useState<string>("");
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [bulkError, setBulkError] = useState<string | null>(null);
 
   /**
    * Rescate de lo tecleado ANTES de que hidratara el JS. La caja se pinta en
@@ -114,7 +129,12 @@ export function ConversationList({
       matchesQuery(query, {
         text: [c.contact.name],
         phone: c.contact.phone,
-      }) && (stage === "all" || c.stageName === stage)
+      }) &&
+      (stage === "all" || c.stageName === stage) &&
+      (owner === "all" ||
+        (owner === "mine" && c.assignee?.id === viewer.userId) ||
+        (owner === "unassigned" && !c.assignee) ||
+        c.assignee?.id === owner)
   );
   // La bandeja elegida es el filtro de AFUERA: "Todas" y "No leídas" cuentan
   // dentro de ella, no sobre la suma de los dos canales.
@@ -125,7 +145,7 @@ export function ConversationList({
   const unreadCount = inInbox.filter((c) => c.unreadCount > 0).length;
   // 018: las que abrió un anuncio (o una publicación con botón de WhatsApp).
   const deAnuncios = inInbox.filter((c) => c.anuncio !== null);
-  const visible =
+  const visibleBase =
     filter === "unread"
       ? inInbox.filter((c) => c.unreadCount > 0)
       : filter === "anuncios"
@@ -134,10 +154,16 @@ export function ConversationList({
   // Sin ninguna conversación de anuncio el filtro no aparece: a quien no
   // anuncia no se le pinta un botón que siempre dice 0. Si está elegido, se
   // queda, para poder salir de él aunque el contador baje a cero.
+  // 020: los chats que esperan a una persona (la IA hizo handoff).
+  const humanos = inInbox.filter((c) => c.handoffAt !== null);
+  const visible = filter === "humano" ? humanos : visibleBase;
   const filtros: { id: typeof filter; label: string; count: number }[] = [
     { id: "all", label: "Todas", count: inInbox.length },
     { id: "unread", label: "No leídas", count: unreadCount },
   ];
+  if (humanos.length > 0 || filter === "humano") {
+    filtros.push({ id: "humano", label: "Atención humana", count: humanos.length });
+  }
   if (deAnuncios.length > 0 || filter === "anuncios") {
     filtros.push({ id: "anuncios", label: "Anuncios", count: deAnuncios.length });
   }
@@ -149,6 +175,48 @@ export function ConversationList({
   const stages: string[] = [];
   for (const c of conversations) {
     if (c.stageName && !stages.includes(c.stageName)) stages.push(c.stageName);
+  }
+
+  // Personas en el selector: el equipo (si se puede leer) más quien aparezca
+  // asignado en la bandeja.
+  const owners = new Map<string, string>();
+  for (const a of assignees) owners.set(a.userId, a.name);
+  for (const c of conversations) {
+    if (c.assignee && !owners.has(c.assignee.id)) {
+      owners.set(c.assignee.id, c.assignee.name);
+    }
+  }
+
+  function togglePick(id: string) {
+    setPicked((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function stopSelecting() {
+    setSelecting(false);
+    setPicked(new Set());
+    setBulkError(null);
+  }
+
+  async function assignPicked() {
+    const contactIds = conversations
+      .filter((c) => picked.has(c.id))
+      .map((c) => c.contact.id);
+    if (contactIds.length === 0) return;
+    setBulkBusy(true);
+    setBulkError(null);
+    const err = await assignContacts(contactIds, bulkTo === "" ? null : bulkTo);
+    setBulkBusy(false);
+    if (err) {
+      setBulkError(err);
+      return;
+    }
+    stopSelecting();
+    onSeeded();
   }
 
   function clearQuery() {
@@ -268,7 +336,81 @@ export function ConversationList({
             ))}
           </select>
         )}
+
+        {seesAll && (
+          <select
+            value={owner}
+            onChange={(e) => setOwner(e.target.value)}
+            aria-label="Filtrar por persona asignada"
+            className={cn(
+              "min-w-0 max-w-[48%] truncate rounded-full border px-2 py-[5px] text-[12.5px] font-semibold transition-colors",
+              stages.length === 0 && "ml-auto",
+              FOCO_SEPARADO,
+              owner === "all"
+                ? "border-border-strong bg-chip text-text-2 hover:border-text-3"
+                : "border-brand bg-brand text-brand-fg"
+            )}
+          >
+            <option value="all">Todo el equipo</option>
+            <option value="mine">Míos</option>
+            <option value="unassigned">Sin asignar</option>
+            {[...owners].map(([id, name]) => (
+              <option key={id} value={id}>
+                {name}
+              </option>
+            ))}
+          </select>
+        )}
+
+        {canAssign && !selecting && (
+          <button
+            onClick={() => setSelecting(true)}
+            className={cn(
+              "flex shrink-0 items-center gap-1 rounded-full border border-border-strong bg-chip px-2.5 py-[5px] text-[12.5px] font-semibold text-text-2 transition-colors hover:border-text-3",
+              FOCO_SEPARADO
+            )}
+          >
+            <CheckSquare className="h-3.5 w-3.5" strokeWidth={1.8} />
+            Seleccionar
+          </button>
+        )}
       </div>
+
+      {selecting && (
+        <div className="space-y-2 border-b bg-subtle px-4 py-2.5">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[12.5px] font-semibold">
+              {picked.size === 1 ? "1 seleccionado" : `${picked.size} seleccionados`}
+            </span>
+            <Button size="sm" variant="ghost" onClick={stopSelecting}>
+              Cancelar
+            </Button>
+          </div>
+          <div className="flex items-center gap-2">
+            <select
+              value={bulkTo}
+              onChange={(e) => setBulkTo(e.target.value)}
+              aria-label="Asignar seleccionados a"
+              className="h-8 min-w-0 flex-1 rounded-md border border-input bg-card px-2 text-[12.5px]"
+            >
+              <option value="">Sin asignar</option>
+              {assignees.map((a) => (
+                <option key={a.userId} value={a.userId}>
+                  {a.name}
+                </option>
+              ))}
+            </select>
+            <Button
+              size="sm"
+              disabled={picked.size === 0 || bulkBusy}
+              onClick={() => void assignPicked()}
+            >
+              {bulkBusy ? "Asignando…" : "Asignar"}
+            </Button>
+          </div>
+          {bulkError && <p className="text-[11px] text-danger-text">{bulkError}</p>}
+        </div>
+      )}
 
       <div className="flex-1 overflow-y-auto">
         {loading ? (
@@ -290,13 +432,24 @@ export function ConversationList({
                     <span className="absolute inset-y-0 left-0 w-[3px] bg-brand" />
                   )}
                   <button
-                    onClick={() => onSelect(c.id)}
+                    onClick={() => (selecting ? togglePick(c.id) : onSelect(c.id))}
+                    aria-pressed={selecting ? picked.has(c.id) : undefined}
                     className={cn(
                       "flex w-full items-start gap-[11px] px-4 py-[var(--row-py)] text-left transition-colors",
                       "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
                       active ? "bg-[var(--bg-active)]" : "hover:bg-row-hover"
                     )}
                   >
+                    {selecting && (
+                      <input
+                        type="checkbox"
+                        readOnly
+                        tabIndex={-1}
+                        checked={picked.has(c.id)}
+                        aria-label={`Seleccionar a ${c.contact.name}`}
+                        className="mt-3 h-4 w-4 shrink-0 accent-[var(--accent)]"
+                      />
+                    )}
                     <span className="relative shrink-0">
                       <ContactAvatar name={c.contact.name} seed={c.contact.id} size="lg" />
                       {c.windowOpen && (
@@ -340,7 +493,9 @@ export function ConversationList({
                           </span>
                         )}
                       </span>
-                      <span className="mt-1.5 flex items-center gap-1.5">
+                      {/* Envuelve: con el asignado (020) los chips ya no caben
+                          siempre en una línea de 300-360 px. */}
+                      <span className="mt-1.5 flex flex-wrap items-center gap-1.5">
                         {c.stageName && (
                           <span className="inline-flex items-center gap-1.5 rounded-full border border-border-strong bg-chip px-2 py-0.5 text-[11px] font-medium text-text-2">
                             <span
@@ -355,7 +510,23 @@ export function ConversationList({
                         {c.handoffAt && (
                           <span className="inline-flex items-center gap-1 rounded-full border border-warning-soft bg-warning-tint px-2 py-0.5 text-[11px] text-warning-text">
                             <UserRound className="h-3 w-3" strokeWidth={1.7} />
-                            Atención humana
+                            {/* 020: al asesor asignado se le dice que es él. */}
+                            {c.assignee?.id === viewer.userId
+                              ? "Requiere tu atención"
+                              : !c.assignee
+                                ? "Requiere humano · sin asignar"
+                                : "Atención humana"}
+                          </span>
+                        )}
+                        {seesAll && (
+                          <span className="inline-flex min-w-0 items-center gap-1 rounded-full border border-border-strong bg-chip px-2 py-0.5 text-[11px] font-medium text-text-2">
+                            <span className="truncate">
+                              {c.assignee
+                                ? c.assignee.id === viewer.userId
+                                  ? "Tú"
+                                  : c.assignee.name
+                                : "Sin asignar"}
+                            </span>
                           </span>
                         )}
                         {c.anuncio && (

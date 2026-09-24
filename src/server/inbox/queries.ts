@@ -1,6 +1,10 @@
-import { and, desc, eq, gt, sql } from "drizzle-orm";
+import { and, desc, eq, gt, isNull, sql } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
-import { scoped } from "@/lib/db/tenant";
+import {
+  scopedContacts,
+  scopedConversations,
+  type Access,
+} from "@/lib/db/tenant";
 import { isWindowOpen, windowRemainingMs } from "@/server/inbox/window";
 import type { ConversationDto } from "@/lib/types";
 
@@ -38,9 +42,42 @@ function aAnuncioDeLista(
   };
 }
 
+/**
+ * 020 — Nombre de quien atiende al contacto. Subconsulta y no JOIN: `user`
+ * también es una tabla de better-auth y un segundo join a ella en la lista
+ * complicaría los alias sin ahorrar nada (una fila por conversación).
+ */
+const assigneeNameSql = sql<string | null>`(
+  select u."name" from "user" u where u."id" = ${schema.contact.assignedUserId}
+)`;
+
+/**
+ * Filtro de asignación de la bandeja. Solo tiene efecto para quien ve todo:
+ * a un asesor `scopedContacts` ya lo limita a lo suyo, diga lo que diga.
+ */
+export type AssignmentFilter =
+  | { kind: "all" }
+  | { kind: "mine" }
+  | { kind: "unassigned" }
+  | { kind: "user"; userId: string };
+
+function assignmentCondition(access: Access, filter: AssignmentFilter) {
+  switch (filter.kind) {
+    case "all":
+      return undefined;
+    case "mine":
+      return eq(schema.contact.assignedUserId, access.userId);
+    case "unassigned":
+      return isNull(schema.contact.assignedUserId);
+    case "user":
+      return eq(schema.contact.assignedUserId, filter.userId);
+  }
+}
+
 export async function listConversations(
-  organizationId: string,
-  since?: Date
+  access: Access,
+  since?: Date,
+  filter: AssignmentFilter = { kind: "all" }
 ): Promise<ConversationDto[]> {
   const db = getDb();
   const previewSql = sql<string | null>`(
@@ -64,6 +101,7 @@ export async function listConversations(
       preview: previewSql,
       stageName: stageSql,
       anuncio: anuncioDeLista,
+      assigneeName: assigneeNameSql,
     })
     .from(schema.conversation)
     .innerJoin(
@@ -72,11 +110,13 @@ export async function listConversations(
     )
     .leftJoin(schema.adAttribution, anuncioDeLaConversacion)
     .where(
-      scoped(
+      scopedContacts(
         schema.conversation.organizationId,
-        organizationId,
+        access,
+        schema.conversation.contactId,
         eq(schema.conversation.isTest, false),
-        since ? gt(schema.conversation.updatedAt, since) : undefined
+        since ? gt(schema.conversation.updatedAt, since) : undefined,
+        access.seesAll ? assignmentCondition(access, filter) : undefined
       )
     )
     .orderBy(desc(sql`coalesce(${schema.conversation.lastMessageAt}, ${schema.conversation.createdAt})`));
@@ -87,21 +127,25 @@ export async function listConversations(
       r.contact,
       r.preview,
       r.stageName,
-      aAnuncioDeLista(r.anuncio)
+      aAnuncioDeLista(r.anuncio),
+      r.assigneeName
     )
   );
 }
 
-export async function getConversation(
-  organizationId: string,
-  conversationId: string
-) {
+/**
+ * Una conversación, SOLO si la sesión puede verla (020). Para un asesor, la
+ * de otro devuelve null igual que si no existiera: las rutas responden 404 y
+ * no confirman que existe.
+ */
+export async function getConversation(access: Access, conversationId: string) {
   const db = getDb();
   const rows = await db
     .select({
       conversation: schema.conversation,
       contact: schema.contact,
       anuncio: anuncioDeLista,
+      assigneeName: assigneeNameSql,
     })
     .from(schema.conversation)
     .innerJoin(
@@ -110,9 +154,10 @@ export async function getConversation(
     )
     .leftJoin(schema.adAttribution, anuncioDeLaConversacion)
     .where(
-      scoped(
+      scopedContacts(
         schema.conversation.organizationId,
-        organizationId,
+        access,
+        schema.conversation.contactId,
         eq(schema.conversation.id, conversationId)
       )
     )
@@ -122,7 +167,7 @@ export async function getConversation(
 }
 
 export async function listMessages(
-  organizationId: string,
+  access: Access,
   conversationId: string,
   since?: Date
 ) {
@@ -135,9 +180,10 @@ export async function listMessages(
       eq(schema.message.mediaAssetId, schema.mediaAsset.id)
     )
     .where(
-      scoped(
+      scopedConversations(
         schema.message.organizationId,
-        organizationId,
+        access,
+        schema.message.conversationId,
         eq(schema.message.conversationId, conversationId),
         since ? gt(schema.message.createdAt, since) : undefined
       )
@@ -150,12 +196,16 @@ export function serializeConversation(
   contact: typeof schema.contact.$inferSelect,
   preview: string | null = null,
   stageName: string | null = null,
-  anuncio: ConversationDto["anuncio"] = null
+  anuncio: ConversationDto["anuncio"] = null,
+  assigneeName: string | null = null
 ): ConversationDto {
   return {
     id: c.id,
     channel: c.channel,
     contact: { id: contact.id, name: contact.name, phone: contact.phone },
+    assignee: contact.assignedUserId
+      ? { id: contact.assignedUserId, name: assigneeName ?? "" }
+      : null,
     stageName,
     aiEnabled: c.aiEnabled,
     handoffAt: c.handoffAt?.toISOString() ?? null,
@@ -170,8 +220,9 @@ export function serializeConversation(
   };
 }
 
+/** Solo actualiza si la sesión puede ver la conversación (020). */
 export async function updateConversation(
-  organizationId: string,
+  access: Access,
   conversationId: string,
   patch: { aiEnabled?: boolean; reactivate?: boolean; markRead?: boolean }
 ) {
@@ -189,8 +240,10 @@ export async function updateConversation(
     .update(schema.conversation)
     .set(set)
     .where(
-      and(
-        eq(schema.conversation.organizationId, organizationId),
+      scopedContacts(
+        schema.conversation.organizationId,
+        access,
+        schema.conversation.contactId,
         eq(schema.conversation.id, conversationId)
       )
     )

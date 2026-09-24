@@ -1,8 +1,8 @@
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { apiError, parseBody, withAuth } from "@/lib/api";
 import { getDb, schema } from "@/lib/db";
-import { scoped } from "@/lib/db/tenant";
+import { scopedContacts } from "@/lib/db/tenant";
 import { publish } from "@/server/events/bus";
 import { moveLeadToStage } from "@/server/leads/stage-history";
 import { getBranding } from "@/server/branding";
@@ -52,6 +52,21 @@ export const PATCH = withAuth(async (session, req: Request, ctx: Params) => {
   const body = await parseBody(req, patchSchema);
   if (!body.ok) return body.response;
 
+  // 020: un asesor mueve SUS leads; el de otro no existe para él (404).
+  const visible = await getDb()
+    .select({ id: schema.lead.id })
+    .from(schema.lead)
+    .where(
+      scopedContacts(
+        schema.lead.organizationId,
+        session.access,
+        schema.lead.contactId,
+        eq(schema.lead.id, id)
+      )
+    )
+    .limit(1);
+  if (!visible[0]) return apiError(404, "not_found", "Lead no encontrado");
+
   // El monto viaja en el MISMO update que el movimiento: capturarlo mientras
   // se arrastra la tarjeta no debe costar dos viajes ni dejar un estado a
   // medias si el segundo falla.
@@ -85,9 +100,10 @@ export const PATCH = withAuth(async (session, req: Request, ctx: Params) => {
       .update(schema.lead)
       .set({ ...extra, updatedAt: new Date() })
       .where(
-        scoped(
+        scopedContacts(
           schema.lead.organizationId,
-          session.organizationId,
+          session.access,
+          schema.lead.contactId,
           eq(schema.lead.id, id)
         )
       )
@@ -131,8 +147,10 @@ export const PATCH = withAuth(async (session, req: Request, ctx: Params) => {
     .select({ id: schema.conversation.id })
     .from(schema.conversation)
     .where(
-      and(
-        eq(schema.conversation.organizationId, session.organizationId),
+      scopedContacts(
+        schema.conversation.organizationId,
+        session.access,
+        schema.conversation.contactId,
         eq(schema.conversation.contactId, res.lead.contactId),
         eq(schema.conversation.isTest, false)
       )

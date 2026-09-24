@@ -27,7 +27,7 @@ export const GET = withAuth(async (session) => {
       tokenLast4: tokenLast4(creds.token),
     },
   });
-});
+}, { permission: "settings.manage" });
 
 const putSchema = z.object({
   source: z.enum(["zernio", "meta"]),
@@ -72,7 +72,7 @@ export const PUT = withAuth(async (session, req: Request) => {
   });
 
   return Response.json({ ok: true, username: check.username ?? null });
-});
+}, { permission: "settings.manage" });
 
 type Check =
   | { ok: true; username: string | null }

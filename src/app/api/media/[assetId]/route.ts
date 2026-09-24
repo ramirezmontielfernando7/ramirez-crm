@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { apiError, withAuth } from "@/lib/api";
 import { getDb, schema } from "@/lib/db";
-import { scoped } from "@/lib/db/tenant";
+import { scopedMediaAssets } from "@/lib/db/tenant";
 import {
   ensureAssetAvailable,
   readMediaFile,
@@ -28,9 +28,10 @@ export const GET = withAuth(async (session, _req: Request, ctx: Params) => {
     .select()
     .from(schema.mediaAsset)
     .where(
-      scoped(
+      scopedMediaAssets(
         schema.mediaAsset.organizationId,
-        session.organizationId,
+        session.access,
+        schema.mediaAsset.id,
         eq(schema.mediaAsset.id, assetId)
       )
     )

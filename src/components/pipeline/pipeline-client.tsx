@@ -25,6 +25,7 @@ import { LossReasonDialog } from "./loss-reason-dialog";
 import { AmountDialog } from "./amount-dialog";
 import { PriorityBadge } from "./priority-picker";
 import { LeadDrawer } from "./lead-drawer";
+import { useViewer } from "@/components/viewer-context";
 
 export type BoardLead = {
   id: string;
@@ -36,9 +37,12 @@ export type BoardLead = {
   amountCents: number | null;
   currency: string | null;
   priority: PriorityValue | null;
+  /** 020: quién lo atiende; null = sin asignar. */
+  assignee: { id: string; name: string } | null;
 };
 
 export function PipelineClient() {
+  const viewer = useViewer();
   const [stages, setStages] = useState<StageDto[]>([]);
   const [currency, setCurrency] = useState("MXN");
   const [leads, setLeads] = useState<BoardLead[]>([]);
@@ -174,9 +178,13 @@ export function PipelineClient() {
     <div className="flex h-full flex-col">
       <header className="flex flex-wrap items-center justify-between gap-2 border-b px-4 py-3 sm:px-6 sm:py-4">
         <h2 className="text-[17px] font-bold tracking-tight">Pipeline</h2>
-        <Button variant="outline" size="sm" onClick={() => setManaging(true)}>
-          <Settings2 className="h-4 w-4" /> Gestionar etapas
-        </Button>
+        {/* 020: crear, editar y borrar etapas no es del asesor (la API lo
+            niega igual); mover sus tarjetas sí. */}
+        {viewer.can("pipeline.edit") && (
+          <Button variant="outline" size="sm" onClick={() => setManaging(true)}>
+            <Settings2 className="h-4 w-4" /> Gestionar etapas
+          </Button>
+        )}
       </header>
 
       {/* El tablero se arrastra en horizontal; en el teléfono cada columna
@@ -422,6 +430,7 @@ function LeadCard({
   overlay?: boolean;
   onEditAmount?: (lead: BoardLead) => void;
 }) {
+  const showAssignee = useViewer().can("scope.all");
   return (
     <div
       className={cn(
@@ -436,10 +445,12 @@ function LeadCard({
             <p className="truncate text-sm font-semibold">{lead.contact.name}</p>
             {lead.priority && <PriorityBadge value={lead.priority} />}
           </div>
-          <p className="text-[11px] text-muted-foreground">
+          <p className="truncate text-[11px] text-muted-foreground">
             {lead.lastActivityAt
               ? `Actividad: ${formatTime(lead.lastActivityAt)}`
               : "Sin actividad"}
+            {/* 020: a quién está asignado, visible para quien ve al equipo. */}
+            {showAssignee && ` · ${lead.assignee?.name ?? "Sin asignar"}`}
           </p>
         </div>
         {lead.conversationId && (

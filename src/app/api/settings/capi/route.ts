@@ -25,7 +25,7 @@ export const GET = withAuth(async (session) => {
   if (!atribucionEnabled()) return atribucionDisabledResponse();
   const capi = await getCapiSettingsView(session.organizationId);
   return Response.json({ capi });
-});
+}, { permission: "settings.manage" });
 
 const putSchema = z.object({
   datasetId: z.string().trim().min(1),
@@ -77,10 +77,10 @@ export const PUT = withAuth(async (session, req: Request) => {
     qualifiedStageId,
   });
   return Response.json({ ok: true });
-});
+}, { permission: "settings.manage" });
 
 export const DELETE = withAuth(async (session) => {
   if (!atribucionEnabled()) return atribucionDisabledResponse();
   await deleteCapiSettings(session.organizationId);
   return Response.json({ ok: true });
-});
+}, { permission: "settings.manage" });

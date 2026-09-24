@@ -5,6 +5,24 @@ sigue el SemVer del [README](README.md#versiones): una menor trae funciones
 nuevas y actualizar es redesplegar. Desde 1.4.0, cada tag `vX.Y.Z` publica la
 imagen `ghcr.io/kevinrivm/vocero-crm:X.Y.Z`.
 
+## Sin publicar
+
+### Roles y asignación de chats (spec 020)
+
+- **Tres roles.** Propietario (todo, como hoy), Coordinador (ve a todo el
+  equipo, reparte chats, edita etapas y plantillas, ve los resultados de todos)
+  y Asesor (solo sus chats, leads y resultados). Los permisos se validan en el
+  servidor en cada ruta: antes, varias pantallas de configuración no
+  revisaban rol.
+- **Asignación.** Cada lead/chat puede tener a alguien asignado; los nuevos
+  llegan sin asignar. Reasignación en lote (Ajustes → Equipo o selección en la
+  Bandeja) e historial de quién tuvo cada lead.
+- **Actualizar.** La migración `0015_roles_y_asignacion` solo agrega columnas y
+  tablas. Todo contacto queda sin asignar y el propietario sigue siendo
+  propietario. **Las cuentas de equipo que ya existían pasan a Coordinador**
+  (siguen viendo todo, como hasta hoy); bájalas a Asesor desde Ajustes → Equipo
+  cuando hayas repartido sus chats, o dejarán de verlos.
+
 ## 1.4.0 — 2026-09-XX
 
 ### Actualizar desde 1.3.0

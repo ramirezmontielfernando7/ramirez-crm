@@ -7,6 +7,11 @@ export type ConversationDto = {
   /** 014: canal de la conversacion, para el distintivo de la bandeja. */
   channel: Channel;
   contact: { id: string; name: string; phone: string | null };
+  /**
+   * 020: quién del equipo atiende este chat. null = sin asignar. Con
+   * `handoffAt` le dice al asesor que el chat lo espera a él.
+   */
+  assignee: { id: string; name: string } | null;
   stageName: string | null;
   aiEnabled: boolean;
   handoffAt: string | null;

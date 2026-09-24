@@ -152,6 +152,11 @@ export function InboxClient({ channels }: { channels: readonly Channel[] }) {
       // El agente movió de etapa o cambió el handoff: refresca el panel en vivo.
       setDetailRev((v) => v + 1);
     },
+    // 020: me asignaron o me quitaron chats (o, si reparto, cambió el reparto).
+    onAssignmentChanged: () => {
+      void refetchConversations();
+      setDetailRev((v) => v + 1);
+    },
     onReconnect: () => {
       // Catch-up tras reconexión (contrato sse.md): refetch completo.
       void refetchConversations();

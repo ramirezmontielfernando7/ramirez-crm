@@ -12,6 +12,8 @@ import { BotSection } from "./bot-section";
 import { HygieneSection } from "./hygiene-section";
 import { defaultRange, RangePicker, type Range } from "./range-picker";
 import { SalesSection } from "./sales-section";
+import { useViewer } from "@/components/viewer-context";
+import { useAssignees } from "@/components/assignment/use-assignees";
 
 type Block<T> = { data: T | null; loading: boolean; error: string | null };
 
@@ -77,33 +79,61 @@ export function ResultsClient({
   const [ads, setAds] = useState<Block<AdsBlockDto>>(inicial);
   const [bot, setBot] = useState<Block<BotBlockDto>>(inicial);
   const [hygiene, setHygiene] = useState<Block<HygieneBlockDto>>(inicial);
+  // 020: quien ve al equipo elige de quién son los números; el asesor ve los
+  // suyos (el servidor lo impone igual).
+  const viewer = useViewer();
+  const teamView = viewer.can("results.all");
+  const team = useAssignees();
+  const [person, setPerson] = useState<string>("");
+  const who = person ? `&userId=${encodeURIComponent(person)}` : "";
 
   useEffect(() => {
     const ctl = new AbortController();
-    const q = `from=${range.from}&to=${range.to}`;
+    const q = `from=${range.from}&to=${range.to}${who}`;
     void cargar(`/api/analytics/sales?${q}`, setSales, ctl.signal);
     void cargar(`/api/analytics/ads?${q}`, setAds, ctl.signal);
     void cargar(`/api/analytics/bot?${q}`, setBot, ctl.signal);
     return () => ctl.abort();
-  }, [range]);
+  }, [range, who]);
 
   // La higiene describe el AHORA: no depende del rango elegido.
   useEffect(() => {
     const ctl = new AbortController();
-    void cargar("/api/analytics/hygiene", setHygiene, ctl.signal);
+    void cargar(`/api/analytics/hygiene?${who.slice(1)}`, setHygiene, ctl.signal);
     return () => ctl.abort();
-  }, []);
+  }, [who]);
 
   return (
     <div className="flex h-full flex-col">
       <header className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3 sm:px-6 sm:py-4">
         <div className="min-w-0">
-          <h2 className="text-[17px] font-bold tracking-tight">Resultados</h2>
+          <h2 className="text-[17px] font-bold tracking-tight">
+            {teamView ? "Resultados" : "Tus resultados"}
+          </h2>
           <p className="text-xs text-text-3">
-            Ventas, el trabajo del agente, de dónde llegan y qué se está cayendo.
+            {teamView
+              ? "Ventas, el trabajo del agente, de dónde llegan y qué se está cayendo."
+              : "Lo de tus chats y leads asignados: ventas, de dónde llegan y qué se está cayendo."}
           </p>
         </div>
-        <RangePicker value={range} onChange={setRange} today={today} timezone={timezone} />
+        <div className="flex flex-wrap items-center gap-2">
+          {teamView && (
+            <select
+              value={person}
+              onChange={(e) => setPerson(e.target.value)}
+              aria-label="Resultados de"
+              className="h-9 rounded-md border border-input bg-card px-2 text-sm"
+            >
+              <option value="">Todo el equipo</option>
+              {team.map((m) => (
+                <option key={m.userId} value={m.userId}>
+                  {m.name}
+                </option>
+              ))}
+            </select>
+          )}
+          <RangePicker value={range} onChange={setRange} today={today} timezone={timezone} />
+        </div>
       </header>
 
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-3 sm:p-6">

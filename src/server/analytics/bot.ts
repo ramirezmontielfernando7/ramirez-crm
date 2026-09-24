@@ -1,6 +1,6 @@
 import { eq, gte, isNotNull, lt, sql } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
-import { scoped } from "@/lib/db/tenant";
+import { scopedContacts, type Access } from "@/lib/db/tenant";
 import {
   HANDOFF_LABEL,
   rate,
@@ -26,20 +26,20 @@ import { notLabContact } from "@/server/analytics/shared";
  * de lo que es.
  */
 export async function botBlock(
-  organizationId: string,
+  scope: Access,
   period: ResolvedPeriod,
   agenda: boolean = agendaEnabled()
 ): Promise<BotBlockDto> {
   const { start, end } = period;
 
   const [conteos, primera, handoffs, sesiones, ficha] = await Promise.all([
-    conteosDeLaCohorte(organizationId, start, end),
-    medianaPrimeraRespuesta(organizationId, start, end),
-    escalamientos(organizationId, start, end),
+    conteosDeLaCohorte(scope, start, end),
+    medianaPrimeraRespuesta(scope, start, end),
+    escalamientos(scope, start, end),
     // Sin la bandera no hay agenda, y sin agenda no hay citas que contar: ni
     // siquiera se consulta (spec 019, D4).
-    agenda ? sesionesDelPeriodo(organizationId, start, end) : Promise.resolve(null),
-    coberturaDeFicha(organizationId, start, end),
+    agenda ? sesionesDelPeriodo(scope, start, end) : Promise.resolve(null),
+    coberturaDeFicha(scope, start, end),
   ]);
 
   const escalados = handoffs.reduce((a, h) => a + h.count, 0);
@@ -68,10 +68,11 @@ export async function botBlock(
 const conversacionId = sql.raw(`"conversation"."id"`);
 
 /** Las conversaciones reales que empezaron en el rango. */
-function cohorte(organizationId: string, start: Date, end: Date) {
-  return scoped(
+function cohorte(scope: Access, start: Date, end: Date) {
+  return scopedContacts(
     schema.conversation.organizationId,
-    organizationId,
+    scope,
+    schema.conversation.contactId,
     eq(schema.conversation.isTest, false),
     gte(schema.conversation.createdAt, start),
     lt(schema.conversation.createdAt, end)
@@ -83,7 +84,7 @@ function cohorte(organizationId: string, start: Date, end: Date) {
  * agente. «El agente» es todo saliente con origen IA: el in-process y un
  * cerebro externo por `/api/bot/messages` escriben igual.
  */
-async function conteosDeLaCohorte(organizationId: string, start: Date, end: Date) {
+async function conteosDeLaCohorte(scope: Access, start: Date, end: Date) {
   const entrante = sql`exists (select 1 from "message" mi where mi."conversation_id" = ${conversacionId} and mi."direction" = 'in')`;
   const delAgente = sql`exists (select 1 from "message" mo where mo."conversation_id" = ${conversacionId} and mo."direction" = 'out' and mo."origin" = 'ai')`;
   const rows = await getDb()
@@ -93,7 +94,7 @@ async function conteosDeLaCohorte(organizationId: string, start: Date, end: Date
       contestoElAgente: sql<number>`count(*) filter (where ${entrante} and ${delAgente})::int`,
     })
     .from(schema.conversation)
-    .where(cohorte(organizationId, start, end));
+    .where(cohorte(scope, start, end));
   return {
     total: rows[0]?.total ?? 0,
     conEntrante: rows[0]?.conEntrante ?? 0,
@@ -108,7 +109,7 @@ async function conteosDeLaCohorte(organizationId: string, start: Date, end: Date
  * haría ver lento a un agente que contesta en segundos.
  */
 async function medianaPrimeraRespuesta(
-  organizationId: string,
+  scope: Access,
   start: Date,
   end: Date
 ): Promise<{ median: number | null; sample: number }> {
@@ -125,7 +126,7 @@ async function medianaPrimeraRespuesta(
       ))`,
     })
     .from(schema.conversation)
-    .where(cohorte(organizationId, start, end));
+    .where(cohorte(scope, start, end));
 
   const valores = rows
     .map((r) => (r.segundos === null ? null : Number(r.segundos)))
@@ -136,7 +137,7 @@ async function medianaPrimeraRespuesta(
 
 /** De la cohorte, las que hoy están en manos de un humano, por motivo. */
 async function escalamientos(
-  organizationId: string,
+  scope: Access,
   start: Date,
   end: Date
 ): Promise<LabeledCountDto[]> {
@@ -147,9 +148,10 @@ async function escalamientos(
     })
     .from(schema.conversation)
     .where(
-      scoped(
+      scopedContacts(
         schema.conversation.organizationId,
-        organizationId,
+        scope,
+        schema.conversation.contactId,
         eq(schema.conversation.isTest, false),
         gte(schema.conversation.createdAt, start),
         lt(schema.conversation.createdAt, end),
@@ -172,7 +174,7 @@ async function escalamientos(
 
 /** Citas del periodo por desenlace. Las de prueba no son citas. */
 async function sesionesDelPeriodo(
-  organizationId: string,
+  scope: Access,
   start: Date,
   end: Date
 ): Promise<SessionsDto> {
@@ -180,9 +182,10 @@ async function sesionesDelPeriodo(
     .select({ status: schema.booking.status, n: sql<number>`count(*)::int` })
     .from(schema.booking)
     .where(
-      scoped(
+      scopedContacts(
         schema.booking.organizationId,
-        organizationId,
+        scope,
+        schema.booking.contactId,
         eq(schema.booking.kind, "session"),
         eq(schema.booking.isTest, false),
         gte(schema.booking.scheduledAt, start),
@@ -214,7 +217,7 @@ async function sesionesDelPeriodo(
  * aplica. Enseñar 0 % ahí sería acusarlo de no hacer algo que nunca se le
  * pidió.
  */
-async function coberturaDeFicha(organizationId: string, start: Date, end: Date) {
+async function coberturaDeFicha(scope: Access, start: Date, end: Date) {
   const db = getDb();
   const conFicha = sql`${schema.contact.ficha} is not null and ${schema.contact.ficha}::text <> '{}'`;
   const [cohorteContactos, alguna] = await Promise.all([
@@ -225,9 +228,10 @@ async function coberturaDeFicha(organizationId: string, start: Date, end: Date) 
       })
       .from(schema.contact)
       .where(
-        scoped(
+        scopedContacts(
           schema.contact.organizationId,
-          organizationId,
+          scope,
+          schema.contact.id,
           gte(schema.contact.createdAt, start),
           lt(schema.contact.createdAt, end),
           notLabContact(schema.contact.id)
@@ -237,9 +241,10 @@ async function coberturaDeFicha(organizationId: string, start: Date, end: Date) 
       .select({ n: sql<number>`count(*)::int` })
       .from(schema.contact)
       .where(
-        scoped(
+        scopedContacts(
           schema.contact.organizationId,
-          organizationId,
+          scope,
+          schema.contact.id,
           conFicha,
           notLabContact(schema.contact.id)
         )

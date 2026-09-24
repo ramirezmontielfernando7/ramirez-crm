@@ -22,7 +22,7 @@ export const GET = withAuth(async (session) => {
       tokenLast4: tokenLast4(creds.token),
     },
   });
-});
+}, { permission: "settings.manage" });
 
 const putSchema = z.object({
   wabaId: z.string().trim().min(1),
@@ -58,4 +58,4 @@ export const PUT = withAuth(async (session, req: Request) => {
     ok: true,
     displayPhoneNumber: check.displayPhoneNumber,
   });
-});
+}, { permission: "settings.manage" });

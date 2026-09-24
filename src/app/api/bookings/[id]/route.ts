@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { parseBody, withAuth } from "@/lib/api";
+import { apiError, parseBody, withAuth } from "@/lib/api";
+import { canTouchBooking } from "@/server/agenda/queries";
 import { agendaDisabledResponse, agendaEnabled } from "@/server/agenda/flag";
 import {
   cancelBooking,
@@ -32,6 +33,10 @@ export const PATCH = withAuth(async (session, req: Request, ctx: Params) => {
   const { id } = await ctx.params;
   const body = await parseBody(req, patchSchema);
   if (!body.ok) return body.response;
+  // 020: la cita del cliente de otro asesor no existe para este.
+  if (!(await canTouchBooking(session.access, id))) {
+    return apiError(404, "not_found", "Cita no encontrada");
+  }
 
   try {
     switch (body.data.action) {

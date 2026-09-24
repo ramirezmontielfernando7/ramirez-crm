@@ -1,6 +1,6 @@
 import { and, eq, gte, lt, sql } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
-import { scoped } from "@/lib/db/tenant";
+import { scopedContacts, type Access } from "@/lib/db/tenant";
 import {
   comparable,
   rate,
@@ -39,16 +39,16 @@ const FUENTES: readonly SourceKey[] = [...SOURCE_VALUES, "desconocida"];
 export const MAX_ANUNCIOS = 50;
 
 export async function adsBlock(
-  organizationId: string,
+  scope: Access,
   period: ResolvedPeriod
 ): Promise<AdsBlockDto> {
   const [convsPorFuente, leadsPorFuente, convsPorAnuncio, leadsPorAnuncio, previas] =
     await Promise.all([
-      conversacionesPorFuente(organizationId, period.start, period.end),
-      prospectosPorFuente(organizationId, period.start, period.end),
-      conversacionesPorAnuncio(organizationId, period.start, period.end),
-      prospectosPorAnuncio(organizationId, period.start, period.end),
-      contarConversaciones(organizationId, period.previousStart, period.previousEnd),
+      conversacionesPorFuente(scope, period.start, period.end),
+      prospectosPorFuente(scope, period.start, period.end),
+      conversacionesPorAnuncio(scope, period.start, period.end),
+      prospectosPorAnuncio(scope, period.start, period.end),
+      contarConversaciones(scope, period.previousStart, period.previousEnd),
     ]);
 
   const sources = unirFuentes(convsPorFuente, leadsPorFuente);
@@ -72,7 +72,7 @@ type ConteoLeads = { key: string | null; leads: number; won: number };
 
 /** Conversaciones reales que empezaron en el rango, por el origen del contacto. */
 async function conversacionesPorFuente(
-  organizationId: string,
+  scope: Access,
   start: Date,
   end: Date
 ): Promise<Conteo[]> {
@@ -88,9 +88,10 @@ async function conversacionesPorFuente(
     .from(schema.conversation)
     .innerJoin(schema.contact, eq(schema.contact.id, schema.conversation.contactId))
     .where(
-      scoped(
+      scopedContacts(
         schema.conversation.organizationId,
-        organizationId,
+        scope,
+        schema.conversation.contactId,
         eq(schema.conversation.isTest, false),
         gte(schema.conversation.createdAt, start),
         lt(schema.conversation.createdAt, end)
@@ -100,7 +101,7 @@ async function conversacionesPorFuente(
 }
 
 async function contarConversaciones(
-  organizationId: string,
+  scope: Access,
   start: Date,
   end: Date
 ): Promise<number> {
@@ -108,9 +109,10 @@ async function contarConversaciones(
     .select({ n: sql<number>`count(*)::int` })
     .from(schema.conversation)
     .where(
-      scoped(
+      scopedContacts(
         schema.conversation.organizationId,
-        organizationId,
+        scope,
+        schema.conversation.contactId,
         eq(schema.conversation.isTest, false),
         gte(schema.conversation.createdAt, start),
         lt(schema.conversation.createdAt, end)
@@ -121,7 +123,7 @@ async function contarConversaciones(
 
 /** Prospectos creados en el rango y cuántos de ellos están hoy en Ganado. */
 async function prospectosPorFuente(
-  organizationId: string,
+  scope: Access,
   start: Date,
   end: Date
 ): Promise<ConteoLeads[]> {
@@ -139,9 +141,10 @@ async function prospectosPorFuente(
     .innerJoin(schema.contact, eq(schema.contact.id, schema.lead.contactId))
     .innerJoin(schema.pipelineStage, eq(schema.pipelineStage.id, schema.lead.stageId))
     .where(
-      scoped(
+      scopedContacts(
         schema.lead.organizationId,
-        organizationId,
+        scope,
+        schema.lead.contactId,
         gte(schema.lead.createdAt, start),
         lt(schema.lead.createdAt, end),
         notLabContact(schema.lead.contactId)
@@ -175,7 +178,7 @@ type Metadatos = {
  * anuncio gana, 016), así que no hay doble conteo.
  */
 async function conversacionesPorAnuncio(
-  organizationId: string,
+  scope: Access,
   start: Date,
   end: Date
 ): Promise<(Metadatos & { conversations: number })[]> {
@@ -194,9 +197,10 @@ async function conversacionesPorAnuncio(
       )
     )
     .where(
-      scoped(
+      scopedContacts(
         schema.adAttribution.organizationId,
-        organizationId,
+        scope,
+        schema.adAttribution.contactId,
         gte(schema.conversation.createdAt, start),
         lt(schema.conversation.createdAt, end)
       )
@@ -213,7 +217,7 @@ async function conversacionesPorAnuncio(
  * dos conversaciones.
  */
 async function prospectosPorAnuncio(
-  organizationId: string,
+  scope: Access,
   start: Date,
   end: Date
 ): Promise<(Metadatos & { leads: number; won: number })[]> {
@@ -238,9 +242,10 @@ async function prospectosPorAnuncio(
       )
     )
     .where(
-      scoped(
+      scopedContacts(
         schema.lead.organizationId,
-        organizationId,
+        scope,
+        schema.lead.contactId,
         gte(schema.lead.createdAt, start),
         lt(schema.lead.createdAt, end),
         notLabContact(schema.lead.contactId)

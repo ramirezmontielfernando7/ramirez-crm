@@ -1,6 +1,10 @@
 import { and, asc, desc, eq, gt, isNotNull, isNull, lt, sql } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
-import { scoped } from "@/lib/db/tenant";
+import {
+  scopedContacts,
+  scopedConversations,
+  type Access,
+} from "@/lib/db/tenant";
 import { sumable } from "@/lib/money";
 import type { HygieneBlockDto } from "@/lib/analytics";
 import { notLabContact } from "@/server/analytics/shared";
@@ -19,14 +23,14 @@ export const SILENCIO_DIAS = 7;
 export const MAX_SILENCIOSOS = 50;
 
 export async function hygieneBlock(
-  organizationId: string,
+  scope: Access,
   businessCurrency: string,
   now: Date = new Date()
 ): Promise<HygieneBlockDto> {
   const [silencio, failedMessages, closingWindows] = await Promise.all([
-    leadsEnSilencio(organizationId, businessCurrency, now),
-    mensajesFallidos(organizationId, now),
-    ventanasPorVencer(organizationId, now),
+    leadsEnSilencio(scope, businessCurrency, now),
+    mensajesFallidos(scope, now),
+    ventanasPorVencer(scope, now),
   ]);
 
   return {
@@ -53,7 +57,7 @@ export async function hygieneBlock(
  * El total y el dinero salen de funciones de ventana, que se calculan ANTES
  * del límite: la lista se corta en 50, los números no.
  */
-async function leadsEnSilencio(organizationId: string, businessCurrency: string, now: Date) {
+async function leadsEnSilencio(scope: Access, businessCurrency: string, now: Date) {
   const corte = new Date(now.getTime() - SILENCIO_DIAS * 86_400_000);
   // `mapWith`: un timestamp en SQL crudo llega como texto SIN zona, y
   // `new Date()` lo leería en la hora local del servidor. El mapeador de la
@@ -84,9 +88,10 @@ async function leadsEnSilencio(organizationId: string, businessCurrency: string,
       )
     )
     .where(
-      scoped(
+      scopedContacts(
         schema.lead.organizationId,
-        organizationId,
+        scope,
+        schema.lead.contactId,
         eq(schema.pipelineStage.kind, "open"),
         isNull(schema.contact.archivedAt),
         notLabContact(schema.lead.contactId),
@@ -121,7 +126,7 @@ async function leadsEnSilencio(organizationId: string, businessCurrency: string,
 }
 
 /** Salientes que no llegaron en los últimos 30 días, por motivo. */
-async function mensajesFallidos(organizationId: string, now: Date) {
+async function mensajesFallidos(scope: Access, now: Date) {
   const desde = new Date(now.getTime() - 30 * 86_400_000);
 
   const rows = await getDb()
@@ -141,9 +146,10 @@ async function mensajesFallidos(organizationId: string, now: Date) {
       )
     )
     .where(
-      scoped(
+      scopedConversations(
         schema.message.organizationId,
-        organizationId,
+        scope,
+        schema.message.conversationId,
         eq(schema.message.status, "failed"),
         gt(schema.message.createdAt, desde)
       )
@@ -166,7 +172,7 @@ async function mensajesFallidos(organizationId: string, now: Date) {
  * Pasada esa ventana solo se puede escribir con plantilla: es la diferencia
  * entre responder gratis y gastar una.
  */
-async function ventanasPorVencer(organizationId: string, now: Date) {
+async function ventanasPorVencer(scope: Access, now: Date) {
   const limite = new Date(now.getTime() - 20 * 3_600_000);
   const vencida = new Date(now.getTime() - 24 * 3_600_000);
 
@@ -180,9 +186,10 @@ async function ventanasPorVencer(organizationId: string, now: Date) {
     .from(schema.conversation)
     .innerJoin(schema.contact, eq(schema.contact.id, schema.conversation.contactId))
     .where(
-      scoped(
+      scopedContacts(
         schema.conversation.organizationId,
-        organizationId,
+        scope,
+        schema.conversation.contactId,
         eq(schema.conversation.isTest, false),
         isNotNull(schema.conversation.lastInboundAt),
         lt(schema.conversation.lastInboundAt, limite),

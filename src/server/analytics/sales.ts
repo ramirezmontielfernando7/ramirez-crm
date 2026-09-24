@@ -1,6 +1,6 @@
 import { asc, desc, eq, gte, inArray, lt, sql } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
-import { scoped } from "@/lib/db/tenant";
+import { scoped, scopedContacts, type Access } from "@/lib/db/tenant";
 import { sumable } from "@/lib/money";
 import {
   bucketsDelPeriodo,
@@ -28,7 +28,7 @@ import { localDateExpr, notLabContact } from "@/server/analytics/shared";
  * de cierre del lead, una columna que el raíz no tiene (spec 019, D5).
  */
 export async function salesBlock(
-  organizationId: string,
+  scope: Access,
   period: ResolvedPeriod,
   businessCurrency: string
 ): Promise<SalesBlockDto> {
@@ -38,22 +38,22 @@ export async function salesBlock(
   // indicadores, la serie y los motivos de pérdida. Si cada bloque lo dedujera
   // por su cuenta podrían contradecirse entre sí en la misma pantalla.
   const [desenlaces, desenlacesPrev] = await Promise.all([
-    desenlacesDelPeriodo(organizationId, start, end),
-    desenlacesDelPeriodo(organizationId, previousStart, previousEnd),
+    desenlacesDelPeriodo(scope, start, end),
+    desenlacesDelPeriodo(scope, previousStart, previousEnd),
   ]);
   const cerrados = clasificarCierres(desenlaces, businessCurrency);
   const cerradosPrev = clasificarCierres(desenlacesPrev, businessCurrency);
 
   const [nuevos, nuevosPrev, timeToWinDays, serie, embudo, tiempos, completeFrom, vivo] =
     await Promise.all([
-      contarNuevos(organizationId, start, end),
-      contarNuevos(organizationId, previousStart, previousEnd),
-      diasHastaGanar(organizationId, cerrados.won),
-      serieTemporal(organizationId, period, cerrados.won, businessCurrency),
-      embudoCohorte(organizationId, start, end),
-      tiemposPorEtapa(organizationId, start, end),
-      primerEventoReal(organizationId),
-      pipelineVivo(organizationId, businessCurrency),
+      contarNuevos(scope, start, end),
+      contarNuevos(scope, previousStart, previousEnd),
+      diasHastaGanar(scope, cerrados.won),
+      serieTemporal(scope, period, cerrados.won, businessCurrency),
+      embudoCohorte(scope, start, end),
+      tiemposPorEtapa(scope, start, end),
+      primerEventoReal(scope),
+      pipelineVivo(scope, businessCurrency),
     ]);
 
   const wonCount = cerrados.won.length;
@@ -92,7 +92,7 @@ export async function salesBlock(
 
 /** Prospectos que entraron: leads creados en el rango, sin los del Laboratorio. */
 async function contarNuevos(
-  organizationId: string,
+  scope: Access,
   start: Date,
   end: Date
 ): Promise<number> {
@@ -100,9 +100,10 @@ async function contarNuevos(
     .select({ n: sql<number>`count(*)::int` })
     .from(schema.lead)
     .where(
-      scoped(
+      scopedContacts(
         schema.lead.organizationId,
-        organizationId,
+        scope,
+        schema.lead.contactId,
         gte(schema.lead.createdAt, start),
         lt(schema.lead.createdAt, end),
         notLabContact(schema.lead.contactId)
@@ -139,7 +140,7 @@ export type Desenlace = {
  * desaparecen.
  */
 async function desenlacesDelPeriodo(
-  organizationId: string,
+  scope: Access,
   start: Date,
   end: Date
 ): Promise<Desenlace[]> {
@@ -154,9 +155,10 @@ async function desenlacesDelPeriodo(
     .from(schema.leadStageEvent)
     .innerJoin(schema.lead, eq(schema.lead.id, schema.leadStageEvent.leadId))
     .where(
-      scoped(
+      scopedContacts(
         schema.leadStageEvent.organizationId,
-        organizationId,
+        scope,
+        schema.leadStageEvent.contactId,
         gte(schema.leadStageEvent.occurredAt, start),
         lt(schema.leadStageEvent.occurredAt, end),
         notLabContact(schema.leadStageEvent.contactId)
@@ -206,7 +208,7 @@ export function clasificarCierres(
  * cualquier edición posterior pisó, y contaminarían el promedio.
  */
 async function diasHastaGanar(
-  organizationId: string,
+  scope: Access,
   leadIds: string[]
 ): Promise<number | null> {
   if (leadIds.length === 0) return null;
@@ -217,9 +219,10 @@ async function diasHastaGanar(
     .from(schema.leadStageEvent)
     .innerJoin(schema.lead, eq(schema.lead.id, schema.leadStageEvent.leadId))
     .where(
-      scoped(
+      scopedContacts(
         schema.leadStageEvent.organizationId,
-        organizationId,
+        scope,
+        schema.leadStageEvent.contactId,
         inArray(schema.leadStageEvent.leadId, leadIds),
         eq(schema.leadStageEvent.toStageKind, "won"),
         eq(schema.leadStageEvent.approximate, false)
@@ -237,7 +240,7 @@ async function diasHastaGanar(
  * que mantiene la gráfica cuadrada con el indicador de arriba.
  */
 async function serieTemporal(
-  organizationId: string,
+  scope: Access,
   period: ResolvedPeriod,
   wonLeadIds: string[],
   businessCurrency: string
@@ -254,9 +257,10 @@ async function serieTemporal(
       })
       .from(schema.lead)
       .where(
-        scoped(
+        scopedContacts(
           schema.lead.organizationId,
-          organizationId,
+          scope,
+          schema.lead.contactId,
           gte(schema.lead.createdAt, start),
           lt(schema.lead.createdAt, end),
           notLabContact(schema.lead.contactId)
@@ -281,9 +285,10 @@ async function serieTemporal(
           .from(schema.leadStageEvent)
           .innerJoin(schema.lead, eq(schema.lead.id, schema.leadStageEvent.leadId))
           .where(
-            scoped(
+            scopedContacts(
               schema.leadStageEvent.organizationId,
-              organizationId,
+              scope,
+              schema.leadStageEvent.contactId,
               gte(schema.leadStageEvent.occurredAt, start),
               lt(schema.leadStageEvent.occurredAt, end),
               eq(schema.leadStageEvent.toStageKind, "won"),
@@ -331,7 +336,7 @@ async function serieTemporal(
  * mezcla de cohortes que daría contar eventos sueltos.
  */
 async function embudoCohorte(
-  organizationId: string,
+  scope: Access,
   start: Date,
   end: Date
 ): Promise<FunnelStepDto[]> {
@@ -341,7 +346,7 @@ async function embudoCohorte(
     db
       .select()
       .from(schema.pipelineStage)
-      .where(scoped(schema.pipelineStage.organizationId, organizationId))
+      .where(scoped(schema.pipelineStage.organizationId, scope.organizationId))
       .orderBy(asc(schema.pipelineStage.position)),
     db
       .select({
@@ -358,9 +363,10 @@ async function embudoCohorte(
         eq(schema.pipelineStage.id, schema.leadStageEvent.toStageId)
       )
       .where(
-        scoped(
+        scopedContacts(
           schema.leadStageEvent.organizationId,
-          organizationId,
+          scope,
+          schema.leadStageEvent.contactId,
           gte(schema.lead.createdAt, start),
           lt(schema.lead.createdAt, end),
           notLabContact(schema.leadStageEvent.contactId)
@@ -417,7 +423,7 @@ export function armarEmbudo(
  * medido contra una fecha sembrada por la migración no mide nada.
  */
 async function tiemposPorEtapa(
-  organizationId: string,
+  scope: Access,
   start: Date,
   end: Date
 ): Promise<StageTimingDto[]> {
@@ -431,9 +437,10 @@ async function tiemposPorEtapa(
     })
     .from(schema.leadStageEvent)
     .where(
-      scoped(
+      scopedContacts(
         schema.leadStageEvent.organizationId,
-        organizationId,
+        scope,
+        schema.leadStageEvent.contactId,
         eq(schema.leadStageEvent.approximate, false),
         gte(schema.leadStageEvent.occurredAt, start),
         lt(schema.leadStageEvent.occurredAt, end),
@@ -466,7 +473,7 @@ async function tiemposPorEtapa(
  * leads que ya existían); sin ellos el historial es completo desde el inicio y
  * no hay nada que advertir.
  */
-async function primerEventoReal(organizationId: string): Promise<string | null> {
+async function primerEventoReal(scope: Access): Promise<string | null> {
   const rows = await getDb()
     .select({
       at: sql<Date | null>`min(${schema.leadStageEvent.occurredAt}) filter (where ${schema.leadStageEvent.approximate} = false)`.mapWith(
@@ -475,7 +482,7 @@ async function primerEventoReal(organizationId: string): Promise<string | null> 
       sembrados: sql<number>`count(*) filter (where ${schema.leadStageEvent.approximate} = true)::int`,
     })
     .from(schema.leadStageEvent)
-    .where(scoped(schema.leadStageEvent.organizationId, organizationId));
+    .where(scopedContacts(schema.leadStageEvent.organizationId, scope, schema.leadStageEvent.contactId));
   if (!rows[0]?.sembrados) return null;
   return rows[0].at?.toISOString() ?? null;
 }
@@ -509,7 +516,7 @@ export function motivosDePerdida(desenlaces: Desenlace[]): LossReasonRowDto[] {
  * `integer`.
  */
 async function pipelineVivo(
-  organizationId: string,
+  scope: Access,
   businessCurrency: string
 ): Promise<SalesBlockDto["pipeline"]> {
   const mismaMoneda = sql`coalesce(${schema.lead.currency}, ${businessCurrency}) = ${businessCurrency}`;
@@ -522,9 +529,10 @@ async function pipelineVivo(
     .from(schema.lead)
     .innerJoin(schema.pipelineStage, eq(schema.pipelineStage.id, schema.lead.stageId))
     .where(
-      scoped(
+      scopedContacts(
         schema.lead.organizationId,
-        organizationId,
+        scope,
+        schema.lead.contactId,
         eq(schema.pipelineStage.kind, "open"),
         notLabContact(schema.lead.contactId)
       )

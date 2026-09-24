@@ -3,6 +3,7 @@ import { betterAuth } from "better-auth";
 import { APIError, createAuthMiddleware } from "better-auth/api";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { organization } from "better-auth/plugins";
+import { ac, roles } from "@/lib/auth/permissions";
 import { getDb, schema } from "@/lib/db";
 import { getEnv } from "@/lib/env";
 import { AUTH_RATE_LIMIT, checkRateLimit, clientIp } from "@/lib/rate-limit";
@@ -62,7 +63,9 @@ function createAuth() {
       requireEmailVerification: false,
       minPasswordLength: 8,
     },
-    plugins: [organization({ creatorRole: "owner" })],
+    // 020: los roles de Vocero (Propietario/Coordinador/Asesor) son los del
+    // control de acceso del plugin; la matriz vive en `permissions.ts`.
+    plugins: [organization({ creatorRole: "owner", ac, roles })],
     hooks: {
       before: createAuthMiddleware(async (ctx) => {
         // Rate limit por IP en login/registro (FR-062): 10 / 10 min → 429.

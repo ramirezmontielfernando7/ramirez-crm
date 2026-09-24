@@ -43,6 +43,8 @@ externas: el trabajo en segundo plano (agente, Laboratorio) es in-process.
 | De qué anuncio llegó cada conversación (siempre visible) | `src/server/attribution/referral.ts` (normalización) · `creativo.ts` (copia de la imagen, solo hosts de Meta) · `store.ts` · tarjeta en `src/components/anuncio-origen.tsx` |
 | Los números de Resultados (ventas, agente, origen y anuncios, higiene) | `src/server/analytics/` (un módulo por sección; periodo en la zona del negocio en `period.ts`; exclusión del Laboratorio en `shared.ts`) · contratos y tasas en `src/lib/analytics.ts` · UI en `src/components/results/` · spec [019](specs/019-resultados/spec.md) |
 | La atribución de anuncios y el reporte a Meta | `src/server/attribution/` — el `ctwa_clid`, la CAPI y Ajustes → Anuncios detrás de la bandera `ATRIBUCION` (`flag.ts`) + `src/lib/meta/capi.ts` · guía: [docs/atribucion-capi.md](docs/atribucion-capi.md) |
+| Roles y permisos (Propietario / Coordinador / Asesor) | `src/lib/auth/permissions.ts` (la matriz, única; `can(session, "…")`) · 403 en servidor con `withAuth(handler, { permission })` de `src/lib/api.ts` · UI: `useViewer()` de `src/components/viewer-context.tsx` · spec [020](specs/020-roles-asignacion/spec.md) |
+| A quién está asignado un chat/lead y quién lo ve | `src/server/assignment/assign.ts` (ÚNICA puerta que escribe `contact.assigned_user_id` + bitácora `contact_assignment_event`) · filtro central `scopedContacts()`/`scopedConversations()` en `src/lib/db/tenant.ts` (nunca `scoped()` a secas para datos de clientes en rutas de usuario: hay test de vigilancia) · reparto de leads nuevos: `src/server/assignment/strategy.ts` · SSE: `src/server/events/visibility.ts` |
 | UI | `src/components/` + `src/app/(app)/` |
 
 Los mocks del entorno de pruebas viven en `src/app/api/dev/` (wa-mock +
@@ -76,7 +78,11 @@ Ver [.specify/memory/constitution.md](.specify/memory/constitution.md).
 - **Seguridad (I)**: secretos cifrados en reposo (AES-256-GCM, `lib/crypto`);
   jamás al cliente ni a logs. El token de WhatsApp solo muestra sus últimos 4.
 - **Multi-tenancy (III)**: `organization_id` NOT NULL en toda tabla de dominio;
-  toda query pasa por `scoped()` de `src/lib/db/tenant.ts`.
+  toda query pasa por `scoped()` de `src/lib/db/tenant.ts` — y, si responde a
+  una persona con datos de clientes, por `scopedContacts()` (020).
+- **Permisos (020)**: se validan en el SERVIDOR, en cada ruta, con la matriz
+  de `src/lib/auth/permissions.ts`. Nunca `session.role === "owner"` suelto;
+  una ruta nueva va en la tabla de `tests/unit/permissions-routes.test.ts`.
 - **Idempotencia (IV)**: webhooks dedup por `wa_message_id` UNIQUE; estados
   monotónicos; seeds y migraciones re-ejecutables.
 - **Sandbox del Laboratorio**: las conversaciones `is_test` JAMÁS tocan la API

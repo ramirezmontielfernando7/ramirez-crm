@@ -2,10 +2,13 @@ import { BrandingClient } from "@/components/settings/branding-client";
 import { FaviconCard } from "@/components/settings/favicon-card";
 import { getBranding } from "@/server/branding";
 import { getSessionOrNull } from "@/lib/auth/session";
+import { requirePagePermission } from "@/lib/auth/page-guard";
 
 export const dynamic = "force-dynamic";
 
 export default async function BrandingSettingsPage() {
+  // 020: sin permiso, de vuelta a la Bandeja (la API ya responde 403).
+  await requirePagePermission("settings.manage");
   // La marca se lee en el servidor para que la tarjeta del icono ya pinte la
   // vista previa correcta en el primer render, sin un parpadeo del generado al
   // subido mientras un fetch del cliente va y vuelve.

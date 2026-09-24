@@ -92,9 +92,42 @@ export const member = pgTable("member", {
   userId: text("user_id")
     .notNull()
     .references(() => user.id, { onDelete: "cascade" }),
-  role: text("role").notNull().default("member"),
+  /**
+   * 020: `owner` (Propietario) · `coordinador` · `asesor`. Texto libre en BD
+   * a propósito (lo exige better-auth); lo que vale cada rol lo decide
+   * `src/lib/auth/permissions.ts`, y un rol desconocido no puede nada.
+   */
+  role: text("role").notNull().default("asesor"),
+  /**
+   * 020: equipo de ventas del miembro. Esquema listo, sin interfaz todavía:
+   * NULL = sin equipo, que es lo que tienen todas las instancias hoy.
+   */
+  salesTeamId: text("sales_team_id").references(() => salesTeam.id, {
+    onDelete: "set null",
+  }),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
+
+/**
+ * 020 — Equipo de ventas: un coordinador por equipo. Solo esquema; la interfaz
+ * llega después. Vive aparte del `team` de better-auth a propósito: aquel
+ * cambia la sesión (`activeTeamId`) y no sabe nada de coordinadores.
+ */
+export const salesTeam = pgTable(
+  "sales_team",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    coordinatorUserId: text("coordinator_user_id").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [index("sales_team_org_idx").on(t.organizationId)]
+);
 
 export const invitation = pgTable("invitation", {
   id: text("id").primaryKey(),
@@ -178,10 +211,23 @@ export const contact = pgTable(
       enum: ["anuncio", "organico", "referido", "conocido", "otro"],
     }),
     archivedAt: timestamp("archived_at"),
+    /**
+     * 020: quién del equipo atiende a este contacto (su lead, su conversación
+     * y sus citas). NULL = sin asignar, que es como nace todo lead.
+     *
+     * Regla dura: la ÚNICA puerta que escribe esta columna es
+     * `src/server/assignment/assign.ts`, que a la vez anota el movimiento en
+     * `contact_assignment_event`. Un test de vigilancia lo exige.
+     */
+    assignedUserId: text("assigned_user_id").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    assignedAt: timestamp("assigned_at"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },
   (t) => [
+    index("contact_org_assigned_idx").on(t.organizationId, t.assignedUserId),
     // 014: el canal entra en la llave. Sin el, un IGSID que coincidiera con
     // un telefono normalizado mezclaria dos personas en silencio.
     uniqueIndex("contact_org_channel_identity_uq").on(
@@ -336,6 +382,72 @@ export const leadStageEvent = pgTable(
     ),
   ]
 );
+
+/**
+ * 020 — Bitácora de asignaciones: append-only, mismo contrato que
+ * `lead_stage_event`. Responde "¿quién tenía este lead, desde cuándo y quién
+ * lo reasignó?". La única puerta que escribe aquí es
+ * `src/server/assignment/assign.ts`.
+ */
+export const contactAssignmentEvent = pgTable(
+  "contact_assignment_event",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    contactId: text("contact_id")
+      .notNull()
+      .references(() => contact.id, { onDelete: "cascade" }),
+    /** Denormalizado para cruzar con el embudo sin otro join. */
+    leadId: text("lead_id").references(() => lead.id, { onDelete: "set null" }),
+    /** NULL = estaba sin asignar. */
+    fromUserId: text("from_user_id").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    /** NULL = quedó sin asignar. */
+    toUserId: text("to_user_id").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    /** Quién lo reasignó; NULL = no fue una persona. */
+    actorUserId: text("actor_user_id").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    /** `auto` queda reservado para el reparto automático (round-robin). */
+    source: text("source", {
+      enum: ["manual", "lote", "auto", "sistema", "migracion"],
+    })
+      .notNull()
+      .default("manual"),
+    reason: text("reason"),
+    /** Agrupa los movimientos de una misma reasignación en lote. */
+    batchId: text("batch_id"),
+    occurredAt: timestamp("occurred_at").notNull().defaultNow(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    index("cae_org_occurred_idx").on(t.organizationId, t.occurredAt),
+    index("cae_contact_occurred_idx").on(t.contactId, t.occurredAt),
+  ]
+);
+
+/**
+ * 020 — Cómo se reparten los leads nuevos. Reservado: hoy solo existe
+ * `manual` (llegan sin asignar). El round-robin leerá `mode` y avanzará
+ * `cursor_user_id`; ver `src/server/assignment/strategy.ts`.
+ */
+export const assignmentSettings = pgTable("assignment_settings", {
+  organizationId: text("organization_id")
+    .primaryKey()
+    .references(() => organization.id, { onDelete: "cascade" }),
+  mode: text("mode", { enum: ["manual", "round_robin"] })
+    .notNull()
+    .default("manual"),
+  cursorUserId: text("cursor_user_id").references(() => user.id, {
+    onDelete: "set null",
+  }),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
 
 export const conversation = pgTable(
   "conversation",

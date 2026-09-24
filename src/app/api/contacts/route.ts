@@ -3,10 +3,11 @@ import { z } from "zod";
 import { apiError, parseBody, withAuth } from "@/lib/api";
 import { getDb, schema } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
-import { scoped } from "@/lib/db/tenant";
+import { scopedContacts } from "@/lib/db/tenant";
 import { normalizeMx } from "@/lib/meta/client";
 import { digitsOnly, normalizeText } from "@/lib/search";
 import { serializeContact } from "@/server/contacts";
+import { assignContacts } from "@/server/assignment/assign";
 import { createLeadForContact } from "@/server/inbox/lead-activity";
 
 export const dynamic = "force-dynamic";
@@ -42,7 +43,9 @@ export const GET = withAuth(async (session, req: Request) => {
       schema.pipelineStage,
       eq(schema.pipelineStage.id, schema.lead.stageId)
     )
-    .where(scoped(schema.lead.organizationId, session.organizationId));
+    .where(
+      scopedContacts(schema.lead.organizationId, session.access, schema.lead.contactId)
+    );
   const stageByContact = new Map(
     leadStages.map((r) => [r.contactId, r.stageName])
   );
@@ -78,9 +81,10 @@ export const GET = withAuth(async (session, req: Request) => {
     .select()
     .from(schema.contact)
     .where(
-      scoped(
+      scopedContacts(
         schema.contact.organizationId,
-        session.organizationId,
+        session.access,
+        schema.contact.id,
         search,
         stageContactIds ? inArray(schema.contact.id, stageContactIds) : undefined
       )
@@ -171,8 +175,23 @@ export const POST = withAuth(async (session, req: Request) => {
     );
   }
 
+  // 020: quien no reparte (asesor) y captura a alguien a mano se lo queda —
+  // si no, lo daría de alta y dejaría de verlo en el mismo instante.
+  let contact = inserted[0];
+  if (!session.access.seesAll) {
+    await assignContacts({
+      organizationId: session.organizationId,
+      contactIds: [contact.id],
+      toUserId: session.userId,
+      actorUserId: session.userId,
+      source: "manual",
+      reason: "Alta manual",
+    });
+    contact = { ...contact, assignedUserId: session.userId, assignedAt: new Date() };
+  }
+
   return Response.json(
-    { contact: serializeContact(inserted[0]), lead: { id: lead.id } },
+    { contact: serializeContact(contact), lead: { id: lead.id } },
     { status: 201 }
   );
 });
