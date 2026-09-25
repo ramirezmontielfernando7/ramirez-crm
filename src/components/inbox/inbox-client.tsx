@@ -399,8 +399,8 @@ export function InboxClient({ channels }: { channels: readonly Channel[] }) {
           <div
             className={cn(
               "h-full w-[320px] max-xl:w-[min(320px,88vw)]",
-              "xl:transition-[opacity,transform] xl:duration-200 xl:ease-out",
-              panelOpen ? "xl:translate-x-0 xl:opacity-100" : "xl:translate-x-4 xl:opacity-0"
+              "xl:transition-[opacity,transform] xl:duration-200 xl:ease-spring",
+              panelOpen ? "xl:translate-x-0 xl:opacity-100" : "xl:translate-x-2 xl:opacity-0"
             )}
           >
             <ContactPanel

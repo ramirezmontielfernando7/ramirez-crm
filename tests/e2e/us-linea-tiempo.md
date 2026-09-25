@@ -17,10 +17,13 @@ Tres personas a la vez: propietario, asesor A y asesor B.
    el chat fuera suyo. B → 404 al leerla y al anotar.
 3. **Resultados.** A → `/api/analytics/sales` 403; el propietario 200.
 4. **Preferencia del menú.** Sin guardar → `null`; se guarda por usuario (no
-   se le cambia a otro); un valor inválido → 422.
+   se le cambia a otro); un valor inválido → 422. `navMode: "hidden"` se
+   guarda y deja `navCollapsed: true`; un modo que no existe → 422.
 5. **Navegador — propietario.** Menú abierto con Resultados; su animación no
    pasa de 300 ms. Colapsar → íconos; recargar → sigue colapsado (persistió);
-   el avatar abre la tarjeta con nombre y rol; expandir. Panel en orden
+   el avatar abre la tarjeta con nombre y rol; tercer clic → oculto: el menú
+   desaparece y "Mostrar el menú" queda fijo arriba a la izquierda; recargar →
+   sigue oculto; cuarto clic → expandido y el botón flotante se va. Panel en orden
    Asignación → Etapa → Más detalles → Actividad; "Más detalles" plegado y,
    abierto, Mensajes masivos → Etiquetas → Ficha. "Ver historial de
    asignación" existe y abre el historial. Actividad: "Nota añadida por…",
@@ -29,7 +32,8 @@ Tres personas a la vez: propietario, asesor A y asesor B.
    aparece arriba sin recargar y el campo se vacía. **Camino infeliz:** la API
    de notas responde 500 → se muestra el error y el borrador se conserva. Sin
    errores de JS.
-6. **Navegador — asesor.** Menú colapsado de entrada, sin Resultados;
-   expandido, tampoco. Sin "Ver historial de asignación", pero su Actividad
+6. **Navegador — asesor.** Menú colapsado de entrada, sin Resultados; el
+   ciclo sigue (íconos → oculto → expandido) y expandido tampoco hay
+   Resultados. Sin "Ver historial de asignación", pero su Actividad
    trae la asignación y la nota de antes. El switch de IA sigue ahí.
    `/results` → Bandeja. Sin errores de JS.

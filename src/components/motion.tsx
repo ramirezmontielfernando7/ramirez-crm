@@ -14,11 +14,14 @@ import { cn } from "@/lib/utils";
  *   cargaría el paquete entero — `strict` lo convierte en error.
  * - `reducedMotion="user"`: quien pidió menos movimiento en su sistema recibe
  *   cambios instantáneos (además de la regla global de `globals.css`).
- * - Nada pasa de 300 ms: el resorte se asienta en ~220 ms con un rebote leve.
+ * - Calibración: sutil, nunca protagonista. Nada pasa de 300 ms; el resorte
+ *   se asienta en ~200 ms con un rebote que se siente (asienta) pero no se ve
+ *   (0.12). Con 0.18 el giro del chevron ya se leía como rebote. La misma
+ *   intención tiene `ease-spring` en CSS (tailwind.config.ts).
  */
 
 /** El resorte de la app: rápido, con un rebote apenas perceptible. */
-export const SPRING = { type: "spring", duration: 0.22, bounce: 0.18 } as const;
+export const SPRING = { type: "spring", duration: 0.2, bounce: 0.12 } as const;
 /** Para lo que entra (filas de la línea de tiempo): sin rebote, más corto. */
 export const ENTER = { type: "spring", duration: 0.18, bounce: 0 } as const;
 

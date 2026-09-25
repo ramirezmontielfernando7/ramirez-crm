@@ -5,7 +5,7 @@ import {
   type TimelineActor,
   type TimelineItemDto,
 } from "@/lib/timeline";
-import { resolveNavCollapsed } from "@/lib/preferences";
+import { nextNavMode, resolveNavCollapsed, resolveNavMode } from "@/lib/preferences";
 
 /** 022 — La línea de tiempo en palabras: "[acción] por [quién]". */
 
@@ -129,5 +129,24 @@ describe("022 — el lateral colapsado por defecto depende del rol", () => {
   it("la preferencia guardada gana al default del rol", () => {
     expect(resolveNavCollapsed(false, "asesor")).toBe(false);
     expect(resolveNavCollapsed(true, "owner")).toBe(true);
+  });
+});
+
+describe("022 — el lateral de tres estados (escritorio)", () => {
+  it("el hamburguesa recorre expandido → íconos → oculto → expandido", () => {
+    expect(nextNavMode("expanded")).toBe("collapsed");
+    expect(nextNavMode("collapsed")).toBe("hidden");
+    expect(nextNavMode("hidden")).toBe("expanded");
+  });
+
+  it("el modo guardado gana; sin él se lee la preferencia vieja de dos estados", () => {
+    expect(resolveNavMode({ navMode: "hidden", navCollapsed: true }, "owner")).toBe("hidden");
+    expect(resolveNavMode({ navMode: null, navCollapsed: true }, "owner")).toBe("collapsed");
+    expect(resolveNavMode({ navMode: null, navCollapsed: false }, "asesor")).toBe("expanded");
+  });
+
+  it("sin nada guardado (o un valor que no existe), el default del rol", () => {
+    expect(resolveNavMode(null, "asesor")).toBe("collapsed");
+    expect(resolveNavMode({ navMode: "gigante", navCollapsed: null }, "coordinador")).toBe("expanded");
   });
 });

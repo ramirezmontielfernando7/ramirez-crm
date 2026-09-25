@@ -28,6 +28,7 @@ import { useEvents } from "@/components/use-events";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { BrandLogo, BrandTile } from "@/components/brand-mark";
 import { SPRING } from "@/components/motion";
+import type { NavMode } from "@/lib/preferences";
 import { useViewer } from "@/components/viewer-context";
 import { roleLabel, type Permission } from "@/lib/auth/permissions";
 import {
@@ -115,8 +116,8 @@ export function AppNav({
   campaigns = false,
   open = false,
   onClose,
-  collapsed = false,
-  onToggleCollapsed,
+  mode = "expanded",
+  onCycleMode,
 }: {
   branding: Branding;
   userName: string;
@@ -140,12 +141,12 @@ export function AppNav({
   open?: boolean;
   onClose?: () => void;
   /**
-   * 022 — Solo escritorio: la barra queda en íconos. El default depende del
-   * rol y la elección se guarda por usuario (`user_preference`); en el
-   * teléfono el cajón siempre va completo.
+   * 022 — Solo escritorio: expandida, en íconos u oculta (el hamburguesa
+   * recorre el ciclo). El default depende del rol y la elección se guarda por
+   * usuario (`user_preference`); en el teléfono el cajón siempre va completo.
    */
-  collapsed?: boolean;
-  onToggleCollapsed?: () => void;
+  mode?: NavMode;
+  onCycleMode?: () => void;
 }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -153,7 +154,11 @@ export function AppNav({
   // "Mini" = colapsado Y en escritorio. En el cajón del teléfono lo colapsado
   // no aplica: ahí el menú siempre se lee completo.
   const desktop = useIsDesktop();
-  const mini = collapsed && desktop;
+  const mini = mode === "collapsed" && desktop;
+  // Oculta: en escritorio la columna desaparece (el botón para volver lo pinta
+  // AppShell). El cajón del teléfono no se entera: sigue abriendo completo.
+  const hidden = mode === "hidden";
+  const toggleLabel = mini ? "Ocultar el menú" : "Colapsar el menú";
 
   async function refetchUnread() {
     const res = await fetch("/api/conversations").catch(() => null);
@@ -213,6 +218,7 @@ export function AppNav({
         // resorte son los textos, solo con `opacity` + `transform`.
         "lg:static lg:visible lg:z-auto lg:translate-x-0 lg:overflow-x-hidden",
         mini ? "lg:w-14 lg:px-2" : "lg:w-56",
+        hidden && "lg:hidden",
         open ? "visible translate-x-0 shadow-pop" : "invisible -translate-x-full"
       )}
     >
@@ -227,12 +233,14 @@ export function AppNav({
         >
           <X className="h-[18px] w-[18px]" strokeWidth={1.8} />
         </button>
-        {/* 022: colapsar/expandir. El mismo hamburguesa de la barra del
-            teléfono, a la izquierda: no se mueve al cambiar de estado. */}
+        {/* 022: expandido → íconos → oculto. El mismo hamburguesa de la barra
+            del teléfono, arriba a la izquierda. Oculto, el de AppShell queda
+            en la misma coordenada que aquí en íconos: el clic siguiente cae
+            en el mismo lugar. */}
         <button
-          onClick={onToggleCollapsed}
-          aria-label={mini ? "Expandir el menú" : "Colapsar el menú"}
-          title={mini ? "Expandir el menú" : "Colapsar el menú"}
+          onClick={onCycleMode}
+          aria-label={toggleLabel}
+          title={toggleLabel}
           aria-expanded={!mini}
           className="-ml-1 hidden h-8 w-8 shrink-0 items-center justify-center rounded-md text-text-3 transition-[color,background-color,transform] duration-150 hover:bg-accent hover:text-foreground active:scale-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:flex"
         >
@@ -474,9 +482,9 @@ function ProfileMenu({
                 ref={card}
                 role="dialog"
                 aria-label="Tu perfil"
-                initial={{ opacity: 0, scale: 0.92, x: -6 }}
+                initial={{ opacity: 0, scale: 0.96, x: -4 }}
                 animate={{ opacity: 1, scale: 1, x: 0 }}
-                exit={{ opacity: 0, scale: 0.95, x: -4 }}
+                exit={{ opacity: 0, scale: 0.98, x: -2, transition: { duration: 0.1 } }}
                 transition={SPRING}
                 style={{ left: pos.left, bottom: pos.bottom, transformOrigin: "bottom left" }}
                 className="nav-dark fixed z-50 w-60 rounded-md border bg-subtle p-2 text-foreground shadow-pop"

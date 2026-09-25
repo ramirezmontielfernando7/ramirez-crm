@@ -178,7 +178,7 @@ ok("el propietario → 200", salesO.status === 200, `status=${salesO.status}`);
 
 console.log("\n== 4 · Preferencia del menú: por usuario, en BD ==");
 const p0 = await asesorA.call("GET", "/api/preferences");
-ok("sin preferencia guardada → null (default del rol)", p0.json?.navCollapsed === null, JSON.stringify(p0.json));
+ok("sin preferencia guardada → null (default del rol)", p0.json?.navCollapsed === null && p0.json?.navMode === null, JSON.stringify(p0.json));
 await asesorA.call("PUT", "/api/preferences", { navCollapsed: false });
 const p1 = await asesorA.call("GET", "/api/preferences");
 ok("se guarda", p1.json?.navCollapsed === false, JSON.stringify(p1.json));
@@ -186,6 +186,15 @@ const pO = await owner.call("GET", "/api/preferences");
 ok("…y es solo de quien la guardó", pO.json?.navCollapsed === null, JSON.stringify(pO.json));
 const malo = await asesorA.call("PUT", "/api/preferences", { navCollapsed: "sí" });
 ok("un valor inválido → 422", malo.status === 422, `status=${malo.status}`);
+await asesorA.call("PUT", "/api/preferences", { navMode: "hidden" });
+const p2 = await asesorA.call("GET", "/api/preferences");
+ok(
+  "el tercer estado (oculto) se guarda y deja coherente la preferencia vieja",
+  p2.json?.navMode === "hidden" && p2.json?.navCollapsed === true,
+  JSON.stringify(p2.json)
+);
+const malo2 = await asesorA.call("PUT", "/api/preferences", { navMode: "gigante" });
+ok("un modo que no existe → 422", malo2.status === 422, `status=${malo2.status}`);
 await asesorA.call("PUT", "/api/preferences", { navCollapsed: null });
 
 /* ── 5 · Navegador: el propietario ──────────────────────────────── */
@@ -218,9 +227,27 @@ const perfil = op.getByRole("dialog", { name: "Tu perfil" });
 ok("el avatar abre la tarjeta de perfil", await perfil.isVisible().catch(() => false));
 ok("con nombre y rol", ((await perfil.innerText().catch(() => "")) || "").includes("Propietario"));
 await op.keyboard.press("Escape");
-await op.getByRole("button", { name: "Expandir el menú" }).click();
+// 022 — Tercer estado: oculto. El botón para volver queda fijo en la esquina.
+await op.getByRole("button", { name: "Ocultar el menú" }).click();
+await hasta(async () => !(await aside.isVisible()), 2000, 50);
+ok("el tercer clic oculta el menú", !(await aside.isVisible()));
+const revelar = op.getByRole("button", { name: "Mostrar el menú" });
+const caja = await revelar.boundingBox();
+ok(
+  "oculto, el hamburguesa queda fijo arriba a la izquierda",
+  !!caja && caja.x < 16 && caja.y < 30 && (await revelar.isVisible()),
+  JSON.stringify(caja)
+);
+await hasta(async () => (await owner.call("GET", "/api/preferences")).json?.navMode === "hidden", 3000);
+ok("el estado oculto se guarda", (await owner.call("GET", "/api/preferences")).json?.navMode === "hidden");
+await op.reload();
+await revelar.waitFor();
+ok("y sigue oculto al volver (persistió)", !(await aside.isVisible()));
+await revelar.click();
 await hasta(async () => (await ancho(op)) > 200, 2000, 50);
-ok("se expande de nuevo", (await ancho(op)) > 200);
+ok("el cuarto clic vuelve a expandido", (await ancho(op)) > 200);
+await hasta(async () => (await revelar.count()) === 0, 2000, 50);
+ok("…y el botón flotante se va", (await revelar.count()) === 0);
 
 // Panel de detalles.
 const y = async (loc) => (await loc.first().boundingBox())?.y ?? -1;
@@ -316,7 +343,11 @@ await ap.goto(`${BASE}/inbox?contact=${contactId}`);
 await ap.locator("aside").first().waitFor();
 ok("el menú arranca COLAPSADO para el asesor", (await ancho(ap)) < 80, `w=${await ancho(ap)}`);
 ok("sin Resultados (colapsado)", (await ap.locator('a[href="/results"]').count()) === 0);
-await ap.getByRole("button", { name: "Expandir el menú" }).click();
+// El mismo ciclo de tres pasos para el asesor: íconos → oculto → expandido.
+await ap.getByRole("button", { name: "Ocultar el menú" }).click();
+await hasta(async () => !(await ap.locator("aside").first().isVisible()), 2000, 50);
+ok("el asesor también puede ocultarlo", !(await ap.locator("aside").first().isVisible()));
+await ap.getByRole("button", { name: "Mostrar el menú" }).click();
 await hasta(async () => (await ancho(ap)) > 200, 2000, 50);
 ok("el asesor lo expande", (await ancho(ap)) > 200);
 ok("sin Resultados (expandido)", (await ap.locator('a[href="/results"]').count()) === 0);
