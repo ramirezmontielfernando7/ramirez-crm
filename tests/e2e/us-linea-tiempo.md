@@ -24,7 +24,11 @@ Tres personas a la vez: propietario, asesor A y asesor B.
    el avatar abre la tarjeta con nombre y rol; tercer clic → oculto: el menú
    desaparece, "Mostrar el menú" va en la fila del título "Bandeja"
    (mismo centro vertical, a su izquierda) y la columna empieza en el borde; recargar →
-   sigue oculto; cuarto clic → expandido y el botón flotante se va. Panel en orden
+   sigue oculto; cuarto clic → expandido y el botón flotante se va. Filtros
+   de la Bandeja: una cápsula ("Todas 26") y "Seleccionar varios" en la fila
+   del título, sin fila de cápsulas; la cápsula despliega Mostrar, Etapa y
+   Quién atiende; elegir "No leídas" cierra el panel y la cápsula lo dice;
+   "Quitar filtros" vuelve a Todas. Panel en orden
    Asignación → Etapa → Más detalles → Actividad; "Más detalles" plegado y,
    abierto, Mensajes masivos → Etiquetas → Ficha. "Ver historial de
    asignación" existe y abre el historial. Actividad: "Nota añadida por…",

@@ -23,7 +23,9 @@ const ok = (name, cond, extra = "") => {
   }
 };
 
-const browser = await chromium.launch();
+const browser = await chromium
+  .launch({ executablePath: process.env.PW_CHROMIUM ?? "/opt/pw-browsers/chromium" })
+  .catch(() => chromium.launch());
 const ctx = await browser.newContext({ viewport: { width: 1400, height: 900 } });
 const req = ctx.request;
 
@@ -63,7 +65,8 @@ ok("las 3 personas de prueba están en la bandeja",
    JSON.stringify(convs.map((c) => c.contact.name)));
 
 const page = await ctx.newPage();
-const rows = () => page.locator("ul > li button").allInnerTexts();
+// Solo la lista de chats: el panel de filtros (role=dialog) también es una lista.
+const rows = () => page.locator(":not([role=dialog]) > ul > li button").allInnerTexts();
 
 console.log("\n== Bandeja: teclear mientras la página aún carga (el bug) ==");
 await page.goto(`${BASE}/inbox`, { waitUntil: "commit" });
@@ -115,6 +118,8 @@ ok("el botón X limpia la búsqueda", (await box.inputValue()) === "");
 ok("y vuelven todas las conversaciones", (await rows()).length >= 3);
 
 console.log("\n== Bandeja: filtro por etapa del embudo ==");
+// La etapa vive en el panel de la cápsula de filtros, junto al título.
+await page.getByRole("button", { name: /^Filtrar la bandeja/ }).click();
 const sel = page.getByLabel("Filtrar por etapa del embudo");
 ok("el selector de etapa existe", await sel.isVisible());
 const options = await sel.locator("option").allInnerTexts();

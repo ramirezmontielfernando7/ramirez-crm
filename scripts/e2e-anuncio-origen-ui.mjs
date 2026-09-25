@@ -54,6 +54,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // Playwright trae su Chromium; si en esta máquina no está, se usa el del sistema.
 const candidatos = [
+  process.env.PW_CHROMIUM ?? "/opt/pw-browsers/chromium",
   "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe",
   "C:/Program Files/Google/Chrome/Application/chrome.exe",
 ];
@@ -183,6 +184,8 @@ try {
       "la conversación orgánica no lleva marca",
       (await fila(page, ORGANICO).getByText("Anuncio ·", { exact: false }).count()) === 0
     );
+    // Los filtros viven en la cápsula junto al título: se despliega primero.
+    await page.getByRole("button", { name: /^Filtrar la bandeja/ }).click();
     const filtro = page.getByRole("button", { name: /^Anuncios/ });
     ok("hay filtro «Anuncios»", (await filtro.count()) === 1);
     await filtro.click();
@@ -216,6 +219,7 @@ try {
     await fila(page, CON_VIDEO).click();
     await tarjeta(page).getByText(TITULAR_VIDEO, { exact: true }).waitFor();
     ok("un anuncio de video lo dice en la tarjeta", (await tarjeta(page).getByText("con video", { exact: false }).count()) === 1);
+    await page.getByRole("button", { name: /^Filtrar la bandeja/ }).click();
     await page.getByRole("button", { name: /^Todas/ }).click();
     await fila(page, ORGANICO).click();
     await page.waitForResponse((res) => res.url().includes("/api/contacts/") && res.ok());
@@ -235,8 +239,10 @@ try {
     await page.setViewportSize(PHONE);
     await page.goto(`${BASE}/inbox`, { waitUntil: "domcontentloaded" });
     await fila(page, CON_ANUNCIO).getByText(`Anuncio · ${TITULAR}`).waitFor();
+    await page.getByRole("button", { name: /^Filtrar la bandeja/ }).click();
     await page.getByRole("button", { name: /^Anuncios/ }).waitFor();
     ok("a 390 px la bandeja no se desborda", !(await desborda(page)));
+    await page.keyboard.press("Escape");
     await captura(page, `bandeja-${tema}-390.png`);
     await fila(page, CON_ANUNCIO).click();
     await page.getByRole("button", { name: "Mostrar detalles" }).click();

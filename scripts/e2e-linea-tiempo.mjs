@@ -261,6 +261,38 @@ ok("el cuarto clic vuelve a expandido", (await ancho(op)) > 200);
 await hasta(async () => (await revelar.count()) === 0, 2000, 50);
 ok("…y el botón flotante se va", (await revelar.count()) === 0);
 
+// Filtros de la Bandeja: una cápsula en la fila del título que despliega el
+// resto; la selección múltiple, pegada a ella; sin la fila de cápsulas.
+const capsula = op.getByRole("button", { name: /^Filtrar la bandeja/ });
+const tituloB = await op.getByRole("heading", { name: "Bandeja" }).boundingBox();
+const cajaCap = await capsula.boundingBox();
+const cajaSel = await op.getByRole("button", { name: "Seleccionar varios" }).boundingBox();
+const centro = (b) => b.y + b.height / 2;
+ok(
+  "filtros: la cápsula y «Seleccionar varios» van en la fila del título",
+  !!tituloB && !!cajaCap && !!cajaSel &&
+    Math.abs(centro(cajaCap) - centro(tituloB)) <= 2 &&
+    Math.abs(centro(cajaSel) - centro(tituloB)) <= 2 &&
+    cajaCap.x > tituloB.x && cajaSel.x > cajaCap.x,
+  JSON.stringify({ tituloB, cajaCap, cajaSel })
+);
+ok("…y la fila de cápsulas ya no está", (await op.getByRole("button", { name: /^No leídas/ }).count()) === 0);
+await capsula.click();
+const panelF = op.getByRole("dialog", { name: "Filtros de la bandeja" });
+await panelF.waitFor();
+ok(
+  "tocar la cápsula despliega Mostrar, Etapa y Quién atiende",
+  (await panelF.getByRole("button", { name: /^No leídas/ }).count()) === 1 &&
+    (await panelF.getByLabel("Filtrar por persona asignada").count()) === 1
+);
+await panelF.getByRole("button", { name: /^No leídas/ }).click();
+await hasta(async () => (await panelF.count()) === 0, 2000, 50);
+ok("elegir «No leídas» cierra el panel y la cápsula lo dice", (await panelF.count()) === 0 &&
+  /No leídas/.test((await capsula.getAttribute("aria-label")) ?? ""));
+await capsula.click();
+await panelF.getByRole("button", { name: "Quitar filtros" }).click();
+ok("«Quitar filtros» vuelve a Todas", /Todas/.test((await capsula.getAttribute("aria-label")) ?? ""));
+
 // Panel de detalles.
 const y = async (loc) => (await loc.first().boundingBox())?.y ?? -1;
 const kAsign = op.locator("p.kicker", { hasText: "Asignación" });
