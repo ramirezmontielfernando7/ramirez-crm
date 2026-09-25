@@ -47,9 +47,9 @@ const HELP: Record<Source, { title: string; items: string[] }> = {
   zernio: {
     title: "Conecta la página en Zernio y pega aquí su cuenta y tu API key",
     items: [
-      "La página se vincula en el panel de Zernio, no desde Vocero. Copia de ahí el accountId de la cuenta de Facebook conectada.",
+      "La página se vincula en el panel de Zernio, no desde el CRM. Copia de ahí el accountId de la cuenta de Facebook conectada.",
       "La API key se crea en Zernio → Settings → API Keys y se muestra una sola vez (empieza con sk_).",
-      "El mismo webhook de Zernio entrega Instagram, WhatsApp y X si esas cuentas están conectadas; Vocero filtra por plataforma y solo ingiere lo de Facebook aquí.",
+      "El mismo webhook de Zernio entrega Instagram, WhatsApp y X si esas cuentas están conectadas; el CRM filtra por plataforma y solo ingiere lo de Facebook aquí.",
       "El secreto del webhook es opcional pero recomendado: con él se verifica la firma de cada entrega.",
     ],
   },

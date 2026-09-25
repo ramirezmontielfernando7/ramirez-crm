@@ -45,22 +45,29 @@ export type Branding = {
 };
 
 export const DEFAULT_BRANDING: Branding = {
-  name: "Vocero",
-  // El azul eléctrico de vocerocrm.com: la instancia recién instalada se ve
-  // igual que la landing. Una agencia lo cambia en Configuración → Marca.
-  accent: "#0d5bff",
+  name: "Dashfort",
+  // El teal del logo de Dashfort: la instancia recién instalada ya se ve con
+  // la marca. Se cambia en Configuración → Marca.
+  accent: "#12999d",
   currency: DEFAULT_CURRENCY,
   favicon: null,
 };
 
 /**
- * Presets. El primero es la marca Vocero (valores exactos de la landing); los
- * demás son los tonos sobrios del handoff Atlas, que siguen disponibles para
- * quien quiera un CRM más discreto.
+ * Presets. El primero es la marca Dashfort; los demás son tonos alternativos
+ * para quien quiera otro color.
+ *
+ * Teal Dashfort: el del logo (#12999d) tiene 3.4:1 con blanco — alcanza para
+ * un ícono, no para texto blanco en un botón. El relleno baja a #0e7c80
+ * (5:1) y el teal exacto del logo queda para el mosaico de la marca.
  */
 export const ACCENT_PRESETS: Record<string, { label: string; set: AccentSet }> = {
+  "#12999d": {
+    label: "Teal Dashfort",
+    set: { accent: "#0e7c80", hover: "#0b6a6d", soft: "#cfe9ea", tint: "#ebf6f6", text: "#0a5e61", fg: "#ffffff" },
+  },
   "#0d5bff": {
-    label: "Azul Vocero",
+    label: "Azul eléctrico",
     set: { accent: "#0d5bff", hover: "#0a4de6", soft: "#d3e2ff", tint: "#ebf1ff", text: "#0038d8", fg: "#ffffff" },
   },
   "#3f5972": {

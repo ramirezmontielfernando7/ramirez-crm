@@ -1,38 +1,37 @@
 /**
- * La marca Vocero — la misma de vocerocrm.com.
+ * La marca de la casa: Dashfort by Demfort.
  *
- * Vive aquí, sin React, porque la usan dos mundos: los componentes (el trazo
+ * Vive aquí, sin React, porque la usan dos mundos: los componentes (el logo
  * del panel lateral y del login) y el servidor (el favicon generado que se
  * sirve como texto). Tener el dibujo en un solo sitio es lo que garantiza que
- * la pestaña y la barra lateral enseñen la MISMA "v".
+ * la pestaña y la barra lateral enseñen la MISMA burbuja.
  *
- * El trazo es una "v" caligráfica fluida con remate cian. El cuerpo se pinta
- * con `currentColor` (así hereda el acento white-label); el remate es una
- * constante de marca y NO se recalcula con el acento: es lo que la hace
- * reconocible.
+ * El logo es una burbuja de chat blanca, de trazo redondeado, sobre un
+ * mosaico teal. El teal del mosaico es constante de marca (el del logo
+ * original) y NO se recalcula con el acento: es lo que la hace reconocible.
  */
 
-/** Cuerpo de la "v": se pinta con el color del contexto. */
-export const BRAND_MARK_BODY =
-  "M4 5c2 8 5 14.5 7.8 14.7 2.3.2 3.7-4.1 4.7-8.2";
+/** El nombre del producto y su firma (la firma va chica y tenue). */
+export const BRAND_NAME = "Dashfort";
+export const BRAND_BYLINE = "by Demfort";
 
-/** Remate corto, siempre cian. */
-export const BRAND_MARK_TAIL = "M16.5 11.5c.8-3 2-5.5 4-6.1";
+/** La burbuja, en una rejilla de 24 (trazo redondeado, cola abajo a la izquierda). */
+export const BRAND_BUBBLE =
+  "M2.992 16.342a2 2 0 0 1 .094 1.167l-1.065 3.29a1 1 0 0 0 1.236 1.168l3.413-.998a2 2 0 0 1 1.099.092 10 10 0 1 0-4.777-4.719";
 
-export const BRAND_MARK_STROKE = 3.4;
+export const BRAND_BUBBLE_STROKE = 2;
 
-/** Cian sobre fondos claros (texto azul al lado). */
-export const BRAND_CYAN = "#00c6f5";
-
-/** Cian sobre el mosaico azul: un punto más claro para que no se hunda. */
-export const BRAND_CYAN_ON_TILE = "#3fdcff";
+/** El teal del logo, tal cual (muestreado del archivo original). */
+export const BRAND_TEAL = "#12999d";
+/** Un punto más claro, para el brillo del mosaico. */
+export const BRAND_TEAL_LIGHT = "#1fa8ab";
 
 /**
- * ¿Esta instancia se llama Vocero? Solo entonces se dibuja el logo: una
- * agencia que rebautizó el CRM para su cliente no debe ver la "v" de otro
- * producto en su barra lateral ni en su pestaña. El nombre por defecto es
- * "Vocero", así que una instancia sin configurar la ve de inmediato.
+ * ¿Esta instancia se llama como la marca de la casa? Solo entonces se dibuja
+ * el logo: una agencia que rebautizó el CRM para su cliente no debe ver la
+ * burbuja de otro producto en su barra lateral ni en su pestaña. El nombre por
+ * defecto es "Dashfort", así que una instancia sin configurar la ve de inmediato.
  */
-export function isVoceroName(name: string): boolean {
-  return name.trim().toLowerCase() === "vocero";
+export function isHouseName(name: string): boolean {
+  return name.trim().toLowerCase() === BRAND_NAME.toLowerCase();
 }

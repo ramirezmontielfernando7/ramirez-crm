@@ -16,6 +16,7 @@ import { CURRENCIES, DEFAULT_CURRENCY, type Currency } from "@/lib/money";
 import { cn } from "@/lib/utils";
 import { useResolvedTheme } from "@/components/use-theme";
 import { BrandLogo } from "@/components/brand-mark";
+import { isHouseName } from "@/lib/brand";
 import { navItemClass } from "@/components/app-nav";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -119,7 +120,7 @@ export function BrandingClient({
               maxLength={30}
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Vocero"
+              placeholder="Dashfort"
               className="max-w-xs"
             />
           </div>
@@ -204,7 +205,10 @@ export function BrandingClient({
                 <BrandLogo
                   branding={{ name: name.trim() || DEFAULT_BRANDING.name, accent, favicon }}
                 />
-                <span className="kicker mt-2 block">CRM · WhatsApp</span>
+                {/* Igual que el menú: la firma de la casa reemplaza este renglón. */}
+                {!isHouseName(name.trim() || DEFAULT_BRANDING.name) && (
+                  <span className="kicker mt-2 block">CRM · WhatsApp</span>
+                )}
               </div>
               <span className={cn(navItemClass(true), "mt-3")}>
                 <Inbox className="h-[17px] w-[17px] text-brand" strokeWidth={1.8} />

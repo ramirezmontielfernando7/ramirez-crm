@@ -81,7 +81,7 @@ await call("/api/settings/whatsapp", {
 });
 await call("/api/settings/branding", {
   method: "PUT",
-  data: { name: "Vocero", accent: "#0d5bff", currency: "MXN" },
+  data: { name: "Dashfort", accent: "#12999d", currency: "MXN" },
 });
 
 const page = await context.newPage();

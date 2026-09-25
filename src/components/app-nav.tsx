@@ -29,6 +29,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { BrandLogo, BrandTile } from "@/components/brand-mark";
 import { SPRING } from "@/components/motion";
 import type { NavMode } from "@/lib/preferences";
+import { isHouseName } from "@/lib/brand";
 import { useViewer } from "@/components/viewer-context";
 import { roleLabel, type Permission } from "@/lib/auth/permissions";
 import {
@@ -155,6 +156,7 @@ export function AppNav({
   // no aplica: ahí el menú siempre se lee completo.
   const desktop = useIsDesktop();
   const mini = mode === "collapsed" && desktop;
+  const house = isHouseName(branding.name);
   // Oculta: en escritorio la columna desaparece (el botón para volver lo pinta
   // AppShell). El cajón del teléfono no se entera: sigue abriendo completo.
   const hidden = mode === "hidden";
@@ -224,14 +226,25 @@ export function AppNav({
         open ? "visible translate-x-0 shadow-pop" : "invisible -translate-x-full"
       )}
     >
-      {/* Marca: el logo de Vocero o, white-label, la inicial y el nombre */}
-      <div className={cn("mb-5 flex items-start gap-1.5 pt-0.5", mini ? "px-0.5" : "px-2")}>
+      {/* Marca: el logo de Dashfort o, white-label, la inicial y el nombre */}
+      {/* Con la marca de la casa la fila se centra: mosaico, ☰ y ✕ comparten
+          eje. White-label conserva el renglón "CRM · WhatsApp" debajo. */}
+      <div
+        className={cn(
+          "mb-5 flex gap-1.5 pt-0.5",
+          house ? "items-center" : "items-start",
+          mini ? "px-0.5" : "px-2"
+        )}
+      >
         {/* En móvil el cajón necesita su propio cierre: el velo no siempre es
             alcanzable con el pulgar. */}
         <button
           onClick={onClose}
           aria-label="Cerrar el menú"
-          className="-ml-1 mt-0.5 rounded-md p-1.5 text-text-3 hover:bg-accent hover:text-foreground lg:hidden"
+          className={cn(
+            "-ml-1 rounded-md p-1.5 text-text-3 hover:bg-accent hover:text-foreground lg:hidden",
+            !house && "mt-0.5"
+          )}
         >
           <X className="h-[18px] w-[18px]" strokeWidth={1.8} />
         </button>
@@ -255,7 +268,8 @@ export function AppNav({
           )}
         >
           <BrandLogo branding={branding} />
-          <span className="kicker mt-2 block whitespace-nowrap">CRM · WhatsApp</span>
+          {/* La firma "by Demfort" ya ocupa ese lugar en la marca de la casa. */}
+          {!house && <span className="kicker mt-2 block whitespace-nowrap">CRM · WhatsApp</span>}
         </div>
       </div>
 
