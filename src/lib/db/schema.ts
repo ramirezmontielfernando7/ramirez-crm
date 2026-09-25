@@ -1392,6 +1392,9 @@ export const userPreference = pgTable(
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
     navCollapsed: boolean("nav_collapsed"),
+    /** 022 — "expanded" | "collapsed" | "hidden" (ver `NAV_MODES`). Aditiva:
+     *  `nav_collapsed` se conserva y se escribe en paralelo. */
+    navMode: text("nav_mode"),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },
   (t) => [primaryKey({ columns: [t.organizationId, t.userId] })]

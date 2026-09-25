@@ -199,11 +199,11 @@ function TimelineRow({ item, index }: { item: TimelineItemDto; index: number }) 
 
   return (
     <m.li
-      initial={{ opacity: 0, y: 6 }}
+      initial={{ opacity: 0, y: 4 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0 }}
-      // Escalonado corto: la lista "cae" en su lugar sin pasar de ~300 ms.
-      transition={{ ...ENTER, delay: Math.min(index, 6) * 0.02 }}
+      // Escalonado corto: la lista "cae" en su lugar sin pasar de ~270 ms.
+      transition={{ ...ENTER, delay: Math.min(index, 6) * 0.015 }}
       className="relative flex gap-2.5 pb-3 last:pb-0"
     >
       <span className="relative z-10 flex h-[23px] w-[23px] shrink-0 items-center justify-center rounded-full border bg-background text-text-3">

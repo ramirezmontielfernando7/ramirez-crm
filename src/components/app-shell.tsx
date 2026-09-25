@@ -2,14 +2,17 @@
 
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
+import { AnimatePresence, m } from "motion/react";
 import { Menu } from "lucide-react";
 import type { Branding } from "@/lib/branding";
 import type { ThemePreference } from "@/lib/theme";
 import type { ResolvedCommit } from "@/lib/version";
 import { AppNav } from "@/components/app-nav";
 import { BrandLogo } from "@/components/brand-mark";
+import { cn } from "@/lib/utils";
 import { ViewerProvider } from "@/components/viewer-context";
-import { MotionProvider } from "@/components/motion";
+import { MotionProvider, SPRING } from "@/components/motion";
+import { nextNavMode, type NavMode } from "@/lib/preferences";
 
 /**
  * Cascarón de la app en dos modos:
@@ -32,7 +35,7 @@ export function AppShell({
   commit,
   agenda = false,
   campaigns = false,
-  navCollapsed = false,
+  navMode = "expanded",
   children,
 }: {
   branding: Branding;
@@ -48,26 +51,29 @@ export function AppShell({
   /** 021 — ¿esta instancia tiene Campañas? Lo decide el servidor (CAMPAIGNS). */
   campaigns?: boolean;
   /**
-   * 022 — ¿La barra lateral arranca colapsada (escritorio)? Lo resuelve el
-   * servidor: la preferencia guardada del usuario o, sin ella, el default de
-   * su rol. Así el primer pintado ya llega en su estado, sin parpadeo.
+   * 022 — En qué estado arranca la barra lateral en escritorio (expandida,
+   * solo íconos u oculta). Lo resuelve el servidor: la preferencia guardada
+   * del usuario o, sin ella, el default de su rol. Así el primer pintado ya
+   * llega en su estado, sin parpadeo.
    */
-  navCollapsed?: boolean;
+  navMode?: NavMode;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
   const [navOpen, setNavOpen] = useState(false);
-  const [collapsed, setCollapsed] = useState(navCollapsed);
+  const [mode, setMode] = useState<NavMode>(navMode);
 
-  function toggleCollapsed() {
-    const next = !collapsed;
-    setCollapsed(next);
+  // El hamburguesa de escritorio recorre el ciclo expandido → íconos →
+  // oculto → expandido. (El teléfono no lo usa: ahí el cajón abre y cierra.)
+  function cycleNav() {
+    const next = nextNavMode(mode);
+    setMode(next);
     // Por usuario y en BD: la elección lo sigue a otro dispositivo. Si no se
     // guarda, la barra igual cambia; solo no se recordará la próxima vez.
     void fetch("/api/preferences", {
       method: "PUT",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ navCollapsed: next }),
+      body: JSON.stringify({ navMode: next }),
     }).catch(() => undefined);
   }
 
@@ -109,11 +115,33 @@ export function AppShell({
             campaigns={campaigns}
             open={navOpen}
             onClose={() => setNavOpen(false)}
-            collapsed={collapsed}
-            onToggleCollapsed={toggleCollapsed}
+            mode={mode}
+            onCycleMode={cycleNav}
           />
 
-          <div className="flex min-w-0 flex-1 flex-col">
+          {/* 022 — Menú oculto (solo escritorio): el hamburguesa queda fijo en
+              la esquina, sin depender de hover, en una franja angosta sin
+              borde para no tapar el título de la pantalla. */}
+          <AnimatePresence initial={false}>
+            {mode === "hidden" && (
+              <m.button
+                key="nav-reveal"
+                onClick={cycleNav}
+                aria-label="Mostrar el menú"
+                title="Mostrar el menú"
+                aria-expanded={false}
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.1 } }}
+                transition={SPRING}
+                className="fixed left-1.5 top-[18px] z-30 hidden h-8 w-8 items-center justify-center rounded-md text-text-3 transition-[color,background-color] duration-150 hover:bg-accent hover:text-foreground active:scale-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:flex"
+              >
+                <Menu className="h-[18px] w-[18px]" strokeWidth={1.8} />
+              </m.button>
+            )}
+          </AnimatePresence>
+
+          <div className={cn("flex min-w-0 flex-1 flex-col", mode === "hidden" && "lg:pl-11")}>
             {/* Misma pieza que la barra lateral (`nav-dark`): en el teléfono la
                 franja azul marino de arriba es lo que queda del bicolor. */}
             <header className="nav-dark flex h-12 shrink-0 items-center gap-1.5 border-b bg-subtle px-2 text-foreground lg:hidden">

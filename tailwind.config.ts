@@ -21,11 +21,12 @@ const config: Config = {
   content: ["./src/**/*.{ts,tsx}"],
   theme: {
     extend: {
-      // 022 — Curva con un rebote sutil (sobrepasa ~6% y vuelve): para lo
-      // que se mueve por CSS (pomo del switch, presión). Los resortes de
-      // verdad (expandir/colapsar) van con `motion` (src/components/motion.tsx).
+      // 022 — La curva de lo que se mueve por CSS (pomo del switch, textos
+      // del menú): arranque rápido y un asentado que sobrepasa ~1% — se siente
+      // firme, no rebota. (La anterior, 0.34/1.56, sobrepasaba ~10%: se veía.)
+      // Los resortes de verdad van con `motion` (src/components/motion.tsx).
       transitionTimingFunction: {
-        spring: "cubic-bezier(0.34, 1.56, 0.64, 1)",
+        spring: "cubic-bezier(0.3, 1.2, 0.5, 1)",
       },
       colors: {
         border: "var(--border)",

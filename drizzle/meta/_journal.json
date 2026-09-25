@@ -127,6 +127,13 @@
       "when": 1790308371402,
       "tag": "0017_linea_de_tiempo_y_preferencias",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1790347439202,
+      "tag": "0018_menu_tres_estados",
+      "breakpoints": true
     }
   ]
 }

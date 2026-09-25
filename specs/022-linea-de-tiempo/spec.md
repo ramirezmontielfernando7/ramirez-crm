@@ -21,6 +21,14 @@ Las notas eran UN campo que cada guardado sobrescribía, sin autor ni hora.
    - La elección se guarda **por usuario en BD** (`user_preference`) y sigue
      a la persona entre dispositivos. `null` = default del rol.
    - En el teléfono el cajón no cambia: siempre completo.
+   - **Tercer estado: oculto.** El mismo hamburguesa recorre el ciclo
+     expandido → íconos → oculto → expandido. Oculto, la columna desaparece
+     y la pantalla usa el ancho; el hamburguesa queda fijo arriba a la
+     izquierda (misma coordenada que colapsado, sin depender de hover) en una
+     franja de 44 px que no tapa el título. Se guarda en
+     `user_preference.nav_mode` (`expanded|collapsed|hidden`, aditiva;
+     `nav_collapsed` se sigue escribiendo y se lee si no hay `nav_mode`).
+     Solo escritorio: el cajón del teléfono sigue abierto/cerrado.
 2. **Resultados solo para quien mide.** Permiso nuevo `results.read`
    (Propietario y Coordinador). El Asesor no ve la entrada del menú
    (colapsado o expandido), `/results` lo regresa a la Bandeja y
@@ -42,7 +50,9 @@ Las notas eran UN campo que cada guardado sobrescribía, sin autor ni hora.
    agente de IA también llegan aquí ("por el agente de IA").
 6. **Sensación táctil.** Expandir/colapsar con resorte (`motion`), botones y
    switches que se hunden al presionar, filas que entran escalonadas. Nada
-   pasa de 300 ms; `prefers-reduced-motion` lo desactiva.
+   pasa de 300 ms; `prefers-reduced-motion` lo desactiva. Calibración:
+   sutil, nunca protagonista — resorte de 200 ms con rebote 0.12, entradas
+   sin rebote (180 ms, 4 px), curva CSS `ease-spring` que sobrepasa ~1 %.
 
 ## Datos
 
