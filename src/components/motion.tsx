@@ -28,6 +28,12 @@ export const SPRING = { type: "spring", duration: 0.2, bounce: 0.12 } as const;
  * pasarse de largo.
  */
 export const SLIDE = { type: "spring", duration: 0.22, bounce: 0 } as const;
+/**
+ * Para una pieza que se transforma en otra (la lupa que se estira hasta ser
+ * el buscador): un poco más largo que SPRING porque recorre todo el ancho,
+ * sin rebote para que el borde no "tiemble" al llegar.
+ */
+export const MORPH = { type: "spring", duration: 0.26, bounce: 0 } as const;
 /** Para lo que entra (filas de la línea de tiempo): sin rebote, más corto. */
 export const ENTER = { type: "spring", duration: 0.18, bounce: 0 } as const;
 

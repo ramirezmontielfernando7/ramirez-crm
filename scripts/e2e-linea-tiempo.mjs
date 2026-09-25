@@ -267,7 +267,13 @@ const capsula = op.getByRole("button", { name: /^Filtrar la bandeja/ });
 const tituloB = await op.getByRole("heading", { name: "Bandeja" }).boundingBox();
 const cajaCap = await capsula.boundingBox();
 const cajaSel = await op.getByRole("button", { name: "Seleccionar varios" }).boundingBox();
+const cajaLupa = await op.getByRole("button", { name: /^Buscar conversación/ }).boundingBox();
 const centro = (b) => b.y + b.height / 2;
+ok(
+  "la lupa del buscador va a la derecha de «Seleccionar varios», en la misma fila",
+  !!cajaLupa && !!cajaSel && cajaLupa.x > cajaSel.x && Math.abs(centro(cajaLupa) - centro(cajaSel)) <= 1,
+  JSON.stringify({ cajaLupa, cajaSel })
+);
 ok(
   "filtros: la cápsula y «Seleccionar varios» van en la fila del título",
   !!tituloB && !!cajaCap && !!cajaSel &&

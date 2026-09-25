@@ -68,18 +68,28 @@ const page = await ctx.newPage();
 // Solo la lista de chats: el panel de filtros (role=dialog) también es una lista.
 const rows = () => page.locator(":not([role=dialog]) > ul > li button").allInnerTexts();
 
-console.log("\n== Bandeja: teclear mientras la página aún carga (el bug) ==");
-await page.goto(`${BASE}/inbox`, { waitUntil: "commit" });
-const box = page.getByLabel("Buscar conversación");
-await box.waitFor({ timeout: 15000 });
-await box.fill(`Zoraida${S}`); // sucede ANTES de que hidrate React
+console.log("\n== Bandeja: la lupa abre el buscador ==");
+// El buscador es una lupa que se estira: no hay campo que teclear antes de
+// que hidrate (el bug de 2026-08-05 ya no puede ocurrir). Un clic antes de la
+// hidratación no hace nada, así que se reintenta hasta que abre.
+await page.goto(`${BASE}/inbox`, { waitUntil: "domcontentloaded" });
+const box = page.getByLabel("Buscar conversación", { exact: true });
+const lupa = page.getByRole("button", { name: /^Buscar conversación/ });
+async function abrirBuscador() {
+  for (let i = 0; i < 20 && !(await box.isVisible().catch(() => false)); i++) {
+    await lupa.click().catch(() => {});
+    await page.waitForTimeout(300);
+  }
+}
 await page.getByText(`Zoraida${S}`).first().waitFor({ timeout: 20000 });
-await page.waitForTimeout(2500);
-
-ok("el texto tecleado sobrevive a la hidratación",
-   (await box.inputValue()) === `Zoraida${S}`, JSON.stringify(await box.inputValue()));
+ok("cerrado, no hay campo: solo la lupa", (await box.count()) === 0 && (await lupa.isVisible()));
+await abrirBuscador();
+ok("la lupa abre el campo, con el foco adentro",
+   await box.evaluate((el) => el === document.activeElement).catch(() => false));
+await box.fill(`Zoraida${S}`);
+await page.waitForTimeout(400);
 let list = await rows();
-ok("y la lista quedó filtrada a esa persona",
+ok("la lista se filtra a esa persona",
    list.length === 1 && list[0].includes(`Zoraida${S}`), JSON.stringify(list));
 
 console.log("\n== Bandeja: búsqueda tolerante ==");
@@ -113,9 +123,15 @@ ok("dos dígitos sueltos no emparejan teléfonos",
 
 await search(`Zoraida${S}`);
 await page.getByLabel("Limpiar búsqueda").click();
-await page.waitForTimeout(300);
-ok("el botón X limpia la búsqueda", (await box.inputValue()) === "");
+await page.waitForTimeout(400);
+ok("la X limpia la búsqueda y vuelve a la lupa", (await box.count()) === 0);
 ok("y vuelven todas las conversaciones", (await rows()).length >= 3);
+await page.keyboard.press("/");
+await page.waitForTimeout(300);
+ok("la tecla / abre el buscador", await box.isVisible().catch(() => false));
+await page.keyboard.press("Escape");
+await page.waitForTimeout(400);
+ok("Escape lo cierra", (await box.count()) === 0);
 
 console.log("\n== Bandeja: filtro por etapa del embudo ==");
 // La etapa vive en el panel de la cápsula de filtros, junto al título.
@@ -135,12 +151,17 @@ await sel.selectOption("all");
 await page.waitForTimeout(300);
 ok("volver a 'Toda etapa' restaura la lista", (await rows()).length >= 3);
 
-await box.fill(`Zoraida${S}`);
 await sel.selectOption(stage);
+await page.keyboard.press("Escape"); // cierra el panel de filtros
+await page.waitForTimeout(300);
+await abrirBuscador();
+await box.fill(`Zoraida${S}`);
 await page.waitForTimeout(400);
 list = await rows();
 ok("búsqueda y etapa se combinan (nunca contradicen)",
    list.every((t) => t.includes(`Zoraida${S}`) && t.includes(stage)), JSON.stringify(list));
+ok("con el buscador abierto, el filtro puesto se sigue viendo",
+   (await page.getByText(`${"Todas"} +1`, { exact: true }).count()) === 1);
 await page.screenshot({ path: ".tmp/e2e-inbox.png" });
 
 console.log("\n== Contactos: búsqueda tolerante + filtro por etapa ==");
