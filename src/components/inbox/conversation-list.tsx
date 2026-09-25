@@ -245,7 +245,9 @@ export function ConversationList({
 
   return (
     <div className="flex h-full flex-col">
-      <header className="border-b px-4 pb-3 pt-4">
+      {/* 56 px, el mismo alto que el encabezado del chat y el de Detalles: las
+          tres columnas comparten la línea de abajo. */}
+      <header className="flex h-14 shrink-0 flex-col justify-center border-b px-4">
         {/* `relative`: el panel de filtros y el buscador abierto se anclan a
             esta fila, no a su botón, para no salirse nunca de la columna. */}
         <div ref={rowRef} className="relative flex items-center gap-2">

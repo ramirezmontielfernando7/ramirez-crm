@@ -49,11 +49,13 @@ export function NavRevealButton({ className }: { className?: string }) {
         // El MISMO logo y lugar que en el menú (32 px, a 12 px del borde y a
         // la altura del título): el clic siguiente cae donde cayó el anterior.
         // -my-1 para no estirar la fila; -ml-1 porque el encabezado tiene 16.
-        "-my-1 -ml-1 hidden h-8 w-8 shrink-0 rounded-[9px] transition-[filter] duration-150 hover:brightness-110 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background lg:flex",
+        "-my-1 -ml-1 hidden h-8 w-8 shrink-0 rounded-[9px] transition-[background-color,transform] duration-150 hover:bg-accent active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background lg:flex",
         className
       )}
     >
-      <BrandTile branding={nav.branding} className="h-8 w-8 rounded-[9px] text-[15px]" />
+      {/* Invertido: la burbuja en teal sobre el encabezado blanco, sin el
+          bloque de color del mosaico. */}
+      <BrandTile branding={nav.branding} ghost className="h-8 w-8 rounded-[9px] text-[15px]" />
     </m.button>
   );
 }

@@ -1,19 +1,16 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
-import { Archivo, IBM_Plex_Mono, Instrument_Serif } from "next/font/google";
+import { IBM_Plex_Mono, Instrument_Serif } from "next/font/google";
 import { accentCssVariables, DEFAULT_BRANDING, sidebarCssVariables } from "@/lib/branding";
 import { faviconHref } from "@/lib/favicon";
 import { normalizeThemePreference, THEME_COOKIE } from "@/lib/theme";
 import { getBranding } from "@/server/branding";
 import "./globals.css";
 
-// Las tres voces de la marca, las mismas de vocerocrm.com. next/font las
-// descarga en BUILD y las sirve self-hosted (sin CDN en runtime: soberanía).
-const archivo = Archivo({
-  subsets: ["latin"],
-  variable: "--font-sans",
-  display: "swap",
-});
+// Voces de acento (serif y mono): next/font las descarga en BUILD y las sirve
+// self-hosted (sin CDN en runtime: soberanía). La letra de la interfaz es la
+// del sistema (Segoe UI en Windows, San Francisco en Apple, Roboto en
+// Android): no se descarga nada y se ve nativa en cada equipo.
 const instrumentSerif = Instrument_Serif({
   subsets: ["latin"],
   weight: "400",
@@ -51,7 +48,7 @@ export default async function RootLayout({
   return (
     <html
       lang="es"
-      className={`${archivo.variable} ${instrumentSerif.variable} ${plexMono.variable}`}
+      className={`${instrumentSerif.variable} ${plexMono.variable}`}
       // La preferencia siempre es explícita: el tema viaja resuelto en el HTML
       // del servidor, así que no hay divergencia con el cliente ni parpadeo.
       data-theme={theme}

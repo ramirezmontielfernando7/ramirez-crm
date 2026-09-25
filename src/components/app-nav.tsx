@@ -231,9 +231,9 @@ export function AppNav({
           lado va el nombre. En el teléfono, la ✕ del cajón y la marca completa. */}
       <div
         className={cn(
-          // pt-px: el logo cae a 13 px del borde de arriba, lo mismo que el
-          // que reabre el menú oculto junto al título de cada pantalla.
-          "mb-5 flex items-start gap-2.5 pt-px",
+          // El logo cae a 12 px del borde de arriba: centrado en los 56 px
+          // del encabezado, como el que reabre el menú oculto junto al título.
+          "mb-5 flex items-start gap-2.5",
           // El aside tiene 12 px de relleno expandido y 8 px en íconos: el
           // 4 px de más en íconos deja el logo exactamente donde estaba.
           mini && "lg:pl-1"
