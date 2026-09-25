@@ -1,5 +1,6 @@
 import { JUDGE_MARKER } from "@/server/ai/prompts";
 import { CABECERA_HUECOS } from "@/server/agenda/offers";
+import { WRITING_ASSIST_MARKER } from "@/server/writing-assist/prompts";
 
 /**
  * Proveedor LLM determinista para el self-test (contrato mocks.md).
@@ -14,6 +15,9 @@ export function aiMockCompletion(messages: InMessage[]): string {
   const system = messages.find((m) => m.role === "system")?.content ?? "";
   const lastUser =
     [...messages].reverse().find((m) => m.role === "user")?.content ?? "";
+
+  // 023 — Asistente de redacción: transformación determinista del borrador.
+  if (system.includes(WRITING_ASSIST_MARKER)) return writingAssistMock(lastUser);
 
   // Juez del Laboratorio: veredicto determinista por persona. Para cerrar el
   // loop del self-test, la persona fuera_de_kb pasa a verde si el CONOCIMIENTO
@@ -110,4 +114,47 @@ export function aiMockCompletion(messages: InMessage[]): string {
     action: "reply",
     text: `Respuesta de prueba sobre: ${eco}`,
   });
+}
+
+/**
+ * 023 — Mock del asistente de redacción. `FALLA-IA` en el borrador simula un
+ * modelo que no devuelve JSON (el adaptador reintenta y acaba en error).
+ */
+function writingAssistMock(lastUser: string): string {
+  const action = lastUser.match(/^ACCIÓN: (\w+)(?: \((\w+)\))?/m);
+  const draft = lastUser.split("BORRADOR:\n")[1] ?? "";
+  if (draft.includes("FALLA-IA")) return "lo siento, no puedo ayudar con eso";
+
+  const clean = draft.replace(/\s+/g, " ").trim();
+  const sentence = (t: string) => {
+    const s = t.charAt(0).toUpperCase() + t.slice(1);
+    return /[.!?…]$/.test(s) ? s : `${s}.`;
+  };
+  const words = clean.split(" ");
+  const improved = sentence(clean.replace(/\bsi\b/g, "sí").replace(/ y /, ", y "));
+  const lower = improved.charAt(0).toLowerCase() + improved.slice(1);
+
+  let text: string;
+  switch (action?.[1]) {
+    case "tone":
+      text =
+        action[2] === "casual"
+          ? `¡Claro! ${improved} 😊`
+          : action[2] === "empatico"
+            ? `Entiendo perfectamente lo que necesitas. ${improved}`
+            : `Le comento que ${lower}`;
+      break;
+    case "summarize":
+      text = sentence(words.slice(0, 8).join(" "));
+      break;
+    case "shorten":
+      text = sentence(words.slice(0, Math.max(3, Math.ceil(words.length / 2))).join(" "));
+      break;
+    case "lengthen":
+      text = `${improved} Si tienes cualquier duda sobre el producto, el pago o la entrega, con gusto te ayudo.`;
+      break;
+    default:
+      text = improved;
+  }
+  return JSON.stringify({ text });
 }

@@ -160,6 +160,10 @@ const DEL_NEGOCIO: [string, Method][] = [
   // 022: preferencias de interfaz de quien pide (nunca de otro).
   ["preferences", "GET"],
   ["preferences", "PUT"],
+  // 023: asistente de redacción del asesor (reescribe un borrador; no lee
+  // conversaciones ni contactos). Todos los roles.
+  ["writing-assist", "GET"],
+  ["writing-assist", "POST"],
 ];
 
 /** Sin sesión de usuario: tienen su propia autenticación o son públicas. */

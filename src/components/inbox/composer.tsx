@@ -14,6 +14,7 @@ import type { ConversationDto, TemplateDto } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { formatBytes, formatRemaining } from "./helpers";
 import { TemplateSender } from "./template-sender";
+import { WritingAssist } from "./writing-assist";
 
 /** 008 — Panel secundario del clip: formulario de ubicación o contacto. */
 type AttachPanel = "location" | "contact" | null;
@@ -51,6 +52,10 @@ export function Composer({
   const [placeName, setPlaceName] = useState("");
   const [contactName, setContactName] = useState("");
   const [contactPhone, setContactPhone] = useState("");
+  // 023 — Asistente de redacción: mientras reescribe, el editor se congela;
+  // `undoText` guarda el borrador anterior para "Deshacer".
+  const [rewriting, setRewriting] = useState(false);
+  const [undoText, setUndoText] = useState<string | null>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -75,6 +80,12 @@ export function Composer({
     };
   }, [filePreview]);
 
+  // 023 — Al reemplazar o deshacer con la IA, el campo se ajusta al texto
+  // nuevo DESPUÉS de pintarlo (con setTimeout medía el alto viejo).
+  useEffect(() => {
+    autogrow();
+  }, [undoText]);
+
   function autogrow() {
     const el = taRef.current;
     if (!el) return;
@@ -98,6 +109,7 @@ export function Composer({
   }
 
   async function submit() {
+    if (rewriting) return;
     setError(null);
 
     if (file) {
@@ -120,6 +132,7 @@ export function Composer({
       }
       pickFile(null);
       setText("");
+      setUndoText(null);
       if (taRef.current) taRef.current.style.height = "auto";
       onSent();
       return;
@@ -132,6 +145,7 @@ export function Composer({
     // salía todo como un solo mensaje. El campo se limpia ya; la burbuja
     // "enviando" del hilo es la que informa el estado real.
     setText("");
+    setUndoText(null);
     if (taRef.current) taRef.current.style.height = "auto";
     const err = await onSend(value);
     if (err) {
@@ -216,7 +230,7 @@ export function Composer({
     );
   }
 
-  const canSubmit = file !== null || text.trim().length > 0;
+  const canSubmit = !rewriting && (file !== null || text.trim().length > 0);
 
   return (
     <div className="border-t bg-background px-[18px] pb-3.5 pt-3">
@@ -359,6 +373,19 @@ export function Composer({
           >
             <Paperclip className="h-[18px] w-[18px]" strokeWidth={1.7} />
           </button>
+          <WritingAssist
+            text={text}
+            busy={rewriting}
+            onBusy={(b) => {
+              setRewriting(b);
+              if (b) setError(null);
+            }}
+            onResult={(next) => {
+              setUndoText(text);
+              setText(next);
+            }}
+            onError={(msg) => setError(msg)}
+          />
           <button
             onClick={() => setPanel(panel === "location" ? null : "location")}
             aria-label="Enviar ubicación"
@@ -387,8 +414,12 @@ export function Composer({
           placeholder={file ? "Pie del adjunto (opcional)…" : "Escribe una respuesta…"}
           value={text}
           rows={1}
+          readOnly={rewriting}
+          aria-busy={rewriting}
           onChange={(e) => {
             setText(e.target.value);
+            // Si el asesor retoca el resultado, "Deshacer" ya no aplica.
+            setUndoText(null);
             autogrow();
           }}
           onKeyDown={(e) => {
@@ -397,7 +428,10 @@ export function Composer({
               void submit();
             }
           }}
-          className="max-h-[120px] w-full resize-none self-center bg-transparent py-1 text-sm leading-relaxed outline-none placeholder:text-text-3"
+          className={cn(
+            "max-h-[120px] w-full resize-none self-center bg-transparent py-1 text-sm leading-relaxed outline-none placeholder:text-text-3 transition-opacity",
+            rewriting && "animate-pulse opacity-50"
+          )}
         />
         <button
           onClick={() => void submit()}
@@ -412,7 +446,28 @@ export function Composer({
         </button>
       </div>
       <div className="mt-1.5 flex items-center justify-between">
-        {error ? <p className="text-xs text-destructive">{error}</p> : <span />}
+        {error ? (
+          <p role="alert" className="text-xs text-destructive">{error}</p>
+        ) : rewriting ? (
+          <p className="text-xs text-text-3">La IA está reescribiendo…</p>
+        ) : undoText !== null ? (
+          <p className="text-xs text-text-2">
+            Texto reescrito con IA ·{" "}
+            <button
+              type="button"
+              onClick={() => {
+                setText(undoText);
+                setUndoText(null);
+                taRef.current?.focus();
+              }}
+              className="font-semibold text-brand-text underline-offset-2 hover:underline"
+            >
+              Deshacer
+            </button>
+          </p>
+        ) : (
+          <span />
+        )}
         <p className="font-mono text-[10.5px] tracking-[0.04em] text-text-3">
           Ventana abierta · quedan {formatRemaining(conversation.windowRemainingMs)}
         </p>
