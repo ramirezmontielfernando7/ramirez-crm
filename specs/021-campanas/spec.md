@@ -90,10 +90,12 @@ consentimiento y el CSV existen para eso; no son un CRUD aparte.
 | `tags.manage` — crear/renombrar/borrar etiquetas | ✓ | ✓ | — |
 | Etiquetar a un contacto que ve | ✓ | ✓ | ✓ |
 | `contacts.import` | ✓ | ✓ | — |
-| `contacts.export` (ya existía, sin ruta) | ✓ | — | — |
+| `contacts.export` (ya existía, sin ruta) | ✓ | ✓ | — |
 | `campaigns.manage` | ✓ | ✓ | — |
 
-Exportar sigue siendo solo del Propietario: es sacar la base entera.
+Exportar lo tiene también el Coordinador (decisión del dueño, 2026-09-25):
+importar y exportar la base es parte de la operación diaria. El Asesor no,
+porque solo ve lo asignado a él y exportar es sacar la base entera.
 
 ## Límites y errores (todos con mensaje específico)
 

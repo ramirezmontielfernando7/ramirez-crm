@@ -30,7 +30,7 @@ const statements = {
   agent: ["manage"],
   /** Cuentas del equipo y sus roles. */
   users: ["manage", "read"],
-  /** Exportar contactos (la base entera: solo el Propietario) e importarlos (021). */
+  /** Exportar contactos (la base entera) e importarlos (021). */
   contacts: ["export", "import"],
   /** 021 — Crear, renombrar y borrar etiquetas de contacto. */
   tags: ["manage"],
@@ -66,9 +66,9 @@ const coordinador = ac.newRole({
   pipeline: ["edit"],
   templates: ["manage"],
   users: ["read"],
-  // 021: importa bases y lanza campañas (operación), pero no EXPORTA la base
-  // entera: eso sigue siendo solo del Propietario.
-  contacts: ["import"],
+  // 021: importa y exporta bases y lanza campañas: es la operación del día a
+  // día de una agencia con su cliente (decisión del dueño, 2026-09-25).
+  contacts: ["import", "export"],
   tags: ["manage"],
   campaigns: ["manage"],
   assignment: ["manage"],

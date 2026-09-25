@@ -21,6 +21,7 @@
     "test:e2e:resultados": "node --env-file=.env scripts/e2e-resultados.mjs",
     "test:e2e:roles": "node --env-file=.env scripts/e2e-roles.mjs",
     "test:e2e:campanas": "node --env-file=.env scripts/e2e-campanas.mjs",
+    "test:e2e:panel": "node --env-file=.env scripts/e2e-panel-perdido.mjs",
     "test:watch": "vitest",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",

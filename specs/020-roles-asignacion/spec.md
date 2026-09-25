@@ -22,7 +22,7 @@ chats y no existía "a quién le toca este lead".
 | Cuentas y roles (`users.manage`) | ✓ | — | — |
 | Marca, WhatsApp, webhooks, canales, agenda, anuncios (`settings.manage`) | ✓ | — | — |
 | Agente de IA, base de conocimiento, Laboratorio (`agent.manage`) | ✓ | — | — |
-| Exportar contactos (`contacts.export`; ruta desde 021) | ✓ | — | — |
+| Exportar contactos (`contacts.export`; ruta y Coordinador desde 021) | ✓ | ✓ | — |
 | Importar contactos, etiquetas, campañas (`contacts.import`, `tags.manage`, `campaigns.manage`; 021) | ✓ | ✓ | — |
 
 La matriz vive en UN lugar: `src/lib/auth/permissions.ts`, declarada con el

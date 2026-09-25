@@ -17,6 +17,7 @@ imagen `ghcr.io/kevinrivm/vocero-crm:X.Y.Z`.
 - **Importar y exportar CSV** desde Contactos. La importación deduplica por
   teléfono, etiqueta cada contacto con el archivo del que vino y devuelve el
   detalle de cada fila que no entró. La exportación respeta los filtros.
+  Importar y exportar: Propietario y Coordinador.
 - **Campañas** (opcional, `CAMPAIGNS=on`): envío de una plantilla aprobada
   a un público por etiquetas, **solo a contactos con `opt_in`**, en segundo
   plano y con registro por destinatario.

@@ -203,7 +203,7 @@ describe("020 — un ASESOR recibe 403 en cada ruta protegida", () => {
 
 describe("020 — un COORDINADOR recibe 403 en lo que es solo del Propietario", () => {
   const soloOwner = PROTEGIDAS.filter(([, , p]) =>
-    ["settings.manage", "agent.manage", "users.manage", "contacts.export"].includes(p)
+    ["settings.manage", "agent.manage", "users.manage"].includes(p)
   );
   it.each(soloOwner)("%s %s → 403", async (route, method) => {
     como("coordinador");
