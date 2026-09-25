@@ -33,9 +33,10 @@ export function MotionProvider({ children }: { children: React.ReactNode }) {
 }
 
 /**
- * Contenido que se expande y colapsa con resorte (altura `auto`, algo que CSS
- * solo no sabe animar). Sin `open` no está en el DOM: lo colapsado no se
- * tabula ni lo lee un lector de pantalla.
+ * Contenido que se expande y colapsa. La altura cambia de golpe (animarla
+ * recalcula el layout en cada cuadro y se traba); lo que se mueve con
+ * resorte es el contenido, solo con `opacity` + `transform`. Sin `open` no
+ * está en el DOM: lo colapsado no se tabula ni lo lee un lector de pantalla.
  */
 export function Collapse({
   open,
@@ -54,11 +55,12 @@ export function Collapse({
         <m.div
           id={id}
           key="content"
-          initial={{ height: 0, opacity: 0 }}
-          animate={{ height: "auto", opacity: 1 }}
-          exit={{ height: 0, opacity: 0 }}
+          initial={{ opacity: 0, y: -4 }}
+          animate={{ opacity: 1, y: 0 }}
+          // Salida corta: mientras dura, el bloque aún ocupa su lugar.
+          exit={{ opacity: 0, y: -4, transition: { duration: 0.12 } }}
           transition={SPRING}
-          className={cn("overflow-hidden", className)}
+          className={className}
         >
           {children}
         </m.div>

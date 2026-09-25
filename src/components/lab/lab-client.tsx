@@ -157,8 +157,8 @@ export function LabClient() {
           </div>
           <div className="h-2 overflow-hidden rounded-full bg-secondary">
             <div
-              className="h-full rounded-full bg-primary transition-all"
-              style={{ width: `${(progress.done / progress.total) * 100}%` }}
+              className="h-full w-full origin-left rounded-full bg-primary transition-transform duration-300"
+              style={{ transform: `scaleX(${progress.done / progress.total})` }}
             />
           </div>
         </div>

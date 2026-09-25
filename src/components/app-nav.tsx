@@ -208,9 +208,10 @@ export function AppNav({
         // color YA CALCULADO en <body> con el tema de la página, no el de
         // `.nav-dark` — y un texto oscuro sobre este fondo oscuro se pierde.
         "nav-dark fixed inset-y-0 left-0 z-50 flex w-[17rem] shrink-0 flex-col overflow-y-auto border-r bg-subtle px-3 pb-3.5 pt-4 text-foreground transition-[transform,visibility] duration-200",
-        // 022: en escritorio lo único que se mueve es el ancho, con la curva
-        // de resorte (rebote sutil, 200 ms). El contenido que sobra se recorta.
-        "lg:static lg:visible lg:z-auto lg:translate-x-0 lg:overflow-x-hidden lg:transition-[width,padding] lg:duration-200 lg:ease-spring",
+        // En escritorio el ancho cambia de golpe (animar `width` recalcula el
+        // layout de toda la página en cada cuadro); lo que se mueve con
+        // resorte son los textos, solo con `opacity` + `transform`.
+        "lg:static lg:visible lg:z-auto lg:translate-x-0 lg:overflow-x-hidden",
         mini ? "lg:w-14 lg:px-2" : "lg:w-56",
         open ? "visible translate-x-0 shadow-pop" : "invisible -translate-x-full"
       )}
@@ -240,8 +241,8 @@ export function AppNav({
         <div
           aria-hidden={mini || undefined}
           className={cn(
-            "min-w-0 transition-opacity duration-150",
-            mini && "pointer-events-none opacity-0"
+            "min-w-0 transition-[opacity,transform] duration-200 ease-spring",
+            mini && "pointer-events-none -translate-x-1.5 opacity-0"
           )}
         >
           <BrandLogo branding={branding} />
@@ -373,13 +374,16 @@ export function AppNav({
   );
 }
 
-/** El texto de un renglón: se desvanece al colapsar (el ancho lo recorta). */
+/**
+ * El texto de un renglón: al expandir entra deslizándose con resorte; al
+ * colapsar se desvanece (el ancho lo recorta). Solo `opacity` + `transform`.
+ */
 function NavLabel({ mini, children }: { mini: boolean; children: React.ReactNode }) {
   return (
     <span
       className={cn(
-        "flex-1 whitespace-nowrap transition-opacity duration-150",
-        mini && "opacity-0"
+        "flex-1 whitespace-nowrap transition-[opacity,transform] duration-200 ease-spring",
+        mini && "-translate-x-1.5 opacity-0"
       )}
     >
       {children}

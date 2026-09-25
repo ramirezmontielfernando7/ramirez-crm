@@ -290,13 +290,13 @@ export function ConversationList({
       {/* Envuelve: con el filtro de anuncios, los tres botones y el selector de
           etapa no caben en una columna de 300-360 px, y el selector se
           aplastaba hasta dejar solo la flecha. */}
-      <div className="flex flex-wrap items-center gap-x-1.5 gap-y-2 border-b px-4 py-2.5">
+      <div className="flex flex-wrap items-center gap-x-1 gap-y-1.5 border-b px-4 py-1.5">
         {filtros.map((f) => (
           <button
             key={f.id}
             onClick={() => setFilter(f.id)}
             className={cn(
-              "flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-[5px] text-[12.5px] font-semibold transition-colors",
+              "flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full border px-2 py-[3px] text-[11.5px] font-semibold transition-colors",
               FOCO_SEPARADO,
               filter === f.id
                 ? "border-brand bg-brand text-brand-fg"
@@ -306,7 +306,7 @@ export function ConversationList({
             {f.label}
             <span
               className={cn(
-                "rounded-full px-1.5 text-[11px]",
+                "rounded-full px-1 text-[10.5px]",
                 filter === f.id ? "bg-brand-veil" : "bg-secondary text-text-3"
               )}
             >
@@ -315,65 +315,69 @@ export function ConversationList({
           </button>
         ))}
 
-        {stages.length > 0 && (
-          <select
-            value={stage}
-            onChange={(e) => setStage(e.target.value)}
-            aria-label="Filtrar por etapa del embudo"
-            className={cn(
-              "ml-auto min-w-0 max-w-[42%] truncate rounded-full border px-2 py-[5px] text-[12.5px] font-semibold transition-colors",
-              FOCO_SEPARADO,
-              stage === "all"
-                ? "border-border-strong bg-chip text-text-2 hover:border-text-3"
-                : "border-brand bg-brand text-brand-fg"
-            )}
-          >
-            <option value="all">Toda etapa</option>
-            {stages.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </select>
-        )}
+        {/* Selectores e ícono de selección viajan juntos: si no caben, los
+            selectores se recortan antes de que el ícono quede en otra línea. */}
+        <div className="ml-auto flex min-w-0 max-w-full items-center gap-1">
+          {stages.length > 0 && (
+            <select
+              value={stage}
+              onChange={(e) => setStage(e.target.value)}
+              aria-label="Filtrar por etapa del embudo"
+              className={cn(
+                "min-w-0 max-w-[9.5rem] truncate rounded-full border px-1.5 py-[3px] text-[11.5px] font-semibold transition-colors",
+                FOCO_SEPARADO,
+                stage === "all"
+                  ? "border-border-strong bg-chip text-text-2 hover:border-text-3"
+                  : "border-brand bg-brand text-brand-fg"
+              )}
+            >
+              <option value="all">Toda etapa</option>
+              {stages.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+          )}
 
-        {seesAll && (
-          <select
-            value={owner}
-            onChange={(e) => setOwner(e.target.value)}
-            aria-label="Filtrar por persona asignada"
-            className={cn(
-              "min-w-0 max-w-[48%] truncate rounded-full border px-2 py-[5px] text-[12.5px] font-semibold transition-colors",
-              stages.length === 0 && "ml-auto",
-              FOCO_SEPARADO,
-              owner === "all"
-                ? "border-border-strong bg-chip text-text-2 hover:border-text-3"
-                : "border-brand bg-brand text-brand-fg"
-            )}
-          >
-            <option value="all">Todo el equipo</option>
-            <option value="mine">Míos</option>
-            <option value="unassigned">Sin asignar</option>
-            {[...owners].map(([id, name]) => (
-              <option key={id} value={id}>
-                {name}
-              </option>
-            ))}
-          </select>
-        )}
+          {seesAll && (
+            <select
+              value={owner}
+              onChange={(e) => setOwner(e.target.value)}
+              aria-label="Filtrar por persona asignada"
+              className={cn(
+                "min-w-0 max-w-[9.5rem] truncate rounded-full border px-1.5 py-[3px] text-[11.5px] font-semibold transition-colors",
+                FOCO_SEPARADO,
+                owner === "all"
+                  ? "border-border-strong bg-chip text-text-2 hover:border-text-3"
+                  : "border-brand bg-brand text-brand-fg"
+              )}
+            >
+              <option value="all">Todo el equipo</option>
+              <option value="mine">Míos</option>
+              <option value="unassigned">Sin asignar</option>
+              {[...owners].map(([id, name]) => (
+                <option key={id} value={id}>
+                  {name}
+                </option>
+              ))}
+            </select>
+          )}
 
-        {canAssign && !selecting && (
-          <button
-            onClick={() => setSelecting(true)}
-            className={cn(
-              "flex shrink-0 items-center gap-1 rounded-full border border-border-strong bg-chip px-2.5 py-[5px] text-[12.5px] font-semibold text-text-2 transition-colors hover:border-text-3",
-              FOCO_SEPARADO
-            )}
-          >
-            <CheckSquare className="h-3.5 w-3.5" strokeWidth={1.8} />
-            Seleccionar
-          </button>
-        )}
+          {canAssign && !selecting && (
+            <button
+              onClick={() => setSelecting(true)}
+              aria-label="Seleccionar varios"
+              title="Seleccionar varios"
+              className={cn(
+                "flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-border-strong bg-chip text-text-2 transition-[border-color,transform] duration-150 hover:border-text-3 active:scale-90",
+                FOCO_SEPARADO
+              )}
+            >
+              <CheckSquare className="h-3.5 w-3.5" strokeWidth={1.8} />
+            </button>
+          )}
+        </div>
       </div>
 
       {selecting && (
@@ -435,7 +439,7 @@ export function ConversationList({
                     onClick={() => (selecting ? togglePick(c.id) : onSelect(c.id))}
                     aria-pressed={selecting ? picked.has(c.id) : undefined}
                     className={cn(
-                      "flex w-full items-start gap-[11px] px-4 py-[var(--row-py)] text-left transition-colors",
+                      "flex w-full items-start gap-2.5 px-4 py-[var(--row-py)] text-left transition-colors",
                       "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
                       active ? "bg-[var(--bg-active)]" : "hover:bg-row-hover"
                     )}
@@ -447,13 +451,13 @@ export function ConversationList({
                         tabIndex={-1}
                         checked={picked.has(c.id)}
                         aria-label={`Seleccionar a ${c.contact.name}`}
-                        className="mt-3 h-4 w-4 shrink-0 accent-[var(--accent)]"
+                        className="mt-2 h-4 w-4 shrink-0 accent-[var(--accent)]"
                       />
                     )}
                     <span className="relative shrink-0">
-                      <ContactAvatar name={c.contact.name} seed={c.contact.id} size="lg" />
+                      <ContactAvatar name={c.contact.name} seed={c.contact.id} size="list" />
                       {c.windowOpen && (
-                        <span className="absolute bottom-0 right-0 h-[11px] w-[11px] rounded-full border-[2.5px] border-background bg-success" />
+                        <span className="absolute -bottom-px -right-px h-[9px] w-[9px] rounded-full border-2 border-background bg-success" />
                       )}
                     </span>
                     <span className="min-w-0 flex-1">
@@ -478,7 +482,7 @@ export function ConversationList({
                           {formatTime(c.lastMessageAt)}
                         </span>
                       </span>
-                      <span className="mt-0.5 flex items-center justify-between gap-2">
+                      <span className="flex items-center justify-between gap-2">
                         <span
                           className={cn(
                             "truncate text-[13px]",
@@ -488,18 +492,18 @@ export function ConversationList({
                           {previewText(c.preview)}
                         </span>
                         {unread && (
-                          <span className="flex h-[18px] min-w-[18px] shrink-0 items-center justify-center rounded-full bg-brand px-1.5 text-[10.5px] font-semibold text-brand-fg">
+                          <span className="flex h-4 min-w-4 shrink-0 items-center justify-center rounded-full bg-brand px-1 text-[10px] font-semibold text-brand-fg">
                             {c.unreadCount}
                           </span>
                         )}
                       </span>
                       {/* Envuelve: con el asignado (020) los chips ya no caben
                           siempre en una línea de 300-360 px. */}
-                      <span className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                      <span className="mt-1 flex flex-wrap items-center gap-1">
                         {c.stageName && (
-                          <span className="inline-flex items-center gap-1.5 rounded-full border border-border-strong bg-chip px-2 py-0.5 text-[11px] font-medium text-text-2">
+                          <span className="inline-flex items-center gap-1 rounded-full border border-border-strong bg-chip px-1.5 py-px text-[10.5px] leading-4 font-medium text-text-2">
                             <span
-                              className="h-[7px] w-[7px] rounded-full"
+                              className="h-1.5 w-1.5 rounded-full"
                               style={{
                                 background: STAGE_DOT[c.stageName] ?? STAGE_DOT_FALLBACK,
                               }}
@@ -508,8 +512,8 @@ export function ConversationList({
                           </span>
                         )}
                         {c.handoffAt && (
-                          <span className="inline-flex items-center gap-1 rounded-full border border-warning-soft bg-warning-tint px-2 py-0.5 text-[11px] text-warning-text">
-                            <UserRound className="h-3 w-3" strokeWidth={1.7} />
+                          <span className="inline-flex items-center gap-1 rounded-full border border-warning-soft bg-warning-tint px-1.5 py-px text-[10.5px] leading-4 text-warning-text">
+                            <UserRound className="h-2.5 w-2.5" strokeWidth={1.8} />
                             {/* 020: al asesor asignado se le dice que es él. */}
                             {c.assignee?.id === viewer.userId
                               ? "Requiere tu atención"
@@ -519,7 +523,7 @@ export function ConversationList({
                           </span>
                         )}
                         {seesAll && (
-                          <span className="inline-flex min-w-0 items-center gap-1 rounded-full border border-border-strong bg-chip px-2 py-0.5 text-[11px] font-medium text-text-2">
+                          <span className="inline-flex min-w-0 items-center gap-1 rounded-full border border-border-strong bg-chip px-1.5 py-px text-[10.5px] leading-4 font-medium text-text-2">
                             <span className="truncate">
                               {c.assignee
                                 ? c.assignee.id === viewer.userId
@@ -531,10 +535,10 @@ export function ConversationList({
                         )}
                         {c.anuncio && (
                           <span
-                            className="inline-flex min-w-0 items-center gap-1 rounded-full border border-info-soft bg-info-tint px-2 py-0.5 text-[11px] text-info-text"
+                            className="inline-flex min-w-0 items-center gap-1 rounded-full border border-info-soft bg-info-tint px-1.5 py-px text-[10.5px] leading-4 text-info-text"
                             title={titularDeOrigen(c.anuncio.headline, c.anuncio.sourceType)}
                           >
-                            <Megaphone className="h-3 w-3 shrink-0" strokeWidth={1.7} />
+                            <Megaphone className="h-2.5 w-2.5 shrink-0" strokeWidth={1.8} />
                             <span className="truncate">
                               {etiquetaDeOrigen(c.anuncio.sourceType)}
                               {c.anuncio.headline ? ` · ${c.anuncio.headline}` : ""}
