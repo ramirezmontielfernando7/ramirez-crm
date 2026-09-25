@@ -2,3 +2,20 @@ allowBuilds:
   esbuild: true
   sharp: true
   unrs-resolver: true
+
+# Parches de seguridad de dependencias transitivas (pnpm audit). Solo subidas
+# de parche/menor dentro de la misma línea mayor, sin cambios de API. Quitar
+# cada una cuando el paquete que la trae ya la resuelva solo.
+# - postcss: next fija 8.4.31 exacto y tailwind trae 8.5.16; 8.5.28 es
+#   compatible (lectura de archivos, path traversal y XSS en stringify).
+# - sharp: lo trae next (optimizador de imágenes); next 15.5.26 ya acepta
+#   ^0.35.4 (vulnerabilidades de libvips/libheif).
+overrides:
+  "postcss@<8.5.23": ^8.5.28
+  "nanoid@<3.3.18": ^3.3.18
+  "brace-expansion@<1.1.18": ^1.1.18
+  "brace-expansion@>=5 <5.0.9": ^5.0.9
+  "js-yaml@<4.3.2": ^4.3.2
+  "browserslist@<4.28.7": ^4.28.7
+  "baseline-browser-mapping@<2.11.0": ^2.11.0
+  "sharp@<0.35.4": ^0.35.4
