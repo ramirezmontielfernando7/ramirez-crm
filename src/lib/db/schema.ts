@@ -1331,3 +1331,68 @@ export const campaignRecipient = pgTable(
     index("campaign_recipient_campaign_status_idx").on(t.campaignId, t.status),
   ]
 );
+
+/**
+ * 022 — Bitácora de actividad del contacto: lo que NO registran
+ * `lead_stage_event` ni `contact_assignment_event`. Append-only, mismo
+ * contrato que ellas. Con esas dos arma la línea de tiempo del chat
+ * (`src/server/activity/timeline.ts`); la única puerta que escribe aquí es
+ * `src/server/activity/log.ts`.
+ */
+export const contactActivityEvent = pgTable(
+  "contact_activity_event",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    contactId: text("contact_id")
+      .notNull()
+      .references(() => contact.id, { onDelete: "cascade" }),
+    kind: text("kind", {
+      enum: [
+        "note_added",
+        "ai_paused",
+        "ai_resumed",
+        "ai_handoff",
+        "consent_changed",
+        "tag_added",
+        "tag_removed",
+      ],
+    }).notNull(),
+    /** Quién; NULL = no fue una persona (agente, cerebro externo, sistema). */
+    actorUserId: text("actor_user_id").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    source: text("source", { enum: ["usuario", "bot", "api", "sistema"] })
+      .notNull()
+      .default("usuario"),
+    /** Lo propio de cada tipo: texto de la nota, motivo, etiqueta… */
+    detail: jsonb("detail").$type<Record<string, string | null>>(),
+    occurredAt: timestamp("occurred_at").notNull().defaultNow(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    index("cace_contact_occurred_idx").on(t.contactId, t.occurredAt),
+    index("cace_org_occurred_idx").on(t.organizationId, t.occurredAt),
+  ]
+);
+
+/**
+ * 022 — Preferencias de interfaz POR USUARIO (siguen entre dispositivos, a
+ * diferencia del tema, que es por dispositivo). NULL = el default del rol.
+ */
+export const userPreference = pgTable(
+  "user_preference",
+  {
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    navCollapsed: boolean("nav_collapsed"),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.organizationId, t.userId] })]
+);

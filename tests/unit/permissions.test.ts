@@ -26,6 +26,8 @@ const MATRIZ: Record<Permission, Record<Role, boolean>> = {
   "campaigns.manage": { owner: true, coordinador: true, asesor: false },
   "assignment.manage": { owner: true, coordinador: true, asesor: false },
   "scope.all": { owner: true, coordinador: true, asesor: false },
+  // 022: el Asesor no entra a Resultados, ni a los suyos.
+  "results.read": { owner: true, coordinador: true, asesor: false },
   "results.all": { owner: true, coordinador: true, asesor: false },
 };
 

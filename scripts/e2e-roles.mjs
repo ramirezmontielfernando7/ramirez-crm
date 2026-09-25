@@ -328,8 +328,16 @@ async function main() {
     });
     ok(`A → ${nombre}: 403`, r.res.status === 403, `status=${r.res.status}`);
   }
+  // 022: el Asesor ya no entra a Resultados, ni a los suyos.
   const propios = await asesorA.api("/api/analytics/sales");
-  ok("A sí ve SUS resultados", propios.res.ok);
+  ok("A → sus propios resultados: 403 (022)", propios.res.status === 403, `status=${propios.res.status}`);
+  const paginaResultados = await asesorA.api("/results", { headers: { accept: "text/html" } });
+  ok(
+    "A abre /results → de vuelta a la Bandeja (022)",
+    [302, 303, 307, 308].includes(paginaResultados.res.status) &&
+      (paginaResultados.res.headers.get("location") ?? "").includes("/inbox"),
+    `status=${paginaResultados.res.status} location=${paginaResultados.res.headers.get("location")}`
+  );
   const pagina = await asesorA.api("/settings/whatsapp", { headers: { accept: "text/html" } });
   ok(
     "A abre /settings/whatsapp → de vuelta a la Bandeja",

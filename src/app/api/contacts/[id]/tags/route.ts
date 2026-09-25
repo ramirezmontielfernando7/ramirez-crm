@@ -25,7 +25,7 @@ export const PUT = withAuth(async (session, req: Request, ctx: Params) => {
     return apiError(404, "not_found", "Contacto no encontrado");
   }
   try {
-    const tags = await setContactTags(session.organizationId, id, body.data.tagIds);
+    const tags = await setContactTags(session.organizationId, id, body.data.tagIds, session.userId);
     return Response.json({ tags });
   } catch (err) {
     if (err instanceof TagError) return apiError(TAG_ERROR_STATUS[err.code], err.code, err.message);

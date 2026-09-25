@@ -4,6 +4,7 @@ import { getDb, schema } from "@/lib/db";
 import { apiError, parseBody } from "@/lib/api";
 import { requireBotKey, resolveInstanceOrg } from "@/server/bot/auth";
 import { publish } from "@/server/events/bus";
+import { logActivitySafe } from "@/server/activity/log";
 import { toHandoffReason } from "@/server/bot/handoff";
 
 export const dynamic = "force-dynamic";
@@ -41,6 +42,7 @@ export async function POST(req: Request) {
   const rows = await db
     .select({
       id: schema.conversation.id,
+      contactId: schema.conversation.contactId,
       handoffAt: schema.conversation.handoffAt,
     })
     .from(schema.conversation)
@@ -67,6 +69,14 @@ export async function POST(req: Request) {
     publish(organizationId, {
       type: "conversation.updated",
       data: { conversation: { id: conv.id } },
+    });
+    // 022: queda en la línea de tiempo del chat.
+    await logActivitySafe({
+      organizationId,
+      contactId: conv.contactId,
+      kind: "ai_handoff",
+      source: "api",
+      detail: { reason: toHandoffReason(body.data.reason) },
     });
   }
   return Response.json({ ok: true });

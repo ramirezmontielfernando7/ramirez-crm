@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { apiError, parseBody, withAuth } from "@/lib/api";
 import { getDb, schema } from "@/lib/db";
+import { logActivitySafe } from "@/server/activity/log";
 import { scopedContacts } from "@/lib/db/tenant";
 import {
   getContactById,
@@ -82,7 +83,8 @@ export const PATCH = withAuth(async (session, req: Request, ctx: Params) => {
 
   // 020: el contacto de otro asesor no existe para este (404), y eso vale
   // también para la ficha, que va por otra puerta.
-  if (!(await getContactById(session.access, id))) {
+  const previous = await getContactById(session.access, id);
+  if (!previous) {
     return apiError(404, "not_found", "Contacto no encontrado");
   }
 
@@ -132,6 +134,21 @@ export const PATCH = withAuth(async (session, req: Request, ctx: Params) => {
     )
     .returning();
   if (!updated[0]) return apiError(404, "not_found", "Contacto no encontrado");
+  // 022: el cambio de consentimiento queda en la línea de tiempo.
+  if (body.data.waConsent !== undefined && body.data.waConsent !== previous.waConsent) {
+    await logActivitySafe({
+      organizationId: session.organizationId,
+      contactId: id,
+      kind: "consent_changed",
+      actorUserId: session.userId,
+      source: "usuario",
+      detail: {
+        from: previous.waConsent,
+        to: updated[0].waConsent,
+        source: updated[0].waConsentSource,
+      },
+    });
+  }
   const [anuncio, tags] = await Promise.all([
     anuncioDelContacto(session.organizationId, id),
     tagsForContacts(session.organizationId, [id]),

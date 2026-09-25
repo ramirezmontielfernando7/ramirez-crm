@@ -37,6 +37,8 @@ const prefixes = {
   contactTag: "tag",
   campaign: "cmp",
   campaignRecipient: "cmr",
+  // 022 — línea de tiempo del chat
+  activityEvent: "act",
 } as const;
 
 export type IdKind = keyof typeof prefixes;

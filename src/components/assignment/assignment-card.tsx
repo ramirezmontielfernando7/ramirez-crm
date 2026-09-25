@@ -5,6 +5,7 @@ import { UserRound } from "lucide-react";
 import { formatTime } from "@/components/inbox/helpers";
 import { assignContacts, useAssignees } from "@/components/assignment/use-assignees";
 import { useViewer } from "@/components/viewer-context";
+import { Collapse, DisclosureButton, useDisclosureId } from "@/components/motion";
 
 type HistoryItem = {
   id: string;
@@ -20,6 +21,10 @@ type HistoryItem = {
  * 020 — Quién atiende a este contacto, el selector para reasignarlo (solo
  * quien reparte) y el historial: quién lo tuvo, desde cuándo y quién lo
  * movió. Mismo lenguaje visual que el resto del panel de detalles.
+ *
+ * 022 — El historial queda plegado tras "Ver historial de asignación" y solo
+ * para quien reparte (Propietario/Coordinador). Es orden, no secreto: los
+ * mismos cambios salen en la línea de tiempo del chat, que el Asesor sí ve.
  */
 export function AssignmentCard({
   contactId,
@@ -37,6 +42,8 @@ export function AssignmentCard({
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const historyId = useDisclosureId("assignment-history");
 
   const load = useCallback(async () => {
     const data = await fetch(`/api/contacts/${contactId}/assignments`)
@@ -102,15 +109,27 @@ export function AssignmentCard({
       )}
       {error && <p className="mt-1.5 text-[11px] text-danger-text">{error}</p>}
 
-      {history.length > 0 && (
-        <ol className="mt-3 space-y-1.5">
-          {[...history].reverse().slice(0, 6).map((h) => (
-            <li key={h.id} className="text-[11px] leading-relaxed text-text-3">
-              <span className="font-mono">{formatTime(h.occurredAt)}</span>{" "}
-              {describe(h)}
-            </li>
-          ))}
-        </ol>
+      {canAssign && history.length > 0 && (
+        <div className="mt-2.5">
+          <DisclosureButton
+            open={historyOpen}
+            onToggle={() => setHistoryOpen((v) => !v)}
+            controls={historyId}
+            className="text-[12px] font-medium text-text-2 hover:text-foreground"
+          >
+            {historyOpen ? "Ocultar historial de asignación" : "Ver historial de asignación"}
+          </DisclosureButton>
+          <Collapse open={historyOpen} id={historyId}>
+            <ol className="space-y-1.5 pt-2">
+              {[...history].reverse().slice(0, 6).map((h) => (
+                <li key={h.id} className="text-[11px] leading-relaxed text-text-3">
+                  <span className="font-mono">{formatTime(h.occurredAt)}</span>{" "}
+                  {describe(h)}
+                </li>
+              ))}
+            </ol>
+          </Collapse>
+        </div>
       )}
     </section>
   );

@@ -11,4 +11,4 @@ export const GET = withAuth(async (session, req: Request) => {
   if (!who.ok) return forbidden();
   const branding = await getBranding(session.organizationId);
   return Response.json(await hygieneBlock(who.scope, branding.currency));
-});
+}, { permission: "results.read" });

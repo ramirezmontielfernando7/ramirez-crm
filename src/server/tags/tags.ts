@@ -2,6 +2,7 @@ import { asc, count, eq, inArray } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
 import { scoped } from "@/lib/db/tenant";
+import { logActivitySafe } from "@/server/activity/log";
 import { isTagColor, normalizeTagName, type TagDto } from "@/lib/tags";
 
 /**
@@ -189,10 +190,13 @@ export async function tagsForContacts(
 export async function setContactTags(
   organizationId: string,
   contactId: string,
-  tagIds: string[]
+  tagIds: string[],
+  /** 022 — quién etiqueta, para la línea de tiempo. */
+  actorUserId: string | null = null
 ): Promise<TagDto[]> {
   const unique = [...new Set(tagIds)];
   const db = getDb();
+  const before = (await tagsForContacts(organizationId, [contactId])).get(contactId) ?? [];
   if (unique.length > 0) {
     const found = await db
       .select({ id: schema.contactTag.id })
@@ -217,7 +221,26 @@ export async function setContactTags(
         .onConflictDoNothing();
     }
   });
-  return (await tagsForContacts(organizationId, [contactId])).get(contactId) ?? [];
+  const after = (await tagsForContacts(organizationId, [contactId])).get(contactId) ?? [];
+
+  // 022: cada etiqueta puesta o quitada queda en la línea de tiempo.
+  const had = new Set(before.map((t) => t.id));
+  const has = new Set(after.map((t) => t.id));
+  const changes = [
+    ...after.filter((t) => !had.has(t.id)).map((t) => ({ kind: "tag_added" as const, tag: t.name })),
+    ...before.filter((t) => !has.has(t.id)).map((t) => ({ kind: "tag_removed" as const, tag: t.name })),
+  ];
+  for (const c of changes) {
+    await logActivitySafe({
+      organizationId,
+      contactId,
+      kind: c.kind,
+      actorUserId,
+      source: actorUserId ? "usuario" : "sistema",
+      detail: { tag: c.tag },
+    });
+  }
+  return after;
 }
 
 /** Agrega (sin quitar) una etiqueta a muchos contactos: la usa la importación. */

@@ -21,6 +21,12 @@ const config: Config = {
   content: ["./src/**/*.{ts,tsx}"],
   theme: {
     extend: {
+      // 022 — Curva con un rebote sutil (sobrepasa ~6% y vuelve): para lo
+      // que se mueve por CSS (pomo del switch, presión). Los resortes de
+      // verdad (expandir/colapsar) van con `motion` (src/components/motion.tsx).
+      transitionTimingFunction: {
+        spring: "cubic-bezier(0.34, 1.56, 0.64, 1)",
+      },
       colors: {
         border: "var(--border)",
         "border-strong": "var(--border-strong)",

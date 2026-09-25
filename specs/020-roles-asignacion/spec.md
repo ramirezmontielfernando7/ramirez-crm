@@ -15,6 +15,7 @@ chats y no existía "a quién le toca este lead".
 | Puede… | Propietario | Coordinador | Asesor |
 |---|:-:|:-:|:-:|
 | Ver chats, leads, citas y resultados de **todo el equipo** (`scope.all`, `results.all`) | ✓ | ✓ | solo lo asignado |
+| Entrar a Resultados (`results.read`, [022](../022-linea-de-tiempo/spec.md)) | ✓ | ✓ | — |
 | Asignar y reasignar, también en lote (`assignment.manage`) | ✓ | ✓ | — |
 | Crear/editar/borrar etapas (`pipeline.edit`) — mover SUS leads lo puede todo rol | ✓ | ✓ | — |
 | Subir/editar/sincronizar plantillas (`templates.manage`) | ✓ | ✓ | — |

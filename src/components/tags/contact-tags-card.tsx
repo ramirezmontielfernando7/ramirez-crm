@@ -34,6 +34,7 @@ export function ContactTagsCard({
   refreshKey = 0,
   onChanged,
   bare = false,
+  consentFirst = false,
 }: {
   contactId: string;
   refreshKey?: number;
@@ -41,6 +42,8 @@ export function ContactTagsCard({
   onChanged?: () => void;
   /** Sin borde/padding de sección (para meterla en un diálogo). */
   bare?: boolean;
+  /** 022 — "Mensajes masivos" antes que "Etiquetas" (panel de la Bandeja). */
+  consentFirst?: boolean;
 }) {
   const viewer = useViewer();
   const [tags, setTags] = useState<TagDto[]>([]);
@@ -127,96 +130,103 @@ export function ContactTagsCard({
 
   const available = allTags.filter((t) => !tags.some((x) => x.id === t.id));
 
+  const tagsBlock = (
+    <div>
+      <p className="kicker mb-2">Etiquetas</p>
+      {!loaded && !error ? (
+        <p className="text-xs text-text-3">Cargando…</p>
+      ) : (
+        <div className="flex flex-wrap items-center gap-1.5">
+          {tags.length === 0 && <span className="text-xs text-text-3">Sin etiquetas</span>}
+          {tags.map((t) => (
+            <TagChip
+              key={t.id}
+              tag={t}
+              onRemove={busy ? undefined : () => void saveTags(tags.filter((x) => x.id !== t.id))}
+            />
+          ))}
+          {available.length > 0 && (
+            <select
+              value=""
+              disabled={busy}
+              aria-label="Agregar etiqueta"
+              onChange={(e) => {
+                const tag = available.find((t) => t.id === e.target.value);
+                if (tag) void saveTags([...tags, tag]);
+              }}
+              className="h-7 rounded-md border border-input bg-card px-1.5 text-xs"
+            >
+              <option value="">+ Agregar…</option>
+              {available.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
+      )}
+      {loaded && allTags.length === 0 && (
+        <p className="mt-1.5 text-[11px] text-text-3">
+          Aún no hay etiquetas.
+          {viewer.can("tags.manage") && (
+            <Link href="/settings/tags" className="ml-1 font-medium text-brand-text underline underline-offset-2">
+              Crear en Configuración →
+            </Link>
+          )}
+        </p>
+      )}
+    </div>
+  );
+
+  const consentBlock = (
+    <div>
+      <p className="kicker mb-2">Mensajes masivos (WhatsApp)</p>
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge variant={CONSENT_BADGE[consent]}>{WA_CONSENT_LABEL[consent]}</Badge>
+        {consentSource && <span className="text-[11px] text-text-3">· {consentSource}</span>}
+      </div>
+      {consentAt && (
+        <p className="mt-1 text-[11px] text-text-3">
+          Actualizado el {new Date(consentAt).toLocaleDateString("es-MX", { dateStyle: "medium" })}
+        </p>
+      )}
+      <p className="mt-2 text-[11px] leading-relaxed text-text-3">
+        Solo los contactos que aceptan mensajes reciben campañas.
+      </p>
+      {loaded && (
+        <div className="mt-2 space-y-2">
+          <Input
+            value={draftSource}
+            disabled={busy}
+            onChange={(e) => setDraftSource(e.target.value)}
+            placeholder="¿De dónde? Ej.: formulario web, lo pidió por WhatsApp"
+            aria-label="Origen del consentimiento"
+            className="h-8 text-xs"
+            maxLength={200}
+          />
+          <div className="flex flex-wrap gap-1.5">
+            {WA_CONSENT_VALUES.filter((v) => v !== consent).map((v) => (
+              <Button
+                key={v}
+                size="sm"
+                variant={v === "opt_out" ? "outline" : "secondary"}
+                disabled={busy}
+                onClick={() => void saveConsent(v)}
+              >
+                {v === "opt_in" ? "Marcar: acepta" : v === "opt_out" ? "Marcar: no quiere" : "Marcar: sin confirmar"}
+              </Button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <section className={bare ? "space-y-4" : "space-y-4 border-b p-4"}>
-      <div>
-        <p className="kicker mb-2">Etiquetas</p>
-        {!loaded && !error ? (
-          <p className="text-xs text-text-3">Cargando…</p>
-        ) : (
-          <div className="flex flex-wrap items-center gap-1.5">
-            {tags.length === 0 && <span className="text-xs text-text-3">Sin etiquetas</span>}
-            {tags.map((t) => (
-              <TagChip
-                key={t.id}
-                tag={t}
-                onRemove={busy ? undefined : () => void saveTags(tags.filter((x) => x.id !== t.id))}
-              />
-            ))}
-            {available.length > 0 && (
-              <select
-                value=""
-                disabled={busy}
-                aria-label="Agregar etiqueta"
-                onChange={(e) => {
-                  const tag = available.find((t) => t.id === e.target.value);
-                  if (tag) void saveTags([...tags, tag]);
-                }}
-                className="h-7 rounded-md border border-input bg-card px-1.5 text-xs"
-              >
-                <option value="">+ Agregar…</option>
-                {available.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.name}
-                  </option>
-                ))}
-              </select>
-            )}
-          </div>
-        )}
-        {loaded && allTags.length === 0 && (
-          <p className="mt-1.5 text-[11px] text-text-3">
-            Aún no hay etiquetas.
-            {viewer.can("tags.manage") && (
-              <Link href="/settings/tags" className="ml-1 font-medium text-brand-text underline underline-offset-2">
-                Crear en Configuración →
-              </Link>
-            )}
-          </p>
-        )}
-      </div>
-
-      <div>
-        <p className="kicker mb-2">Mensajes masivos (WhatsApp)</p>
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge variant={CONSENT_BADGE[consent]}>{WA_CONSENT_LABEL[consent]}</Badge>
-          {consentSource && <span className="text-[11px] text-text-3">· {consentSource}</span>}
-        </div>
-        {consentAt && (
-          <p className="mt-1 text-[11px] text-text-3">
-            Actualizado el {new Date(consentAt).toLocaleDateString("es-MX", { dateStyle: "medium" })}
-          </p>
-        )}
-        <p className="mt-2 text-[11px] leading-relaxed text-text-3">
-          Solo los contactos que aceptan mensajes reciben campañas.
-        </p>
-        {loaded && (
-          <div className="mt-2 space-y-2">
-            <Input
-              value={draftSource}
-              disabled={busy}
-              onChange={(e) => setDraftSource(e.target.value)}
-              placeholder="¿De dónde? Ej.: formulario web, lo pidió por WhatsApp"
-              aria-label="Origen del consentimiento"
-              className="h-8 text-xs"
-              maxLength={200}
-            />
-            <div className="flex flex-wrap gap-1.5">
-              {WA_CONSENT_VALUES.filter((v) => v !== consent).map((v) => (
-                <Button
-                  key={v}
-                  size="sm"
-                  variant={v === "opt_out" ? "outline" : "secondary"}
-                  disabled={busy}
-                  onClick={() => void saveConsent(v)}
-                >
-                  {v === "opt_in" ? "Marcar: acepta" : v === "opt_out" ? "Marcar: no quiere" : "Marcar: sin confirmar"}
-                </Button>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
+      {consentFirst ? consentBlock : tagsBlock}
+      {consentFirst ? tagsBlock : consentBlock}
 
       {error && (
         <p role="alert" className="rounded-md border border-danger-soft bg-danger-tint px-2.5 py-2 text-xs text-danger-text">

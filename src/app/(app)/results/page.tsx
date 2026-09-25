@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { getSessionOrNull } from "@/lib/auth/session";
+import { can } from "@/lib/auth/permissions";
 import { todayInTz } from "@/lib/time/slots";
 import { getBranding } from "@/server/branding";
 import { agendaEnabled } from "@/server/agenda/flag";
@@ -21,6 +22,10 @@ export default async function ResultsPage() {
   // resuelve primero.
   const session = await getSessionOrNull();
   if (!session) redirect("/login");
+  // 022 — El Asesor no entra a Resultados (ni a los suyos). Las rutas de
+  // `/api/analytics/*` lo niegan con 403 por su cuenta; esto evita pintarle
+  // una pantalla que solo mostraría errores.
+  if (!can(session, "results.read")) redirect("/inbox");
   const [branding, timezone] = await Promise.all([
     getBranding(session.organizationId),
     businessTimezone(session.organizationId),
