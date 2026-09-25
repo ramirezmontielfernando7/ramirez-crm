@@ -41,30 +41,38 @@ export function BrandMark({ className }: { className?: string }) {
  */
 export function BrandTile({
   branding,
+  ghost = false,
   className,
 }: {
   branding: BrandingMark;
+  /**
+   * Invertido: sin mosaico, la burbuja (o la inicial) en el color de la
+   * marca sobre el fondo de la página. Para el botón del menú oculto, que
+   * vive en el encabezado blanco y no debe pesar como un bloque de color.
+   */
+  ghost?: boolean;
   className?: string;
 }) {
   const house = !branding.favicon && isHouseName(branding.name);
+  const tileStyle: React.CSSProperties | undefined = !house
+    ? undefined
+    : ghost
+      ? { color: BRAND_TEAL }
+      : {
+          // El teal del logo, con el brillo suave del centro del original.
+          // Sobre una barra lateral teal, `--house-tile` lo vuelve blanco
+          // translúcido: teal sobre teal desaparecería.
+          background: `var(--house-tile, radial-gradient(circle at 45% 40%, ${BRAND_TEAL_LIGHT}, ${BRAND_TEAL} 70%))`,
+          boxShadow: "var(--house-tile-ring, none)",
+        };
   return (
     <span
       className={cn(
         "flex shrink-0 items-center justify-center overflow-hidden",
-        house ? "text-white" : "brand-tile text-brand-fg",
+        ghost ? "text-brand" : house ? "text-white" : "brand-tile text-brand-fg",
         className
       )}
-      style={
-        house
-          ? {
-              // El teal del logo, con el brillo suave del centro del original.
-              // Sobre una barra lateral teal, `--house-tile` lo vuelve blanco
-              // translúcido: teal sobre teal desaparecería.
-              background: `var(--house-tile, radial-gradient(circle at 45% 40%, ${BRAND_TEAL_LIGHT}, ${BRAND_TEAL} 70%))`,
-              boxShadow: "var(--house-tile-ring, none)",
-            }
-          : undefined
-      }
+      style={tileStyle}
       aria-hidden
     >
       {branding.favicon ? (
@@ -77,7 +85,7 @@ export function BrandTile({
           className="h-full w-full object-contain"
         />
       ) : house ? (
-        <BrandMark className="h-[56%] w-[56%]" />
+        <BrandMark className={ghost ? "h-[68%] w-[68%]" : "h-[56%] w-[56%]"} />
       ) : (
         <span className="font-bold leading-none">{faviconInitial(branding.name)}</span>
       )}

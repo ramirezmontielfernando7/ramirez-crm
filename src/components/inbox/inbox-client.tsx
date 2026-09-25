@@ -4,10 +4,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { ChevronLeft, PanelRight } from "lucide-react";
 import { m } from "motion/react";
-import { cn, formatPhone } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { ContactAvatar } from "@/components/avatar";
 import type { ConversationDto, MessageDto } from "@/lib/types";
-import { CHANNEL_LABEL, type Channel } from "@/lib/channels";
+import { type Channel } from "@/lib/channels";
 import { ChannelBadge } from "@/components/channel-badge";
 import { useEvents } from "@/components/use-events";
 import { ConversationList } from "./conversation-list";
@@ -312,7 +312,9 @@ export function InboxClient({ channels }: { channels: readonly Channel[] }) {
               transition={{ type: "spring", duration: 0.2, bounce: 0 }}
               className="flex min-h-0 flex-1 flex-col"
             >
-              <header className="flex items-center justify-between gap-1 border-b bg-background px-2 py-2.5 md:px-4">
+              {/* 56 px, como la Bandeja y Detalles. Solo el nombre: el teléfono
+                  está en Detalles y la ventana de 24 h, bajo el compositor. */}
+              <header className="flex h-14 shrink-0 items-center justify-between gap-1 border-b bg-background px-2 md:px-4">
                 {/* Volver a la lista: en móvil el hilo ocupa toda la pantalla. */}
                 <button
                   onClick={() => setSelectedId(null)}
@@ -321,34 +323,16 @@ export function InboxClient({ channels }: { channels: readonly Channel[] }) {
                 >
                   <ChevronLeft className="h-5 w-5" strokeWidth={1.8} />
                 </button>
-                <div className="flex min-w-0 flex-1 items-center gap-3 p-1">
+                <div className="flex min-w-0 flex-1 items-center gap-3 px-1">
                   <ContactAvatar
                     name={selected.contact.name}
                     seed={selected.contact.id}
                     size="md"
                   />
-                  <div className="min-w-0">
-                    <p className="flex min-w-0 items-center gap-1.5 text-[15px] font-bold leading-tight tracking-tight">
-                      {multiChannel && <ChannelBadge channel={selected.channel} />}
-                      <span className="truncate">{selected.contact.name}</span>
-                    </p>
-                    <p
-                      className={cn(
-                        "mt-0.5 font-mono text-[10.5px] tracking-[0.04em]",
-                        selected.windowOpen
-                          ? "font-medium text-success-text"
-                          : "text-text-3"
-                      )}
-                    >
-                      {selected.windowOpen
-                        ? "ventana abierta"
-                        : selected.contact.phone
-                          ? formatPhone(selected.contact.phone)
-                          : // Instagram no tiene teléfono: decir "Sin teléfono"
-                            // sería contestar una pregunta que nadie hizo.
-                            CHANNEL_LABEL[selected.channel]}
-                    </p>
-                  </div>
+                  <p className="flex min-w-0 items-center gap-1.5 text-[15px] font-semibold leading-tight tracking-tight">
+                    {multiChannel && <ChannelBadge channel={selected.channel} />}
+                    <span className="truncate">{selected.contact.name}</span>
+                  </p>
                 </div>
                 {!panelOpen && (
                   <button
