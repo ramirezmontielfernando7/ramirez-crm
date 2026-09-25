@@ -383,7 +383,10 @@ export function InboxClient({ channels }: { channels: readonly Channel[] }) {
 
       <section
         className={cn(
-          "shrink-0 overflow-hidden border-l transition-[width] duration-200",
+          // El ancho de la columna cambia de golpe (animar `width` reacomoda la
+          // lista y el hilo en cada cuadro); lo que entra con movimiento es el
+          // contenido de adentro, con `opacity` + `transform`.
+          "shrink-0 overflow-hidden border-l",
           // Debajo de xl no hay ancho para una tercera columna: el panel se
           // vuelve un cajón que entra desde la derecha, encima del hilo.
           "max-xl:fixed max-xl:inset-y-0 max-xl:right-0 max-xl:z-40 max-xl:w-auto max-xl:bg-popover max-xl:transition-transform",
@@ -393,7 +396,13 @@ export function InboxClient({ channels }: { channels: readonly Channel[] }) {
         )}
       >
         {selected && (
-          <div className="h-full w-[320px] max-xl:w-[min(320px,88vw)]">
+          <div
+            className={cn(
+              "h-full w-[320px] max-xl:w-[min(320px,88vw)]",
+              "xl:transition-[opacity,transform] xl:duration-200 xl:ease-out",
+              panelOpen ? "xl:translate-x-0 xl:opacity-100" : "xl:translate-x-4 xl:opacity-0"
+            )}
+          >
             <ContactPanel
               conversation={selected}
               refreshKey={detailRev}
