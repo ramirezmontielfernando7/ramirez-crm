@@ -216,7 +216,9 @@ export function AppNav({
         // En escritorio el ancho cambia de golpe (animar `width` recalcula el
         // layout de toda la página en cada cuadro); lo que se mueve con
         // resorte son los textos, solo con `opacity` + `transform`.
-        "lg:static lg:visible lg:z-auto lg:translate-x-0 lg:overflow-x-hidden",
+        // `relative z-10`: al reaparecer, la columna de contenido se desliza
+        // desde DEBAJO del menú, no encima.
+        "lg:relative lg:visible lg:z-10 lg:translate-x-0 lg:overflow-x-hidden",
         mini ? "lg:w-14 lg:px-2" : "lg:w-56",
         hidden && "lg:hidden",
         open ? "visible translate-x-0 shadow-pop" : "invisible -translate-x-full"
@@ -234,9 +236,8 @@ export function AppNav({
           <X className="h-[18px] w-[18px]" strokeWidth={1.8} />
         </button>
         {/* 022: expandido → íconos → oculto. El mismo hamburguesa de la barra
-            del teléfono, arriba a la izquierda. Oculto, el de AppShell queda
-            en la misma coordenada que aquí en íconos: el clic siguiente cae
-            en el mismo lugar. */}
+            del teléfono, arriba a la izquierda. Oculto, el que lo reabre va
+            en la fila del título de cada pantalla (`NavRevealButton`). */}
         <button
           onClick={onCycleMode}
           aria-label={toggleLabel}

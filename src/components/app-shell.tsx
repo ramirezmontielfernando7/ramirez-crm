@@ -1,17 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
-import { AnimatePresence, m } from "motion/react";
+import { useAnimate } from "motion/react";
 import { Menu } from "lucide-react";
 import type { Branding } from "@/lib/branding";
 import type { ThemePreference } from "@/lib/theme";
 import type { ResolvedCommit } from "@/lib/version";
 import { AppNav } from "@/components/app-nav";
 import { BrandLogo } from "@/components/brand-mark";
-import { cn } from "@/lib/utils";
 import { ViewerProvider } from "@/components/viewer-context";
-import { MotionProvider, SPRING } from "@/components/motion";
+import { MotionProvider, SLIDE } from "@/components/motion";
+import { NavModeProvider } from "@/components/nav-mode";
 import { nextNavMode, type NavMode } from "@/lib/preferences";
 
 /**
@@ -62,11 +62,15 @@ export function AppShell({
   const pathname = usePathname();
   const [navOpen, setNavOpen] = useState(false);
   const [mode, setMode] = useState<NavMode>(navMode);
+  const [content, animate] = useAnimate<HTMLDivElement>();
+  // Dónde empezaba el contenido antes de cambiar el menú (para deslizarlo).
+  const leftBefore = useRef<number | null>(null);
 
   // El hamburguesa de escritorio recorre el ciclo expandido → íconos →
   // oculto → expandido. (El teléfono no lo usa: ahí el cajón abre y cierra.)
   function cycleNav() {
     const next = nextNavMode(mode);
+    leftBefore.current = content.current?.getBoundingClientRect().left ?? null;
     setMode(next);
     // Por usuario y en BD: la elección lo sigue a otro dispositivo. Si no se
     // guarda, la barra igual cambia; solo no se recordará la próxima vez.
@@ -76,6 +80,21 @@ export function AppShell({
       body: JSON.stringify({ navMode: next }),
     }).catch(() => undefined);
   }
+
+  // El menú cambia de ancho de golpe (animar `width` recalcula el layout en
+  // cada cuadro). Lo que se mueve es la columna de contenido ENTERA, como una
+  // sola pieza: antes de pintar se la deja donde estaba (`x` = cuánto se
+  // corrió su borde izquierdo) y se desliza a su lugar. Solo `transform`.
+  useLayoutEffect(() => {
+    const el = content.current;
+    const before = leftBefore.current;
+    leftBefore.current = null;
+    if (!el || before === null) return;
+    const delta = before - el.getBoundingClientRect().left;
+    if (Math.abs(delta) < 1) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    void animate(el, { x: [delta, 0] }, SLIDE);
+  }, [mode, animate, content]);
 
   // Navegar = cerrar el cajón. Sin esto, tocar "Pipeline" deja el velo encima
   // de la pantalla recién cargada.
@@ -95,70 +114,53 @@ export function AppShell({
   return (
     <ViewerProvider userId={userId} role={role}>
       <MotionProvider>
-        <div className="flex h-dvh overflow-hidden bg-background">
-          {navOpen && (
-            <button
-              aria-label="Cerrar el menú"
-              tabIndex={-1}
-              onClick={() => setNavOpen(false)}
-              className="fixed inset-0 z-40 bg-overlay lg:hidden"
-            />
-          )}
-
-          <AppNav
-            branding={branding}
-            commit={commit}
-            userName={userName}
-            role={role}
-            theme={theme}
-            agenda={agenda}
-            campaigns={campaigns}
-            open={navOpen}
-            onClose={() => setNavOpen(false)}
-            mode={mode}
-            onCycleMode={cycleNav}
-          />
-
-          {/* 022 — Menú oculto (solo escritorio): el hamburguesa queda fijo en
-              la esquina, sin depender de hover, en una franja angosta sin
-              borde para no tapar el título de la pantalla. */}
-          <AnimatePresence initial={false}>
-            {mode === "hidden" && (
-              <m.button
-                key="nav-reveal"
-                onClick={cycleNav}
-                aria-label="Mostrar el menú"
-                title="Mostrar el menú"
-                aria-expanded={false}
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.1 } }}
-                transition={SPRING}
-                className="fixed left-1.5 top-[18px] z-30 hidden h-8 w-8 items-center justify-center rounded-md text-text-3 transition-[color,background-color] duration-150 hover:bg-accent hover:text-foreground active:scale-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:flex"
-              >
-                <Menu className="h-[18px] w-[18px]" strokeWidth={1.8} />
-              </m.button>
-            )}
-          </AnimatePresence>
-
-          <div className={cn("flex min-w-0 flex-1 flex-col", mode === "hidden" && "lg:pl-11")}>
-            {/* Misma pieza que la barra lateral (`nav-dark`): en el teléfono la
-                franja azul marino de arriba es lo que queda del bicolor. */}
-            <header className="nav-dark flex h-12 shrink-0 items-center gap-1.5 border-b bg-subtle px-2 text-foreground lg:hidden">
+        <NavModeProvider value={{ mode, cycle: cycleNav }}>
+          <div className="flex h-dvh overflow-hidden bg-background">
+            {navOpen && (
               <button
-                onClick={() => setNavOpen(true)}
-                aria-label="Abrir el menú"
-                aria-expanded={navOpen}
-                className="rounded-md p-2 text-text-2 hover:bg-accent hover:text-foreground"
-              >
-                <Menu className="h-5 w-5" strokeWidth={1.8} />
-              </button>
-              <BrandLogo branding={branding} className="min-w-0" />
-            </header>
+                aria-label="Cerrar el menú"
+                tabIndex={-1}
+                onClick={() => setNavOpen(false)}
+                className="fixed inset-0 z-40 bg-overlay lg:hidden"
+              />
+            )}
 
-            <main className="min-h-0 min-w-0 flex-1 overflow-hidden">{children}</main>
+            <AppNav
+              branding={branding}
+              commit={commit}
+              userName={userName}
+              role={role}
+              theme={theme}
+              agenda={agenda}
+              campaigns={campaigns}
+              open={navOpen}
+              onClose={() => setNavOpen(false)}
+              mode={mode}
+              onCycleMode={cycleNav}
+            />
+
+            {/* 022 — Con el menú oculto, el hamburguesa para volver va en la fila
+                del título de cada pantalla (`NavRevealButton`), así que la
+                columna ocupa TODO el ancho, sin franja ni botón flotante. */}
+            <div ref={content} className="flex min-w-0 flex-1 flex-col">
+              {/* Misma pieza que la barra lateral (`nav-dark`): en el teléfono la
+                  franja azul marino de arriba es lo que queda del bicolor. */}
+              <header className="nav-dark flex h-12 shrink-0 items-center gap-1.5 border-b bg-subtle px-2 text-foreground lg:hidden">
+                <button
+                  onClick={() => setNavOpen(true)}
+                  aria-label="Abrir el menú"
+                  aria-expanded={navOpen}
+                  className="rounded-md p-2 text-text-2 hover:bg-accent hover:text-foreground"
+                >
+                  <Menu className="h-5 w-5" strokeWidth={1.8} />
+                </button>
+                <BrandLogo branding={branding} className="min-w-0" />
+              </header>
+
+              <main className="min-h-0 min-w-0 flex-1 overflow-hidden">{children}</main>
+            </div>
           </div>
-        </div>
+        </NavModeProvider>
       </MotionProvider>
     </ViewerProvider>
   );

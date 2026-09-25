@@ -14,6 +14,7 @@ import { defaultRange, RangePicker, type Range } from "./range-picker";
 import { SalesSection } from "./sales-section";
 import { useViewer } from "@/components/viewer-context";
 import { useAssignees } from "@/components/assignment/use-assignees";
+import { NavRevealButton } from "@/components/nav-mode";
 
 type Block<T> = { data: T | null; loading: boolean; error: string | null };
 
@@ -106,15 +107,18 @@ export function ResultsClient({
   return (
     <div className="flex h-full flex-col">
       <header className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3 sm:px-6 sm:py-4">
-        <div className="min-w-0">
-          <h2 className="text-[17px] font-bold tracking-tight">
-            {teamView ? "Resultados" : "Tus resultados"}
-          </h2>
-          <p className="text-xs text-text-3">
-            {teamView
-              ? "Ventas, el trabajo del agente, de dónde llegan y qué se está cayendo."
-              : "Lo de tus chats y leads asignados: ventas, de dónde llegan y qué se está cayendo."}
-          </p>
+        <div className="flex min-w-0 items-start gap-2">
+          <NavRevealButton />
+          <div className="min-w-0">
+            <h2 className="text-[17px] font-bold tracking-tight">
+              {teamView ? "Resultados" : "Tus resultados"}
+            </h2>
+            <p className="text-xs text-text-3">
+              {teamView
+                ? "Ventas, el trabajo del agente, de dónde llegan y qué se está cayendo."
+                : "Lo de tus chats y leads asignados: ventas, de dónde llegan y qué se está cayendo."}
+            </p>
+          </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {teamView && (

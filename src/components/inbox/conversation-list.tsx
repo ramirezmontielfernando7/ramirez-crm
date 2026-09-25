@@ -13,6 +13,8 @@ import { Button } from "@/components/ui/button";
 import { formatTime, previewText } from "./helpers";
 import { useViewer } from "@/components/viewer-context";
 import { assignContacts, useAssignees } from "@/components/assignment/use-assignees";
+import { NavRevealButton } from "@/components/nav-mode";
+import { FilterMenu, type InboxFilter } from "./filter-menu";
 
 /* Puntos de etapa: los tokens del tema, no hex copiados del tema claro —
    así siguen al acento white-label y se recalculan en oscuro. */
@@ -97,7 +99,7 @@ export function ConversationList({
   onSeeded: () => void;
 }) {
   const [query, setQuery] = useState("");
-  const [filter, setFilter] = useState<"all" | "unread" | "anuncios" | "humano">("all");
+  const [filter, setFilter] = useState<InboxFilter>("all");
   const [stage, setStage] = useState<string>("all");
   const [inbox, setInbox] = useState<Channel | "all">("all");
   const inputRef = useRef<HTMLInputElement>(null);
@@ -237,9 +239,40 @@ export function ConversationList({
   return (
     <div className="flex h-full flex-col">
       <header className="border-b px-4 pb-3 pt-4">
-        <div className="mb-3 flex items-center gap-2">
+        {/* `relative`: el panel de filtros se ancla a esta fila, no a la
+            cápsula, para no salirse nunca por la derecha de la columna. */}
+        <div className="relative mb-3 flex items-center gap-2">
+          <NavRevealButton />
           <h2 className="text-[17px] font-bold tracking-tight">Bandeja</h2>
-          <span className="font-mono text-[12px] text-text-3">{conversations.length}</span>
+          {/* Una cápsula con el filtro en uso; al tocarla despliega el resto.
+              La selección múltiple viaja pegada a ella. */}
+          <div className="flex items-center gap-1">
+            <FilterMenu
+              filtros={filtros}
+              filter={filter}
+              onFilter={setFilter}
+              stages={stages}
+              stage={stage}
+              onStage={setStage}
+              owners={seesAll ? [...owners] : null}
+              owner={owner}
+              onOwner={setOwner}
+            />
+            {canAssign && !selecting && (
+              <button
+                onClick={() => setSelecting(true)}
+                aria-label="Seleccionar varios"
+                title="Seleccionar varios"
+                className={cn(
+                  CONTROL_FILTRO,
+                  "flex w-6 items-center justify-center border-border-strong bg-chip text-text-2 transition-[border-color,transform] duration-150 hover:border-text-3 active:scale-90",
+                  FOCO_SEPARADO
+                )}
+              >
+                <CheckSquare className="h-3.5 w-3.5" strokeWidth={1.8} />
+              </button>
+            )}
+          </div>
           {multiChannel && (
             <div className="ml-auto flex items-center gap-1">
               {channels.map((ch) => {
@@ -295,103 +328,6 @@ export function ConversationList({
           )}
         </div>
       </header>
-
-      {/* Envuelve: con el filtro de anuncios, los tres botones y el selector de
-          etapa no caben en una columna de 300-360 px, y el selector se
-          aplastaba hasta dejar solo la flecha. */}
-      <div className="flex flex-wrap items-center gap-x-1 gap-y-1.5 border-b px-4 py-1.5">
-        {filtros.map((f) => (
-          <button
-            key={f.id}
-            onClick={() => setFilter(f.id)}
-            className={cn(
-              CONTROL_FILTRO,
-              "flex items-center gap-1 whitespace-nowrap px-2",
-              FOCO_SEPARADO,
-              filter === f.id
-                ? "border-brand bg-brand text-brand-fg"
-                : "border-border-strong bg-chip text-text-2 hover:border-text-3"
-            )}
-          >
-            {f.label}
-            <span
-              className={cn(
-                "rounded-full px-1 py-[2px] text-[10.5px] leading-none",
-                filter === f.id ? "bg-brand-veil" : "bg-secondary text-text-3"
-              )}
-            >
-              {f.count}
-            </span>
-          </button>
-        ))}
-
-        {/* Selectores e ícono de selección viajan juntos: si no caben, los
-            selectores se recortan antes de que el ícono quede en otra línea. */}
-        <div className="ml-auto flex min-w-0 max-w-full items-center gap-1">
-          {stages.length > 0 && (
-            <select
-              value={stage}
-              onChange={(e) => setStage(e.target.value)}
-              aria-label="Filtrar por etapa del embudo"
-              className={cn(
-                CONTROL_FILTRO,
-                "min-w-0 max-w-[9.5rem] shrink truncate px-1.5",
-                FOCO_SEPARADO,
-                stage === "all"
-                  ? "border-border-strong bg-chip text-text-2 hover:border-text-3"
-                  : "border-brand bg-brand text-brand-fg"
-              )}
-            >
-              <option value="all">Toda etapa</option>
-              {stages.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </select>
-          )}
-
-          {seesAll && (
-            <select
-              value={owner}
-              onChange={(e) => setOwner(e.target.value)}
-              aria-label="Filtrar por persona asignada"
-              className={cn(
-                CONTROL_FILTRO,
-                "min-w-0 max-w-[9.5rem] shrink truncate px-1.5",
-                FOCO_SEPARADO,
-                owner === "all"
-                  ? "border-border-strong bg-chip text-text-2 hover:border-text-3"
-                  : "border-brand bg-brand text-brand-fg"
-              )}
-            >
-              <option value="all">Todo el equipo</option>
-              <option value="mine">Míos</option>
-              <option value="unassigned">Sin asignar</option>
-              {[...owners].map(([id, name]) => (
-                <option key={id} value={id}>
-                  {name}
-                </option>
-              ))}
-            </select>
-          )}
-
-          {canAssign && !selecting && (
-            <button
-              onClick={() => setSelecting(true)}
-              aria-label="Seleccionar varios"
-              title="Seleccionar varios"
-              className={cn(
-                CONTROL_FILTRO,
-                "flex w-6 items-center justify-center border-border-strong bg-chip text-text-2 transition-[border-color,transform] duration-150 hover:border-text-3 active:scale-90",
-                FOCO_SEPARADO
-              )}
-            >
-              <CheckSquare className="h-3.5 w-3.5" strokeWidth={1.8} />
-            </button>
-          )}
-        </div>
-      </div>
 
       {selecting && (
         <div className="space-y-2 border-b bg-subtle px-4 py-2.5">

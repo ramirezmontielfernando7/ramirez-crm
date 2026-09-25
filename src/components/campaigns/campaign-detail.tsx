@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useEvents } from "@/components/use-events";
 import { CampaignProgress, CampaignStatusBadge } from "./status-badge";
+import { NavRevealButton } from "@/components/nav-mode";
 
 const TABS: { key: RecipientStatus | "all"; label: string }[] = [
   { key: "all", label: "Todos" },
@@ -147,6 +148,7 @@ export function CampaignDetail({ campaignId }: { campaignId: string }) {
   return (
     <div className="flex h-full flex-col">
       <header className="flex flex-wrap items-center gap-3 border-b px-4 py-3 sm:px-6 sm:py-4">
+        <NavRevealButton />
         <Link href="/campaigns" aria-label="Volver a Campañas">
           <Button variant="ghost" size="icon">
             <ArrowLeft className="h-4 w-4" />

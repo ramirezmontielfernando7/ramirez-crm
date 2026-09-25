@@ -35,6 +35,7 @@ import type { Booking } from "./booking-look";
 import { CalendarToolbar } from "./calendar-toolbar";
 import { MonthGrid } from "./month-grid";
 import { TimeGrid } from "./time-grid";
+import { NavRevealButton } from "@/components/nav-mode";
 
 /**
  * 015 → 215 — Citas: lo agendado por el operador y por la IA, en un
@@ -313,7 +314,8 @@ export function BookingsClient({
   if (!view || !range || !today) {
     return (
       <div className="flex h-full flex-col">
-        <header className="border-b px-4 py-3 sm:px-6 sm:py-4">
+        <header className="flex items-center gap-2 border-b px-4 py-3 sm:px-6 sm:py-4">
+          <NavRevealButton />
           <h2 className="text-[17px] font-bold tracking-tight">Citas</h2>
         </header>
         <p className="p-6 text-sm text-text-3">Cargando…</p>

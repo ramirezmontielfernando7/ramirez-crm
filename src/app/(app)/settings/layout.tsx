@@ -5,6 +5,7 @@ import { getSessionOrNull } from "@/lib/auth/session";
 import { agendaEnabled } from "@/server/agenda/flag";
 import { atribucionEnabled } from "@/server/attribution/flag";
 import { isChannelEnabled } from "@/server/channels/enabled";
+import { NavRevealButton } from "@/components/nav-mode";
 
 // La bandera se lee en cada petición: si esto se resolviera al construir, la
 // imagen quedaría con la agenda apagada para siempre y encenderla en la
@@ -21,7 +22,8 @@ export default async function SettingsLayout({
     .map(([tab]) => tab);
   return (
     <div className="flex h-full flex-col">
-      <header className="border-b px-4 py-3 sm:px-6 sm:py-4">
+      <header className="flex items-center gap-2 border-b px-4 py-3 sm:px-6 sm:py-4">
+        <NavRevealButton />
         <h2 className="text-[17px] font-bold tracking-tight">Configuración</h2>
       </header>
       {/* En móvil las pestañas van arriba (en fila), no como columna lateral. */}

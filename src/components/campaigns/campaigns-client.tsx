@@ -8,6 +8,7 @@ import { fetchJson } from "@/lib/fetch-json";
 import { Button } from "@/components/ui/button";
 import { useEvents } from "@/components/use-events";
 import { CampaignProgress, CampaignStatusBadge } from "./status-badge";
+import { NavRevealButton } from "@/components/nav-mode";
 
 /** 021 — Campañas: el historial de envíos masivos del negocio. */
 export function CampaignsClient() {
@@ -41,7 +42,10 @@ export function CampaignsClient() {
   return (
     <div className="flex h-full flex-col">
       <header className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3 sm:px-6 sm:py-4">
-        <h2 className="text-[17px] font-bold tracking-tight">Campañas</h2>
+        <div className="flex items-center gap-2">
+          <NavRevealButton />
+          <h2 className="text-[17px] font-bold tracking-tight">Campañas</h2>
+        </div>
         <Link href="/campaigns/new">
           <Button size="sm">
             <Plus className="mr-1.5 h-4 w-4" strokeWidth={1.8} />

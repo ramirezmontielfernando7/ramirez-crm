@@ -22,6 +22,12 @@ import { cn } from "@/lib/utils";
 
 /** El resorte de la app: rápido, con un rebote apenas perceptible. */
 export const SPRING = { type: "spring", duration: 0.2, bounce: 0.12 } as const;
+/**
+ * Para recorridos largos (la columna de contenido cuando el menú cambia de
+ * ancho, hasta ~220 px): sin rebote — en esa distancia hasta 0.12 se vería
+ * pasarse de largo.
+ */
+export const SLIDE = { type: "spring", duration: 0.22, bounce: 0 } as const;
 /** Para lo que entra (filas de la línea de tiempo): sin rebote, más corto. */
 export const ENTER = { type: "spring", duration: 0.18, bounce: 0 } as const;
 
