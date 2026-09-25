@@ -39,6 +39,27 @@ Automatizado en `scripts/e2e-envio-instantaneo.mjs`.
    ✅ Cuando el mensaje real llega, la burbuja provisional se retira sin dejar
    duplicado y sin parpadeo.
 
+## Compositor: emojis, pegar y clip
+
+Automatizado en `scripts/e2e-compositor.mjs` (`pnpm test:e2e:compositor`).
+
+10. **Clip único**: tocar el clip.
+    ✅ Se despliega (con resorte) un menú con Archivo, Contacto y Ubicación; ya
+    no hay botones sueltos de ubicación y contacto.
+    ✅ Se cierra al elegir una opción, al hacer clic fuera o con Escape.
+    ✅ Cada opción hace lo mismo que antes: Archivo abre el explorador y deja el
+    adjunto; Contacto y Ubicación abren su formulario y salen a WhatsApp.
+11. **Emojis**: poner el cursor a media frase y elegir un emoji.
+    ✅ Entra en la posición del cursor y el cursor queda justo después.
+    ✅ Buscar "corazón" funciona (datos en español).
+    ✅ Los datos los sirve la instancia (`/emojibase/es/*.json`): ningún pedido
+    a un CDN.
+12. **Ctrl+V con una imagen**: pegar una captura en el campo.
+    ✅ Queda como adjunto con preview, con nombre `imagen-<fecha>.png`, y se
+    envía como imagen con el texto como pie.
+    ✅ Si el portapapeles trae texto (aunque también traiga imagen, como al
+    copiar celdas de Excel), se pega el texto como siempre.
+
 ## Ficha del lead
 
 Automatizado en `scripts/e2e-ficha-lead.mjs`. `PUT /api/bot/ficha` ya dejaba al
