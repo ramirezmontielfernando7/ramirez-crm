@@ -3,12 +3,11 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { useAnimate } from "motion/react";
-import { Menu } from "lucide-react";
 import type { Branding } from "@/lib/branding";
 import type { ThemePreference } from "@/lib/theme";
 import type { ResolvedCommit } from "@/lib/version";
 import { AppNav } from "@/components/app-nav";
-import { BrandLogo } from "@/components/brand-mark";
+import { BrandLogo, BrandTile } from "@/components/brand-mark";
 import { ViewerProvider } from "@/components/viewer-context";
 import { MotionProvider, SLIDE } from "@/components/motion";
 import { NavModeProvider } from "@/components/nav-mode";
@@ -65,6 +64,7 @@ export function AppShell({
   const [content, animate] = useAnimate<HTMLDivElement>();
   // Dónde empezaba el contenido antes de cambiar el menú (para deslizarlo).
   const leftBefore = useRef<number | null>(null);
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // El hamburguesa de escritorio recorre el ciclo expandido → íconos →
   // oculto → expandido. (El teléfono no lo usa: ahí el cajón abre y cierra.)
@@ -74,11 +74,16 @@ export function AppShell({
     setMode(next);
     // Por usuario y en BD: la elección lo sigue a otro dispositivo. Si no se
     // guarda, la barra igual cambia; solo no se recordará la próxima vez.
-    void fetch("/api/preferences", {
-      method: "PUT",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ navMode: next }),
-    }).catch(() => undefined);
+    // Con clics seguidos se guarda solo el ÚLTIMO estado: tres PUT en vuelo
+    // pueden llegar en desorden y dejar guardado uno viejo.
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => {
+      void fetch("/api/preferences", {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ navMode: next }),
+      }).catch(() => undefined);
+    }, 300);
   }
 
   // El menú cambia de ancho de golpe (animar `width` recalcula el layout en
@@ -114,7 +119,7 @@ export function AppShell({
   return (
     <ViewerProvider userId={userId} role={role}>
       <MotionProvider>
-        <NavModeProvider value={{ mode, cycle: cycleNav }}>
+        <NavModeProvider value={{ mode, cycle: cycleNav, branding }}>
           <div className="flex h-dvh overflow-hidden bg-background">
             {navOpen && (
               <button
@@ -145,16 +150,17 @@ export function AppShell({
             <div ref={content} className="flex min-w-0 flex-1 flex-col">
               {/* Misma pieza que la barra lateral (`nav-dark`): en el teléfono la
                   franja azul marino de arriba es lo que queda del bicolor. */}
-              <header className="nav-dark flex h-12 shrink-0 items-center gap-1.5 border-b bg-subtle px-2 text-foreground lg:hidden">
+              <header className="nav-dark flex h-14 shrink-0 items-center gap-2.5 border-b bg-subtle px-2 text-foreground lg:hidden">
+                {/* El logo abre el cajón, como el de la barra lateral en escritorio. */}
                 <button
                   onClick={() => setNavOpen(true)}
                   aria-label="Abrir el menú"
                   aria-expanded={navOpen}
-                  className="rounded-md p-2 text-text-2 hover:bg-accent hover:text-foreground"
+                  className="ml-1 shrink-0 rounded-[9px] transition-[filter,transform] duration-150 hover:brightness-110 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
-                  <Menu className="h-5 w-5" strokeWidth={1.8} />
+                  <BrandTile branding={branding} className="h-8 w-8 rounded-[9px] text-[15px]" />
                 </button>
-                <BrandLogo branding={branding} className="min-w-0" />
+                <BrandLogo branding={branding} tile={false} className="min-w-0" />
               </header>
 
               <main className="min-h-0 min-w-0 flex-1 overflow-hidden">{children}</main>

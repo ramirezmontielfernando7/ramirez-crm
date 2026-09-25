@@ -1,18 +1,18 @@
 import {
-  BRAND_CYAN_ON_TILE,
-  BRAND_MARK_BODY,
-  BRAND_MARK_STROKE,
-  BRAND_MARK_TAIL,
-  isVoceroName,
+  BRAND_BUBBLE,
+  BRAND_BUBBLE_STROKE,
+  BRAND_TEAL,
+  BRAND_TEAL_LIGHT,
+  isHouseName,
 } from "./brand";
 import { resolveAccentSet, type Branding } from "./branding";
 
 /**
  * El icono de la pestaña, white-label.
  *
- * Toda instancia tiene uno **sin configurar nada**: si se llama Vocero, es el
- * logo de la marca (la "v" con remate cian sobre el mosaico azul, igual que en
- * vocerocrm.com); con otro nombre se dibuja la inicial sobre el acento. Una
+ * Toda instancia tiene uno **sin configurar nada**: si se llama Dashfort, es
+ * el logo de la marca (la burbuja blanca sobre el mosaico teal); con otro
+ * nombre se dibuja la inicial sobre el acento. Una
  * agencia que despliega para su cliente puede subir el logo real y
  * reemplazarlo.
  *
@@ -90,10 +90,10 @@ export function sniffFaviconMime(bytes: Uint8Array): FaviconMime | null {
   return null;
 }
 
-/** Inicial que se dibuja. Vacío o raro cae a la V de Vocero. */
+/** Inicial que se dibuja. Vacío o raro cae a la D de Dashfort. */
 export function faviconInitial(name: string): string {
   const c = name.trim().charAt(0).toUpperCase();
-  return c || "V";
+  return c || "D";
 }
 
 /**
@@ -102,8 +102,8 @@ export function faviconInitial(name: string): string {
  * el servidor.
  */
 export function generatedFaviconSvg(branding: Branding): string {
-  const { accent, hover, fg } = resolveAccentSet(branding.accent);
-  if (isVoceroName(branding.name)) return voceroFaviconSvg(accent, hover);
+  const { accent, fg } = resolveAccentSet(branding.accent);
+  if (isHouseName(branding.name)) return houseFaviconSvg();
   const letra = faviconInitial(branding.name)
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;");
@@ -117,20 +117,18 @@ export function generatedFaviconSvg(branding: Branding): string {
 }
 
 /**
- * El favicon de vocerocrm.com, con el degradado en el acento de la instancia:
- * una instancia llamada Vocero pero con otro color sigue viendo SU color.
- * El trazo sale de `lib/brand`, el mismo que dibuja la barra lateral.
+ * El favicon de Dashfort: la burbuja blanca sobre el teal del logo. El teal no
+ * sigue al acento: es el color de la marca, el mismo del mosaico del menú.
  */
-function voceroFaviconSvg(from: string, to: string): string {
+function houseFaviconSvg(): string {
   return [
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">`,
-    `<defs><linearGradient id="g" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">`,
-    `<stop offset="0" stop-color="${from}"/><stop offset="1" stop-color="${to}"/>`,
-    `</linearGradient></defs>`,
+    `<defs><radialGradient id="g" cx="0.45" cy="0.4" r="0.7">`,
+    `<stop offset="0" stop-color="${BRAND_TEAL_LIGHT}"/><stop offset="1" stop-color="${BRAND_TEAL}"/>`,
+    `</radialGradient></defs>`,
     `<rect width="64" height="64" rx="14" fill="url(#g)"/>`,
-    `<g transform="translate(5.6 5.6) scale(2.2)" fill="none" stroke-linecap="round">`,
-    `<path d="${BRAND_MARK_BODY}" stroke="#ffffff" stroke-width="${BRAND_MARK_STROKE}"/>`,
-    `<path d="${BRAND_MARK_TAIL}" stroke="${BRAND_CYAN_ON_TILE}" stroke-width="${BRAND_MARK_STROKE}"/>`,
+    `<g transform="translate(14 14) scale(1.5)" fill="none" stroke-linecap="round" stroke-linejoin="round">`,
+    `<path d="${BRAND_BUBBLE}" stroke="#ffffff" stroke-width="${BRAND_BUBBLE_STROKE}"/>`,
     `</g></svg>`,
   ].join("");
 }

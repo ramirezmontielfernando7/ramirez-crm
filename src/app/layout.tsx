@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { Archivo, IBM_Plex_Mono, Instrument_Serif } from "next/font/google";
-import { accentCssVariables, DEFAULT_BRANDING } from "@/lib/branding";
+import { accentCssVariables, DEFAULT_BRANDING, sidebarCssVariables } from "@/lib/branding";
 import { faviconHref } from "@/lib/favicon";
 import { normalizeThemePreference, THEME_COOKIE } from "@/lib/theme";
 import { getBranding } from "@/server/branding";
@@ -57,9 +57,13 @@ export default async function RootLayout({
       data-theme={theme}
     >
       <head>
-        {/* Acento white-label inyectado en SSR: sin flash de tema */}
+        {/* Acento white-label y color de la barra lateral, inyectados en
+            SSR: sin flash de tema. La barra va después: pisa el acento de
+            `.nav-dark` cuando es de color. */}
         <style
-          dangerouslySetInnerHTML={{ __html: accentCssVariables(branding.accent) }}
+          dangerouslySetInnerHTML={{
+            __html: accentCssVariables(branding.accent) + sidebarCssVariables(branding.sidebar),
+          }}
         />
       </head>
       <body className="font-sans">{children}</body>

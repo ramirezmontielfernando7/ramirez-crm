@@ -48,11 +48,11 @@
     --bubble-out-text: var(--text);
 
     /* Acento (default: azul Vocero; el white-label lo sobreescribe) */
-    --accent: #0d5bff;
-    --accent-hover: #0a4de6;
-    --accent-soft: #d3e2ff;
-    --accent-tint: #ebf1ff;
-    --accent-text: #0038d8;
+    --accent: #0e7c80;
+    --accent-hover: #0b6a6d;
+    --accent-soft: #cfe9ea;
+    --accent-tint: #ebf6f6;
+    --accent-text: #0a5e61;
     --accent-fg: #ffffff;
     /* El acento como TINTA (una hora, un enlace) y como anillo de foco. En
        claro son el acento mismo; en oscuro, sus variantes aclaradas: el
@@ -140,14 +140,14 @@
     --bubble-in: #173d2c;
     --bubble-in-border: #2a5e45;
 
-    /* Acento: respaldo con el azul Vocero calculado para este fondo; el
+    /* Acento: respaldo con el teal Dashfort calculado para este fondo; el
        white-label lo recalcula (ver resolveAccentSet en lib/branding). */
-    --accent: #256bff;
-    --accent-hover: #4883ff;
-    --accent-soft: #1f3f82;
-    --accent-tint: #1e3567;
-    --accent-text: #6f9eff;
-    --accent-fg: #ffffff;
+    --accent: #12999d;
+    --accent-hover: #38a9ad;
+    --accent-soft: #184f5f;
+    --accent-tint: #1a3f51;
+    --accent-text: #63bcbe;
+    --accent-fg: #0f1419;
     --accent-ink: var(--accent-text);
     --ring: var(--accent-hover);
     --accent-veil: rgba(0, 0, 0, 0.22);
@@ -291,7 +291,7 @@
     height: 460px;
     left: -140px;
     bottom: -180px;
-    background: radial-gradient(circle, rgba(0, 198, 245, 0.14), transparent 65%);
+    background: radial-gradient(circle, rgba(31, 168, 171, 0.14), transparent 65%);
     animation: brand-drift 18s ease-in-out infinite alternate-reverse;
   }
   @keyframes brand-drift {

@@ -14,7 +14,6 @@ import {
   Kanban,
   LogOut,
   Megaphone,
-  Menu,
   Settings,
   Sparkles,
   Users,
@@ -29,6 +28,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { BrandLogo, BrandTile } from "@/components/brand-mark";
 import { SPRING } from "@/components/motion";
 import type { NavMode } from "@/lib/preferences";
+import { isHouseName } from "@/lib/brand";
 import { useViewer } from "@/components/viewer-context";
 import { roleLabel, type Permission } from "@/lib/auth/permissions";
 import {
@@ -155,6 +155,7 @@ export function AppNav({
   // no aplica: ahí el menú siempre se lee completo.
   const desktop = useIsDesktop();
   const mini = mode === "collapsed" && desktop;
+  const house = isHouseName(branding.name);
   // Oculta: en escritorio la columna desaparece (el botón para volver lo pinta
   // AppShell). El cajón del teléfono no se entera: sigue abriendo completo.
   const hidden = mode === "hidden";
@@ -212,7 +213,7 @@ export function AppNav({
         // nombre del usuario, el nombre white-label en BrandLogo) hereda el
         // color YA CALCULADO en <body> con el tema de la página, no el de
         // `.nav-dark` — y un texto oscuro sobre este fondo oscuro se pierde.
-        "nav-dark fixed inset-y-0 left-0 z-50 flex w-[17rem] shrink-0 flex-col overflow-y-auto border-r bg-subtle px-3 pb-3.5 pt-4 text-foreground transition-[transform,visibility] duration-200",
+        "nav-dark fixed inset-y-0 left-0 z-50 flex w-[17rem] shrink-0 flex-col overflow-y-auto border-r bg-subtle px-3 pb-3.5 pt-3 text-foreground transition-[transform,visibility] duration-200",
         // En escritorio el ancho cambia de golpe (animar `width` recalcula el
         // layout de toda la página en cada cuadro); lo que se mueve con
         // resorte son los textos, solo con `opacity` + `transform`.
@@ -224,28 +225,43 @@ export function AppNav({
         open ? "visible translate-x-0 shadow-pop" : "invisible -translate-x-full"
       )}
     >
-      {/* Marca: el logo de Vocero o, white-label, la inicial y el nombre */}
-      <div className={cn("mb-5 flex items-start gap-1.5 pt-0.5", mini ? "px-0.5" : "px-2")}>
+      {/* Marca. En escritorio el LOGO es el botón del menú (expandido →
+          íconos → oculto): el mosaico queda fijo a 12 px del borde en todos
+          los estados — con el menú en íconos (56 px) queda centrado — y a su
+          lado va el nombre. En el teléfono, la ✕ del cajón y la marca completa. */}
+      <div
+        className={cn(
+          // pt-px: el logo cae a 13 px del borde de arriba, lo mismo que el
+          // que reabre el menú oculto junto al título de cada pantalla.
+          "mb-5 flex items-start gap-2.5 pt-px",
+          // El aside tiene 12 px de relleno expandido y 8 px en íconos: el
+          // 4 px de más en íconos deja el logo exactamente donde estaba.
+          mini && "lg:pl-1"
+        )}
+      >
         {/* En móvil el cajón necesita su propio cierre: el velo no siempre es
             alcanzable con el pulgar. */}
         <button
           onClick={onClose}
           aria-label="Cerrar el menú"
-          className="-ml-1 mt-0.5 rounded-md p-1.5 text-text-3 hover:bg-accent hover:text-foreground lg:hidden"
+          className={cn(
+            "-ml-1 rounded-md p-1.5 text-text-3 hover:bg-accent hover:text-foreground lg:hidden",
+            !house && "mt-0.5"
+          )}
         >
           <X className="h-[18px] w-[18px]" strokeWidth={1.8} />
         </button>
-        {/* 022: expandido → íconos → oculto. El mismo hamburguesa de la barra
-            del teléfono, arriba a la izquierda. Oculto, el que lo reabre va
-            en la fila del título de cada pantalla (`NavRevealButton`). */}
+        {/* 022: expandido → íconos → oculto, con el logo como botón. Oculto,
+            el que lo reabre va en la fila del título de cada pantalla
+            (`NavRevealButton`), con el mismo logo. */}
         <button
           onClick={onCycleMode}
           aria-label={toggleLabel}
           title={toggleLabel}
           aria-expanded={!mini}
-          className="-ml-1 hidden h-8 w-8 shrink-0 items-center justify-center rounded-md text-text-3 transition-[color,background-color,transform] duration-150 hover:bg-accent hover:text-foreground active:scale-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:flex"
+          className="nav-logo-btn hidden h-8 w-8 shrink-0 rounded-[9px] transition-[transform,filter] duration-150 hover:brightness-110 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-subtle lg:flex"
         >
-          <Menu className="h-[18px] w-[18px]" strokeWidth={1.8} />
+          <BrandTile branding={branding} className="h-8 w-8 rounded-[9px] text-[15px]" />
         </button>
         <div
           aria-hidden={mini || undefined}
@@ -254,17 +270,12 @@ export function AppNav({
             mini && "pointer-events-none -translate-x-1.5 opacity-0"
           )}
         >
-          <BrandLogo branding={branding} />
-          <span className="kicker mt-2 block whitespace-nowrap">CRM · WhatsApp</span>
+          <BrandLogo branding={branding} className="lg:hidden" />
+          <BrandLogo branding={branding} tile={false} className="hidden lg:flex" />
+          {/* La firma "by Demfort" ya ocupa ese lugar en la marca de la casa. */}
+          {!house && <span className="kicker mt-2 block whitespace-nowrap">CRM · WhatsApp</span>}
         </div>
       </div>
-
-      {/* Colapsado, la marca queda en su mosaico: identidad sin texto. */}
-      {mini && (
-        <span className="mb-4 flex justify-center" title={branding.name}>
-          <BrandTile branding={branding} className="h-7 w-7 rounded-[8px] text-[13px]" />
-        </span>
-      )}
 
       <nav className="flex flex-col gap-0.5">
         {items.map((item) => {

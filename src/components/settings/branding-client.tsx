@@ -9,13 +9,18 @@ import {
   isValidHex,
   resolveAccentSet,
   resolveNavAccentSet,
+  SIDEBAR_THEME_INFO,
+  SIDEBAR_THEMES,
+  sidebarTokens,
   type AccentSet,
   type Branding,
+  type SidebarTheme,
 } from "@/lib/branding";
 import { CURRENCIES, DEFAULT_CURRENCY, type Currency } from "@/lib/money";
 import { cn } from "@/lib/utils";
 import { useResolvedTheme } from "@/components/use-theme";
 import { BrandLogo } from "@/components/brand-mark";
+import { isHouseName } from "@/lib/brand";
 import { navItemClass } from "@/components/app-nav";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -51,6 +56,7 @@ export function BrandingClient({
   const [name, setName] = useState("");
   const [accent, setAccent] = useState<string>(DEFAULT_BRANDING.accent);
   const [currency, setCurrency] = useState<Currency>(DEFAULT_CURRENCY);
+  const [sidebar, setSidebar] = useState<SidebarTheme>(DEFAULT_BRANDING.sidebar);
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -64,6 +70,7 @@ export function BrandingClient({
           setName(d.branding.name);
           setAccent(d.branding.accent);
           if (d.branding.currency) setCurrency(d.branding.currency);
+          if (d.branding.sidebar) setSidebar(d.branding.sidebar);
         }
         setLoaded(true);
       })
@@ -84,7 +91,7 @@ export function BrandingClient({
     const res = await fetch("/api/settings/branding", {
       method: "PUT",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ name: name.trim(), accent, currency }),
+      body: JSON.stringify({ name: name.trim(), accent, currency, sidebar }),
     }).catch(() => null);
     setSaving(false);
     if (!res?.ok) {
@@ -119,7 +126,7 @@ export function BrandingClient({
               maxLength={30}
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Vocero"
+              placeholder="Dashfort"
               className="max-w-xs"
             />
           </div>
@@ -188,6 +195,42 @@ export function BrandingClient({
             </p>
           </div>
 
+          <div className="space-y-2">
+            <Label>Color del menú lateral</Label>
+            <div role="radiogroup" aria-label="Color del menú lateral" className="flex flex-wrap items-center gap-2">
+              {SIDEBAR_THEMES.map((t) => {
+                const info = SIDEBAR_THEME_INFO[t];
+                const on = sidebar === t;
+                return (
+                  <button
+                    key={t}
+                    type="button"
+                    role="radio"
+                    aria-checked={on}
+                    onClick={() => setSidebar(t)}
+                    className={cn(
+                      "flex items-center gap-2 rounded-full border px-3 py-1.5 text-[12.5px] font-medium transition-colors",
+                      on ? "border-text-2 bg-secondary" : "border-border-strong hover:bg-accent"
+                    )}
+                  >
+                    <span
+                      className="h-4 w-4 rounded-full ring-1 ring-inset ring-black/10"
+                      style={{ background: info.bg }}
+                    />
+                    {info.label}
+                    {t === DEFAULT_BRANDING.sidebar && (
+                      <span className="text-[11px] font-normal text-text-3">(recomendado)</span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="text-xs text-text-3">
+              {SIDEBAR_THEME_INFO[sidebar].note ??
+                "El fondo de la barra lateral, en los dos temas. Sobre teal, el ítem activo y los íconos van en blanco."}
+            </p>
+          </div>
+
           {/* Vista previa: el bicolor real en miniatura, con el color que se
               está eligiendo (aún sin guardar). A la izquierda la barra, con la
               misma clase (`nav-dark`) y el mismo renglón activo que la de
@@ -198,13 +241,17 @@ export function BrandingClient({
           >
             <div
               className="nav-dark shrink-0 bg-subtle p-3 text-foreground sm:w-60"
-              style={accentVars(navSet)}
+              // El acento de la barra y, si es de color, sus tokens encima.
+              style={{ ...accentVars(navSet), ...sidebarTokens(sidebar) } as React.CSSProperties}
             >
               <div className="px-2 pt-0.5">
                 <BrandLogo
                   branding={{ name: name.trim() || DEFAULT_BRANDING.name, accent, favicon }}
                 />
-                <span className="kicker mt-2 block">CRM · WhatsApp</span>
+                {/* Igual que el menú: la firma de la casa reemplaza este renglón. */}
+                {!isHouseName(name.trim() || DEFAULT_BRANDING.name) && (
+                  <span className="kicker mt-2 block">CRM · WhatsApp</span>
+                )}
               </div>
               <span className={cn(navItemClass(true), "mt-3")}>
                 <Inbox className="h-[17px] w-[17px] text-brand" strokeWidth={1.8} />

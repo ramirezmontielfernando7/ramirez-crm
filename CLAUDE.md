@@ -10,9 +10,11 @@ el caso típico: una agencia adaptando Vocero para un cliente.
 **Next.js 15 (App Router) + React 19** en monolito · TypeScript estricto
 (`strict` + `noUncheckedIndexedAccess`) · Tailwind CSS (sistema de diseño de la
 marca Vocero, el mismo de vocerocrm.com: tokens en `src/app/globals.css`, tema
-claro/oscuro, acento white-label por defecto `#0d5bff`, fuentes Archivo +
-Instrument Serif + IBM Plex Mono self-hosted vía `next/font`; el logo vive en
-`src/lib/brand.ts` y se dibuja con `src/components/brand-mark.tsx`) ·
+claro/oscuro, marca de la casa **Dashfort by Demfort** con acento
+white-label por defecto el teal `#12999d`, fuentes Archivo +
+Instrument Serif + IBM Plex Mono self-hosted vía `next/font`; el logo (burbuja
+de chat sobre mosaico teal), el nombre y la firma viven en `src/lib/brand.ts`
+y se dibujan con `src/components/brand-mark.tsx`) ·
 **PostgreSQL + Drizzle ORM** (migraciones versionadas en
 `drizzle/`, aplicadas al ARRANCAR el contenedor) · **Better Auth** + plugin
 organization · **Zod** en todo input externo · nanoid con prefijos (`ct_`,

@@ -2,6 +2,8 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   ACCENT_PRESETS,
+  sidebarCssVariables,
+  sidebarTokens,
   accentCssVariables,
   DEFAULT_BRANDING,
   isValidHex,
@@ -63,13 +65,20 @@ describe("white-label: acento", () => {
     expect(lum).toBeLessThan(0xd0);
   });
 
-  it("hex inválido cae al default (el azul Vocero)", () => {
-    expect(resolveAccentSet("rojo")).toEqual(ACCENT_PRESETS["#0d5bff"]!.set);
+  it("hex inválido cae al default (el teal Dashfort)", () => {
+    expect(resolveAccentSet("rojo")).toEqual(ACCENT_PRESETS["#12999d"]!.set);
   });
 
-  it("el azul Vocero es el default y trae los valores exactos de la landing", () => {
-    expect(DEFAULT_BRANDING.accent).toBe("#0d5bff");
-    expect(resolveAccentSet(DEFAULT_BRANDING.accent)).toEqual({
+  it("el teal Dashfort es el default; su relleno baja para que el texto blanco pase AA", () => {
+    expect(DEFAULT_BRANDING.accent).toBe("#12999d");
+    const s = resolveAccentSet(DEFAULT_BRANDING.accent);
+    expect(s.fg).toBe("#ffffff");
+    expect(contrast(s.fg, s.accent)).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(s.text, s.tint)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it("el azul eléctrico sigue como preset, con sus valores exactos", () => {
+    expect(resolveAccentSet("#0d5bff")).toEqual({
       accent: "#0d5bff",
       hover: "#0a4de6",
       soft: "#d3e2ff",
@@ -95,8 +104,8 @@ describe("white-label: acento en tema oscuro", () => {
     }
   });
 
-  it("el azul Vocero conserva la tinta blanca en oscuro", () => {
-    expect(resolveAccentSet(DEFAULT_BRANDING.accent, "dark").fg).toBe("#ffffff");
+  it("el azul eléctrico conserva la tinta blanca en oscuro", () => {
+    expect(resolveAccentSet("#0d5bff", "dark").fg).toBe("#ffffff");
   });
 
   it("los presets NO se aplican tal cual: están calculados para fondo blanco", () => {
@@ -109,7 +118,7 @@ describe("white-label: acento en tema oscuro", () => {
 
   it("hex inválido en oscuro también cae al acento por defecto", () => {
     expect(resolveAccentSet("rojo", "dark")).toEqual(
-      resolveAccentSet("#0d5bff", "dark")
+      resolveAccentSet(DEFAULT_BRANDING.accent, "dark")
     );
   });
 
@@ -146,10 +155,10 @@ describe("white-label: barra lateral bicolor (.nav-dark)", () => {
     expect(nav).not.toContain(resolveAccentSet("#3f5972", "light").accent);
   });
 
-  it("con el azul Vocero, la barra se ve como siempre", () => {
+  it("con el azul eléctrico, la barra se ve como siempre", () => {
     // La receta de la barra es la de antes: el ítem activo del tema claro no
     // cambia aunque el tema oscuro de la página sí.
-    expect(resolveNavAccentSet(DEFAULT_BRANDING.accent)).toEqual({
+    expect(resolveNavAccentSet("#0d5bff")).toEqual({
       accent: "#256bff",
       hover: "#4883ff",
       soft: "#122c63",
@@ -209,14 +218,47 @@ describe("tema oscuro: las superficies se distinguen", () => {
 });
 
 describe("white-label: normalización", () => {
-  it("nombre vacío o nulo → default 'Vocero'; se recorta a 30", () => {
-    expect(normalizeBranding(null).name).toBe("Vocero");
-    expect(normalizeBranding({ name: "   " }).name).toBe("Vocero");
+  it("nombre vacío o nulo → default 'Dashfort'; se recorta a 30", () => {
+    expect(normalizeBranding(null).name).toBe("Dashfort");
+    expect(normalizeBranding({ name: "   " }).name).toBe("Dashfort");
     expect(normalizeBranding({ name: "x".repeat(50) }).name).toHaveLength(30);
   });
 
   it("acento inválido → default", () => {
-    expect(normalizeBranding({ accent: "azul" }).accent).toBe("#0d5bff");
+    expect(normalizeBranding({ accent: "azul" }).accent).toBe("#12999d");
     expect(normalizeBranding({ accent: "#3F6B66" }).accent).toBe("#3f6b66");
+  });
+});
+
+describe("barra lateral de color (Configuración → Marca)", () => {
+  it("por default es el teal profundo; un valor raro cae al default", () => {
+    expect(DEFAULT_BRANDING.sidebar).toBe("teal-deep");
+    expect(normalizeBranding(null).sidebar).toBe("teal-deep");
+    expect(normalizeBranding({ sidebar: "rosa" as never }).sidebar).toBe("teal-deep");
+    expect(normalizeBranding({ sidebar: "teal-night" }).sidebar).toBe("teal-night");
+  });
+
+  it("teal profundo y teal noche: el texto de la barra pasa AA", () => {
+    for (const t of ["teal-deep", "teal-night"] as const) {
+      const k = sidebarTokens(t);
+      expect(contrast(k["--text"]!, k["--bg-subtle"]!), `${t}: texto`).toBeGreaterThanOrEqual(4.5);
+      expect(contrast(k["--text-3"]!, k["--bg-subtle"]!), `${t}: íconos`).toBeGreaterThanOrEqual(3);
+    }
+  });
+
+  it("azul marino es el respaldo de globals.css: no se inyecta, y la vista previa usa sus mismos valores", () => {
+    expect(sidebarCssVariables("navy")).toBe("");
+    const css = readFileSync("src/app/globals.css", "utf8");
+    const nav = variables(css, ".nav-dark {");
+    for (const [k, v] of Object.entries(sidebarTokens("navy"))) {
+      if (k.startsWith("--house")) continue;
+      expect(nav[k]?.toLowerCase(), k).toBe(v);
+    }
+  });
+
+  it("sobre teal, el acento de la barra es blanco y el logo pierde su teal", () => {
+    const css = sidebarCssVariables("teal-deep");
+    expect(css).toContain("--accent:#ffffff;");
+    expect(css).toContain("--house-tile:");
   });
 });

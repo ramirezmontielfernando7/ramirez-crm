@@ -2,17 +2,17 @@
 
 import { createContext, useContext } from "react";
 import { m } from "motion/react";
-import { Menu } from "lucide-react";
 import { SPRING } from "@/components/motion";
+import { BrandTile, type BrandingMark } from "@/components/brand-mark";
 import { cn } from "@/lib/utils";
 import type { NavMode } from "@/lib/preferences";
 
 /**
  * 022 — El estado del menú lateral de escritorio, para quien no es el menú:
- * con el menú oculto, el hamburguesa para volver vive en el encabezado de
- * cada pantalla, en la fila de su título (no flotando en una esquina).
+ * con el menú oculto, el logo para volver vive en el encabezado de cada
+ * pantalla, en la fila de su título (no flotando en una esquina).
  */
-type NavModeContext = { mode: NavMode; cycle: () => void };
+type NavModeContext = { mode: NavMode; cycle: () => void; branding: BrandingMark };
 
 const Ctx = createContext<NavModeContext | null>(null);
 
@@ -27,9 +27,10 @@ export function NavModeProvider({
 }
 
 /**
- * El hamburguesa que reabre el menú oculto. Va ANTES del título de la
- * pantalla, en su misma fila y alineado con el texto. Fuera del estado
- * oculto (o en el teléfono, que tiene su propia barra) no se pinta.
+ * El botón que reabre el menú oculto: el mismo logo que hace de botón en el
+ * menú. Va ANTES del título de la pantalla, en su misma fila y alineado con el
+ * texto. Fuera del estado oculto (o en el teléfono, que tiene su propia
+ * barra) no se pinta.
  */
 export function NavRevealButton({ className }: { className?: string }) {
   const nav = useContext(Ctx);
@@ -45,13 +46,14 @@ export function NavRevealButton({ className }: { className?: string }) {
       animate={{ opacity: 1, x: 0 }}
       transition={SPRING}
       className={cn(
-        // -ml-1.5: el trazo del ícono (no la caja del botón) queda alineado
-        // con el borde del contenido de abajo (buscador, filas).
-        "-my-1 -ml-1.5 hidden h-8 w-8 shrink-0 items-center justify-center rounded-md text-text-3 transition-[color,background-color] duration-150 hover:bg-accent hover:text-foreground active:scale-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:flex",
+        // El MISMO logo y lugar que en el menú (32 px, a 12 px del borde y a
+        // la altura del título): el clic siguiente cae donde cayó el anterior.
+        // -my-1 para no estirar la fila; -ml-1 porque el encabezado tiene 16.
+        "-my-1 -ml-1 hidden h-8 w-8 shrink-0 rounded-[9px] transition-[filter] duration-150 hover:brightness-110 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background lg:flex",
         className
       )}
     >
-      <Menu className="h-[18px] w-[18px]" strokeWidth={1.8} />
+      <BrandTile branding={nav.branding} className="h-8 w-8 rounded-[9px] text-[15px]" />
     </m.button>
   );
 }
