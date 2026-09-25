@@ -45,6 +45,8 @@ const statements = {
    * `all`: los de todo el equipo, no solo los propios.
    */
   results: ["read", "all"],
+  /** 024 — Crear, editar y borrar entradas de Conocimientos (verlas y enviarlas: todos). */
+  knowledge: ["manage"],
 } as const;
 
 export const ac = createAccessControl(statements);
@@ -62,6 +64,7 @@ const owner = ac.newRole({
   assignment: ["manage"],
   scope: ["all"],
   results: ["read", "all"],
+  knowledge: ["manage"],
 });
 
 /** Operación: reparte, ve todo, edita etapas y plantillas. No configura. */
@@ -77,6 +80,8 @@ const coordinador = ac.newRole({
   assignment: ["manage"],
   scope: ["all"],
   results: ["read", "all"],
+  // 024: mantiene al día el material que el equipo manda a los clientes.
+  knowledge: ["manage"],
 });
 
 /** Solo lo suyo: sus chats y sus leads (que sí puede mover). Sin Resultados (022). */
@@ -111,7 +116,8 @@ export type Permission =
   | "assignment.manage"
   | "scope.all"
   | "results.read"
-  | "results.all";
+  | "results.all"
+  | "knowledge.manage";
 
 export function isRole(value: string): value is Role {
   return (ROLES as readonly string[]).includes(value);

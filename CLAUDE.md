@@ -51,6 +51,7 @@ externas: el trabajo en segundo plano (agente, Laboratorio) es in-process.
 | La línea de tiempo del chat (notas, etapas, asignación, IA, consentimiento, etiquetas) | `src/server/activity/log.ts` (ÚNICA puerta de `contact_activity_event`) · `timeline.ts` (junta las bitácoras al leer) · palabras en `src/lib/timeline.ts` · UI `src/components/inbox/chat-timeline.tsx` · spec [022](specs/022-linea-de-tiempo/spec.md) |
 | Menú lateral colapsable y preferencias por usuario | `src/components/app-nav.tsx` · `src/server/preferences.ts` (`user_preference`) · default por rol en `src/lib/preferences.ts` |
 | El asistente de redacción del asesor (varita del editor; NO es el agente) | `src/server/writing-assist/` (prompts + `rewrite.ts` sobre `chatJson`) · `POST /api/writing-assist` · UI `src/components/inbox/writing-assist.tsx` · spec [023](specs/023-asistente-redaccion/spec.md) |
+| Conocimientos (material que el EQUIPO envía; el agente NO lo lee) | `src/server/knowledge/` (`store.ts` única puerta de `knowledge_entry` · `deliver.ts` con `KnowledgeTarget`, punto de integración del chat interno) · API `src/app/api/knowledge/` + `conversations/[id]/messages/knowledge` · UI `src/components/knowledge/` (`KnowledgePicker` independiente del canal) · permiso `knowledge.manage` · spec [024](specs/024-conocimientos/spec.md) |
 | El movimiento (resortes, presión táctil) | `src/components/motion.tsx` (`motion`, `LazyMotion` estricto; nada > 300 ms) |
 | UI | `src/components/` + `src/app/(app)/` |
 

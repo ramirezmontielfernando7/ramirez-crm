@@ -134,6 +134,13 @@
       "when": 1790347439202,
       "tag": "0018_menu_tres_estados",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1790373554359,
+      "tag": "0019_conocimientos",
+      "breakpoints": true
     }
   ]
 }

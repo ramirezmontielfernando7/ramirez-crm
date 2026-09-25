@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import {
+  BookOpen,
   Clock3,
   FileText,
   MapPin,
@@ -15,9 +16,17 @@ import { cn } from "@/lib/utils";
 import { formatBytes, formatRemaining } from "./helpers";
 import { TemplateSender } from "./template-sender";
 import { WritingAssist } from "./writing-assist";
+import {
+  KnowledgePicker,
+  type KnowledgePickAction,
+} from "@/components/knowledge/knowledge-picker";
+import type { KnowledgeEntryDto } from "@/lib/knowledge";
 
-/** 008 — Panel secundario del clip: formulario de ubicación o contacto. */
-type AttachPanel = "location" | "contact" | null;
+/**
+ * 008 — Panel secundario del clip: formulario de ubicación o contacto.
+ * 024 — `knowledge`: el buscador de Conocimientos (botón de libro o `/`).
+ */
+type AttachPanel = "location" | "contact" | "knowledge" | null;
 
 /** Extrae lat,long de "21.019, -101.257" o de un enlace de Google Maps. */
 function parseCoords(raw: string): { latitude: number; longitude: number } | null {
@@ -211,6 +220,32 @@ export function Composer({
     onSent();
   }
 
+  /** 024 — Una entrada de Conocimientos: se envía tal cual o va al editor. */
+  async function pickKnowledge(entry: KnowledgeEntryDto, action: KnowledgePickAction) {
+    setError(null);
+    if (action === "insert") {
+      setText((actual) => (actual.trim() ? `${actual}\n${entry.body}` : entry.body));
+      setUndoText(null);
+      setPanel(null);
+      taRef.current?.focus();
+      setTimeout(autogrow, 0);
+      return;
+    }
+    setSending(true);
+    const err = await apiSend(`/api/conversations/${conversation.id}/messages/knowledge`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ entryId: entry.id, mode: action }),
+    });
+    setSending(false);
+    if (err) {
+      setError(err);
+      return;
+    }
+    setPanel(null);
+    onSent();
+  }
+
   if (!conversation.windowOpen) {
     return (
       <div className="border-t bg-background px-[18px] py-3.5">
@@ -280,6 +315,17 @@ export function Composer({
             <X className="h-4 w-4" strokeWidth={1.7} />
           </button>
         </div>
+      )}
+
+      {panel === "knowledge" && (
+        <KnowledgePicker
+          busy={sending}
+          onPick={(entry, action) => void pickKnowledge(entry, action)}
+          onClose={() => {
+            setPanel(null);
+            taRef.current?.focus();
+          }}
+        />
       )}
 
       {panel === "location" && (
@@ -387,6 +433,17 @@ export function Composer({
             onError={(msg) => setError(msg)}
           />
           <button
+            onClick={() => setPanel(panel === "knowledge" ? null : "knowledge")}
+            aria-label="Conocimientos"
+            title="Enviar algo de Conocimientos (o escribe / en el editor vacío)"
+            className={cn(
+              "rounded p-1.5 text-text-3 transition-colors hover:bg-secondary hover:text-foreground",
+              panel === "knowledge" && "bg-secondary text-brand"
+            )}
+          >
+            <BookOpen className="h-[18px] w-[18px]" strokeWidth={1.7} />
+          </button>
+          <button
             onClick={() => setPanel(panel === "location" ? null : "location")}
             aria-label="Enviar ubicación"
             title="Enviar ubicación"
@@ -417,12 +474,23 @@ export function Composer({
           readOnly={rewriting}
           aria-busy={rewriting}
           onChange={(e) => {
+            // 024 — `/` en el editor vacío abre Conocimientos (el `/` no se escribe).
+            if (e.target.value === "/" && text === "" && !file) {
+              setPanel("knowledge");
+              return;
+            }
             setText(e.target.value);
             // Si el asesor retoca el resultado, "Deshacer" ya no aplica.
             setUndoText(null);
             autogrow();
           }}
           onKeyDown={(e) => {
+            // 024 — Esc desde el editor también cierra Conocimientos.
+            if (e.key === "Escape" && panel === "knowledge") {
+              e.preventDefault();
+              setPanel(null);
+              return;
+            }
             if (e.key === "Enter" && !e.shiftKey) {
               e.preventDefault();
               void submit();

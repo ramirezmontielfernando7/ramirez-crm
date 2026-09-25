@@ -815,6 +815,40 @@ export const kbEntry = pgTable(
   (t) => [index("kb_org_idx").on(t.organizationId)]
 );
 
+/**
+ * 024 — Conocimientos: material que el EQUIPO consulta y envía a los clientes
+ * (fichas, catálogos, políticas, respuestas tipo). Distinto de `kb_entry`,
+ * que es lo que lee el agente de IA en su prompt: el agente NO lee esta tabla.
+ *
+ * Una entrada lleva texto, un archivo o ambos. El archivo vive en el volumen
+ * local `MEDIA_DIR` (constitución II: sin S3/R2) con la ruta `<org>/<id>`.
+ */
+export const knowledgeEntry = pgTable(
+  "knowledge_entry",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    /** Contenido de texto (lo que se manda como mensaje). Vacío si solo es archivo. */
+    body: text("body").notNull().default(""),
+    /** Etiquetas libres para filtrar (no son las etiquetas de contacto de 021). */
+    tags: text("tags").array().notNull().default(sql`'{}'::text[]`),
+    /** Ruta relativa en MEDIA_DIR; NULL = entrada solo de texto. */
+    filePath: text("file_path"),
+    fileName: text("file_name"),
+    fileMime: text("file_mime"),
+    fileSize: integer("file_size"),
+    createdByUserId: text("created_by_user_id").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => [index("knowledge_entry_org_updated_idx").on(t.organizationId, t.updatedAt)]
+);
+
 export const template = pgTable(
   "template",
   {
