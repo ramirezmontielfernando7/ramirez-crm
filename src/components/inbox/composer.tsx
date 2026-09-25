@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type RefObject } from "react";
 import dynamic from "next/dynamic";
 import { AnimatePresence, m } from "motion/react";
 import {
+  BookOpen,
   Clock3,
   FileText,
   MapPin,
@@ -18,9 +19,18 @@ import type { ConversationDto, TemplateDto } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { formatBytes, formatRemaining } from "./helpers";
 import { TemplateSender } from "./template-sender";
+import { WritingAssist } from "./writing-assist";
+import {
+  KnowledgePicker,
+  type KnowledgePickAction,
+} from "@/components/knowledge/knowledge-picker";
+import type { KnowledgeEntryDto } from "@/lib/knowledge";
 
-/** 008 — Panel secundario del clip: formulario de ubicación o contacto. */
-type AttachPanel = "location" | "contact" | null;
+/**
+ * 008 — Panel secundario del clip: formulario de ubicación o contacto.
+ * 024 — `knowledge`: el buscador de Conocimientos (botón de libro o `/`).
+ */
+type AttachPanel = "location" | "contact" | "knowledge" | null;
 
 /** Qué menú flotante del compositor está abierto (uno a la vez). */
 type Popover = "attach" | "emoji" | null;
@@ -108,6 +118,10 @@ export function Composer({
   const [contactName, setContactName] = useState("");
   const [contactPhone, setContactPhone] = useState("");
   const [popover, setPopover] = useState<Popover>(null);
+  // 023 — Asistente de redacción: mientras reescribe, el editor se congela;
+  // `undoText` guarda el borrador anterior para "Deshacer".
+  const [rewriting, setRewriting] = useState(false);
+  const [undoText, setUndoText] = useState<string | null>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const attachRef = useRef<HTMLDivElement>(null);
@@ -138,6 +152,12 @@ export function Composer({
     };
   }, [filePreview]);
 
+  // 023 — Al reemplazar o deshacer con la IA, el campo se ajusta al texto
+  // nuevo DESPUÉS de pintarlo (con setTimeout medía el alto viejo).
+  useEffect(() => {
+    autogrow();
+  }, [undoText]);
+
   function autogrow() {
     const el = taRef.current;
     if (!el) return;
@@ -155,6 +175,10 @@ export function Composer({
 
   /** Inserta el emoji donde está el cursor (o reemplaza lo seleccionado). */
   function insertEmoji(emoji: string) {
+    // 023: con la IA reescribiendo el editor está congelado; un emoji es una
+    // edición, así que "Deshacer" ya no aplica.
+    if (rewriting) return;
+    setUndoText(null);
     const el = taRef.current;
     const value = el?.value ?? text;
     const start = el?.selectionStart ?? value.length;
@@ -199,6 +223,7 @@ export function Composer({
   }
 
   async function submit() {
+    if (rewriting) return;
     setError(null);
 
     if (file) {
@@ -221,6 +246,7 @@ export function Composer({
       }
       pickFile(null);
       setText("");
+      setUndoText(null);
       if (taRef.current) taRef.current.style.height = "auto";
       onSent();
       return;
@@ -233,6 +259,7 @@ export function Composer({
     // salía todo como un solo mensaje. El campo se limpia ya; la burbuja
     // "enviando" del hilo es la que informa el estado real.
     setText("");
+    setUndoText(null);
     if (taRef.current) taRef.current.style.height = "auto";
     const err = await onSend(value);
     if (err) {
@@ -298,6 +325,32 @@ export function Composer({
     onSent();
   }
 
+  /** 024 — Una entrada de Conocimientos: se envía tal cual o va al editor. */
+  async function pickKnowledge(entry: KnowledgeEntryDto, action: KnowledgePickAction) {
+    setError(null);
+    if (action === "insert") {
+      setText((actual) => (actual.trim() ? `${actual}\n${entry.body}` : entry.body));
+      setUndoText(null);
+      setPanel(null);
+      taRef.current?.focus();
+      setTimeout(autogrow, 0);
+      return;
+    }
+    setSending(true);
+    const err = await apiSend(`/api/conversations/${conversation.id}/messages/knowledge`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ entryId: entry.id, mode: action }),
+    });
+    setSending(false);
+    if (err) {
+      setError(err);
+      return;
+    }
+    setPanel(null);
+    onSent();
+  }
+
   if (!conversation.windowOpen) {
     return (
       <div className="border-t bg-background px-[18px] py-3.5">
@@ -317,7 +370,7 @@ export function Composer({
     );
   }
 
-  const canSubmit = file !== null || text.trim().length > 0;
+  const canSubmit = !rewriting && (file !== null || text.trim().length > 0);
 
   return (
     <div className="border-t bg-background px-[18px] pb-3.5 pt-3">
@@ -367,6 +420,17 @@ export function Composer({
             <X className="h-4 w-4" strokeWidth={1.7} />
           </button>
         </div>
+      )}
+
+      {panel === "knowledge" && (
+        <KnowledgePicker
+          busy={sending}
+          onPick={(entry, action) => void pickKnowledge(entry, action)}
+          onClose={() => {
+            setPanel(null);
+            taRef.current?.focus();
+          }}
+        />
       )}
 
       {panel === "location" && (
@@ -464,7 +528,8 @@ export function Composer({
               title="Adjuntar archivo, contacto o ubicación"
               className={cn(
                 "rounded p-1.5 text-text-3 transition-[color,background-color,transform] duration-150 hover:bg-secondary hover:text-foreground active:scale-90",
-                (popover === "attach" || panel !== null) && "bg-secondary text-brand"
+                (popover === "attach" || (panel !== null && panel !== "knowledge")) &&
+                  "bg-secondary text-brand"
               )}
             >
               <m.span
@@ -532,6 +597,19 @@ export function Composer({
               )}
             </AnimatePresence>
           </div>
+          <WritingAssist
+            text={text}
+            busy={rewriting}
+            onBusy={(b) => {
+              setRewriting(b);
+              if (b) setError(null);
+            }}
+            onResult={(next) => {
+              setUndoText(text);
+              setText(next);
+            }}
+            onError={(msg) => setError(msg)}
+          />
           <div ref={emojiRef} className="relative">
             <button
               type="button"
@@ -564,24 +642,57 @@ export function Composer({
               )}
             </AnimatePresence>
           </div>
+          <button
+            type="button"
+            onClick={() => {
+              setPopover(null);
+              setPanel(panel === "knowledge" ? null : "knowledge");
+            }}
+            aria-label="Conocimientos"
+            title="Enviar algo de Conocimientos (o escribe / en el editor vacío)"
+            className={cn(
+              "rounded p-1.5 text-text-3 transition-[color,background-color,transform] duration-150 hover:bg-secondary hover:text-foreground active:scale-90",
+              panel === "knowledge" && "bg-secondary text-brand"
+            )}
+          >
+            <BookOpen className="h-[18px] w-[18px]" strokeWidth={1.7} />
+          </button>
         </div>
         <textarea
           ref={taRef}
           placeholder={file ? "Pie del adjunto (opcional)…" : "Escribe una respuesta…"}
           value={text}
           rows={1}
+          readOnly={rewriting}
+          aria-busy={rewriting}
           onChange={(e) => {
+            // 024 — `/` en el editor vacío abre Conocimientos (el `/` no se escribe).
+            if (e.target.value === "/" && text === "" && !file) {
+              setPanel("knowledge");
+              return;
+            }
             setText(e.target.value);
+            // Si el asesor retoca el resultado, "Deshacer" ya no aplica.
+            setUndoText(null);
             autogrow();
           }}
           onPaste={onPaste}
           onKeyDown={(e) => {
+            // 024 — Esc desde el editor también cierra Conocimientos.
+            if (e.key === "Escape" && panel === "knowledge") {
+              e.preventDefault();
+              setPanel(null);
+              return;
+            }
             if (e.key === "Enter" && !e.shiftKey) {
               e.preventDefault();
               void submit();
             }
           }}
-          className="max-h-[120px] w-full resize-none self-center bg-transparent py-1 text-sm leading-relaxed outline-none placeholder:text-text-3"
+          className={cn(
+            "max-h-[120px] w-full resize-none self-center bg-transparent py-1 text-sm leading-relaxed outline-none placeholder:text-text-3 transition-opacity",
+            rewriting && "animate-pulse opacity-50"
+          )}
         />
         <button
           onClick={() => void submit()}
@@ -596,7 +707,28 @@ export function Composer({
         </button>
       </div>
       <div className="mt-1.5 flex items-center justify-between">
-        {error ? <p className="text-xs text-destructive">{error}</p> : <span />}
+        {error ? (
+          <p role="alert" className="text-xs text-destructive">{error}</p>
+        ) : rewriting ? (
+          <p className="text-xs text-text-3">La IA está reescribiendo…</p>
+        ) : undoText !== null ? (
+          <p className="text-xs text-text-2">
+            Texto reescrito con IA ·{" "}
+            <button
+              type="button"
+              onClick={() => {
+                setText(undoText);
+                setUndoText(null);
+                taRef.current?.focus();
+              }}
+              className="font-semibold text-brand-text underline-offset-2 hover:underline"
+            >
+              Deshacer
+            </button>
+          </p>
+        ) : (
+          <span />
+        )}
         <p className="font-mono text-[10.5px] tracking-[0.04em] text-text-3">
           Ventana abierta · quedan {formatRemaining(conversation.windowRemainingMs)}
         </p>

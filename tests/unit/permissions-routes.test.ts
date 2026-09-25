@@ -114,6 +114,10 @@ const PROTEGIDAS: [string, Method, Permission][] = [
   ["analytics/ads", "GET", "results.read"],
   ["analytics/bot", "GET", "results.read"],
   ["analytics/hygiene", "GET", "results.read"],
+  // 024 — Conocimientos: mantenerlo es de Propietario y Coordinador.
+  ["knowledge", "POST", "knowledge.manage"],
+  ["knowledge/[id]", "PATCH", "knowledge.manage"],
+  ["knowledge/[id]", "DELETE", "knowledge.manage"],
 ];
 
 /**
@@ -127,6 +131,8 @@ const FILTRADAS: [string, Method][] = [
   ["conversations/[id]/messages", "POST"],
   ["conversations/[id]/messages/media", "POST"],
   ["conversations/[id]/messages/template", "POST"],
+  // 024: enviar una entrada de Conocimientos = escribir en el chat (getConversation).
+  ["conversations/[id]/messages/knowledge", "POST"],
   ["contacts", "GET"],
   ["contacts", "POST"],
   ["contacts/[id]", "GET"],
@@ -160,6 +166,14 @@ const DEL_NEGOCIO: [string, Method][] = [
   // 022: preferencias de interfaz de quien pide (nunca de otro).
   ["preferences", "GET"],
   ["preferences", "PUT"],
+  // 023: asistente de redacción del asesor (reescribe un borrador; no lee
+  // conversaciones ni contactos). Todos los roles.
+  ["writing-assist", "GET"],
+  ["writing-assist", "POST"],
+  // 024: Conocimientos es material del negocio: todos lo ven y lo buscan.
+  ["knowledge", "GET"],
+  ["knowledge/[id]", "GET"],
+  ["knowledge/[id]/file", "GET"],
 ];
 
 /** Sin sesión de usuario: tienen su propia autenticación o son públicas. */

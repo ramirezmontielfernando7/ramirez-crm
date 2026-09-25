@@ -23,6 +23,8 @@
     "test:e2e:campanas": "node --env-file=.env scripts/e2e-campanas.mjs",
     "test:e2e:panel": "node --env-file=.env scripts/e2e-panel-perdido.mjs",
     "test:e2e:linea": "node --env-file=.env scripts/e2e-linea-tiempo.mjs",
+    "test:e2e:redaccion": "node --env-file=.env scripts/e2e-redaccion.mjs",
+    "test:e2e:conocimientos": "node --env-file=.env scripts/e2e-conocimientos.mjs",
     "test:e2e:compositor": "node --env-file=.env scripts/e2e-compositor.mjs",
     "test:watch": "vitest",
     "db:generate": "drizzle-kit generate",

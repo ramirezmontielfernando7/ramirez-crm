@@ -7,6 +7,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   AlertTriangle,
+  BookOpen,
   CalendarDays,
   ChartColumn,
   FlaskConical,
@@ -52,6 +53,9 @@ const NAV: NavItem[] = [
   { href: "/inbox", label: "Bandeja", icon: Inbox, badge: true },
   { href: "/pipeline", label: "Pipeline", icon: Kanban },
   { href: "/contacts", label: "Contactos", icon: Users },
+  // 024 — Material que el equipo envía a los clientes: junto a Contactos,
+  // porque se usa atendiendo. Todos los roles (editar: knowledge.manage).
+  { href: "/knowledge", label: "Conocimientos", icon: BookOpen },
   // 019 — Después de Contactos: primero se atiende y se organiza, luego se
   // mide. Antes de Agente y Laboratorio, que son configuración.
   {
@@ -191,9 +195,10 @@ export function AppNav({
   // sección aparte.
   const viewer = useViewer();
   const base = agenda ? [...NAV.slice(0, 2), AGENDA_ITEM, ...NAV.slice(2)] : NAV;
-  const contactsAt = base.findIndex((i) => i.href === "/contacts");
+  // 024: Campañas va después de Conocimientos, que se queda pegado a Contactos.
+  const campaignsAfter = base.findIndex((i) => i.href === "/knowledge");
   const items = (
-    campaigns ? [...base.slice(0, contactsAt + 1), CAMPAIGNS_ITEM, ...base.slice(contactsAt + 1)] : base
+    campaigns ? [...base.slice(0, campaignsAfter + 1), CAMPAIGNS_ITEM, ...base.slice(campaignsAfter + 1)] : base
   ).filter((item) => !item.permission || viewer.can(item.permission));
   // Ajustes solo si hay al menos una pestaña que pueda abrir.
   const showSettings =

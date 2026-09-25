@@ -29,6 +29,8 @@ const MATRIZ: Record<Permission, Record<Role, boolean>> = {
   // 022: el Asesor no entra a Resultados, ni a los suyos.
   "results.read": { owner: true, coordinador: true, asesor: false },
   "results.all": { owner: true, coordinador: true, asesor: false },
+  // 024: Conocimientos — mantenerlo es de quien opera; verlo y enviarlo, de todos.
+  "knowledge.manage": { owner: true, coordinador: true, asesor: false },
 };
 
 describe("matriz de permisos (020)", () => {
