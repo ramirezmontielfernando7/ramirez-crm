@@ -11,8 +11,9 @@ el caso típico: una agencia adaptando Vocero para un cliente.
 (`strict` + `noUncheckedIndexedAccess`) · Tailwind CSS (sistema de diseño de la
 marca Vocero, el mismo de vocerocrm.com: tokens en `src/app/globals.css`, tema
 claro/oscuro, marca de la casa **Dashfort by Demfort** con acento
-white-label por defecto el teal `#12999d`, fuentes Archivo +
-Instrument Serif + IBM Plex Mono self-hosted vía `next/font`; el logo (burbuja
+white-label por defecto el teal `#12999d`, letra de interfaz la del sistema
+(`system-ui`) y acentos Instrument Serif + IBM Plex Mono self-hosted vía
+`next/font`; el logo (burbuja
 de chat sobre mosaico teal), el nombre y la firma viven en `src/lib/brand.ts`
 y se dibujan con `src/components/brand-mark.tsx`) ·
 **PostgreSQL + Drizzle ORM** (migraciones versionadas en
@@ -160,10 +161,9 @@ manténlos al día. Invocable como `/loop-sdd <objetivo>`.
 
 ## Memoria persistente
 
-Memoria de archivos en `memory/` (índice `memory/MEMORY.md`, cargado por
-sesión). Persiste decisiones, gotchas y correcciones; no dupliques lo que el
-repo ya registra. Los subagentes con `memory: project` usan
-`.claude/agent-memory/`.
+Los subagentes con `memory: project` usan `.claude/agent-memory/`. Lo demás
+que deba sobrevivir entre sesiones (decisiones, gotchas) va en el repo: specs,
+ADRs en `docs/` o este archivo.
 
 ## Arquitectura de agentes
 

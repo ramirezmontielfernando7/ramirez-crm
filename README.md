@@ -94,6 +94,23 @@ agrupa ráfagas de mensajes en una respuesta, escala a humano cuando el cliente
 lo pide (con detección de respaldo), cuando él lo decide o cuando algo falla.
 Proveedor LLM por adaptador OpenRouter-compatible: usa el modelo que quieras.
 
+### ✍️ Asistente de redacción para el equipo
+
+Una varita junto al clip del editor pule el borrador del asesor antes de
+enviarlo: mejorar redacción, cambiar el tono (formal, casual, empático),
+resumir, acortar o alargar, con «Deshacer». No es el agente: no lee la
+conversación ni envía nada; enviar sigue siendo decisión humana. Usa el mismo
+proveedor `OPENROUTER_*`; sin IA configurada, la varita se deshabilita.
+
+### 📚 Conocimientos
+
+El material que el equipo manda una y otra vez —catálogo, política de envíos,
+fichas técnicas, garantía— en una sección propia: título, texto y/o archivo,
+etiquetas y búsqueda sin acentos. Desde el editor del chat se envía con dos
+clics. Todos los roles lo ven y lo envían; mantenerlo es de Propietario y
+Coordinador. Es material para PERSONAS: el agente de IA no lo lee (su
+conocimiento vive aparte, en Agente).
+
 ### 🔌 Trae tu propio agente
 
 Si prefieres conducir la conversación con tu propio cerebro —un microservicio
@@ -204,20 +221,48 @@ flota encima se distinguen, y el texto pasa el contraste AA. Con un color
 propio, los tonos derivados y la tinta de los botones se calculan solos para
 que se lean.
 
-### 📄 Plantillas · 👥 Multi-usuario · 🔐 Self-hosted
+### 👥 Equipo con roles y asignación de chats
+
+Tres roles, validados en el servidor en cada ruta:
+
+| | Propietario | Coordinador | Asesor |
+|---|:-:|:-:|:-:|
+| Configuración (WhatsApp, marca, agente, Laboratorio) y altas de usuarios | ✅ | — | — |
+| Ver a todo el equipo, repartir chats, editar etapas y plantillas | ✅ | ✅ | — |
+| Etiquetas, importar/exportar CSV, campañas, mantener Conocimientos | ✅ | ✅ | — |
+| Atender sus chats, notas, enviar Conocimientos, asistente de redacción | ✅ | ✅ | ✅ |
+| Qué ve | todo | todo | solo sus chats y leads asignados |
+
+Cada chat/lead puede tener a alguien asignado; se reasigna en lote y queda el
+historial de quién lo tuvo. La **línea de tiempo** del chat junta notas (con
+autor y hora), cambios de etapa, asignaciones, pausas de la IA,
+consentimiento y etiquetas. Las cuentas las crea el propietario: el registro
+público se cierra tras la primera organización.
+
+### 🏷️ Etiquetas, consentimiento y campañas
+
+- **Etiquetas** de contacto, filtrables en la lista.
+- **Consentimiento de WhatsApp** por contacto: acepta (`opt_in`), no quiere
+  (`opt_out`) o sin confirmar (default), con origen y fecha.
+- **Importar/exportar CSV** desde Contactos (deduplica por teléfono y dice qué
+  filas no entraron; la exportación respeta los filtros).
+- **Campañas** (opcional, `CAMPAIGNS=on`): una plantilla aprobada por Meta a un
+  público por etiquetas, **solo a contactos con `opt_in`**, con ritmo de envío
+  y registro por destinatario. Apagada, sus pantallas y rutas no existen.
+
+### 📄 Plantillas · 🔐 Self-hosted
 
 Plantillas con varias variables `{{1}}…{{n}}` y aprobación de Meta
-sincronizada; cuentas de equipo creadas por el propietario (el registro público
-se cierra tras la primera organización); token de WhatsApp cifrado en reposo
-(AES-256-GCM),
-webhook autenticado en dos capas y cero dependencias de runtime más allá de
+sincronizada; token de WhatsApp cifrado en reposo (AES-256-GCM), webhook
+autenticado en dos capas (URL secreta + firma `x-hub-signature-256`, exigida
+cuando defines `META_APP_SECRET`) y cero dependencias de runtime más allá de
 Meta y tu proveedor LLM opcional.
 
 ## Requisitos
 
-- Un VPS con Docker (2 GB de RAM bastan para correr la imagen publicada) — con
-  o sin [Coolify](https://coolify.io). La imagen es `linux/amd64`; en un VPS
-  ARM construyes desde el código, que tarda varios minutos y pide más memoria.
+- Un VPS con Docker — con o sin [Coolify](https://coolify.io). La imagen se
+  construye desde el código (amd64 o ARM): tarda varios minutos y pide más
+  memoria que solo correrla.
 - Un dominio apuntando al VPS (Meta exige **https** para webhooks).
 - Un número de WhatsApp en la Cloud API de Meta (ver [Conexión](#conexión-del-número-de-whatsapp)).
 - Opcional: una API key de [OpenRouter](https://openrouter.ai) (o cualquier
@@ -225,11 +270,10 @@ Meta y tu proveedor LLM opcional.
 
 ## Instalación (~15 minutos)
 
-Cada versión se publica como imagen de Docker:
-`ghcr.io/kevinrivm/vocero-crm:<versión>` (p. ej. `1.4.0`). Instalar desde
-la imagen es el camino recomendado: tu servidor la descarga en vez de
-construirla. Construir desde el código sigue funcionando, y es lo que
-necesitas en un VPS ARM o si tu fork cambia el código.
+Este repositorio es un fork de Vocero con cambios propios (roles, etiquetas,
+campañas, Conocimientos…) y **no publica imagen de Docker**: se instala
+construyendo desde el código. La imagen del upstream
+(`ghcr.io/kevinrivm/vocero-crm`) NO trae estos cambios ni sus migraciones.
 
 ### 0. Apunta tu dominio
 
@@ -243,29 +287,26 @@ archivo [`INSTALL-IA.md`](INSTALL-IA.md) y responde 3 preguntas (dominio, token
 de OpenRouter opcional, ruta). El asistente crea la base de datos y una app de
 tipo «Docker Image» con la imagen de la versión, le monta el volumen de
 `/data`, genera los secretos y verifica el healthcheck. La misma guía trae la
-variante que construye desde el repositorio.
+variante que construye desde el repositorio: **en este fork usa esa**, porque
+la imagen publicada de la guía es la del upstream y no trae los cambios de
+este repositorio.
 
 ### Ruta B — docker compose
 
 ```bash
-git clone https://github.com/kevinrivm/vocero-crm.git vocero && cd vocero
+git clone <URL de este repositorio> crm && cd crm
 cp .env.example .env    # rellena: dominio + secretos (cada uno trae su comando openssl)
+docker compose build --build-arg SOURCE_COMMIT=$(git rev-parse HEAD)
 docker compose up -d
 ```
 
-`docker-compose.yml` declara las dos cosas: la imagen publicada (`image`) y el
-código (`build: .`). Sin `pull_policy`, la
-[especificación de Compose](https://docs.docker.com/reference/compose-file/build/#using-build-and-image)
-dice qué pasa: intenta primero descargar la imagen y solo la construye desde el
-código si no la encuentra ni en el registro ni en tu máquina. Así que:
-
-- `docker compose up -d` corre la imagen publicada de la versión que fija el
-  compose. Para otra versión publicada, `VOCERO_CRM_VERSION=X.Y.Z` en tu
-  `.env`.
-- `docker compose up -d --build` la construye desde tu copia del código. Es lo
-  que necesitas en un VPS ARM y en un fork con cambios propios; en el fork,
-  úsalo siempre: lo que construyes queda con el mismo nombre de imagen, y sin
-  `--build` Compose puede correr la oficial en vez de tus cambios.
+`docker-compose.yml` construye la app desde tu copia del código (`build: .`
+con `pull_policy: build`): nunca descarga una imagen de un registro. Lo
+construido queda en tu máquina como `ramirez-crm:local`. `docker compose up -d
+--build` hace las dos cosas en un paso; el `build` separado solo sirve para
+pasar `SOURCE_COMMIT` (opcional: que la app diga de qué commit salió).
+Construir tarda varios minutos y pide más memoria que correr la app; funciona
+igual en amd64 y ARM.
 
 Caddy emite el certificado HTTPS solo. Verifica con
 `https://crm.tudominio.com/api/health` → `{"ok":true,"version":"1.4.0",…}`.
@@ -273,9 +314,8 @@ Caddy emite el certificado HTTPS solo. Verifica con
 ### Actualizar
 
 Antes, lee en [`CHANGELOG.md`](CHANGELOG.md) la sección «Actualizar desde…» de
-la versión nueva. Con docker compose: `git pull` y `docker compose up -d` (con
-`--build` si tu fork tiene cambios propios). En Coolify: cambia la etiqueta de
-la imagen a la versión nueva y redespliega; si construyes desde el
+la versión nueva. Con docker compose: `git pull` y
+`docker compose up -d --build`. En Coolify, con la app que construye desde el
 repositorio, redespliega. Las migraciones corren solas al arrancar.
 
 ### Primer arranque
@@ -458,11 +498,14 @@ clientes reales.
    saltarse la aprobación de Meta.
 3. **El Laboratorio es 100 % interno**: los clientes simulados jamás tocan la
    API de WhatsApp (bloqueado por diseño y verificado con tests).
-4. **Sin spam ni broadcast**: Vocero no incluye envíos masivos; úsalo para
-   conversaciones reales de venta y soporte.
+4. **Sin spam**: las campañas (apagadas por defecto) solo usan plantillas
+   aprobadas por Meta y solo llegan a contactos con consentimiento `opt_in`
+   registrado; quien está «sin confirmar» u `opt_out` nunca las recibe.
+   Úsalas para comunicar a quien lo pidió, no para mensajes en frío.
 5. **Datos del cliente en su servidor**: cada negocio aloja su instancia; el
    token va cifrado en reposo y los webhooks se validan por URL secreta y
-   firma opcional.
+   por firma (define `META_APP_SECRET`: sin ella, el arranque y
+   Configuración → WhatsApp avisan que la firma no se verifica).
 
 ## FAQ de errores comunes
 
@@ -534,13 +577,10 @@ curl -s https://crm.tudominio.com/api/health
 ```
 
 La versión sale de `package.json` y se congela al **construir**. El commit,
-solo si llega **al build**. La imagen publicada ya lo trae (se construye con
-el commit del tag), así que con ella `/api/health` responde
-`"commitVerified":true` sin hacer nada. Si construyes desde el código, pásalo
-como build arg `SOURCE_COMMIT` en cada despliegue. Con docker compose,
+solo si llega **al build**: pásalo como build arg `SOURCE_COMMIT` en cada
+despliegue. Con docker compose,
 `docker compose build --build-arg SOURCE_COMMIT=$(git rev-parse HEAD)` y
-luego `docker compose up -d --pull never` (sin `--build`, que reconstruiría
-sin él, y sin descargar la imagen publicada en lugar de la tuya); en Coolify o
+luego `docker compose up -d` (sin `--build`, que reconstruiría sin él); en Coolify o
 en cualquier otra plataforma, que el valor llegue como build arg
 `SOURCE_COMMIT`, no solo como variable de entorno. Así queda dentro del
 binario y sale con `"commitVerified":true`.
@@ -564,10 +604,10 @@ SemVer sobre lo que le importa a quien opera una instancia:
 | **Parche** (`1.1.1`) | Arreglos y ajustes. Actualizar es redesplegar. |
 
 La versión vive en `package.json` y se sube en el PR que publica el cambio,
-junto con el default de `VOCERO_CRM_VERSION` en `docker-compose.yml` (una
-prueba exige que coincidan) y su entrada en [`CHANGELOG.md`](CHANGELOG.md),
-que dice qué trae cada versión y qué hacer para actualizar. Al crear el tag
-`vX.Y.Z`, el CI publica la imagen `ghcr.io/kevinrivm/vocero-crm:X.Y.Z`.
+junto con su entrada en [`CHANGELOG.md`](CHANGELOG.md), que dice qué trae cada
+versión y qué hacer para actualizar. El workflow `imagen.yml` construye la
+imagen en cada PR; publicarla en un registro al crear un tag `vX.Y.Z` es
+opcional y este fork aún no lo hace.
 
 ## Roadmap
 
@@ -578,7 +618,6 @@ que dice qué trae cada versión y qué hacer para actualizar. Al crear el tag
 - Borrado de plantillas desde la app.
 - Métricas de plantillas (las de ventas, origen y conversaciones ya están en
   Resultados).
-- Broadcast con opt-in verificado.
 
 ### Antes fuera de alcance, ahora detrás de una bandera
 
