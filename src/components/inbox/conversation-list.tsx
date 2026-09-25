@@ -46,6 +46,15 @@ const FOCO_SEPARADO =
  * lo mismo y comparten el eje aunque el contenido (un contador, la flecha
  * nativa del <select>) sea distinto o la barra envuelva a otra línea.
  */
+/**
+ * Las cápsulas de cada renglón (etapa, asignado, atención humana, anuncio):
+ * UNA medida — 20 px de alto, texto de 10.5 px sin interlineado propio — y
+ * relleno suave en vez de borde, así se leen como etiquetas y no como
+ * botones, y todas comparten el eje aunque lleven punto o ícono.
+ */
+const CHIP =
+  "inline-flex h-5 min-w-0 items-center gap-1 rounded-full px-2 text-[10.5px] font-medium leading-none";
+
 const CONTROL_FILTRO =
   "box-border h-6 shrink-0 rounded-full border py-0 text-[11.5px] font-semibold leading-none transition-colors";
 
@@ -376,7 +385,9 @@ export function ConversationList({
                   initial={{ opacity: 0, y: 4 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ ...ENTER, delay: Math.min(index, 10) * 0.018 }}
-                  className="relative border-b border-border"
+                  // Separador que arranca en el texto (no bajo el avatar): la
+                  // columna de avatares queda limpia y el ojo baja por ella.
+                  className="relative after:absolute after:bottom-0 after:left-[58px] after:right-0 after:h-px after:bg-border"
                 >
                   {active && (
                     // La marca del chat abierto crece desde el centro.
@@ -391,7 +402,7 @@ export function ConversationList({
                     onClick={() => (selecting ? togglePick(c.id) : onSelect(c.id))}
                     aria-pressed={selecting ? picked.has(c.id) : undefined}
                     className={cn(
-                      "flex w-full items-start gap-2.5 px-4 py-[var(--row-py)] text-left transition-colors",
+                      "flex w-full items-start gap-2.5 px-4 py-[var(--row-py)] text-left transition-colors duration-150",
                       "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
                       active ? "bg-[var(--bg-active)]" : "hover:bg-row-hover"
                     )}
@@ -406,20 +417,25 @@ export function ConversationList({
                         className="mt-2 h-4 w-4 shrink-0 accent-[var(--accent)]"
                       />
                     )}
-                    <span className="relative shrink-0">
+                    {/* mt-[3px]: el avatar (32 px) queda centrado con el
+                        nombre y la vista previa (38 px juntos). */}
+                    <span className="relative mt-[3px] shrink-0">
                       <ContactAvatar name={c.contact.name} seed={c.contact.id} size="list" />
                       {c.windowOpen && (
                         <span className="absolute -bottom-px -right-px h-[9px] w-[9px] rounded-full border-2 border-background bg-success" />
                       )}
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="flex items-center justify-between gap-2">
-                        <span className="flex min-w-0 items-center gap-1.5">
+                      {/* Nombre y hora en la MISMA línea base; la hora en la
+                          letra de la interfaz con cifras tabulares (antes
+                          monoespaciada: se veía más grande y fuera de eje). */}
+                      <span className="flex items-baseline justify-between gap-2">
+                        <span className="flex min-w-0 items-center gap-1.5 self-center">
                           {multiChannel && <ChannelBadge channel={c.channel} />}
                           <span
                             className={cn(
-                              "truncate text-sm",
-                              unread ? "font-[680]" : "font-semibold"
+                              "truncate text-[13.5px] leading-5 tracking-[-0.01em] text-foreground",
+                              unread ? "font-bold" : "font-semibold"
                             )}
                           >
                             {c.contact.name}
@@ -427,8 +443,8 @@ export function ConversationList({
                         </span>
                         <span
                           className={cn(
-                            "shrink-0 font-mono text-[10.5px] tracking-[0.02em]",
-                            unread ? "font-semibold text-brand-ink" : "text-text-3"
+                            "shrink-0 text-[11px] leading-5 tabular-nums",
+                            unread ? "font-semibold text-brand-ink" : "font-medium text-text-3"
                           )}
                         >
                           {formatTime(c.lastMessageAt)}
@@ -437,25 +453,25 @@ export function ConversationList({
                       <span className="flex items-center justify-between gap-2">
                         <span
                           className={cn(
-                            "truncate text-[13px]",
-                            unread ? "font-medium text-text-2" : "text-text-3"
+                            "truncate text-[12.5px] leading-[18px]",
+                            unread ? "font-medium text-foreground" : "text-text-2"
                           )}
                         >
                           {previewText(c.preview)}
                         </span>
                         {unread && (
-                          <span className="flex h-4 min-w-4 shrink-0 items-center justify-center rounded-full bg-brand px-1 text-[10px] font-semibold text-brand-fg">
+                          <span className="flex h-[18px] min-w-[18px] shrink-0 items-center justify-center rounded-full bg-brand px-1.5 text-[10.5px] font-semibold tabular-nums leading-none text-brand-fg">
                             {c.unreadCount}
                           </span>
                         )}
                       </span>
                       {/* Envuelve: con el asignado (020) los chips ya no caben
                           siempre en una línea de 300-360 px. */}
-                      <span className="mt-1 flex flex-wrap items-center gap-1">
+                      <span className="mt-1.5 flex flex-wrap items-center gap-1">
                         {c.stageName && (
-                          <span className="inline-flex items-center gap-1 rounded-full border border-border-strong bg-chip px-1.5 py-px text-[10.5px] leading-4 font-medium text-text-2">
+                          <span className={cn(CHIP, "bg-secondary text-text-2")}>
                             <span
-                              className="h-1.5 w-1.5 rounded-full"
+                              className="h-1.5 w-1.5 shrink-0 rounded-full"
                               style={{
                                 background: STAGE_DOT[c.stageName] ?? STAGE_DOT_FALLBACK,
                               }}
@@ -464,8 +480,8 @@ export function ConversationList({
                           </span>
                         )}
                         {c.handoffAt && (
-                          <span className="inline-flex items-center gap-1 rounded-full border border-warning-soft bg-warning-tint px-1.5 py-px text-[10.5px] leading-4 text-warning-text">
-                            <UserRound className="h-2.5 w-2.5" strokeWidth={1.8} />
+                          <span className={cn(CHIP, "bg-warning-tint text-warning-text")}>
+                            <UserRound className="h-3 w-3 shrink-0" strokeWidth={2} />
                             {/* 020: al asesor asignado se le dice que es él. */}
                             {c.assignee?.id === viewer.userId
                               ? "Requiere tu atención"
@@ -475,7 +491,14 @@ export function ConversationList({
                           </span>
                         )}
                         {seesAll && (
-                          <span className="inline-flex min-w-0 items-center gap-1 rounded-full border border-border-strong bg-chip px-1.5 py-px text-[10.5px] leading-4 font-medium text-text-2">
+                          <span
+                            className={cn(
+                              CHIP,
+                              // Sin asignar va sin cápsula (es la ausencia de algo),
+                              // pero en text-2: en text-3 no pasaría AA a 10.5 px.
+                              c.assignee ? "bg-secondary text-text-2" : "bg-transparent px-1 font-normal text-text-2"
+                            )}
+                          >
                             <span className="truncate">
                               {c.assignee
                                 ? c.assignee.id === viewer.userId
@@ -487,10 +510,10 @@ export function ConversationList({
                         )}
                         {c.anuncio && (
                           <span
-                            className="inline-flex min-w-0 items-center gap-1 rounded-full border border-info-soft bg-info-tint px-1.5 py-px text-[10.5px] leading-4 text-info-text"
+                            className={cn(CHIP, "bg-info-tint text-info-text")}
                             title={titularDeOrigen(c.anuncio.headline, c.anuncio.sourceType)}
                           >
-                            <Megaphone className="h-2.5 w-2.5 shrink-0" strokeWidth={1.8} />
+                            <Megaphone className="h-3 w-3 shrink-0" strokeWidth={2} />
                             <span className="truncate">
                               {etiquetaDeOrigen(c.anuncio.sourceType)}
                               {c.anuncio.headline ? ` · ${c.anuncio.headline}` : ""}
