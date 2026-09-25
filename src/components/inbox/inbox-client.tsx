@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { ChevronLeft, PanelRight } from "lucide-react";
+import { m } from "motion/react";
 import { cn, formatPhone } from "@/lib/utils";
 import { ContactAvatar } from "@/components/avatar";
 import type { ConversationDto, MessageDto } from "@/lib/types";
@@ -302,55 +303,65 @@ export function InboxClient({ channels }: { channels: readonly Channel[] }) {
       >
         {selected ? (
           <>
-            <header className="flex items-center justify-between gap-1 border-b bg-background px-2 py-2.5 md:px-4">
-              {/* Volver a la lista: en móvil el hilo ocupa toda la pantalla. */}
-              <button
-                onClick={() => setSelectedId(null)}
-                aria-label="Volver a las conversaciones"
-                className="shrink-0 rounded-md p-1.5 text-text-2 hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:hidden"
-              >
-                <ChevronLeft className="h-5 w-5" strokeWidth={1.8} />
-              </button>
-              <div className="flex min-w-0 flex-1 items-center gap-3 p-1">
-                <ContactAvatar
-                  name={selected.contact.name}
-                  seed={selected.contact.id}
-                  size="md"
-                />
-                <div className="min-w-0">
-                  <p className="flex min-w-0 items-center gap-1.5 text-[15px] font-bold leading-tight tracking-tight">
-                    {multiChannel && <ChannelBadge channel={selected.channel} />}
-                    <span className="truncate">{selected.contact.name}</span>
-                  </p>
-                  <p
-                    className={cn(
-                      "mt-0.5 font-mono text-[10.5px] tracking-[0.04em]",
-                      selected.windowOpen
-                        ? "font-medium text-success-text"
-                        : "text-text-3"
-                    )}
-                  >
-                    {selected.windowOpen
-                      ? "ventana abierta"
-                      : selected.contact.phone
-                        ? formatPhone(selected.contact.phone)
-                        : // Instagram no tiene teléfono: decir "Sin teléfono"
-                          // sería contestar una pregunta que nadie hizo.
-                          CHANNEL_LABEL[selected.channel]}
-                  </p>
-                </div>
-              </div>
-              {!panelOpen && (
+            {/* Al cambiar de chat, encabezado e hilo entran con un fundido
+                corto (el compositor no: conserva su borrador). */}
+            <m.div
+              key={selected.id}
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ type: "spring", duration: 0.2, bounce: 0 }}
+              className="flex min-h-0 flex-1 flex-col"
+            >
+              <header className="flex items-center justify-between gap-1 border-b bg-background px-2 py-2.5 md:px-4">
+                {/* Volver a la lista: en móvil el hilo ocupa toda la pantalla. */}
                 <button
-                  onClick={() => togglePanel(true)}
-                  aria-label="Mostrar detalles"
-                  className="shrink-0 rounded-full border border-border-strong p-1.5 text-text-3 transition-colors hover:border-text-3 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  onClick={() => setSelectedId(null)}
+                  aria-label="Volver a las conversaciones"
+                  className="shrink-0 rounded-md p-1.5 text-text-2 hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:hidden"
                 >
-                  <PanelRight className="h-4 w-4" strokeWidth={1.7} />
+                  <ChevronLeft className="h-5 w-5" strokeWidth={1.8} />
                 </button>
-              )}
-            </header>
-            <MessageThread messages={thread} />
+                <div className="flex min-w-0 flex-1 items-center gap-3 p-1">
+                  <ContactAvatar
+                    name={selected.contact.name}
+                    seed={selected.contact.id}
+                    size="md"
+                  />
+                  <div className="min-w-0">
+                    <p className="flex min-w-0 items-center gap-1.5 text-[15px] font-bold leading-tight tracking-tight">
+                      {multiChannel && <ChannelBadge channel={selected.channel} />}
+                      <span className="truncate">{selected.contact.name}</span>
+                    </p>
+                    <p
+                      className={cn(
+                        "mt-0.5 font-mono text-[10.5px] tracking-[0.04em]",
+                        selected.windowOpen
+                          ? "font-medium text-success-text"
+                          : "text-text-3"
+                      )}
+                    >
+                      {selected.windowOpen
+                        ? "ventana abierta"
+                        : selected.contact.phone
+                          ? formatPhone(selected.contact.phone)
+                          : // Instagram no tiene teléfono: decir "Sin teléfono"
+                            // sería contestar una pregunta que nadie hizo.
+                            CHANNEL_LABEL[selected.channel]}
+                    </p>
+                  </div>
+                </div>
+                {!panelOpen && (
+                  <button
+                    onClick={() => togglePanel(true)}
+                    aria-label="Mostrar detalles"
+                    className="shrink-0 rounded-full border border-border-strong p-1.5 text-text-3 transition-colors hover:border-text-3 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    <PanelRight className="h-4 w-4" strokeWidth={1.7} />
+                  </button>
+                )}
+              </header>
+              <MessageThread messages={thread} />
+            </m.div>
             <Composer
               conversation={selected}
               onSend={sendText}

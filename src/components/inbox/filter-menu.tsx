@@ -94,7 +94,15 @@ export function FilterMenu({
             : "border-border-strong bg-chip text-text-2 hover:border-text-3"
         )}
       >
-        {current?.label}
+        {/* Al cambiar de filtro, el nombre entra con un desliz corto. */}
+        <m.span
+          key={current?.id}
+          initial={{ opacity: 0, y: 3 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={SPRING}
+        >
+          {current?.label}
+        </m.span>
         <span
           className={cn(
             "rounded-full px-1 py-[2px] text-[10.5px] leading-none",
@@ -129,10 +137,15 @@ export function FilterMenu({
           >
             <p className="kicker px-2 pb-1 pt-1">Mostrar</p>
             <ul>
-              {filtros.map((f) => {
+              {filtros.map((f, i) => {
                 const on = f.id === filter;
                 return (
-                  <li key={f.id}>
+                  <m.li
+                    key={f.id}
+                    initial={{ opacity: 0, x: -4 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ ...SPRING, delay: 0.03 + i * 0.02 }}
+                  >
                     <button
                       type="button"
                       onClick={() => {
@@ -154,7 +167,7 @@ export function FilterMenu({
                         aria-hidden
                       />
                     </button>
-                  </li>
+                  </m.li>
                 );
               })}
             </ul>

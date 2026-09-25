@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { CheckSquare, Megaphone, Search, Sparkles, UserRound, X } from "lucide-react";
+import { useRef, useState } from "react";
+import { m } from "motion/react";
+import { CheckSquare, Megaphone, Sparkles, UserRound } from "lucide-react";
 import type { ConversationDto } from "@/lib/types";
 import { etiquetaDeOrigen, titularDeOrigen } from "@/lib/anuncios";
 import { CHANNEL_LABEL, type Channel } from "@/lib/channels";
@@ -15,6 +16,8 @@ import { useViewer } from "@/components/viewer-context";
 import { assignContacts, useAssignees } from "@/components/assignment/use-assignees";
 import { NavRevealButton } from "@/components/nav-mode";
 import { FilterMenu, type InboxFilter } from "./filter-menu";
+import { SearchPill } from "./search-pill";
+import { Collapse, ENTER, SPRING } from "@/components/motion";
 
 /* Puntos de etapa: los tokens del tema, no hex copiados del tema claro —
    así siguen al acento white-label y se recalculan en oscuro. */
@@ -102,7 +105,14 @@ export function ConversationList({
   const [filter, setFilter] = useState<InboxFilter>("all");
   const [stage, setStage] = useState<string>("all");
   const [inbox, setInbox] = useState<Channel | "all">("all");
-  const inputRef = useRef<HTMLInputElement>(null);
+  const rowRef = useRef<HTMLDivElement>(null);
+  // Con el buscador abierto, lo que cubre (título, filtros) se desvanece
+  // mientras el campo se estira: un cruce, no dos capas encimadas.
+  const [searchOpen, setSearchOpen] = useState(false);
+  const bajoBuscador = cn(
+    "transition-opacity duration-200",
+    searchOpen && "pointer-events-none opacity-0"
+  );
   // 020: quién atiende. "all" | "mine" | "unassigned" | <userId>. Solo lo
   // ve quien ve a todo el equipo; al asesor el servidor ya le manda lo suyo.
   const viewer = useViewer();
@@ -116,18 +126,6 @@ export function ConversationList({
   const [bulkTo, setBulkTo] = useState<string>("");
   const [bulkBusy, setBulkBusy] = useState(false);
   const [bulkError, setBulkError] = useState<string | null>(null);
-
-  /**
-   * Rescate de lo tecleado ANTES de que hidratara el JS. La caja se pinta en
-   * el HTML del servidor, así que se puede escribir en ella mientras carga la
-   * página; al montar, React la dejaba vacía y esas pulsaciones se perdían en
-   * silencio (el usuario veía la lista entera "sin filtrar"). Por eso el input
-   * es NO controlado: el DOM manda y aquí solo adoptamos su valor.
-   */
-  useEffect(() => {
-    const typed = inputRef.current?.value ?? "";
-    if (typed) setQuery(typed);
-  }, []);
 
   const loading = conversationsProp === null;
   const conversations = conversationsProp ?? [];
@@ -178,6 +176,12 @@ export function ConversationList({
   if (deAnuncios.length > 0 || filter === "anuncios") {
     filtros.push({ id: "anuncios", label: "Anuncios", count: deAnuncios.length });
   }
+  // Lo que la cápsula de filtros diría, para el buscador abierto que la tapa.
+  const extraFiltros = (stage !== "all" ? 1 : 0) + (seesAll && owner !== "all" ? 1 : 0);
+  const filtroPuesto =
+    filter === "all" && extraFiltros === 0
+      ? null
+      : `${filtros.find((f) => f.id === filter)?.label ?? "Todas"}${extraFiltros > 0 ? ` +${extraFiltros}` : ""}`;
   // Con un solo canal encendido no hay bandejas que distinguir: ni marca en
   // los renglones ni filtro. La pantalla queda exactamente como antes de 014.
   const multiChannel = channels.length > 1;
@@ -230,51 +234,54 @@ export function ConversationList({
     onSeeded();
   }
 
-  function clearQuery() {
-    if (inputRef.current) inputRef.current.value = "";
-    setQuery("");
-    inputRef.current?.focus();
-  }
-
   return (
     <div className="flex h-full flex-col">
       <header className="border-b px-4 pb-3 pt-4">
-        {/* `relative`: el panel de filtros se ancla a esta fila, no a la
-            cápsula, para no salirse nunca por la derecha de la columna. */}
-        <div className="relative mb-3 flex items-center gap-2">
+        {/* `relative`: el panel de filtros y el buscador abierto se anclan a
+            esta fila, no a su botón, para no salirse nunca de la columna. */}
+        <div ref={rowRef} className="relative flex items-center gap-2">
           <NavRevealButton />
-          <h2 className="text-[17px] font-bold tracking-tight">Bandeja</h2>
+          <h2 className={cn("text-[17px] font-bold tracking-tight", bajoBuscador)}>Bandeja</h2>
           {/* Una cápsula con el filtro en uso; al tocarla despliega el resto.
               La selección múltiple viaja pegada a ella. */}
           <div className="flex items-center gap-1">
-            <FilterMenu
-              filtros={filtros}
-              filter={filter}
-              onFilter={setFilter}
-              stages={stages}
-              stage={stage}
-              onStage={setStage}
-              owners={seesAll ? [...owners] : null}
-              owner={owner}
-              onOwner={setOwner}
+            <div className={cn("flex items-center gap-1", bajoBuscador)}>
+              <FilterMenu
+                filtros={filtros}
+                filter={filter}
+                onFilter={setFilter}
+                stages={stages}
+                stage={stage}
+                onStage={setStage}
+                owners={seesAll ? [...owners] : null}
+                owner={owner}
+                onOwner={setOwner}
+              />
+              {canAssign && !selecting && (
+                <button
+                  onClick={() => setSelecting(true)}
+                  aria-label="Seleccionar varios"
+                  title="Seleccionar varios"
+                  className={cn(
+                    CONTROL_FILTRO,
+                    "flex w-6 items-center justify-center border-border-strong bg-chip text-text-2 transition-[border-color,transform] duration-150 hover:border-text-3 active:scale-90",
+                    FOCO_SEPARADO
+                  )}
+                >
+                  <CheckSquare className="h-3.5 w-3.5" strokeWidth={1.8} />
+                </button>
+              )}
+            </div>
+            <SearchPill
+              query={query}
+              onQuery={setQuery}
+              rowRef={rowRef}
+              onOpenChange={setSearchOpen}
+              hint={filtroPuesto}
             />
-            {canAssign && !selecting && (
-              <button
-                onClick={() => setSelecting(true)}
-                aria-label="Seleccionar varios"
-                title="Seleccionar varios"
-                className={cn(
-                  CONTROL_FILTRO,
-                  "flex w-6 items-center justify-center border-border-strong bg-chip text-text-2 transition-[border-color,transform] duration-150 hover:border-text-3 active:scale-90",
-                  FOCO_SEPARADO
-                )}
-              >
-                <CheckSquare className="h-3.5 w-3.5" strokeWidth={1.8} />
-              </button>
-            )}
           </div>
           {multiChannel && (
-            <div className="ml-auto flex items-center gap-1">
+            <div className={cn("ml-auto flex items-center gap-1", bajoBuscador)}>
               {channels.map((ch) => {
                 const on = inbox === ch;
                 return (
@@ -307,29 +314,9 @@ export function ConversationList({
             </div>
           )}
         </div>
-        <div className="flex items-center gap-2 rounded-full border border-border-strong bg-chip px-3.5 py-[7px] shadow-sm transition-[border-color,box-shadow] focus-within:border-brand focus-within:ring-[3px] focus-within:ring-brand-soft">
-          <Search className="h-4 w-4 shrink-0 text-text-3" strokeWidth={1.7} />
-          <input
-            ref={inputRef}
-            placeholder="Buscar por nombre o teléfono…"
-            aria-label="Buscar conversación"
-            defaultValue=""
-            onChange={(e) => setQuery(e.target.value)}
-            className="w-full bg-transparent text-[13px] outline-none placeholder:text-text-3"
-          />
-          {query && (
-            <button
-              onClick={clearQuery}
-              aria-label="Limpiar búsqueda"
-              className="shrink-0 rounded-full p-0.5 text-text-3 hover:bg-accent hover:text-foreground"
-            >
-              <X className="h-3.5 w-3.5" strokeWidth={2} />
-            </button>
-          )}
-        </div>
       </header>
 
-      {selecting && (
+      <Collapse open={selecting}>
         <div className="space-y-2 border-b bg-subtle px-4 py-2.5">
           <div className="flex items-center justify-between gap-2">
             <span className="text-[12.5px] font-semibold">
@@ -363,7 +350,7 @@ export function ConversationList({
           </div>
           {bulkError && <p className="text-[11px] text-danger-text">{bulkError}</p>}
         </div>
-      )}
+      </Collapse>
 
       <div className="flex-1 overflow-y-auto">
         {loading ? (
@@ -375,14 +362,30 @@ export function ConversationList({
             Sin resultados para este filtro.
           </p>
         ) : (
-          <ul>
-            {visible.map((c) => {
+          // La llave cambia con el filtro (no con cada tecla de la búsqueda):
+          // al filtrar, la lista vuelve a "caer" en su lugar escalonada.
+          <ul key={`${filter}|${stage}|${owner}|${inbox}`}>
+            {visible.map((c, index) => {
               const unread = c.unreadCount > 0;
               const active = selectedId === c.id;
               return (
-                <li key={c.id} className="relative border-b border-border">
+                <m.li
+                  key={c.id}
+                  // Entra con opacidad + 4 px; el escalón solo en las primeras
+                  // filas (las que se ven), así una lista larga no "gotea".
+                  initial={{ opacity: 0, y: 4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ ...ENTER, delay: Math.min(index, 10) * 0.018 }}
+                  className="relative border-b border-border"
+                >
                   {active && (
-                    <span className="absolute inset-y-0 left-0 w-[3px] bg-brand" />
+                    // La marca del chat abierto crece desde el centro.
+                    <m.span
+                      initial={{ scaleY: 0 }}
+                      animate={{ scaleY: 1 }}
+                      transition={SPRING}
+                      className="absolute inset-y-0 left-0 w-[3px] bg-brand"
+                    />
                   )}
                   <button
                     onClick={() => (selecting ? togglePick(c.id) : onSelect(c.id))}
@@ -497,7 +500,7 @@ export function ConversationList({
                       </span>
                     </span>
                   </button>
-                </li>
+                </m.li>
               );
             })}
           </ul>
