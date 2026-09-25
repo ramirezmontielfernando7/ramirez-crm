@@ -105,16 +105,19 @@ const TILE_SIZE = {
 export function BrandLogo({
   branding,
   size = "md",
+  tile = true,
   className,
 }: {
   branding: BrandingMark;
   size?: keyof typeof WORDMARK_SIZE;
+  /** `false` = solo el nombre: el mosaico ya está al lado (el botón del menú). */
+  tile?: boolean;
   className?: string;
 }) {
   const house = isHouseName(branding.name);
   return (
     <span className={cn("flex min-w-0 items-center gap-2.5 text-foreground", className)}>
-      <BrandTile branding={branding} className={TILE_SIZE[size]} />
+      {tile && <BrandTile branding={branding} className={TILE_SIZE[size]} />}
       {/* text-left: en el login el contenedor centra, y la firma debe quedar
           alineada con el nombre, no centrada bajo él. */}
       <span className="flex min-w-0 flex-col text-left">

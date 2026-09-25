@@ -14,7 +14,6 @@ import {
   Kanban,
   LogOut,
   Megaphone,
-  Menu,
   Settings,
   Sparkles,
   Users,
@@ -226,14 +225,17 @@ export function AppNav({
         open ? "visible translate-x-0 shadow-pop" : "invisible -translate-x-full"
       )}
     >
-      {/* Marca: el logo de Dashfort o, white-label, la inicial y el nombre */}
-      {/* Con la marca de la casa la fila se centra: mosaico, ☰ y ✕ comparten
-          eje. White-label conserva el renglón "CRM · WhatsApp" debajo. */}
+      {/* Marca. En escritorio el LOGO es el botón del menú (expandido →
+          íconos → oculto): el mosaico queda fijo a 12 px del borde en todos
+          los estados — con el menú en íconos (56 px) queda centrado — y a su
+          lado va el nombre. En el teléfono, la ✕ del cajón y la marca completa. */}
       <div
         className={cn(
-          "mb-5 flex gap-1.5 pt-0.5",
+          "mb-5 flex gap-2.5 pt-0.5",
           house ? "items-center" : "items-start",
-          mini ? "px-0.5" : "px-2"
+          // El aside tiene 12 px de relleno expandido y 8 px en íconos: el
+          // 4 px de más en íconos deja el logo exactamente donde estaba.
+          mini && "lg:pl-1"
         )}
       >
         {/* En móvil el cajón necesita su propio cierre: el velo no siempre es
@@ -248,17 +250,17 @@ export function AppNav({
         >
           <X className="h-[18px] w-[18px]" strokeWidth={1.8} />
         </button>
-        {/* 022: expandido → íconos → oculto. El mismo hamburguesa de la barra
-            del teléfono, arriba a la izquierda. Oculto, el que lo reabre va
-            en la fila del título de cada pantalla (`NavRevealButton`). */}
+        {/* 022: expandido → íconos → oculto, con el logo como botón. Oculto,
+            el que lo reabre va en la fila del título de cada pantalla
+            (`NavRevealButton`), con el mismo logo. */}
         <button
           onClick={onCycleMode}
           aria-label={toggleLabel}
           title={toggleLabel}
           aria-expanded={!mini}
-          className="-ml-1 hidden h-8 w-8 shrink-0 items-center justify-center rounded-md text-text-3 transition-[color,background-color,transform] duration-150 hover:bg-accent hover:text-foreground active:scale-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:flex"
+          className="nav-logo-btn hidden h-8 w-8 shrink-0 rounded-[9px] transition-[transform,filter] duration-150 hover:brightness-110 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-subtle lg:flex"
         >
-          <Menu className="h-[18px] w-[18px]" strokeWidth={1.8} />
+          <BrandTile branding={branding} className="h-8 w-8 rounded-[9px] text-[15px]" />
         </button>
         <div
           aria-hidden={mini || undefined}
@@ -267,18 +269,12 @@ export function AppNav({
             mini && "pointer-events-none -translate-x-1.5 opacity-0"
           )}
         >
-          <BrandLogo branding={branding} />
+          <BrandLogo branding={branding} className="lg:hidden" />
+          <BrandLogo branding={branding} tile={false} className="hidden lg:flex" />
           {/* La firma "by Demfort" ya ocupa ese lugar en la marca de la casa. */}
           {!house && <span className="kicker mt-2 block whitespace-nowrap">CRM · WhatsApp</span>}
         </div>
       </div>
-
-      {/* Colapsado, la marca queda en su mosaico: identidad sin texto. */}
-      {mini && (
-        <span className="mb-4 flex justify-center" title={branding.name}>
-          <BrandTile branding={branding} className="h-7 w-7 rounded-[8px] text-[13px]" />
-        </span>
-      )}
 
       <nav className="flex flex-col gap-0.5">
         {items.map((item) => {
