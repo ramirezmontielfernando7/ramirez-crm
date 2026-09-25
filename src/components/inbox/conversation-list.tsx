@@ -35,6 +35,15 @@ const STAGE_DOT_FALLBACK = "var(--text-3)";
 const FOCO_SEPARADO =
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background";
 
+/**
+ * La base ÚNICA de los controles de la barra de filtros (cápsulas, selectores
+ * y el ícono de selección): alto fijo y sin relleno vertical, así todos miden
+ * lo mismo y comparten el eje aunque el contenido (un contador, la flecha
+ * nativa del <select>) sea distinto o la barra envuelva a otra línea.
+ */
+const CONTROL_FILTRO =
+  "box-border h-6 shrink-0 rounded-full border py-0 text-[11.5px] font-semibold leading-none transition-colors";
+
 function EmptyState({ onSeeded }: { onSeeded: () => void }) {
   const [seeding, setSeeding] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -296,7 +305,8 @@ export function ConversationList({
             key={f.id}
             onClick={() => setFilter(f.id)}
             className={cn(
-              "flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full border px-2 py-[3px] text-[11.5px] font-semibold transition-colors",
+              CONTROL_FILTRO,
+              "flex items-center gap-1 whitespace-nowrap px-2",
               FOCO_SEPARADO,
               filter === f.id
                 ? "border-brand bg-brand text-brand-fg"
@@ -306,7 +316,7 @@ export function ConversationList({
             {f.label}
             <span
               className={cn(
-                "rounded-full px-1 text-[10.5px]",
+                "rounded-full px-1 py-[2px] text-[10.5px] leading-none",
                 filter === f.id ? "bg-brand-veil" : "bg-secondary text-text-3"
               )}
             >
@@ -324,7 +334,8 @@ export function ConversationList({
               onChange={(e) => setStage(e.target.value)}
               aria-label="Filtrar por etapa del embudo"
               className={cn(
-                "min-w-0 max-w-[9.5rem] truncate rounded-full border px-1.5 py-[3px] text-[11.5px] font-semibold transition-colors",
+                CONTROL_FILTRO,
+                "min-w-0 max-w-[9.5rem] shrink truncate px-1.5",
                 FOCO_SEPARADO,
                 stage === "all"
                   ? "border-border-strong bg-chip text-text-2 hover:border-text-3"
@@ -346,7 +357,8 @@ export function ConversationList({
               onChange={(e) => setOwner(e.target.value)}
               aria-label="Filtrar por persona asignada"
               className={cn(
-                "min-w-0 max-w-[9.5rem] truncate rounded-full border px-1.5 py-[3px] text-[11.5px] font-semibold transition-colors",
+                CONTROL_FILTRO,
+                "min-w-0 max-w-[9.5rem] shrink truncate px-1.5",
                 FOCO_SEPARADO,
                 owner === "all"
                   ? "border-border-strong bg-chip text-text-2 hover:border-text-3"
@@ -370,7 +382,8 @@ export function ConversationList({
               aria-label="Seleccionar varios"
               title="Seleccionar varios"
               className={cn(
-                "flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-border-strong bg-chip text-text-2 transition-[border-color,transform] duration-150 hover:border-text-3 active:scale-90",
+                CONTROL_FILTRO,
+                "flex w-6 items-center justify-center border-border-strong bg-chip text-text-2 transition-[border-color,transform] duration-150 hover:border-text-3 active:scale-90",
                 FOCO_SEPARADO
               )}
             >
