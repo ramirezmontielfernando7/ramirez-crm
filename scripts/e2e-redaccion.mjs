@@ -134,7 +134,7 @@ const varita = page.getByRole("button", { name: "Asistente de redacción con IA"
 await varita.waitFor({ timeout: 10000 });
 
 // Junto al clip.
-const clip = await page.getByRole("button", { name: "Adjuntar archivo" }).boundingBox();
+const clip = await page.getByRole("button", { name: "Adjuntar", exact: true }).boundingBox();
 const vb = await varita.boundingBox();
 ok("la varita está justo a la derecha del clip", Boolean(clip && vb && vb.x > clip.x && vb.x - clip.x < 50 && Math.abs(vb.y - clip.y) < 4));
 ok("con el editor vacío está deshabilitada", await varita.isDisabled());
@@ -168,7 +168,8 @@ ok("mientras espera, el editor queda en solo lectura", (await ta.getAttribute("r
 ok("…y se lee «La IA está reescribiendo…»", (await page.getByText("La IA está reescribiendo…").count()) === 1);
 ok("…y Enviar está bloqueado", await page.getByRole("button", { name: "Enviar", exact: true }).isDisabled());
 await shot(page, "f1-03-cargando");
-await hasta(async () => (await ta.inputValue()) !== BORRADOR, 10000);
+// En `pnpm dev` la primera llamada compila la ruta (varios segundos).
+await hasta(async () => (await ta.inputValue()) !== BORRADOR, 30000);
 const empatico = await ta.inputValue();
 ok("el texto se reemplaza con el resultado", empatico.startsWith("Entiendo perfectamente"), empatico);
 ok("aparece «Deshacer»", (await page.getByRole("button", { name: "Deshacer" }).count()) === 1);

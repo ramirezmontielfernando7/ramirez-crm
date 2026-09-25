@@ -1,6 +1,8 @@
 ﻿"use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
+import dynamic from "next/dynamic";
+import { AnimatePresence, m } from "motion/react";
 import {
   BookOpen,
   Clock3,
@@ -8,9 +10,11 @@ import {
   MapPin,
   Paperclip,
   Send,
+  Smile,
   UserRound,
   X,
 } from "lucide-react";
+import { SPRING } from "@/components/motion";
 import type { ConversationDto, TemplateDto } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { formatBytes, formatRemaining } from "./helpers";
@@ -27,6 +31,58 @@ import type { KnowledgeEntryDto } from "@/lib/knowledge";
  * 024 — `knowledge`: el buscador de Conocimientos (botón de libro o `/`).
  */
 type AttachPanel = "location" | "contact" | "knowledge" | null;
+
+/** Qué menú flotante del compositor está abierto (uno a la vez). */
+type Popover = "attach" | "emoji" | null;
+
+// El selector de emojis (y sus datos) solo se descarga al abrirlo por primera
+// vez: la Bandeja no paga ese peso si nadie lo usa.
+const EmojiPickerPanel = dynamic(() => import("./emoji-picker"), {
+  ssr: false,
+  loading: () => (
+    <div className="flex h-[340px] w-[304px] items-center justify-center text-xs text-text-3">
+      Cargando emojis…
+    </div>
+  ),
+});
+
+/** Cierra un menú flotante al hacer clic fuera de `ref` o con Escape. */
+function useDismiss(
+  open: boolean,
+  ref: RefObject<HTMLElement | null>,
+  onClose: () => void
+) {
+  const close = useRef(onClose);
+  useEffect(() => {
+    close.current = onClose;
+  });
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      if (!ref.current?.contains(e.target as Node)) close.current();
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") close.current();
+    };
+    document.addEventListener("mousedown", onDown);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [open, ref]);
+}
+
+/**
+ * La imagen pegada con Ctrl+V llega como "image.png" (o sin nombre): se le da
+ * uno con fecha para que el cliente no reciba diez "image.png" iguales.
+ */
+function namePasted(f: File): File {
+  if (f.name && f.name !== "image.png") return f;
+  const ext = f.type.split("/")[1]?.replace("jpeg", "jpg") || "png";
+  const stamp = new Date().toISOString().slice(0, 19).replace(/[-:T]/g, "");
+  return new File([f], `imagen-${stamp}.${ext}`, { type: f.type });
+}
 
 /** Extrae lat,long de "21.019, -101.257" o de un enlace de Google Maps. */
 function parseCoords(raw: string): { latitude: number; longitude: number } | null {
@@ -61,12 +117,19 @@ export function Composer({
   const [placeName, setPlaceName] = useState("");
   const [contactName, setContactName] = useState("");
   const [contactPhone, setContactPhone] = useState("");
+  const [popover, setPopover] = useState<Popover>(null);
   // 023 — Asistente de redacción: mientras reescribe, el editor se congela;
   // `undoText` guarda el borrador anterior para "Deshacer".
   const [rewriting, setRewriting] = useState(false);
   const [undoText, setUndoText] = useState<string | null>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const attachRef = useRef<HTMLDivElement>(null);
+  const attachTrigger = useRef<HTMLButtonElement>(null);
+  const emojiRef = useRef<HTMLDivElement>(null);
+
+  useDismiss(popover === "attach", attachRef, () => setPopover(null));
+  useDismiss(popover === "emoji", emojiRef, () => setPopover(null));
 
   useEffect(() => {
     let cancelled = false;
@@ -108,6 +171,48 @@ export function Composer({
     setFilePreview(f && f.type.startsWith("image/") ? URL.createObjectURL(f) : null);
     setPanel(null);
     setError(null);
+  }
+
+  /** Inserta el emoji donde está el cursor (o reemplaza lo seleccionado). */
+  function insertEmoji(emoji: string) {
+    // 023: con la IA reescribiendo el editor está congelado; un emoji es una
+    // edición, así que "Deshacer" ya no aplica.
+    if (rewriting) return;
+    setUndoText(null);
+    const el = taRef.current;
+    const value = el?.value ?? text;
+    const start = el?.selectionStart ?? value.length;
+    const end = el?.selectionEnd ?? value.length;
+    setText(value.slice(0, start) + emoji + value.slice(end));
+    const caret = start + emoji.length;
+    requestAnimationFrame(() => {
+      if (!el) return;
+      el.focus();
+      el.setSelectionRange(caret, caret);
+      autogrow();
+    });
+  }
+
+  /**
+   * Ctrl+V con una imagen en el portapapeles = adjuntarla, igual que elegirla
+   * del explorador. Si trae texto (aunque también traiga imagen, como al
+   * copiar celdas de Excel) se pega el texto como siempre.
+   */
+  function onPaste(e: React.ClipboardEvent<HTMLTextAreaElement>) {
+    if (e.clipboardData.getData("text/plain")) return;
+    const image = Array.from(e.clipboardData.items)
+      .find((i) => i.kind === "file" && i.type.startsWith("image/"))
+      ?.getAsFile();
+    if (!image) return;
+    e.preventDefault();
+    pickFile(namePasted(image));
+  }
+
+  /** Una opción del menú del clip: cierra el menú y hace lo de siempre. */
+  function chooseAttach(option: "file" | "location" | "contact") {
+    setPopover(null);
+    if (option === "file") fileRef.current?.click();
+    else setPanel(panel === option ? null : option);
   }
 
   async function apiSend(path: string, init: RequestInit): Promise<string | null> {
@@ -411,14 +516,87 @@ export function Composer({
           onChange={(e) => pickFile(e.target.files?.[0] ?? null)}
         />
         <div className="flex shrink-0 items-center gap-0.5">
-          <button
-            onClick={() => fileRef.current?.click()}
-            aria-label="Adjuntar archivo"
-            title="Adjuntar imagen, video, audio o documento"
-            className="rounded p-1.5 text-text-3 transition-colors hover:bg-secondary hover:text-foreground"
-          >
-            <Paperclip className="h-[18px] w-[18px]" strokeWidth={1.7} />
-          </button>
+          {/* Un solo clip: archivo, contacto y ubicación viven en su menú. */}
+          <div ref={attachRef} className="relative">
+            <button
+              ref={attachTrigger}
+              type="button"
+              onClick={() => setPopover(popover === "attach" ? null : "attach")}
+              aria-label="Adjuntar"
+              aria-haspopup="menu"
+              aria-expanded={popover === "attach"}
+              title="Adjuntar archivo, contacto o ubicación"
+              className={cn(
+                "rounded p-1.5 text-text-3 transition-[color,background-color,transform] duration-150 hover:bg-secondary hover:text-foreground active:scale-90",
+                (popover === "attach" || (panel !== null && panel !== "knowledge")) &&
+                  "bg-secondary text-brand"
+              )}
+            >
+              <m.span
+                animate={{ rotate: popover === "attach" ? -45 : 0 }}
+                transition={SPRING}
+                className="flex"
+              >
+                <Paperclip className="h-[18px] w-[18px]" strokeWidth={1.7} />
+              </m.span>
+            </button>
+            <AnimatePresence>
+              {popover === "attach" && (
+                <m.div
+                  role="menu"
+                  aria-label="Adjuntar"
+                  initial={{ opacity: 0, y: 6, scale: 0.96 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 4, scale: 0.98, transition: { duration: 0.1 } }}
+                  transition={SPRING}
+                  style={{ transformOrigin: "bottom left" }}
+                  className="absolute bottom-full left-0 z-30 mb-2.5 w-60 rounded-md border bg-popover p-1.5 text-foreground shadow-pop"
+                >
+                  {(
+                    [
+                      {
+                        id: "file",
+                        label: "Archivo",
+                        hint: "Foto, video, audio o PDF",
+                        Icon: FileText,
+                      },
+                      {
+                        id: "contact",
+                        label: "Contacto",
+                        hint: "Compartir una tarjeta",
+                        Icon: UserRound,
+                      },
+                      {
+                        id: "location",
+                        label: "Ubicación",
+                        hint: "Coordenadas o Google Maps",
+                        Icon: MapPin,
+                      },
+                    ] as const
+                  ).map(({ id, label, hint, Icon }) => (
+                    <button
+                      key={id}
+                      type="button"
+                      role="menuitem"
+                      onClick={() => chooseAttach(id)}
+                      className={cn(
+                        "flex w-full items-center gap-2.5 rounded-sm px-2 py-1.5 text-left transition-colors hover:bg-secondary focus-visible:bg-secondary focus-visible:outline-none",
+                        panel === id && "text-brand"
+                      )}
+                    >
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-tint text-brand-text">
+                        <Icon className="h-4 w-4" strokeWidth={1.7} />
+                      </span>
+                      <span className="min-w-0">
+                        <span className="block text-sm font-semibold">{label}</span>
+                        <span className="block truncate text-[11.5px] text-text-3">{hint}</span>
+                      </span>
+                    </button>
+                  ))}
+                </m.div>
+              )}
+            </AnimatePresence>
+          </div>
           <WritingAssist
             text={text}
             busy={rewriting}
@@ -432,38 +610,52 @@ export function Composer({
             }}
             onError={(msg) => setError(msg)}
           />
+          <div ref={emojiRef} className="relative">
+            <button
+              type="button"
+              onClick={() => setPopover(popover === "emoji" ? null : "emoji")}
+              aria-label="Emojis"
+              aria-haspopup="dialog"
+              aria-expanded={popover === "emoji"}
+              title="Emojis"
+              className={cn(
+                "rounded p-1.5 text-text-3 transition-[color,background-color,transform] duration-150 hover:bg-secondary hover:text-foreground active:scale-90",
+                popover === "emoji" && "bg-secondary text-brand"
+              )}
+            >
+              <Smile className="h-[18px] w-[18px]" strokeWidth={1.7} />
+            </button>
+            <AnimatePresence>
+              {popover === "emoji" && (
+                <m.div
+                  role="dialog"
+                  aria-label="Elegir emoji"
+                  initial={{ opacity: 0, y: 6, scale: 0.96 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 4, scale: 0.98, transition: { duration: 0.1 } }}
+                  transition={SPRING}
+                  style={{ transformOrigin: "bottom left" }}
+                  className="absolute bottom-full left-0 z-30 mb-2.5 overflow-hidden rounded-md border bg-popover text-foreground shadow-pop"
+                >
+                  <EmojiPickerPanel onPick={insertEmoji} />
+                </m.div>
+              )}
+            </AnimatePresence>
+          </div>
           <button
-            onClick={() => setPanel(panel === "knowledge" ? null : "knowledge")}
+            type="button"
+            onClick={() => {
+              setPopover(null);
+              setPanel(panel === "knowledge" ? null : "knowledge");
+            }}
             aria-label="Conocimientos"
             title="Enviar algo de Conocimientos (o escribe / en el editor vacío)"
             className={cn(
-              "rounded p-1.5 text-text-3 transition-colors hover:bg-secondary hover:text-foreground",
+              "rounded p-1.5 text-text-3 transition-[color,background-color,transform] duration-150 hover:bg-secondary hover:text-foreground active:scale-90",
               panel === "knowledge" && "bg-secondary text-brand"
             )}
           >
             <BookOpen className="h-[18px] w-[18px]" strokeWidth={1.7} />
-          </button>
-          <button
-            onClick={() => setPanel(panel === "location" ? null : "location")}
-            aria-label="Enviar ubicación"
-            title="Enviar ubicación"
-            className={cn(
-              "rounded p-1.5 text-text-3 transition-colors hover:bg-secondary hover:text-foreground",
-              panel === "location" && "bg-secondary text-brand"
-            )}
-          >
-            <MapPin className="h-[18px] w-[18px]" strokeWidth={1.7} />
-          </button>
-          <button
-            onClick={() => setPanel(panel === "contact" ? null : "contact")}
-            aria-label="Compartir contacto"
-            title="Compartir contacto"
-            className={cn(
-              "rounded p-1.5 text-text-3 transition-colors hover:bg-secondary hover:text-foreground",
-              panel === "contact" && "bg-secondary text-brand"
-            )}
-          >
-            <UserRound className="h-[18px] w-[18px]" strokeWidth={1.7} />
           </button>
         </div>
         <textarea
@@ -484,6 +676,7 @@ export function Composer({
             setUndoText(null);
             autogrow();
           }}
+          onPaste={onPaste}
           onKeyDown={(e) => {
             // 024 — Esc desde el editor también cierra Conocimientos.
             if (e.key === "Escape" && panel === "knowledge") {
