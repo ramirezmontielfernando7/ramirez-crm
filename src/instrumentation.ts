@@ -5,9 +5,13 @@
  */
 export async function register(): Promise<void> {
   if (process.env.NEXT_RUNTIME === "nodejs") {
-    const { checkMediaDir, cleanupOrphanRuns, resumeSendingCampaigns } = await import(
-      "./instrumentation-node"
-    );
+    const {
+      checkMediaDir,
+      cleanupOrphanRuns,
+      resumeSendingCampaigns,
+      warnIfWebhookUnsigned,
+    } = await import("./instrumentation-node");
+    warnIfWebhookUnsigned();
     await checkMediaDir();
     await cleanupOrphanRuns();
     await resumeSendingCampaigns();

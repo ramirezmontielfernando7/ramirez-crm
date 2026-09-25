@@ -11,7 +11,9 @@ import { processTemplateStatusValue } from "@/server/whatsapp/template-events";
 /**
  * Webhook público de WhatsApp (contrato webhook.md).
  * Capa 1: el segmento [webhookToken] debe coincidir (si no → 404 sin efectos).
- * Capa 2: firma x-hub-signature-256 solo si META_APP_SECRET está configurado.
+ * Capa 2: firma x-hub-signature-256. Con META_APP_SECRET definido se exige
+ * (sin firma válida → 401); sin él la capa queda apagada y el arranque y
+ * Ajustes → WhatsApp avisan que la firma no se verifica.
  * El POST siempre responde 200 tras validar; el procesamiento va en after().
  */
 export const dynamic = "force-dynamic";

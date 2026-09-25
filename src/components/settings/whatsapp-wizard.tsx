@@ -5,7 +5,7 @@ import {
   AlertTriangle,
   CheckCircle2,
   Copy,
-  Info,
+  ShieldAlert,
   ShieldCheck,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -349,12 +349,23 @@ function WebhookCard({ webhook }: { webhook: WebhookInfo }) {
             x-hub-signature-256.
           </p>
         ) : (
-          <p className="flex items-start gap-2 text-xs text-muted-foreground">
-            <Info className="mt-0.5 h-4 w-4 shrink-0" /> Sin App Secret
-            configurado: el webhook queda protegido por la URL secreta (normal
-            en modo agencia). Para la capa extra de firma, agrega
-            META_APP_SECRET a la instancia.
-          </p>
+          <div
+            role="status"
+            data-testid="webhook-firma-no-verificada"
+            className="flex items-start gap-2 rounded-md border border-warning-soft bg-warning-tint p-3 text-xs text-warning-text"
+          >
+            <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" />
+            <div className="space-y-1">
+              <p className="font-medium">Firma no verificada</p>
+              <p>
+                META_APP_SECRET no está definido en la instancia: los eventos
+                de Meta se aceptan sin comprobar su firma
+                (x-hub-signature-256) y el webhook solo lo protege la URL
+                secreta. Agrega META_APP_SECRET (App Secret de tu app de Meta)
+                y reinicia para exigirla.
+              </p>
+            </div>
+          </div>
         )}
       </CardContent>
     </Card>

@@ -3,6 +3,7 @@ import path from "node:path";
 import { eq } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { getEnv } from "@/lib/env";
+import { unsignedWebhookWarning } from "@/server/inbox/webhook";
 
 /**
  * 008 — Aviso al arranque si MEDIA_DIR no es escribible. Sin esto, el primer
@@ -32,6 +33,22 @@ export async function checkMediaDir(): Promise<void> {
         "que el entrypoint le da el volumen al usuario de la app. Fuera de Docker: apunta MEDIA_DIR a un directorio escribible."
     );
   }
+}
+
+/**
+ * Aviso al arranque si la firma de los webhooks de Meta no se verifica
+ * (META_APP_SECRET ausente). Solo avisa: exigirla tumbaría instancias que ya
+ * funcionan sin ella. Con el secreto definido, la ruta exige la firma.
+ */
+export function warnIfWebhookUnsigned(): void {
+  let secret: string | undefined;
+  try {
+    secret = getEnv().META_APP_SECRET;
+  } catch {
+    return; // entorno inválido: lo reporta, con detalle, el primer getEnv() de la app
+  }
+  const warning = unsignedWebhookWarning(secret);
+  if (warning) console.warn(warning);
 }
 
 /**
