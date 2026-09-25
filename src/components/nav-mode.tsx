@@ -46,12 +46,14 @@ export function NavRevealButton({ className }: { className?: string }) {
       animate={{ opacity: 1, x: 0 }}
       transition={SPRING}
       className={cn(
-        // 28 px: a la altura del título, sin estirar la fila.
-        "-my-0.5 hidden h-7 w-7 shrink-0 rounded-[8px] transition-[filter] duration-150 hover:brightness-110 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background lg:flex",
+        // El MISMO logo y lugar que en el menú (32 px, a 12 px del borde y a
+        // la altura del título): el clic siguiente cae donde cayó el anterior.
+        // -my-1 para no estirar la fila; -ml-1 porque el encabezado tiene 16.
+        "-my-1 -ml-1 hidden h-8 w-8 shrink-0 rounded-[9px] transition-[filter] duration-150 hover:brightness-110 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background lg:flex",
         className
       )}
     >
-      <BrandTile branding={nav.branding} className="h-7 w-7 rounded-[8px] text-[13px]" />
+      <BrandTile branding={nav.branding} className="h-8 w-8 rounded-[9px] text-[15px]" />
     </m.button>
   );
 }

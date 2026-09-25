@@ -2,6 +2,8 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   ACCENT_PRESETS,
+  sidebarCssVariables,
+  sidebarTokens,
   accentCssVariables,
   DEFAULT_BRANDING,
   isValidHex,
@@ -225,5 +227,38 @@ describe("white-label: normalización", () => {
   it("acento inválido → default", () => {
     expect(normalizeBranding({ accent: "azul" }).accent).toBe("#12999d");
     expect(normalizeBranding({ accent: "#3F6B66" }).accent).toBe("#3f6b66");
+  });
+});
+
+describe("barra lateral de color (Configuración → Marca)", () => {
+  it("por default es el teal profundo; un valor raro cae al default", () => {
+    expect(DEFAULT_BRANDING.sidebar).toBe("teal-deep");
+    expect(normalizeBranding(null).sidebar).toBe("teal-deep");
+    expect(normalizeBranding({ sidebar: "rosa" as never }).sidebar).toBe("teal-deep");
+    expect(normalizeBranding({ sidebar: "teal-night" }).sidebar).toBe("teal-night");
+  });
+
+  it("teal profundo y teal noche: el texto de la barra pasa AA", () => {
+    for (const t of ["teal-deep", "teal-night"] as const) {
+      const k = sidebarTokens(t);
+      expect(contrast(k["--text"]!, k["--bg-subtle"]!), `${t}: texto`).toBeGreaterThanOrEqual(4.5);
+      expect(contrast(k["--text-3"]!, k["--bg-subtle"]!), `${t}: íconos`).toBeGreaterThanOrEqual(3);
+    }
+  });
+
+  it("azul marino es el respaldo de globals.css: no se inyecta, y la vista previa usa sus mismos valores", () => {
+    expect(sidebarCssVariables("navy")).toBe("");
+    const css = readFileSync("src/app/globals.css", "utf8");
+    const nav = variables(css, ".nav-dark {");
+    for (const [k, v] of Object.entries(sidebarTokens("navy"))) {
+      if (k.startsWith("--house")) continue;
+      expect(nav[k]?.toLowerCase(), k).toBe(v);
+    }
+  });
+
+  it("sobre teal, el acento de la barra es blanco y el logo pierde su teal", () => {
+    const css = sidebarCssVariables("teal-deep");
+    expect(css).toContain("--accent:#ffffff;");
+    expect(css).toContain("--house-tile:");
   });
 });

@@ -58,7 +58,10 @@ export function BrandTile({
         house
           ? {
               // El teal del logo, con el brillo suave del centro del original.
-              background: `radial-gradient(circle at 45% 40%, ${BRAND_TEAL_LIGHT}, ${BRAND_TEAL} 70%)`,
+              // Sobre una barra lateral teal, `--house-tile` lo vuelve blanco
+              // translúcido: teal sobre teal desaparecería.
+              background: `var(--house-tile, radial-gradient(circle at 45% 40%, ${BRAND_TEAL_LIGHT}, ${BRAND_TEAL} 70%))`,
+              boxShadow: "var(--house-tile-ring, none)",
             }
           : undefined
       }

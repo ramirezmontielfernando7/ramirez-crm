@@ -213,7 +213,7 @@ export function AppNav({
         // nombre del usuario, el nombre white-label en BrandLogo) hereda el
         // color YA CALCULADO en <body> con el tema de la página, no el de
         // `.nav-dark` — y un texto oscuro sobre este fondo oscuro se pierde.
-        "nav-dark fixed inset-y-0 left-0 z-50 flex w-[17rem] shrink-0 flex-col overflow-y-auto border-r bg-subtle px-3 pb-3.5 pt-4 text-foreground transition-[transform,visibility] duration-200",
+        "nav-dark fixed inset-y-0 left-0 z-50 flex w-[17rem] shrink-0 flex-col overflow-y-auto border-r bg-subtle px-3 pb-3.5 pt-3 text-foreground transition-[transform,visibility] duration-200",
         // En escritorio el ancho cambia de golpe (animar `width` recalcula el
         // layout de toda la página en cada cuadro); lo que se mueve con
         // resorte son los textos, solo con `opacity` + `transform`.
@@ -231,8 +231,9 @@ export function AppNav({
           lado va el nombre. En el teléfono, la ✕ del cajón y la marca completa. */}
       <div
         className={cn(
-          "mb-5 flex gap-2.5 pt-0.5",
-          house ? "items-center" : "items-start",
+          // pt-px: el logo cae a 13 px del borde de arriba, lo mismo que el
+          // que reabre el menú oculto junto al título de cada pantalla.
+          "mb-5 flex items-start gap-2.5 pt-px",
           // El aside tiene 12 px de relleno expandido y 8 px en íconos: el
           // 4 px de más en íconos deja el logo exactamente donde estaba.
           mini && "lg:pl-1"

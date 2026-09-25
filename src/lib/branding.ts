@@ -35,6 +35,31 @@ export type BrandingFavicon = {
   version: number;
 };
 
+/**
+ * El color de la barra lateral (solo el Propietario lo cambia, en
+ * Configuración → Marca). "teal-deep" es el default de Dashfort.
+ */
+export const SIDEBAR_THEMES = ["teal-deep", "teal", "teal-night", "navy"] as const;
+export type SidebarTheme = (typeof SIDEBAR_THEMES)[number];
+
+export const SIDEBAR_THEME_INFO: Record<
+  SidebarTheme,
+  { label: string; bg: string; note?: string }
+> = {
+  "teal-deep": { label: "Teal profundo", bg: "#0e7c80" },
+  teal: {
+    label: "Teal del logo",
+    bg: "#12999d",
+    note: "El texto blanco queda bajo el mínimo de legibilidad (3.4:1).",
+  },
+  "teal-night": { label: "Teal noche", bg: "#0b3e42" },
+  navy: { label: "Azul marino", bg: "#070e20" },
+};
+
+export function isSidebarTheme(value: unknown): value is SidebarTheme {
+  return typeof value === "string" && (SIDEBAR_THEMES as readonly string[]).includes(value);
+}
+
 export type Branding = {
   name: string;
   accent: string; // hex del acento base elegido
@@ -42,6 +67,8 @@ export type Branding = {
   currency: Currency;
   /** `null` = se dibuja con la inicial sobre el acento (ver `lib/favicon`). */
   favicon: BrandingFavicon | null;
+  /** Color de la barra lateral. */
+  sidebar: SidebarTheme;
 };
 
 export const DEFAULT_BRANDING: Branding = {
@@ -51,6 +78,7 @@ export const DEFAULT_BRANDING: Branding = {
   accent: "#12999d",
   currency: DEFAULT_CURRENCY,
   favicon: null,
+  sidebar: "teal-deep",
 };
 
 /**
@@ -297,5 +325,83 @@ export function normalizeBranding(input: Partial<Branding> | null): Branding {
     f && typeof f.mime === "string" && Number.isFinite(f.version)
       ? { mime: f.mime, version: Math.max(1, Math.floor(f.version)) }
       : null;
-  return { name, accent, currency, favicon };
+  const sidebar = isSidebarTheme(input?.sidebar) ? input.sidebar : DEFAULT_BRANDING.sidebar;
+  return { name, accent, currency, favicon, sidebar };
+}
+
+/**
+ * Azul marino: los MISMOS valores de `.nav-dark` en globals.css (ahí viven de
+ * respaldo; aquí, para que la vista previa de Marca los pinte aunque la app
+ * ya tenga otro color). El acento lo pone `resolveNavAccentSet`.
+ */
+const NAVY_TOKENS: Record<string, string> = {
+  "--bg": "#0b1327",
+  "--bg-subtle": "#070e20",
+  "--bg-panel": "#131f3d",
+  "--bg-raised": "#131f3d",
+  "--bg-hover": "#182750",
+  "--text": "#e8eefc",
+  "--text-2": "#a9b8dc",
+  "--text-3": "#7688b0",
+  "--text-4": "#55648a",
+  "--border": "#263866",
+  "--border-strong": "#34498a",
+  "--chip-bg": "#142040",
+  "--row-hover": "#111b36",
+  // `initial` = sin valor: el mosaico vuelve a su teal.
+  "--house-tile": "initial",
+  "--house-tile-ring": "initial",
+};
+
+/**
+ * Los tokens de `.nav-dark` para cada color de barra. Azul marino = los de
+ * globals.css (y el acento calculado contra ese fondo).
+ *
+ * Sobre un fondo de color, el acento de la barra pasa a ser BLANCO (ítem
+ * activo, íconos, contador): un teal sobre teal no se distinguiría. Los
+ * tonos se mezclan opacos (no rgba) para que el contraste sea predecible, y
+ * el mosaico del logo pasa a blanco translúcido (`--house-tile`): teal sobre
+ * teal desaparecería.
+ */
+export function sidebarTokens(theme: SidebarTheme): Record<string, string> {
+  if (theme === "navy") return NAVY_TOKENS;
+  const bgHex = SIDEBAR_THEME_INFO[theme].bg;
+  const bg = hexToRgb(bgHex);
+  const w = (t: number) => rgbToHex(mix(bg, WHITE, t));
+  // En el teal del logo el blanco apenas llega a 3.4:1: ahí los textos
+  // secundarios no se atenúan (atenuarlos los hundiría más).
+  const light = theme === "teal";
+  return {
+    "--bg": bgHex,
+    "--bg-subtle": bgHex,
+    "--bg-panel": w(0.08),
+    "--bg-raised": bgHex,
+    "--bg-hover": w(0.12),
+    "--text": "#ffffff",
+    "--text-2": light ? "#ffffff" : w(0.92),
+    "--text-3": light ? w(0.9) : w(0.76),
+    "--text-4": w(0.55),
+    "--border": w(0.16),
+    "--border-strong": w(0.28),
+    "--chip-bg": w(0.1),
+    "--row-hover": w(0.08),
+    "--accent": "#ffffff",
+    "--accent-hover": "#ffffff",
+    "--accent-soft": w(0.25),
+    "--accent-tint": w(0.18),
+    "--accent-text": "#ffffff",
+    "--accent-fg": bgHex,
+    "--house-tile": w(0.18),
+    "--house-tile-ring": `inset 0 0 0 1px ${w(0.3)}`,
+  };
+}
+
+/** CSS de la barra lateral de color; va DESPUÉS del de `accentCssVariables`. */
+export function sidebarCssVariables(theme: SidebarTheme): string {
+  // Azul marino ya es el respaldo de globals.css: no hace falta repetirlo.
+  if (theme === "navy") return "";
+  const t = sidebarTokens(theme);
+  return `.nav-dark{${Object.entries(t)
+    .map(([k, v]) => `${k}:${v};`)
+    .join("")}}`;
 }

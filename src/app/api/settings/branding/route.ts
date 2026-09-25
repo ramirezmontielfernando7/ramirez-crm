@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { parseBody, withAuth } from "@/lib/api";
 import { getSessionOrNull } from "@/lib/auth/session";
-import { isValidHex, resolveAccentSet } from "@/lib/branding";
+import { isValidHex, resolveAccentSet, SIDEBAR_THEMES } from "@/lib/branding";
 import { CURRENCIES } from "@/lib/money";
 import { getBranding, saveBranding } from "@/server/branding";
 
@@ -19,6 +19,8 @@ const putSchema = z.object({
   accent: z.string().refine(isValidHex, "Color hex inválido (#rrggbb)"),
   /** La moneda del negocio: la única que el tablero suma. */
   currency: z.enum(CURRENCIES),
+  /** Color de la barra lateral. Opcional: un cliente viejo no lo manda. */
+  sidebar: z.enum(SIDEBAR_THEMES).optional(),
 });
 
 export const PUT = withAuth(async (session, req: Request) => {
@@ -30,6 +32,7 @@ export const PUT = withAuth(async (session, req: Request) => {
   const actual = await getBranding(session.organizationId);
   await saveBranding(session.organizationId, {
     ...body.data,
+    sidebar: body.data.sidebar ?? actual.sidebar,
     favicon: actual.favicon,
   });
   return Response.json({ ok: true });

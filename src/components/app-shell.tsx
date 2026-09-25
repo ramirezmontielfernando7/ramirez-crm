@@ -64,6 +64,7 @@ export function AppShell({
   const [content, animate] = useAnimate<HTMLDivElement>();
   // Dónde empezaba el contenido antes de cambiar el menú (para deslizarlo).
   const leftBefore = useRef<number | null>(null);
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // El hamburguesa de escritorio recorre el ciclo expandido → íconos →
   // oculto → expandido. (El teléfono no lo usa: ahí el cajón abre y cierra.)
@@ -73,11 +74,16 @@ export function AppShell({
     setMode(next);
     // Por usuario y en BD: la elección lo sigue a otro dispositivo. Si no se
     // guarda, la barra igual cambia; solo no se recordará la próxima vez.
-    void fetch("/api/preferences", {
-      method: "PUT",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ navMode: next }),
-    }).catch(() => undefined);
+    // Con clics seguidos se guarda solo el ÚLTIMO estado: tres PUT en vuelo
+    // pueden llegar en desorden y dejar guardado uno viejo.
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => {
+      void fetch("/api/preferences", {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ navMode: next }),
+      }).catch(() => undefined);
+    }, 300);
   }
 
   // El menú cambia de ancho de golpe (animar `width` recalcula el layout en
@@ -144,7 +150,7 @@ export function AppShell({
             <div ref={content} className="flex min-w-0 flex-1 flex-col">
               {/* Misma pieza que la barra lateral (`nav-dark`): en el teléfono la
                   franja azul marino de arriba es lo que queda del bicolor. */}
-              <header className="nav-dark flex h-12 shrink-0 items-center gap-1.5 border-b bg-subtle px-2 text-foreground lg:hidden">
+              <header className="nav-dark flex h-14 shrink-0 items-center gap-2.5 border-b bg-subtle px-2 text-foreground lg:hidden">
                 {/* El logo abre el cajón, como el de la barra lateral en escritorio. */}
                 <button
                   onClick={() => setNavOpen(true)}

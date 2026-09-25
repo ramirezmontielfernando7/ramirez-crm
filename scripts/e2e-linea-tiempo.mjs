@@ -197,6 +197,19 @@ const malo2 = await asesorA.call("PUT", "/api/preferences", { navMode: "gigante"
 ok("un modo que no existe → 422", malo2.status === 422, `status=${malo2.status}`);
 await asesorA.call("PUT", "/api/preferences", { navCollapsed: null });
 
+console.log("\n== 4b · Color del menú lateral: solo el propietario ==");
+const marca0 = (await owner.call("GET", "/api/settings/branding")).json?.branding;
+ok("por default el menú es teal profundo", marca0?.sidebar === "teal-deep", JSON.stringify(marca0));
+const cuerpo = (sidebar) => ({ name: marca0.name, accent: marca0.accent, currency: marca0.currency, sidebar });
+const aMarca = await asesorA.call("PUT", "/api/settings/branding", cuerpo("teal-night"));
+ok("el asesor no puede cambiarlo (403)", aMarca.status === 403, `status=${aMarca.status}`);
+await owner.call("PUT", "/api/settings/branding", cuerpo("teal-night"));
+ok("el propietario sí: queda guardado",
+  (await owner.call("GET", "/api/settings/branding")).json?.branding?.sidebar === "teal-night");
+const malo3 = await owner.call("PUT", "/api/settings/branding", cuerpo("rosa"));
+ok("un color que no existe → 422", malo3.status === 422, `status=${malo3.status}`);
+await owner.call("PUT", "/api/settings/branding", cuerpo("teal-deep"));
+
 /* ── 5 · Navegador: el propietario ──────────────────────────────── */
 console.log("\n== 5 · Navegador — propietario ==");
 const op = owner.page;
