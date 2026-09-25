@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { formatTime, previewText } from "./helpers";
 import { useViewer } from "@/components/viewer-context";
 import { assignContacts, useAssignees } from "@/components/assignment/use-assignees";
+import { NavRevealButton } from "@/components/nav-mode";
 
 /* Puntos de etapa: los tokens del tema, no hex copiados del tema claro —
    así siguen al acento white-label y se recalculan en oscuro. */
@@ -238,6 +239,7 @@ export function ConversationList({
     <div className="flex h-full flex-col">
       <header className="border-b px-4 pb-3 pt-4">
         <div className="mb-3 flex items-center gap-2">
+          <NavRevealButton />
           <h2 className="text-[17px] font-bold tracking-tight">Bandeja</h2>
           <span className="font-mono text-[12px] text-text-3">{conversations.length}</span>
           {multiChannel && (

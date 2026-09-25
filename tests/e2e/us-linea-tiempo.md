@@ -22,7 +22,8 @@ Tres personas a la vez: propietario, asesor A y asesor B.
 5. **Navegador — propietario.** Menú abierto con Resultados; su animación no
    pasa de 300 ms. Colapsar → íconos; recargar → sigue colapsado (persistió);
    el avatar abre la tarjeta con nombre y rol; tercer clic → oculto: el menú
-   desaparece y "Mostrar el menú" queda fijo arriba a la izquierda; recargar →
+   desaparece, "Mostrar el menú" va en la fila del título "Bandeja"
+   (mismo centro vertical, a su izquierda) y la columna empieza en el borde; recargar →
    sigue oculto; cuarto clic → expandido y el botón flotante se va. Panel en orden
    Asignación → Etapa → Más detalles → Actividad; "Más detalles" plegado y,
    abierto, Mensajes masivos → Etiquetas → Ficha. "Ver historial de

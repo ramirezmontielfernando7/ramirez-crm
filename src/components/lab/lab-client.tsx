@@ -20,6 +20,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { NavRevealButton } from "@/components/nav-mode";
 
 type Run = {
   id: string;
@@ -197,13 +198,16 @@ function Header({
 }) {
   return (
     <header className="flex flex-wrap items-center justify-between gap-2 border-b px-4 py-3 sm:px-6 sm:py-4">
-      <div>
-        <h2 className="flex items-center gap-2 text-[17px] font-bold tracking-tight">
-          <FlaskConical className="h-4 w-4 text-primary" /> Laboratorio
-        </h2>
-        <p className="text-xs text-muted-foreground">
-          Sandbox interno — no envía mensajes reales
-        </p>
+      <div className="flex items-start gap-2">
+        <NavRevealButton />
+        <div>
+          <h2 className="flex items-center gap-2 text-[17px] font-bold tracking-tight">
+            <FlaskConical className="h-4 w-4 text-primary" /> Laboratorio
+          </h2>
+          <p className="text-xs text-muted-foreground">
+            Sandbox interno — no envía mensajes reales
+          </p>
+        </div>
       </div>
       <Button onClick={onLaunch} disabled={disabled || running || launching}>
         <Play className="h-4 w-4" />

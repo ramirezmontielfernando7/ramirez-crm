@@ -23,9 +23,11 @@ Las notas eran UN campo que cada guardado sobrescribía, sin autor ni hora.
    - En el teléfono el cajón no cambia: siempre completo.
    - **Tercer estado: oculto.** El mismo hamburguesa recorre el ciclo
      expandido → íconos → oculto → expandido. Oculto, la columna desaparece
-     y la pantalla usa el ancho; el hamburguesa queda fijo arriba a la
-     izquierda (misma coordenada que colapsado, sin depender de hover) en una
-     franja de 44 px que no tapa el título. Se guarda en
+     y la pantalla usa TODO el ancho (sin franja); el hamburguesa para volver
+     va en la fila del título de cada pantalla, alineado con el texto y
+     siempre visible (sin depender de hover). Al cambiar de estado, la
+     columna de contenido entera se desliza a su lugar como una sola pieza
+     (solo `transform`, 220 ms, sin rebote). Se guarda en
      `user_preference.nav_mode` (`expanded|collapsed|hidden`, aditiva;
      `nav_collapsed` se sigue escribiendo y se lee si no hay `nav_mode`).
      Solo escritorio: el cajón del teléfono sigue abierto/cerrado.

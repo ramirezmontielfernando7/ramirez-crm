@@ -232,11 +232,23 @@ await op.getByRole("button", { name: "Ocultar el menú" }).click();
 await hasta(async () => !(await aside.isVisible()), 2000, 50);
 ok("el tercer clic oculta el menú", !(await aside.isVisible()));
 const revelar = op.getByRole("button", { name: "Mostrar el menú" });
+await op.waitForTimeout(400); // que termine el deslizamiento de la columna
 const caja = await revelar.boundingBox();
+const titulo = await op.getByRole("heading", { name: "Bandeja" }).boundingBox();
+const columna = await op
+  .locator("header", { has: op.getByRole("heading", { name: "Bandeja" }) })
+  .boundingBox();
 ok(
-  "oculto, el hamburguesa queda fijo arriba a la izquierda",
-  !!caja && caja.x < 16 && caja.y < 30 && (await revelar.isVisible()),
-  JSON.stringify(caja)
+  "oculto, el hamburguesa va en la fila del título, alineado con el texto",
+  !!caja && !!titulo && (await revelar.isVisible()) &&
+    Math.abs(caja.y + caja.height / 2 - (titulo.y + titulo.height / 2)) <= 2 &&
+    caja.x + caja.width <= titulo.x,
+  JSON.stringify({ caja, titulo })
+);
+ok(
+  "…y la columna de la Bandeja ocupa el ancho que dejó el menú (sin franja)",
+  !!columna && columna.x <= 1,
+  JSON.stringify(columna)
 );
 await hasta(async () => (await owner.call("GET", "/api/preferences")).json?.navMode === "hidden", 3000);
 ok("el estado oculto se guarda", (await owner.call("GET", "/api/preferences")).json?.navMode === "hidden");

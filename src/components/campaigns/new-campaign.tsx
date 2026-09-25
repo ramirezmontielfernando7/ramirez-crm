@@ -15,6 +15,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { TagChip } from "@/components/tags/tag-chip";
+import { NavRevealButton } from "@/components/nav-mode";
 
 type Preview = { eligible: number; withoutConsent: number; optedOut: number };
 
@@ -140,6 +141,7 @@ export function NewCampaign() {
   return (
     <div className="flex h-full flex-col">
       <header className="flex items-center gap-3 border-b px-4 py-3 sm:px-6 sm:py-4">
+        <NavRevealButton />
         <Link href="/campaigns" aria-label="Volver a Campañas">
           <Button variant="ghost" size="icon">
             <ArrowLeft className="h-4 w-4" />
