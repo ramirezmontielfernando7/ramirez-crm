@@ -108,6 +108,10 @@ const DETALLES: [string, string, string, Request][] = [
   ["marcar leído el chat de otro", "conversations/[id]", "PATCH", json("PATCH", { markRead: true })],
   ["cita del cliente de otro", "bookings/[id]", "PATCH", json("PATCH", { action: "cancel" })],
   ["adjunto del chat de otro", "media/[assetId]", "GET", new Request("http://localhost/api/x")],
+  // 022 — la línea de tiempo y las notas del contacto de otro no existen.
+  ["línea de tiempo del contacto de otro", "contacts/[id]/timeline", "GET", new Request("http://localhost/api/x")],
+  ["nota en el contacto de otro", "contacts/[id]/notes", "POST", json("POST", { text: "hola" })],
+  ["etiquetar al contacto de otro", "contacts/[id]/tags", "PUT", json("PUT", { tagIds: [] })],
 ];
 
 describe("020 — el asesor recibe 404 en lo de otro, y la consulta lleva su filtro", () => {
@@ -148,10 +152,17 @@ describe("020 — las listas del asesor solo traen lo suyo", () => {
   });
 });
 
-describe("020 — los resultados del asesor son los suyos", () => {
+// 022: el Asesor ya no entra a Resultados (403, en permissions-routes). Lo
+// que sigue en pie es el filtro por persona: quien reparte pide los números
+// de UN asesor con `?userId=` y solo cuentan los clientes de ese asesor.
+describe("020 — los resultados de un asesor (pedidos por quien reparte) son los suyos", () => {
   it.each(["sales", "ads", "bot", "hygiene"])("analytics/%s", async (bloque) => {
+    como("owner", "usr_owner");
     const h = await route(`analytics/${bloque}`, "GET");
-    await h(new Request(`http://localhost/api/analytics/${bloque}?from=2026-01-01&to=2026-01-31`), ctx);
+    await h(
+      new Request(`http://localhost/api/analytics/${bloque}?from=2026-01-01&to=2026-01-31&userId=${ASESOR_A}`),
+      ctx
+    );
     const deClientes = rendered().filter((q) =>
       /"(lead|lead_stage_event|contact|conversation|booking|ad_attribution|message)"\."organization_id"/.test(q.sql)
     );

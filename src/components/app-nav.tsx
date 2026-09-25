@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { AnimatePresence, m } from "motion/react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -12,6 +14,7 @@ import {
   Kanban,
   LogOut,
   Megaphone,
+  Menu,
   Settings,
   Sparkles,
   Users,
@@ -23,7 +26,8 @@ import { cn, initials } from "@/lib/utils";
 import { signOut } from "@/lib/auth/client";
 import { useEvents } from "@/components/use-events";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { BrandLogo } from "@/components/brand-mark";
+import { BrandLogo, BrandTile } from "@/components/brand-mark";
+import { SPRING } from "@/components/motion";
 import { useViewer } from "@/components/viewer-context";
 import { roleLabel, type Permission } from "@/lib/auth/permissions";
 import {
@@ -49,7 +53,13 @@ const NAV: NavItem[] = [
   { href: "/contacts", label: "Contactos", icon: Users },
   // 019 — Después de Contactos: primero se atiende y se organiza, luego se
   // mide. Antes de Agente y Laboratorio, que son configuración.
-  { href: "/results", label: "Resultados", icon: ChartColumn },
+  {
+    href: "/results",
+    label: "Resultados",
+    icon: ChartColumn,
+    // 022: el Asesor no tiene Resultados, colapsado o expandido.
+    permission: "results.read",
+  },
   { href: "/agent", label: "Agente", icon: Sparkles, permission: "agent.manage" },
   {
     href: "/lab",
@@ -105,6 +115,8 @@ export function AppNav({
   campaigns = false,
   open = false,
   onClose,
+  collapsed = false,
+  onToggleCollapsed,
 }: {
   branding: Branding;
   userName: string;
@@ -127,10 +139,21 @@ export function AppNav({
   /** Solo aplica por debajo de `lg`: en escritorio el lateral es fijo. */
   open?: boolean;
   onClose?: () => void;
+  /**
+   * 022 — Solo escritorio: la barra queda en íconos. El default depende del
+   * rol y la elección se guarda por usuario (`user_preference`); en el
+   * teléfono el cajón siempre va completo.
+   */
+  collapsed?: boolean;
+  onToggleCollapsed?: () => void;
 }) {
   const pathname = usePathname();
   const router = useRouter();
   const [unread, setUnread] = useState(0);
+  // "Mini" = colapsado Y en escritorio. En el cajón del teléfono lo colapsado
+  // no aplica: ahí el menú siempre se lee completo.
+  const desktop = useIsDesktop();
+  const mini = collapsed && desktop;
 
   async function refetchUnread() {
     const res = await fetch("/api/conversations").catch(() => null);
@@ -149,6 +172,12 @@ export function AppNav({
     onMessageNew: () => void refetchUnread(),
     onConversationUpdated: () => void refetchUnread(),
   });
+
+  async function signOutAndLeave() {
+    await signOut();
+    router.push("/login");
+    router.refresh();
+  }
 
   const version = commit ?? { commit: BUILD_COMMIT, verified: BUILD_COMMIT !== "" };
   const settingsActive = pathname.startsWith("/settings");
@@ -179,12 +208,15 @@ export function AppNav({
         // color YA CALCULADO en <body> con el tema de la página, no el de
         // `.nav-dark` — y un texto oscuro sobre este fondo oscuro se pierde.
         "nav-dark fixed inset-y-0 left-0 z-50 flex w-[17rem] shrink-0 flex-col overflow-y-auto border-r bg-subtle px-3 pb-3.5 pt-4 text-foreground transition-[transform,visibility] duration-200",
-        "lg:static lg:visible lg:z-auto lg:w-56 lg:translate-x-0 lg:overflow-visible lg:transition-none",
+        // 022: en escritorio lo único que se mueve es el ancho, con la curva
+        // de resorte (rebote sutil, 200 ms). El contenido que sobra se recorta.
+        "lg:static lg:visible lg:z-auto lg:translate-x-0 lg:overflow-x-hidden lg:transition-[width,padding] lg:duration-200 lg:ease-spring",
+        mini ? "lg:w-14 lg:px-2" : "lg:w-56",
         open ? "visible translate-x-0 shadow-pop" : "invisible -translate-x-full"
       )}
     >
       {/* Marca: el logo de Vocero o, white-label, la inicial y el nombre */}
-      <div className="mb-5 flex items-start gap-1.5 px-2 pt-0.5">
+      <div className={cn("mb-5 flex items-start gap-1.5 pt-0.5", mini ? "px-0.5" : "px-2")}>
         {/* En móvil el cajón necesita su propio cierre: el velo no siempre es
             alcanzable con el pulgar. */}
         <button
@@ -194,27 +226,64 @@ export function AppNav({
         >
           <X className="h-[18px] w-[18px]" strokeWidth={1.8} />
         </button>
-        <div className="min-w-0">
+        {/* 022: colapsar/expandir. El mismo hamburguesa de la barra del
+            teléfono, a la izquierda: no se mueve al cambiar de estado. */}
+        <button
+          onClick={onToggleCollapsed}
+          aria-label={mini ? "Expandir el menú" : "Colapsar el menú"}
+          title={mini ? "Expandir el menú" : "Colapsar el menú"}
+          aria-expanded={!mini}
+          className="-ml-1 hidden h-8 w-8 shrink-0 items-center justify-center rounded-md text-text-3 transition-[color,background-color,transform] duration-150 hover:bg-accent hover:text-foreground active:scale-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:flex"
+        >
+          <Menu className="h-[18px] w-[18px]" strokeWidth={1.8} />
+        </button>
+        <div
+          aria-hidden={mini || undefined}
+          className={cn(
+            "min-w-0 transition-opacity duration-150",
+            mini && "pointer-events-none opacity-0"
+          )}
+        >
           <BrandLogo branding={branding} />
-          <span className="kicker mt-2 block">CRM · WhatsApp</span>
+          <span className="kicker mt-2 block whitespace-nowrap">CRM · WhatsApp</span>
         </div>
       </div>
+
+      {/* Colapsado, la marca queda en su mosaico: identidad sin texto. */}
+      {mini && (
+        <span className="mb-4 flex justify-center" title={branding.name}>
+          <BrandTile branding={branding} className="h-7 w-7 rounded-[8px] text-[13px]" />
+        </span>
+      )}
 
       <nav className="flex flex-col gap-0.5">
         {items.map((item) => {
           const active =
             pathname === item.href || pathname.startsWith(`${item.href}/`);
           return (
-            <Link key={item.href} href={item.href} className={navItemClass(active)}>
+            <Link
+              key={item.href}
+              href={item.href}
+              title={mini ? item.label : undefined}
+              className={cn(navItemClass(active), "relative")}
+            >
               <item.icon
-                className={cn("h-[17px] w-[17px]", active ? "text-brand" : "text-text-3")}
+                className={cn("h-[17px] w-[17px] shrink-0", active ? "text-brand" : "text-text-3")}
                 strokeWidth={1.8}
               />
-              <span className="flex-1">{item.label}</span>
+              <NavLabel mini={mini}>{item.label}</NavLabel>
               {item.badge && unread > 0 && (
-                <span className="flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-brand px-1.5 text-[10.5px] font-bold text-brand-fg">
-                  {unread}
-                </span>
+                mini ? (
+                  // Colapsado, el conteo es un punto sobre el ícono.
+                  <span
+                    aria-label={`${unread} sin leer`}
+                    className="absolute left-[22px] top-1.5 h-2 w-2 rounded-full bg-brand"
+                  />
+                ) : (
+                  <span className="flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-brand px-1.5 text-[10.5px] font-bold text-brand-fg">
+                    {unread}
+                  </span>
+                )
               )}
             </Link>
           );
@@ -224,39 +293,48 @@ export function AppNav({
       <div className="flex-1" />
 
       {showSettings && (
-        <Link href="/settings" className={navItemClass(settingsActive)}>
+        <Link
+          href="/settings"
+          title={mini ? "Ajustes" : undefined}
+          className={navItemClass(settingsActive)}
+        >
           <Settings
-            className={cn("h-[17px] w-[17px]", settingsActive ? "text-brand" : "text-text-3")}
+            className={cn("h-[17px] w-[17px] shrink-0", settingsActive ? "text-brand" : "text-text-3")}
             strokeWidth={1.8}
           />
-          Ajustes
+          <NavLabel mini={mini}>Ajustes</NavLabel>
         </Link>
       )}
 
-      <div className="mt-1 flex items-center gap-2.5 rounded-sm px-2.5 py-2 hover:bg-accent">
-        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-soft text-xs font-bold text-brand-text">
-          {initials(userName)}
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="block truncate text-[13px] font-semibold">{userName}</span>
-          <span className="block truncate text-[11px] text-text-3">
-            {viewer.roleLabel || roleLabel(role)} · En línea
+      {mini ? (
+        <ProfileMenu
+          userName={userName}
+          roleText={viewer.roleLabel || roleLabel(role)}
+          theme={theme}
+          onSignOut={signOutAndLeave}
+        />
+      ) : (
+        <div className="mt-1 flex items-center gap-2.5 rounded-sm px-2.5 py-2 hover:bg-accent">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-soft text-xs font-bold text-brand-text">
+            {initials(userName)}
           </span>
-        </span>
-        <ThemeToggle initial={theme} />
-        <button
-          aria-label="Cerrar sesión"
-          title="Cerrar sesión"
-          className="rounded p-1 text-text-3 hover:text-foreground"
-          onClick={async () => {
-            await signOut();
-            router.push("/login");
-            router.refresh();
-          }}
-        >
-          <LogOut className="h-4 w-4" strokeWidth={1.7} />
-        </button>
-      </div>
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-[13px] font-semibold">{userName}</span>
+            <span className="block truncate text-[11px] text-text-3">
+              {viewer.roleLabel || roleLabel(role)} · En línea
+            </span>
+          </span>
+          <ThemeToggle initial={theme} />
+          <button
+            aria-label="Cerrar sesión"
+            title="Cerrar sesión"
+            className="rounded p-1 text-text-3 hover:text-foreground"
+            onClick={() => void signOutAndLeave()}
+          >
+            <LogOut className="h-4 w-4" strokeWidth={1.7} />
+          </button>
+        </div>
+      )}
 
       {/* Qué versión está corriendo. Discreta pero siempre visible: la duda
           "¿ya se desplegó?" aparece justo cuando algo no funciona, y mandar a
@@ -272,7 +350,11 @@ export function AppNav({
           advertencia: basta 3:1 para un gráfico) y el texto va en `text-2`,
           que pasa AA sobre la barra en cualquier tema. */}
       <p
-        className="mt-2 px-2.5 font-mono text-[10.5px] tracking-[0.06em] text-text-2"
+        className={cn(
+          "mt-2 px-2.5 font-mono text-[10.5px] tracking-[0.06em] text-text-2",
+          // Colapsado no cabe: sigue en el tooltip del menú expandido.
+          mini && "lg:hidden"
+        )}
         title={versionTitle(branding.name, version)}
       >
         {versionLabel(version.commit)}
@@ -288,5 +370,136 @@ export function AppNav({
         )}
       </p>
     </aside>
+  );
+}
+
+/** El texto de un renglón: se desvanece al colapsar (el ancho lo recorta). */
+function NavLabel({ mini, children }: { mini: boolean; children: React.ReactNode }) {
+  return (
+    <span
+      className={cn(
+        "flex-1 whitespace-nowrap transition-opacity duration-150",
+        mini && "opacity-0"
+      )}
+    >
+      {children}
+    </span>
+  );
+}
+
+/** ¿Escritorio (lg+)? Arranca en `true` para que el servidor pinte la barra
+ *  como la verá el escritorio; en el teléfono el cajón nace cerrado, así que
+ *  corregirlo al montar no se nota. */
+function useIsDesktop(): boolean {
+  const [desktop, setDesktop] = useState(true);
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 1024px)");
+    const sync = () => setDesktop(mq.matches);
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, []);
+  return desktop;
+}
+
+/**
+ * 022 — El perfil con la barra colapsada: solo el avatar. Al tocarlo sale una
+ * tarjeta con nombre, rol, tema y cerrar sesión. Va en un portal: la barra
+ * recorta lo que se sale de su ancho.
+ */
+function ProfileMenu({
+  userName,
+  roleText,
+  theme,
+  onSignOut,
+}: {
+  userName: string;
+  roleText: string;
+  theme: ThemePreference;
+  onSignOut: () => Promise<void>;
+}) {
+  const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState<{ left: number; bottom: number } | null>(null);
+  const button = useRef<HTMLButtonElement>(null);
+  const card = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (card.current?.contains(t) || button.current?.contains(t)) return;
+      setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  function toggle() {
+    const r = button.current?.getBoundingClientRect();
+    if (r) setPos({ left: r.right + 10, bottom: window.innerHeight - r.bottom });
+    setOpen((v) => !v);
+  }
+
+  return (
+    <>
+      <button
+        ref={button}
+        onClick={toggle}
+        aria-label={`${userName} · ${roleText}`}
+        title={`${userName} · ${roleText}`}
+        aria-expanded={open}
+        aria-haspopup="dialog"
+        className="mt-1 flex items-center justify-center rounded-sm py-2 transition-transform duration-150 hover:bg-accent active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-soft text-xs font-bold text-brand-text">
+          {initials(userName)}
+        </span>
+      </button>
+      {typeof document !== "undefined" &&
+        createPortal(
+          <AnimatePresence>
+            {open && pos && (
+              <m.div
+                ref={card}
+                role="dialog"
+                aria-label="Tu perfil"
+                initial={{ opacity: 0, scale: 0.92, x: -6 }}
+                animate={{ opacity: 1, scale: 1, x: 0 }}
+                exit={{ opacity: 0, scale: 0.95, x: -4 }}
+                transition={SPRING}
+                style={{ left: pos.left, bottom: pos.bottom, transformOrigin: "bottom left" }}
+                className="nav-dark fixed z-50 w-60 rounded-md border bg-subtle p-2 text-foreground shadow-pop"
+              >
+                <div className="flex items-center gap-2.5 px-1.5 py-1.5">
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-soft text-xs font-bold text-brand-text">
+                    {initials(userName)}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[13px] font-semibold">{userName}</span>
+                    <span className="block truncate text-[11px] text-text-3">{roleText} · En línea</span>
+                  </span>
+                  <ThemeToggle initial={theme} />
+                  <button
+                    aria-label="Cerrar sesión"
+                    title="Cerrar sesión"
+                    className="rounded p-1 text-text-3 hover:text-foreground"
+                    onClick={() => void onSignOut()}
+                  >
+                    <LogOut className="h-4 w-4" strokeWidth={1.7} />
+                  </button>
+                </div>
+              </m.div>
+            )}
+          </AnimatePresence>,
+          document.body
+        )}
+    </>
   );
 }

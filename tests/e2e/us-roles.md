@@ -19,8 +19,9 @@ Cuatro sesiones a la vez contra la BD real: propietario (el mismo de
    encuentra en Contactos.
 5. **El asesor trabaja, no configura.** A mueve SU lead de etapa (200). Crear
    o editar etapas, sincronizar o subir plantillas, marca, WhatsApp, webhook,
-   agente, usuarios, asignar, lote y resultados de B → **403**. Sus propios
-   resultados sí. `/settings/whatsapp` lo regresa a la Bandeja.
+   agente, usuarios, asignar, lote y resultados de B → **403**. Desde 022,
+   también sus propios resultados (403) y `/results` lo regresa a la
+   Bandeja, igual que `/settings/whatsapp`.
 6. **La coordinadora opera, no configura.** Crea y borra una etapa; marca,
    WhatsApp, agente y usuarios → 403; ve los resultados de A y al equipo.
 7. **Handoff.** El cliente pide un humano: el chat queda en atención humana y

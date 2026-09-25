@@ -49,7 +49,9 @@ export function Switch({
       disabled={disabled}
       onClick={() => onCheckedChange(!checked)}
       className={cn(
-        "relative inline-flex shrink-0 items-center rounded-full transition-colors",
+        "relative inline-flex shrink-0 items-center rounded-full transition-[background-color,transform] duration-150",
+        // 022: se hunde un poco al presionar, como en el teléfono.
+        "active:scale-[0.92]",
         // El anillo de `ui/button`: el acento sólido, separado de la pista
         // (encendida ya es del color del acento). El suave (`ring-brand-soft`)
         // queda a ~1.3:1 del fondo y se veía menos que el del navegador.
@@ -65,7 +67,7 @@ export function Switch({
       <span
         aria-hidden
         className={cn(
-          "rounded-full bg-knob shadow-sm transition-transform",
+          "rounded-full bg-knob shadow-sm transition-transform duration-200 ease-spring",
           s.knob,
           checked ? s.on : "translate-x-0"
         )}

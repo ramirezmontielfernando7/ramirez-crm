@@ -6,6 +6,7 @@ import { moveLeadToStage as moveLeadThroughHistory } from "@/server/leads/stage-
 import { getEnv, isAiConfigured } from "@/lib/env";
 import { chatJson, type ChatMessage } from "@/lib/ai";
 import { publish } from "@/server/events/bus";
+import { logActivity, logActivitySafe } from "@/server/activity/log";
 import { isWindowOpen } from "@/server/inbox/window";
 import { SendError, sendText } from "@/server/inbox/send";
 import {
@@ -378,6 +379,14 @@ export async function applyHandoff(
       conversation: { id: conversationId, handoffReason: reason },
     },
   });
+  // 022: queda en la línea de tiempo del chat.
+  await logActivitySafe({
+    organizationId,
+    contactId: updated[0].contactId,
+    kind: "ai_handoff",
+    source: "bot",
+    detail: { reason },
+  });
 }
 
 async function moveLeadToStage(
@@ -420,20 +429,14 @@ async function appendLeadNote(
   contactId: string,
   note: string
 ): Promise<void> {
-  const db = getDb();
-  const rows = await db
-    .select({ id: schema.contact.id, notes: schema.contact.notes })
-    .from(schema.contact)
-    .where(eq(schema.contact.id, contactId))
-    .limit(1);
-  const contact = rows[0];
-  if (!contact) return;
-  const stamped = `[IA] ${note}`;
-  await db
-    .update(schema.contact)
-    .set({
-      notes: contact.notes ? `${contact.notes}\n${stamped}` : stamped,
-      updatedAt: new Date(),
-    })
-    .where(eq(schema.contact.id, contact.id));
+  // 022: las notas viven en la línea de tiempo, con autor y hora. La del
+  // agente queda "por el agente de IA"; ya no se pega a `contact.notes`, que
+  // se conserva como la "Nota inicial".
+  await logActivity({
+    organizationId,
+    contactId,
+    kind: "note_added",
+    source: "bot",
+    detail: { text: note },
+  });
 }

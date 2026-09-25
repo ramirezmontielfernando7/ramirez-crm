@@ -40,8 +40,11 @@ const statements = {
   assignment: ["manage"],
   /** Ver TODOS los chats, leads y citas, no solo los asignados. */
   scope: ["all"],
-  /** Ver los resultados de todo el equipo, no solo los propios. */
-  results: ["all"],
+  /**
+   * `read`: entrar a Resultados (022: el Asesor no, ni a los suyos).
+   * `all`: los de todo el equipo, no solo los propios.
+   */
+  results: ["read", "all"],
 } as const;
 
 export const ac = createAccessControl(statements);
@@ -58,7 +61,7 @@ const owner = ac.newRole({
   campaigns: ["manage"],
   assignment: ["manage"],
   scope: ["all"],
-  results: ["all"],
+  results: ["read", "all"],
 });
 
 /** Operación: reparte, ve todo, edita etapas y plantillas. No configura. */
@@ -73,10 +76,10 @@ const coordinador = ac.newRole({
   campaigns: ["manage"],
   assignment: ["manage"],
   scope: ["all"],
-  results: ["all"],
+  results: ["read", "all"],
 });
 
-/** Solo lo suyo: sus chats, sus leads (que sí puede mover), sus resultados. */
+/** Solo lo suyo: sus chats y sus leads (que sí puede mover). Sin Resultados (022). */
 const asesor = ac.newRole({});
 
 export const roles = { owner, coordinador, asesor };
@@ -107,6 +110,7 @@ export type Permission =
   | "campaigns.manage"
   | "assignment.manage"
   | "scope.all"
+  | "results.read"
   | "results.all";
 
 export function isRole(value: string): value is Role {

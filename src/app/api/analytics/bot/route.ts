@@ -19,4 +19,4 @@ export const GET = withAuth(async (session, req: Request) => {
     }
     throw err;
   }
-});
+}, { permission: "results.read" });

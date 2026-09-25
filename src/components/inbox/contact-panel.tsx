@@ -24,12 +24,13 @@ import { AnuncioOrigen } from "@/components/anuncio-origen";
 import { ContactAvatar } from "@/components/avatar";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { Textarea } from "@/components/ui/textarea";
 import { FichaPanel } from "@/components/ficha-panel";
 import { AssignmentCard } from "@/components/assignment/assignment-card";
 import { ContactTagsCard } from "@/components/tags/contact-tags-card";
 import { LossReasonDialog } from "@/components/pipeline/loss-reason-dialog";
 import { useViewer } from "@/components/viewer-context";
+import { ChatTimeline } from "@/components/inbox/chat-timeline";
+import { Collapse, DisclosureButton, useDisclosureId } from "@/components/motion";
 
 const HANDOFF_LABELS: Record<string, string> = {
   cliente: "El cliente pidió un humano",
@@ -54,10 +55,15 @@ export function ContactPanel({
   }) => Promise<void>;
   onClose: () => void;
 }) {
-  const [notes, setNotes] = useState("");
   const [ficha, setFicha] = useState<FichaDto>({});
-  const [notesLoaded, setNotesLoaded] = useState(false);
-  const [savingNotes, setSavingNotes] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+  // 022: "Más detalles" (consentimiento, etiquetas, ficha) arranca plegado.
+  const [moreOpen, setMoreOpen] = useState(false);
+  const moreId = useDisclosureId("more-details");
+  // 022: lo que se cambia DESDE el panel también refresca la línea de tiempo
+  // (el SSE solo avisa de lo que cambió en otro lado).
+  const [timelineRev, setTimelineRev] = useState(0);
+  const bumpTimeline = useCallback(() => setTimelineRev((v) => v + 1), []);
   const [stages, setStages] = useState<StageDto[]>([]);
   const [currentStageId, setCurrentStageId] = useState<string | null>(null);
   const [leadId, setLeadId] = useState<string | null>(null);
@@ -71,7 +77,6 @@ export function ContactPanel({
   // el panel regresaba la etapa en silencio, como si nada.
   const [error, setError] = useState<string | null>(null);
   const [brainError, setBrainError] = useState<string | null>(null);
-  const [notesSaved, setNotesSaved] = useState(false);
   /** Etapa perdida elegida: espera el motivo antes de mover (regla del dominio). */
   const [pendingLoss, setPendingLoss] = useState<StageDto | null>(null);
 
@@ -106,7 +111,7 @@ export function ContactPanel({
     setBrain(res.data);
   }, []);
 
-  // Carga inicial (incluye notas): se re-ejecuta al cambiar de contacto.
+  // Carga inicial: se re-ejecuta al cambiar de contacto.
   const refetch = useCallback(async () => {
     void loadBrain();
     const [detailRes, stagesRes] = await Promise.all([
@@ -116,24 +121,23 @@ export function ContactPanel({
     const problems: string[] = [];
     if (detailRes.ok) {
       const detail = detailRes.data;
-      setNotes(detail.contact?.notes ?? "");
       setFicha(detail.contact?.ficha ?? {});
       setCurrentStageId(detail.stage?.id ?? null);
       setLeadId(detail.lead?.id ?? null);
       setAnuncio(detail.anuncio ?? null);
-      // Las notas solo se habilitan si de verdad se cargaron: guardar sobre
-      // un campo vacío por error borraría las que ya había.
-      setNotesLoaded(true);
+      setLoaded(true);
     } else {
       problems.push(`No se pudo cargar el contacto: ${detailRes.error}`);
     }
     if (stagesRes.ok) setStages(stagesRes.data.stages);
     else problems.push(`No se pudieron cargar las etapas: ${stagesRes.error}`);
-    setError(problems.length ? problems.join(" · ") : null);
+    // Solo AGREGA avisos: la carga puede resolver después de que el operador
+    // ya hizo algo que falló, y un `null` aquí le borraría ese aviso. El
+    // aviso del contacto anterior se limpia al cambiar de contacto (abajo).
+    if (problems.length) setError(problems.join(" · "));
   }, [contactId, loadBrain]);
 
-  // Refetch en vivo (etapa/lead + quién responde) SIN tocar las notas, para
-  // no pisar lo que el operador esté escribiendo. Lo dispara el SSE.
+  // Refetch en vivo (etapa/lead + quién responde). Lo dispara el SSE.
   const refreshLive = useCallback(async () => {
     void loadBrain();
     const res = await fetchJson<ContactDetail>(`/api/contacts/${contactId}`);
@@ -154,16 +158,17 @@ export function ContactPanel({
   }, [contactId, loadBrain]);
 
   useEffect(() => {
-    setNotesLoaded(false);
+    setLoaded(false);
+    setError(null);
     // Al cambiar de contacto no puede asomarse el anuncio del anterior.
     setAnuncio(null);
     void refetch();
   }, [refetch]);
 
   useEffect(() => {
-    if (!notesLoaded) return; // la carga inicial ya trae el estado fresco
+    if (!loaded) return; // la carga inicial ya trae el estado fresco
     void refreshLive();
-  }, [refreshKey, notesLoaded, refreshLive]);
+  }, [refreshKey, loaded, refreshLive]);
 
   /** Punto de entrada del stepper: a una etapa perdida primero se pide el motivo. */
   function requestMove(stage: StageDto) {
@@ -201,6 +206,7 @@ export function ContactPanel({
       return;
     }
     void refreshLive();
+    bumpTimeline();
   }
 
   /** Manda SOLO lo que cambió: el servidor hace merge (ver `server/bot/ficha`). */
@@ -217,18 +223,6 @@ export function ContactPanel({
     if (!res.ok) setError(`No se guardó la ficha: ${res.error}`);
     // Con o sin error, la verdad del servidor reemplaza al optimista.
     void refreshLive();
-  }
-
-  async function saveNotes() {
-    setSavingNotes(true);
-    setNotesSaved(false);
-    const res = await fetchJson(`/api/contacts/${contactId}`, jsonInit("PATCH", { notes }));
-    setSavingNotes(false);
-    if (!res.ok) {
-      setError(`No se guardaron las notas: ${res.error}`);
-      return;
-    }
-    setNotesSaved(true);
   }
 
   const currentIndex = stages.findIndex((s) => s.id === currentStageId);
@@ -407,11 +401,9 @@ export function ContactPanel({
           )}
         </section>
 
-        {/* 020: quién atiende, reasignar y el historial. */}
-        <AssignmentCard contactId={contactId} refreshKey={refreshKey} />
-
-        {/* 021: etiquetas y consentimiento para mensajes masivos. */}
-        <ContactTagsCard contactId={contactId} />
+        {/* 020: quién atiende y reasignar. 022: el historial, plegado y
+            solo para quien reparte. */}
+        <AssignmentCard contactId={contactId} refreshKey={refreshKey} onChanged={bumpTimeline} />
 
         {/* Stepper de etapa */}
         {stages.length > 0 && leadId && (
@@ -459,34 +451,26 @@ export function ContactPanel({
           </section>
         )}
 
-        {/* Ficha: lo que se SABE del lead. Va antes de Notas —lo que alguien
-            OPINA— porque es lo que se consulta a mitad de una conversación. */}
-        <FichaPanel ficha={ficha} onSave={saveFicha} />
-
-        {/* Notas */}
-        <section className="p-4">
-          <p className="kicker mb-2">Notas</p>
-          <Textarea
-            rows={5}
-            placeholder="Notas internas sobre este contacto…"
-            value={notes}
-            disabled={!notesLoaded}
-            onChange={(e) => {
-              setNotes(e.target.value);
-              setNotesSaved(false);
-            }}
-          />
-          <Button
-            size="sm"
-            variant="secondary"
-            className="mt-2"
-            disabled={savingNotes || !notesLoaded}
-            onClick={() => void saveNotes()}
+        {/* 022: lo que se consulta de vez en cuando, plegado. Mensajes
+            masivos, etiquetas y la ficha (lo que se SABE del lead). */}
+        <section className="border-b">
+          <DisclosureButton
+            open={moreOpen}
+            onToggle={() => setMoreOpen((v) => !v)}
+            controls={moreId}
+            className="rounded-none px-4 py-3 text-text-2 hover:bg-accent hover:text-foreground"
           >
-            {savingNotes ? "Guardando…" : "Guardar notas"}
-          </Button>
-          {notesSaved && <span className="ml-2 text-xs text-success-text">Guardadas</span>}
+            <span className="kicker">Más detalles</span>
+          </DisclosureButton>
+          <Collapse open={moreOpen} id={moreId} className="border-t">
+            {/* 021: consentimiento para mensajes masivos y etiquetas. */}
+            <ContactTagsCard contactId={contactId} consentFirst onChanged={bumpTimeline} />
+            <FichaPanel ficha={ficha} onSave={saveFicha} />
+          </Collapse>
         </section>
+
+        {/* 022: todo lo que le pasó a este chat, con su nota al frente. */}
+        <ChatTimeline contactId={contactId} refreshKey={refreshKey + timelineRev} />
       </div>
 
       {pendingLoss && (

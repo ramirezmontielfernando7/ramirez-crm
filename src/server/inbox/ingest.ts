@@ -3,6 +3,7 @@ import { getDb, schema } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
 import { normalizeMx } from "@/lib/meta/client";
 import { publish } from "@/server/events/bus";
+import { logActivitySafe } from "@/server/activity/log";
 import { getCredentialsByPhoneNumberId } from "@/server/whatsapp/credentials";
 import { ensureAssetAvailable } from "@/server/whatsapp/media";
 import type { Channel } from "@/lib/channels";
@@ -362,6 +363,14 @@ async function ingestManualEcho(
     )
     .returning();
   if (paused[0]) {
+    // 022: queda en la línea de tiempo del chat.
+    await logActivitySafe({
+      organizationId,
+      contactId: paused[0].contactId,
+      kind: "ai_handoff",
+      source: "sistema",
+      detail: { reason: "manual_reply" },
+    });
     console.log(
       `[webhook] respuesta manual del dueño en ${conversation.id} — IA pausada (manual_reply)`
     );

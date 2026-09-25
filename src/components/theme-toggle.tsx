@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Moon, Sun } from "lucide-react";
 import {
   nextThemePreference,
+  normalizeThemePreference,
   THEME_COOKIE,
   THEME_COOKIE_MAX_AGE,
   THEME_LABELS,
@@ -21,7 +22,14 @@ export function ThemeToggle({
   initial: ThemePreference;
   className?: string;
 }) {
-  const [pref, setPref] = useState<ThemePreference>(initial);
+  // Lo pintado gana a la prop: el botón puede montarse de nuevo (la barra
+  // colapsada lo lleva en su tarjeta de perfil) después de un cambio de tema,
+  // y la prop del servidor ya no sería la verdad.
+  const [pref, setPref] = useState<ThemePreference>(() =>
+    typeof document === "undefined"
+      ? initial
+      : normalizeThemePreference(document.documentElement.getAttribute("data-theme") ?? initial)
+  );
 
   function cycle() {
     const value = nextThemePreference(pref);

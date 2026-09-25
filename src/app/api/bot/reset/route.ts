@@ -4,6 +4,7 @@ import { getDb, schema } from "@/lib/db";
 import { apiError, parseBody } from "@/lib/api";
 import { requireBotKey, resolveInstanceOrg } from "@/server/bot/auth";
 import { publish } from "@/server/events/bus";
+import { logActivitySafe } from "@/server/activity/log";
 import { moveLeadToStage } from "@/server/leads/stage-history";
 
 export const dynamic = "force-dynamic";
@@ -35,6 +36,8 @@ export async function POST(req: Request) {
     .select({
       id: schema.conversation.id,
       contactId: schema.conversation.contactId,
+      aiEnabled: schema.conversation.aiEnabled,
+      handoffAt: schema.conversation.handoffAt,
     })
     .from(schema.conversation)
     .where(
@@ -56,6 +59,15 @@ export async function POST(req: Request) {
       updatedAt: new Date(),
     })
     .where(eq(schema.conversation.id, conv.id));
+  // 022: si estaba en pausa, la reactivación queda en la línea de tiempo.
+  if (!conv.aiEnabled || conv.handoffAt) {
+    await logActivitySafe({
+      organizationId,
+      contactId: conv.contactId,
+      kind: "ai_resumed",
+      source: "api",
+    });
+  }
 
   // Etapa al inicio del funnel (best-effort: sin etapas no revienta el reset).
   try {

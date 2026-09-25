@@ -109,6 +109,11 @@ const PROTEGIDAS: [string, Method, Permission][] = [
   ["campaigns/[id]", "DELETE", "campaigns.manage"],
   ["campaigns/[id]/send", "POST", "campaigns.manage"],
   ["campaigns/[id]/recipients", "GET", "campaigns.manage"],
+  // 022 — Resultados: el Asesor no entra, ni a los suyos.
+  ["analytics/sales", "GET", "results.read"],
+  ["analytics/ads", "GET", "results.read"],
+  ["analytics/bot", "GET", "results.read"],
+  ["analytics/hygiene", "GET", "results.read"],
 ];
 
 /**
@@ -136,10 +141,9 @@ const FILTRADAS: [string, Method][] = [
   ["bookings", "POST"],
   ["bookings/[id]", "PATCH"],
   ["media/[assetId]", "GET"],
-  ["analytics/sales", "GET"],
-  ["analytics/ads", "GET"],
-  ["analytics/bot", "GET"],
-  ["analytics/hygiene", "GET"],
+  // 022: la línea de tiempo y las notas son del contacto que se puede ver.
+  ["contacts/[id]/timeline", "GET"],
+  ["contacts/[id]/notes", "POST"],
   // SSE: filtra evento por evento (`server/events/visibility.ts`).
   ["events", "GET"],
 ];
@@ -153,6 +157,9 @@ const DEL_NEGOCIO: [string, Method][] = [
   ["contact-tags", "GET"],
   ["calendar/availability", "GET"],
   ["settings/branding", "GET"],
+  // 022: preferencias de interfaz de quien pide (nunca de otro).
+  ["preferences", "GET"],
+  ["preferences", "PUT"],
 ];
 
 /** Sin sesión de usuario: tienen su propia autenticación o son públicas. */
