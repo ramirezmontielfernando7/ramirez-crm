@@ -32,6 +32,18 @@ export type SseEvent =
         fromUserIds: string[];
       };
     }
+  /**
+   * 021 — avance de una campaña de envío masivo. Solo conteos: la pantalla de
+   * detalle refetchea la lista si la necesita. Solo le llega a quien ve todo.
+   */
+  | {
+      type: "campaign.progress";
+      data: {
+        campaignId: string;
+        status: string;
+        counts: { pending: number; sent: number; failed: number };
+      };
+    }
   /** 015 — algo cambió en la agenda: la pantalla de Citas se refresca sola. */
   | { type: "booking.updated"; data: { bookingId: string } }
   | {

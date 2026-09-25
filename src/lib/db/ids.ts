@@ -33,6 +33,10 @@ const prefixes = {
   assignmentEvent: "cae",
   salesTeam: "team",
   assignmentBatch: "batch",
+  // 021 — etiquetas y campañas
+  contactTag: "tag",
+  campaign: "cmp",
+  campaignRecipient: "cmr",
 } as const;
 
 export type IdKind = keyof typeof prefixes;

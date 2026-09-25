@@ -7,6 +7,24 @@ imagen `ghcr.io/kevinrivm/vocero-crm:X.Y.Z`.
 
 ## Sin publicar
 
+### Etiquetas, consentimiento, CSV y campañas (spec 021)
+
+- **Etiquetas de contacto.** Configuración → Etiquetas; se asignan desde el
+  panel de la Bandeja o Editar en Contactos, y la lista filtra por ellas.
+- **Consentimiento de WhatsApp.** Cada contacto dice si acepta mensajes
+  masivos (`opt_in`), no quiere (`opt_out`) o está sin confirmar (default),
+  con su origen y fecha.
+- **Importar y exportar CSV** desde Contactos. La importación deduplica por
+  teléfono, etiqueta cada contacto con el archivo del que vino y devuelve el
+  detalle de cada fila que no entró. La exportación respeta los filtros.
+  Importar y exportar: Propietario y Coordinador.
+- **Campañas** (opcional, `CAMPAIGNS=on`): envío de una plantilla aprobada
+  a un público por etiquetas, **solo a contactos con `opt_in`**, en segundo
+  plano y con registro por destinatario.
+- **Actualizar.** La migración `0016_etiquetas_consentimiento_campanas` solo
+  agrega columnas y tablas; todo contacto existente queda «sin confirmar», así
+  que nadie recibe una campaña hasta que se marque su consentimiento.
+
 ### Roles y asignación de chats (spec 020)
 
 - **Tres roles.** Propietario (todo, como hoy), Coordinador (ve a todo el

@@ -32,6 +32,9 @@ export async function canSeeEvent(access: Access, event: SseEvent): Promise<bool
       return bookingVisible(access, event.data.bookingId);
     case "lab.run":
       return false;
+    // 021: las campañas son de quien ve todo (campaigns.manage).
+    case "campaign.progress":
+      return false;
     default:
       return false;
   }

@@ -10,6 +10,8 @@ import {
 } from "@/server/contacts";
 import { upsertFicha } from "@/server/bot/ficha";
 import { cuentaComoAnuncio } from "@/lib/anuncios";
+import { WA_CONSENT_VALUES } from "@/lib/tags";
+import { tagsForContacts } from "@/server/tags/tags";
 import {
   anuncioDelContacto,
   repararImagenSiFalta,
@@ -23,16 +25,23 @@ export const GET = withAuth(async (session, _req: Request, ctx: Params) => {
   const { id } = await ctx.params;
   const contact = await getContactById(session.access, id);
   if (!contact) return apiError(404, "not_found", "Contacto no encontrado");
-  const [stageRow, anuncio] = await Promise.all([
+  const [stageRow, anuncio, tags] = await Promise.all([
     getContactStage(session.access, id),
     anuncioDelContacto(session.organizationId, id),
+    tagsForContacts(session.organizationId, [id]),
   ]);
   // 018 — Sin imagen todavía: se reintenta en segundo plano y llega por SSE.
   if (anuncio && !anuncio.imageAssetId) {
     repararImagenSiFalta(session.organizationId, id);
   }
   return Response.json({
-    contact: serializeContact(contact, null, null, cuentaComoAnuncio(anuncio)),
+    contact: serializeContact(
+      contact,
+      null,
+      null,
+      cuentaComoAnuncio(anuncio),
+      tags.get(id) ?? []
+    ),
     // 018 — de qué anuncio llegó, o null si escribió por su cuenta.
     anuncio,
     stage: stageRow
@@ -58,6 +67,12 @@ const patchSchema = z.object({
    * borrara lo recién descubierto al otro.
    */
   ficha: z.record(z.unknown()).optional(),
+  /**
+   * 021 — Consentimiento para envíos masivos. Solo una persona lo cambia
+   * aquí; es la única vía que puede revertir un `opt_out` (la importación no).
+   */
+  waConsent: z.enum(WA_CONSENT_VALUES).optional(),
+  waConsentSource: z.string().trim().max(200).nullable().optional(),
 });
 
 export const PATCH = withAuth(async (session, req: Request, ctx: Params) => {
@@ -93,6 +108,15 @@ export const PATCH = withAuth(async (session, req: Request, ctx: Params) => {
   if (body.data.archived !== undefined) {
     set.archivedAt = body.data.archived ? new Date() : null;
   }
+  if (body.data.waConsent !== undefined) {
+    set.waConsent = body.data.waConsent;
+    set.waConsentAt = new Date();
+    // Sin origen explícito, queda registrado que lo cambió una persona.
+    if (body.data.waConsentSource === undefined) set.waConsentSource = "Cambio manual en el CRM";
+  }
+  if (body.data.waConsentSource !== undefined) {
+    set.waConsentSource = body.data.waConsentSource || null;
+  }
 
   const db = getDb();
   const updated = await db
@@ -108,8 +132,17 @@ export const PATCH = withAuth(async (session, req: Request, ctx: Params) => {
     )
     .returning();
   if (!updated[0]) return apiError(404, "not_found", "Contacto no encontrado");
-  const anuncio = await anuncioDelContacto(session.organizationId, id);
+  const [anuncio, tags] = await Promise.all([
+    anuncioDelContacto(session.organizationId, id),
+    tagsForContacts(session.organizationId, [id]),
+  ]);
   return Response.json({
-    contact: serializeContact(updated[0], null, null, cuentaComoAnuncio(anuncio)),
+    contact: serializeContact(
+      updated[0],
+      null,
+      null,
+      cuentaComoAnuncio(anuncio),
+      tags.get(id) ?? []
+    ),
   });
 });

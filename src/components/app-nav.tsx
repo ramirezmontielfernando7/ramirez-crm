@@ -11,6 +11,7 @@ import {
   Inbox,
   Kanban,
   LogOut,
+  Megaphone,
   Settings,
   Sparkles,
   Users,
@@ -66,6 +67,18 @@ const AGENDA_ITEM: NavItem = {
 };
 
 /**
+ * 021 — "Campañas" solo si la instancia encendió CAMPAIGNS y el rol puede
+ * mandarlas. Va junto a Contactos: una campaña es mandarle algo a una parte
+ * de la base.
+ */
+const CAMPAIGNS_ITEM: NavItem = {
+  href: "/campaigns",
+  label: "Campañas",
+  icon: Megaphone,
+  permission: "campaigns.manage",
+};
+
+/**
  * Un renglón del menú, como el `side-item` del mockup de la landing: texto
  * semibold, esquinas de 9px y, activo, lavado del acento con tinta azul.
  * Exportado para la vista previa de Configuración → Marca, que pinta la barra.
@@ -89,6 +102,7 @@ export function AppNav({
   theme,
   commit,
   agenda = false,
+  campaigns = false,
   open = false,
   onClose,
 }: {
@@ -108,6 +122,8 @@ export function AppNav({
    * todavía debe ver la entrada igual.
    */
   agenda?: boolean;
+  /** 021 — ¿hay Campañas en esta instancia? Viene del servidor. */
+  campaigns?: boolean;
   /** Solo aplica por debajo de `lg`: en escritorio el lateral es fijo. */
   open?: boolean;
   onClose?: () => void;
@@ -139,8 +155,10 @@ export function AppNav({
   // Citas va después de Pipeline: es el paso siguiente de un trato, no una
   // sección aparte.
   const viewer = useViewer();
+  const base = agenda ? [...NAV.slice(0, 2), AGENDA_ITEM, ...NAV.slice(2)] : NAV;
+  const contactsAt = base.findIndex((i) => i.href === "/contacts");
   const items = (
-    agenda ? [...NAV.slice(0, 2), AGENDA_ITEM, ...NAV.slice(2)] : NAV
+    campaigns ? [...base.slice(0, contactsAt + 1), CAMPAIGNS_ITEM, ...base.slice(contactsAt + 1)] : base
   ).filter((item) => !item.permission || viewer.can(item.permission));
   // Ajustes solo si hay al menos una pestaña que pueda abrir.
   const showSettings =

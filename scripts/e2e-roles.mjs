@@ -362,6 +362,23 @@ async function main() {
   ok("coordinador ve los resultados de A", resA.res.ok);
   ok("coordinador ve a todo el equipo", (await coord.api("/api/settings/team")).res.ok);
 
+  console.log("\n== 021: exportar contactos y campañas por rol ==");
+  const expCoord = await coord.api("/api/contacts/export");
+  ok(
+    "el coordinador exporta contactos (CSV)",
+    expCoord.res.status === 200 &&
+      /text\/csv/.test(expCoord.res.headers.get("content-type") ?? ""),
+    `status=${expCoord.res.status}`
+  );
+  const expAsesor = await asesorA.api("/api/contacts/export");
+  ok("el asesor NO exporta (403)", expAsesor.res.status === 403, `status=${expAsesor.res.status}`);
+  const campAsesor = await asesorA.api("/api/campaigns");
+  ok(
+    "el asesor NO ve campañas (403: el permiso se valida antes que la bandera)",
+    campAsesor.res.status === 403,
+    `status=${campAsesor.res.status}`
+  );
+
   console.log("\n== Handoff de la IA en un chat asignado ==");
   await entrante(owner, tel1, nombre1, "prefiero hablar con un humano");
   let enHandoff = null;

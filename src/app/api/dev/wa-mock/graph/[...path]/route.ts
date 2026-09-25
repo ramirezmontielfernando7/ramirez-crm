@@ -268,6 +268,41 @@ export async function POST(req: Request, ctx: Params) {
         { status: 400 }
       );
     }
+    /**
+     * 021 — Dos fallos reales de un envío masivo, por convención de número:
+     * - termina en 00000 → 131026, el número no tiene WhatsApp (fallo final);
+     * - termina en 42900 → 130429, límite de envío, SOLO la primera vez: la
+     *   campaña debe pausar, reintentar y lograrlo, no marcarlo fallido.
+     */
+    if (destino && destino.endsWith("00000")) {
+      return Response.json(
+        {
+          error: {
+            message: "(#131026) Message undeliverable: recipient is not a valid WhatsApp user",
+            code: 131026,
+            type: "OAuthException",
+          },
+        },
+        { status: 400 }
+      );
+    }
+    if (destino && destino.endsWith("42900")) {
+      const limited = (globalThis as { __waMockRateLimited?: Set<string> });
+      limited.__waMockRateLimited ??= new Set();
+      if (!limited.__waMockRateLimited.has(destino)) {
+        limited.__waMockRateLimited.add(destino);
+        return Response.json(
+          {
+            error: {
+              message: "(#130429) Rate limit hit: Cloud API message throughput has been reached",
+              code: 130429,
+              type: "OAuthException",
+            },
+          },
+          { status: 400 }
+        );
+      }
+    }
     // Meta responde 132000 si los parámetros no cuadran con las {{n}} de la
     // plantilla aprobada. El mock lo replica para que un desfase no pase.
     if (body.type === "template") {

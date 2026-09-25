@@ -1,31 +1,30 @@
-import { desc, eq, inArray, or, sql } from "drizzle-orm";
+import { desc, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { apiError, parseBody, withAuth } from "@/lib/api";
 import { getDb, schema } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
 import { scopedContacts, type Access } from "@/lib/db/tenant";
 import { normalizeMx } from "@/lib/meta/client";
-import { digitsOnly, normalizeText } from "@/lib/search";
 import { serializeContact } from "@/server/contacts";
+import {
+  contactFilterConditions,
+  contactSearchCondition,
+  filterFromSearchParams,
+} from "@/server/contact-filter";
+import { tagsForContacts } from "@/server/tags/tags";
 import { assignContacts } from "@/server/assignment/assign";
 import { createLeadForContact } from "@/server/inbox/lead-activity";
 
 export const dynamic = "force-dynamic";
-
-/**
- * Búsqueda tolerante en SQL, espejo de `matchesQuery` del cliente:
- * - nombre sin acentos ni mayúsculas (`translate`, sin depender de la
- *   extensión `unaccent`, que exigiría privilegios en la BD);
- * - teléfono por DÍGITOS, para poder teclearlo como se ve ("+52 462 134…").
- */
-const UNACCENT_FROM = "áàäâãéèëêíìïîóòöôõúùüûñçÁÀÄÂÃÉÈËÊÍÌÏÎÓÒÖÔÕÚÙÜÛÑÇ";
-const UNACCENT_TO = "aaaaaeeeeiiiiooooouuuuncAAAAAEEEEIIIIOOOOOUUUUNC";
 
 export const GET = withAuth(async (session, req: Request) => {
   const url = new URL(req.url);
   const q = url.searchParams.get("q")?.trim();
   const stage = url.searchParams.get("stage")?.trim();
   const includeArchived = url.searchParams.get("archived") === "true";
+  // 021: filtros por etiqueta, fuente y consentimiento (los mismos del CSV).
+  const filter = filterFromSearchParams(url.searchParams);
+  if ("error" in filter) return apiError(422, "invalid_filter", filter.error);
 
   const db = getDb();
 
@@ -53,22 +52,7 @@ export const GET = withAuth(async (session, req: Request) => {
     leadStages.map((r) => [r.contactId, r.priority])
   );
 
-  const qDigits = q ? digitsOnly(q) : "";
-  // El patrón viaja normalizado igual que la columna, y con los comodines de
-  // LIKE escapados para que un "%" tecleado no liste todo.
-  const qLike = q ? normalizeText(q).replace(/[\\%_]/g, "\\$&") : "";
-  const search =
-    q && q.length > 0
-      ? or(
-          sql`lower(translate(${schema.contact.name}, ${UNACCENT_FROM}, ${UNACCENT_TO}))
-              like ${`%${qLike}%`}`,
-          // Un dígito suelto barrería el directorio entero: mínimo 3.
-          qDigits.length >= 3
-            ? sql`regexp_replace(coalesce(${schema.contact.phone}, ''), '\\D', '', 'g')
-                  like ${`%${qDigits}%`}`
-            : undefined
-        )
-      : undefined;
+  const search = contactSearchCondition(q);
 
   // El filtro de etapa se aplica ANTES del límite: si no, un contacto de la
   // etapa buscada podría quedar fuera por el corte de 200.
@@ -86,21 +70,27 @@ export const GET = withAuth(async (session, req: Request) => {
         session.access,
         schema.contact.id,
         search,
-        stageContactIds ? inArray(schema.contact.id, stageContactIds) : undefined
+        stageContactIds ? inArray(schema.contact.id, stageContactIds) : undefined,
+        ...contactFilterConditions(filter)
       )
     )
     .orderBy(desc(schema.contact.updatedAt))
     .limit(200);
 
-  const contacts = rows
-    .filter((c) => includeArchived || !c.archivedAt)
-    .map((c) =>
-      serializeContact(
-        c,
-        stageByContact.get(c.id) ?? null,
-        priorityByContact.get(c.id) ?? null
-      )
-    );
+  const visible = rows.filter((c) => includeArchived || !c.archivedAt);
+  const tagsByContact = await tagsForContacts(
+    session.organizationId,
+    visible.map((c) => c.id)
+  );
+  const contacts = visible.map((c) =>
+    serializeContact(
+      c,
+      stageByContact.get(c.id) ?? null,
+      priorityByContact.get(c.id) ?? null,
+      false,
+      tagsByContact.get(c.id) ?? []
+    )
+  );
   return Response.json({ contacts });
 });
 

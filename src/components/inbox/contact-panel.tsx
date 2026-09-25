@@ -11,11 +11,14 @@ import {
 } from "@/lib/brain-status";
 import type {
   AnuncioDto,
+  ContactDto,
   ConversationDto,
   FichaDto,
   FichaValue,
+  LossReason,
   StageDto,
 } from "@/lib/types";
+import { fetchJson, jsonInit } from "@/lib/fetch-json";
 import { cn, formatPhone } from "@/lib/utils";
 import { AnuncioOrigen } from "@/components/anuncio-origen";
 import { ContactAvatar } from "@/components/avatar";
@@ -24,6 +27,8 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { FichaPanel } from "@/components/ficha-panel";
 import { AssignmentCard } from "@/components/assignment/assignment-card";
+import { ContactTagsCard } from "@/components/tags/contact-tags-card";
+import { LossReasonDialog } from "@/components/pipeline/loss-reason-dialog";
 import { useViewer } from "@/components/viewer-context";
 
 const HANDOFF_LABELS: Record<string, string> = {
@@ -62,6 +67,13 @@ export function ContactPanel({
   // toggle "Respondiendo" mentiría cuando el agente aún no se ha
   // configurado/encendido, y pediría la clave de IA aunque conteste Nea.
   const [brain, setBrain] = useState<BrainStatusDto | null>(null);
+  // Todo fallo se DICE: antes, mover a "Perdido" sin motivo respondía 422 y
+  // el panel regresaba la etapa en silencio, como si nada.
+  const [error, setError] = useState<string | null>(null);
+  const [brainError, setBrainError] = useState<string | null>(null);
+  const [notesSaved, setNotesSaved] = useState(false);
+  /** Etapa perdida elegida: espera el motivo antes de mover (regla del dominio). */
+  const [pendingLoss, setPendingLoss] = useState<StageDto | null>(null);
 
   const contactId = conversation.contact.id;
   const viewer = useViewer();
@@ -85,48 +97,60 @@ export function ContactPanel({
   // Aparte del resto: consultar el /health del cerebro externo puede tardar
   // hasta 2 s, y eso no debe demorar la etapa ni la ficha.
   const loadBrain = useCallback(async () => {
-    const b = await fetch("/api/agent/brain-status")
-      .then((r) => (r.ok ? r.json() : null))
-      .catch(() => null);
-    if (b) setBrain(b);
+    const res = await fetchJson<BrainStatusDto>("/api/agent/brain-status");
+    if (!res.ok) {
+      setBrainError(`No se pudo consultar quién responde: ${res.error}`);
+      return;
+    }
+    setBrainError(null);
+    setBrain(res.data);
   }, []);
 
   // Carga inicial (incluye notas): se re-ejecuta al cambiar de contacto.
   const refetch = useCallback(async () => {
     void loadBrain();
-    const [detail, stagesRes] = await Promise.all([
-      fetch(`/api/contacts/${contactId}`).then((r) => (r.ok ? r.json() : null)),
-      fetch("/api/pipeline/stages").then((r) => (r.ok ? r.json() : null)),
-    ]).catch(() => [null, null]);
-    if (detail) {
+    const [detailRes, stagesRes] = await Promise.all([
+      fetchJson<ContactDetail>(`/api/contacts/${contactId}`),
+      fetchJson<{ stages: StageDto[] }>("/api/pipeline/stages"),
+    ]);
+    const problems: string[] = [];
+    if (detailRes.ok) {
+      const detail = detailRes.data;
       setNotes(detail.contact?.notes ?? "");
       setFicha(detail.contact?.ficha ?? {});
       setCurrentStageId(detail.stage?.id ?? null);
       setLeadId(detail.lead?.id ?? null);
       setAnuncio(detail.anuncio ?? null);
+      // Las notas solo se habilitan si de verdad se cargaron: guardar sobre
+      // un campo vacío por error borraría las que ya había.
+      setNotesLoaded(true);
+    } else {
+      problems.push(`No se pudo cargar el contacto: ${detailRes.error}`);
     }
-    if (stagesRes) setStages(stagesRes.stages);
-    setNotesLoaded(true);
+    if (stagesRes.ok) setStages(stagesRes.data.stages);
+    else problems.push(`No se pudieron cargar las etapas: ${stagesRes.error}`);
+    setError(problems.length ? problems.join(" · ") : null);
   }, [contactId, loadBrain]);
 
   // Refetch en vivo (etapa/lead + quién responde) SIN tocar las notas, para
   // no pisar lo que el operador esté escribiendo. Lo dispara el SSE.
   const refreshLive = useCallback(async () => {
     void loadBrain();
-    const detail = await fetch(`/api/contacts/${contactId}`)
-      .then((r) => (r.ok ? r.json() : null))
-      .catch(() => null);
-    if (detail) {
-      // La ficha SÍ se refresca en vivo: el agente la va llenando mientras la
-      // conversación ocurre, y verla aparecer sola es justo para lo que sirve.
-      // No pisa una edición a medias — el borrador vive dentro del panel.
-      setFicha(detail.contact?.ficha ?? {});
-      setCurrentStageId(detail.stage?.id ?? null);
-      setLeadId(detail.lead?.id ?? null);
-      // La imagen del creativo se copia después de que entra el mensaje: este
-      // refetch en vivo es lo que la hace aparecer sin recargar.
-      setAnuncio(detail.anuncio ?? null);
+    const res = await fetchJson<ContactDetail>(`/api/contacts/${contactId}`);
+    if (!res.ok) {
+      setError(`No se pudo actualizar el contacto: ${res.error}`);
+      return;
     }
+    const detail = res.data;
+    // La ficha SÍ se refresca en vivo: el agente la va llenando mientras la
+    // conversación ocurre, y verla aparecer sola es justo para lo que sirve.
+    // No pisa una edición a medias — el borrador vive dentro del panel.
+    setFicha(detail.contact?.ficha ?? {});
+    setCurrentStageId(detail.stage?.id ?? null);
+    setLeadId(detail.lead?.id ?? null);
+    // La imagen del creativo se copia después de que entra el mensaje: este
+    // refetch en vivo es lo que la hace aparecer sin recargar.
+    setAnuncio(detail.anuncio ?? null);
   }, [contactId, loadBrain]);
 
   useEffect(() => {
@@ -141,14 +165,41 @@ export function ContactPanel({
     void refreshLive();
   }, [refreshKey, notesLoaded, refreshLive]);
 
-  async function moveToStage(stageId: string) {
+  /** Punto de entrada del stepper: a una etapa perdida primero se pide el motivo. */
+  function requestMove(stage: StageDto) {
+    if (!leadId || stage.id === currentStageId) return;
+    if (stage.kind === "lost") {
+      setPendingLoss(stage);
+      return;
+    }
+    void moveToStage(stage.id);
+  }
+
+  async function moveToStage(stageId: string, loss?: { reason: LossReason; note: string }) {
     if (!leadId || stageId === currentStageId) return;
-    setCurrentStageId(stageId); // optimista
-    await fetch(`/api/pipeline/leads/${leadId}`, {
-      method: "PATCH",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ stageId, position: 0 }),
-    }).catch(() => null);
+    const previous = currentStageId;
+    setCurrentStageId(stageId); // optimista; se revierte si falla
+    setError(null);
+    const res = await fetchJson(
+      `/api/pipeline/leads/${leadId}`,
+      jsonInit("PATCH", {
+        stageId,
+        position: 0,
+        ...(loss ? { lossReason: loss.reason, ...(loss.note ? { lossNote: loss.note } : {}) } : {}),
+      })
+    );
+    if (!res.ok) {
+      setCurrentStageId(previous);
+      if (res.code === "loss_reason_required") {
+        // La etapa es de pérdida aunque el catálogo local no lo supiera
+        // (p. ej. cambió de tipo): se pide el motivo en vez de fallar.
+        const stage = stages.find((s) => s.id === stageId);
+        if (stage) setPendingLoss({ ...stage, kind: "lost" });
+        return;
+      }
+      setError(`No se movió la etapa: ${res.error}`);
+      return;
+    }
     void refreshLive();
   }
 
@@ -162,22 +213,22 @@ export function ContactPanel({
       }
       return next; // optimista: el refetch de abajo confirma
     });
-    await fetch(`/api/contacts/${contactId}`, {
-      method: "PATCH",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ ficha: patch }),
-    }).catch(() => null);
+    const res = await fetchJson(`/api/contacts/${contactId}`, jsonInit("PATCH", { ficha: patch }));
+    if (!res.ok) setError(`No se guardó la ficha: ${res.error}`);
+    // Con o sin error, la verdad del servidor reemplaza al optimista.
     void refreshLive();
   }
 
   async function saveNotes() {
     setSavingNotes(true);
-    await fetch(`/api/contacts/${contactId}`, {
-      method: "PATCH",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ notes }),
-    }).catch(() => null);
+    setNotesSaved(false);
+    const res = await fetchJson(`/api/contacts/${contactId}`, jsonInit("PATCH", { notes }));
     setSavingNotes(false);
+    if (!res.ok) {
+      setError(`No se guardaron las notas: ${res.error}`);
+      return;
+    }
+    setNotesSaved(true);
   }
 
   const currentIndex = stages.findIndex((s) => s.id === currentStageId);
@@ -198,6 +249,22 @@ export function ContactPanel({
       </header>
 
       <div className="flex-1 overflow-y-auto">
+        {error && (
+          <div
+            role="alert"
+            className="m-3 flex items-start gap-2 rounded-md border border-danger-soft bg-danger-tint p-2.5 text-xs text-danger-text"
+          >
+            <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" strokeWidth={1.7} />
+            <p className="flex-1">{error}</p>
+            <button
+              onClick={() => setError(null)}
+              aria-label="Cerrar aviso"
+              className="font-medium underline underline-offset-2"
+            >
+              Cerrar
+            </button>
+          </div>
+        )}
         {/* Contacto */}
         <section className="border-b p-4">
           <div className="flex items-center gap-3">
@@ -327,6 +394,12 @@ export function ContactPanel({
             )}
           </div>
 
+          {brainError && (
+            <p role="alert" className="mt-2 text-[11px] text-danger-text">
+              {brainError}
+            </p>
+          )}
+
           {anuncio && (
             <div className="mt-3">
               <AnuncioOrigen anuncio={anuncio} />
@@ -336,6 +409,9 @@ export function ContactPanel({
 
         {/* 020: quién atiende, reasignar y el historial. */}
         <AssignmentCard contactId={contactId} refreshKey={refreshKey} />
+
+        {/* 021: etiquetas y consentimiento para mensajes masivos. */}
+        <ContactTagsCard contactId={contactId} />
 
         {/* Stepper de etapa */}
         {stages.length > 0 && leadId && (
@@ -356,7 +432,7 @@ export function ContactPanel({
                       />
                     )}
                     <button
-                      onClick={() => void moveToStage(s.id)}
+                      onClick={() => requestMove(s)}
                       aria-label={`Mover a ${s.name}`}
                       className={cn(
                         "relative z-10 mt-0.5 flex h-[15px] w-[15px] shrink-0 items-center justify-center rounded-full transition-colors",
@@ -368,7 +444,7 @@ export function ContactPanel({
                       {done && <Check className="h-2.5 w-2.5" strokeWidth={3} />}
                     </button>
                     <button
-                      onClick={() => void moveToStage(s.id)}
+                      onClick={() => requestMove(s)}
                       className={cn(
                         "text-left text-[13px]",
                         current ? "font-[650] text-brand-text" : "text-text-2 hover:text-foreground"
@@ -395,7 +471,10 @@ export function ContactPanel({
             placeholder="Notas internas sobre este contacto…"
             value={notes}
             disabled={!notesLoaded}
-            onChange={(e) => setNotes(e.target.value)}
+            onChange={(e) => {
+              setNotes(e.target.value);
+              setNotesSaved(false);
+            }}
           />
           <Button
             size="sm"
@@ -406,8 +485,29 @@ export function ContactPanel({
           >
             {savingNotes ? "Guardando…" : "Guardar notas"}
           </Button>
+          {notesSaved && <span className="ml-2 text-xs text-success-text">Guardadas</span>}
         </section>
       </div>
+
+      {pendingLoss && (
+        <LossReasonDialog
+          leadName={conversation.contact.name}
+          onCancel={() => setPendingLoss(null)}
+          onConfirm={(reason, note) => {
+            const stageId = pendingLoss.id;
+            setPendingLoss(null);
+            void moveToStage(stageId, { reason, note });
+          }}
+        />
+      )}
     </div>
   );
 }
+
+/** Lo que responde `GET /api/contacts/[id]` y usa este panel. */
+type ContactDetail = {
+  contact: ContactDto | null;
+  stage: { id: string } | null;
+  lead: { id: string } | null;
+  anuncio: AnuncioDto | null;
+};
