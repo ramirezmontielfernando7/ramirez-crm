@@ -24,6 +24,7 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { FichaPanel } from "@/components/ficha-panel";
 import { AssignmentCard } from "@/components/assignment/assignment-card";
+import { ContactTagsCard } from "@/components/tags/contact-tags-card";
 import { useViewer } from "@/components/viewer-context";
 
 const HANDOFF_LABELS: Record<string, string> = {
@@ -336,6 +337,9 @@ export function ContactPanel({
 
         {/* 020: quién atiende, reasignar y el historial. */}
         <AssignmentCard contactId={contactId} refreshKey={refreshKey} />
+
+        {/* 021: etiquetas y consentimiento para mensajes masivos. */}
+        <ContactTagsCard contactId={contactId} />
 
         {/* Stepper de etapa */}
         {stages.length > 0 && leadId && (

@@ -3,13 +3,16 @@ import { getDb, schema } from "@/lib/db";
 import { scopedContacts, type Access } from "@/lib/db/tenant";
 import { effectiveSource } from "@/server/contact-source";
 import type { FichaDto, PriorityValue } from "@/lib/types";
+import type { TagDto } from "@/lib/tags";
 
 export function serializeContact(
   c: typeof schema.contact.$inferSelect,
   stageName: string | null = null,
   priority: PriorityValue | null = null,
   /** 018: si llegó por un anuncio, la fuente no capturada se deduce "anuncio". */
-  llegoPorAnuncio = false
+  llegoPorAnuncio = false,
+  /** 021: sus etiquetas; ausentes = quien llama no las cargó. */
+  tags?: TagDto[]
 ) {
   return {
     id: c.id,
@@ -26,6 +29,11 @@ export function serializeContact(
     // Viaja siempre, aunque esté vacía: la pantalla necesita distinguir "aún
     // no la han llenado" de "este contacto no la trae".
     ficha: (c.ficha as FichaDto | null) ?? {},
+    // 021: consentimiento para envíos masivos.
+    waConsent: c.waConsent,
+    waConsentSource: c.waConsentSource,
+    waConsentAt: c.waConsentAt?.toISOString() ?? null,
+    ...(tags ? { tags } : {}),
   };
 }
 

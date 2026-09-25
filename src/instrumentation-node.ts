@@ -60,3 +60,21 @@ export async function cleanupOrphanRuns(): Promise<void> {
     console.error("[boot] limpieza de corridas huérfanas falló:", err);
   }
 }
+
+/**
+ * 021 — Campañas que quedaron enviando cuando se reinició el servidor: siguen
+ * con sus pendientes (a los ya enviados no se les vuelve a mandar). Si la
+ * bandera está apagada no se reanuda nada: no se envía por una superficie que
+ * no existe.
+ */
+export async function resumeSendingCampaigns(): Promise<void> {
+  try {
+    const { campaignsEnabled } = await import("@/server/campaigns/flag");
+    if (!campaignsEnabled()) return;
+    const { resumeCampaigns } = await import("@/server/campaigns/runner");
+    const n = await resumeCampaigns();
+    if (n > 0) console.log(`[boot] ${n} campaña(s) reanudada(s)`);
+  } catch (err) {
+    console.error("[boot] no se pudieron reanudar las campañas:", err);
+  }
+}

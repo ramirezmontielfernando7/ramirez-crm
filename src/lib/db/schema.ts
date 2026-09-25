@@ -5,6 +5,7 @@ import {
   integer,
   jsonb,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   uniqueIndex,
@@ -212,6 +213,24 @@ export const contact = pgTable(
     }),
     archivedAt: timestamp("archived_at"),
     /**
+     * 021: ¿aceptó este contacto recibir mensajes masivos por WhatsApp?
+     *
+     * `desconocido` es el default de TODO contacto (existente, del webhook o
+     * importado) porque nadie ha verificado nada. Las campañas solo pueden
+     * apuntar a `opt_in` — regla dura en el servidor, no un aviso visual
+     * (ver `src/server/campaigns/audience.ts`). Un `opt_out` es pegajoso:
+     * ninguna importación lo revierte, solo una persona a mano.
+     */
+    waConsent: text("wa_consent", {
+      enum: ["opt_in", "opt_out", "desconocido"],
+    })
+      .notNull()
+      .default("desconocido"),
+    /** 021: de dónde salió ese consentimiento ("formulario web", "importado…"). */
+    waConsentSource: text("wa_consent_source"),
+    /** 021: cuándo cambió por última vez (auditoría). NULL = nunca se tocó. */
+    waConsentAt: timestamp("wa_consent_at"),
+    /**
      * 020: quién del equipo atiende a este contacto (su lead, su conversación
      * y sus citas). NULL = sin asignar, que es como nace todo lead.
      *
@@ -237,6 +256,56 @@ export const contact = pgTable(
     ),
     index("contact_org_wa_user_id_idx").on(t.organizationId, t.waUserId),
     index("contact_org_name_idx").on(t.organizationId, t.name),
+    index("contact_org_consent_idx").on(t.organizationId, t.waConsent),
+  ]
+);
+
+/* ============================================================
+ * 021 — Etiquetas de contacto
+ * ============================================================ */
+
+/**
+ * Etiqueta del negocio ("VIP", "Import: clientes-marzo.csv"…). El nombre es
+ * único por organización: importar dos veces el mismo archivo reusa la misma
+ * etiqueta en vez de duplicarla.
+ */
+export const contactTag = pgTable(
+  "contact_tag",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    /** Color de la paleta de la UI (`TAG_COLORS` de lib/tags.ts). NULL = neutro. */
+    color: text("color"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("contact_tag_org_name_uq").on(t.organizationId, t.name)]
+);
+
+/**
+ * Qué contacto lleva qué etiqueta. Cascada en los DOS lados: borrar una
+ * etiqueta borra sus asignaciones (nunca los contactos) y borrar un contacto
+ * se lleva sus etiquetas.
+ */
+export const contactTagAssignment = pgTable(
+  "contact_tag_assignment",
+  {
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    contactId: text("contact_id")
+      .notNull()
+      .references(() => contact.id, { onDelete: "cascade" }),
+    tagId: text("tag_id")
+      .notNull()
+      .references(() => contactTag.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.contactId, t.tagId] }),
+    index("contact_tag_assignment_org_tag_idx").on(t.organizationId, t.tagId),
   ]
 );
 
@@ -1169,4 +1238,96 @@ export const capiSettings = pgTable(
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },
   (t) => [uniqueIndex("capi_settings_org_uq").on(t.organizationId)]
+);
+
+/* ============================================================
+ * 021 — Campañas: envío masivo de una plantilla aprobada
+ * ============================================================ */
+
+/**
+ * Una campaña = UNA plantilla aprobada enviada a un público (siempre
+ * `opt_in`). `audience` y `variables` guardan lo que se eligió, para poder
+ * reconstruir exactamente qué se mandó aunque después cambien las etiquetas.
+ */
+export const campaign = pgTable(
+  "campaign",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    // restrict: una plantilla con campañas no se borra en silencio y deja un
+    // registro de auditoría que ya no dice qué se mandó.
+    templateId: text("template_id")
+      .notNull()
+      .references(() => template.id, { onDelete: "restrict" }),
+    name: text("name").notNull(),
+    /**
+     * Valor de {{1}}, {{2}}…: un texto fijo para todos, o el nombre de cada
+     * destinatario (ver `CampaignVariable` en lib/campaigns.ts).
+     */
+    variables: jsonb("variables")
+      .$type<({ kind: "fixed"; value: string } | { kind: "contact_name" })[]>()
+      .notNull()
+      .default([]),
+    /** El filtro de público tal como se eligió (etiquetas, fuente). */
+    audience: jsonb("audience").$type<Record<string, unknown>>().notNull().default({}),
+    createdBy: text("created_by").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    status: text("status", {
+      enum: ["draft", "sending", "completed", "failed"],
+    })
+      .notNull()
+      .default("draft"),
+    total: integer("total").notNull().default(0),
+    /** Por qué se detuvo, si `failed` (p. ej. token vencido). */
+    error: text("error"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    startedAt: timestamp("started_at"),
+    finishedAt: timestamp("finished_at"),
+  },
+  (t) => [
+    index("campaign_org_created_idx").on(t.organizationId, t.createdAt),
+    index("campaign_status_idx").on(t.status),
+  ]
+);
+
+/**
+ * El log de auditoría de la campaña: a quién, cuándo y con qué resultado.
+ * El teléfono y el nombre se copian al crear la fila para que el registro
+ * sobreviva al borrado del contacto.
+ */
+export const campaignRecipient = pgTable(
+  "campaign_recipient",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    campaignId: text("campaign_id")
+      .notNull()
+      .references(() => campaign.id, { onDelete: "cascade" }),
+    contactId: text("contact_id").references(() => contact.id, {
+      onDelete: "set null",
+    }),
+    contactName: text("contact_name").notNull(),
+    phone: text("phone"),
+    status: text("status", { enum: ["pending", "sent", "failed"] })
+      .notNull()
+      .default("pending"),
+    /** `message.id` del CRM (no el wamid): enlaza con el chat. */
+    messageId: text("message_id"),
+    errorMessage: text("error_message"),
+    sentAt: timestamp("sent_at"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    // Idempotencia: reanudar tras un reinicio nunca manda dos veces a nadie.
+    uniqueIndex("campaign_recipient_campaign_contact_uq").on(
+      t.campaignId,
+      t.contactId
+    ),
+    index("campaign_recipient_campaign_status_idx").on(t.campaignId, t.status),
+  ]
 );

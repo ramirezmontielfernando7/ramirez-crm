@@ -6,12 +6,16 @@ import { useRouter } from "next/navigation";
 import {
   Archive,
   ArchiveRestore,
+  Download,
   MessageSquareText,
   Search,
   Send,
+  Upload,
   UserPlus,
 } from "lucide-react";
 import type { ContactDto } from "@/lib/types";
+import { fetchJson, jsonInit } from "@/lib/fetch-json";
+import { WA_CONSENT_LABEL, WA_CONSENT_VALUES, type TagDto, type WaConsent } from "@/lib/tags";
 import { formatPhone } from "@/lib/utils";
 import { ContactAvatar } from "@/components/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -21,6 +25,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { SOURCE_LABELS } from "@/server/contact-source";
 import { priorityRank } from "@/server/leads/priority";
 import { PriorityBadge } from "@/components/pipeline/priority-picker";
+import { useViewer } from "@/components/viewer-context";
+import { TagChip } from "@/components/tags/tag-chip";
+import { ContactTagsCard } from "@/components/tags/contact-tags-card";
+import { ImportDialog } from "./import-dialog";
 import { NewContactDialog } from "./new-contact-dialog";
 import { StartConversation } from "./start-conversation";
 
@@ -34,6 +42,14 @@ export function ContactsClient() {
   const [editing, setEditing] = useState<ContactDto | null>(null);
   const [creando, setCreando] = useState(false);
   const [escribiendo, setEscribiendo] = useState<ContactDto | null>(null);
+  // 021: filtros por etiqueta, fuente y consentimiento (los mismos del CSV).
+  const [tagFilter, setTagFilter] = useState("all");
+  const [sourceFilter, setSourceFilter] = useState("all");
+  const [consentFilter, setConsentFilter] = useState<"all" | WaConsent>("all");
+  const [allTags, setAllTags] = useState<TagDto[]>([]);
+  const [importando, setImportando] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const viewer = useViewer();
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Mismo rescate que en la Bandeja: lo tecleado antes de que hidrate el JS
@@ -52,14 +68,36 @@ export function ContactsClient() {
     })();
   }, []);
 
-  const refetch = useCallback(async () => {
+  const loadTags = useCallback(async () => {
+    const res = await fetchJson<{ tags: TagDto[] }>("/api/contact-tags");
+    if (res.ok) setAllTags(res.data.tags);
+    else setError(`No se pudieron cargar las etiquetas: ${res.error}`);
+  }, []);
+
+  useEffect(() => {
+    void loadTags();
+  }, [loadTags]);
+
+  /** Los filtros activos como query string: la lista y el CSV usan los mismos. */
+  const filterParams = useCallback(() => {
     const params = new URLSearchParams();
     if (query.trim()) params.set("q", query.trim());
     if (stage !== "all") params.set("stage", stage);
     if (showArchived) params.set("archived", "true");
-    const res = await fetch(`/api/contacts?${params}`).catch(() => null);
-    if (!res?.ok) return;
-    const data = (await res.json()) as { contacts: ContactDto[] };
+    if (tagFilter !== "all") params.set("tag", tagFilter);
+    if (sourceFilter !== "all") params.set("source", sourceFilter);
+    if (consentFilter !== "all") params.set("consent", consentFilter);
+    return params;
+  }, [query, stage, showArchived, tagFilter, sourceFilter, consentFilter]);
+
+  const refetch = useCallback(async () => {
+    const res = await fetchJson<{ contacts: ContactDto[] }>(`/api/contacts?${filterParams()}`);
+    if (!res.ok) {
+      setError(`No se pudo cargar la lista: ${res.error}`);
+      return;
+    }
+    setError(null);
+    const data = res.data;
     // A quién llamar primero: alta arriba, sin prioridad al final. El orden lo
     // decide esta lista, no el servidor, porque es una preferencia de trabajo y
     // no un dato del contacto.
@@ -68,21 +106,25 @@ export function ContactsClient() {
         (a, b) => priorityRank(a.priority ?? null) - priorityRank(b.priority ?? null)
       )
     );
-  }, [query, stage, showArchived]);
+  }, [filterParams]);
 
   useEffect(() => {
     const t = setTimeout(() => void refetch(), 250);
     return () => clearTimeout(t);
   }, [refetch]);
 
-  async function patch(id: string, body: Record<string, unknown>) {
-    await fetch(`/api/contacts/${id}`, {
-      method: "PATCH",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(body),
-    }).catch(() => null);
+  async function patch(id: string, body: Record<string, unknown>): Promise<boolean> {
+    const res = await fetchJson(`/api/contacts/${id}`, jsonInit("PATCH", body));
+    if (!res.ok) {
+      setError(`No se guardó el cambio: ${res.error}`);
+      return false;
+    }
     void refetch();
+    return true;
   }
+
+  const filtering =
+    !!query.trim() || stage !== "all" || tagFilter !== "all" || sourceFilter !== "all" || consentFilter !== "all";
 
   return (
     <div className="flex h-full flex-col">
@@ -93,6 +135,22 @@ export function ContactsClient() {
             <UserPlus className="mr-1.5 h-4 w-4" strokeWidth={1.8} />
             Nuevo contacto
           </Button>
+          {viewer.can("contacts.import") && (
+            <Button size="sm" variant="outline" onClick={() => setImportando(true)}>
+              <Upload className="mr-1.5 h-4 w-4" strokeWidth={1.8} />
+              Importar
+            </Button>
+          )}
+          {viewer.can("contacts.export") && (
+            // Descarga directa: el navegador guarda el CSV que arma el
+            // servidor con los MISMOS filtros que se ven en la lista.
+            <a href={`/api/contacts/export?${filterParams()}`} download>
+              <Button size="sm" variant="outline" type="button">
+                <Download className="mr-1.5 h-4 w-4" strokeWidth={1.8} />
+                Exportar{filtering ? " filtrados" : ""}
+              </Button>
+            </a>
+          )}
         </div>
         <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:gap-3">
           <label className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -119,6 +177,47 @@ export function ContactsClient() {
               ))}
             </select>
           )}
+          {allTags.length > 0 && (
+            <select
+              value={tagFilter}
+              onChange={(e) => setTagFilter(e.target.value)}
+              aria-label="Filtrar por etiqueta"
+              className="h-9 max-w-[12rem] rounded-md border border-input bg-card px-2 text-sm"
+            >
+              <option value="all">Toda etiqueta</option>
+              {allTags.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}
+                </option>
+              ))}
+            </select>
+          )}
+          <select
+            value={sourceFilter}
+            onChange={(e) => setSourceFilter(e.target.value)}
+            aria-label="Filtrar por fuente"
+            className="h-9 rounded-md border border-input bg-card px-2 text-sm"
+          >
+            <option value="all">Toda fuente</option>
+            {(["anuncio", "organico", "referido", "conocido", "otro", "desconocida"] as const).map((s) => (
+              <option key={s} value={s}>
+                {SOURCE_LABELS[s]}
+              </option>
+            ))}
+          </select>
+          <select
+            value={consentFilter}
+            onChange={(e) => setConsentFilter(e.target.value as "all" | WaConsent)}
+            aria-label="Filtrar por consentimiento"
+            className="h-9 rounded-md border border-input bg-card px-2 text-sm"
+          >
+            <option value="all">Todo consentimiento</option>
+            {WA_CONSENT_VALUES.map((v) => (
+              <option key={v} value={v}>
+                {WA_CONSENT_LABEL[v]}
+              </option>
+            ))}
+          </select>
           <div className="relative w-full sm:w-auto">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
@@ -134,16 +233,25 @@ export function ContactsClient() {
       </header>
 
       <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+        {error && (
+          <p role="alert" className="mb-3 rounded-md border border-danger-soft bg-danger-tint px-3 py-2 text-sm text-danger-text">
+            {error}
+          </p>
+        )}
         {contacts.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center gap-2 text-center">
-            {query.trim() || stage !== "all" ? (
+            {filtering ? (
               <>
                 <p className="text-sm font-medium">Sin resultados</p>
                 <p className="max-w-sm text-xs text-muted-foreground">
                   Nadie coincide con
                   {query.trim() ? ` «${query.trim()}»` : ""}
                   {query.trim() && stage !== "all" ? " en" : ""}
-                  {stage !== "all" ? ` la etapa «${stage}»` : ""}.
+                  {stage !== "all" ? ` la etapa «${stage}»` : ""}
+                  {tagFilter !== "all" || sourceFilter !== "all" || consentFilter !== "all"
+                    ? " con los filtros elegidos"
+                    : ""}
+                  .
                 </p>
               </>
             ) : (
@@ -186,6 +294,11 @@ export function ContactsClient() {
                         {SOURCE_LABELS[c.source.value]}
                       </Badge>
                     )}
+                    {c.waConsent === "opt_in" && <Badge variant="success">Acepta mensajes</Badge>}
+                    {c.waConsent === "opt_out" && <Badge variant="destructive">No quiere mensajes</Badge>}
+                    {(c.tags ?? []).map((t) => (
+                      <TagChip key={t.id} tag={t} />
+                    ))}
                   </div>
                   <p className="text-xs text-muted-foreground">
                     {formatPhone(c.phone)}
@@ -240,8 +353,21 @@ export function ContactsClient() {
           contact={editing}
           onClose={() => setEditing(null)}
           onSave={async (patchBody) => {
-            await patch(editing.id, patchBody);
-            setEditing(null);
+            if (await patch(editing.id, patchBody)) setEditing(null);
+          }}
+          onTagsChanged={() => {
+            void refetch();
+            void loadTags();
+          }}
+        />
+      )}
+
+      {importando && (
+        <ImportDialog
+          onClose={() => setImportando(false)}
+          onImported={() => {
+            void refetch();
+            void loadTags();
           }}
         />
       )}
@@ -297,10 +423,13 @@ function EditDialog({
   contact,
   onClose,
   onSave,
+  onTagsChanged,
 }: {
   contact: ContactDto;
   onClose: () => void;
   onSave: (patch: { name: string; notes: string }) => Promise<void>;
+  /** 021: etiquetas y consentimiento se guardan al momento, aparte. */
+  onTagsChanged: () => void;
 }) {
   const [name, setName] = useState(contact.name);
   const [notes, setNotes] = useState(contact.notes ?? "");
@@ -336,6 +465,9 @@ function EditDialog({
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
             />
+          </div>
+          <div className="border-t pt-3">
+            <ContactTagsCard contactId={contact.id} bare onChanged={onTagsChanged} />
           </div>
         </div>
         <div className="mt-4 flex justify-end gap-2">

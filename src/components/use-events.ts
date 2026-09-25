@@ -26,6 +26,12 @@ export type EventHandlers = {
     toUserId: string | null;
     fromUserIds: string[];
   }) => void;
+  /** 021 — Avance de una campaña de envío masivo. */
+  onCampaignProgress?: (data: {
+    campaignId: string;
+    status: string;
+    counts: { pending: number; sent: number; failed: number };
+  }) => void;
   /** Se llama tras RECONECTAR (no en la conexión inicial): catch-up con refetch. */
   onReconnect?: () => void;
 };
@@ -66,6 +72,9 @@ export function useEvents(handlers: EventHandlers): void {
     );
     listen("assignment.changed", (d) =>
       handlersRef.current.onAssignmentChanged?.(d as never)
+    );
+    listen("campaign.progress", (d) =>
+      handlersRef.current.onCampaignProgress?.(d as never)
     );
 
     source.onerror = () => {

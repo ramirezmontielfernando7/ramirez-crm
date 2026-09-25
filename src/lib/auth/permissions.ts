@@ -30,8 +30,12 @@ const statements = {
   agent: ["manage"],
   /** Cuentas del equipo y sus roles. */
   users: ["manage", "read"],
-  /** Exportar contactos. */
-  contacts: ["export"],
+  /** Exportar contactos (la base entera: solo el Propietario) e importarlos (021). */
+  contacts: ["export", "import"],
+  /** 021 — Crear, renombrar y borrar etiquetas de contacto. */
+  tags: ["manage"],
+  /** 021 — Crear y lanzar campañas de envío masivo por plantilla. */
+  campaigns: ["manage"],
   /** Asignar y reasignar chats/leads, uno a uno o en lote. */
   assignment: ["manage"],
   /** Ver TODOS los chats, leads y citas, no solo los asignados. */
@@ -49,7 +53,9 @@ const owner = ac.newRole({
   settings: ["manage"],
   agent: ["manage"],
   users: ["manage", "read"],
-  contacts: ["export"],
+  contacts: ["export", "import"],
+  tags: ["manage"],
+  campaigns: ["manage"],
   assignment: ["manage"],
   scope: ["all"],
   results: ["all"],
@@ -60,6 +66,11 @@ const coordinador = ac.newRole({
   pipeline: ["edit"],
   templates: ["manage"],
   users: ["read"],
+  // 021: importa bases y lanza campañas (operación), pero no EXPORTA la base
+  // entera: eso sigue siendo solo del Propietario.
+  contacts: ["import"],
+  tags: ["manage"],
+  campaigns: ["manage"],
   assignment: ["manage"],
   scope: ["all"],
   results: ["all"],
@@ -91,6 +102,9 @@ export type Permission =
   | "users.manage"
   | "users.read"
   | "contacts.export"
+  | "contacts.import"
+  | "tags.manage"
+  | "campaigns.manage"
   | "assignment.manage"
   | "scope.all"
   | "results.all";

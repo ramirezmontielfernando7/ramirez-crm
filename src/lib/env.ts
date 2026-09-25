@@ -38,6 +38,11 @@ const envSchema = z.object({
   // conversacion, no se le reporta nada a Meta y la superficie da 404.
   // Ej.: ATRIBUCION=on
   ATRIBUCION: z.string().optional(),
+  // 021: campanas de envio masivo por plantilla. Apagadas por defecto: sin
+  // ellas la pantalla y las rutas de Campanas responden 404. Ej.: CAMPAIGNS=on
+  CAMPAIGNS: z.string().optional(),
+  // 021: mensajes por segundo del envio masivo (default 10, max 80).
+  CAMPAIGN_SEND_RATE: z.string().optional(),
   // 015: bases de los conectores. Solo se sobreescriben para apuntar a los
   // mocks en el self-test; en producción se usan las reales.
   ZOOM_BASE_URL: z.string().url().default("https://api.zoom.us/v2"),

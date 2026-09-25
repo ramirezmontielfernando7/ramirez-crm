@@ -49,11 +49,18 @@ export class SendError extends Error {
     | "upload_failed";
   /** 008: presente cuando el fallo ocurrió TRAS persistir el mensaje (failed). */
   messageId?: string;
+  /**
+   * 021: código de error de Meta (p. ej. 130429 = límite de envío), cuando el
+   * fallo vino de Graph. Las campañas lo usan para pausar en vez de marcar
+   * como fallido a un destinatario que solo tocó un límite de ritmo.
+   */
+  metaCode?: number | null;
 
-  constructor(code: SendError["code"], message: string) {
+  constructor(code: SendError["code"], message: string, metaCode?: number | null) {
     super(message);
     this.name = "SendError";
     this.code = code;
+    this.metaCode = metaCode ?? null;
   }
 }
 
@@ -542,9 +549,9 @@ export async function callGraphSend(
         );
       }
       if (err.status === 0 || err.status >= 500) {
-        throw new SendError("meta_unavailable", "Meta no está disponible ahora");
+        throw new SendError("meta_unavailable", "Meta no está disponible ahora", err.code);
       }
-      throw new SendError("meta_error", err.message);
+      throw new SendError("meta_error", err.message, err.code);
     }
     throw err;
   }

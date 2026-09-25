@@ -1,6 +1,7 @@
 /** DTOs que viajan por la API interna (lado cliente). */
 
 import type { Channel } from "@/lib/channels";
+import type { TagDto, WaConsent } from "@/lib/tags";
 
 export type ConversationDto = {
   id: string;
@@ -125,6 +126,12 @@ export type ContactDto = {
   priority?: PriorityValue | null;
   /** Lo que se sabe del lead. `{}` mientras nadie haya calificado. */
   ficha?: FichaDto;
+  /** 021 — consentimiento para mensajes masivos (solo `opt_in` entra a campañas). */
+  waConsent?: WaConsent;
+  waConsentSource?: string | null;
+  waConsentAt?: string | null;
+  /** 021 — etiquetas del contacto. */
+  tags?: TagDto[];
 };
 
 /* ============================================================

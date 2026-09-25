@@ -96,6 +96,19 @@ const PROTEGIDAS: [string, Method, Permission][] = [
   // Asignación.
   ["assignments", "POST", "assignment.manage"],
   ["assignments/bulk", "POST", "assignment.manage"],
+  // 021 — Etiquetas, importar/exportar y campañas.
+  ["contact-tags", "POST", "tags.manage"],
+  ["contact-tags/[id]", "PATCH", "tags.manage"],
+  ["contact-tags/[id]", "DELETE", "tags.manage"],
+  ["contacts/import", "POST", "contacts.import"],
+  ["contacts/export", "GET", "contacts.export"],
+  ["campaigns", "GET", "campaigns.manage"],
+  ["campaigns", "POST", "campaigns.manage"],
+  ["campaigns/preview", "POST", "campaigns.manage"],
+  ["campaigns/[id]", "GET", "campaigns.manage"],
+  ["campaigns/[id]", "DELETE", "campaigns.manage"],
+  ["campaigns/[id]/send", "POST", "campaigns.manage"],
+  ["campaigns/[id]/recipients", "GET", "campaigns.manage"],
 ];
 
 /**
@@ -115,6 +128,8 @@ const FILTRADAS: [string, Method][] = [
   ["contacts/[id]", "PATCH"],
   ["contacts/[id]/start-conversation", "POST"],
   ["contacts/[id]/assignments", "GET"],
+  // 021: etiquetar a un contacto = poder verlo (getContactById con scopedContacts).
+  ["contacts/[id]/tags", "PUT"],
   ["pipeline/board", "GET"],
   ["pipeline/leads/[id]", "PATCH"],
   ["bookings", "GET"],
@@ -134,6 +149,8 @@ const DEL_NEGOCIO: [string, Method][] = [
   ["agent/brain-status", "GET"],
   ["pipeline/stages", "GET"],
   ["templates", "GET"],
+  // 021: la lista de etiquetas es del negocio (filtrar y etiquetar).
+  ["contact-tags", "GET"],
   ["calendar/availability", "GET"],
   ["settings/branding", "GET"],
 ];
@@ -186,7 +203,7 @@ describe("020 — un ASESOR recibe 403 en cada ruta protegida", () => {
 
 describe("020 — un COORDINADOR recibe 403 en lo que es solo del Propietario", () => {
   const soloOwner = PROTEGIDAS.filter(([, , p]) =>
-    ["settings.manage", "agent.manage", "users.manage"].includes(p)
+    ["settings.manage", "agent.manage", "users.manage", "contacts.export"].includes(p)
   );
   it.each(soloOwner)("%s %s → 403", async (route, method) => {
     como("coordinador");
