@@ -89,14 +89,35 @@ const CURSOR_SCRIPT = `
     arrow.innerHTML = '<svg width="22" height="22" viewBox="0 0 22 22"><path d="M3 2 L3 18 L7.6 13.8 L10.6 20.4 L13.4 19.2 L10.4 12.6 L16.6 12.6 Z" fill="#111" stroke="#fff" stroke-width="1.4" stroke-linejoin="round"/></svg>';
     document.documentElement.appendChild(halo);
     document.documentElement.appendChild(arrow);
-    const pos = window.__recPos || { x: -100, y: -100 };
+    let saved = null;
+    try { saved = JSON.parse(sessionStorage.getItem('__recPos') || 'null'); } catch {}
+    const pos = window.__recPos || saved || { x: -100, y: -100 };
     const place = (x, y) => {
       window.__recPos = { x, y };
       halo.style.transform = 'translate(' + x + 'px,' + y + 'px)';
       arrow.style.transform = 'translate(' + (x - 3) + 'px,' + (y - 2) + 'px)';
     };
     place(pos.x, pos.y);
-    addEventListener('mousemove', (e) => place(e.clientX, e.clientY), true);
+    // Deslizamiento del cursor a 60 Hz (requestAnimationFrame): el evento real
+    // del mouse llega solo al final, así el trazo no depende de CDP (~30 Hz).
+    window.__recGlide = (fx, fy, x, y, ms) => new Promise((res) => {
+      window.__recGliding = true;
+      const t0 = performance.now();
+      const ez = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+      const step = (now) => {
+        const t = Math.min(1, (now - t0) / ms);
+        const e = ez(t);
+        place(fx + (x - fx) * e, fy + (y - fy) * e);
+        if (t < 1) requestAnimationFrame(step);
+        else {
+          window.__recGliding = false;
+          try { sessionStorage.setItem('__recPos', JSON.stringify({ x, y })); } catch {}
+          res();
+        }
+      };
+      requestAnimationFrame(step);
+    });
+    addEventListener('mousemove', (e) => { if (!window.__recGliding) place(e.clientX, e.clientY); }, true);
     addEventListener('mousedown', () => { halo.style.background = 'rgba(18,153,157,.38)'; halo.style.transform += ' scale(.8)'; }, true);
     addEventListener('mouseup', () => { halo.style.background = 'rgba(18,153,157,.16)'; const p = window.__recPos; place(p.x, p.y); }, true);
   };
@@ -197,19 +218,78 @@ export async function apiClient(who, ip) {
 
 /* ---------------- Movimiento y espera ---------------- */
 const posOf = new WeakMap();
-const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+
+/** Auditoría de quietud: registra cada tramo > 2.5 s sin cursor ni teclado. */
+export const audit = { on: false, last: 0, gaps: [], t0: 0 };
+export function markActive(label) {
+  const now = Date.now();
+  if (audit.on && audit.last && now - audit.last > 2500) {
+    audit.gaps.push({ at: +((audit.last - audit.t0) / 1000).toFixed(1), seconds: +((now - audit.last) / 1000).toFixed(1), before: label });
+  }
+  audit.last = now;
+}
 
 export async function moveTo(page, x, y, ms) {
   const from = posOf.get(page) ?? { x: 960, y: 620 };
   const dist = Math.hypot(x - from.x, y - from.y);
-  const dur = ms ?? Math.min(1100, Math.max(380, dist * 0.9));
-  const steps = Math.max(8, Math.round(dur / 16));
-  for (let i = 1; i <= steps; i++) {
-    const t = ease(i / steps);
-    await page.mouse.move(from.x + (x - from.x) * t, from.y + (y - from.y) * t);
-    await sleep(dur / steps);
-  }
+  const dur = Math.round(ms ?? Math.min(950, Math.max(320, 240 + dist * 0.55)));
+  markActive("mover");
+  const glided = await page
+    .evaluate(([fx, fy, tx, ty, d]) => (window.__recGlide ? window.__recGlide(fx, fy, tx, ty, d).then(() => true) : false), [from.x, from.y, x, y, dur])
+    .catch(() => false);
+  if (!glided) await sleep(dur);
+  await page.mouse.move(x, y); // el evento real (hover) en el destino
   posOf.set(page, { x, y });
+  markActive("mover");
+}
+
+/**
+ * Espera con el cursor vivo: en vez de quedarse inmóvil, se desliza despacio
+ * hacia `focus` (lo que está por pasar) o deriva poco alrededor de donde está.
+ */
+export async function hold(page, ms, focus) {
+  const end = Date.now() + ms;
+  if (ms <= 1300) {
+    await sleep(ms);
+    return;
+  }
+  let first = true;
+  while (Date.now() < end - 500) {
+    const left = end - Date.now();
+    const here = posOf.get(page) ?? { x: 960, y: 620 };
+    const base = first && focus ? focus : here;
+    const jitter = first && focus ? 0 : 1;
+    const tx = Math.max(20, Math.min(1900, base.x + jitter * (Math.random() * 70 - 35)));
+    const ty = Math.max(20, Math.min(1060, base.y + jitter * (Math.random() * 44 - 22)));
+    const d = Math.min(left - 200, first && focus ? 900 : 1100 + Math.random() * 500);
+    if (d < 350) break;
+    await moveTo(page, tx, ty, d);
+    first = false;
+    await sleep(Math.min(Math.max(0, end - Date.now()), 250 + Math.random() * 350));
+  }
+  const rest = end - Date.now();
+  if (rest > 0) await sleep(rest);
+}
+
+/** Espera a que ocurra algo (respuesta del bot, un mensaje) con el cursor vivo. */
+export async function holdUntil(page, promise, focus, maxMs = 20000) {
+  let done = false;
+  const p = Promise.resolve(promise).finally(() => (done = true));
+  const t0 = Date.now();
+  let first = true;
+  while (!done && Date.now() - t0 < maxMs) {
+    const here = posOf.get(page) ?? { x: 960, y: 620 };
+    const base = first && focus ? focus : here;
+    const j = first && focus ? 0 : 1;
+    await moveTo(page, base.x + j * (Math.random() * 60 - 30), base.y + j * (Math.random() * 40 - 20), first && focus ? 850 : 1200);
+    first = false;
+    await Promise.race([p.catch(() => {}), sleep(300)]);
+  }
+  return p;
+}
+
+export function posOfPage(page) {
+  return posOf.get(page) ?? { x: 960, y: 620 };
 }
 
 async function box(page, target) {
@@ -224,7 +304,7 @@ async function box(page, target) {
 export async function hover(page, target, { dx = 0.5, dy = 0.5, ms } = {}) {
   const { b } = await box(page, target);
   await moveTo(page, b.x + b.width * dx, b.y + b.height * dy, ms);
-  await sleep(180);
+  await sleep(150);
 }
 
 export async function clickOn(page, target, { dx = 0.5, dy = 0.5, pause = 850, ms } = {}) {
@@ -232,16 +312,21 @@ export async function clickOn(page, target, { dx = 0.5, dy = 0.5, pause = 850, m
   const x = b.x + b.width * dx;
   const y = b.y + b.height * dy;
   await moveTo(page, x, y, ms);
-  await sleep(160);
+  await sleep(120);
   await page.mouse.down();
   await sleep(70);
   await page.mouse.up();
-  await settle(page, pause);
+  markActive("clic");
+  // La pausa tras la transición (mín. 800 ms) espera las animaciones; si es
+  // larga, el cursor sigue vivo cerca de lo que se acaba de abrir.
+  await settle(page, Math.min(pause, 1100));
+  if (pause > 1100) await hold(page, pause - 1100);
 }
 
 export async function typeHuman(page, text, delay = 55) {
   for (const ch of text) {
     await page.keyboard.type(ch);
+    markActive("teclear");
     await sleep(delay + Math.random() * 35);
   }
 }
@@ -350,6 +435,7 @@ export class Recorder {
       await sleep(100);
     }
     this.t0 = Date.now();
+    audit.on = true; audit.gaps = []; audit.t0 = this.t0; audit.last = this.t0;
     await sleep(300);
     const base = [...this.stderr.matchAll(/frame=\s*(\d+).*?dup=(\d+)\s+drop=(\d+)/g)].pop();
     this.base = { frames: Number(base?.[1] ?? 0), dup: Number(base?.[2] ?? 0), drop: Number(base?.[3] ?? 0) };
@@ -358,6 +444,8 @@ export class Recorder {
     const done = new Promise((r) => this.proc.on("close", r));
     this.proc.stdin.write("q");
     await done;
+    markActive("fin");
+    audit.on = false;
     const wall = (Date.now() - this.t0) / 1000;
     writeFileSync(this.log, this.stderr);
     const last = [...this.stderr.matchAll(/frame=\s*(\d+).*?dup=(\d+)\s+drop=(\d+)/g)].pop();
@@ -375,6 +463,7 @@ export class Recorder {
       clip: this.name, wallSeconds: +wall.toFixed(2), durationSeconds: +dur.toFixed(2), frames,
       dup, drop, lossPct: +(((dup + drop) / Math.max(1, frames)) * 100).toFixed(2),
       bytes: Number(execSync(`stat -c %s "${this.file}"`).toString()),
+      idleGaps: audit.gaps,
     };
     const statsFile = path.join(OUT, "logs", "stats.json");
     const all = existsSync(statsFile) ? JSON.parse(readFileSync(statsFile, "utf8")) : {};
