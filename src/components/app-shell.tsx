@@ -12,6 +12,7 @@ import { ViewerProvider } from "@/components/viewer-context";
 import { MotionProvider, NAV } from "@/components/motion";
 import { NavModeProvider } from "@/components/nav-mode";
 import { nextNavMode, type NavMode } from "@/lib/preferences";
+import type { Permission } from "@/lib/auth/permissions";
 
 /**
  * Cascarón de la app en dos modos:
@@ -30,6 +31,7 @@ export function AppShell({
   userName,
   role,
   userId,
+  grants,
   theme,
   commit,
   agenda = false,
@@ -42,6 +44,8 @@ export function AppShell({
   role: string;
   /** 020 — para el contexto del que mira (rol y permisos en pantalla). */
   userId: string;
+  /** 025 — delegaciones de la organización, para lo que se pinta. */
+  grants?: readonly Permission[];
   theme: ThemePreference;
   /** Commit resuelto en el servidor, con su procedencia (ver `resolveCommit`). */
   commit?: ResolvedCommit;
@@ -63,7 +67,7 @@ export function AppShell({
   // `LazyMotion` arrastra con él a cada `m.*` de la pantalla (ver
   // `MotionProvider`). Medido: 60 filas de la Bandeja por clic.
   return (
-    <ViewerProvider userId={userId} role={role}>
+    <ViewerProvider userId={userId} role={role} grants={grants}>
       <MotionProvider>
         <ShellFrame
           branding={branding}

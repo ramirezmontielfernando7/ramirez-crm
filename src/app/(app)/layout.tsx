@@ -33,6 +33,7 @@ export default async function AppLayout({
       userName={authSession?.user.name ?? "Usuario"}
       role={session.role}
       userId={session.userId}
+      grants={session.grants}
       theme={theme}
       // Se resuelve aquí, en el servidor: el cliente no ve `SOURCE_COMMIT`.
       // Baja con su procedencia, para que la insignia no presente como

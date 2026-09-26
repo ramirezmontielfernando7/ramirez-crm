@@ -141,6 +141,13 @@
       "when": 1790373554359,
       "tag": "0019_conocimientos",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1790392104453,
+      "tag": "0020_chat_interno",
+      "breakpoints": true
     }
   ]
 }

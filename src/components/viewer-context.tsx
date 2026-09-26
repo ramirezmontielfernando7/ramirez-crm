@@ -25,10 +25,13 @@ const ViewerContext = createContext<Viewer>({
 export function ViewerProvider({
   userId,
   role,
+  grants = NO_GRANTS,
   children,
 }: {
   userId: string;
   role: string;
+  /** 025 — delegaciones de la organización (p. ej. el Coordinador crea grupos). */
+  grants?: readonly Permission[];
   children: React.ReactNode;
 }) {
   const value = useMemo<Viewer>(
@@ -36,12 +39,14 @@ export function ViewerProvider({
       userId,
       role,
       roleLabel: roleLabel(role),
-      can: (permission) => can({ role }, permission),
+      can: (permission) => can({ role, grants }, permission),
     }),
-    [userId, role]
+    [userId, role, grants]
   );
   return <ViewerContext.Provider value={value}>{children}</ViewerContext.Provider>;
 }
+
+const NO_GRANTS: readonly Permission[] = [];
 
 export function useViewer(): Viewer {
   return useContext(ViewerContext);

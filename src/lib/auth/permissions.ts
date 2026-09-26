@@ -47,6 +47,14 @@ const statements = {
   results: ["read", "all"],
   /** 024 — Crear, editar y borrar entradas de Conocimientos (verlas y enviarlas: todos). */
   knowledge: ["manage"],
+  /**
+   * 025 — Chat de equipo. Usarlo no pide permiso (se ve por membresía).
+   * `create_groups`: crear grupos desde Ajustes (delegable al Coordinador).
+   * `announce`: publicar en el canal de avisos.
+   * `oversee`: ver directos y grupos ajenos (solo lectura) y controlar los
+   * ajustes de supervisión.
+   */
+  team_chat: ["create_groups", "announce", "oversee"],
 } as const;
 
 export const ac = createAccessControl(statements);
@@ -65,6 +73,7 @@ const owner = ac.newRole({
   scope: ["all"],
   results: ["read", "all"],
   knowledge: ["manage"],
+  team_chat: ["create_groups", "announce", "oversee"],
 });
 
 /** Operación: reparte, ve todo, edita etapas y plantillas. No configura. */
@@ -82,6 +91,9 @@ const coordinador = ac.newRole({
   results: ["read", "all"],
   // 024: mantiene al día el material que el equipo manda a los clientes.
   knowledge: ["manage"],
+  // 025: publica avisos. Crear grupos solo si el Propietario lo delega
+  // (DELEGABLE, abajo); supervisar, nunca.
+  team_chat: ["announce"],
 });
 
 /** Solo lo suyo: sus chats y sus leads (que sí puede mover). Sin Resultados (022). */
@@ -117,7 +129,26 @@ export type Permission =
   | "scope.all"
   | "results.read"
   | "results.all"
-  | "knowledge.manage";
+  | "knowledge.manage"
+  | "team_chat.create_groups"
+  | "team_chat.announce"
+  | "team_chat.oversee";
+
+/**
+ * 025 — Permisos que el Propietario puede DELEGAR por organización, desde
+ * Ajustes (no por código). Sigue siendo esta matriz la que decide: `can()`
+ * solo acepta una delegación que esté declarada aquí para ese rol, y la
+ * sesión trae las que la organización encendió (`grants`, ver
+ * `delegatedGrants` en src/server/team-chat/settings.ts).
+ */
+export const DELEGABLE: Partial<Record<Permission, readonly Role[]>> = {
+  "team_chat.create_groups": ["coordinador"],
+};
+
+/** ¿Algún permiso de este rol depende de la organización? (evita la consulta si no). */
+export function hasDelegableFor(role: string): boolean {
+  return Object.values(DELEGABLE).some((roles) => (roles as readonly string[]).includes(role));
+}
 
 export function isRole(value: string): value is Role {
   return (ROLES as readonly string[]).includes(value);
@@ -130,12 +161,20 @@ export function roleLabel(role: string): string {
 /**
  * ¿Puede este rol hacer esto? Falla CERRADO: un rol desconocido (un `member`
  * que la migración no alcanzó, un typo en BD) no puede nada.
+ *
+ * `grants` (025): las delegaciones que la organización encendió. Solo cuentan
+ * si `DELEGABLE` las declara para ESTE rol: un grant de más en la sesión no
+ * le da nada a quien la matriz no lo permite.
  */
 export function can(
-  subject: { role: string },
+  subject: { role: string; grants?: readonly Permission[] },
   permission: Permission
 ): boolean {
   if (!isRole(subject.role)) return false;
   const [resource, action] = permission.split(".") as [string, string];
-  return roles[subject.role].authorize({ [resource]: [action] }).success;
+  if (roles[subject.role].authorize({ [resource]: [action] }).success) return true;
+  return (
+    !!subject.grants?.includes(permission) &&
+    (DELEGABLE[permission] ?? []).includes(subject.role)
+  );
 }
