@@ -451,6 +451,16 @@ export async function fpsMeterStop(page) {
 }
 
 /* ---------------- Grabación ---------------- */
+/** Última línea de progreso de ffmpeg (sin duplicados, ffmpeg omite dup=/drop=). */
+export function ffStats(stderr) {
+  const lines = stderr.split(/[\r\n]+/).filter((l) => /frame=\s*\d+/.test(l));
+  const l = lines.at(-1) ?? "";
+  return {
+    frames: Number(l.match(/frame=\s*(\d+)/)?.[1] ?? 0),
+    dup: Number(l.match(/dup=\s*(\d+)/)?.[1] ?? 0),
+    drop: Number(l.match(/drop=\s*(\d+)/)?.[1] ?? 0),
+  };
+}
 export class Recorder {
   constructor(name) {
     this.name = name;
@@ -474,8 +484,7 @@ export class Recorder {
       if (Date.now() - t > 30000) throw new Error("ffmpeg no arrancó");
       await sleep(100);
     }
-    const base = [...this.stderr.matchAll(/frame=\s*(\d+).*?dup=(\d+)\s+drop=(\d+)/g)].pop();
-    this.base = { frames: Number(base?.[1] ?? 0), dup: Number(base?.[2] ?? 0), drop: Number(base?.[3] ?? 0) };
+    this.base = ffStats(this.stderr);
     // Marcador de sincronía: un cuadrado magenta de ~150 ms en la esquina.
     this.marker = await page.evaluate(() => new Promise((res) => {
       const m = document.createElement("div");
@@ -496,9 +505,8 @@ export class Recorder {
     this.proc.stdin.write("q");
     await done;
     writeFileSync(this.log, this.stderr);
-    const last = [...this.stderr.matchAll(/frame=\s*(\d+).*?dup=(\d+)\s+drop=(\d+)/g)].pop();
-    const b = this.base;
-    const frames = Number(last?.[1] ?? 0) - b.frames, dup = Number(last?.[2] ?? 0) - b.dup, drop = Number(last?.[3] ?? 0) - b.drop;
+    const last = ffStats(this.stderr), b = this.base;
+    const frames = last.frames - b.frames, dup = last.dup - b.dup, drop = last.drop - b.drop;
     const tl = {
       name: this.name, marker: this.marker, contentStart: this.contentStart, contentEnd: this.contentEnd,
       startPos: this.startPos, cursor: TL.cursor, typing: TL.typing, clicks: TL.clicks, steps: TL.steps, events: TL.events, idle: TL.idle,
