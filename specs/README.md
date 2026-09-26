@@ -19,6 +19,7 @@ producto** — y saberlo antes de leerla ahorra una confusión.
 | `021-campanas` | Ciclo completo | spec, plan (con modelo de datos y API), tasks, quickstart |
 | `023-asistente-redaccion` | Ligero | spec (sin modelo de datos ni contrato publicado) |
 | `024-conocimientos` | Ciclo completo | spec (con modelo de datos y API; plan y tareas dentro por su tamaño) |
+| `025-chat-equipo` | Ciclo completo | spec (chat interno de equipo: datos, permisos, API y SSE; plan y tareas dentro por su tamaño) |
 
 Los tres carriles —ciclo completo, ligero y exento— están definidos en el
 [Principio VI de la constitución](../.specify/memory/constitution.md). El

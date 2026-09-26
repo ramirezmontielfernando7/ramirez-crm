@@ -365,6 +365,22 @@ async function validMembers(organizationId: string, ids: readonly string[]): Pro
   return unique;
 }
 
+/** Todos los grupos de la organización con sus participantes (para administrarlos en Ajustes). */
+export async function listGroups(
+  organizationId: string
+): Promise<{ id: string; name: string; members: TeamPersonDto[] }[]> {
+  const rows = await getDb()
+    .select({ id: schema.teamChatThread.id, name: schema.teamChatThread.name })
+    .from(schema.teamChatThread)
+    .where(scoped(schema.teamChatThread.organizationId, organizationId, eq(schema.teamChatThread.kind, "group")))
+    .orderBy(schema.teamChatThread.name);
+  const members = await threadMembers(
+    organizationId,
+    rows.map((r) => r.id)
+  );
+  return rows.map((r) => ({ id: r.id, name: r.name ?? "Grupo", members: members.get(r.id) ?? [] }));
+}
+
 /** Crea un grupo (quien lo crea queda dentro). Permiso: `team_chat.create_groups`. */
 export async function createGroup(
   session: SessionContext,

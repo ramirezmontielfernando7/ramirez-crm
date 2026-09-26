@@ -9,6 +9,7 @@ import type { ResolvedCommit } from "@/lib/version";
 import { AppNav } from "@/components/app-nav";
 import { BrandLogo, BrandTile } from "@/components/brand-mark";
 import { ViewerProvider } from "@/components/viewer-context";
+import { TeamUnreadLogoBadge } from "@/components/team-chat/unread-badge";
 import { MotionProvider, NAV } from "@/components/motion";
 import { NavModeProvider } from "@/components/nav-mode";
 import { nextNavMode, type NavMode } from "@/lib/preferences";
@@ -212,9 +213,11 @@ function ShellFrame({
               onClick={() => setNavOpen(true)}
               aria-label="Abrir el menú"
               aria-expanded={navOpen}
-              className="ml-1 shrink-0 rounded-[9px] transition-[filter,transform] duration-150 hover:brightness-110 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="relative ml-1 shrink-0 rounded-[9px] transition-[filter,transform] duration-150 hover:brightness-110 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <BrandTile branding={branding} className="h-8 w-8 rounded-[9px] text-[15px]" />
+              {/* 025 — En el teléfono el menú se abre desde aquí: el globo del chat va encima. */}
+              <TeamUnreadLogoBadge />
             </button>
             <BrandLogo branding={branding} tile={false} className="min-w-0" />
           </header>

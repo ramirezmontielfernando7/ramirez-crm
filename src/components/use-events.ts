@@ -43,6 +43,12 @@ export type EventHandlers = {
     threadId: string | null;
     change: "created" | "updated" | "deleted" | "read" | "settings";
   }) => void;
+  /**
+   * 025 — Cada vez que la conexión queda abierta, INCLUIDA la primera. Quien
+   * cargó datos antes de que el SSE terminara de conectarse se pone al día
+   * aquí (lo publicado en ese intervalo no llega por el canal).
+   */
+  onConnect?: () => void;
   /** Se llama tras RECONECTAR (no en la conexión inicial): catch-up con refetch. */
   onReconnect?: () => void;
 };
@@ -108,6 +114,7 @@ function open() {
     hadError = true;
   };
   es.onopen = () => {
+    dispatch("onConnect", undefined);
     if (hadError) {
       hadError = false;
       dispatch("onReconnect", undefined);

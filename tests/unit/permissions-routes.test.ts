@@ -120,6 +120,7 @@ const PROTEGIDAS: [string, Method, Permission][] = [
   ["knowledge/[id]", "DELETE", "knowledge.manage"],
   // 025 — Chat de equipo: crear/editar/borrar grupos (Propietario, o el
   // Coordinador con la delegación) y los ajustes de supervisión (Propietario).
+  ["team-chat/groups", "GET", "team_chat.create_groups"],
   ["team-chat/groups", "POST", "team_chat.create_groups"],
   ["team-chat/groups/[id]", "PATCH", "team_chat.create_groups"],
   ["team-chat/groups/[id]", "DELETE", "team_chat.create_groups"],
