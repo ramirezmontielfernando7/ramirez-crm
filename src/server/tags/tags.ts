@@ -41,12 +41,17 @@ export function serializeTag(t: TagRow, contactCount?: number): TagDto {
   };
 }
 
+/** 23505 = unique_violation de Postgres. */
 function isUniqueViolation(err: unknown): boolean {
+  if (typeof err !== "object" || err === null) return false;
+  const code = (err as { code?: unknown }).code;
+  if (code === "23505") return true;
+  // Drizzle (≥ 0.44) envuelve el error del driver: el código real viaja en `cause`.
+  const cause = (err as { cause?: unknown }).cause;
   return (
-    typeof err === "object" &&
-    err !== null &&
-    "code" in err &&
-    (err as { code?: string }).code === "23505"
+    typeof cause === "object" &&
+    cause !== null &&
+    (cause as { code?: unknown }).code === "23505"
   );
 }
 

@@ -6,6 +6,7 @@ import { getOrCreateConversation } from "@/server/inbox/ingest";
 import { SendError } from "@/server/inbox/send";
 import { sendTemplate, TemplateError } from "@/server/whatsapp/templates";
 import { campaignSendRate } from "@/server/campaigns/flag";
+import { describeError } from "@/lib/log-safe";
 
 /**
  * 021 — Ejecutor de campañas: envío en segundo plano, DENTRO del proceso
@@ -59,7 +60,7 @@ export function startCampaignRunner(organizationId: string, campaignId: string):
   running().add(campaignId);
   void executeCampaign(organizationId, campaignId)
     .catch(async (err) => {
-      console.error(`[campaign] ${campaignId} falló:`, err);
+      console.error(`[campaign] ${campaignId} falló:`, describeError(err));
       await finishCampaign(organizationId, campaignId, "failed", "Error interno del envío; revisa los registros del servidor").catch(
         (e) => console.error(`[campaign] ${campaignId} no se pudo marcar como fallida:`, e)
       );
@@ -270,7 +271,7 @@ export function classify(err: unknown): Decision {
     }
     return { kind: "recipient", message: humanMetaError(code, err.message) };
   }
-  console.error("[campaign] error inesperado al enviar:", err);
+  console.error("[campaign] error inesperado al enviar:", describeError(err));
   return { kind: "recipient", message: "Error interno al enviar a este contacto" };
 }
 

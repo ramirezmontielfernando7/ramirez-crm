@@ -25,6 +25,7 @@ import {
 import { registrarAnuncioDeOrigen } from "@/server/attribution/store";
 import { onLeadActivity } from "@/server/inbox/lead-activity";
 import { maybeRunAgentTurn } from "@/server/ai/trigger";
+import { describeError } from "@/lib/log-safe";
 
 /** Tipos de contenido soportados; el resto se ignora sin error. */
 const SUPPORTED_TYPES = new Set([
@@ -143,7 +144,7 @@ async function attachMediaAsset(
     }
     return asset;
   } catch (err) {
-    console.warn(`[media] no se pudo registrar el adjunto de ${messageId}:`, err);
+    console.warn(`[media] no se pudo registrar el adjunto de ${messageId}:`, describeError(err));
     return null;
   }
 }
@@ -292,7 +293,7 @@ export async function processEchoesValue(value: WebhookValue): Promise<void> {
       await ingestManualEcho(credentials.organizationId, echo);
     } catch (err) {
       // Un echo malformado jamás tumba el webhook (edge case del spec).
-      console.error(`[webhook] error procesando echo ${echo.id}:`, err);
+      console.error(`[webhook] error procesando echo ${echo.id}:`, describeError(err));
     }
   }
 }
