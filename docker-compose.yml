@@ -1,27 +1,31 @@
 # ============================================================
 # Vocero CRM — Ruta B: app + Postgres + Caddy (HTTPS automático)
-# Uso:        cp .env.example .env  →  rellenar  →  docker compose up -d
-# Actualizar: git pull  →  docker compose up -d
+# Uso:        cp .env.example .env  →  rellenar  →  docker compose up -d --build
+# Actualizar: git pull  →  docker compose up -d --build
 #
-# La app sale de la imagen publicada de la versión (una por tag vX.Y.Z). Con
-# `image` y `build` juntos y sin `pull_policy`, Compose intenta primero
-# descargar la imagen y solo la construye desde este repo si no la encuentra
-# ni en el registro ni en tu máquina (especificación de Compose, «Using build
-# and image»: docs.docker.com/reference/compose-file/build/):
+# La app se CONSTRUYE desde este código (build: .): no hay imagen publicada
+# de este fork, y la del upstream (ghcr.io/kevinrivm/vocero-crm) no trae los
+# cambios de este repo ni sus migraciones. La primera vez y en cada
+# actualización, construye:
 #
-#   docker compose up -d           la imagen publicada
-#   docker compose up -d --build   construida desde el código (la publicada
-#                                  es linux/amd64: en un VPS ARM, construye)
+#   docker compose build --build-arg SOURCE_COMMIT=$(git rev-parse HEAD)
+#   docker compose up -d
 #
-# Lo que construyes queda en tu máquina con este mismo nombre de imagen. En un
-# fork con cambios propios usa siempre --build (o cambia `image:` por un
-# nombre tuyo): sin él, Compose puede correr la imagen oficial en vez de tus
-# cambios. Otra versión publicada: VOCERO_CRM_VERSION=X.Y.Z en tu .env.
+# (o en un paso: docker compose up -d --build). SOURCE_COMMIT es opcional:
+# solo sirve para que la app diga de qué commit salió. La imagen queda en tu
+# máquina como `ramirez-crm:local`; construir en el propio VPS funciona igual
+# en amd64 y en ARM.
 # ============================================================
 services:
   app:
-    image: ghcr.io/kevinrivm/vocero-crm:${VOCERO_CRM_VERSION:-1.4.0}
-    build: .
+    build:
+      context: .
+      args:
+        SOURCE_COMMIT: ${SOURCE_COMMIT:-}
+    # Nombre local de lo que se construye; `pull_policy: build` evita que
+    # Compose intente descargarlo de un registro.
+    image: ramirez-crm:local
+    pull_policy: build
     restart: unless-stopped
     environment:
       APP_BASE_URL: ${APP_BASE_URL}

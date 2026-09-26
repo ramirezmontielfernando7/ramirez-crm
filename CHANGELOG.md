@@ -2,10 +2,80 @@
 
 Qué trae cada versión de Vocero CRM y qué hacer para actualizar. La versión
 sigue el SemVer del [README](README.md#versiones): una menor trae funciones
-nuevas y actualizar es redesplegar. Desde 1.4.0, cada tag `vX.Y.Z` publica la
-imagen `ghcr.io/kevinrivm/vocero-crm:X.Y.Z`.
+nuevas y actualizar es redesplegar. En el upstream, desde 1.4.0 cada tag
+`vX.Y.Z` publica la imagen `ghcr.io/kevinrivm/vocero-crm:X.Y.Z`; este fork no
+ha publicado imagen propia, así que se instala construyendo desde el código.
 
-## Sin publicar
+## Sin publicar — versión propuesta: 1.5.0
+
+Todo lo de abajo son funciones nuevas con migraciones que solo agregan, sin
+variables obligatorias nuevas ni nada que reconectar: por el SemVer del README
+es una **menor**, `1.5.0`. `package.json` sigue en 1.4.0 hasta el PR que la
+publique (sube la versión, fecha esta sección y crea el tag `v1.5.0`).
+
+### Actualizar desde 1.4.0
+
+- **Respaldo.** Respalda la base antes, como en cualquier actualización.
+- **Migraciones `0015`–`0019`.** Corren solas al arrancar y solo agregan
+  columnas y tablas. Ver abajo qué cambia en 020 (cuentas de equipo → Coordinador)
+  y 021 (consentimiento «sin confirmar»).
+- **docker compose (Ruta B).** El compose ya no descarga
+  `ghcr.io/kevinrivm/vocero-crm` (no trae nada de esto): **construye desde el
+  código**. Actualiza con `git pull` y `docker compose up -d --build`. Si tu
+  `.env` tenía `VOCERO_CRM_VERSION`, ya no se usa: bórrala.
+- **`META_APP_SECRET` (recomendada).** Sin ella la instancia sigue igual, pero
+  el log de arranque advierte y Configuración → WhatsApp muestra «Firma no
+  verificada». Al definirla, los eventos del webhook sin firma válida se
+  rechazan con 401.
+
+### Seguridad y mantenimiento
+
+- **Next.js 15.5.26** (antes 15.5.20): corrige el RCE sin autenticación del
+  optimizador de imágenes (AVIF) y en servidores Windows (15.5.24), y los
+  avisos de 15.5.21 (DoS y SSRF en Server Actions, SSRF en rewrites, bypass de
+  middleware, confusión de caché, DoS de imágenes SVG). Sin salto a Next 16.
+- **Dependencias transitivas parcheadas** con `overrides` de pnpm
+  (`pnpm-workspace.yaml`): postcss, nanoid, brace-expansion, js-yaml,
+  browserslist, baseline-browser-mapping y sharp. `pnpm audit` pasa de 35
+  avisos (3 críticos) a 8 (1 crítico y 2 altos). Pendientes:
+  `drizzle-orm` (PR aparte), vitest/vite (salto mayor) y esbuild.
+- **Firma del webhook de WhatsApp.** Con `META_APP_SECRET` se exige; sin ella
+  se avisa al arrancar y en Configuración → WhatsApp. Tests de ambos casos y
+  guion E2E `pnpm test:e2e:firma`.
+- **Ruta B construye desde este código** (`build: .`, `pull_policy: build`,
+  imagen local `ramirez-crm:local`).
+- Se borra `.f.mjs`, un script suelto de depuración que nada usaba.
+
+### Asistente de redacción y Conocimientos (specs 023 y 024)
+
+- **Asistente de redacción.** Una varita junto al clip del editor reescribe el
+  borrador del asesor: Mejorar redacción, Cambiar tono (Formal, Casual,
+  Empático), Resumir, Más corto, Más largo, con «Deshacer». No es el agente:
+  no lee la conversación ni envía nada. Usa la misma configuración
+  `OPENROUTER_*`; sin IA configurada, la varita se deshabilita.
+- **Conocimientos.** Sección para el material que el EQUIPO envía una y otra
+  vez (catálogo, políticas, fichas): título, texto y/o archivo, etiquetas y
+  búsqueda. Se envían al chat desde el editor. Todos los roles los ven y los
+  envían; crearlos, editarlos y borrarlos es de Propietario y Coordinador. El
+  agente de IA no los lee.
+- **Actualizar.** La migración `0019_conocimientos` crea la tabla
+  `knowledge_entry`. Los archivos van al mismo volumen de adjuntos (`/data`).
+
+### Menú lateral, panel de Detalles y línea de tiempo (spec 022)
+
+- **Menú lateral de tres estados** en escritorio (expandido → íconos →
+  oculto), guardado por usuario. El Asesor arranca con íconos; Coordinador y
+  Propietario, expandido.
+- **Línea de tiempo del chat.** Notas con autor y hora (ya no un solo campo
+  que se sobrescribía), cambios de etapa, asignaciones, pausas de la IA,
+  consentimiento y etiquetas, en orden, en el panel de Detalles.
+- **Bandeja más compacta**, buscador que se estira, emojis, pegar imágenes con
+  Ctrl+V y la marca **Dashfort by Demfort** (logo y menú lateral teal).
+- **Actualizar.** Migraciones `0017_linea_de_tiempo_y_preferencias` y
+  `0018_menu_tres_estados`: solo agregan. Lo que ya había en las notas
+  del contacto se muestra como «Nota inicial». Etapas y asignaciones traen
+  su historial; el de notas, IA, consentimiento y etiquetas empieza con la
+  actualización (antes no se registraba).
 
 ### Etiquetas, consentimiento, CSV y campañas (spec 021)
 
@@ -41,7 +111,7 @@ imagen `ghcr.io/kevinrivm/vocero-crm:X.Y.Z`.
   (siguen viendo todo, como hasta hoy); bájalas a Asesor desde Ajustes → Equipo
   cuando hayas repartido sus chats, o dejarán de verlos.
 
-## 1.4.0 — 2026-09-XX
+## 1.4.0 — 2026-09-22
 
 ### Actualizar desde 1.3.0
 

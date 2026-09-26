@@ -21,8 +21,12 @@ export function isValidWebhookToken(
 }
 
 /**
- * Capa 2 (opcional): firma HMAC-SHA256 de Meta sobre el body CRUDO.
- * Devuelve true si no hay secreto configurado (capa desactivada).
+ * Capa 2: firma HMAC-SHA256 de Meta sobre el body CRUDO.
+ * Con META_APP_SECRET definido se EXIGE: sin header o con firma inválida →
+ * false (la ruta responde 401). Sin secreto la capa queda apagada y devuelve
+ * true: así una instancia existente sin la variable no deja de recibir
+ * mensajes; lo avisan el arranque (`unsignedWebhookWarning`) y Ajustes →
+ * WhatsApp.
  */
 export function isValidSignature(
   rawBody: string,
@@ -35,6 +39,21 @@ export function isValidSignature(
     .update(rawBody, "utf8")
     .digest("hex");
   return safeEqual(signatureHeader.slice("sha256=".length), expected);
+}
+
+/**
+ * Advertencia de arranque cuando la firma del webhook NO se verifica. null si
+ * META_APP_SECRET está definido. Nunca incluye valores de variables.
+ */
+export function unsignedWebhookWarning(
+  appSecret: string | undefined
+): string | null {
+  if (appSecret) return null;
+  return (
+    "[boot] META_APP_SECRET no está definido: la firma x-hub-signature-256 de los webhooks de Meta NO se verifica " +
+    "y la única defensa es el token secreto de la URL. Define META_APP_SECRET (App Secret de tu app de Meta: " +
+    "Configuración de la app → Básica) y reinicia; desde ese momento los eventos sin firma válida se rechazan con 401."
+  );
 }
 
 /* ---------- Tipos del payload de Meta (subconjunto soportado) ---------- */
