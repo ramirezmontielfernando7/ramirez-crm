@@ -401,7 +401,9 @@ async function main() {
   console.log("== 2. Marca, WhatsApp (mock) y agente ==");
   await call(carlos, "/api/settings/branding", {
     method: "PUT",
-    json: { name: "Ferretería El Martillo", accent: "#12999d", currency: "MXN" },
+    // Marca de la casa: Dashfort by Demfort con su teal (el logo solo se dibuja
+    // con el nombre por defecto). El negocio sigue siendo la ferretería.
+    json: { name: "Dashfort", accent: "#12999d", currency: "MXN", sidebar: "teal-deep" },
   });
   await call(carlos, "/api/settings/whatsapp", {
     method: "PUT",

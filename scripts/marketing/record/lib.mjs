@@ -34,7 +34,7 @@ export const EMAIL = {
  */
 function ensureWm() {
   try {
-    execSync(`pgrep -f "matchbox-window-manager" > /dev/null`);
+    execSync("pidof matchbox-window-manager > /dev/null");
   } catch {
     const wm = spawn("matchbox-window-manager", ["-use_titlebar", "no", "-use_cursor", "no"], {
       detached: true, stdio: "ignore", env: { ...process.env, DISPLAY },
