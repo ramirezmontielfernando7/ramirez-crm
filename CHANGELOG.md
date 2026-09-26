@@ -37,7 +37,7 @@ publique (sube la versión, fecha esta sección y crea el tag `v1.5.0`).
 - **Dependencias transitivas parcheadas** con `overrides` de pnpm
   (`pnpm-workspace.yaml`): postcss, nanoid, brace-expansion, js-yaml,
   browserslist, baseline-browser-mapping y sharp. `pnpm audit` pasa de 35
-  avisos (3 críticos) a 10 (1 crítico, solo de desarrollo). Pendientes:
+  avisos (3 críticos) a 8 (1 crítico y 2 altos). Pendientes:
   `drizzle-orm` (PR aparte), vitest/vite (salto mayor) y esbuild.
 - **Firma del webhook de WhatsApp.** Con `META_APP_SECRET` se exige; sin ella
   se avisa al arrancar y en Configuración → WhatsApp. Tests de ambos casos y
