@@ -2,7 +2,7 @@
 
 import { createContext, useContext } from "react";
 import { m } from "motion/react";
-import { SPRING } from "@/components/motion";
+import { NAV } from "@/components/motion";
 import { BrandTile, type BrandingMark } from "@/components/brand-mark";
 import { cn } from "@/lib/utils";
 import type { NavMode } from "@/lib/preferences";
@@ -44,7 +44,8 @@ export function NavRevealButton({ className }: { className?: string }) {
       aria-expanded={false}
       initial={{ opacity: 0, x: -4 }}
       animate={{ opacity: 1, x: 0 }}
-      transition={SPRING}
+      // La misma duración que el resto del cambio de estado del menú.
+      transition={NAV}
       className={cn(
         // El MISMO logo y lugar que en el menú (32 px, a 12 px del borde y a
         // la altura del título): el clic siguiente cae donde cayó el anterior.

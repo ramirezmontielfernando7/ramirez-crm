@@ -276,6 +276,13 @@ ok("…y el botón flotante se va", (await revelar.count()) === 0);
 
 // Filtros de la Bandeja: una cápsula en la fila del título que despliega el
 // resto; la selección múltiple, pegada a ella; sin la fila de cápsulas.
+// Antes de medir, que la columna termine de deslizarse (WAAPI): medir a media
+// animación toma cada caja en un punto distinto del recorrido.
+await op
+  .waitForFunction(() => document.getAnimations().every((a) => a.playState !== "running"), null, {
+    timeout: 2000,
+  })
+  .catch(() => {});
 const capsula = op.getByRole("button", { name: /^Filtrar la bandeja/ });
 const tituloB = await op.getByRole("heading", { name: "Bandeja" }).boundingBox();
 const cajaCap = await capsula.boundingBox();
