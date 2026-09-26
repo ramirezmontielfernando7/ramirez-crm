@@ -45,6 +45,8 @@ const prefixes = {
   teamChatThread: "tct",
   teamChatMessage: "tcm",
   teamChatAttachment: "tca",
+  // 026 — participantes de chats de cliente
+  participantEvent: "cpe",
 } as const;
 
 export type IdKind = keyof typeof prefixes;

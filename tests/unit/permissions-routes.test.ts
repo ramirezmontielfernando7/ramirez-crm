@@ -126,6 +126,9 @@ const PROTEGIDAS: [string, Method, Permission][] = [
   ["team-chat/groups/[id]", "DELETE", "team_chat.create_groups"],
   ["team-chat/settings", "GET", "team_chat.oversee"],
   ["team-chat/settings", "PUT", "team_chat.oversee"],
+  // 026 — Participantes de un chat de cliente: los reparte quien reparte.
+  ["contacts/[id]/participants", "POST", "assignment.manage"],
+  ["contacts/[id]/participants", "DELETE", "assignment.manage"],
 ];
 
 /**
@@ -147,6 +150,8 @@ const FILTRADAS: [string, Method][] = [
   ["contacts/[id]", "PATCH"],
   ["contacts/[id]/start-conversation", "POST"],
   ["contacts/[id]/assignments", "GET"],
+  // 026: la lista de participantes es del chat que se puede ver.
+  ["contacts/[id]/participants", "GET"],
   // 021: etiquetar a un contacto = poder verlo (getContactById con scopedContacts).
   ["contacts/[id]/tags", "PUT"],
   ["pipeline/board", "GET"],

@@ -26,6 +26,7 @@ import { registrarAnuncioDeOrigen } from "@/server/attribution/store";
 import { onLeadActivity } from "@/server/inbox/lead-activity";
 import { maybeRunAgentTurn } from "@/server/ai/trigger";
 import { describeError } from "@/lib/log-safe";
+import { announceHandoff } from "@/server/inbox/handoff-notice";
 
 /** Tipos de contenido soportados; el resto se ignora sin error. */
 const SUPPORTED_TYPES = new Set([
@@ -375,6 +376,8 @@ async function ingestManualEcho(
     console.log(
       `[webhook] respuesta manual del dueño en ${conversation.id} — IA pausada (manual_reply)`
     );
+    // 026: el aviso de handoff (asignado + quien ve todo; no participantes).
+    await announceHandoff(organizationId, conversation.id, "manual_reply");
   }
 
   publish(organizationId, {

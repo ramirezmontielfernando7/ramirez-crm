@@ -31,6 +31,13 @@ export async function canSeeEvent(access: Access, event: SseEvent): Promise<bool
         event.data.toUserId === access.userId ||
         event.data.fromUserIds.includes(access.userId)
       );
+    // 026: al que entra y al que sale de un chat como participante.
+    case "participants.changed":
+      return event.data.userIds.includes(access.userId);
+    // 026: el aviso de handoff es del ASIGNADO (y de quien ve todo, arriba);
+    // un participante ve el chat pero no recibe el aviso.
+    case "handoff.requested":
+      return event.data.assignedUserId === access.userId;
     case "booking.updated":
       return bookingVisible(access, event.data.bookingId);
     case "lab.run":

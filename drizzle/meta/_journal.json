@@ -148,6 +148,13 @@
       "when": 1790392104453,
       "tag": "0020_chat_interno",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1790396336622,
+      "tag": "0021_participantes_y_menciones",
+      "breakpoints": true
     }
   ]
 }

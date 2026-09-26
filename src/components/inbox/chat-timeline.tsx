@@ -12,6 +12,8 @@ import {
   Tag,
   UserRound,
   type LucideIcon,
+  UserMinus,
+  UserPlus,
 } from "lucide-react";
 import {
   describeTimelineItem,
@@ -35,6 +37,8 @@ const ICON: Record<TimelineKind, LucideIcon> = {
   consent: Megaphone,
   tag_added: Tag,
   tag_removed: Tag,
+  participant_added: UserPlus,
+  participant_removed: UserMinus,
 };
 
 /** Cuántas líneas se ven de entrada; "Ver anteriores" suma de a tantas. */

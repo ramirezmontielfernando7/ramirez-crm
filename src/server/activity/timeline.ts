@@ -2,6 +2,7 @@ import { desc, eq } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { scoped } from "@/lib/db/tenant";
 import { listAssignmentHistory } from "@/server/assignment/assign";
+import { listParticipantHistory } from "@/server/assignment/participants";
 import { sortTimeline, type TimelineActor, type TimelineItemDto } from "@/lib/timeline";
 
 /**
@@ -27,7 +28,7 @@ export async function contactTimeline(
   contact: { id: string; notes: string | null; createdAt: Date }
 ): Promise<TimelineItemDto[]> {
   const db = getDb();
-  const [activity, stages, assignments] = await Promise.all([
+  const [activity, stages, assignments, participants] = await Promise.all([
     db
       .select({ event: schema.contactActivityEvent, actorName: schema.user.name })
       .from(schema.contactActivityEvent)
@@ -55,6 +56,7 @@ export async function contactTimeline(
       .orderBy(desc(schema.leadStageEvent.occurredAt))
       .limit(TIMELINE_LIMIT),
     listAssignmentHistory(organizationId, contact.id),
+    listParticipantHistory(organizationId, contact.id),
   ]);
 
   const items: TimelineItemDto[] = [];
@@ -117,6 +119,17 @@ export async function contactTimeline(
         source: h.source,
         reason: h.reason,
       },
+    });
+  }
+
+  // 026 — participantes (su propia bitácora).
+  for (const p of participants) {
+    items.push({
+      id: p.id,
+      kind: p.action === "added" ? "participant_added" : "participant_removed",
+      at: p.occurredAt,
+      actor: p.actor ? { type: "user", ...p.actor } : null,
+      detail: { user: p.user?.name ?? null },
     });
   }
 

@@ -44,6 +44,25 @@ export type SseEvent =
         counts: { pending: number; sent: number; failed: number };
       };
     }
+  /**
+   * 026 — entró o salió un participante de uno o más chats. Solo ids: la
+   * Bandeja refetchea. Le llega a quien ve todo y a los involucrados.
+   */
+  | { type: "participants.changed"; data: { contactIds: string[]; userIds: string[] } }
+  /**
+   * 026 — AVISO de handoff (aparte de `conversation.updated`): al asignado y
+   * a quien ve todo; nunca a los participantes. Ver `inbox/handoff-notice.ts`.
+   */
+  | {
+      type: "handoff.requested";
+      data: {
+        conversationId: string;
+        contactId: string;
+        contactName: string;
+        reason: string;
+        assignedUserId: string | null;
+      };
+    }
   /** 015 — algo cambió en la agenda: la pantalla de Citas se refresca sola. */
   | { type: "booking.updated"; data: { bookingId: string } }
   | {

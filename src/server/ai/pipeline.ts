@@ -16,6 +16,7 @@ import {
   type AgentActionType,
 } from "@/server/ai/actions";
 import { HANDOFF_BACKUP_ACK, matchesHandoffIntent } from "@/server/ai/handoff";
+import { announceHandoff } from "@/server/inbox/handoff-notice";
 import { buildAgentSystemPrompt } from "@/server/ai/prompts";
 import { agendaEnabled } from "@/server/agenda/flag";
 import { bookSlot, offerSlots } from "@/server/agenda/agent";
@@ -380,6 +381,8 @@ export async function applyHandoff(
       conversation: { id: conversationId, handoffReason: reason },
     },
   });
+  // 026: el aviso, aparte del estado (asignado + quien ve todo; no participantes).
+  await announceHandoff(organizationId, conversationId, reason);
   // 022: queda en la línea de tiempo del chat.
   await logActivitySafe({
     organizationId,
