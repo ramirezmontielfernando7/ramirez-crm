@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { scopedContacts, type Access } from "@/lib/db/tenant";
-import type { SseEvent } from "@/server/events/bus";
+import { isTeamEvent, type SseEvent, type TeamSseEvent } from "@/server/events/bus";
 
 /**
  * 020 — ¿Le llega este evento a esta sesión?
@@ -14,6 +14,9 @@ import type { SseEvent } from "@/server/events/bus";
  * Falla CERRADO: un evento que no se sabe a quién pertenece no se reenvía.
  */
 export async function canSeeEvent(access: Access, event: SseEvent): Promise<boolean> {
+  // 025: ANTES del atajo de `seesAll` — el Coordinador ve todos los chats de
+  // clientes, pero no los directos del equipo.
+  if (isTeamEvent(event)) return canSeeTeamEvent(access, event);
   if (access.seesAll) return true;
   switch (event.type) {
     case "message.new":
@@ -38,6 +41,16 @@ export async function canSeeEvent(access: Access, event: SseEvent): Promise<bool
     default:
       return false;
   }
+}
+
+/**
+ * 025 — Un evento del chat de equipo le llega SOLO a su audiencia (calculada
+ * al publicar con la membresía actual). En memoria: sin consultas por
+ * suscriptor. Quien salió de la organización ya no está en ninguna
+ * audiencia, aunque su conexión siga abierta.
+ */
+export function canSeeTeamEvent(access: Pick<Access, "userId">, event: TeamSseEvent): boolean {
+  return event.audience.includes(access.userId);
 }
 
 function conversationIdOf(conversation: unknown): string | null {

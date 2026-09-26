@@ -22,6 +22,7 @@ import {
 import { getTeamChatSettings, oversightNoticeVisible } from "./settings";
 import { currentMemberIds, listPeople } from "./people";
 import { isUniqueViolation, notFound, TeamChatError } from "./errors";
+import { publishTeam } from "./audience";
 
 /**
  * 025 — Hilos del chat de equipo: la ÚNICA puerta que lee y escribe
@@ -330,6 +331,10 @@ export async function openDirect(session: SessionContext, otherUserId: string): 
         { organizationId, threadId: id, userId: otherUserId, addedByUserId: userId },
       ]);
     });
+    await publishTeam(organizationId, { id, kind: "direct" }, {
+      type: "team.thread",
+      data: { threadId: id, change: "created" },
+    });
     return id;
   } catch (err) {
     // Dos personas lo abrieron a la vez: gana el primero, el otro lo reutiliza.
@@ -380,6 +385,10 @@ export async function createGroup(
     await tx.insert(schema.teamChatMember).values(
       memberIds.map((m) => ({ organizationId, threadId: id, userId: m, addedByUserId: userId }))
     );
+  });
+  await publishTeam(organizationId, { id, kind: "group" }, {
+    type: "team.thread",
+    data: { threadId: id, change: "created" },
   });
   return { id, memberIds };
 }
@@ -452,6 +461,13 @@ export async function updateGroup(
         .onConflictDoNothing();
     }
   });
+  // Quien salió también se entera (para que el grupo deje su lista).
+  await publishTeam(
+    organizationId,
+    { id, kind: "group" },
+    { type: "team.thread", data: { threadId: id, change: "updated" } },
+    removed
+  );
   return { added, removed, memberIds: next };
 }
 
@@ -474,6 +490,12 @@ export async function deleteGroup(
     .where(scoped(schema.teamChatThread.organizationId, organizationId, eq(schema.teamChatThread.id, id)));
   // Los archivos viven en su carpeta por hilo: se va entera.
   await rm(threadDir(organizationId, id), { recursive: true, force: true });
+  await publishTeam(
+    organizationId,
+    { id, kind: "group" },
+    { type: "team.thread", data: { threadId: id, change: "deleted" } },
+    memberIds
+  );
   return { memberIds };
 }
 

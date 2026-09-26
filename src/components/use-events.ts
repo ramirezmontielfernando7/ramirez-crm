@@ -32,6 +32,17 @@ export type EventHandlers = {
     status: string;
     counts: { pending: number; sent: number; failed: number };
   }) => void;
+  /** 025 — Chat de equipo: un mensaje nuevo, editado, borrado o con otra reacción. */
+  onTeamMessage?: (data: {
+    threadId: string;
+    change: "new" | "updated" | "deleted";
+    message: unknown;
+  }) => void;
+  /** 025 — Chat de equipo: cambió la lista (hilo nuevo, participantes, leído, ajustes). */
+  onTeamThread?: (data: {
+    threadId: string | null;
+    change: "created" | "updated" | "deleted" | "read" | "settings";
+  }) => void;
   /** Se llama tras RECONECTAR (no en la conexión inicial): catch-up con refetch. */
   onReconnect?: () => void;
 };
@@ -45,6 +56,8 @@ const EVENT_TYPES = {
   "booking.updated": "onBookingUpdated",
   "assignment.changed": "onAssignmentChanged",
   "campaign.progress": "onCampaignProgress",
+  "team.message": "onTeamMessage",
+  "team.thread": "onTeamThread",
 } as const satisfies Record<string, keyof EventHandlers>;
 
 type Subscriber = { current: EventHandlers };

@@ -54,7 +54,37 @@ export type SseEvent =
         progress: { done: number; total: number };
         score?: number | null;
       };
+    }
+  | TeamSseEvent;
+
+/**
+ * 025 — Eventos del chat de EQUIPO. Llevan su `audience` (quién puede
+ * recibirlos, calculada al publicar: participantes que siguen en la
+ * organización + el Propietario si supervisa) FUERA de `data`: `/api/events`
+ * solo escribe `data`, así que el cliente nunca ve la lista. No pasan por el
+ * atajo de `seesAll`: ver todos los chats de clientes no es ver los directos
+ * del equipo.
+ */
+export type TeamSseEvent =
+  | {
+      type: "team.message";
+      /** El mensaje, igual para todos (lo "mío" se decide en el cliente). */
+      data: { threadId: string; change: "new" | "updated" | "deleted"; message: unknown };
+      audience: readonly string[];
+    }
+  | {
+      type: "team.thread";
+      /**
+       * Algo cambió en la lista: un hilo nuevo, renombrado, con otros
+       * participantes, borrado, o leído en otra pestaña. Solo ids: refetch.
+       */
+      data: { threadId: string | null; change: "created" | "updated" | "deleted" | "read" | "settings" };
+      audience: readonly string[];
     };
+
+export function isTeamEvent(event: SseEvent): event is TeamSseEvent {
+  return event.type === "team.message" || event.type === "team.thread";
+}
 
 const globalForBus = globalThis as unknown as { __voceroBus?: EventEmitter };
 

@@ -1,6 +1,6 @@
 import { requireSession, UnauthorizedError } from "@/lib/auth/session";
-import { subscribe, type SseEvent } from "@/server/events/bus";
-import { canSeeEvent } from "@/server/events/visibility";
+import { isTeamEvent, subscribe, type SseEvent } from "@/server/events/bus";
+import { canSeeEvent, canSeeTeamEvent } from "@/server/events/visibility";
 
 /**
  * Canal SSE de la bandeja (contrato sse.md).
@@ -50,6 +50,12 @@ export async function GET(req: Request) {
       // desordenados; quien ve todo no paga nada.
       let queue = Promise.resolve();
       const unsubscribe = subscribe(organizationId, (event) => {
+        // 025: el chat de equipo va por audiencia, también para quien ve
+        // todo (el atajo de abajo NO aplica). Se decide en memoria.
+        if (isTeamEvent(event)) {
+          if (canSeeTeamEvent(access, event)) write(event);
+          return;
+        }
         if (access.seesAll) {
           write(event);
           return;

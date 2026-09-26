@@ -18,6 +18,20 @@ import {
 } from "@/lib/team-chat";
 import { notFound, TeamChatError } from "./errors";
 import { threadAccess, threadDir, type ThreadAccess } from "./threads";
+import { publishTeam, publishToUser } from "./audience";
+
+/** Avisa en tiempo real a la audiencia del hilo (después del commit). */
+async function announce(
+  session: SessionContext,
+  access: ThreadAccess,
+  change: "new" | "updated" | "deleted",
+  message: TeamMessageDto
+): Promise<void> {
+  await publishTeam(session.organizationId, access.thread, {
+    type: "team.message",
+    data: { threadId: access.thread.id, change, message },
+  });
+}
 
 /**
  * 025 — Mensajes del chat de equipo: la ÚNICA puerta que escribe
@@ -64,22 +78,16 @@ async function reactionsFor(
   if (messageIds.length === 0) return out;
   const r = schema.teamChatReaction;
   const rows = await getDb()
-    .select({
-      messageId: r.messageId,
-      emoji: r.emoji,
-      count: sql<number>`count(*)::int`,
-      mine: sql<boolean>`bool_or(${r.userId} = ${session.userId})`,
-      first: sql<string>`min(${r.createdAt})`,
-    })
+    .select({ messageId: r.messageId, emoji: r.emoji, userId: r.userId })
     .from(r)
     .where(scoped(r.organizationId, session.organizationId, inArray(r.messageId, messageIds)))
-    .groupBy(r.messageId, r.emoji)
-    .orderBy(sql`min(${r.createdAt})`);
+    .orderBy(r.createdAt);
   for (const row of rows) {
-    out.set(row.messageId, [
-      ...(out.get(row.messageId) ?? []),
-      { emoji: row.emoji, count: row.count, mine: row.mine },
-    ]);
+    const list = out.get(row.messageId) ?? [];
+    const same = list.find((x) => x.emoji === row.emoji);
+    if (same) same.userIds.push(row.userId);
+    else list.push({ emoji: row.emoji, userIds: [row.userId] });
+    out.set(row.messageId, list);
   }
   return out;
 }
@@ -103,7 +111,6 @@ async function serialize(
     createdAt: m.createdAt.toISOString(),
     editedAt: m.editedAt?.toISOString() ?? null,
     deleted: !!m.deletedAt,
-    mine: m.authorUserId === session.userId,
   }));
 }
 
@@ -239,7 +246,9 @@ export async function postMessage(
     if (attachment) await rm(path.join(getEnv().MEDIA_DIR, attachment.storagePath), { force: true });
     throw err;
   }
-  return { access, message: await getMessageDto(session, id) };
+  const message = await getMessageDto(session, id);
+  await announce(session, access, "new", message);
+  return { access, message };
 }
 
 type Tx = Parameters<Parameters<ReturnType<typeof getDb>["transaction"]>[0]>[0];
@@ -268,6 +277,11 @@ export async function markRead(session: SessionContext, threadId: string): Promi
   const access = await threadAccess(session, threadId);
   if (access.relation !== "member") return false;
   await upsertRead(getDb(), session, threadId, new Date());
+  // Sus otras pestañas bajan el globo también.
+  publishToUser(session.organizationId, session.userId, {
+    type: "team.thread",
+    data: { threadId, change: "read" },
+  });
   return true;
 }
 
@@ -310,7 +324,9 @@ export async function editMessage(
     .update(schema.teamChatMessage)
     .set({ body, editedAt: new Date() })
     .where(scoped(schema.teamChatMessage.organizationId, session.organizationId, eq(schema.teamChatMessage.id, messageId)));
-  return { access, message: await getMessageDto(session, messageId) };
+  const message = await getMessageDto(session, messageId);
+  await announce(session, access, "updated", message);
+  return { access, message };
 }
 
 /**
@@ -344,7 +360,9 @@ export async function deleteMessage(
     }
   });
   if (storagePath) await rm(path.join(getEnv().MEDIA_DIR, storagePath), { force: true });
-  return { access, message: await getMessageDto(session, messageId) };
+  const message = await getMessageDto(session, messageId);
+  await announce(session, access, "deleted", message);
+  return { access, message };
 }
 
 /** Pone o quita una reacción propia. */
@@ -375,7 +393,9 @@ export async function setReaction(
         scoped(r.organizationId, session.organizationId, eq(r.messageId, messageId), eq(r.userId, session.userId), eq(r.emoji, emoji))
       );
   }
-  return { access, message: await getMessageDto(session, messageId) };
+  const message = await getMessageDto(session, messageId);
+  await announce(session, access, "updated", message);
+  return { access, message };
 }
 
 /** El archivo de un adjunto, solo para quien ve su hilo (404 si no). */

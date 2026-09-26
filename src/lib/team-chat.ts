@@ -117,7 +117,11 @@ export type TeamAttachmentDto = {
   inline: boolean;
 };
 
-export type TeamReactionDto = { emoji: string; count: number; mine: boolean };
+/**
+ * Reacción: quién la puso (ids). Sin campos "míos": el mismo mensaje viaja a
+ * todos por SSE y cada cliente sabe quién es (`reactedByMe`).
+ */
+export type TeamReactionDto = { emoji: string; userIds: string[] };
 
 export type TeamMessageDto = {
   id: string;
@@ -129,8 +133,16 @@ export type TeamMessageDto = {
   createdAt: string;
   editedAt: string | null;
   deleted: boolean;
-  mine: boolean;
 };
+
+/** ¿Es mío este mensaje? (el DTO es el mismo para todos; se decide en el cliente). */
+export function isMine(message: Pick<TeamMessageDto, "author">, userId: string): boolean {
+  return message.author?.id === userId;
+}
+
+export function reactedByMe(reaction: TeamReactionDto, userId: string): boolean {
+  return reaction.userIds.includes(userId);
+}
 
 export type TeamChatListResponse = {
   threads: TeamThreadDto[];

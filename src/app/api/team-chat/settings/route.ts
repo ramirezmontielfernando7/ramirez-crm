@@ -2,6 +2,7 @@ import { z } from "zod";
 import { parseBody, withAuth } from "@/lib/api";
 import { getTeamChatSettings, updateTeamChatSettings } from "@/server/team-chat/settings";
 import { teamChatErrorResponse } from "@/server/team-chat/errors";
+import { publishToOrg } from "@/server/team-chat/audience";
 
 export const dynamic = "force-dynamic";
 
@@ -30,7 +31,13 @@ export const PUT = withAuth(
     const body = await parseBody(req, schema);
     if (!body.ok) return body.response;
     try {
-      return Response.json({ settings: await updateTeamChatSettings(session.organizationId, body.data) });
+      const settings = await updateTeamChatSettings(session.organizationId, body.data);
+      // Cambia qué ve cada quien (supervisión, aviso, quién crea grupos): todos refetchean.
+      await publishToOrg(session.organizationId, {
+        type: "team.thread",
+        data: { threadId: null, change: "settings" },
+      });
+      return Response.json({ settings });
     } catch (err) {
       return teamChatErrorResponse(err, "guardar ajustes");
     }
