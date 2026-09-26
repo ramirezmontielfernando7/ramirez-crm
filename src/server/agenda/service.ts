@@ -24,6 +24,7 @@ import {
 import { ConnectorError } from "@/server/agenda/connectors/types";
 import { moveLeadToStage } from "@/server/leads/stage-history";
 import { publish } from "@/server/events/bus";
+import { describeError } from "@/lib/log-safe";
 
 /**
  * 015 — Ciclo de vida de la cita y las dos reglas INNEGOCIABLES:
@@ -221,7 +222,7 @@ export async function createSessionBooking(input: {
   if (input.conversationId) {
     await clearOffers(input.organizationId, input.conversationId).catch(
       (err) => {
-        console.warn(`[agenda] no pude limpiar la oferta: ${err}`);
+        console.warn(`[agenda] no pude limpiar la oferta: ${describeError(err)}`);
       }
     );
   }
@@ -233,7 +234,7 @@ export async function createSessionBooking(input: {
     contactId,
     input.source === "ai" ? "bot" : "dueno"
   ).catch((err) => {
-    console.warn(`[agenda] avance de etapa falló: ${err}`);
+    console.warn(`[agenda] avance de etapa falló: ${describeError(err)}`);
   });
 
   publish(input.organizationId, {
@@ -605,7 +606,7 @@ async function withConnector(
     );
     await run(conn, booking.externalRef);
   } catch (err) {
-    console.warn(`[agenda] efecto en ${connectorId} falló: ${err}`);
+    console.warn(`[agenda] efecto en ${connectorId} falló: ${describeError(err)}`);
     if (err instanceof ConnectorError && err.isAuthError) {
       await markConnectorAuthError(booking.organizationId, connectorId).catch(
         () => {}
@@ -631,7 +632,7 @@ async function refreshOffer(
       FRESH_ALTERNATIVES
     );
   } catch (err) {
-    console.warn(`[agenda] no pude calcular alternativas: ${err}`);
+    console.warn(`[agenda] no pude calcular alternativas: ${describeError(err)}`);
     return [];
   }
   const offers: OfferedSlot[] = fresh.map((s) => ({
@@ -640,7 +641,7 @@ async function refreshOffer(
   }));
   if (conversationId && offers.length > 0) {
     await replaceOffers(organizationId, conversationId, offers).catch((err) => {
-      console.warn(`[agenda] no pude registrar la nueva oferta: ${err}`);
+      console.warn(`[agenda] no pude registrar la nueva oferta: ${describeError(err)}`);
     });
   }
   return offers;

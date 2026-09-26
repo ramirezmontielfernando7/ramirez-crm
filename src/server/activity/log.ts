@@ -1,5 +1,6 @@
 import { getDb, schema } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
+import { describeError } from "@/lib/log-safe";
 
 /**
  * 022 — La ÚNICA puerta que escribe `contact_activity_event`: lo que le pasa
@@ -51,6 +52,6 @@ export async function logActivitySafe(input: ActivityInput): Promise<void> {
   try {
     await logActivity(input);
   } catch (err) {
-    console.error("[actividad] no se pudo anotar en la línea de tiempo:", input.kind, err);
+    console.error("[actividad] no se pudo anotar en la línea de tiempo:", input.kind, describeError(err));
   }
 }

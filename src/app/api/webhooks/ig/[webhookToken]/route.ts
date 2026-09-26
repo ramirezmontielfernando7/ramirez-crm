@@ -8,6 +8,7 @@ import {
 } from "@/server/channels/enabled";
 import { isValidZernioSignature, zernioSignatureFrom } from "@/server/zernio";
 import { processZernioPayload, resolveZernioSecret } from "@/server/zernio/dispatch";
+import { describeError } from "@/lib/log-safe";
 
 /**
  * 014 — Webhook público del canal de Instagram.
@@ -95,7 +96,7 @@ export async function POST(req: Request, { params }: Params) {
         await processZernioPayload(payload);
       }
     } catch (err) {
-      console.error("[ig] error procesando payload:", err);
+      console.error("[ig] error procesando payload:", describeError(err));
     }
   });
 

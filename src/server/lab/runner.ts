@@ -6,6 +6,7 @@ import { runAgentTurn } from "@/server/ai/pipeline";
 import { renderKb } from "@/server/ai/prompts";
 import { computeScore, judgeCase } from "@/server/lab/judge";
 import { PERSONAS, type Persona } from "@/server/lab/personas";
+import { describeError } from "@/lib/log-safe";
 
 /**
  * Runner del Laboratorio (FR-030/FR-034): corrida en segundo plano DENTRO del
@@ -51,7 +52,7 @@ export async function startRun(organizationId: string): Promise<string> {
 
   // Fire-and-forget in-process: el POST regresa ya; el progreso va por SSE.
   void executeRun(runId, organizationId).catch(async (err) => {
-    console.error("[lab] corrida falló:", err);
+    console.error("[lab] corrida falló:", describeError(err));
     await failRun(runId, organizationId, String(err));
   });
 

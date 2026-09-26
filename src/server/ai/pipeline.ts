@@ -20,6 +20,7 @@ import { buildAgentSystemPrompt } from "@/server/ai/prompts";
 import { agendaEnabled } from "@/server/agenda/flag";
 import { bookSlot, offerSlots } from "@/server/agenda/agent";
 import { getOffers, mapaDeHuecosParaModelo } from "@/server/agenda/offers";
+import { describeError } from "@/lib/log-safe";
 
 /**
  * Turno del agente (FR-021..FR-025).
@@ -77,7 +78,7 @@ async function executeTurn(conversationId: string): Promise<void> {
   try {
     await runAgentTurn(conversationId);
   } catch (err) {
-    console.error("[agente] turno falló:", err);
+    console.error("[agente] turno falló:", describeError(err));
   } finally {
     entry.running = false;
     if (entry.pending) {
@@ -241,7 +242,7 @@ export async function runAgentTurn(conversationId: string): Promise<void> {
         }
         return;
       } catch (err) {
-        console.error(`[agente] el motor de agenda falló: ${err}`);
+        console.error(`[agente] el motor de agenda falló: ${describeError(err)}`);
         action = degradeAction(action);
       }
     }
