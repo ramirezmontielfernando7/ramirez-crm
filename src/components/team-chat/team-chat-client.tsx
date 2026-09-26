@@ -131,13 +131,33 @@ export function TeamChatClient() {
   }, [refetchList]);
 
   const upsert = useCallback((message: TeamMessageDto) => {
+    // 026 — Llegó neutro por SSE (menciones sin resolver): se pide la versión
+    // propia; mientras, se pinta con las menciones como "sin acceso".
+    if (message.needsResolve) {
+      void fetchJson<{ message: TeamMessageDto }>(`/api/team-chat/messages/${message.id}`).then((res) => {
+        if (res.ok) upsertRef.current(res.data.message);
+        else setThreadError(`No se pudo mostrar una mención: ${res.error}`);
+      });
+    }
     setThread((t) => {
       if (!t || t.threadId !== message.threadId) return t;
       const i = t.messages.findIndex((x) => x.id === message.id);
-      const messages = i === -1 ? [...t.messages, message] : t.messages.map((x) => (x.id === message.id ? message : x));
+      const prev = i === -1 ? null : t.messages[i]!;
+      // Un eco neutro (p. ej. una reacción) no borra las menciones ya
+      // resueltas: si el texto no cambió, se conservan texto y menciones y se
+      // toma lo demás (reacciones, borrado). Si cambió, se pinta "@…" hasta
+      // que llegue la versión propia.
+      const next =
+        prev && message.needsResolve && !prev.needsResolve && message.editedAt === prev.editedAt && !message.deleted
+          ? { ...message, body: prev.body, mentions: prev.mentions, needsResolve: false }
+          : message;
+      const messages = i === -1 ? [...t.messages, next] : t.messages.map((x) => (x.id === message.id ? next : x));
       return { ...t, messages };
     });
   }, []);
+
+  const upsertRef = useRef(upsert);
+  upsertRef.current = upsert;
 
   useEvents({
     onTeamMessage: (data) => {

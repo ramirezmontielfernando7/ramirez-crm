@@ -158,6 +158,11 @@ export function InboxClient({ channels }: { channels: readonly Channel[] }) {
       void refetchConversations();
       setDetailRev((v) => v + 1);
     },
+    // 026: me sumaron o me quitaron como participante de un chat.
+    onParticipantsChanged: () => {
+      void refetchConversations();
+      setDetailRev((v) => v + 1);
+    },
     onReconnect: () => {
       // Catch-up tras reconexión (contrato sse.md): refetch completo.
       void refetchConversations();

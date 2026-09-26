@@ -126,7 +126,7 @@ function ensureAudio() {
  * Si la persona aún no tocó la página (el navegador no deja sonar), no suena:
  * el globo basta.
  */
-function playChime() {
+export function playChime() {
   if (!audio || audio.state !== "running") return;
   try {
     const now = audio.currentTime;

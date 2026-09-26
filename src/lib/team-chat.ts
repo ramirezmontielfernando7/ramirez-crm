@@ -4,6 +4,8 @@
  * tests/unit/team-chat-rules.test.ts). Nada de aquí toca la BD.
  */
 
+import type { MentionDto } from "@/lib/team-chat-mentions";
+
 export type TeamThreadKind = "direct" | "group" | "announcements";
 
 /**
@@ -127,7 +129,12 @@ export type TeamMessageDto = {
   id: string;
   threadId: string;
   author: { id: string; name: string } | null;
+  /** Con marcadores `@[m:i]` en lugar de las menciones (ver `team-chat-mentions.ts`). */
   body: string;
+  /** 026 — Qué ve ESTA persona de cada chat de cliente mencionado. */
+  mentions: MentionDto[];
+  /** 026 — Llegó neutro (por SSE): pedir la versión propia para resolver menciones. */
+  needsResolve: boolean;
   attachment: TeamAttachmentDto | null;
   reactions: TeamReactionDto[];
   createdAt: string;

@@ -15,6 +15,28 @@ import {
 import { cn } from "@/lib/utils";
 import { SPRING } from "@/components/motion";
 import { formatBytes } from "@/components/inbox/helpers";
+import { useRouter } from "next/navigation";
+import { encodeMentions, splitBody, MENTION_SLOT } from "@/lib/team-chat-mentions";
+import { MentionChip } from "./mention-picker";
+
+/**
+ * 026 — Para editar: las menciones vuelven a @{Nombre} con su mapa. Si hay
+ * una que esta persona ya no ve, no se puede reconstruir: no se edita.
+ */
+function draftFromMessage(message: TeamMessageDto): { text: string; map: Map<string, string> } | null {
+  const map = new Map<string, string>();
+  let ok = true;
+  const text = message.body.replace(MENTION_SLOT, (_m, i: string) => {
+    const mention = message.mentions[Number(i)];
+    if (!mention?.accessible) {
+      ok = false;
+      return "";
+    }
+    map.set(mention.label, mention.conversationId);
+    return `@{${mention.label}}`;
+  });
+  return ok ? { text, map } : null;
+}
 
 const EmojiPickerPanel = dynamic(() => import("@/components/inbox/emoji-picker"), {
   ssr: false,
@@ -160,8 +182,10 @@ function Bubble({
   canReact: boolean;
   onChanged: (message: TeamMessageDto) => void;
 }) {
+  const router = useRouter();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(message.body);
+  const [draftMap, setDraftMap] = useState<Map<string, string>>(new Map());
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -201,7 +225,7 @@ function Bubble({
   }
 
   async function saveEdit() {
-    const body = draft.trim();
+    const body = encodeMentions(draft, draftMap).trim();
     if (body.length > TEAM_MESSAGE_MAX) {
       setError(`El mensaje pasa de ${TEAM_MESSAGE_MAX} caracteres`);
       return;
@@ -280,7 +304,22 @@ function Bubble({
               {message.attachment && <Attachment attachment={message.attachment} />}
               {message.body && (
                 <span className={cn("block whitespace-pre-wrap break-words", message.attachment && "mt-1")}>
-                  {message.body}
+                  {splitBody(message.body, message.mentions).map((part, i) =>
+                    part.type === "text" ? (
+                      <span key={i}>{part.text}</span>
+                    ) : message.needsResolve ? (
+                      // Todavía sin resolver para esta persona: ni "sin acceso" ni nombre.
+                      <span key={i} className="mx-0.5 inline-flex rounded-full bg-secondary px-1.5 py-px text-[12.5px] text-text-3">
+                        @…
+                      </span>
+                    ) : (
+                      <MentionChip
+                        key={i}
+                        mention={part.mention}
+                        onOpen={(contactId) => router.push(`/inbox?contact=${encodeURIComponent(contactId)}`)}
+                      />
+                    )
+                  )}
                 </span>
               )}
             </>
@@ -354,7 +393,13 @@ function Bubble({
                 <button
                   type="button"
                   onClick={() => {
-                    setDraft(message.body);
+                    const d = draftFromMessage(message);
+                    if (!d) {
+                      setError("Este mensaje menciona un chat que ya no ves: bórralo y vuelve a escribirlo");
+                      return;
+                    }
+                    setDraft(d.text);
+                    setDraftMap(d.map);
                     setEditing(true);
                   }}
                   aria-label="Editar mensaje"

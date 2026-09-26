@@ -3,7 +3,7 @@ import path from "node:path";
 import { and, desc, eq, inArray, lt, or, sql } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
-import { scoped } from "@/lib/db/tenant";
+import { scoped, scopedContacts } from "@/lib/db/tenant";
 import { getEnv } from "@/lib/env";
 import type { SessionContext } from "@/lib/auth/session";
 import {
@@ -16,17 +16,28 @@ import {
   type TeamMessageDto,
   type TeamReactionDto,
 } from "@/lib/team-chat";
+import {
+  extractMentionIds,
+  MENTIONS_MAX,
+  renderMentions,
+} from "@/lib/team-chat-mentions";
 import { notFound, TeamChatError } from "./errors";
 import { threadAccess, threadDir, type ThreadAccess } from "./threads";
 import { publishTeam, publishToUser } from "./audience";
 
-/** Avisa en tiempo real a la audiencia del hilo (después del commit). */
+/**
+ * Avisa en tiempo real a la audiencia del hilo (después del commit). El
+ * mensaje viaja NEUTRO: igual para todos, sin ninguna mención resuelta (cada
+ * quien ve distintos chats de cliente); el cliente pide el suyo con
+ * `GET /api/team-chat/messages/[id]` si `needsResolve`.
+ */
 async function announce(
   session: SessionContext,
   access: ThreadAccess,
   change: "new" | "updated" | "deleted",
-  message: TeamMessageDto
+  messageId: string
 ): Promise<void> {
+  const message = await getMessageDto(session, messageId, { neutral: true });
   await publishTeam(session.organizationId, access.thread, {
     type: "team.message",
     data: { threadId: access.thread.id, change, message },
@@ -92,26 +103,79 @@ async function reactionsFor(
   return out;
 }
 
+/**
+ * 026 — Los chats de cliente mencionados que ESTA persona puede ver (con
+ * `scopedContacts`: asignado, participante o quien ve todo). Lo que no está
+ * en el mapa, para ella, no existe.
+ */
+async function visibleMentions(
+  session: SessionContext,
+  conversationIds: string[]
+): Promise<Map<string, { contactId: string; label: string }>> {
+  if (conversationIds.length === 0) return new Map();
+  const rows = await getDb()
+    .select({ id: schema.conversation.id, contactId: schema.contact.id, label: schema.contact.name })
+    .from(schema.conversation)
+    .innerJoin(schema.contact, eq(schema.contact.id, schema.conversation.contactId))
+    .where(
+      scopedContacts(
+        schema.conversation.organizationId,
+        session.access,
+        schema.conversation.contactId,
+        inArray(schema.conversation.id, conversationIds)
+      )
+    );
+  return new Map(rows.map((r) => [r.id, { contactId: r.contactId, label: r.label }]));
+}
+
+/**
+ * 026 — Quien escribe solo menciona chats que ve: si no, 422 (y no se dice
+ * cuál ni si existe). Devuelve lo que se guarda en `mentions` (solo ids).
+ */
+async function validateMentions(
+  session: SessionContext,
+  body: string
+): Promise<{ kind: "contact_chat"; conversationId: string }[]> {
+  const ids = extractMentionIds(body);
+  if (ids.length > MENTIONS_MAX) {
+    throw new TeamChatError(422, "too_many_mentions", `Un mensaje menciona hasta ${MENTIONS_MAX} chats`);
+  }
+  const visible = await visibleMentions(session, ids);
+  if (ids.some((id) => !visible.has(id))) {
+    throw new TeamChatError(422, "mention_forbidden", "Solo puedes mencionar chats de clientes que tú puedes ver");
+  }
+  return ids.map((conversationId) => ({ kind: "contact_chat" as const, conversationId }));
+}
+
 async function serialize(
   session: SessionContext,
-  rows: { m: MessageRow; authorName: string | null; att: AttachmentRow | null }[]
+  rows: { m: MessageRow; authorName: string | null; att: AttachmentRow | null }[],
+  opts: { neutral?: boolean } = {}
 ): Promise<TeamMessageDto[]> {
   const reactions = await reactionsFor(
     session,
     rows.map((r) => r.m.id)
   );
-  return rows.map(({ m, authorName, att }) => ({
+  const allIds = [...new Set(rows.flatMap((r) => (r.m.deletedAt ? [] : extractMentionIds(r.m.body))))];
+  // Neutro (SSE): nadie resuelve nada; cada cliente pide su versión.
+  const visible = opts.neutral ? new Map() : await visibleMentions(session, allIds);
+  return rows.map(({ m, authorName, att }) => {
+    const rendered = m.deletedAt ? { body: "", mentions: [] } : renderMentions(m.body, visible);
+    return {
     id: m.id,
     threadId: m.threadId,
     author: m.authorUserId ? { id: m.authorUserId, name: authorName ?? "Usuario" } : null,
     // Lo borrado no se lee más: ni texto ni archivo.
-    body: m.deletedAt ? "" : m.body,
+    body: rendered.body,
+    mentions: rendered.mentions,
+    needsResolve: !!opts.neutral && rendered.mentions.length > 0,
     attachment: m.deletedAt || !att ? null : serializeAttachment(att),
     reactions: m.deletedAt ? [] : (reactions.get(m.id) ?? []),
     createdAt: m.createdAt.toISOString(),
     editedAt: m.editedAt?.toISOString() ?? null,
     deleted: !!m.deletedAt,
-  }));
+    };
+  });
 }
 
 function selectMessages() {
@@ -122,11 +186,15 @@ function selectMessages() {
     .leftJoin(schema.teamChatAttachment, eq(schema.teamChatAttachment.id, schema.teamChatMessage.attachmentId));
 }
 
-export async function getMessageDto(session: SessionContext, messageId: string): Promise<TeamMessageDto> {
+export async function getMessageDto(
+  session: SessionContext,
+  messageId: string,
+  opts: { neutral?: boolean } = {}
+): Promise<TeamMessageDto> {
   const rows = await selectMessages()
     .where(scoped(schema.teamChatMessage.organizationId, session.organizationId, eq(schema.teamChatMessage.id, messageId)))
     .limit(1);
-  const [dto] = await serialize(session, rows);
+  const [dto] = await serialize(session, rows, opts);
   if (!dto) throw notFound();
   return dto;
 }
@@ -219,6 +287,7 @@ export async function postMessage(
   if (!body && !input.file) {
     throw new TeamChatError(422, "invalid_body", "Escribe un mensaje o adjunta un archivo");
   }
+  const mentions = await validateMentions(session, body);
   const attachment = input.file ? await saveAttachment(session, threadId, input.file) : null;
   const id = newId("teamChatMessage");
   const now = new Date();
@@ -231,6 +300,7 @@ export async function postMessage(
         threadId,
         authorUserId: session.userId,
         body,
+        mentions,
         attachmentId: attachment?.id ?? null,
         createdAt: now,
       });
@@ -247,7 +317,7 @@ export async function postMessage(
     throw err;
   }
   const message = await getMessageDto(session, id);
-  await announce(session, access, "new", message);
+  await announce(session, access, "new", id);
   return { access, message };
 }
 
@@ -320,12 +390,13 @@ export async function editMessage(
   if (!body && !row.attachmentId) {
     throw new TeamChatError(422, "invalid_body", "El mensaje no puede quedar vacío");
   }
+  const mentions = await validateMentions(session, body);
   await getDb()
     .update(schema.teamChatMessage)
-    .set({ body, editedAt: new Date() })
+    .set({ body, mentions, editedAt: new Date() })
     .where(scoped(schema.teamChatMessage.organizationId, session.organizationId, eq(schema.teamChatMessage.id, messageId)));
   const message = await getMessageDto(session, messageId);
-  await announce(session, access, "updated", message);
+  await announce(session, access, "updated", messageId);
   return { access, message };
 }
 
@@ -361,7 +432,7 @@ export async function deleteMessage(
   });
   if (storagePath) await rm(path.join(getEnv().MEDIA_DIR, storagePath), { force: true });
   const message = await getMessageDto(session, messageId);
-  await announce(session, access, "deleted", message);
+  await announce(session, access, "deleted", messageId);
   return { access, message };
 }
 
@@ -394,8 +465,14 @@ export async function setReaction(
       );
   }
   const message = await getMessageDto(session, messageId);
-  await announce(session, access, "updated", message);
+  await announce(session, access, "updated", messageId);
   return { access, message };
+}
+
+/** 026 — Un mensaje resuelto para quien lo pide (las menciones, a su medida). */
+export async function readMessage(session: SessionContext, messageId: string): Promise<TeamMessageDto> {
+  await messageInVisibleThread(session, messageId);
+  return getMessageDto(session, messageId);
 }
 
 /** El archivo de un adjunto, solo para quien ve su hilo (404 si no). */

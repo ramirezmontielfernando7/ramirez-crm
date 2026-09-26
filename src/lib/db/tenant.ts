@@ -1,6 +1,20 @@
-import { and, eq, getTableName, sql, type SQL } from "drizzle-orm";
+import { and, eq, getTableName, or, sql, type SQL } from "drizzle-orm";
 import type { PgColumn } from "drizzle-orm/pg-core";
 import { contact } from "@/lib/db/schema";
+
+/**
+ * 026 — "Este contacto lo veo": soy su asignado O participo en su chat
+ * (`contact_participant`). UN solo fragmento para todos los filtros de abajo;
+ * `alias` es la tabla `contact` de la subconsulta que lo usa.
+ * La asignación principal sigue siendo `assigned_user_id`; participar solo
+ * suma visibilidad.
+ */
+function contactVisibleTo(alias: SQL, userId: string): SQL {
+  return sql`(${alias}."assigned_user_id" = ${userId} or exists (
+    select 1 from "contact_participant" participa
+    where participa."contact_id" = ${alias}."id" and participa."user_id" = ${userId}
+  ))`;
+}
 
 /**
  * Scope de tenant obligatorio (Constitución III).
@@ -78,12 +92,18 @@ export function assignedTo(
   // subconsulta correlacionada con `contact.id` se podría resolver contra su
   // propio alias y dejar pasar todo.
   if (getTableName(contactIdColumn.table) === getTableName(contact)) {
-    return eq(contact.assignedUserId, access.userId);
+    return or(
+      eq(contact.assignedUserId, access.userId),
+      sql`exists (
+        select 1 from "contact_participant" participa
+        where participa."contact_id" = ${contact.id} and participa."user_id" = ${access.userId}
+      )`
+    )!;
   }
   return sql`exists (
     select 1 from "contact" asignado
     where asignado."id" = ${contactIdColumn}
-      and asignado."assigned_user_id" = ${access.userId}
+      and ${contactVisibleTo(sql.raw("asignado"), access.userId)}
   )`;
 }
 
@@ -118,7 +138,7 @@ function conversationAssignedTo(
     select 1 from "conversation" cv_asignada
     join "contact" asignado on asignado."id" = cv_asignada."contact_id"
     where cv_asignada."id" = ${conversationIdColumn}
-      and asignado."assigned_user_id" = ${access.userId}
+      and ${contactVisibleTo(sql.raw("asignado"), access.userId)}
   )`;
 }
 
@@ -144,13 +164,13 @@ export function scopedMediaAssets(
             join "conversation" cv_adj on cv_adj."id" = m_adj."conversation_id"
             join "contact" asignado on asignado."id" = cv_adj."contact_id"
             where m_adj."media_asset_id" = ${assetIdColumn}
-              and asignado."assigned_user_id" = ${access.userId}
+              and ${contactVisibleTo(sql.raw("asignado"), access.userId)}
           )
           or exists (
             select 1 from "ad_attribution" at_adj
             join "contact" asignado on asignado."id" = at_adj."contact_id"
             where at_adj."image_asset_id" = ${assetIdColumn}
-              and asignado."assigned_user_id" = ${access.userId}
+              and ${contactVisibleTo(sql.raw("asignado"), access.userId)}
           )
         )`,
     ...conditions

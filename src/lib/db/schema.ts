@@ -501,6 +501,62 @@ export const contactAssignmentEvent = pgTable(
 );
 
 /**
+ * 026 — Participantes de un chat de cliente: asesores que TAMBIÉN lo ven y lo
+ * atienden, además del asignado. La asignación principal
+ * (`contact.assigned_user_id`) sigue siendo la única fuente de verdad de
+ * "de quién es"; esto es un concepto aparte. La única puerta que escribe aquí
+ * es `src/server/assignment/participants.ts`. `scopedContacts()` los incluye.
+ */
+export const contactParticipant = pgTable(
+  "contact_participant",
+  {
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    contactId: text("contact_id")
+      .notNull()
+      .references(() => contact.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    addedByUserId: text("added_by_user_id").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.contactId, t.userId] }),
+    // `scopedContacts` hace un EXISTS por (contacto, usuario) en cada consulta
+    // de la Bandeja; la PK lo cubre. Este cubre "¿dónde participo?".
+    index("contact_participant_org_user_idx").on(t.organizationId, t.userId),
+  ]
+);
+
+/** 026 — Bitácora de participantes (append-only): quién entró/salió, quién lo hizo. */
+export const contactParticipantEvent = pgTable(
+  "contact_participant_event",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    contactId: text("contact_id")
+      .notNull()
+      .references(() => contact.id, { onDelete: "cascade" }),
+    userId: text("user_id").references(() => user.id, { onDelete: "set null" }),
+    action: text("action", { enum: ["added", "removed"] }).notNull(),
+    actorUserId: text("actor_user_id").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    occurredAt: timestamp("occurred_at").notNull().defaultNow(),
+  },
+  (t) => [
+    index("cpe_contact_occurred_idx").on(t.contactId, t.occurredAt),
+    index("cpe_org_occurred_idx").on(t.organizationId, t.occurredAt),
+  ]
+);
+
+/**
  * 020 — Cómo se reparten los leads nuevos. Reservado: hoy solo existe
  * `manual` (llegan sin asignar). El round-robin leerá `mode` y avanzará
  * `cursor_user_id`; ver `src/server/assignment/strategy.ts`.

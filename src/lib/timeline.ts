@@ -27,7 +27,9 @@ export type TimelineKind =
   | "ai_handoff"
   | "consent"
   | "tag_added"
-  | "tag_removed";
+  | "tag_removed"
+  | "participant_added"
+  | "participant_removed";
 
 export type TimelineItemDto = {
   id: string;
@@ -113,6 +115,11 @@ export function describeTimelineItem(item: TimelineItemDto): TimelineLine {
       return { title: `Etiqueta «${d.tag}» añadida${actor}`, body: null };
     case "tag_removed":
       return { title: `Etiqueta «${d.tag}» quitada${actor}`, body: null };
+    // 026 — participantes: ven y atienden el chat; no cambia de quién es.
+    case "participant_added":
+      return { title: `${d.user ?? "Alguien"} se sumó como participante${actor}`, body: null };
+    case "participant_removed":
+      return { title: `${d.user ?? "Alguien"} dejó de ser participante${actor}`, body: null };
   }
 }
 

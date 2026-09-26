@@ -6,6 +6,7 @@ import { requireBotKey, resolveInstanceOrg } from "@/server/bot/auth";
 import { publish } from "@/server/events/bus";
 import { logActivitySafe } from "@/server/activity/log";
 import { toHandoffReason } from "@/server/bot/handoff";
+import { announceHandoff } from "@/server/inbox/handoff-notice";
 
 export const dynamic = "force-dynamic";
 
@@ -70,6 +71,8 @@ export async function POST(req: Request) {
       type: "conversation.updated",
       data: { conversation: { id: conv.id } },
     });
+    // 026: el aviso (asignado + quien ve todo; no participantes).
+    await announceHandoff(organizationId, conv.id, toHandoffReason(body.data.reason));
     // 022: queda en la línea de tiempo del chat.
     await logActivitySafe({
       organizationId,
