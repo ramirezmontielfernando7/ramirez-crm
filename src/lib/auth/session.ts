@@ -1,8 +1,9 @@
 import { headers } from "next/headers";
 import { getAuth } from "@/lib/auth";
-import { can } from "@/lib/auth/permissions";
+import { can, type Permission } from "@/lib/auth/permissions";
 import type { Access } from "@/lib/db/tenant";
 import { resolveMembership } from "@/server/auth/on-signup";
+import { delegatedGrants } from "@/server/team-chat/settings";
 
 export type SessionContext = {
   userId: string;
@@ -10,6 +11,11 @@ export type SessionContext = {
   role: string;
   /** 020 — qué datos de clientes ve esta sesión (ver `scopedContacts`). */
   access: Access;
+  /**
+   * 025 — Permisos que la organización le delegó a este rol desde Ajustes
+   * (solo cuentan los que `DELEGABLE` declara; ver `can`).
+   */
+  grants?: readonly Permission[];
 };
 
 export class UnauthorizedError extends Error {
@@ -23,12 +29,14 @@ export class UnauthorizedError extends Error {
 export function sessionContext(
   userId: string,
   organizationId: string,
-  role: string
+  role: string,
+  grants: readonly Permission[] = []
 ): SessionContext {
   return {
     userId,
     organizationId,
     role,
+    grants,
     access: {
       organizationId,
       userId,
@@ -54,7 +62,8 @@ export async function requireSession(): Promise<SessionContext> {
   return sessionContext(
     session.user.id,
     membership.organizationId,
-    membership.role
+    membership.role,
+    await delegatedGrants(membership.organizationId, membership.role)
   );
 }
 

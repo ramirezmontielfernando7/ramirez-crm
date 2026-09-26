@@ -1433,3 +1433,188 @@ export const userPreference = pgTable(
   },
   (t) => [primaryKey({ columns: [t.organizationId, t.userId] })]
 );
+
+/* ============================================================
+ * 025 — Chat de equipo (comunicación INTERNA entre usuarios de la misma
+ * organización; los clientes no participan y nada de esto sale a Meta).
+ *
+ * Tablas propias y no `sales_team`: un canal necesita membresía explícita y
+ * muchos-a-muchos (una persona en varios canales), y `sales_team` es "un
+ * miembro, un equipo" sin código ni interfaz.
+ * ============================================================ */
+
+/**
+ * 025 — Un hilo del chat de equipo: directo 1 a 1, grupo (creado desde
+ * Ajustes) o el canal de avisos (uno por organización, todos participan de
+ * forma implícita: no lleva filas en `team_chat_member`).
+ */
+export const teamChatThread = pgTable(
+  "team_chat_thread",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    kind: text("kind", { enum: ["direct", "group", "announcements"] }).notNull(),
+    /** Nombre del grupo o del canal; NULL en los directos. */
+    name: text("name"),
+    /** Directos: los dos userId ordenados y unidos por "|" (un directo por par). */
+    directKey: text("direct_key"),
+    createdByUserId: text("created_by_user_id").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    lastMessageAt: timestamp("last_message_at"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => [
+    index("team_chat_thread_org_last_idx").on(t.organizationId, t.lastMessageAt),
+    uniqueIndex("team_chat_thread_direct_uq").on(t.organizationId, t.directKey),
+    uniqueIndex("team_chat_thread_announcements_uq")
+      .on(t.organizationId)
+      .where(sql`${t.kind} = 'announcements'`),
+  ]
+);
+
+/** 025 — Quién participa en un directo o un grupo. */
+export const teamChatMember = pgTable(
+  "team_chat_member",
+  {
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    threadId: text("thread_id")
+      .notNull()
+      .references(() => teamChatThread.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    addedByUserId: text("added_by_user_id").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.threadId, t.userId] }),
+    index("team_chat_member_org_user_idx").on(t.organizationId, t.userId),
+  ]
+);
+
+/**
+ * 025 — Un adjunto del chat de equipo, en `MEDIA_DIR/team-chat/` (sin S3).
+ * Aparte de `media_asset` a propósito: su visibilidad es por membresía del
+ * hilo, no por el chat de un cliente (`scopedMediaAssets`).
+ */
+export const teamChatAttachment = pgTable(
+  "team_chat_attachment",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    threadId: text("thread_id")
+      .notNull()
+      .references(() => teamChatThread.id, { onDelete: "cascade" }),
+    uploadedByUserId: text("uploaded_by_user_id").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    mimeType: text("mime_type").notNull(),
+    fileName: text("file_name").notNull(),
+    fileSize: integer("file_size").notNull(),
+    /** Ruta relativa dentro de MEDIA_DIR. */
+    storagePath: text("storage_path").notNull(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [index("team_chat_attachment_thread_idx").on(t.threadId)]
+);
+
+/**
+ * 025 — Un mensaje del chat de equipo. Borrado SUAVE (`deleted_at`): el hilo
+ * conserva el hueco ("mensaje eliminado") y el texto se vacía.
+ */
+export const teamChatMessage = pgTable(
+  "team_chat_message",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    threadId: text("thread_id")
+      .notNull()
+      .references(() => teamChatThread.id, { onDelete: "cascade" }),
+    authorUserId: text("author_user_id").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    body: text("body").notNull().default(""),
+    attachmentId: text("attachment_id").references(() => teamChatAttachment.id, {
+      onDelete: "set null",
+    }),
+    /** Menciones (PR 2: chats de cliente). Solo ids: el nombre se resuelve al leer. */
+    mentions: jsonb("mentions").$type<unknown[]>().notNull().default(sql`'[]'::jsonb`),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    editedAt: timestamp("edited_at"),
+    deletedAt: timestamp("deleted_at"),
+  },
+  (t) => [index("team_chat_message_thread_created_idx").on(t.threadId, t.createdAt)]
+);
+
+/** 025 — Reacciones con emoji: una fila por (mensaje, persona, emoji). */
+export const teamChatReaction = pgTable(
+  "team_chat_reaction",
+  {
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    messageId: text("message_id")
+      .notNull()
+      .references(() => teamChatMessage.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    emoji: text("emoji").notNull(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.messageId, t.userId, t.emoji] })]
+);
+
+/**
+ * 025 — Hasta dónde leyó cada persona cada hilo: los "no leídos" son los
+ * mensajes de OTROS posteriores a `last_read_at`. Sin fila = nada leído.
+ */
+export const teamChatReadState = pgTable(
+  "team_chat_read_state",
+  {
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    threadId: text("thread_id")
+      .notNull()
+      .references(() => teamChatThread.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    lastReadAt: timestamp("last_read_at").notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.threadId, t.userId] }),
+    index("team_chat_read_state_org_user_idx").on(t.organizationId, t.userId),
+  ]
+);
+
+/**
+ * 025 — Ajustes del chat de equipo por organización. Sin fila = los defaults
+ * (supervisión del Propietario ENCENDIDA, aviso apagado, grupos solo el
+ * Propietario).
+ */
+export const teamChatSettings = pgTable("team_chat_settings", {
+  organizationId: text("organization_id")
+    .primaryKey()
+    .references(() => organization.id, { onDelete: "cascade" }),
+  /** El Propietario ve directos y grupos ajenos (solo lectura). */
+  ownerOversight: boolean("owner_oversight").notNull().default(true),
+  /** Los demás ven "El Propietario puede supervisar…" (solo si la supervisión está activa). */
+  showOversightNotice: boolean("show_oversight_notice").notNull().default(false),
+  /** Delegación de `team_chat.create_groups` al Coordinador (ver permissions.ts). */
+  coordinatorsCanCreateGroups: boolean("coordinators_can_create_groups").notNull().default(false),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});

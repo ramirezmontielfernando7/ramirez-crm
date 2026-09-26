@@ -15,6 +15,7 @@ import {
   Kanban,
   LogOut,
   Megaphone,
+  MessagesSquare,
   Settings,
   Sparkles,
   Users,
@@ -31,6 +32,7 @@ import { SPRING } from "@/components/motion";
 import type { NavMode } from "@/lib/preferences";
 import { isHouseName } from "@/lib/brand";
 import { useViewer } from "@/components/viewer-context";
+import { TeamUnreadLogoBadge, TeamUnreadRowBadge } from "@/components/team-chat/unread-badge";
 import { roleLabel, type Permission } from "@/lib/auth/permissions";
 import {
   BUILD_COMMIT,
@@ -45,12 +47,16 @@ type NavItem = {
   label: string;
   icon: typeof Inbox;
   badge?: boolean;
+  /** 025 — globo de no leídos del chat de equipo. */
+  teamBadge?: boolean;
   /** 020 — sin este permiso la entrada no se pinta (la API ya lo niega). */
   permission?: Permission;
 };
 
 const NAV: NavItem[] = [
   { href: "/inbox", label: "Bandeja", icon: Inbox, badge: true },
+  // 025 — Comunicación interna: junto a la Bandeja, porque se usa atendiendo.
+  { href: "/chat", label: "Chat de equipo", icon: MessagesSquare, teamBadge: true },
   { href: "/pipeline", label: "Pipeline", icon: Kanban },
   { href: "/contacts", label: "Contactos", icon: Users },
   // 024 — Material que el equipo envía a los clientes: junto a Contactos,
@@ -256,9 +262,11 @@ export function AppNav({
           aria-label={toggleLabel}
           title={toggleLabel}
           aria-expanded={!mini}
-          className="nav-logo-btn hidden h-8 w-8 shrink-0 rounded-[9px] transition-[transform,filter] duration-150 hover:brightness-110 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-subtle lg:flex"
+          className="nav-logo-btn relative hidden h-8 w-8 shrink-0 rounded-[9px] transition-[transform,filter] duration-150 hover:brightness-110 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-subtle lg:flex"
         >
           <BrandTile branding={branding} className="h-8 w-8 rounded-[9px] text-[15px]" />
+          {/* 025 — Menú en íconos: el globo del chat de equipo va sobre el logo. */}
+          <TeamUnreadLogoBadge onlyMini />
         </button>
         <NavBrandText branding={branding} house={house} mini={mini} />
       </div>
@@ -339,6 +347,7 @@ const NavLinks = memo(function NavLinks({
             />
             <NavLabel>{item.label}</NavLabel>
             {item.badge && <InboxUnreadBadge />}
+            {item.teamBadge && <TeamUnreadRowBadge />}
           </Link>
         );
       })}

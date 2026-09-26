@@ -41,6 +41,10 @@ const prefixes = {
   activityEvent: "act",
   // 024 — Conocimientos
   knowledgeEntry: "kn",
+  // 025 — chat de equipo
+  teamChatThread: "tct",
+  teamChatMessage: "tcm",
+  teamChatAttachment: "tca",
 } as const;
 
 export type IdKind = keyof typeof prefixes;

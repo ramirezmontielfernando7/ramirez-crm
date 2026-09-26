@@ -113,4 +113,20 @@ describe("useEvents — conexión compartida", () => {
     off1();
     off2();
   });
+
+  it("025 — onConnect avisa en CADA apertura, incluida la primera (catch-up tras cargar)", async () => {
+    const { subscribeEvents } = await import("@/components/use-events");
+    const conn = vi.fn();
+    const re = vi.fn();
+    const off = subscribeEvents({ current: { onConnect: conn, onReconnect: re } });
+    const es = FakeEventSource.instances[0]!;
+    es.onopen?.();
+    expect(conn).toHaveBeenCalledTimes(1);
+    expect(re).not.toHaveBeenCalled();
+    es.onerror?.();
+    es.onopen?.();
+    expect(conn).toHaveBeenCalledTimes(2);
+    expect(re).toHaveBeenCalledTimes(1);
+    off();
+  });
 });

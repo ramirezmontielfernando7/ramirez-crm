@@ -9,9 +9,11 @@ import type { ResolvedCommit } from "@/lib/version";
 import { AppNav } from "@/components/app-nav";
 import { BrandLogo, BrandTile } from "@/components/brand-mark";
 import { ViewerProvider } from "@/components/viewer-context";
+import { TeamUnreadLogoBadge } from "@/components/team-chat/unread-badge";
 import { MotionProvider, NAV } from "@/components/motion";
 import { NavModeProvider } from "@/components/nav-mode";
 import { nextNavMode, type NavMode } from "@/lib/preferences";
+import type { Permission } from "@/lib/auth/permissions";
 
 /**
  * Cascarón de la app en dos modos:
@@ -30,6 +32,7 @@ export function AppShell({
   userName,
   role,
   userId,
+  grants,
   theme,
   commit,
   agenda = false,
@@ -42,6 +45,8 @@ export function AppShell({
   role: string;
   /** 020 — para el contexto del que mira (rol y permisos en pantalla). */
   userId: string;
+  /** 025 — delegaciones de la organización, para lo que se pinta. */
+  grants?: readonly Permission[];
   theme: ThemePreference;
   /** Commit resuelto en el servidor, con su procedencia (ver `resolveCommit`). */
   commit?: ResolvedCommit;
@@ -63,7 +68,7 @@ export function AppShell({
   // `LazyMotion` arrastra con él a cada `m.*` de la pantalla (ver
   // `MotionProvider`). Medido: 60 filas de la Bandeja por clic.
   return (
-    <ViewerProvider userId={userId} role={role}>
+    <ViewerProvider userId={userId} role={role} grants={grants}>
       <MotionProvider>
         <ShellFrame
           branding={branding}
@@ -208,9 +213,11 @@ function ShellFrame({
               onClick={() => setNavOpen(true)}
               aria-label="Abrir el menú"
               aria-expanded={navOpen}
-              className="ml-1 shrink-0 rounded-[9px] transition-[filter,transform] duration-150 hover:brightness-110 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="relative ml-1 shrink-0 rounded-[9px] transition-[filter,transform] duration-150 hover:brightness-110 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <BrandTile branding={branding} className="h-8 w-8 rounded-[9px] text-[15px]" />
+              {/* 025 — En el teléfono el menú se abre desde aquí: el globo del chat va encima. */}
+              <TeamUnreadLogoBadge />
             </button>
             <BrandLogo branding={branding} tile={false} className="min-w-0" />
           </header>

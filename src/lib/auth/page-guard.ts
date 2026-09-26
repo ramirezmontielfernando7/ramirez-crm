@@ -23,4 +23,7 @@ export const SETTINGS_TAB_PERMISSION = {
   team: "users.read",
   calendar: "settings.manage",
   ads: "settings.manage",
+  // 025: grupos (Propietario, o Coordinador con la delegación); la
+  // supervisión dentro de la pestaña es solo del Propietario.
+  "team-chat": "team_chat.create_groups",
 } as const satisfies Record<string, Permission>;

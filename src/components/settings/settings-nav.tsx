@@ -12,6 +12,7 @@ const TABS: Tab[] = [
   { href: "/settings/templates", label: "Plantillas" },
   { href: "/settings/tags", label: "Etiquetas" },
   { href: "/settings/team", label: "Equipo" },
+  { href: "/settings/team-chat", label: "Chat de equipo" },
 ];
 
 /** 015 — "Agenda" solo existe si esta instancia encendió la bandera. */
@@ -54,7 +55,8 @@ export function SettingsNav({
           href={t.href}
           className={cn(
             "block shrink-0 whitespace-nowrap rounded-sm px-3 py-2 text-[13.5px] font-semibold transition-colors",
-            pathname.startsWith(t.href)
+            // Exacta o subruta: "/settings/team" no debe encender "/settings/team-chat".
+            pathname === t.href || pathname.startsWith(`${t.href}/`)
               ? "bg-brand-tint text-brand-text"
               : "text-text-2 hover:bg-accent hover:text-foreground"
           )}

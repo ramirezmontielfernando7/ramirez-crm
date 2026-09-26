@@ -31,6 +31,11 @@ const MATRIZ: Record<Permission, Record<Role, boolean>> = {
   "results.all": { owner: true, coordinador: true, asesor: false },
   // 024: Conocimientos — mantenerlo es de quien opera; verlo y enviarlo, de todos.
   "knowledge.manage": { owner: true, coordinador: true, asesor: false },
+  // 025: chat de equipo. Crear grupos: el Coordinador solo por delegación
+  // (ver abajo). Supervisar: solo el Propietario, sin delegación posible.
+  "team_chat.create_groups": { owner: true, coordinador: false, asesor: false },
+  "team_chat.announce": { owner: true, coordinador: true, asesor: false },
+  "team_chat.oversee": { owner: true, coordinador: false, asesor: false },
 };
 
 describe("matriz de permisos (020)", () => {
@@ -52,6 +57,22 @@ describe("matriz de permisos (020)", () => {
 
   it("desde Ajustes → Equipo no se puede crear otro propietario", () => {
     expect(ASSIGNABLE_ROLES).toEqual(["coordinador", "asesor"]);
+  });
+
+  it("025 — delegación: el Coordinador crea grupos SOLO si la organización lo encendió", () => {
+    expect(can({ role: "coordinador" }, "team_chat.create_groups")).toBe(false);
+    expect(
+      can({ role: "coordinador", grants: ["team_chat.create_groups"] }, "team_chat.create_groups")
+    ).toBe(true);
+  });
+
+  it("025 — un grant que la matriz no declara para ese rol no da nada", () => {
+    // El Asesor no es destino de la delegación de grupos.
+    expect(can({ role: "asesor", grants: ["team_chat.create_groups"] }, "team_chat.create_groups")).toBe(false);
+    // La supervisión no es delegable, ni al Coordinador.
+    expect(can({ role: "coordinador", grants: ["team_chat.oversee"] }, "team_chat.oversee")).toBe(false);
+    // Un rol desconocido sigue sin poder nada, con o sin grants.
+    expect(can({ role: "member", grants: ["team_chat.create_groups"] }, "team_chat.create_groups")).toBe(false);
   });
 
   it("etiquetas en español", () => {

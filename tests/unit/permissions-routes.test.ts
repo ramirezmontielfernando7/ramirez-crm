@@ -118,6 +118,14 @@ const PROTEGIDAS: [string, Method, Permission][] = [
   ["knowledge", "POST", "knowledge.manage"],
   ["knowledge/[id]", "PATCH", "knowledge.manage"],
   ["knowledge/[id]", "DELETE", "knowledge.manage"],
+  // 025 — Chat de equipo: crear/editar/borrar grupos (Propietario, o el
+  // Coordinador con la delegación) y los ajustes de supervisión (Propietario).
+  ["team-chat/groups", "GET", "team_chat.create_groups"],
+  ["team-chat/groups", "POST", "team_chat.create_groups"],
+  ["team-chat/groups/[id]", "PATCH", "team_chat.create_groups"],
+  ["team-chat/groups/[id]", "DELETE", "team_chat.create_groups"],
+  ["team-chat/settings", "GET", "team_chat.oversee"],
+  ["team-chat/settings", "PUT", "team_chat.oversee"],
 ];
 
 /**
@@ -176,6 +184,28 @@ const DEL_NEGOCIO: [string, Method][] = [
   ["knowledge/[id]/file", "GET"],
 ];
 
+/**
+ * 025 — Chat de equipo: cualquier rol, pero los DATOS se filtran por
+ * MEMBRESÍA del hilo (no por asignación ni por `scope.all`): quien no
+ * participa recibe 404. Su prueba vive en `team-chat-routes.test.ts`.
+ */
+const POR_MEMBRESIA: [string, Method][] = [
+  ["team-chat/threads", "GET"],
+  ["team-chat/threads", "POST"],
+  ["team-chat/threads/[id]/messages", "GET"],
+  ["team-chat/threads/[id]/messages", "POST"],
+  ["team-chat/threads/[id]/messages/knowledge", "POST"],
+  ["team-chat/threads/[id]/read", "POST"],
+  ["team-chat/messages/[id]", "PATCH"],
+  ["team-chat/messages/[id]", "DELETE"],
+  ["team-chat/messages/[id]/reactions", "PUT"],
+  ["team-chat/messages/[id]/reactions", "DELETE"],
+  ["team-chat/attachments/[id]", "GET"],
+  ["team-chat/unread", "GET"],
+  // Nombre y rol de los compañeros (sin datos de clientes).
+  ["team-chat/people", "GET"],
+];
+
 /** Sin sesión de usuario: tienen su propia autenticación o son públicas. */
 const EXENTAS_PREFIJOS = ["auth/", "bot/", "webhooks/", "dev/", "health", "branding/favicon"];
 
@@ -223,8 +253,10 @@ describe("020 — un ASESOR recibe 403 en cada ruta protegida", () => {
 });
 
 describe("020 — un COORDINADOR recibe 403 en lo que es solo del Propietario", () => {
+  // 025: `team_chat.create_groups` sin la delegación encendida (la sesión de
+  // este test no trae grants) también es solo del Propietario.
   const soloOwner = PROTEGIDAS.filter(([, , p]) =>
-    ["settings.manage", "agent.manage", "users.manage"].includes(p)
+    ["settings.manage", "agent.manage", "users.manage", "team_chat.oversee", "team_chat.create_groups"].includes(p)
   );
   it.each(soloOwner)("%s %s → 403", async (route, method) => {
     como("coordinador");
@@ -262,9 +294,9 @@ function routeFiles(dir: string): string[] {
 }
 
 describe("020 — cobertura: ninguna ruta sin decidir su permiso", () => {
-  it("cada handler exportado está en PROTEGIDAS, FILTRADAS, DEL_NEGOCIO o es exento", () => {
+  it("cada handler exportado está en PROTEGIDAS, FILTRADAS, DEL_NEGOCIO, POR_MEMBRESIA o es exento", () => {
     const conocidas = new Set(
-      [...PROTEGIDAS, ...FILTRADAS, ...DEL_NEGOCIO].map(([r, m]) => `${r} ${m}`)
+      [...PROTEGIDAS, ...FILTRADAS, ...DEL_NEGOCIO, ...POR_MEMBRESIA].map(([r, m]) => `${r} ${m}`)
     );
     const sinDecidir: string[] = [];
     for (const file of routeFiles(API)) {

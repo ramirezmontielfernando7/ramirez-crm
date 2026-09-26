@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { requireSession, UnauthorizedError, type SessionContext } from "@/lib/auth/session";
 import { can, type Permission } from "@/lib/auth/permissions";
+import { describeError } from "@/lib/log-safe";
 
 /** Respuesta de error estándar de la API interna (contrato api.md). */
 export function apiError(
@@ -53,7 +54,9 @@ export function withAuth<Args extends unknown[]>(
     try {
       return await handler(session, ...args);
     } catch (err) {
-      console.error("[api] error no controlado:", err);
+      // Sin el error crudo: con drizzle 0.45 su mensaje trae el SQL y los
+      // parámetros (teléfonos, textos). `describeError` deja lo útil.
+      console.error("[api] error no controlado:", describeError(err));
       return apiError(500, "internal", "Error interno");
     }
   };
