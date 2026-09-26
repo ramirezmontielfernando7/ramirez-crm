@@ -42,3 +42,9 @@ Thumbs.db
 .dev-media/
 # Capturas y salidas de los self-tests (p. ej. scripts/e2e-responsive.mjs)
 scratch/
+
+# --- Piezas de marketing (videos, maestros, capturas) y su entorno local ---
+/marketing/
+.env.marketing
+scripts/marketing/.build/
+scripts/marketing/tmp/
