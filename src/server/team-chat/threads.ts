@@ -23,6 +23,7 @@ import { getTeamChatSettings, oversightNoticeVisible } from "./settings";
 import { currentMemberIds, listPeople } from "./people";
 import { isUniqueViolation, notFound, TeamChatError } from "./errors";
 import { publishTeam } from "./audience";
+import { previewWithoutMentions } from "@/lib/team-chat-mentions";
 
 /**
  * 025 — Hilos del chat de equipo: la ÚNICA puerta que lee y escribe
@@ -185,7 +186,7 @@ async function lastPreviews(
       row.deletedAt
         ? "Mensaje eliminado"
         : row.body.trim()
-          ? row.body.trim().slice(0, 140)
+          ? previewWithoutMentions(row.body.trim()).slice(0, 140)
           : row.fileName
             ? `📎 ${row.fileName}`
             : "",

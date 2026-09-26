@@ -201,6 +201,7 @@ const POR_MEMBRESIA: [string, Method][] = [
   ["team-chat/threads/[id]/messages", "POST"],
   ["team-chat/threads/[id]/messages/knowledge", "POST"],
   ["team-chat/threads/[id]/read", "POST"],
+  ["team-chat/messages/[id]", "GET"],
   ["team-chat/messages/[id]", "PATCH"],
   ["team-chat/messages/[id]", "DELETE"],
   ["team-chat/messages/[id]/reactions", "PUT"],

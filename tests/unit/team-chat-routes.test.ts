@@ -79,6 +79,7 @@ describe("025 — recurso ajeno = 404, para cualquier rol", () => {
     ["team-chat/threads/[id]/messages", "POST", { body: "hola" }],
     ["team-chat/threads/[id]/read", "POST", {}],
     ["team-chat/threads/[id]/messages/knowledge", "POST", { entryId: "kn_x", mode: "text" }],
+    ["team-chat/messages/[id]", "GET", undefined],
     ["team-chat/messages/[id]", "PATCH", { body: "editado" }],
     ["team-chat/messages/[id]", "DELETE", {}],
     ["team-chat/messages/[id]/reactions", "PUT", { emoji: "👍" }],
