@@ -2,7 +2,7 @@
 
 import { AnimatePresence, LazyMotion, MotionConfig, domAnimation, m } from "motion/react";
 import { ChevronDown } from "lucide-react";
-import { useId } from "react";
+import { memo, useId } from "react";
 import { cn } from "@/lib/utils";
 
 /**
@@ -34,10 +34,29 @@ export const SLIDE = { type: "spring", duration: 0.22, bounce: 0 } as const;
  * sin rebote para que el borde no "tiemble" al llegar.
  */
 export const MORPH = { type: "spring", duration: 0.26, bounce: 0 } as const;
+/**
+ * El menú lateral al cambiar de estado (expandido → íconos → oculto): la
+ * columna de contenido se desliza de ~170 px. 280 ms y sin rebote: con los
+ * 220 ms de SLIDE y CPU lenta, la mitad del recorrido se iba en el primer
+ * cuadro y se leía como un salto (medido con `scripts/perf-sidebar.mjs`).
+ * Los textos del menú usan la misma duración en CSS (`duration-nav`).
+ */
+export const NAV = { type: "spring", duration: 0.28, bounce: 0 } as const;
 /** Para lo que entra (filas de la línea de tiempo): sin rebote, más corto. */
 export const ENTER = { type: "spring", duration: 0.18, bounce: 0 } as const;
 
-export function MotionProvider({ children }: { children: React.ReactNode }) {
+/**
+ * OJO: `LazyMotion` crea el valor de su contexto en CADA render, y todo `m.*`
+ * de la app lo lee. Si este proveedor se vuelve a renderizar, se vuelve a
+ * renderizar cada componente animado (las 60 filas de la Bandeja al cambiar
+ * el menú, medido). Por eso va por ENCIMA de cualquier estado de la interfaz
+ * (ver `AppShell`) y memoizado: sus hijos no cambian de identidad.
+ */
+export const MotionProvider = memo(function MotionProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <LazyMotion features={domAnimation} strict>
       <MotionConfig reducedMotion="user" transition={SPRING}>
@@ -45,7 +64,7 @@ export function MotionProvider({ children }: { children: React.ReactNode }) {
       </MotionConfig>
     </LazyMotion>
   );
-}
+});
 
 /**
  * Contenido que se expande y colapsa. La altura cambia de golpe (animarla

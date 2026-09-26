@@ -28,6 +28,12 @@ const config: Config = {
       transitionTimingFunction: {
         spring: "cubic-bezier(0.3, 1.2, 0.5, 1)",
       },
+      // El menú lateral al cambiar de estado: la misma duración que el resorte
+      // `NAV` de src/components/motion.tsx, para que texto y columna lleguen
+      // juntos.
+      transitionDuration: {
+        nav: "280ms",
+      },
       colors: {
         border: "var(--border)",
         "border-strong": "var(--border-strong)",

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, m } from "motion/react";
 import Link from "next/link";
@@ -154,7 +154,6 @@ export function AppNav({
 }) {
   const pathname = usePathname();
   const router = useRouter();
-  const [unread, setUnread] = useState(0);
   // "Mini" = colapsado Y en escritorio. En el cajón del teléfono lo colapsado
   // no aplica: ahí el menú siempre se lee completo.
   const desktop = useIsDesktop();
@@ -165,41 +164,30 @@ export function AppNav({
   const hidden = mode === "hidden";
   const toggleLabel = mini ? "Ocultar el menú" : "Colapsar el menú";
 
-  async function refetchUnread() {
-    const res = await fetch("/api/conversations").catch(() => null);
-    if (!res?.ok) return;
-    const data = (await res.json()) as {
-      conversations: { unreadCount: number }[];
-    };
-    setUnread(data.conversations.reduce((a, c) => a + c.unreadCount, 0));
-  }
-
-  useEffect(() => {
-    void refetchUnread();
-  }, []);
-
-  useEvents({
-    onMessageNew: () => void refetchUnread(),
-    onConversationUpdated: () => void refetchUnread(),
-  });
-
-  async function signOutAndLeave() {
+  const signOutAndLeave = useCallback(async () => {
     await signOut();
     router.push("/login");
     router.refresh();
-  }
+  }, [router]);
 
-  const version = commit ?? { commit: BUILD_COMMIT, verified: BUILD_COMMIT !== "" };
+  const version = useMemo(
+    () => commit ?? { commit: BUILD_COMMIT, verified: BUILD_COMMIT !== "" },
+    [commit]
+  );
   const settingsActive = pathname.startsWith("/settings");
   // Citas va después de Pipeline: es el paso siguiente de un trato, no una
   // sección aparte.
   const viewer = useViewer();
-  const base = agenda ? [...NAV.slice(0, 2), AGENDA_ITEM, ...NAV.slice(2)] : NAV;
-  // 024: Campañas va después de Conocimientos, que se queda pegado a Contactos.
-  const campaignsAfter = base.findIndex((i) => i.href === "/knowledge");
-  const items = (
-    campaigns ? [...base.slice(0, campaignsAfter + 1), CAMPAIGNS_ITEM, ...base.slice(campaignsAfter + 1)] : base
-  ).filter((item) => !item.permission || viewer.can(item.permission));
+  // Memoizada: la lista de renglones (memo) no se vuelve a pintar al cambiar
+  // de estado el menú.
+  const items = useMemo(() => {
+    const base = agenda ? [...NAV.slice(0, 2), AGENDA_ITEM, ...NAV.slice(2)] : NAV;
+    // 024: Campañas va después de Conocimientos, que se queda pegado a Contactos.
+    const campaignsAfter = base.findIndex((i) => i.href === "/knowledge");
+    return (
+      campaigns ? [...base.slice(0, campaignsAfter + 1), CAMPAIGNS_ITEM, ...base.slice(campaignsAfter + 1)] : base
+    ).filter((item) => !item.permission || viewer.can(item.permission));
+  }, [agenda, campaigns, viewer]);
   // Ajustes solo si hay al menos una pestaña que pueda abrir.
   const showSettings =
     viewer.can("settings.manage") ||
@@ -208,6 +196,10 @@ export function AppNav({
 
   return (
     <aside
+      // El estado "mini" se lee en CSS (`group-data-[mini]/nav:`), no por
+      // props: así, al cambiar de estado solo se vuelve a pintar este
+      // contenedor y los renglones (memoizados) no se enteran.
+      data-mini={mini || undefined}
       // Móvil: cajón que se desliza desde la izquierda (siempre montado, así
       // la transición corre en ambos sentidos). Escritorio: columna fija.
       // `visibility` va en la transición a propósito: al cerrar mantiene el
@@ -218,7 +210,7 @@ export function AppNav({
         // nombre del usuario, el nombre white-label en BrandLogo) hereda el
         // color YA CALCULADO en <body> con el tema de la página, no el de
         // `.nav-dark` — y un texto oscuro sobre este fondo oscuro se pierde.
-        "nav-dark fixed inset-y-0 left-0 z-50 flex w-[17rem] shrink-0 flex-col overflow-y-auto border-r bg-subtle px-3 pb-3.5 pt-3 text-foreground transition-[transform,visibility] duration-200",
+        "group/nav nav-dark fixed inset-y-0 left-0 z-50 flex w-[17rem] shrink-0 flex-col overflow-y-auto border-r bg-subtle px-3 pb-3.5 pt-3 text-foreground transition-[transform,visibility] duration-200",
         // En escritorio el ancho cambia de golpe (animar `width` recalcula el
         // layout de toda la página en cada cuadro); lo que se mueve con
         // resorte son los textos, solo con `opacity` + `transform`.
@@ -268,151 +260,246 @@ export function AppNav({
         >
           <BrandTile branding={branding} className="h-8 w-8 rounded-[9px] text-[15px]" />
         </button>
-        <div
-          aria-hidden={mini || undefined}
-          className={cn(
-            "min-w-0 transition-[opacity,transform] duration-200 ease-spring",
-            mini && "pointer-events-none -translate-x-1.5 opacity-0"
-          )}
-        >
-          <BrandLogo branding={branding} className="lg:hidden" />
-          <BrandLogo branding={branding} tile={false} className="hidden lg:flex" />
-          {/* La firma "by Demfort" ya ocupa ese lugar en la marca de la casa. */}
-          {!house && <span className="kicker mt-2 block whitespace-nowrap">CRM · WhatsApp</span>}
-        </div>
+        <NavBrandText branding={branding} house={house} mini={mini} />
       </div>
 
-      <nav className="flex flex-col gap-0.5">
-        {items.map((item) => {
-          const active =
-            pathname === item.href || pathname.startsWith(`${item.href}/`);
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              title={mini ? item.label : undefined}
-              className={cn(navItemClass(active), "relative")}
-            >
-              <item.icon
-                className={cn("h-[17px] w-[17px] shrink-0", active ? "text-brand" : "text-text-3")}
-                strokeWidth={1.8}
-              />
-              <NavLabel mini={mini}>{item.label}</NavLabel>
-              {item.badge && unread > 0 && (
-                mini ? (
-                  // Colapsado, el conteo es un punto sobre el ícono.
-                  <span
-                    aria-label={`${unread} sin leer`}
-                    className="absolute left-[22px] top-1.5 h-2 w-2 rounded-full bg-brand"
-                  />
-                ) : (
-                  <span className="flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-brand px-1.5 text-[10.5px] font-bold text-brand-fg">
-                    {unread}
-                  </span>
-                )
-              )}
-            </Link>
-          );
-        })}
-      </nav>
+      <NavLinks items={items} pathname={pathname} />
 
       <div className="flex-1" />
 
-      {showSettings && (
-        <Link
-          href="/settings"
-          title={mini ? "Ajustes" : undefined}
-          className={navItemClass(settingsActive)}
-        >
-          <Settings
-            className={cn("h-[17px] w-[17px] shrink-0", settingsActive ? "text-brand" : "text-text-3")}
-            strokeWidth={1.8}
-          />
-          <NavLabel mini={mini}>Ajustes</NavLabel>
-        </Link>
-      )}
+      {showSettings && <SettingsLink active={settingsActive} />}
 
-      {mini ? (
-        <ProfileMenu
-          userName={userName}
-          roleText={viewer.roleLabel || roleLabel(role)}
-          theme={theme}
-          onSignOut={signOutAndLeave}
-        />
-      ) : (
-        <div className="mt-1 flex items-center gap-2.5 rounded-sm px-2.5 py-2 hover:bg-accent">
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-soft text-xs font-bold text-brand-text">
-            {initials(userName)}
-          </span>
-          <span className="min-w-0 flex-1">
-            <span className="block truncate text-[13px] font-semibold">{userName}</span>
-            <span className="block truncate text-[11px] text-text-3">
-              {viewer.roleLabel || roleLabel(role)} · En línea
-            </span>
-          </span>
-          <ThemeToggle initial={theme} />
-          <button
-            aria-label="Cerrar sesión"
-            title="Cerrar sesión"
-            className="rounded p-1 text-text-3 hover:text-foreground"
-            onClick={() => void signOutAndLeave()}
-          >
-            <LogOut className="h-4 w-4" strokeWidth={1.7} />
-          </button>
-        </div>
-      )}
+      <NavFooter
+        userName={userName}
+        roleText={viewer.roleLabel || roleLabel(role)}
+        theme={theme}
+        onSignOut={signOutAndLeave}
+      />
 
-      {/* Qué versión está corriendo. Discreta pero siempre visible: la duda
-          "¿ya se desplegó?" aparece justo cuando algo no funciona, y mandar a
-          alguien a comparar commits en el servidor significa que no lo hará. */}
-      {/* `text-2` y no `text-3`: a 10.5px, el gris más claro no pasa AA contra
-          el fondo de la barra. Discreta sí, ilegible no. */}
-      {/* El nombre sale de la marca, no de una constante: esto es white-label,
-          y una instancia rebautizada que dice "Vocero" en el tooltip delata el
-          producto de debajo justo donde el operador la mira todos los días. */}
-      {/* Un commit que no salió del build lo dice (#50): presentarlo igual
-          que uno verificado es la insignia mintiendo justo cuando alguien la
-          consulta para saber qué código corre. El aviso es el ícono (color de
-          advertencia: basta 3:1 para un gráfico) y el texto va en `text-2`,
-          que pasa AA sobre la barra en cualquier tema. */}
-      <p
-        className={cn(
-          "mt-2 px-2.5 font-mono text-[10.5px] tracking-[0.06em] text-text-2",
-          // Colapsado no cabe: sigue en el tooltip del menú expandido.
-          mini && "lg:hidden"
-        )}
-        title={versionTitle(branding.name, version)}
-      >
-        {versionLabel(version.commit)}
-        {version.commit && !version.verified && (
-          <span className="mt-0.5 flex items-center gap-1">
-            <AlertTriangle
-              className="h-3 w-3 shrink-0 text-warning-text"
-              strokeWidth={2}
-              aria-hidden
-            />
-            {UNVERIFIED_COMMIT_NOTE}
-          </span>
-        )}
-      </p>
+      <NavVersion branding={branding} version={version} />
     </aside>
   );
 }
 
 /**
- * El texto de un renglón: al expandir entra deslizándose con resorte; al
- * colapsar se desvanece (el ancho lo recorta). Solo `opacity` + `transform`.
+ * La marca junto al logo. Con el menú en íconos se desvanece (el ancho la
+ * recorta); `aria-hidden` para que el lector de pantalla no la anuncie.
  */
-function NavLabel({ mini, children }: { mini: boolean; children: React.ReactNode }) {
+const NavBrandText = memo(function NavBrandText({
+  branding,
+  house,
+  mini,
+}: {
+  branding: Branding;
+  house: boolean;
+  mini: boolean;
+}) {
+  return (
+    <div
+      aria-hidden={mini || undefined}
+      className={cn(
+        "min-w-0 transition-[opacity,transform] duration-nav ease-out",
+        "group-data-[mini]/nav:pointer-events-none group-data-[mini]/nav:-translate-x-1.5 group-data-[mini]/nav:opacity-0"
+      )}
+    >
+      <BrandLogo branding={branding} className="lg:hidden" />
+      <BrandLogo branding={branding} tile={false} className="hidden lg:flex" />
+      {/* La firma "by Demfort" ya ocupa ese lugar en la marca de la casa. */}
+      {!house && <span className="kicker mt-2 block whitespace-nowrap">CRM · WhatsApp</span>}
+    </div>
+  );
+});
+
+/**
+ * Los renglones del menú. Memoizados y SIN saber si el menú está en íconos:
+ * eso lo resuelve el CSS del contenedor. Cambiar de estado no los re-renderiza.
+ * El `title` va siempre: en íconos es el único nombre visible del renglón.
+ */
+const NavLinks = memo(function NavLinks({
+  items,
+  pathname,
+}: {
+  items: NavItem[];
+  pathname: string;
+}) {
+  return (
+    <nav className="flex flex-col gap-0.5">
+      {items.map((item) => {
+        const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+        return (
+          <Link
+            key={item.href}
+            href={item.href}
+            title={item.label}
+            className={cn(navItemClass(active), "relative")}
+          >
+            <item.icon
+              className={cn("h-[17px] w-[17px] shrink-0", active ? "text-brand" : "text-text-3")}
+              strokeWidth={1.8}
+            />
+            <NavLabel>{item.label}</NavLabel>
+            {item.badge && <InboxUnreadBadge />}
+          </Link>
+        );
+      })}
+    </nav>
+  );
+});
+
+const SettingsLink = memo(function SettingsLink({ active }: { active: boolean }) {
+  return (
+    <Link href="/settings" title="Ajustes" className={navItemClass(active)}>
+      <Settings
+        className={cn("h-[17px] w-[17px] shrink-0", active ? "text-brand" : "text-text-3")}
+        strokeWidth={1.8}
+      />
+      <NavLabel>Ajustes</NavLabel>
+    </Link>
+  );
+});
+
+/**
+ * El pie del menú: expandido, la tarjeta del usuario; en íconos, solo el
+ * avatar (que abre `ProfileMenu`). Los dos están montados y el CSS del
+ * contenedor muestra uno: cambiar de estado no monta ni desmonta nada.
+ */
+const NavFooter = memo(function NavFooter({
+  userName,
+  roleText,
+  theme,
+  onSignOut,
+}: {
+  userName: string;
+  roleText: string;
+  theme: ThemePreference;
+  onSignOut: () => Promise<void>;
+}) {
+  return (
+    <>
+      <div className="hidden flex-col group-data-[mini]/nav:flex">
+        <ProfileMenu userName={userName} roleText={roleText} theme={theme} onSignOut={onSignOut} />
+      </div>
+      <div className="mt-1 flex items-center gap-2.5 rounded-sm px-2.5 py-2 hover:bg-accent group-data-[mini]/nav:hidden">
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-soft text-xs font-bold text-brand-text">
+          {initials(userName)}
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-[13px] font-semibold">{userName}</span>
+          <span className="block truncate text-[11px] text-text-3">{roleText} · En línea</span>
+        </span>
+        <ThemeToggle initial={theme} />
+        <button
+          aria-label="Cerrar sesión"
+          title="Cerrar sesión"
+          className="rounded p-1 text-text-3 hover:text-foreground"
+          onClick={() => void onSignOut()}
+        >
+          <LogOut className="h-4 w-4" strokeWidth={1.7} />
+        </button>
+      </div>
+    </>
+  );
+});
+
+/**
+ * Qué versión está corriendo. Discreta pero siempre visible: la duda "¿ya se
+ * desplegó?" aparece justo cuando algo no funciona, y mandar a alguien a
+ * comparar commits en el servidor significa que no lo hará.
+ */
+const NavVersion = memo(function NavVersion({
+  branding,
+  version,
+}: {
+  branding: Branding;
+  version: ResolvedCommit;
+}) {
+  return (
+    // `text-2` y no `text-3`: a 10.5px, el gris más claro no pasa AA contra
+    // el fondo de la barra. Discreta sí, ilegible no.
+    // El nombre sale de la marca, no de una constante: esto es white-label,
+    // y una instancia rebautizada que dice "Vocero" en el tooltip delata el
+    // producto de debajo justo donde el operador la mira todos los días.
+    // Un commit que no salió del build lo dice (#50): presentarlo igual que
+    // uno verificado es la insignia mintiendo justo cuando alguien la
+    // consulta para saber qué código corre. El aviso es el ícono (color de
+    // advertencia: basta 3:1 para un gráfico) y el texto va en `text-2`, que
+    // pasa AA sobre la barra en cualquier tema.
+    <p
+      className={cn(
+        "mt-2 px-2.5 font-mono text-[10.5px] tracking-[0.06em] text-text-2",
+        // Colapsado no cabe: sigue en el tooltip del menú expandido.
+        "group-data-[mini]/nav:lg:hidden"
+      )}
+      title={versionTitle(branding.name, version)}
+    >
+      {versionLabel(version.commit)}
+      {version.commit && !version.verified && (
+        <span className="mt-0.5 flex items-center gap-1">
+          <AlertTriangle className="h-3 w-3 shrink-0 text-warning-text" strokeWidth={2} aria-hidden />
+          {UNVERIFIED_COMMIT_NOTE}
+        </span>
+      )}
+    </p>
+  );
+});
+
+/**
+ * El texto de un renglón: al expandir entra deslizándose; al colapsar se
+ * desvanece (el ancho lo recorta). Solo `opacity` + `transform`, con la
+ * misma duración que la columna (`duration-nav`), y el estado lo pone el
+ * contenedor (`data-mini`), no un prop.
+ */
+function NavLabel({ children }: { children: React.ReactNode }) {
   return (
     <span
       className={cn(
-        "flex-1 whitespace-nowrap transition-[opacity,transform] duration-200 ease-spring",
-        mini && "-translate-x-1.5 opacity-0"
+        "flex-1 whitespace-nowrap transition-[opacity,transform] duration-nav ease-out",
+        "group-data-[mini]/nav:-translate-x-1.5 group-data-[mini]/nav:opacity-0"
       )}
     >
       {children}
     </span>
+  );
+}
+
+/**
+ * El conteo de no leídos de la Bandeja, con su PROPIO estado: un mensaje que
+ * llega vuelve a pintar solo este globo, no el menú entero (antes el estado
+ * vivía en `AppNav` y cada `message.new` lo re-renderizaba completo).
+ */
+function InboxUnreadBadge() {
+  const [unread, setUnread] = useState(0);
+
+  async function refetchUnread() {
+    const res = await fetch("/api/conversations").catch(() => null);
+    if (!res?.ok) return;
+    const data = (await res.json()) as {
+      conversations: { unreadCount: number }[];
+    };
+    setUnread(data.conversations.reduce((a, c) => a + c.unreadCount, 0));
+  }
+
+  useEffect(() => {
+    void refetchUnread();
+  }, []);
+
+  useEvents({
+    onMessageNew: () => void refetchUnread(),
+    onConversationUpdated: () => void refetchUnread(),
+  });
+
+  if (unread <= 0) return null;
+  return (
+    <>
+      {/* Colapsado, el conteo es un punto sobre el ícono. */}
+      <span
+        aria-label={`${unread} sin leer`}
+        className="absolute left-[22px] top-1.5 hidden h-2 w-2 rounded-full bg-brand group-data-[mini]/nav:block"
+      />
+      <span className="flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-brand px-1.5 text-[10.5px] font-bold text-brand-fg group-data-[mini]/nav:hidden">
+        {unread}
+      </span>
+    </>
   );
 }
 

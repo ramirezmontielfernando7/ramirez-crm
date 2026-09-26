@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { useAnimate } from "motion/react";
 import type { Branding } from "@/lib/branding";
@@ -9,7 +9,7 @@ import type { ResolvedCommit } from "@/lib/version";
 import { AppNav } from "@/components/app-nav";
 import { BrandLogo, BrandTile } from "@/components/brand-mark";
 import { ViewerProvider } from "@/components/viewer-context";
-import { MotionProvider, SLIDE } from "@/components/motion";
+import { MotionProvider, NAV } from "@/components/motion";
 import { NavModeProvider } from "@/components/nav-mode";
 import { nextNavMode, type NavMode } from "@/lib/preferences";
 
@@ -58,6 +58,51 @@ export function AppShell({
   navMode?: NavMode;
   children: React.ReactNode;
 }) {
+  // Los proveedores van POR ENCIMA del estado del menú: si vivieran dentro de
+  // `ShellFrame`, cada cambio de estado del menú los volvería a renderizar, y
+  // `LazyMotion` arrastra con él a cada `m.*` de la pantalla (ver
+  // `MotionProvider`). Medido: 60 filas de la Bandeja por clic.
+  return (
+    <ViewerProvider userId={userId} role={role}>
+      <MotionProvider>
+        <ShellFrame
+          branding={branding}
+          userName={userName}
+          role={role}
+          theme={theme}
+          commit={commit}
+          agenda={agenda}
+          campaigns={campaigns}
+          navMode={navMode}
+        >
+          {children}
+        </ShellFrame>
+      </MotionProvider>
+    </ViewerProvider>
+  );
+}
+
+function ShellFrame({
+  branding,
+  userName,
+  role,
+  theme,
+  commit,
+  agenda,
+  campaigns,
+  navMode,
+  children,
+}: {
+  branding: Branding;
+  userName: string;
+  role: string;
+  theme: ThemePreference;
+  commit?: ResolvedCommit;
+  agenda: boolean;
+  campaigns: boolean;
+  navMode: NavMode;
+  children: React.ReactNode;
+}) {
   const pathname = usePathname();
   const [navOpen, setNavOpen] = useState(false);
   const [mode, setMode] = useState<NavMode>(navMode);
@@ -68,8 +113,12 @@ export function AppShell({
 
   // El hamburguesa de escritorio recorre el ciclo expandido → íconos →
   // oculto → expandido. (El teléfono no lo usa: ahí el cajón abre y cierra.)
-  function cycleNav() {
-    const next = nextNavMode(mode);
+  // Estable (lee el modo de un ref): así el contexto del menú y `AppNav` no
+  // cambian de identidad por culpa de la función.
+  const modeRef = useRef(mode);
+  modeRef.current = mode;
+  const cycleNav = useCallback(() => {
+    const next = nextNavMode(modeRef.current);
     leftBefore.current = content.current?.getBoundingClientRect().left ?? null;
     setMode(next);
     // Por usuario y en BD: la elección lo sigue a otro dispositivo. Si no se
@@ -84,11 +133,13 @@ export function AppShell({
         body: JSON.stringify({ navMode: next }),
       }).catch(() => undefined);
     }, 300);
-  }
+  }, [content]);
+  const closeNav = useCallback(() => setNavOpen(false), []);
+  const navCtx = useMemo(() => ({ mode, cycle: cycleNav, branding }), [mode, cycleNav, branding]);
 
   // El menú cambia de ancho de golpe (animar `width` recalcula el layout en
   // cada cuadro). Lo que se mueve es la columna de contenido ENTERA, como una
-  // sola pieza: antes de pintar se la deja donde estaba (`x` = cuánto se
+  // sola pieza: antes de pintar se la deja donde estaba (el desplazamiento = cuánto se
   // corrió su borde izquierdo) y se desliza a su lugar. Solo `transform`.
   useLayoutEffect(() => {
     const el = content.current;
@@ -98,7 +149,10 @@ export function AppShell({
     const delta = before - el.getBoundingClientRect().left;
     if (Math.abs(delta) < 1) return;
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    void animate(el, { x: [delta, 0] }, SLIDE);
+    // `transform` como cadena (no `x`): motion la entrega a WAAPI y corre en el
+    // compositor. Con `x` el resorte se calcula en el hilo principal cuadro a
+    // cuadro, justo cuando React y el pintado de la barra lo tienen ocupado.
+    void animate(el, { transform: [`translateX(${delta}px)`, "translateX(0px)"] }, NAV);
   }, [mode, animate, content]);
 
   // Navegar = cerrar el cajón. Sin esto, tocar "Pipeline" deja el velo encima
@@ -117,57 +171,53 @@ export function AppShell({
   }, [navOpen]);
 
   return (
-    <ViewerProvider userId={userId} role={role}>
-      <MotionProvider>
-        <NavModeProvider value={{ mode, cycle: cycleNav, branding }}>
-          <div className="flex h-dvh overflow-hidden bg-background">
-            {navOpen && (
-              <button
-                aria-label="Cerrar el menú"
-                tabIndex={-1}
-                onClick={() => setNavOpen(false)}
-                className="fixed inset-0 z-40 bg-overlay lg:hidden"
-              />
-            )}
+    <NavModeProvider value={navCtx}>
+      <div className="flex h-dvh overflow-hidden bg-background">
+        {navOpen && (
+          <button
+            aria-label="Cerrar el menú"
+            tabIndex={-1}
+            onClick={() => setNavOpen(false)}
+            className="fixed inset-0 z-40 bg-overlay lg:hidden"
+          />
+        )}
 
-            <AppNav
-              branding={branding}
-              commit={commit}
-              userName={userName}
-              role={role}
-              theme={theme}
-              agenda={agenda}
-              campaigns={campaigns}
-              open={navOpen}
-              onClose={() => setNavOpen(false)}
-              mode={mode}
-              onCycleMode={cycleNav}
-            />
+        <AppNav
+          branding={branding}
+          commit={commit}
+          userName={userName}
+          role={role}
+          theme={theme}
+          agenda={agenda}
+          campaigns={campaigns}
+          open={navOpen}
+          onClose={closeNav}
+          mode={mode}
+          onCycleMode={cycleNav}
+        />
 
-            {/* 022 — Con el menú oculto, el hamburguesa para volver va en la fila
-                del título de cada pantalla (`NavRevealButton`), así que la
-                columna ocupa TODO el ancho, sin franja ni botón flotante. */}
-            <div ref={content} className="flex min-w-0 flex-1 flex-col">
-              {/* Misma pieza que la barra lateral (`nav-dark`): en el teléfono la
-                  franja azul marino de arriba es lo que queda del bicolor. */}
-              <header className="nav-dark flex h-14 shrink-0 items-center gap-2.5 border-b bg-subtle px-2 text-foreground lg:hidden">
-                {/* El logo abre el cajón, como el de la barra lateral en escritorio. */}
-                <button
-                  onClick={() => setNavOpen(true)}
-                  aria-label="Abrir el menú"
-                  aria-expanded={navOpen}
-                  className="ml-1 shrink-0 rounded-[9px] transition-[filter,transform] duration-150 hover:brightness-110 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  <BrandTile branding={branding} className="h-8 w-8 rounded-[9px] text-[15px]" />
-                </button>
-                <BrandLogo branding={branding} tile={false} className="min-w-0" />
-              </header>
+        {/* 022 — Con el menú oculto, el hamburguesa para volver va en la fila
+            del título de cada pantalla (`NavRevealButton`), así que la
+            columna ocupa TODO el ancho, sin franja ni botón flotante. */}
+        <div ref={content} className="flex min-w-0 flex-1 flex-col">
+          {/* Misma pieza que la barra lateral (`nav-dark`): en el teléfono la
+              franja azul marino de arriba es lo que queda del bicolor. */}
+          <header className="nav-dark flex h-14 shrink-0 items-center gap-2.5 border-b bg-subtle px-2 text-foreground lg:hidden">
+            {/* El logo abre el cajón, como el de la barra lateral en escritorio. */}
+            <button
+              onClick={() => setNavOpen(true)}
+              aria-label="Abrir el menú"
+              aria-expanded={navOpen}
+              className="ml-1 shrink-0 rounded-[9px] transition-[filter,transform] duration-150 hover:brightness-110 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <BrandTile branding={branding} className="h-8 w-8 rounded-[9px] text-[15px]" />
+            </button>
+            <BrandLogo branding={branding} tile={false} className="min-w-0" />
+          </header>
 
-              <main className="min-h-0 min-w-0 flex-1 overflow-hidden">{children}</main>
-            </div>
-          </div>
-        </NavModeProvider>
-      </MotionProvider>
-    </ViewerProvider>
+          <main className="min-h-0 min-w-0 flex-1 overflow-hidden">{children}</main>
+        </div>
+      </div>
+    </NavModeProvider>
   );
 }

@@ -61,7 +61,9 @@ const RUTAS = [
 
 mkdirSync(SHOTS, { recursive: true });
 
-const browser = await chromium.launch();
+const browser = await chromium.launch(
+  process.env.PLAYWRIGHT_CHROMIUM ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM } : {}
+);
 const ctx = await browser.newContext({ viewport: DESKTOP });
 const req = ctx.request;
 // El canal SSE se corta en el navegador: no aporta nada al diseño y cada

@@ -27,7 +27,9 @@ Las notas eran UN campo que cada guardado sobrescribía, sin autor ni hora.
      va en la fila del título de cada pantalla, alineado con el texto y
      siempre visible (sin depender de hover). Al cambiar de estado, la
      columna de contenido entera se desliza a su lugar como una sola pieza
-     (solo `transform`, 220 ms, sin rebote). Se guarda en
+     (solo `transform` vía WAAPI, 280 ms, sin rebote — ajustado en la
+     fluidez del menú, que reemplaza los 220 ms originales; medido con
+     `scripts/perf-sidebar.mjs`). Se guarda en
      `user_preference.nav_mode` (`expanded|collapsed|hidden`, aditiva;
      `nav_collapsed` se sigue escribiendo y se lee si no hay `nav_mode`).
      Solo escritorio: el cajón del teléfono sigue abierto/cerrado.
