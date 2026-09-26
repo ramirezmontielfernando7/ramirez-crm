@@ -1,16 +1,16 @@
 /**
- * Graba clips: node scripts/marketing/record/run.mjs 02 03 10
- * Por clip: reinicia la instancia (BD + siembra frescas), abre Chromium en el
- * Xvfb, prepara la pantalla fuera de cámara, graba el maestro sin pérdida y
- * exporta el MP4 final con fades.
+ * Graba clips (reglas v2): node scripts/marketing/record/run.mjs 02 03 10
+ * Por clip: reinicia la instancia (BD + siembra) ANTES de grabar, prepara la
+ * pantalla fuera de cámara, graba el maestro sin pérdida y, ya con la
+ * grabación cerrada, hace la posproducción y la revisión automática.
  *   --no-reset   reusar el estado actual
- *   --no-export  solo maestro
+ *   --no-post    solo maestro
  */
 import { execSync } from "node:child_process";
 import { readdirSync } from "node:fs";
 import path from "node:path";
-import { launch, newContext, Recorder, fpsMeterStart, fpsMeterStop, fullscreen, ROOT } from "./lib.mjs";
-import { exportClip } from "./export.mjs";
+import { launch, newContext, Recorder, fpsMeterStart, fpsMeterStop, fullscreen, trackNetwork, TL, ROOT, sleep } from "./lib.mjs";
+import { post } from "./post.mjs";
 
 const args = process.argv.slice(2);
 const flags = new Set(args.filter((a) => a.startsWith("--")));
@@ -30,20 +30,30 @@ for (const w of wanted) {
   const browser = await launch();
   const ctx = await newContext(browser);
   const page = await ctx.newPage();
+  trackNetwork(page);
   await fullscreen(page);
   const env = { browser, ctx, page };
   await clip.prepare?.(env);
+  TL.pos = clip.meta?.startPos ?? { x: 1250, y: 560 };
+  await page.mouse.move(TL.pos.x, TL.pos.y);
+  // Chromium muestra ~5 s el aviso "Para salir de pantalla completa…": que
+  // desaparezca antes de grabar, y todo quieto y estable.
+  await sleep(Math.max(1200, 7000 - (Date.now() - (page.__fullscreenAt ?? 0))));
   const rec = new Recorder(name);
-  await fpsMeterStart(page).catch(() => {});
-  await rec.start();
+  rec.startPos = { ...TL.pos };
+  await fpsMeterStart(env.page).catch(() => {});
+  await rec.start(env.page);
+  let failed = null;
   try {
     await clip.run(env);
-  } finally {
-    const fps = await fpsMeterStop(env.page).catch(() => null);
-    const stats = await rec.stop();
-    console.log("[fps navegador]", JSON.stringify(fps));
-    await clip.cleanup?.(env).catch(() => {});
-    await browser.close();
-    if (!flags.has("--no-export")) await exportClip(name, stats, fps);
+  } catch (e) {
+    failed = e;
   }
+  const fps = await fpsMeterStop(env.page).catch(() => null);
+  await rec.stop();
+  console.log("[fps navegador]", JSON.stringify(fps));
+  await clip.cleanup?.(env).catch(() => {});
+  await browser.close();
+  if (failed) throw failed;
+  if (!flags.has("--no-post")) await post(name, clip.meta ?? {});
 }

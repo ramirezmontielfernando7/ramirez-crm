@@ -1,80 +1,81 @@
 /**
- * 03 — El bot atiende a una clienta nueva (saludo, precio, horario), el
- * Propietario asigna el chat a Diego, la clienta pide un asesor → handoff con
- * aviso, y Diego (su propia ventana) toma el chat y responde.
+ * 03 — El bot atiende y pasa el chat a un asesor. Se ve desde la pantalla
+ * de Diego (asesor): el chat de la clienta ya es suyo (asignado antes de
+ * grabar), el bot contesta, la clienta pide un asesor, llega el aviso y
+ * Diego responde.
  */
-import { BASE, login, settle, sleep, clickOn, hover, moveTo, typeHuman, inbound, phone, newContext, fullscreen } from "../lib.mjs";
+import { BASE, SEED, login, settle, step, readAlong, clickOn, hover, moveTo, typeText, holdUntil, drift, inbound, phone, apiClient, sleep } from "../lib.mjs";
 
+export const meta = { title: "Bot con paso a asesor", subs: 175, startPos: { x: 1080, y: 640 } };
 const CLIENTA = { from: phone(74), name: "Mariela Poot" };
-let diego;
 
-export async function prepare({ browser, page }) {
-  // Ventana de Diego (asesor): lista y preparada detrás.
-  const ctxD = await newContext(browser, { ip: "10.62.0.44" });
-  diego = await ctxD.newPage();
-  await fullscreen(diego);
-  await login(diego, "diego");
-  await diego.goto(`${BASE}/inbox`, { waitUntil: "load" });
-  await settle(diego, 1000);
-  await diego.mouse.move(1250, 560);
-
-  await page.bringToFront();
-  await login(page, "carlos");
+export async function prepare({ page }) {
+  // Antes de grabar: la clienta saluda, el bot contesta y el chat se asigna a Diego.
+  await inbound({ ...CLIENTA, text: "Hola, buenas tardes" });
+  const carlos = await apiClient("carlos", "10.64.0.10");
+  let conv;
+  for (let i = 0; i < 40 && !conv; i++) {
+    const { conversations } = await carlos.call("/api/conversations");
+    conv = conversations.find((c) => c.contact.name === "Mariela Poot");
+    if (!conv) await sleep(250);
+  }
+  const diegoId = SEED().uid.diego;
+  await carlos.call("/api/assignments", "POST", { contactIds: [conv.contact.id], userId: diegoId });
+  for (let i = 0; i < 40; i++) {
+    const { messages } = await carlos.call(`/api/conversations/${conv.id}/messages`);
+    if (messages?.some((m) => m.direction === "out")) break;
+    await sleep(250);
+  }
+  await login(page, "diego");
   await page.goto(`${BASE}/inbox`, { waitUntil: "load" });
-  await settle(page, 1500);
-  await page.mouse.move(1250, 560);
-}
-
-async function waitBot(page, text, ms = 15000) {
-  await page.getByText(text, { exact: false }).last().waitFor({ timeout: ms });
+  await settle(page, 800);
+  await page.locator("button", { hasText: "Mariela Poot" }).first().click();
   await settle(page, 1200);
 }
 
+const THREAD = { x: 1080, y: 700 };
+const lastBubble = (page, text) => page.getByText(text).last().waitFor({ timeout: 20000 });
+
 export async function run({ page }) {
-  await sleep(1000);
-  await inbound({ ...CLIENTA, text: "Hola, buenas tardes" });
-  const row = page.locator("button", { hasText: "Mariela Poot" }).first();
-  await row.waitFor({ timeout: 10000 });
-  await settle(page, 900);
-  await clickOn(page, row, { pause: 1000 });
-  await waitBot(page, "Soy Martillito");
-  await moveTo(page, 1100, 700, 800);
-
+  step("La clienta pregunta un precio");
+  await moveTo(page, THREAD.x, THREAD.y, 800);
   await inbound({ ...CLIENTA, text: "¿Cuánto cuesta el bulto de cemento?" });
-  await waitBot(page, "bulto de cemento gris de 50 kg");
-  await sleep(1400);
-  await inbound({ ...CLIENTA, text: "¿Y a qué hora abren el domingo?" });
-  await waitBot(page, "domingos de 9:00 a 14:00");
-  await sleep(1400);
+  await holdUntil(page, lastBubble(page, "¿Cuánto cuesta el bulto de cemento?"), { x: 700, y: 640 });
+  step("El bot responde al instante");
+  await holdUntil(page, lastBubble(page, "bulto de cemento gris de 50 kg"), { x: 1240, y: 700 });
+  await settle(page, 300);
+  await readAlong(page, page.getByText("bulto de cemento gris de 50 kg").last(), 1500);
 
-  // El Propietario asigna el chat a Diego.
-  const asignar = page.locator("select[aria-label='Asignar a']");
-  await hover(page, asignar);
-  await sleep(400);
-  await asignar.selectOption({ label: "Diego López" });
-  await settle(page, 1800);
+  step("También resuelve horarios");
+  await inbound({ ...CLIENTA, text: "¿Y abren el domingo?" });
+  await holdUntil(page, lastBubble(page, "¿Y abren el domingo?"), { x: 700, y: 760 });
+  await holdUntil(page, lastBubble(page, "domingos de 9:00 a 14:00"), { x: 1240, y: 780 });
+  await settle(page, 300);
+  await readAlong(page, page.getByText("domingos de 9:00 a 14:00").last(), 1400);
 
-  // Cambio a la ventana de Diego: el chat ya le llegó.
-  await diego.bringToFront();
-  await settle(diego, 1000);
-  const rowD = diego.locator("button", { hasText: "Mariela Poot" }).first();
-  await rowD.waitFor({ timeout: 10000 });
-  await clickOn(diego, rowD, { pause: 1200 });
-  await moveTo(diego, 1100, 650, 800);
+  step("La clienta pide hablar con un asesor");
+  await inbound({ ...CLIENTA, text: "¿Me atiende un asesor? Necesito factura" });
+  await holdUntil(page, lastBubble(page, "Necesito factura"), { x: 720, y: 820 });
+  await holdUntil(page, lastBubble(page, "te comunico con una persona"), { x: 1240, y: 850 });
+  await settle(page, 300);
+  await readAlong(page, page.getByText("te comunico con una persona").last(), 1000);
 
-  // La clienta pide un asesor: el bot se despide y suelta el chat (handoff).
-  await inbound({ ...CLIENTA, text: "Perfecto. ¿Me puede atender un asesor? Necesito factura" });
-  await waitBot(diego, "te comunico con una persona");
-  await sleep(2600);
+  step("Diego recibe el aviso de atención humana", { read: true });
+  await holdUntil(page, page.getByText("Atención humana: Mariela Poot").first().waitFor({ timeout: 15000 }), { x: 1700, y: 960 });
+  await hover(page, page.getByText("Atención humana: Mariela Poot").first(), { dx: 0.3 });
+  await sleep(700);
+  await hover(page, page.getByText("te toca a ti").first(), { dx: 0.3 });
+  await sleep(600);
 
-  // Diego toma el chat y responde.
-  const composer = diego.getByPlaceholder("Escribe una respuesta…");
-  await clickOn(diego, composer, { pause: 500 });
-  await typeHuman(diego, "¡Hola Mariela! Soy Diego, con gusto te ayudo con tu factura 🧾 ¿Me compartes tu RFC?", 38);
-  await sleep(500);
-  await clickOn(diego, "button[aria-label='Enviar']", { pause: 2600 });
-}
-
-export async function cleanup() {
-  await diego?.context().close();
+  step("El asesor toma el chat y responde");
+  await clickOn(page, page.getByPlaceholder("Escribe una respuesta…"), { after: 200 });
+  await typeText(page, "¡Hola Mariela! Soy Diego, te ayudo con tu factura. ¿Me compartes tu RFC?", 62);
+  await clickOn(page, "button[aria-label='Enviar']", { after: 700 });
+  await holdUntil(page, lastBubble(page, "Soy Diego, te ayudo"), { x: 1250, y: 880 });
+  await inbound({ ...CLIENTA, text: "Claro: POMM900101XXX. ¡Gracias, Diego!" });
+  step("Listo: atendida por una persona", { read: true });
+  await holdUntil(page, lastBubble(page, "¡Gracias, Diego!"), { x: 760, y: 700 });
+  await settle(page, 300);
+  await hover(page, page.getByText("Soy Diego, te ayudo").last(), { dx: 0.8 });
+  await sleep(1500);
 }
