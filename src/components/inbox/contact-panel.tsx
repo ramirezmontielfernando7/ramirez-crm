@@ -26,6 +26,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { FichaPanel } from "@/components/ficha-panel";
 import { AssignmentCard } from "@/components/assignment/assignment-card";
+import { ParticipantsCard } from "@/components/assignment/participants-card";
 import { ContactTagsCard } from "@/components/tags/contact-tags-card";
 import { LossReasonDialog } from "@/components/pipeline/loss-reason-dialog";
 import { useViewer } from "@/components/viewer-context";
@@ -404,6 +405,13 @@ export function ContactPanel({
         {/* 020: quién atiende y reasignar. 022: el historial, plegado y
             solo para quien reparte. */}
         <AssignmentCard contactId={contactId} refreshKey={refreshKey} onChanged={bumpTimeline} />
+        {/* 026: quienes también ven y atienden el chat (la asignación no cambia). */}
+        <ParticipantsCard
+          contactId={contactId}
+          assignedUserId={conversation.assignee?.id ?? null}
+          refreshKey={refreshKey}
+          onChanged={bumpTimeline}
+        />
 
         {/* Stepper de etapa */}
         {stages.length > 0 && leadId && (

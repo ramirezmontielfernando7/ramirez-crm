@@ -10,6 +10,7 @@ import { AppNav } from "@/components/app-nav";
 import { BrandLogo, BrandTile } from "@/components/brand-mark";
 import { ViewerProvider } from "@/components/viewer-context";
 import { TeamUnreadLogoBadge } from "@/components/team-chat/unread-badge";
+import { HandoffNotices } from "@/components/handoff-notices";
 import { MotionProvider, NAV } from "@/components/motion";
 import { NavModeProvider } from "@/components/nav-mode";
 import { nextNavMode, type NavMode } from "@/lib/preferences";
@@ -82,6 +83,8 @@ export function AppShell({
         >
           {children}
         </ShellFrame>
+        {/* 026 — Avisos de handoff (solo le llegan a quien le toca). */}
+        <HandoffNotices />
       </MotionProvider>
     </ViewerProvider>
   );

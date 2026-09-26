@@ -32,6 +32,16 @@ export type EventHandlers = {
     status: string;
     counts: { pending: number; sent: number; failed: number };
   }) => void;
+  /** 026 — Entró o salió un participante de uno o más chats: refetch. */
+  onParticipantsChanged?: (data: { contactIds: string[]; userIds: string[] }) => void;
+  /** 026 — Aviso de handoff (al asignado y a quien ve todo; no a participantes). */
+  onHandoffRequested?: (data: {
+    conversationId: string;
+    contactId: string;
+    contactName: string;
+    reason: string;
+    assignedUserId: string | null;
+  }) => void;
   /** 025 — Chat de equipo: un mensaje nuevo, editado, borrado o con otra reacción. */
   onTeamMessage?: (data: {
     threadId: string;
@@ -62,6 +72,8 @@ const EVENT_TYPES = {
   "booking.updated": "onBookingUpdated",
   "assignment.changed": "onAssignmentChanged",
   "campaign.progress": "onCampaignProgress",
+  "participants.changed": "onParticipantsChanged",
+  "handoff.requested": "onHandoffRequested",
   "team.message": "onTeamMessage",
   "team.thread": "onTeamThread",
 } as const satisfies Record<string, keyof EventHandlers>;

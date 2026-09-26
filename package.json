@@ -28,6 +28,7 @@
     "test:e2e:compositor": "node --env-file=.env scripts/e2e-compositor.mjs",
     "test:e2e:firma": "node --env-file=.env scripts/e2e-firma-webhook.mjs",
     "test:e2e:chat": "node --env-file=.env scripts/e2e-chat-equipo.mjs",
+    "test:e2e:participantes": "node --env-file=.env scripts/e2e-participantes-menciones.mjs",
     "test:watch": "vitest",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",

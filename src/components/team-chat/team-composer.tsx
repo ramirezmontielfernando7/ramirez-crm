@@ -3,7 +3,9 @@
 import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { AnimatePresence, m } from "motion/react";
-import { BookOpen, Eye, FileText, Megaphone, Paperclip, SendHorizontal, Smile, X } from "lucide-react";
+import { AtSign, BookOpen, Eye, FileText, Megaphone, Paperclip, SendHorizontal, Smile, X } from "lucide-react";
+import { encodeMentions } from "@/lib/team-chat-mentions";
+import { MentionPicker } from "./mention-picker";
 import { fetchJson, jsonInit } from "@/lib/fetch-json";
 import { attachmentRejection, TEAM_MESSAGE_MAX, type TeamMessageDto, type TeamThreadKind } from "@/lib/team-chat";
 import type { KnowledgeEntryDto } from "@/lib/knowledge";
@@ -66,6 +68,9 @@ export function TeamComposer({
   const [error, setError] = useState<string | null>(null);
   const [emojiOpen, setEmojiOpen] = useState(false);
   const [knowledgeOpen, setKnowledgeOpen] = useState(false);
+  // 026 — Menciones: el editor muestra @{Nombre}; el mapa dice a qué chat va.
+  const [mentionOpen, setMentionOpen] = useState(false);
+  const [picked, setPicked] = useState<Map<string, string>>(new Map());
   const taRef = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const emojiRef = useRef<HTMLDivElement>(null);
@@ -78,6 +83,7 @@ export function TeamComposer({
     setFile(null);
     setError(null);
     setKnowledgeOpen(false);
+    setPicked(new Map());
   }, [threadId]);
 
   function autogrow() {
@@ -99,6 +105,18 @@ export function TeamComposer({
     });
   }
 
+  /** Inserta @{Nombre} en el cursor; dos clientes con el mismo nombre no chocan. */
+  function insertMention(conversationId: string, name: string) {
+    setMentionOpen(false);
+    let label = name.replace(/[{}]/g, "").trim() || "chat";
+    const taken = (l: string) => picked.has(l) && picked.get(l) !== conversationId;
+    for (let n = 2; taken(label); n++) label = `${name.replace(/[{}]/g, "").trim()} (${n})`;
+    const next = new Map(picked);
+    next.set(label, conversationId);
+    setPicked(next);
+    insertEmoji(`@{${label}} `);
+  }
+
   function pickFile(f: File | null) {
     setError(null);
     if (f) {
@@ -113,7 +131,8 @@ export function TeamComposer({
 
   async function send() {
     if (sending) return;
-    const body = text.trim();
+    // Solo las menciones que siguen en el texto; se codifican al enviar.
+    const body = encodeMentions(text, picked).trim();
     if (!body && !file) return;
     if (body.length > TEAM_MESSAGE_MAX) {
       setError(`El mensaje pasa de ${TEAM_MESSAGE_MAX} caracteres`);
@@ -141,6 +160,7 @@ export function TeamComposer({
     }
     setText("");
     setFile(null);
+    setPicked(new Map());
     requestAnimationFrame(autogrow);
     onSent(res.data.message);
     taRef.current?.focus();
@@ -303,6 +323,25 @@ export function TeamComposer({
                 <EmojiPickerPanel onPick={insertEmoji} />
               </m.div>
             )}
+          </AnimatePresence>
+        </div>
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setMentionOpen((v) => !v)}
+            aria-label="Mencionar un chat de cliente"
+            aria-haspopup="dialog"
+            aria-expanded={mentionOpen}
+            title="Mencionar un chat de cliente"
+            className={cn(
+              "rounded p-1.5 text-text-3 transition-[color,background-color,transform] duration-150 hover:bg-secondary hover:text-foreground active:scale-90",
+              mentionOpen && "bg-secondary text-brand"
+            )}
+          >
+            <AtSign className="h-[18px] w-[18px]" strokeWidth={1.7} />
+          </button>
+          <AnimatePresence>
+            {mentionOpen && <MentionPicker onPick={insertMention} onClose={() => setMentionOpen(false)} />}
           </AnimatePresence>
         </div>
         <button
