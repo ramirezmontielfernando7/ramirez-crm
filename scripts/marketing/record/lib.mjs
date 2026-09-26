@@ -342,8 +342,17 @@ export class Recorder {
       { stdio: ["pipe", "ignore", "pipe"] }
     );
     this.proc.stderr.on("data", (d) => (this.stderr += d.toString()));
+    // Esperar a que ffmpeg YA esté entregando cuadros (el arranque puede
+    // tardar segundos) y dejar pasar su jitter inicial antes del guion.
+    const t = Date.now();
+    while (!/frame=\s*[1-9]\d{2,}/.test(this.stderr)) {
+      if (Date.now() - t > 30000) throw new Error("ffmpeg no arrancó");
+      await sleep(100);
+    }
     this.t0 = Date.now();
-    await sleep(700);
+    await sleep(300);
+    const base = [...this.stderr.matchAll(/frame=\s*(\d+).*?dup=(\d+)\s+drop=(\d+)/g)].pop();
+    this.base = { frames: Number(base?.[1] ?? 0), dup: Number(base?.[2] ?? 0), drop: Number(base?.[3] ?? 0) };
   }
   async stop() {
     const done = new Promise((r) => this.proc.on("close", r));
@@ -353,9 +362,11 @@ export class Recorder {
     writeFileSync(this.log, this.stderr);
     const last = [...this.stderr.matchAll(/frame=\s*(\d+).*?dup=(\d+)\s+drop=(\d+)/g)].pop();
     const lastSimple = [...this.stderr.matchAll(/frame=\s*(\d+)/g)].pop();
-    const frames = Number(last?.[1] ?? lastSimple?.[1] ?? 0);
-    const dup = Number(last?.[2] ?? 0);
-    const drop = Number(last?.[3] ?? 0);
+    // Solo lo ocurrido desde que arrancó el guion (el arranque se recorta).
+    const b = this.base ?? { frames: 0, dup: 0, drop: 0 };
+    const frames = Number(last?.[1] ?? lastSimple?.[1] ?? 0) - b.frames;
+    const dup = Number(last?.[2] ?? 0) - b.dup;
+    const drop = Number(last?.[3] ?? 0) - b.drop;
     const probe = JSON.parse(
       execSync(`ffprobe -v error -select_streams v:0 -count_packets -show_entries stream=nb_read_packets,r_frame_rate:format=duration -of json "${this.file}"`).toString()
     );

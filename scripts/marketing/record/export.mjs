@@ -11,8 +11,9 @@ export async function exportClip(name, stats, fps) {
   const src = path.join(MASTERS, `${name}.mkv`);
   const dst = path.join(OUT, "videos", `${name}.mp4`);
   const dur = Number(execSync(`ffprobe -v error -show_entries format=duration -of csv=p=0 "${src}"`).toString());
-  // El primer ~0.5 s del maestro es la entrada de ffmpeg: se recorta.
-  const start = 0.5;
+  // Los primeros ~2 s del maestro son el arranque de ffmpeg (con su jitter):
+  // se recortan, el guion empieza después.
+  const start = 1.9;
   const len = dur - start;
   const vf = `fade=t=in:st=0:d=0.5,fade=t=out:st=${(len - 0.5).toFixed(3)}:d=0.5`;
   const t0 = Date.now();
