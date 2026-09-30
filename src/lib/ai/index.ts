@@ -1,5 +1,7 @@
 import type { z } from "zod";
 import { getEnv, isAiConfigured } from "@/lib/env";
+import { logger } from "@/lib/log";
+import { hasOpenTransaction } from "@/lib/request-context";
 
 /**
  * Adaptador LLM OpenRouter-compatible — ÚNICA frontera con el proveedor de IA
@@ -17,6 +19,28 @@ export type ChatJsonResult<T> =
   | { ok: true; data: T; raw: string }
   | { ok: false; error: "not_configured" | "provider_error" | "invalid_output"; detail: string };
 
+/**
+ * PR 3 multitenant — Una llamada al LLM tarda segundos. Con una transacción
+ * de BD abierta (`withTenant` o `db.transaction()`), esa conexión del pool
+ * queda tomada todo ese tiempo, y con decenas de organizaciones a la vez el
+ * pool se agota. Fuera de producción es un error que tumba la prueba
+ * (`tests/unit/llm-sin-transaccion.test.ts`, E2E); en producción se registra
+ * y la llamada sigue, para no dejar a un cliente sin respuesta.
+ */
+export class LlmInTransactionError extends Error {
+  constructor() {
+    super("llamada al LLM con una transacción de BD abierta: cierra withTenant antes de llamar al modelo");
+    this.name = "LlmInTransactionError";
+  }
+}
+
+function assertNoOpenTransaction(): void {
+  if (!hasOpenTransaction()) return;
+  const err = new LlmInTransactionError();
+  if (process.env.NODE_ENV !== "production") throw err;
+  logger("ai").error("llamada al LLM dentro de una transacción", { err });
+}
+
 const MAX_ATTEMPTS = 3;
 const RETRY_DELAY_MS = 500;
 
@@ -25,6 +49,7 @@ export async function chatJson<T>(
   messages: ChatMessage[],
   opts?: { model?: string; judge?: boolean; timeoutMs?: number }
 ): Promise<ChatJsonResult<T>> {
+  assertNoOpenTransaction();
   if (!isAiConfigured()) {
     return {
       ok: false,
