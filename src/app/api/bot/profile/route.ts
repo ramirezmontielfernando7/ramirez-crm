@@ -2,7 +2,7 @@ import { asc } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { scoped } from "@/lib/db/tenant";
 import { apiError } from "@/lib/api";
-import { requireBotKey, resolveInstanceOrg } from "@/server/bot/auth";
+import { requireBotKey } from "@/server/bot/auth";
 import { serializeBotProfile } from "@/server/bot/profile";
 
 export const dynamic = "force-dynamic";
@@ -14,13 +14,10 @@ export const dynamic = "force-dynamic";
  * bot, que es quien sabe cada cuánto le conviene releer).
  */
 export async function GET(req: Request) {
-  const denied = requireBotKey(req);
-  if (denied) return denied;
-
-  const organizationId = await resolveInstanceOrg();
-  if (!organizationId) {
-    return apiError(409, "no_org", "La instancia aún no tiene organización");
-  }
+  // H2: la llave dice la organización; nunca "la de la instancia".
+  const auth = await requireBotKey(req);
+  if (!auth.ok) return auth.response;
+  const { organizationId } = auth;
 
   const db = getDb();
   const profiles = await db

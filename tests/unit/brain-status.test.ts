@@ -1,6 +1,6 @@
 import { createServer, type IncomingMessage, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { BrainHealthDto } from "@/lib/brain-status";
 import {
   externalAnswerLabel,
@@ -10,7 +10,16 @@ import {
   haceCuanto,
 } from "@/lib/brain-status";
 import { resetRateLimit } from "@/lib/rate-limit";
-import { isBotKeyConfigured, requireBotKey } from "@/server/bot/auth";
+import { requireBotKey } from "@/server/bot/auth";
+
+const llavesBot = vi.hoisted(() => new Map<string, string>());
+vi.mock("@/server/bot/keys", () => ({
+  resolveBotKey: async (k: string | null) => {
+    const org = k ? llavesBot.get(k) : undefined;
+    return org ? { keyId: `bak_${org}`, organizationId: org } : null;
+  },
+  touchBotKey: async () => {},
+}));
 import {
   BRAIN_HEALTH_TTL_MS,
   EXTERNAL_SEEN_WINDOW_MS,
@@ -206,33 +215,27 @@ describe("la última llamada del cerebro externo (requireBotKey)", () => {
     });
 
   beforeEach(() => {
-    vi.stubEnv("BOT_API_KEY", KEY);
+    llavesBot.clear();
+    llavesBot.set(KEY, "org_a");
     resetRateLimit();
     resetBrainStatusState();
   });
-  afterEach(() => vi.unstubAllEnvs());
 
-  it("solo una llamada autenticada la anota", () => {
-    expect(botLastSeenAt()).toBeNull();
-    expect(requireBotKey(req())?.status).toBe(401);
-    expect(requireBotKey(req("otra-clave-igual-de-larga-pero-mala!!"))?.status).toBe(401);
-    expect(botLastSeenAt()).toBeNull();
+  it("solo una llamada autenticada la anota, en SU organización", async () => {
+    expect(botLastSeenAt("org_a")).toBeNull();
+    expect((await requireBotKey(req())).ok).toBe(false);
+    expect((await requireBotKey(req("otra-clave-igual-de-larga-pero-mala!!"))).ok).toBe(false);
+    expect(botLastSeenAt("org_a")).toBeNull();
     const antes = Date.now();
-    expect(requireBotKey(req(KEY))).toBeNull();
-    expect(botLastSeenAt()!.getTime()).toBeGreaterThanOrEqual(antes);
+    expect((await requireBotKey(req(KEY))).ok).toBe(true);
+    expect(botLastSeenAt("org_a")!.getTime()).toBeGreaterThanOrEqual(antes);
+    // H2: el cerebro de A no aparece como «contestando» en B.
+    expect(botLastSeenAt("org_b")).toBeNull();
   });
 
   it("vive en memoria del proceso (compartida entre rutas)", () => {
-    markBotSeen(HACE_3_MIN.getTime());
-    expect(botLastSeenAt()?.toISOString()).toBe(HACE_3_MIN.toISOString());
-  });
-
-  it("una key corta equivale a no tener llave", () => {
-    expect(isBotKeyConfigured()).toBe(true);
-    vi.stubEnv("BOT_API_KEY", "corta");
-    expect(isBotKeyConfigured()).toBe(false);
-    vi.stubEnv("BOT_API_KEY", "");
-    expect(isBotKeyConfigured()).toBe(false);
+    markBotSeen("org_a", HACE_3_MIN.getTime());
+    expect(botLastSeenAt("org_a")?.toISOString()).toBe(HACE_3_MIN.toISOString());
   });
 });
 

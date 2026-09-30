@@ -3,7 +3,7 @@ import { z } from "zod";
 import { getDb, schema } from "@/lib/db";
 import { scoped } from "@/lib/db/tenant";
 import { apiError, parseBody } from "@/lib/api";
-import { requireBotKey, resolveInstanceOrg } from "@/server/bot/auth";
+import { requireBotKey } from "@/server/bot/auth";
 import { SendError, sendText } from "@/server/inbox/send";
 
 export const dynamic = "force-dynamic";
@@ -23,13 +23,10 @@ const bodySchema = z.object({
  * sandbox_violation.
  */
 export async function POST(req: Request) {
-  const denied = requireBotKey(req);
-  if (denied) return denied;
-
-  const organizationId = await resolveInstanceOrg();
-  if (!organizationId) {
-    return apiError(409, "no_org", "La instancia aún no tiene organización");
-  }
+  // H2: la llave dice la organización; nunca "la de la instancia".
+  const auth = await requireBotKey(req);
+  if (!auth.ok) return auth.response;
+  const { organizationId } = auth;
 
   const body = await parseBody(req, bodySchema);
   if (!body.ok) return body.response;

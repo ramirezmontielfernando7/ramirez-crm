@@ -28,6 +28,11 @@ export const TENANT_QUERY_EXCEPTIONS: Record<string, { max: number; motivo: stri
     motivo:
       "Ruteo del webhook de Messenger por pageId/accountRef (descubre la organización) y un update por el id de la fila recién leída de la propia organización.",
   },
+  "server/bot/keys.ts": {
+    max: 5,
+    motivo:
+      "Ruteo del cerebro externo: el hash de la llave (único) DESCUBRE la organización; y el arranque liga la BOT_API_KEY a PLATFORM_ORG_ID (filas source='env', de la plataforma).",
+  },
   "server/auth/on-signup.ts": {
     max: 1,
     motivo:

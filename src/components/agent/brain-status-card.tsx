@@ -58,7 +58,8 @@ export function BrainStatusCard({
           <Callout tone="warning" icon={Info} title="Nadie contesta en automático">
             Tus clientes solo reciben lo que respondas desde la bandeja: enciende el
             agente incluido (necesita <Env>OPENROUTER_API_TOKEN</Env>) o conecta tu
-            cerebro externo con <Env>BOT_API_KEY</Env>.
+            cerebro externo con una llave de la API de servicio (la da quien administra la
+            plataforma).
           </Callout>
         )}
 
@@ -140,7 +141,7 @@ function externalView(s: BrainStatusDto, now: number): RowView {
       : {
           tone: "warn",
           headline: capitalize(parts.join(" · ")),
-          detail: "Al CRM le falta BOT_API_KEY: no puede contestar por la API.",
+          detail: "Este negocio no tiene llave de la API de servicio: no puede contestar por la API.",
         };
   }
   if (health?.problem === "config") {

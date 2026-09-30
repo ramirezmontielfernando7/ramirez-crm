@@ -46,6 +46,7 @@ services:
       AGENDA: ${AGENDA:-}
       ATRIBUCION: ${ATRIBUCION:-}
       BOT_API_KEY: ${BOT_API_KEY:-}
+      PLATFORM_ORG_ID: ${PLATFORM_ORG_ID:-}
       BRAIN_HEALTH_URL: ${BRAIN_HEALTH_URL:-}
     volumes:
       # Adjuntos, logo e icono (la imagen ya trae MEDIA_DIR=/data/media): sin

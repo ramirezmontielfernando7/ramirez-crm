@@ -38,18 +38,20 @@ type HealthCacheEntry = {
 // En globalThis: los módulos pueden evaluarse más de una vez (una por ruta en
 // dev) y la última llamada la anota `requireBotKey`, en otra ruta.
 const globalForBrain = globalThis as unknown as {
-  __voceroBotLastSeen?: number;
+  /** Fase 1 multitenant (H2): última llamada del cerebro, POR organización. */
+  __voceroBotLastSeen?: Map<string, number>;
   __voceroBrainHealth?: HealthCacheEntry;
 };
 
-/** La anota `requireBotKey` en cada llamada autenticada. Solo memoria: se
- *  pierde al reiniciar, y la UI lo dice («desde el último arranque»). */
-export function markBotSeen(now: number = Date.now()): void {
-  globalForBrain.__voceroBotLastSeen = now;
+/** La anota `requireBotKey` en cada llamada autenticada, con la organización
+ *  de la llave. Solo memoria: se pierde al reiniciar, y la UI lo dice
+ *  («desde el último arranque»). */
+export function markBotSeen(organizationId: string, now: number = Date.now()): void {
+  (globalForBrain.__voceroBotLastSeen ??= new Map()).set(organizationId, now);
 }
 
-export function botLastSeenAt(): Date | null {
-  const t = globalForBrain.__voceroBotLastSeen;
+export function botLastSeenAt(organizationId: string): Date | null {
+  const t = globalForBrain.__voceroBotLastSeen?.get(organizationId);
   return typeof t === "number" ? new Date(t) : null;
 }
 

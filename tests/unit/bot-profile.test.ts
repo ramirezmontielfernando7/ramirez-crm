@@ -21,10 +21,14 @@ vi.mock("@/lib/db", async (importOriginal) => {
   return { ...actual, getDb: () => builder };
 });
 
-vi.mock("@/server/bot/auth", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/server/bot/auth")>();
-  return { ...actual, resolveInstanceOrg: async () => "org_1" };
-});
+// H2: la llave de prueba es de org_1 (la BD de llaves va aparte, en memoria).
+vi.mock("@/server/bot/keys", () => ({
+  resolveBotKey: async (k: string | null) =>
+    k === "clave-de-servicio-larga-0123456789abcdef"
+      ? { keyId: "bak_1", organizationId: "org_1" }
+      : null,
+  touchBotKey: async () => {},
+}));
 
 /** Perfil del agente + knowledge base vía la API de servicio `/api/bot/*`. */
 
@@ -115,7 +119,6 @@ describe("GET /api/bot/profile (ruta, DB fake)", () => {
   const KEY = "clave-de-servicio-larga-0123456789abcdef";
 
   beforeEach(() => {
-    vi.stubEnv("BOT_API_KEY", KEY);
     resetRateLimit();
     dbState.queue = [];
   });
