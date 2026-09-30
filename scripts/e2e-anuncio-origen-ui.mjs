@@ -223,8 +223,18 @@ try {
     await page.getByRole("button", { name: /^Todas/ }).click();
     await fila(page, ORGANICO).click();
     await page.waitForResponse((res) => res.url().includes("/api/contacts/") && res.ok());
-    await sleep(500);
-    ok("una conversación orgánica no enseña tarjeta", (await page.locator("[data-anuncio-origen]").count()) === 0);
+    // Hasta 5 s para que se desmonte la tarjeta del chat ANTERIOR (la primera
+    // respuesta de /api/contacts/ puede ser la de ese). Una conversación
+    // orgánica que de verdad mostrara tarjeta sigue fallando aquí.
+    let sinTarjeta = false;
+    for (const fin = Date.now() + 5000; Date.now() < fin; ) {
+      if ((await page.locator("[data-anuncio-origen]").count()) === 0) {
+        sinTarjeta = true;
+        break;
+      }
+      await sleep(200);
+    }
+    ok("una conversación orgánica no enseña tarjeta", sinTarjeta);
 
     paso = `cajón ${tema} 1440`;
     await page.goto(`${BASE}/pipeline`, { waitUntil: "domcontentloaded" });
