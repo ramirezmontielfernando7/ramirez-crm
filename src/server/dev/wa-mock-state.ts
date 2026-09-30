@@ -109,3 +109,13 @@ const boot = Math.random().toString(36).slice(2, 8);
 export function nextOutboundWamid(): string {
   return `wamid.mock.out.${boot}.${nextN()}`;
 }
+
+/**
+ * Lo mismo para los ids de plantilla: Meta jamás los repite, y `syncTemplates`
+ * empareja primero por id. Con `tplmock_1` otra vez tras reiniciar, el sync
+ * actualizaba la plantilla VIEJA de la corrida anterior y la nueva se quedaba
+ * en `pending` (visto en el E2E de dos organizaciones).
+ */
+export function nextTemplateId(): string {
+  return `tplmock_${boot}_${nextN()}`;
+}
