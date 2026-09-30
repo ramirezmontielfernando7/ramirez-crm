@@ -45,6 +45,30 @@ describe("esquema multitenant", () => {
     expect(faltan, faltan.join("\n")).toEqual([]);
   });
 
+  /**
+   * H20 — Toda consulta de dominio filtra por organización (y en el PR 4 de
+   * la fase, RLS lo hará en TODAS): sin un índice que empiece por
+   * `organization_id`, cada consulta recorre la tabla de todos los negocios.
+   * Cuenta cualquier índice, UNIQUE o PK cuya PRIMERA columna sea la
+   * organización.
+   */
+  it("toda tabla de dominio tiene un índice que empieza por organization_id", () => {
+    const primera = (cols: { name?: string }[]) => cols[0]?.name;
+    const faltan = tables
+      .filter((t) => !(t.name in PLATFORM_TABLES))
+      .filter((t) => {
+        const deIndices = t.indexes.map((i) =>
+          primera(i.config.columns as { name?: string }[])
+        );
+        const deUnicos = t.uniqueConstraints.map((u) => primera(u.columns));
+        const dePk = t.primaryKeys.map((pk) => primera(pk.columns));
+        const pkDeColumna = t.columns.find((c) => c.primary)?.name;
+        return ![...deIndices, ...deUnicos, ...dePk, pkDeColumna].includes("organization_id");
+      })
+      .map((t) => t.name);
+    expect(faltan, "sin índice org-first:\n" + faltan.join("\n")).toEqual([]);
+  });
+
   it("la lista de plataforma no tiene tablas que ya no existen", () => {
     const nombres = new Set(tables.map((t) => t.name));
     const sobran = Object.keys(PLATFORM_TABLES).filter((n) => !nombres.has(n));
