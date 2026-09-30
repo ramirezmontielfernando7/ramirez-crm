@@ -5,6 +5,7 @@ import { scoped } from "@/lib/db/tenant";
 import { apiError, parseBody } from "@/lib/api";
 import { requireBotKey } from "@/server/bot/auth";
 import { upsertFicha } from "@/server/bot/ficha";
+import { runWithOrganization } from "@/lib/request-context";
 
 export const dynamic = "force-dynamic";
 
@@ -27,26 +28,29 @@ export async function PUT(req: Request) {
   if (!auth.ok) return auth.response;
   const { organizationId } = auth;
 
-  const body = await parseBody(req, bodySchema);
-  if (!body.ok) return body.response;
+  // PR 3: todo lo que sigue va a nombre de la organización de la llave.
+  return runWithOrganization(organizationId, async () => {
+    const body = await parseBody(req, bodySchema);
+    if (!body.ok) return body.response;
 
-  const db = getDb();
-  const rows = await db
-    .select({ contactId: schema.conversation.contactId })
-    .from(schema.conversation)
-    .where(
-      scoped(schema.conversation.organizationId, organizationId,
-        eq(schema.conversation.id, body.data.conversationId)
+    const db = getDb();
+    const rows = await db
+      .select({ contactId: schema.conversation.contactId })
+      .from(schema.conversation)
+      .where(
+        scoped(schema.conversation.organizationId, organizationId,
+          eq(schema.conversation.id, body.data.conversationId)
+        )
       )
-    )
-    .limit(1);
-  if (!rows[0]) return apiError(404, "not_found", "Conversación no encontrada");
+      .limit(1);
+    if (!rows[0]) return apiError(404, "not_found", "Conversación no encontrada");
 
-  const result = await upsertFicha({
-    organizationId,
-    contactId: rows[0].contactId,
-    ficha: body.data.ficha,
+    const result = await upsertFicha({
+      organizationId,
+      contactId: rows[0].contactId,
+      ficha: body.data.ficha,
+    });
+    if (!result) return apiError(404, "not_found", "Contacto no encontrado");
+    return Response.json(result);
   });
-  if (!result) return apiError(404, "not_found", "Contacto no encontrado");
-  return Response.json(result);
 }

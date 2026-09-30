@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 let orgCount = 0;
 
 vi.mock("@/lib/db", () => ({
-  getDb: () => ({
+  getSystemDb: () => ({
     select: () => ({
       from: () => Promise.resolve([{ n: orgCount }]),
     }),

@@ -1,4 +1,5 @@
 import { apiError } from "@/lib/api";
+import { runWithOrganization } from "@/lib/request-context";
 import { checkRateLimit, clientIp } from "@/lib/rate-limit";
 import { markBotSeen } from "@/server/bot/status";
 import { resolveBotKey, touchBotKey } from "@/server/bot/keys";
@@ -60,7 +61,7 @@ export async function requireBotKey(req: Request): Promise<BotAuth> {
   // por organización. Se marca al autenticar, antes del presupuesto: un
   // cerebro frenado por 429 sigue siendo el que contesta.
   markBotSeen(key.organizationId);
-  await touchBotKey(key.keyId, key.organizationId);
+  await runWithOrganization(key.organizationId, () => touchBotKey(key.keyId, key.organizationId));
   const rl = checkRateLimit(`bot-api:${key.organizationId}`, BOT_API_BUDGET);
   if (!rl.allowed) {
     return { ok: false, response: apiError(429, "rate_limited", "Demasiadas solicitudes") };

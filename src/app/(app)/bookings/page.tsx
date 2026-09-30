@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import { runWithOrganization } from "@/lib/request-context";
 import { BookingsClient } from "@/components/bookings/bookings-client";
 import { getSessionOrNull } from "@/lib/auth/session";
 import { clampListTo, isCalendarView, isIsoDate } from "@/lib/time/calendar";
@@ -28,7 +29,9 @@ export default async function BookingsPage({
   const session = await getSessionOrNull();
   if (!session) redirect("/login");
 
-  const settings = await getSettings(session.organizationId);
+  const settings = await runWithOrganization(session.organizationId, () =>
+    getSettings(session.organizationId)
+  );
   const params = await searchParams;
   const view = isCalendarView(params.vista) ? params.vista : null;
   const listFrom = isIsoDate(params.desde) ? params.desde : null;

@@ -7,6 +7,7 @@ import {
   rescheduleForConversation,
 } from "@/server/agenda/service";
 import { bookingErrorResponse, bookingPayload } from "@/server/agenda/http";
+import { runWithOrganization } from "@/lib/request-context";
 
 export const dynamic = "force-dynamic";
 
@@ -38,43 +39,49 @@ export async function POST(req: Request) {
   const gate = await guard(req);
   if ("response" in gate) return gate.response;
 
-  const body = await parseBody(req, createSchema);
-  if (!body.ok) return body.response;
+  // PR 3: todo lo que sigue va a nombre de la organización de la llave.
+  return runWithOrganization(gate.organizationId, async () => {
+    const body = await parseBody(req, createSchema);
+    if (!body.ok) return body.response;
 
-  try {
-    const result = await createSessionBooking({
-      organizationId: gate.organizationId,
-      conversationId: body.data.conversationId,
-      startUtc: body.data.startUtc,
-      notes: body.data.notes ?? null,
-      source: "ai",
-      // La regla innegociable: el agente solo reserva lo que ya ofreció.
-      requireOffer: true,
-    });
-    return Response.json(bookingPayload(result), { status: 201 });
-  } catch (err) {
-    return bookingErrorResponse(err);
-  }
+    try {
+      const result = await createSessionBooking({
+        organizationId: gate.organizationId,
+        conversationId: body.data.conversationId,
+        startUtc: body.data.startUtc,
+        notes: body.data.notes ?? null,
+        source: "ai",
+        // La regla innegociable: el agente solo reserva lo que ya ofreció.
+        requireOffer: true,
+      });
+      return Response.json(bookingPayload(result), { status: 201 });
+    } catch (err) {
+      return bookingErrorResponse(err);
+    }
+  });
 }
 
 export async function PATCH(req: Request) {
   const gate = await guard(req);
   if ("response" in gate) return gate.response;
 
-  const body = await parseBody(req, rescheduleSchema);
-  if (!body.ok) return body.response;
+  // PR 3: todo lo que sigue va a nombre de la organización de la llave.
+  return runWithOrganization(gate.organizationId, async () => {
+    const body = await parseBody(req, rescheduleSchema);
+    if (!body.ok) return body.response;
 
-  try {
-    const result = await rescheduleForConversation({
-      organizationId: gate.organizationId,
-      conversationId: body.data.conversationId,
-      startUtc: body.data.startUtc,
-    });
-    // 200 y no 201: mover una cita no crea un recurso nuevo.
-    return Response.json(bookingPayload(result));
-  } catch (err) {
-    return bookingErrorResponse(err);
-  }
+    try {
+      const result = await rescheduleForConversation({
+        organizationId: gate.organizationId,
+        conversationId: body.data.conversationId,
+        startUtc: body.data.startUtc,
+      });
+      // 200 y no 201: mover una cita no crea un recurso nuevo.
+      return Response.json(bookingPayload(result));
+    } catch (err) {
+      return bookingErrorResponse(err);
+    }
+  });
 }
 
 /* Cancelar NO existe por esta superficie a propósito: esa decisión es del

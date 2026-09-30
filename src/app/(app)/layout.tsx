@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { runWithOrganization } from "@/lib/request-context";
 import { cookies, headers } from "next/headers";
 import { getAuth } from "@/lib/auth";
 import { getSessionOrNull } from "@/lib/auth/session";
@@ -16,10 +17,10 @@ export default async function AppLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   const session = await getSessionOrNull();
   if (!session) redirect("/login");
-  const [branding, prefs] = await Promise.all([
+  const [branding, prefs] = await runWithOrganization(session.organizationId, () => Promise.all([
     getBranding(session.organizationId),
     getUserPreferences(session.organizationId, session.userId),
-  ]);
+  ]));
   const authSession = await getAuth().api.getSession({
     headers: await headers(),
   });

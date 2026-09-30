@@ -12,6 +12,7 @@ import {
 import { getSettings } from "@/server/agenda/settings";
 import { armarHuecos, daysWithAgenda } from "@/server/agenda/spread";
 import { replaceOffers } from "@/server/agenda/offers";
+import { runWithOrganization } from "@/lib/request-context";
 
 export const dynamic = "force-dynamic";
 
@@ -60,92 +61,95 @@ export async function GET(req: Request) {
   if (!auth.ok) return auth.response;
   const { organizationId } = auth;
 
-  const url = new URL(req.url);
-  const conversationId = url.searchParams.get("conversationId");
-  if (!conversationId) {
-    return apiError(422, "invalid_body", "Falta conversationId");
-  }
-  // `date` es opcional; vacío cuenta como ausente. Mal formada o inexistente
-  // en el calendario (2026-02-31) → 422, nunca un 500 ni el reparto callado.
-  const date = url.searchParams.get("date")?.trim() || null;
-  if (date !== null && !fechaValida(date)) {
-    return apiError(
-      422,
-      "invalid_body",
-      "date debe ser una fecha real en formato YYYY-MM-DD"
-    );
-  }
+  // PR 3: todo lo que sigue va a nombre de la organización de la llave.
+  return runWithOrganization(organizationId, async () => {
+    const url = new URL(req.url);
+    const conversationId = url.searchParams.get("conversationId");
+    if (!conversationId) {
+      return apiError(422, "invalid_body", "Falta conversationId");
+    }
+    // `date` es opcional; vacío cuenta como ausente. Mal formada o inexistente
+    // en el calendario (2026-02-31) → 422, nunca un 500 ni el reparto callado.
+    const date = url.searchParams.get("date")?.trim() || null;
+    if (date !== null && !fechaValida(date)) {
+      return apiError(
+        422,
+        "invalid_body",
+        "date debe ser una fecha real en formato YYYY-MM-DD"
+      );
+    }
 
-  const db = getDb();
-  const rows = await db
-    .select({ id: schema.conversation.id })
-    .from(schema.conversation)
-    .where(
-      scoped(
-        schema.conversation.organizationId,
-        organizationId,
-        eq(schema.conversation.id, conversationId)
+    const db = getDb();
+    const rows = await db
+      .select({ id: schema.conversation.id })
+      .from(schema.conversation)
+      .where(
+        scoped(
+          schema.conversation.organizationId,
+          organizationId,
+          eq(schema.conversation.id, conversationId)
+        )
       )
-    )
-    .limit(1);
-  if (!rows[0]) return apiError(404, "not_found", "Conversación no encontrada");
+      .limit(1);
+    if (!rows[0]) return apiError(404, "not_found", "Conversación no encontrada");
 
-  const limit = clamp(url.searchParams.get("limit"), LIMITS.limit);
-  const perDay = clamp(url.searchParams.get("perDay"), LIMITS.perDay);
-  const days = clamp(url.searchParams.get("days"), LIMITS.days);
+    const limit = clamp(url.searchParams.get("limit"), LIMITS.limit);
+    const perDay = clamp(url.searchParams.get("perDay"), LIMITS.perDay);
+    const days = clamp(url.searchParams.get("days"), LIMITS.days);
 
-  const settings = await getSettings(organizationId);
-  const now = new Date();
-  const hoy = todayInTz(now, settings.timezone);
-  // Un día fuera de lo agendable ni se calcula: no hay nada que buscar.
-  const dentro =
-    !date || (date >= hoy && date <= addDaysISO(hoy, settings.maxDaysAhead));
-  const todos = dentro
-    ? await computeAvailability(organizationId, {
-        settings,
-        now,
-        ...(date ? { fromISO: date, toISO: date } : {}),
-      })
-    : [];
-  const { slots, query } = armarHuecos({
-    todos,
-    timezone: settings.timezone,
-    now,
-    maxDaysAhead: settings.maxDaysAhead,
-    limit,
-    perDay,
-    days,
-    date,
-    candidatosDelDia:
-      date && dentro ? buildCandidateSlots(settings, date, date).length : 0,
-  });
+    const settings = await getSettings(organizationId);
+    const now = new Date();
+    const hoy = todayInTz(now, settings.timezone);
+    // Un día fuera de lo agendable ni se calcula: no hay nada que buscar.
+    const dentro =
+      !date || (date >= hoy && date <= addDaysISO(hoy, settings.maxDaysAhead));
+    const todos = dentro
+      ? await computeAvailability(organizationId, {
+          settings,
+          now,
+          ...(date ? { fromISO: date, toISO: date } : {}),
+        })
+      : [];
+    const { slots, query } = armarHuecos({
+      todos,
+      timezone: settings.timezone,
+      now,
+      maxDaysAhead: settings.maxDaysAhead,
+      limit,
+      perDay,
+      days,
+      date,
+      candidatosDelDia:
+        date && dentro ? buildCandidateSlots(settings, date, date).length : 0,
+    });
 
-  // Reemplazo completo: la oferta vigente es siempre la última. Pero una
-  // consulta por día que no encontró nada NO borra lo ya ofrecido: el cliente
-  // que pregunta por el sábado y oye «ese día no abrimos» todavía puede
-  // quedarse con el viernes que se le dio antes.
-  if (!date || slots.length > 0) {
-    await replaceOffers(
-      organizationId,
-      conversationId,
-      slots.map((s) => ({ startUtc: s.startUtc, label: s.label }))
-    );
-  }
+    // Reemplazo completo: la oferta vigente es siempre la última. Pero una
+    // consulta por día que no encontró nada NO borra lo ya ofrecido: el cliente
+    // que pregunta por el sábado y oye «ese día no abrimos» todavía puede
+    // quedarse con el viernes que se le dio antes.
+    if (!date || slots.length > 0) {
+      await replaceOffers(
+        organizationId,
+        conversationId,
+        slots.map((s) => ({ startUtc: s.startUtc, label: s.label }))
+      );
+    }
 
-  return Response.json({
-    slots: slots.map((s) => ({
-      startUtc: s.startUtc,
-      endUtc: s.endUtc,
-      label: s.label,
-      dayIso: s.dayIso,
-      dayLabel: s.dayLabel,
-      time: s.time,
-    })),
-    // Los días que NO están aquí no tienen agenda HASTA `query.coveredUntil`:
-    // lo posterior no se revisó, y de cada día se ven hasta `query.perDay`
-    // horas. Para un día concreto, se pregunta con `date`.
-    diasConAgenda: daysWithAgenda(slots),
-    query,
+    return Response.json({
+      slots: slots.map((s) => ({
+        startUtc: s.startUtc,
+        endUtc: s.endUtc,
+        label: s.label,
+        dayIso: s.dayIso,
+        dayLabel: s.dayLabel,
+        time: s.time,
+      })),
+      // Los días que NO están aquí no tienen agenda HASTA `query.coveredUntil`:
+      // lo posterior no se revisó, y de cada día se ven hasta `query.perDay`
+      // horas. Para un día concreto, se pregunta con `date`.
+      diasConAgenda: daysWithAgenda(slots),
+      query,
+    });
   });
 }
 

@@ -1,4 +1,5 @@
 import { eq } from "drizzle-orm";
+import { runWithOrganization } from "@/lib/request-context";
 import { getDb, schema } from "@/lib/db";
 import { getSessionOrNull } from "@/lib/auth/session";
 import {
@@ -40,11 +41,13 @@ export async function getBrandingContext(
 ): Promise<{ organizationId: string | null; branding: Branding }> {
   if (!organizationId) return { organizationId: null, branding: PLATFORM_BRANDING };
   const db = getDb();
-  const rows = await db
+  // PR 3: la llaman el layout raíz y el favicon, fuera de `withAuth`; la
+  // consulta va a nombre de la organización que se pide.
+  const rows = await runWithOrganization(organizationId, () => db
     .select({ id: schema.organization.id, metadata: schema.organization.metadata })
     .from(schema.organization)
     .where(eq(schema.organization.id, organizationId))
-    .limit(1);
+    .limit(1));
   if (!rows[0]) return { organizationId: null, branding: PLATFORM_BRANDING };
   const meta = parseMetadata(rows[0].metadata);
   return {

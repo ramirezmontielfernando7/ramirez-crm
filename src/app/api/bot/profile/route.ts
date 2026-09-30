@@ -4,6 +4,7 @@ import { scoped } from "@/lib/db/tenant";
 import { apiError } from "@/lib/api";
 import { requireBotKey } from "@/server/bot/auth";
 import { serializeBotProfile } from "@/server/bot/profile";
+import { runWithOrganization } from "@/lib/request-context";
 
 export const dynamic = "force-dynamic";
 
@@ -19,23 +20,26 @@ export async function GET(req: Request) {
   if (!auth.ok) return auth.response;
   const { organizationId } = auth;
 
-  const db = getDb();
-  const profiles = await db
-    .select()
-    .from(schema.agentProfile)
-    .where(scoped(schema.agentProfile.organizationId, organizationId))
-    .limit(1);
-  const profile = profiles[0];
-  if (!profile) {
-    // Condición esperada (instancia sin perfil): el bot cae a su brief local.
-    return apiError(404, "no_profile", "La instancia no tiene perfil de agente");
-  }
+  // PR 3: todo lo que sigue va a nombre de la organización de la llave.
+  return runWithOrganization(organizationId, async () => {
+    const db = getDb();
+    const profiles = await db
+      .select()
+      .from(schema.agentProfile)
+      .where(scoped(schema.agentProfile.organizationId, organizationId))
+      .limit(1);
+    const profile = profiles[0];
+    if (!profile) {
+      // Condición esperada (instancia sin perfil): el bot cae a su brief local.
+      return apiError(404, "no_profile", "La instancia no tiene perfil de agente");
+    }
 
-  const kb = await db
-    .select()
-    .from(schema.kbEntry)
-    .where(scoped(schema.kbEntry.organizationId, organizationId))
-    .orderBy(asc(schema.kbEntry.createdAt));
+    const kb = await db
+      .select()
+      .from(schema.kbEntry)
+      .where(scoped(schema.kbEntry.organizationId, organizationId))
+      .orderBy(asc(schema.kbEntry.createdAt));
 
-  return Response.json(serializeBotProfile(profile, kb));
+    return Response.json(serializeBotProfile(profile, kb));
+  });
 }

@@ -3,6 +3,7 @@ import { getAuth } from "@/lib/auth";
 import { can, type Permission } from "@/lib/auth/permissions";
 import type { Access } from "@/lib/db/tenant";
 import { resolveMembership } from "@/server/auth/on-signup";
+import { runWithOrganization } from "@/lib/request-context";
 import { delegatedGrants } from "@/server/team-chat/settings";
 
 export type SessionContext = {
@@ -67,7 +68,10 @@ export async function requireSession(): Promise<SessionContext> {
     session.user.id,
     membership.organizationId,
     membership.role,
-    await delegatedGrants(membership.organizationId, membership.role)
+    // PR 3: la organización ya se sabe; su ajuste se lee a su nombre.
+    await runWithOrganization(membership.organizationId, () =>
+      delegatedGrants(membership.organizationId, membership.role)
+    )
   );
 }
 

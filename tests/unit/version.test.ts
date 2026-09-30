@@ -180,7 +180,9 @@ describe("un commit que no salió del build se presenta como NO verificado", () 
         else process.env[k] = v;
       }
       vi.doMock("@/lib/db", () => ({
-        getDb: () => ({ execute: async () => [] }),
+        // Un tag de postgres-js: `sql\`select 1\`` resuelve a filas.
+        getSql: () => async () => [],
+        getSystemSql: () => async () => [],
       }));
       const { GET } = await import("@/app/api/health/route");
       return (await GET()).json();

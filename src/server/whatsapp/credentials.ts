@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { getDb, schema } from "@/lib/db";
+import { getDb, getSystemDb, schema } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
 import { decryptSecret, encryptSecret } from "@/lib/crypto";
 import { scoped } from "@/lib/db/tenant";
@@ -38,7 +38,8 @@ function toCredentials(row: Row): Credentials {
 export async function getCredentialsByPhoneNumberId(
   phoneNumberId: string
 ): Promise<Credentials | null> {
-  const db = getDb();
+  // Enrutamiento: aún no se sabe de qué organización es. Pool de sistema.
+  const db = getSystemDb();
   const rows = await db
     .select()
     .from(schema.metaCredentials)
@@ -51,7 +52,8 @@ export async function getCredentialsByPhoneNumberId(
 export async function getCredentialsByWabaId(
   wabaId: string
 ): Promise<Credentials | null> {
-  const db = getDb();
+  // Enrutamiento: aún no se sabe de qué organización es. Pool de sistema.
+  const db = getSystemDb();
   const rows = await db
     .select()
     .from(schema.metaCredentials)

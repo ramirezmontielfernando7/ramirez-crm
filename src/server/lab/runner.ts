@@ -1,4 +1,5 @@
 import { asc, eq } from "drizzle-orm";
+import { runWithOrganization } from "@/lib/request-context";
 import { getDb, schema } from "@/lib/db";
 import { scoped } from "@/lib/db/tenant";
 import { newId } from "@/lib/db/ids";
@@ -54,10 +55,14 @@ export async function startRun(organizationId: string): Promise<string> {
   );
 
   // Fire-and-forget in-process: el POST regresa ya; el progreso va por SSE.
-  void executeRun(runId, organizationId).catch(async (err) => {
-    log.error("corrida falló", { org: organizationId, corrida: runId, err });
-    await failRun(runId, organizationId, String(err));
-  });
+  // PR 3: la corrida entera va a nombre de su organización (sin transacción
+  // abierta: cada caso llama al LLM varias veces).
+  void runWithOrganization(organizationId, () =>
+    executeRun(runId, organizationId).catch(async (err) => {
+      log.error("corrida falló", { org: organizationId, corrida: runId, err });
+      await failRun(runId, organizationId, String(err));
+    })
+  );
 
   return runId;
 }

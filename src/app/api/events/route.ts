@@ -1,4 +1,6 @@
 import { requireSession, UnauthorizedError } from "@/lib/auth/session";
+import { logger } from "@/lib/log";
+import { runWithOrganization } from "@/lib/request-context";
 import { isTeamEvent, subscribe, type SseEvent } from "@/server/events/bus";
 import { canSeeEvent, canSeeTeamEvent } from "@/server/events/visibility";
 
@@ -10,6 +12,7 @@ import { canSeeEvent, canSeeTeamEvent } from "@/server/events/visibility";
 export const dynamic = "force-dynamic";
 
 const HEARTBEAT_MS = 25_000;
+const log = logger("sse");
 const encoder = new TextEncoder();
 
 export async function GET(req: Request) {
@@ -60,13 +63,19 @@ export async function GET(req: Request) {
           write(event);
           return;
         }
+        // PR 3: la consulta de visibilidad va a nombre de la organización
+        // de la sesión (fija `app.org_id`), sin transacción abierta: el
+        // stream vive horas y no puede retener una conexión del pool.
         queue = queue
-          .then(async () => {
-            if (await canSeeEvent(access, event)) write(event);
-          })
-          .catch(() => {
+          .then(() =>
+            runWithOrganization(organizationId, async () => {
+              if (await canSeeEvent(access, event)) write(event);
+            })
+          )
+          .catch((err: unknown) => {
             // Ante la duda no se reenvía: el cliente se pone al día con
             // su refetch normal.
+            log.warn("no se pudo decidir la visibilidad de un evento", { org: organizationId, err });
           });
       });
 

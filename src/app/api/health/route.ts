@@ -1,12 +1,14 @@
-import { sql } from "drizzle-orm";
-import { getDb } from "@/lib/db";
+import { getSql, getSystemSql } from "@/lib/db";
 import { APP_VERSION, resolveCommit } from "@/lib/version";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
-    await getDb().execute(sql`select 1`);
+    // PR 3: los DOS pools (vocero_app y vocero_system). Una contraseña mal
+    // puesta en cualquiera deja el contenedor sin salud y la plataforma no
+    // lo pone en servicio: el anterior sigue atendiendo.
+    await Promise.all([getSql()`select 1`, getSystemSql()`select 1`]);
     // La versión viaja aquí a propósito: confirmar un despliegue tiene que
     // poder hacerse con un `curl`, desde un script o desde la plataforma de
     // hosting, sin abrir la app ni iniciar sesión. Es la única forma de que un

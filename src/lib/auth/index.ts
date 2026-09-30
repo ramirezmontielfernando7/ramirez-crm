@@ -4,7 +4,7 @@ import { APIError, createAuthMiddleware } from "better-auth/api";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { organization } from "better-auth/plugins";
 import { ac, roles } from "@/lib/auth/permissions";
-import { getDb, schema } from "@/lib/db";
+import { getSystemDb, schema } from "@/lib/db";
 import { getEnv } from "@/lib/env";
 import { AUTH_RATE_LIMIT, checkRateLimit, clientIp } from "@/lib/rate-limit";
 import {
@@ -60,7 +60,9 @@ function createAuth() {
   return betterAuth({
     baseURL: env.APP_BASE_URL,
     secret: env.BETTER_AUTH_SECRET,
-    database: drizzleAdapter(getDb(), {
+    // Pool de sistema: better-auth resuelve usuarios y sesiones ANTES de
+    // saber la organización, y escribe `member`/`invitation`.
+    database: drizzleAdapter(getSystemDb(), {
       provider: "pg",
       schema: {
         user: schema.user,

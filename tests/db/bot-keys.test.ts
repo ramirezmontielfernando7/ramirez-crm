@@ -1,6 +1,8 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+// PR 3: la prueba prepara y revisa como PLATAFORMA (pool de sistema); lo que
+// prueba (ingesta, llaves, membresía) elige su pool por su cuenta.
 import { eq } from "drizzle-orm";
-import { getDb, schema } from "@/lib/db";
+import { getSystemDb as getDb, schema } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
 import { requireBotKey } from "@/server/bot/auth";
 import { botKeyPrefix, generateBotKey, hashBotKey, resolveBotKey, syncEnvBotKey } from "@/server/bot/keys";

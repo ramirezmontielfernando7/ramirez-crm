@@ -1,5 +1,6 @@
 import { eq } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
+import { runWithOrganization } from "@/lib/request-context";
 import { scoped } from "@/lib/db/tenant";
 import { FB_PREFIX } from "@/server/inbox/identity";
 import { ingestInboundMessage } from "@/server/inbox/ingest";
@@ -238,6 +239,16 @@ async function ingestAll(
       continue;
     }
 
+    // PR 3: lo que sigue ya es de esa organización.
+    await runWithOrganization(creds.organizationId, () => ingestOne(evt, creds));
+  }
+}
+
+async function ingestOne(
+  evt: MessengerInbound,
+  creds: NonNullable<Awaited<ReturnType<typeof getMessengerCredentialsByPageId>>>
+): Promise<void> {
+  {
     const identity = `${FB_PREFIX}${evt.psid}`;
     // El nombre se resuelve UNA vez, la primera que se ve al PSID: después el
     // contacto ya existe y el nombre que tenga (o el que editó el operador)

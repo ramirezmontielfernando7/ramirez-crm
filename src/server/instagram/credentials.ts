@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { getDb, schema } from "@/lib/db";
+import { getDb, getSystemDb, schema } from "@/lib/db";
 import { scoped } from "@/lib/db/tenant";
 import { newId } from "@/lib/db/ids";
 import { decryptSecret, encryptSecret } from "@/lib/crypto";
@@ -59,7 +59,8 @@ export async function getInstagramCredentialsByOrg(
 export async function getInstagramCredentialsByIgUserId(
   igUserId: string
 ): Promise<InstagramCredentials | null> {
-  const rows = await getDb()
+  // Enrutamiento: aún no se sabe de qué organización es. Pool de sistema.
+  const rows = await getSystemDb()
     .select()
     .from(schema.instagramCredentials)
     .where(eq(schema.instagramCredentials.igUserId, igUserId))
@@ -71,7 +72,8 @@ export async function getInstagramCredentialsByIgUserId(
 export async function getInstagramCredentialsByAccountRef(
   accountRef: string
 ): Promise<InstagramCredentials | null> {
-  const rows = await getDb()
+  // Enrutamiento: aún no se sabe de qué organización es. Pool de sistema.
+  const rows = await getSystemDb()
     .select()
     .from(schema.instagramCredentials)
     .where(eq(schema.instagramCredentials.accountRef, accountRef))

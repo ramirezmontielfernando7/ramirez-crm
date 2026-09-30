@@ -8,6 +8,7 @@ import { publish } from "@/server/events/bus";
 import { logActivitySafe } from "@/server/activity/log";
 import { moveLeadToStage } from "@/server/leads/stage-history";
 import { logger } from "@/lib/log";
+import { runWithOrganization } from "@/lib/request-context";
 
 const log = logger("bot");
 
@@ -29,80 +30,83 @@ export async function POST(req: Request) {
   if (!auth.ok) return auth.response;
   const { organizationId } = auth;
 
-  const body = await parseBody(req, bodySchema);
-  if (!body.ok) return body.response;
+  // PR 3: todo lo que sigue va a nombre de la organización de la llave.
+  return runWithOrganization(organizationId, async () => {
+    const body = await parseBody(req, bodySchema);
+    if (!body.ok) return body.response;
 
-  const db = getDb();
-  const rows = await db
-    .select({
-      id: schema.conversation.id,
-      contactId: schema.conversation.contactId,
-      aiEnabled: schema.conversation.aiEnabled,
-      handoffAt: schema.conversation.handoffAt,
-    })
-    .from(schema.conversation)
-    .where(
-      scoped(schema.conversation.organizationId, organizationId,
-        eq(schema.conversation.id, body.data.conversationId)
-      )
-    )
-    .limit(1);
-  const conv = rows[0];
-  if (!conv) return apiError(404, "not_found", "Conversación no encontrada");
-
-  await db
-    .update(schema.conversation)
-    .set({
-      aiEnabled: true,
-      handoffAt: null,
-      handoffReason: null,
-      updatedAt: new Date(),
-    })
-    .where(eq(schema.conversation.id, conv.id));
-  // 022: si estaba en pausa, la reactivación queda en la línea de tiempo.
-  if (!conv.aiEnabled || conv.handoffAt) {
-    await logActivitySafe({
-      organizationId,
-      contactId: conv.contactId,
-      kind: "ai_resumed",
-      source: "api",
-    });
-  }
-
-  // Etapa al inicio del funnel (best-effort: sin etapas no revienta el reset).
-  try {
-    const stages = await db
-      .select()
-      .from(schema.pipelineStage)
-      .where(scoped(schema.pipelineStage.organizationId, organizationId));
-    const first = [...stages].sort((a, b) => a.position - b.position)[0];
-    const leadRows = await db
-      .select({ id: schema.lead.id })
-      .from(schema.lead)
+    const db = getDb();
+    const rows = await db
+      .select({
+        id: schema.conversation.id,
+        contactId: schema.conversation.contactId,
+        aiEnabled: schema.conversation.aiEnabled,
+        handoffAt: schema.conversation.handoffAt,
+      })
+      .from(schema.conversation)
       .where(
-        scoped(schema.lead.organizationId, organizationId,
-          eq(schema.lead.contactId, conv.contactId)
+        scoped(schema.conversation.organizationId, organizationId,
+          eq(schema.conversation.id, body.data.conversationId)
         )
       )
       .limit(1);
-    if (first && leadRows[0]) {
-      // Por la puerta única: devolver la conversación de pruebas al inicio
-      // también es un movimiento, y la bitácora tiene que poder explicar por
-      // qué un lead retrocedió de etapa.
-      await moveLeadToStage({
+    const conv = rows[0];
+    if (!conv) return apiError(404, "not_found", "Conversación no encontrada");
+
+    await db
+      .update(schema.conversation)
+      .set({
+        aiEnabled: true,
+        handoffAt: null,
+        handoffReason: null,
+        updatedAt: new Date(),
+      })
+      .where(eq(schema.conversation.id, conv.id));
+    // 022: si estaba en pausa, la reactivación queda en la línea de tiempo.
+    if (!conv.aiEnabled || conv.handoffAt) {
+      await logActivitySafe({
         organizationId,
-        leadId: leadRows[0].id,
-        toStageId: first.id,
-        source: "sistema",
+        contactId: conv.contactId,
+        kind: "ai_resumed",
+        source: "api",
       });
     }
-  } catch (err) {
-    log.warn("reset: reinicio de etapa falló", { org: organizationId, err });
-  }
 
-  publish(organizationId, {
-    type: "conversation.updated",
-    data: { conversation: { id: conv.id } },
+    // Etapa al inicio del funnel (best-effort: sin etapas no revienta el reset).
+    try {
+      const stages = await db
+        .select()
+        .from(schema.pipelineStage)
+        .where(scoped(schema.pipelineStage.organizationId, organizationId));
+      const first = [...stages].sort((a, b) => a.position - b.position)[0];
+      const leadRows = await db
+        .select({ id: schema.lead.id })
+        .from(schema.lead)
+        .where(
+          scoped(schema.lead.organizationId, organizationId,
+            eq(schema.lead.contactId, conv.contactId)
+          )
+        )
+        .limit(1);
+      if (first && leadRows[0]) {
+        // Por la puerta única: devolver la conversación de pruebas al inicio
+        // también es un movimiento, y la bitácora tiene que poder explicar por
+        // qué un lead retrocedió de etapa.
+        await moveLeadToStage({
+          organizationId,
+          leadId: leadRows[0].id,
+          toStageId: first.id,
+          source: "sistema",
+        });
+      }
+    } catch (err) {
+      log.warn("reset: reinicio de etapa falló", { org: organizationId, err });
+    }
+
+    publish(organizationId, {
+      type: "conversation.updated",
+      data: { conversation: { id: conv.id } },
+    });
+    return Response.json({ ok: true });
   });
-  return Response.json({ ok: true });
 }
