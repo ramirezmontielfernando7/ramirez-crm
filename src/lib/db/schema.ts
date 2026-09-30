@@ -107,7 +107,14 @@ export const member = pgTable("member", {
     onDelete: "set null",
   }),
   createdAt: timestamp("created_at").notNull().defaultNow(),
-});
+}, (t) => [
+  // Fase 1 (H20): el equipo de una organización (Ajustes → Equipo, reparto)
+  // y la membresía de un usuario dentro de ella.
+  index("member_org_user_idx").on(t.organizationId, t.userId),
+  // resolveMembership (H4): la sesión busca la membresía del usuario, la
+  // más antigua primero, antes de saber su organización.
+  index("member_user_created_idx").on(t.userId, t.createdAt),
+]);
 
 /**
  * 020 — Equipo de ventas: un coordinador por equipo. Solo esquema; la interfaz
@@ -142,7 +149,11 @@ export const invitation = pgTable("invitation", {
   inviterId: text("inviter_id")
     .notNull()
     .references(() => user.id, { onDelete: "cascade" }),
-});
+}, (t) => [
+  // Fase 1 (H20): la app no usa invitaciones todavía (Fase 3), pero el
+  // filtro por organización es el que aplicará RLS en el PR 4.
+  index("invitation_org_idx").on(t.organizationId),
+]);
 
 /* ============================================================
  * Dominio (toda tabla lleva organization_id NOT NULL + índice org-first)
@@ -1096,7 +1107,12 @@ export const offeredSlot = pgTable(
     label: text("label").notNull(),
     offeredAt: timestamp("offered_at").notNull().defaultNow(),
   },
-  (t) => [index("offered_slot_conv_idx").on(t.conversationId, t.startUtc)]
+  (t) => [
+    index("offered_slot_conv_idx").on(t.conversationId, t.startUtc),
+    // Fase 1 (H20): los huecos ofrecidos de un chat, en orden
+    // (agenda/offers.ts: scoped(org, conversation_id) order by start_utc).
+    index("offered_slot_org_conv_idx").on(t.organizationId, t.conversationId, t.startUtc),
+  ]
 );
 
 /**
@@ -1180,7 +1196,12 @@ export const agentTestCase = pgTable(
       .default("pending"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
-  (t) => [index("test_case_run_idx").on(t.runId)]
+  (t) => [
+    index("test_case_run_idx").on(t.runId),
+    // Fase 1 (H20): los casos de una corrida del Laboratorio
+    // (lab/runs/[id]: scoped(org, run_id) order by created_at).
+    index("test_case_org_run_idx").on(t.organizationId, t.runId),
+  ]
 );
 
 /* ============================================================
@@ -1419,6 +1440,9 @@ export const campaignRecipient = pgTable(
       t.contactId
     ),
     index("campaign_recipient_campaign_status_idx").on(t.campaignId, t.status),
+    // Fase 1 (H20): avance de una campaña (conteo por estado) y los
+    // pendientes que reanuda el ejecutor, dentro de su organización.
+    index("campaign_recipient_org_campaign_status_idx").on(t.organizationId, t.campaignId, t.status),
   ]
 );
 
@@ -1581,7 +1605,11 @@ export const teamChatAttachment = pgTable(
     storagePath: text("storage_path").notNull(),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
-  (t) => [index("team_chat_attachment_thread_idx").on(t.threadId)]
+  (t) => [
+    index("team_chat_attachment_thread_idx").on(t.threadId),
+    // Fase 1 (H20): los adjuntos de un hilo del chat de equipo.
+    index("team_chat_attachment_org_thread_idx").on(t.organizationId, t.threadId),
+  ]
 );
 
 /**
@@ -1611,7 +1639,12 @@ export const teamChatMessage = pgTable(
     editedAt: timestamp("edited_at"),
     deletedAt: timestamp("deleted_at"),
   },
-  (t) => [index("team_chat_message_thread_created_idx").on(t.threadId, t.createdAt)]
+  (t) => [
+    index("team_chat_message_thread_created_idx").on(t.threadId, t.createdAt),
+    // Fase 1 (H20): paginar un hilo por fecha dentro de la organización
+    // (team-chat/messages.ts: scoped(org, thread_id) order by created_at).
+    index("team_chat_message_org_thread_created_idx").on(t.organizationId, t.threadId, t.createdAt),
+  ]
 );
 
 /** 025 — Reacciones con emoji: una fila por (mensaje, persona, emoji). */
@@ -1630,7 +1663,12 @@ export const teamChatReaction = pgTable(
     emoji: text("emoji").notNull(),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
-  (t) => [primaryKey({ columns: [t.messageId, t.userId, t.emoji] })]
+  (t) => [
+    primaryKey({ columns: [t.messageId, t.userId, t.emoji] }),
+    // Fase 1 (H20): las reacciones de los mensajes de una página
+    // (scoped(org, message_id in …)).
+    index("team_chat_reaction_org_message_idx").on(t.organizationId, t.messageId),
+  ]
 );
 
 /**

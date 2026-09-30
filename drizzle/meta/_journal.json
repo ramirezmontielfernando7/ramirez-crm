@@ -162,6 +162,13 @@
       "when": 1790777893102,
       "tag": "0022_llaves_cerebro_externo",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1790792537611,
+      "tag": "0023_indices_por_organizacion",
+      "breakpoints": true
     }
   ]
 }
