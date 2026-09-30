@@ -3,8 +3,10 @@ import { and, eq, isNull, ne } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
 import { scoped } from "@/lib/db/tenant";
-import { describeError } from "@/lib/log-safe";
 import { platformOrgId } from "@/server/platform";
+import { logger } from "@/lib/log";
+
+const log = logger("bot");
 
 /**
  * Fase 1 multitenant (H2) — llaves del cerebro externo, una organización por
@@ -77,7 +79,7 @@ export async function touchBotKey(keyId: string, organizationId: string, now = D
       .where(scoped(schema.botApiKey.organizationId, organizationId, eq(schema.botApiKey.id, keyId)));
   } catch (err) {
     // Solo es un dato de diagnóstico: no se tumba la llamada del cerebro.
-    console.error(`[bot] no se pudo anotar el uso de la llave (org=${organizationId}):`, describeError(err));
+    log.error("no se pudo anotar el uso de la llave", { org: organizationId, err });
   }
 }
 
@@ -93,7 +95,7 @@ export async function syncEnvBotKey(): Promise<void> {
   try {
     const db = getDb();
     if (!key || key.length < MIN_KEY_LENGTH) {
-      if (key) console.warn("[boot] BOT_API_KEY es demasiado corta (mínimo 16): no abre /api/bot/*");
+      if (key) log.warn("BOT_API_KEY es demasiado corta (mínimo 16): no abre /api/bot/*");
       // Sin llave en la variable: ninguna llave de origen env sigue activa.
       await db
         .update(schema.botApiKey)
@@ -102,8 +104,8 @@ export async function syncEnvBotKey(): Promise<void> {
       return;
     }
     if (!orgId) {
-      console.warn(
-        "[boot] BOT_API_KEY está definida pero PLATFORM_ORG_ID no: la llave no abre /api/bot/* para ninguna organización. " +
+      log.warn(
+        "BOT_API_KEY está definida pero PLATFORM_ORG_ID no: la llave no abre /api/bot/* para ninguna organización. " +
           "Define PLATFORM_ORG_ID con el id de tu organización (org_…)."
       );
       return;
@@ -114,7 +116,7 @@ export async function syncEnvBotKey(): Promise<void> {
       .where(eq(schema.organization.id, orgId))
       .limit(1);
     if (!org) {
-      console.warn(`[boot] PLATFORM_ORG_ID=${orgId} no existe en la base: la BOT_API_KEY no abre nada.`);
+      log.warn("PLATFORM_ORG_ID no existe en la base: la BOT_API_KEY no abre nada", { platformOrgId: orgId });
       return;
     }
     const hash = hashBotKey(key);
@@ -148,6 +150,6 @@ export async function syncEnvBotKey(): Promise<void> {
       }
     });
   } catch (err) {
-    console.error("[boot] no se pudo ligar BOT_API_KEY a PLATFORM_ORG_ID:", describeError(err));
+    log.error("no se pudo ligar BOT_API_KEY a PLATFORM_ORG_ID", { err });
   }
 }

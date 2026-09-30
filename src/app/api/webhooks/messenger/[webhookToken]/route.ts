@@ -8,7 +8,9 @@ import {
 } from "@/server/channels/enabled";
 import { isValidZernioSignature, looksLikeMetaPayload, zernioSignatureFrom } from "@/server/zernio";
 import { processZernioPayload, resolveZernioSecret } from "@/server/zernio/dispatch";
-import { describeError } from "@/lib/log-safe";
+import { logger } from "@/lib/log";
+
+const log = logger("messenger");
 
 /**
  * 017 — Webhook público del canal de Messenger.
@@ -95,7 +97,7 @@ export async function POST(req: Request, { params }: Params) {
       if (isMeta) await processMetaPagePayload(payload);
       else await processZernioPayload(payload);
     } catch (err) {
-      console.error("[messenger] error procesando payload:", describeError(err));
+      log.error("error procesando payload", { err });
     }
   });
 

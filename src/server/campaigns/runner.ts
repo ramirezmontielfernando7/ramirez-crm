@@ -7,7 +7,9 @@ import { getOrCreateConversation } from "@/server/inbox/ingest";
 import { SendError } from "@/server/inbox/send";
 import { sendTemplate, TemplateError } from "@/server/whatsapp/templates";
 import { campaignSendRate } from "@/server/campaigns/flag";
-import { describeError } from "@/lib/log-safe";
+import { logger } from "@/lib/log";
+
+const log = logger("campaign");
 
 /**
  * 021 — Ejecutor de campañas: envío en segundo plano, DENTRO del proceso
@@ -61,9 +63,9 @@ export function startCampaignRunner(organizationId: string, campaignId: string):
   running().add(campaignId);
   void executeCampaign(organizationId, campaignId)
     .catch(async (err) => {
-      console.error(`[campaign] ${campaignId} falló:`, describeError(err));
+      log.error("la campaña falló", { org: organizationId, campana: campaignId, err });
       await finishCampaign(organizationId, campaignId, "failed", "Error interno del envío; revisa los registros del servidor").catch(
-        (e) => console.error(`[campaign] ${campaignId} no se pudo marcar como fallida:`, e)
+        (e: unknown) => log.error("no se pudo marcar la campaña como fallida", { org: organizationId, campana: campaignId, err: e })
       );
     })
     .finally(() => running().delete(campaignId));
@@ -213,7 +215,7 @@ async function sendOne(
       if (decision.kind === "stop") throw new StopCampaign(decision.message);
       if (decision.kind === "rate_limit" && rateLimitTry < RATE_LIMIT_BACKOFF_MS.length) {
         const ms = RATE_LIMIT_BACKOFF_MS[rateLimitTry++]! * backoffScale();
-        console.warn(`[campaign] límite de Meta (${decision.message}); pausa de ${ms} ms`);
+        log.warn("límite de Meta; pausa", { org: organizationId, motivo: decision.message, pausaMs: ms });
         await sleep(ms);
         continue;
       }
@@ -272,7 +274,7 @@ export function classify(err: unknown): Decision {
     }
     return { kind: "recipient", message: humanMetaError(code, err.message) };
   }
-  console.error("[campaign] error inesperado al enviar:", describeError(err));
+  log.error("error inesperado al enviar", { err });
   return { kind: "recipient", message: "Error interno al enviar a este contacto" };
 }
 

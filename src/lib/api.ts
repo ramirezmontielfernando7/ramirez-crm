@@ -1,7 +1,10 @@
 import { z } from "zod";
 import { requireSession, UnauthorizedError, type SessionContext } from "@/lib/auth/session";
 import { can, type Permission } from "@/lib/auth/permissions";
-import { describeError } from "@/lib/log-safe";
+import { logger } from "@/lib/log";
+import { runWithOrganization } from "@/lib/request-context";
+
+const log = logger("api");
 
 /** Respuesta de error estándar de la API interna (contrato api.md). */
 export function apiError(
@@ -51,14 +54,18 @@ export function withAuth<Args extends unknown[]>(
     if (options.permission && !can(session, options.permission)) {
       return forbidden();
     }
-    try {
-      return await handler(session, ...args);
-    } catch (err) {
-      // Sin el error crudo: con drizzle 0.45 su mensaje trae el SQL y los
-      // parámetros (teléfonos, textos). `describeError` deja lo útil.
-      console.error("[api] error no controlado:", describeError(err));
-      return apiError(500, "internal", "Error interno");
-    }
+    // H27: todo lo que registre el handler (y lo que llame) lleva la
+    // organización de la sesión.
+    return runWithOrganization(session.organizationId, async () => {
+      try {
+        return await handler(session, ...args);
+      } catch (err) {
+        // Sin el error crudo: con drizzle 0.45 su mensaje trae el SQL y los
+        // parámetros (teléfonos, textos). El logger usa `describeError`.
+        log.error("error no controlado", { err });
+        return apiError(500, "internal", "Error interno");
+      }
+    });
   };
 }
 

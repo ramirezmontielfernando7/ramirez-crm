@@ -6,7 +6,9 @@ import { assignContacts } from "@/server/assignment/assign";
 import { strategyFor } from "@/server/assignment/strategy";
 import { recordLeadCreated } from "@/server/leads/stage-history";
 import type { StageChangeSource } from "@/lib/types";
-import { describeError } from "@/lib/log-safe";
+import { logger } from "@/lib/log";
+
+const log = logger("assignment");
 
 /**
  * Actividad de lead al recibir un mensaje (US2): si el contacto no tiene lead,
@@ -136,7 +138,7 @@ export async function createLeadForContact(input: {
       });
     }
   } catch (err) {
-    console.error("[assignment] reparto automático falló:", describeError(err));
+    log.error("reparto automático falló", { org: input.organizationId, err });
   }
 
   return creado;

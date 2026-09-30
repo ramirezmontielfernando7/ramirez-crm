@@ -7,7 +7,9 @@ import { requireBotKey } from "@/server/bot/auth";
 import { publish } from "@/server/events/bus";
 import { logActivitySafe } from "@/server/activity/log";
 import { moveLeadToStage } from "@/server/leads/stage-history";
-import { describeError } from "@/lib/log-safe";
+import { logger } from "@/lib/log";
+
+const log = logger("bot");
 
 export const dynamic = "force-dynamic";
 
@@ -95,7 +97,7 @@ export async function POST(req: Request) {
       });
     }
   } catch (err) {
-    console.warn(`[bot/reset] reinicio de etapa falló: ${describeError(err)}`);
+    log.warn("reset: reinicio de etapa falló", { org: organizationId, err });
   }
 
   publish(organizationId, {

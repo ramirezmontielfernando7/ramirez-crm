@@ -4,6 +4,9 @@ import {
   writingResultSchema,
   type WritingRequest,
 } from "./prompts";
+import { logger } from "@/lib/log";
+
+const log = logger("writing-assist");
 
 export type RewriteResult =
   | { ok: true; text: string }
@@ -19,7 +22,7 @@ export async function rewriteDraft(req: WritingRequest): Promise<RewriteResult> 
     timeoutMs: 30_000,
   });
   if (!res.ok) {
-    console.warn(`[writing-assist] ${req.action} falló: ${res.error}`);
+    log.warn("la reescritura falló", { accion: req.action, error: res.error });
     return { ok: false, error: res.error };
   }
   return { ok: true, text: res.data.text };

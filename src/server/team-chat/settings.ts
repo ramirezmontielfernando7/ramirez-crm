@@ -1,7 +1,9 @@
 import { getDb, schema } from "@/lib/db";
 import { scoped } from "@/lib/db/tenant";
 import { DELEGABLE, hasDelegableFor, type Permission } from "@/lib/auth/permissions";
-import { describeError } from "@/lib/log-safe";
+import { logger } from "@/lib/log";
+
+const log = logger("team-chat");
 
 /**
  * 025 — Ajustes del chat de equipo por organización. Sin fila, los defaults:
@@ -84,7 +86,7 @@ export async function delegatedGrants(
   try {
     return grantsFromSettings(role, await getTeamChatSettings(organizationId));
   } catch (err) {
-    console.error("[team-chat] no se pudieron leer las delegaciones:", describeError(err));
+    log.error("no se pudieron leer las delegaciones", { org: organizationId, err });
     return [];
   }
 }

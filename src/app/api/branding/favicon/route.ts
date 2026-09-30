@@ -1,6 +1,9 @@
 import { readMediaFile } from "@/server/whatsapp/media";
 import { getViewerBrandingContext } from "@/server/branding";
 import { FAVICON_ASSET, generatedFaviconSvg } from "@/lib/favicon";
+import { logger } from "@/lib/log";
+
+const log = logger("branding");
 
 export const dynamic = "force-dynamic";
 
@@ -46,9 +49,10 @@ export async function GET(req: Request) {
         headers: cabeceras(branding.favicon.mime, cacheable, true),
       });
     } catch (err) {
-      console.warn(
-        `[branding] el icono de org=${ctx.organizationId} no está en MEDIA_DIR (${(err as NodeJS.ErrnoException | null)?.code ?? "error"}); se sirve el generado`
-      );
+      log.warn("el icono no está en MEDIA_DIR; se sirve el generado", {
+        org: ctx.organizationId,
+        codigo: (err as NodeJS.ErrnoException | null)?.code ?? "error",
+      });
       // El archivo se perdió (volumen sin montar, restauración a medias). Se
       // cae al generado en vez de dejar la pestaña sin icono: un 404 aquí se
       // ve como si la instancia estuviera rota.

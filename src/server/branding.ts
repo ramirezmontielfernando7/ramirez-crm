@@ -6,7 +6,9 @@ import {
   PLATFORM_BRANDING,
   type Branding,
 } from "@/lib/branding";
-import { describeError } from "@/lib/log-safe";
+import { logger } from "@/lib/log";
+
+const log = logger("branding");
 
 /** Marca guardada en organization.metadata (JSON de Better Auth). */
 
@@ -67,10 +69,7 @@ export async function getViewerBrandingContext(): Promise<{
   try {
     return await getBrandingContext(session?.organizationId);
   } catch (err) {
-    console.error(
-      `[branding] no se pudo leer la marca (org=${session?.organizationId ?? "-"}):`,
-      describeError(err)
-    );
+    log.error("no se pudo leer la marca", { org: session?.organizationId ?? null, err });
     return { organizationId: null, branding: PLATFORM_BRANDING };
   }
 }

@@ -5,6 +5,9 @@ import { processZernioEvent } from "@/server/instagram/ingest";
 import { getMessengerCredentialsByAccountRef } from "@/server/messenger/credentials";
 import { processZernioMessengerEvent } from "@/server/messenger/ingest";
 import { parseZernioEvent, type ZernioEvent } from "@/server/zernio";
+import { logger } from "@/lib/log";
+
+const log = logger("zernio");
 
 /**
  * 017 — Reparto de un evento de Zernio al canal que le toca.
@@ -62,9 +65,7 @@ export async function processZernioPayload(payload: unknown): Promise<void> {
   if (!channel) return; // otra plataforma conectada a la misma llave: no es nuestra
 
   if (!isChannelEnabled(channel)) {
-    console.warn(
-      `[zernio] evento de ${channel} con el canal apagado en esta instancia: descartado`
-    );
+    log.warn("evento con el canal apagado en esta instancia: descartado", { canal: channel });
     return;
   }
 

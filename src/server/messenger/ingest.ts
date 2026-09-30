@@ -9,6 +9,9 @@ import {
 } from "@/server/messenger/credentials";
 import { fetchMessengerProfileName } from "@/server/messenger/send";
 import { zernioSentAtSeconds, type ZernioEvent } from "@/server/zernio";
+import { logger } from "@/lib/log";
+
+const log = logger("messenger");
 
 /**
  * 017 — Adaptadores de entrada del canal de Messenger.
@@ -224,20 +227,14 @@ async function ingestAll(
         : await getMessengerCredentialsByAccountRef(evt.routeKey);
 
     if (!creds) {
-      console.warn(
-        `[messenger] evento para una cuenta desconocida (${evt.routeKey}): ` +
-          "guarda la conexión en Configuración → Messenger para recibir mensajes"
-      );
+      log.warn("evento para una cuenta desconocida: guarda la conexión en Configuración → Messenger para recibir mensajes", { cuenta: evt.routeKey });
       continue;
     }
     if (creds.source !== source) {
       // Defensa en profundidad: si esta instancia no habla con esa fuente, un
       // payload con su forma no puede ser legítimo aunque llegue por la URL
       // correcta. Sin esto, la única barrera de la forma ajena es la URL.
-      console.warn(
-        `[messenger] payload de ${source} en una instancia configurada como ` +
-          `'${creds.source}': descartado`
-      );
+      log.warn("payload con la conexión configurada en otro origen: descartado", { org: creds.organizationId, llego: source, origen: creds.source });
       continue;
     }
 

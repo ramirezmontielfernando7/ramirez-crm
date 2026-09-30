@@ -2,11 +2,13 @@ import { eq } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { scoped } from "@/lib/db/tenant";
 import { can } from "@/lib/auth/permissions";
-import { describeError } from "@/lib/log-safe";
 import type { TeamThreadKind } from "@/lib/team-chat";
 import { publish, type TeamSseEvent } from "@/server/events/bus";
 import { orgMembers } from "./people";
 import { getTeamChatSettings } from "./settings";
+import { logger } from "@/lib/log";
+
+const log = logger("team-chat");
 
 /**
  * 025 — A quién le llega en tiempo real lo que pasa en un hilo.
@@ -74,7 +76,7 @@ export async function publishTeam(
     const audience = await threadAudience(organizationId, thread, extraParticipantIds);
     publish(organizationId, { ...event, audience } as TeamSseEvent);
   } catch (err) {
-    console.error("[team-chat] no se pudo publicar el evento:", describeError(err));
+    log.error("no se pudo publicar el evento", { org: organizationId, err });
   }
 }
 
@@ -96,6 +98,6 @@ export async function publishToOrg(
     const members = await orgMembers(organizationId);
     publish(organizationId, { ...event, audience: members.map((m) => m.userId) } as TeamSseEvent);
   } catch (err) {
-    console.error("[team-chat] no se pudo publicar el evento:", describeError(err));
+    log.error("no se pudo publicar el evento", { org: organizationId, err });
   }
 }
