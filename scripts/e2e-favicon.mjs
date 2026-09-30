@@ -5,8 +5,10 @@
  * Dos cosas se prueban aquí sobre todo: que TODA instancia tenga icono sin
  * configurar nada, y que no se pueda colar un documento haciéndolo pasar por
  * imagen — esto se sirve desde el mismo dominio que la app. Y una tercera:
- * que el logo que sube el dueño se vea donde se ve la marca (barra lateral,
- * login), no solo en la pestaña.
+ * que el logo que sube el dueño se vea donde se ve SU marca (barra lateral,
+ * pestaña con sesión), no solo en la pestaña. Desde la Fase 1 multitenant
+ * (H11) el login y el icono sin sesión son los de la PLATAFORMA: antes de
+ * entrar no se sabe de qué negocio es quien llega.
  *
  * Uso: node --env-file=.env scripts/e2e-favicon.mjs
  */
@@ -140,11 +142,25 @@ ok(
   versionEnMosaico(pagina) === v1,
   `mosaico con ${versionEnMosaico(pagina) ?? "la inicial"}, esperado ${v1}`
 );
+// H11: sin sesión, la marca es la de la plataforma, nunca la de un negocio.
 pagina = await paginaDe("/login", { sesion: false });
 ok(
-  "el login también, sin sesión",
-  versionEnMosaico(pagina) === v1,
-  `mosaico con ${versionEnMosaico(pagina) ?? "la inicial"}, esperado ${v1}`
+  "el login, sin sesión, NO enseña el logo ni el nombre del negocio (H11)",
+  versionEnMosaico(pagina) !== v1 && !pagina.includes("Acme"),
+  `mosaico con ${versionEnMosaico(pagina) ?? "la inicial"}`
+);
+const anonimo = await fetch(`${BASE}/api/branding/favicon`);
+const anonimoBuf = Buffer.from(await anonimo.arrayBuffer());
+ok(
+  "el icono sin sesión es el de la plataforma, no el PNG subido (H11)",
+  anonimo.status === 200 && !anonimoBuf.equals(PNG_1X1) && anonimo.headers.get("content-type")?.includes("svg"),
+  `${anonimo.headers.get("content-type")} ${anonimoBuf.length}B`
+);
+const conSesion = await api("/api/branding/favicon?v=x");
+ok(
+  "el icono del negocio no se deja en cachés compartidos (private)",
+  conSesion.headers.get("cache-control")?.startsWith("private"),
+  conSesion.headers.get("cache-control") ?? ""
 );
 
 console.log("\n== No se cuela un documento disfrazado de imagen ==");

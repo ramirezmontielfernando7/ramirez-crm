@@ -352,7 +352,14 @@ async function main() {
     method: "POST",
     body: JSON.stringify({ wabaId: WABA_B, name: tplName, language: "es_MX", event: "APPROVED", notify: false }),
   });
-  await ownerB.api("/api/templates/sync", { method: "POST" });
+  // La aprobación llega por la sincronización con Meta (wa-mock): se espera a
+  // que la plantilla quede aprobada antes de armar la campaña.
+  const aprobada = await hasta(async () => {
+    await ownerB.api("/api/templates/sync", { method: "POST" });
+    const lista = (await ownerB.api("/api/templates")).json?.templates ?? [];
+    return lista.some((t) => t.id === tplB && t.status === "approved");
+  }, 20000, 1000);
+  ok("la plantilla de B queda aprobada (sync con wa-mock)", aprobada);
   const cmp = await ownerB.api("/api/campaigns", {
     method: "POST",
     body: JSON.stringify({ name: `Campaña ${SECRETO_B}`, templateId: tplB, variables: [], audience: {} }),
