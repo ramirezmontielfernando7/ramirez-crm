@@ -11,9 +11,12 @@ export async function register(): Promise<void> {
       resumeSendingCampaigns,
       warnIfWebhookUnsigned,
     } = await import("./instrumentation-node");
+    const { syncEnvBotKey } = await import("@/server/bot/keys");
     warnIfWebhookUnsigned();
     await checkMediaDir();
     await cleanupOrphanRuns();
     await resumeSendingCampaigns();
+    // H2: la BOT_API_KEY de la variable queda ligada a PLATFORM_ORG_ID.
+    await syncEnvBotKey();
   }
 }

@@ -1,11 +1,14 @@
-import { and, asc, eq, sql } from "drizzle-orm";
+import { asc, eq, sql } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
+import { scoped } from "@/lib/db/tenant";
 import { newId } from "@/lib/db/ids";
 import { assignContacts } from "@/server/assignment/assign";
 import { strategyFor } from "@/server/assignment/strategy";
 import { recordLeadCreated } from "@/server/leads/stage-history";
 import type { StageChangeSource } from "@/lib/types";
-import { describeError } from "@/lib/log-safe";
+import { logger } from "@/lib/log";
+
+const log = logger("assignment");
 
 /**
  * Actividad de lead al recibir un mensaje (US2): si el contacto no tiene lead,
@@ -22,7 +25,7 @@ export async function onLeadActivity(
   const existing = await db
     .select({ id: schema.lead.id })
     .from(schema.lead)
-    .where(eq(schema.lead.contactId, contactId))
+    .where(scoped(schema.lead.organizationId, organizationId, eq(schema.lead.contactId, contactId)))
     .limit(1);
 
   if (existing[0]) {
@@ -64,8 +67,7 @@ export async function createLeadForContact(input: {
       .select({ id: schema.pipelineStage.id })
       .from(schema.pipelineStage)
       .where(
-        and(
-          eq(schema.pipelineStage.organizationId, input.organizationId),
+        scoped(schema.pipelineStage.organizationId, input.organizationId,
           eq(schema.pipelineStage.kind, "open")
         )
       )
@@ -79,8 +81,7 @@ export async function createLeadForContact(input: {
     .select({ max: sql<number>`coalesce(max(${schema.lead.position}), -1)` })
     .from(schema.lead)
     .where(
-      and(
-        eq(schema.lead.organizationId, input.organizationId),
+      scoped(schema.lead.organizationId, input.organizationId,
         eq(schema.lead.stageId, stageId)
       )
     );
@@ -137,7 +138,7 @@ export async function createLeadForContact(input: {
       });
     }
   } catch (err) {
-    console.error("[assignment] reparto automático falló:", describeError(err));
+    log.error("reparto automático falló", { org: input.organizationId, err });
   }
 
   return creado;

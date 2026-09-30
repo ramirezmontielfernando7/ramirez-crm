@@ -21,7 +21,9 @@ import { buildAgentSystemPrompt } from "@/server/ai/prompts";
 import { agendaEnabled } from "@/server/agenda/flag";
 import { bookSlot, offerSlots } from "@/server/agenda/agent";
 import { getOffers, mapaDeHuecosParaModelo } from "@/server/agenda/offers";
-import { describeError } from "@/lib/log-safe";
+import { logger } from "@/lib/log";
+
+const log = logger("agente");
 
 /**
  * Turno del agente (FR-021..FR-025).
@@ -79,7 +81,7 @@ async function executeTurn(conversationId: string): Promise<void> {
   try {
     await runAgentTurn(conversationId);
   } catch (err) {
-    console.error("[agente] turno falló:", describeError(err));
+    log.error("turno falló", { conversacion: conversationId, err });
   } finally {
     entry.running = false;
     if (entry.pending) {
@@ -114,7 +116,7 @@ export async function runAgentTurn(conversationId: string): Promise<void> {
   const profileRows = await db
     .select()
     .from(schema.agentProfile)
-    .where(eq(schema.agentProfile.organizationId, organizationId))
+    .where(scoped(schema.agentProfile.organizationId, organizationId))
     .limit(1);
   const profile = profileRows[0];
   if (!profile) return;
@@ -150,12 +152,12 @@ export async function runAgentTurn(conversationId: string): Promise<void> {
   const kb = await db
     .select()
     .from(schema.kbEntry)
-    .where(eq(schema.kbEntry.organizationId, organizationId))
+    .where(scoped(schema.kbEntry.organizationId, organizationId))
     .orderBy(asc(schema.kbEntry.createdAt));
   const stages = await db
     .select({ id: schema.pipelineStage.id, name: schema.pipelineStage.name })
     .from(schema.pipelineStage)
-    .where(eq(schema.pipelineStage.organizationId, organizationId))
+    .where(scoped(schema.pipelineStage.organizationId, organizationId))
     .orderBy(asc(schema.pipelineStage.position));
 
   const agenda = agendaEnabled();
@@ -207,7 +209,14 @@ export async function runAgentTurn(conversationId: string): Promise<void> {
   if (!result.ok) {
     if (result.error === "not_configured") return;
     // Fallo persistente del proveedor o salida imposible → escalar (FR-022).
-    console.error(`[agente] fallo del proveedor (raw): ${result.detail}`);
+    // H27: sin la salida cruda del modelo (puede traer texto de la
+    // conversación): el código y cuánto medía bastan para diagnosticar.
+    log.error("fallo del proveedor de IA; se escala a una persona", {
+      org: organizationId,
+      conversacion: conversationId,
+      error: result.error,
+      detalleCaracteres: result.detail?.length ?? 0,
+    });
     await applyHandoff(conversationId, organizationId, "error");
     return;
   }
@@ -243,7 +252,7 @@ export async function runAgentTurn(conversationId: string): Promise<void> {
         }
         return;
       } catch (err) {
-        console.error(`[agente] el motor de agenda falló: ${describeError(err)}`);
+        log.error("el motor de agenda falló", { org: organizationId, conversacion: conversationId, err });
         action = degradeAction(action);
       }
     }
@@ -333,10 +342,11 @@ async function acknowledgeHandoff(conversation: Conversation): Promise<void> {
   try {
     await deliverReply(conversation, HANDOFF_BACKUP_ACK);
   } catch (err) {
-    console.error(
-      `[agente] el acuse del traspaso no salió en ${conversation.id}; se traspasa igual:`,
-      err
-    );
+    log.error("el acuse del traspaso no salió; se traspasa igual", {
+      org: conversation.organizationId,
+      conversacion: conversation.id,
+      err,
+    });
   }
 }
 

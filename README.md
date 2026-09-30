@@ -115,7 +115,9 @@ conocimiento vive aparte, en Agente).
 
 Si prefieres conducir la conversación con tu propio cerebro —un microservicio
 tuyo, en tu mismo servidor— apaga el agente de Vocero y habilita la API de
-servicio con una `BOT_API_KEY`. Tu bot conversa a través del CRM, así que **el
+servicio con una llave (`BOT_API_KEY`, ligada a la organización de
+`PLATFORM_ORG_ID`; otras con `scripts/bot-key.mjs`). Cada llave opera sobre
+UNA organización. Tu bot conversa a través del CRM, así que **el
 token de WhatsApp nunca sale de aquí** y todo queda en la bandeja como
 cualquier otra conversación.
 

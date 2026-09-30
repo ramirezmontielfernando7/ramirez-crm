@@ -4,9 +4,24 @@ import { mergeFicha, normalizeFicha } from "@/server/bot/ficha";
 import { toHandoffReason } from "@/server/bot/handoff";
 import { resetRateLimit } from "@/lib/rate-limit";
 
-/** La puerta de toda la superficie `/api/bot/*`. */
+/**
+ * La puerta de toda la superficie `/api/bot/*`. Fase 1 multitenant (H2): la
+ * llave vive en `bot_api_key` (hash) y dice la organización; aquí la BD de
+ * llaves es un mapa en memoria. La búsqueda real por hash contra Postgres se
+ * prueba en tests/db/bot-keys.test.ts.
+ */
 
 const KEY = "clave-de-servicio-larga-0123456789abcdef";
+const KEY_B = "clave-de-otra-organizacion-0123456789abc";
+
+const llaves = vi.hoisted(() => new Map<string, string>());
+vi.mock("@/server/bot/keys", () => ({
+  resolveBotKey: async (k: string | null) => {
+    const org = k ? llaves.get(k) : undefined;
+    return org ? { keyId: `bak_${org}`, organizationId: org } : null;
+  },
+  touchBotKey: async () => {},
+}));
 
 function reqWith(key?: string): Request {
   return new Request("http://localhost/api/bot/context", {
@@ -14,39 +29,42 @@ function reqWith(key?: string): Request {
   });
 }
 
+async function status(req: Request): Promise<number> {
+  const r = await requireBotKey(req);
+  return r.ok ? 200 : r.response.status;
+}
+
 describe("requireBotKey", () => {
   beforeEach(() => {
-    vi.stubEnv("BOT_API_KEY", KEY);
+    llaves.clear();
+    llaves.set(KEY, "org_a");
+    llaves.set(KEY_B, "org_b");
     resetRateLimit();
   });
-  afterEach(() => vi.unstubAllEnvs());
 
-  it("key correcta → pasa (null)", () => {
-    expect(requireBotKey(reqWith(KEY))).toBeNull();
+  it("key correcta → pasa con la organización DE ESA llave", async () => {
+    expect(await requireBotKey(reqWith(KEY))).toEqual({ ok: true, organizationId: "org_a" });
+    expect(await requireBotKey(reqWith(KEY_B))).toEqual({ ok: true, organizationId: "org_b" });
   });
 
-  it("key incorrecta → 401", () => {
-    const res = requireBotKey(reqWith("otra-clave-igual-de-larga-pero-mala!!"));
-    expect(res?.status).toBe(401);
+  it("key incorrecta → 401", async () => {
+    expect(await status(reqWith("otra-clave-igual-de-larga-pero-mala!!"))).toBe(401);
   });
 
-  it("sin header → 401", () => {
-    expect(requireBotKey(reqWith())?.status).toBe(401);
+  it("sin header → 401", async () => {
+    expect(await status(reqWith())).toBe(401);
   });
 
-  it("sin BOT_API_KEY configurada → 401 SIEMPRE (aunque manden algo)", () => {
-    vi.stubEnv("BOT_API_KEY", "");
-    expect(requireBotKey(reqWith("cualquier-cosa"))?.status).toBe(401);
+  it("organización sin llave (apagado por defecto) → 401 siempre", async () => {
+    llaves.clear();
+    expect(await status(reqWith(KEY))).toBe(401);
   });
 
-  it("key demasiado corta configurada → 401 (no se acepta una key débil)", () => {
-    vi.stubEnv("BOT_API_KEY", "corta");
-    expect(requireBotKey(reqWith("corta"))?.status).toBe(401);
-  });
-
-  it("longitudes distintas no filtran información (401 uniforme)", () => {
-    const res = requireBotKey(reqWith("x"));
-    expect(res?.status).toBe(401);
+  it("la BOT_API_KEY de la variable ya no abre nada por sí sola", async () => {
+    llaves.clear();
+    vi.stubEnv("BOT_API_KEY", KEY);
+    expect(await status(reqWith(KEY))).toBe(401);
+    vi.unstubAllEnvs();
   });
 });
 
@@ -69,38 +87,41 @@ describe("requireBotKey: límites (autentica primero, cuenta después)", () => {
   }
 
   beforeEach(() => {
-    vi.stubEnv("BOT_API_KEY", KEY);
+    llaves.clear();
+    llaves.set(KEY, "org_a");
+    llaves.set(KEY_B, "org_b");
     resetRateLimit();
   });
   afterEach(() => vi.unstubAllEnvs());
 
-  it("700 requests sin key desde una IP → el cerebro sigue en 200", () => {
+  it("700 requests sin key desde una IP → el cerebro sigue en 200", async () => {
     const vistos = { 401: 0, 429: 0 };
     for (let i = 0; i < 700; i++) {
-      const s = requireBotKey(desde("203.0.113.9", i % 2 ? MALA : undefined))?.status;
+      const s = await status(desde("203.0.113.9", i % 2 ? MALA : undefined));
       if (s === 401 || s === 429) vistos[s]++;
     }
     expect(vistos).toEqual({ 401: BOT_AUTH_FAILURES.max, 429: 700 - BOT_AUTH_FAILURES.max });
-    expect(requireBotKey(desde("198.51.100.7", KEY))).toBeNull();
+    expect(await status(desde("198.51.100.7", KEY))).toBe(200);
     // Ni aunque comparta IP con quien inunda (mismo proxy, o "local").
-    expect(requireBotKey(desde("203.0.113.9", KEY))).toBeNull();
+    expect(await status(desde("203.0.113.9", KEY))).toBe(200);
   });
 
-  it("las fallidas se frenan POR IP: 30 → 401, la 31 → 429; otra IP sigue en 401", () => {
+  it("las fallidas se frenan POR IP: 30 → 401, la 31 → 429; otra IP sigue en 401", async () => {
     for (let i = 0; i < BOT_AUTH_FAILURES.max; i++) {
-      expect(requireBotKey(desde("203.0.113.9", MALA))?.status).toBe(401);
+      expect(await status(desde("203.0.113.9", MALA))).toBe(401);
     }
-    expect(requireBotKey(desde("203.0.113.9", MALA))?.status).toBe(429);
-    expect(requireBotKey(desde("192.0.2.1", MALA))?.status).toBe(401);
+    expect(await status(desde("203.0.113.9", MALA))).toBe(429);
+    expect(await status(desde("192.0.2.1", MALA))).toBe(401);
   });
 
-  it("el presupuesto del cerebro autenticado sigue aplicando", () => {
+  it("el presupuesto es POR organización: agotar el de A no frena a B", async () => {
     for (let i = 0; i < BOT_API_BUDGET.max; i++) {
-      expect(requireBotKey(desde("198.51.100.7", KEY))).toBeNull();
+      expect(await status(desde("198.51.100.7", KEY))).toBe(200);
     }
-    expect(requireBotKey(desde("198.51.100.7", KEY))?.status).toBe(429);
+    expect(await status(desde("198.51.100.7", KEY))).toBe(429);
+    expect(await status(desde("198.51.100.7", KEY_B))).toBe(200);
     // Y los fallidos no se cuentan contra él: su respuesta sigue siendo 401.
-    expect(requireBotKey(desde("192.0.2.1"))?.status).toBe(401);
+    expect(await status(desde("192.0.2.1"))).toBe(401);
   });
 });
 

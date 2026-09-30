@@ -1,7 +1,9 @@
 import { eq } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
-import { describeError } from "@/lib/log-safe";
 import { publish } from "@/server/events/bus";
+import { logger } from "@/lib/log";
+
+const log = logger("handoff");
 
 /**
  * 026 — El AVISO de handoff ("este chat necesita a una persona"), aparte del
@@ -47,6 +49,6 @@ export async function announceHandoff(
       },
     });
   } catch (err) {
-    console.error("[handoff] no se pudo publicar el aviso:", describeError(err));
+    log.error("no se pudo publicar el aviso", { org: organizationId, err });
   }
 }

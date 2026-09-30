@@ -1,4 +1,4 @@
-import { and, asc, eq } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
 import { scoped } from "@/lib/db/tenant";
@@ -10,6 +10,9 @@ import {
   sinIdentificadorDeClic,
   type AnuncioDeOrigen,
 } from "@/server/attribution/referral";
+import { logger } from "@/lib/log";
+
+const log = logger("atribucion");
 
 /**
  * 016 + 018 — De qué anuncio vino una conversación.
@@ -77,10 +80,7 @@ export async function registrarAnuncioDeOrigen(input: {
     const imageUrl = a.imageUrl;
     void guardarCreativo({ organizationId, conversationId, sourceId, imageUrl }).catch(
       (err) =>
-        console.warn(
-          `[atribucion] imagen del anuncio ${sourceId} no guardada:`,
-          err instanceof Error ? err.message : err
-        )
+        log.warn("imagen del anuncio no guardada", { org: organizationId, anuncio: sourceId, err })
     );
   }
 }
@@ -95,8 +95,7 @@ export async function getAttributionForConversation(
     .select()
     .from(schema.adAttribution)
     .where(
-      and(
-        eq(schema.adAttribution.organizationId, organizationId),
+      scoped(schema.adAttribution.organizationId, organizationId,
         eq(schema.adAttribution.conversationId, conversationId)
       )
     )
@@ -189,10 +188,7 @@ export function repararImagenSiFalta(organizationId: string, contactId: string):
       imageUrl: anuncio.imageUrl,
     });
   })().catch((err) =>
-    console.warn(
-      `[atribucion] reparación de imagen del contacto ${contactId} falló:`,
-      err instanceof Error ? err.message : err
-    )
+    log.warn("reparación de la imagen del anuncio falló", { org: organizationId, contacto: contactId, err })
   );
 }
 

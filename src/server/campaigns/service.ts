@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { desc, eq, inArray, sql } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
 import { scoped } from "@/lib/db/tenant";
@@ -273,9 +273,10 @@ export async function launchCampaign(organizationId: string, campaignId: string)
       .update(schema.campaign)
       .set({ status: "sending", total: contacts.length, startedAt: new Date(), error: null })
       .where(
-        and(
+        scoped(
+          schema.campaign.organizationId,
+          organizationId,
           eq(schema.campaign.id, campaignId),
-          eq(schema.campaign.organizationId, organizationId),
           eq(schema.campaign.status, "draft")
         )
       )

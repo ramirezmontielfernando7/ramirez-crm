@@ -1,12 +1,15 @@
 import { and, asc, eq, sql } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
+import { scoped } from "@/lib/db/tenant";
 import { resolveVariables, type CampaignVariable } from "@/lib/campaigns";
 import { publish } from "@/server/events/bus";
 import { getOrCreateConversation } from "@/server/inbox/ingest";
 import { SendError } from "@/server/inbox/send";
 import { sendTemplate, TemplateError } from "@/server/whatsapp/templates";
 import { campaignSendRate } from "@/server/campaigns/flag";
-import { describeError } from "@/lib/log-safe";
+import { logger } from "@/lib/log";
+
+const log = logger("campaign");
 
 /**
  * 021 — Ejecutor de campañas: envío en segundo plano, DENTRO del proceso
@@ -60,9 +63,9 @@ export function startCampaignRunner(organizationId: string, campaignId: string):
   running().add(campaignId);
   void executeCampaign(organizationId, campaignId)
     .catch(async (err) => {
-      console.error(`[campaign] ${campaignId} falló:`, describeError(err));
+      log.error("la campaña falló", { org: organizationId, campana: campaignId, err });
       await finishCampaign(organizationId, campaignId, "failed", "Error interno del envío; revisa los registros del servidor").catch(
-        (e) => console.error(`[campaign] ${campaignId} no se pudo marcar como fallida:`, e)
+        (e: unknown) => log.error("no se pudo marcar la campaña como fallida", { org: organizationId, campana: campaignId, err: e })
       );
     })
     .finally(() => running().delete(campaignId));
@@ -98,7 +101,7 @@ async function finishCampaign(
   await getDb()
     .update(schema.campaign)
     .set({ status, error, finishedAt: new Date() })
-    .where(and(eq(schema.campaign.id, campaignId), eq(schema.campaign.organizationId, organizationId)));
+    .where(scoped(schema.campaign.organizationId, organizationId, eq(schema.campaign.id, campaignId)));
   await progress(organizationId, campaignId, status);
 }
 
@@ -121,7 +124,7 @@ async function executeCampaign(organizationId: string, campaignId: string): Prom
   const rows = await db
     .select()
     .from(schema.campaign)
-    .where(and(eq(schema.campaign.id, campaignId), eq(schema.campaign.organizationId, organizationId)))
+    .where(scoped(schema.campaign.organizationId, organizationId, eq(schema.campaign.id, campaignId)))
     .limit(1);
   const campaign = rows[0];
   if (!campaign || campaign.status !== "sending") return;
@@ -212,7 +215,7 @@ async function sendOne(
       if (decision.kind === "stop") throw new StopCampaign(decision.message);
       if (decision.kind === "rate_limit" && rateLimitTry < RATE_LIMIT_BACKOFF_MS.length) {
         const ms = RATE_LIMIT_BACKOFF_MS[rateLimitTry++]! * backoffScale();
-        console.warn(`[campaign] límite de Meta (${decision.message}); pausa de ${ms} ms`);
+        log.warn("límite de Meta; pausa", { org: organizationId, motivo: decision.message, pausaMs: ms });
         await sleep(ms);
         continue;
       }
@@ -271,7 +274,7 @@ export function classify(err: unknown): Decision {
     }
     return { kind: "recipient", message: humanMetaError(code, err.message) };
   }
-  console.error("[campaign] error inesperado al enviar:", describeError(err));
+  log.error("error inesperado al enviar", { err });
   return { kind: "recipient", message: "Error interno al enviar a este contacto" };
 }
 

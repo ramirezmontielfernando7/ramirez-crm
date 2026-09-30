@@ -1,12 +1,15 @@
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { getDb, schema } from "@/lib/db";
+import { scoped } from "@/lib/db/tenant";
 import { apiError, parseBody } from "@/lib/api";
-import { requireBotKey, resolveInstanceOrg } from "@/server/bot/auth";
+import { requireBotKey } from "@/server/bot/auth";
 import { publish } from "@/server/events/bus";
 import { logActivitySafe } from "@/server/activity/log";
 import { moveLeadToStage } from "@/server/leads/stage-history";
-import { describeError } from "@/lib/log-safe";
+import { logger } from "@/lib/log";
+
+const log = logger("bot");
 
 export const dynamic = "force-dynamic";
 
@@ -21,13 +24,10 @@ const bodySchema = z.object({
  * cuando un número de su allowlist manda `/reset`.
  */
 export async function POST(req: Request) {
-  const denied = requireBotKey(req);
-  if (denied) return denied;
-
-  const organizationId = await resolveInstanceOrg();
-  if (!organizationId) {
-    return apiError(409, "no_org", "La instancia aún no tiene organización");
-  }
+  // H2: la llave dice la organización; nunca "la de la instancia".
+  const auth = await requireBotKey(req);
+  if (!auth.ok) return auth.response;
+  const { organizationId } = auth;
 
   const body = await parseBody(req, bodySchema);
   if (!body.ok) return body.response;
@@ -42,8 +42,7 @@ export async function POST(req: Request) {
     })
     .from(schema.conversation)
     .where(
-      and(
-        eq(schema.conversation.organizationId, organizationId),
+      scoped(schema.conversation.organizationId, organizationId,
         eq(schema.conversation.id, body.data.conversationId)
       )
     )
@@ -75,14 +74,13 @@ export async function POST(req: Request) {
     const stages = await db
       .select()
       .from(schema.pipelineStage)
-      .where(eq(schema.pipelineStage.organizationId, organizationId));
+      .where(scoped(schema.pipelineStage.organizationId, organizationId));
     const first = [...stages].sort((a, b) => a.position - b.position)[0];
     const leadRows = await db
       .select({ id: schema.lead.id })
       .from(schema.lead)
       .where(
-        and(
-          eq(schema.lead.organizationId, organizationId),
+        scoped(schema.lead.organizationId, organizationId,
           eq(schema.lead.contactId, conv.contactId)
         )
       )
@@ -99,7 +97,7 @@ export async function POST(req: Request) {
       });
     }
   } catch (err) {
-    console.warn(`[bot/reset] reinicio de etapa falló: ${describeError(err)}`);
+    log.warn("reset: reinicio de etapa falló", { org: organizationId, err });
   }
 
   publish(organizationId, {

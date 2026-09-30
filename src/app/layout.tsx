@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { IBM_Plex_Mono, Instrument_Serif } from "next/font/google";
-import { accentCssVariables, DEFAULT_BRANDING, sidebarCssVariables } from "@/lib/branding";
+import { accentCssVariables, sidebarCssVariables } from "@/lib/branding";
 import { faviconHref } from "@/lib/favicon";
 import { normalizeThemePreference, THEME_COOKIE } from "@/lib/theme";
-import { getBranding } from "@/server/branding";
+import { getViewerBrandingContext } from "@/server/branding";
 import "./globals.css";
 
 // Voces de acento (serif y mono): next/font las descarga en BUILD y las sirve
@@ -28,7 +28,8 @@ const plexMono = IBM_Plex_Mono({
 export const dynamic = "force-dynamic";
 
 export async function generateMetadata(): Promise<Metadata> {
-  const branding = await getBranding().catch(() => DEFAULT_BRANDING);
+  // H11: con sesión, la marca de SU negocio; sin sesión, la de la plataforma.
+  const { branding } = await getViewerBrandingContext();
   return {
     title: `${branding.name} — CRM de WhatsApp`,
     description: "CRM de WhatsApp con agente de IA y Laboratorio de auto-evaluación",
@@ -41,7 +42,7 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
-  const branding = await getBranding().catch(() => DEFAULT_BRANDING);
+  const { branding } = await getViewerBrandingContext();
   const theme = normalizeThemePreference(
     (await cookies()).get(THEME_COOKIE)?.value
   );

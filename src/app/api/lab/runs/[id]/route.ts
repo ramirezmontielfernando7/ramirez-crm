@@ -28,7 +28,7 @@ export const GET = withAuth(async (session, _req: Request, ctx: Params) => {
   const cases = await db
     .select()
     .from(schema.agentTestCase)
-    .where(eq(schema.agentTestCase.runId, id))
+    .where(scoped(schema.agentTestCase.organizationId, session.organizationId, eq(schema.agentTestCase.runId, id)))
     .orderBy(asc(schema.agentTestCase.createdAt));
 
   return Response.json({

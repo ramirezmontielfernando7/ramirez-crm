@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { apiError, parseBody, withAuth } from "@/lib/api";
 import { getAuth, runInternalSignup } from "@/lib/auth";
@@ -7,6 +7,7 @@ import { newId } from "@/lib/db/ids";
 import { scoped } from "@/lib/db/tenant";
 import { ASSIGNABLE_ROLES, type Role } from "@/lib/auth/permissions";
 import { countAssignedByUser } from "@/server/assignment/assign";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -51,10 +52,36 @@ const createSchema = z.object({
     .default("asesor"),
 });
 
+/**
+ * H13 — Altas por organización: 30 cada 10 minutos. Con eso, usar el alta
+ * para adivinar qué correos existen en la instancia deja de ser barato.
+ */
+const TEAM_SIGNUP_LIMIT = { windowMs: 10 * 60 * 1000, max: 30 };
+
 /** Alta de cuenta de equipo (owner only): email + contraseña temporal (FR-061). */
+/** ¿El correo es de alguien que ya es miembro de esta organización? */
+async function isMemberEmail(organizationId: string, email: string): Promise<boolean> {
+  const rows = await getDb()
+    .select({ id: schema.member.id })
+    .from(schema.member)
+    .innerJoin(schema.user, eq(schema.member.userId, schema.user.id))
+    .where(
+      scoped(
+        schema.member.organizationId,
+        organizationId,
+        sql`lower(${schema.user.email}) = lower(${email})`
+      )
+    )
+    .limit(1);
+  return rows.length > 0;
+}
+
 export const POST = withAuth(async (session, req: Request) => {
   const body = await parseBody(req, createSchema);
   if (!body.ok) return body.response;
+  if (!checkRateLimit(`team-signup:${session.organizationId}`, TEAM_SIGNUP_LIMIT).allowed) {
+    return apiError(429, "rate_limited", "Demasiadas altas seguidas; espera unos minutos");
+  }
 
   const auth = getAuth();
   let newUserId: string;
@@ -73,7 +100,17 @@ export const POST = withAuth(async (session, req: Request) => {
     const message =
       err instanceof Error ? err.message : "No se pudo crear la cuenta";
     if (/exist/i.test(message)) {
-      return apiError(409, "duplicate", "Ya existe una cuenta con ese correo");
+      // H13: el correo es único en TODA la instancia. Que ya exista solo se
+      // dice si es de alguien de ESTE equipo; si es de otra organización, la
+      // respuesta es genérica y no confirma nada sobre ella.
+      if (await isMemberEmail(session.organizationId, body.data.email)) {
+        return apiError(409, "duplicate", "Esa persona ya está en tu equipo");
+      }
+      return apiError(
+        422,
+        "email_unavailable",
+        "No se pudo crear la cuenta con ese correo; usa otro"
+      );
     }
     return apiError(422, "invalid", message);
   }

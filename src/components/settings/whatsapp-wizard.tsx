@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import type { WebhookSettingsDto } from "@/lib/webhook-settings";
 import { Label } from "@/components/ui/label";
 
 type Connection = {
@@ -23,12 +24,8 @@ type Connection = {
   tokenLast4: string;
 };
 
-type WebhookInfo = {
-  url: string;
-  verifyToken: string;
-  isHttps: boolean;
-  signatureLayer: boolean;
-};
+type WebhookInfo = WebhookSettingsDto;
+type PlatformWebhookInfo = Extract<WebhookSettingsDto, { managedByPlatform: false }>;
 
 export function WhatsappWizard() {
   const [connection, setConnection] = useState<Connection | null>(null);
@@ -39,7 +36,11 @@ export function WhatsappWizard() {
     const [c, w] = await Promise.all([
       fetch("/api/settings/whatsapp").then((r) => (r.ok ? r.json() : null)),
       fetch("/api/settings/webhook").then((r) => (r.ok ? r.json() : null)),
-    ]).catch(() => [null, null]);
+    ]).catch((err: unknown) => {
+      // Sin datos la pantalla sigue (vacía); el error queda en la consola.
+      console.error("[ajustes/whatsapp] no se pudo cargar la conexión o el webhook:", err);
+      return [null, null];
+    });
     if (c) setConnection(c.connection);
     if (w) setWebhook(w);
     setLoaded(true);
@@ -88,7 +89,12 @@ export function WhatsappWizard() {
 
       <ConnectForm existing={connection} onSaved={() => void refetch()} />
 
-      {webhook && <WebhookCard webhook={webhook} />}
+      {webhook &&
+        (webhook.managedByPlatform ? (
+          <ManagedWebhookCard webhook={webhook} />
+        ) : (
+          <WebhookCard webhook={webhook} />
+        ))}
     </div>
   );
 }
@@ -267,7 +273,68 @@ function ConnectForm({
   );
 }
 
-function WebhookCard({ webhook }: { webhook: WebhookInfo }) {
+/**
+ * H7 — Para toda organización que no es la de la plataforma: el webhook es
+ * uno solo para todos los negocios y lo configura la plataforma. Aquí no hay
+ * URL ni token que copiar (son un secreto de la plataforma), solo el estado.
+ */
+function ManagedWebhookCard({
+  webhook,
+}: {
+  webhook: Extract<WebhookSettingsDto, { managedByPlatform: true }>;
+}) {
+  return (
+    <Card data-testid="webhook-administrado">
+      <CardHeader>
+        <CardTitle>Webhook de WhatsApp</CardTitle>
+        <CardDescription>
+          Webhook administrado por la plataforma: los mensajes de tu número
+          llegan por el webhook común de la plataforma y se enrutan a tu
+          negocio por tu Phone Number ID. No tienes que configurar nada en Meta.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {webhook.platformConfigMissing && (
+          <div
+            role="status"
+            data-testid="webhook-falta-platform-org"
+            className="flex items-start gap-2 rounded-md border border-warning-soft bg-warning-tint p-3 text-xs text-warning-text"
+          >
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+            <div className="space-y-1">
+              <p className="font-medium">Falta configurar PLATFORM_ORG_ID</p>
+              <p>
+                La instancia no sabe cuál es la organización de la plataforma,
+                así que nadie puede ver la URL ni el token del webhook. Quien
+                administra la plataforma debe definir PLATFORM_ORG_ID (el id
+                org_… de su organización) en las variables de la instancia y
+                reiniciar.
+              </p>
+            </div>
+          </div>
+        )}
+        {webhook.signatureLayer ? (
+          <p className="flex items-center gap-2 text-xs text-success">
+            <ShieldCheck className="h-4 w-4" /> Verificación de firma activa:
+            cada evento se valida con x-hub-signature-256.
+          </p>
+        ) : (
+          <p
+            role="status"
+            data-testid="webhook-firma-no-verificada"
+            className="flex items-start gap-2 text-xs text-warning-text"
+          >
+            <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" />
+            Firma no verificada: la plataforma todavía no tiene configurada la firma del webhook
+            (META_APP_SECRET): no entra ningún mensaje hasta que la configure.
+          </p>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function WebhookCard({ webhook }: { webhook: PlatformWebhookInfo }) {
   const [copied, setCopied] = useState<string | null>(null);
 
   function copy(text: string, which: string) {

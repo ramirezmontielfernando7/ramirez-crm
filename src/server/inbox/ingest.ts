@@ -1,5 +1,6 @@
 import { and, eq, sql } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
+import { scoped } from "@/lib/db/tenant";
 import { newId } from "@/lib/db/ids";
 import { normalizeMx } from "@/lib/meta/client";
 import { publish } from "@/server/events/bus";
@@ -25,8 +26,11 @@ import {
 import { registrarAnuncioDeOrigen } from "@/server/attribution/store";
 import { onLeadActivity } from "@/server/inbox/lead-activity";
 import { maybeRunAgentTurn } from "@/server/ai/trigger";
-import { describeError } from "@/lib/log-safe";
 import { announceHandoff } from "@/server/inbox/handoff-notice";
+import { logger } from "@/lib/log";
+import { runWithOrganization } from "@/lib/request-context";
+
+const log = logger("webhook");
 
 /** Tipos de contenido soportados; el resto se ignora sin error. */
 const SUPPORTED_TYPES = new Set([
@@ -141,11 +145,13 @@ async function attachMediaAsset(
       .where(eq(schema.message.id, messageId));
     if (asset.fetchStatus === "pending") {
       // Descarga in-process, sin bloquear la ingesta; on-demand reintenta.
-      void ensureAssetAvailable(organizationId, asset.id).catch(() => {});
+      void ensureAssetAvailable(organizationId, asset.id).catch((err: unknown) =>
+        log.warn("la descarga del adjunto falló; se reintenta al abrirlo", { org: organizationId, adjunto: asset.id, err })
+      );
     }
     return asset;
   } catch (err) {
-    console.warn(`[media] no se pudo registrar el adjunto de ${messageId}:`, describeError(err));
+    log.warn("no se pudo registrar el adjunto", { mensaje: messageId, err });
     return null;
   }
 }
@@ -192,8 +198,7 @@ export async function getOrCreateConversation(
     .select()
     .from(schema.conversation)
     .where(
-      and(
-        eq(schema.conversation.organizationId, organizationId),
+      scoped(schema.conversation.organizationId, organizationId,
         eq(schema.conversation.contactId, contactId),
         eq(schema.conversation.isTest, false)
       )
@@ -225,43 +230,41 @@ export async function processMessagesValue(value: WebhookValue): Promise<void> {
   if (!credentials) {
     // Caso típico: webhook/override configurado ANTES de guardar la conexión
     // en el wizard — el evento llega pero no hay a qué organización enrutarlo.
-    console.warn(
-      `[webhook] evento para phone_number_id desconocido (${phoneNumberId}): ` +
-        "guarda la conexión en Configuración → WhatsApp para recibir mensajes"
-    );
+    log.warn("evento para un phone_number_id desconocido: guarda la conexión en Configuración → WhatsApp para recibir mensajes", { phoneNumberId });
     return;
   }
 
   const organizationId = credentials.organizationId;
 
-  for (const status of value.statuses ?? []) {
-    await applyStatusUpdate(organizationId, status);
-  }
-
-  for (const msg of value.messages ?? []) {
-    if (!SUPPORTED_TYPES.has(msg.type)) continue; // reacciones, etc.: ignorar
-    const resolved = resolveIdentity(msg, value.contacts);
-    if (!resolved) {
-      // Mensaje sin NINGUNA identidad utilizable (ni teléfono ni BSUID):
-      // registrar y descartar — jamás reventar el webhook (003).
-      console.warn(
-        `[webhook] mensaje ${msg.id} sin identidad utilizable (sin from ni from_user_id): descartado`
-      );
-      continue;
+  // H27: todo lo que se registre de aquí en adelante es de ESTA organización.
+  await runWithOrganization(organizationId, async () => {
+    for (const status of value.statuses ?? []) {
+      await applyStatusUpdate(organizationId, status);
     }
-    await ingestInboundMessage({
-      organizationId,
-      identity: resolved,
-      waMessageId: msg.id,
-      type: msg.type,
-      text: msg.text?.body ?? null,
-      timestamp: msg.timestamp,
-      media: mediaInputFrom(msg),
-      // 018: normalizado aquí, en el adaptador del canal; la ingesta no sabe
-      // de qué forma lo mandó Meta.
-      anuncio: anuncioDeWhatsapp(msg.referral),
-    });
-  }
+
+    for (const msg of value.messages ?? []) {
+      if (!SUPPORTED_TYPES.has(msg.type)) continue; // reacciones, etc.: ignorar
+      const resolved = resolveIdentity(msg, value.contacts);
+      if (!resolved) {
+        // Mensaje sin NINGUNA identidad utilizable (ni teléfono ni BSUID):
+        // registrar y descartar — jamás reventar el webhook (003).
+        log.warn("mensaje sin identidad utilizable (sin from ni from_user_id): descartado", { org: organizationId, mensaje: msg.id });
+        continue;
+      }
+      await ingestInboundMessage({
+        organizationId,
+        identity: resolved,
+        waMessageId: msg.id,
+        type: msg.type,
+        text: msg.text?.body ?? null,
+        timestamp: msg.timestamp,
+        media: mediaInputFrom(msg),
+        // 018: normalizado aquí, en el adaptador del canal; la ingesta no sabe
+        // de qué forma lo mandó Meta.
+        anuncio: anuncioDeWhatsapp(msg.referral),
+      });
+    }
+  });
 }
 
 /**
@@ -276,9 +279,7 @@ export async function processEchoesValue(value: WebhookValue): Promise<void> {
 
   const credentials = await getCredentialsByPhoneNumberId(phoneNumberId);
   if (!credentials) {
-    console.warn(
-      `[webhook] echo para phone_number_id desconocido (${phoneNumberId}): descartado`
-    );
+    log.warn("echo para un phone_number_id desconocido: descartado", { phoneNumberId });
     return;
   }
 
@@ -287,14 +288,14 @@ export async function processEchoesValue(value: WebhookValue): Promise<void> {
   for (const echo of echoes) {
     if (!SUPPORTED_TYPES.has(echo.type)) continue;
     if (!echo.to) {
-      console.warn(`[webhook] echo ${echo.id} sin destinatario: descartado`);
+      log.warn("echo sin destinatario: descartado", { org: credentials.organizationId, mensaje: echo.id });
       continue;
     }
     try {
       await ingestManualEcho(credentials.organizationId, echo);
     } catch (err) {
       // Un echo malformado jamás tumba el webhook (edge case del spec).
-      console.error(`[webhook] error procesando echo ${echo.id}:`, describeError(err));
+      log.error("error procesando echo", { org: credentials.organizationId, mensaje: echo.id, err });
     }
   }
 }
@@ -373,9 +374,7 @@ async function ingestManualEcho(
       source: "sistema",
       detail: { reason: "manual_reply" },
     });
-    console.log(
-      `[webhook] respuesta manual del dueño en ${conversation.id} — IA pausada (manual_reply)`
-    );
+    log.info("respuesta manual del dueño: IA pausada (manual_reply)", { org: conversation.organizationId, conversacion: conversation.id });
     // 026: el aviso de handoff (asignado + quien ve todo; no participantes).
     await announceHandoff(organizationId, conversation.id, "manual_reply");
   }
@@ -436,10 +435,7 @@ export async function ingestInboundMessage(input: {
         anuncio: input.anuncio,
       });
     } catch (err) {
-      console.warn(
-        `[atribucion] no se registró el anuncio de ${conversation.id}:`,
-        err instanceof Error ? err.message : err
-      );
+      log.warn("no se registró el anuncio de origen", { org: conversation.organizationId, conversacion: conversation.id, err });
     }
   }
 

@@ -1,4 +1,7 @@
 import { graphRequest, MetaApiError } from "@/lib/meta/client";
+import { logger } from "@/lib/log";
+
+const log = logger("connect");
 
 export type ConnectionCheck =
   | {
@@ -102,16 +105,14 @@ export async function subscribeAppToWaba(
     if (override) {
       // Solo el host: la ruta de un webhook suele llevar un segmento secreto
       // (el de Vocero es /api/webhooks/wa/<verify token>).
-      console.log(
-        `[connect] la WABA ${wabaId} enruta sus webhooks a un override (${hostOf(override)}): se respeta y no se re-suscribe la app`
-      );
+      log.info("la WABA enruta sus webhooks a un override: se respeta y no se re-suscribe la app", {
+        waba: wabaId,
+        overrideHost: hostOf(override),
+      });
       return "override_kept";
     }
   } catch (err) {
-    console.warn(
-      "[connect] no se pudo consultar subscribed_apps; se suscribe igual (best-effort):",
-      err instanceof Error ? err.message : err
-    );
+    log.warn("no se pudo consultar subscribed_apps; se suscribe igual (best-effort)", { waba: wabaId, err });
   }
 
   try {
@@ -121,10 +122,7 @@ export async function subscribeAppToWaba(
     });
     return "subscribed";
   } catch (err) {
-    console.warn(
-      "[connect] subscribed_apps falló (esperado en modo agencia):",
-      err instanceof Error ? err.message : err
-    );
+    log.warn("subscribed_apps falló (esperado en modo agencia)", { waba: wabaId, err });
     return "failed";
   }
 }

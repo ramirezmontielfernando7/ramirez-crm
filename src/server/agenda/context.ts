@@ -4,6 +4,9 @@ import { scoped } from "@/lib/db/tenant";
 import { dayLabelInTz, timeInTz } from "@/lib/time/slots";
 import { agendaEnabled } from "@/server/agenda/flag";
 import { getSettings } from "@/server/agenda/settings";
+import { logger } from "@/lib/log";
+
+const log = logger("agenda");
 
 /**
  * 015 — Las citas del contacto, para el contexto de un cerebro externo
@@ -192,10 +195,7 @@ export async function citasParaContexto(
   try {
     return await leerCitas(organizationId, contactId, now);
   } catch (err) {
-    console.error(
-      `[agenda] no pude leer las citas del contacto ${contactId} para el contexto:`,
-      err
-    );
+    log.error("no pude leer las citas del contacto para el contexto", { org: organizationId, contacto: contactId, err });
     return null;
   }
 }

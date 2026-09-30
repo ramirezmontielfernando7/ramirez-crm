@@ -4,6 +4,9 @@ import { eq } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { getEnv, isMockEnabled } from "@/lib/env";
 import { unsignedWebhookWarning } from "@/server/inbox/webhook";
+import { logger } from "@/lib/log";
+
+const log = logger("boot");
 
 /**
  * 008 — Aviso al arranque si MEDIA_DIR no es escribible. Sin esto, el primer
@@ -27,8 +30,8 @@ export async function checkMediaDir(): Promise<void> {
     await rm(probe, { force: true }).catch(() => {});
   } catch (err) {
     const code = (err as NodeJS.ErrnoException | null)?.code ?? String(err);
-    console.error(
-      `[boot] MEDIA_DIR=${dir} no es escribible (${code}): los adjuntos entrantes, el logo y el icono NO se van a poder guardar. ` +
+    log.error(
+      `MEDIA_DIR=${dir} no es escribible (${code}): los adjuntos entrantes, el logo y el icono NO se van a poder guardar. ` +
         "En Docker: monta un volumen persistente en /data (la imagen ya usa /data/media) y arranca el contenedor como root —el default—, " +
         "que el entrypoint le da el volumen al usuario de la app. Fuera de Docker: apunta MEDIA_DIR a un directorio escribible."
     );
@@ -49,7 +52,7 @@ export function warnIfWebhookUnsigned(): void {
     return; // entorno inválido: lo reporta, con detalle, el primer getEnv() de la app
   }
   const warning = unsignedWebhookWarning(secret, isMockEnabled());
-  if (warning) console.warn(warning);
+  if (warning) log.warn(warning);
 }
 
 /**
@@ -69,13 +72,11 @@ export async function cleanupOrphanRuns(): Promise<void> {
       .where(eq(schema.agentTestRun.status, "running"))
       .returning({ id: schema.agentTestRun.id });
     if (updated.length > 0) {
-      console.log(
-        `[boot] ${updated.length} corrida(s) del Laboratorio huérfana(s) marcada(s) como fallida(s)`
-      );
+      log.info(`${updated.length} corrida(s) del Laboratorio huérfana(s) marcada(s) como fallida(s)`);
     }
   } catch (err) {
     // La BD puede no estar lista aún (migraciones corren antes del server).
-    console.error("[boot] limpieza de corridas huérfanas falló:", err);
+    log.error("limpieza de corridas huérfanas falló", { err });
   }
 }
 
@@ -91,8 +92,8 @@ export async function resumeSendingCampaigns(): Promise<void> {
     if (!campaignsEnabled()) return;
     const { resumeCampaigns } = await import("@/server/campaigns/runner");
     const n = await resumeCampaigns();
-    if (n > 0) console.log(`[boot] ${n} campaña(s) reanudada(s)`);
+    if (n > 0) log.info(`${n} campaña(s) reanudada(s)`);
   } catch (err) {
-    console.error("[boot] no se pudieron reanudar las campañas:", err);
+    log.error("no se pudieron reanudar las campañas", { err });
   }
 }

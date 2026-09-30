@@ -5,6 +5,9 @@ import { scoped } from "@/lib/db/tenant";
 import { isMockEnabled } from "@/lib/env";
 import { publish } from "@/server/events/bus";
 import { deleteMediaFile, saveMediaFile } from "@/server/whatsapp/media";
+import { logger } from "@/lib/log";
+
+const log = logger("atribucion");
 
 /**
  * 018 — La imagen del creativo, copiada al llegar.
@@ -307,9 +310,7 @@ async function descargarYGuardar(
 
   const descarga = await descargarConReintento(input.imageUrl);
   if (!descarga.ok) {
-    console.warn(
-      `[atribucion] la imagen del anuncio ${sourceId} no se copió (${descarga.falla})`
-    );
+    log.warn("la imagen del anuncio no se copió", { org: organizationId, anuncio: sourceId, falla: descarga.falla });
     return null;
   }
 
@@ -341,22 +342,27 @@ async function descargarYGuardar(
     if ((await asignarImagen(organizationId, sourceId, assetId)) === 0) {
       // Otra descarga (otro proceso, o una que empezó antes) ya dejó su
       // imagen: esta copia sobra y no debe quedarse ocupando el volumen.
-      await deleteMediaFile(organizationId, assetId).catch(() => {});
+      await deleteMediaFile(organizationId, assetId).catch((e: unknown) =>
+        log.warn("no se pudo borrar la copia sobrante de la imagen", { org: organizationId, adjunto: assetId, err: e })
+      );
       await db.delete(schema.mediaAsset).where(eq(schema.mediaAsset.id, assetId));
       return imagenExistente(organizationId, sourceId);
     }
   } catch (err) {
     // Se quita lo que se alcanzó a crear; si ya estaba asignada, la clave
     // foránea deja esas filas sin imagen (`set null`), no apuntando a nada.
-    if (guardado) await deleteMediaFile(organizationId, assetId).catch(() => {});
+    if (guardado) {
+      await deleteMediaFile(organizationId, assetId).catch((e: unknown) =>
+        log.warn("no se pudo borrar el archivo a medias de la imagen", { org: organizationId, adjunto: assetId, err: e })
+      );
+    }
     await db
       .delete(schema.mediaAsset)
       .where(eq(schema.mediaAsset.id, assetId))
-      .catch(() => {});
-    console.warn(
-      `[atribucion] no se pudo guardar la imagen del anuncio ${sourceId}:`,
-      err instanceof Error ? err.message : err
-    );
+      .catch((e: unknown) =>
+        log.warn("no se pudo borrar la fila a medias de la imagen", { org: organizationId, adjunto: assetId, err: e })
+      );
+    log.warn("no se pudo guardar la imagen del anuncio", { org: organizationId, anuncio: sourceId, err });
     return null;
   }
 

@@ -66,12 +66,22 @@ User IDs, así que `from` puede no venir. La llave estable es
 `contact.wa_identity` (teléfono normalizado 521→52, o `bsuid:<id>`); `phone` es
 un atributo OPCIONAL. Nunca asumas que un contacto tiene teléfono.
 
-**Cerebro externo**: `/api/bot/*` (autenticada por `BOT_API_KEY`) deja que un
-microservicio propio conduzca la conversación sin que el token de WhatsApp
+**Cerebro externo**: `/api/bot/*` (autenticada por `X-API-Key` contra
+`bot_api_key`, una organización por llave: `src/server/bot/keys.ts`) deja que
+un microservicio propio conduzca la conversación sin que el token de WhatsApp
 salga del CRM: marcar leído + "escribiendo…", descargar adjuntos y reiniciar la
 conversación de pruebas. Respeta `conversation.ai_enabled`/`handoff_at` igual
-que el agente in-process. Sin la key, esa superficie responde 401 y el CRM
+que el agente in-process. La organización la dice la LLAVE, nunca "la primera
+organización". `BOT_API_KEY` (env) se liga al arrancar solo a
+`PLATFORM_ORG_ID`; otras llaves las crea el operador con
+`scripts/bot-key.mjs`. Sin llave, esa superficie responde 401 y el CRM
 funciona igual.
+
+**Organización de la plataforma** (`PLATFORM_ORG_ID`, `src/server/platform.ts`):
+hasta el administrador de plataforma (Fase 3), solo ella ve los secretos de
+la plataforma (token del webhook). Sin la variable, nadie los ve: jamás hay
+respaldo a "la primera organización" (guardarraíl en
+`tests/unit/tenant-query-guard.test.ts`).
 
 ## Reglas de la constitución (no negociables)
 

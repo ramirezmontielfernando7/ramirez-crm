@@ -7,6 +7,9 @@ import { getCredentialsByOrg } from "@/server/whatsapp/credentials";
 import { atribucionEnabled } from "@/server/attribution/flag";
 import { getCapiSettings } from "@/server/attribution/settings";
 import { getAttributionForConversation } from "@/server/attribution/store";
+import { logger } from "@/lib/log";
+
+const log = logger("capi");
 
 /**
  * 016 — Reporte de conversiones a Meta.
@@ -121,15 +124,13 @@ export async function emitConversion(
           error: err instanceof Error ? err.message : String(err),
         })
         .where(eq(schema.conversionEvent.id, event.id));
-      console.warn(
-        `[capi] fallo al reportar ${eventName} de ${conversationId}: ${err}`
-      );
+      log.warn("fallo al reportar la conversión", { evento: eventName, conversacion: conversationId, err });
       return "failed";
     }
   } catch (err) {
     // Best-effort absoluto: ni siquiera un fallo de la base puede tumbar a
     // quien nos llamó (mover un lead de etapa).
-    console.warn(`[capi] emitConversion(${eventName}) falló: ${err}`);
+    log.warn("emitConversion falló", { evento: eventName, err });
     return "error";
   }
 }
@@ -234,7 +235,7 @@ export async function reportStageChange(input: {
       { lead_stage: "qualified" }
     );
   } catch (err) {
-    console.warn(`[capi] reportStageChange(${input.leadId}) falló: ${err}`);
+    log.warn("reportStageChange falló", { org: input.organizationId, lead: input.leadId, err });
   }
 }
 

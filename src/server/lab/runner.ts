@@ -1,12 +1,15 @@
-import { and, asc, eq } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
+import { scoped } from "@/lib/db/tenant";
 import { newId } from "@/lib/db/ids";
 import { publish } from "@/server/events/bus";
 import { runAgentTurn } from "@/server/ai/pipeline";
 import { renderKb } from "@/server/ai/prompts";
 import { computeScore, judgeCase } from "@/server/lab/judge";
 import { PERSONAS, type Persona } from "@/server/lab/personas";
-import { describeError } from "@/lib/log-safe";
+import { logger } from "@/lib/log";
+
+const log = logger("lab");
 
 /**
  * Runner del Laboratorio (FR-030/FR-034): corrida en segundo plano DENTRO del
@@ -52,7 +55,7 @@ export async function startRun(organizationId: string): Promise<string> {
 
   // Fire-and-forget in-process: el POST regresa ya; el progreso va por SSE.
   void executeRun(runId, organizationId).catch(async (err) => {
-    console.error("[lab] corrida falló:", describeError(err));
+    log.error("corrida falló", { org: organizationId, corrida: runId, err });
     await failRun(runId, organizationId, String(err));
   });
 
@@ -90,13 +93,13 @@ async function runAllCases(
   const kbEntries = await db
     .select()
     .from(schema.kbEntry)
-    .where(eq(schema.kbEntry.organizationId, organizationId));
+    .where(scoped(schema.kbEntry.organizationId, organizationId));
   const kbText = renderKb(kbEntries);
 
   const profileRows = await db
     .select()
     .from(schema.agentProfile)
-    .where(eq(schema.agentProfile.organizationId, organizationId))
+    .where(scoped(schema.agentProfile.organizationId, organizationId))
     .limit(1);
   const profile = profileRows[0];
   const behaviorText = profile
@@ -264,8 +267,7 @@ async function upsertTestContact(
     .select({ id: schema.contact.id })
     .from(schema.contact)
     .where(
-      and(
-        eq(schema.contact.organizationId, organizationId),
+      scoped(schema.contact.organizationId, organizationId,
         eq(schema.contact.phone, persona.phone)
       )
     )

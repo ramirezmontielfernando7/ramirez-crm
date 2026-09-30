@@ -47,6 +47,8 @@ const prefixes = {
   teamChatAttachment: "tca",
   // 026 — participantes de chats de cliente
   participantEvent: "cpe",
+  // Fase 1 multitenant — llaves del cerebro externo
+  botApiKey: "bak",
 } as const;
 
 export type IdKind = keyof typeof prefixes;

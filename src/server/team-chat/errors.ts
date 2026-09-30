@@ -1,5 +1,7 @@
 import { apiError } from "@/lib/api";
-import { describeError } from "@/lib/log-safe";
+import { logger } from "@/lib/log";
+
+const log = logger("team-chat");
 
 /**
  * 025 — Errores de negocio del chat de equipo, con su status HTTP. Un recurso
@@ -29,7 +31,7 @@ export const notFound = () =>
  */
 export function teamChatErrorResponse(err: unknown, where: string): Response {
   if (err instanceof TeamChatError) return apiError(err.status, err.code, err.message);
-  console.error(`[team-chat] ${where}:`, describeError(err));
+  log.error(where, { err });
   return apiError(500, "internal", "No se pudo completar la acción. Intenta de nuevo.");
 }
 

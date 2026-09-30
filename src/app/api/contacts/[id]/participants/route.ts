@@ -1,6 +1,5 @@
 import { z } from "zod";
 import { apiError, parseBody, withAuth } from "@/lib/api";
-import { describeError } from "@/lib/log-safe";
 import { getContactById } from "@/server/contacts";
 import {
   addParticipant,
@@ -8,6 +7,9 @@ import {
   ParticipantError,
   removeParticipant,
 } from "@/server/assignment/participants";
+import { logger } from "@/lib/log";
+
+const log = logger("participantes");
 
 export const dynamic = "force-dynamic";
 
@@ -17,7 +19,7 @@ function errorResponse(err: unknown, where: string): Response {
   if (err instanceof ParticipantError) return apiError(err.status, err.code, err.message);
   // Con drizzle 0.45 el error de BD llega envuelto (código real en `cause`):
   // al log solo va lo que describeError deja pasar.
-  console.error(`[participantes] ${where}:`, describeError(err));
+  log.error(where, { err });
   return apiError(500, "internal", "No se pudo completar la acción. Intenta de nuevo.");
 }
 

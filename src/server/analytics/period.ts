@@ -1,5 +1,6 @@
-import { eq } from "drizzle-orm";
+
 import { getDb, schema } from "@/lib/db";
+import { scoped } from "@/lib/db/tenant";
 import {
   addDaysISO,
   isValidTimeZone,
@@ -52,7 +53,7 @@ export async function businessTimezone(organizationId: string): Promise<string> 
   const rows = await getDb()
     .select({ timezone: schema.calendarSettings.timezone })
     .from(schema.calendarSettings)
-    .where(eq(schema.calendarSettings.organizationId, organizationId))
+    .where(scoped(schema.calendarSettings.organizationId, organizationId))
     .limit(1);
   const tz = rows[0]?.timezone;
   // Una zona inválida guardada en la base no puede tumbar la pantalla entera:

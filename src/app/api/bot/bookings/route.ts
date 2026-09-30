@@ -1,6 +1,6 @@
 import { z } from "zod";
-import { apiError, parseBody } from "@/lib/api";
-import { requireBotKey, resolveInstanceOrg } from "@/server/bot/auth";
+import { parseBody } from "@/lib/api";
+import { requireBotKey } from "@/server/bot/auth";
 import { agendaDisabledResponse, agendaEnabled } from "@/server/agenda/flag";
 import {
   createSessionBooking,
@@ -84,14 +84,10 @@ type Gate = { organizationId: string } | { response: Response };
 
 async function guard(req: Request): Promise<Gate> {
   if (!agendaEnabled()) return { response: agendaDisabledResponse() };
-  const denied = requireBotKey(req);
-  if (denied) return { response: denied };
-  const organizationId = await resolveInstanceOrg();
-  if (!organizationId) {
-    return {
-      response: apiError(409, "no_org", "La instancia aún no tiene organización"),
-    };
-  }
+  // H2: la llave dice la organización; nunca "la de la instancia".
+  const auth = await requireBotKey(req);
+  if (!auth.ok) return { response: auth.response };
+  const { organizationId } = auth;
   return { organizationId };
 }
 

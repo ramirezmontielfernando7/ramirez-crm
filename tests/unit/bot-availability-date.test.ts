@@ -44,8 +44,7 @@ vi.mock("@/server/agenda/flag", () => ({
 }));
 
 vi.mock("@/server/bot/auth", () => ({
-  requireBotKey: () => null,
-  resolveInstanceOrg: async () => "org_1",
+  requireBotKey: async () => ({ ok: true, organizationId: "org_1" }),
 }));
 
 vi.mock("@/lib/db", async () => {

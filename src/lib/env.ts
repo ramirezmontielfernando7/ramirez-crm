@@ -58,6 +58,12 @@ const envSchema = z.object({
   // API key de un cerebro externo que conduzca la conversación por /api/bot/*.
   // Sin ella, toda esa superficie responde 401.
   BOT_API_KEY: z.string().optional(),
+  // Fase 1 multitenant: id de la organización del PROPIETARIO de la
+  // plataforma (org_…). Solo ella ve el token del webhook (H7) y recibe la
+  // BOT_API_KEY de arriba (H2). Sin ella: nadie ve el token, la pantalla lo
+  // avisa y la BOT_API_KEY no abre nada. Jamás se adivina con "la primera
+  // organización".
+  PLATFORM_ORG_ID: z.string().optional(),
   // «Quién responde a tus clientes»: el /health del cerebro externo (Nea),
   // consultado desde el servidor. Ej.: http://nea:8000/health (alias de la
   // red de Coolify). Sin ella, la tarjeta del Agente no pregunta a nadie.

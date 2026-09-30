@@ -3,6 +3,7 @@ import {
   getWaMockState,
   nextN,
   nextOutboundWamid,
+  nextTemplateId,
   type MockTemplate,
 } from "@/server/dev/wa-mock-state";
 
@@ -389,7 +390,7 @@ export async function POST(req: Request, ctx: Params) {
       );
     }
     const tpl: MockTemplate = {
-      id: `tplmock_${nextN()}`,
+      id: nextTemplateId(),
       name: String(body.name ?? ""),
       language: String(body.language ?? "es_MX"),
       category: String(body.category ?? "UTILITY"),

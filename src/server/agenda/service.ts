@@ -24,7 +24,9 @@ import {
 import { ConnectorError } from "@/server/agenda/connectors/types";
 import { moveLeadToStage } from "@/server/leads/stage-history";
 import { publish } from "@/server/events/bus";
-import { describeError } from "@/lib/log-safe";
+import { logger } from "@/lib/log";
+
+const log = logger("agenda");
 
 /**
  * 015 — Ciclo de vida de la cita y las dos reglas INNEGOCIABLES:
@@ -222,7 +224,7 @@ export async function createSessionBooking(input: {
   if (input.conversationId) {
     await clearOffers(input.organizationId, input.conversationId).catch(
       (err) => {
-        console.warn(`[agenda] no pude limpiar la oferta: ${describeError(err)}`);
+        log.warn("no pude limpiar la oferta", { org: input.organizationId, err });
       }
     );
   }
@@ -234,7 +236,7 @@ export async function createSessionBooking(input: {
     contactId,
     input.source === "ai" ? "bot" : "dueno"
   ).catch((err) => {
-    console.warn(`[agenda] avance de etapa falló: ${describeError(err)}`);
+    log.warn("avance de etapa falló", { org: input.organizationId, err });
   });
 
   publish(input.organizationId, {
@@ -415,7 +417,9 @@ export async function rescheduleForConversation(input: {
     startUtc: input.startUtc,
     now: input.now,
   });
-  await clearOffers(input.organizationId, input.conversationId).catch(() => {});
+  await clearOffers(input.organizationId, input.conversationId).catch((err: unknown) =>
+    log.warn("no pude limpiar la oferta", { org: input.organizationId, err })
+  );
   return result;
 }
 
@@ -547,12 +551,10 @@ async function deliverMeeting(
       linkPending: CONNECTOR_META[connectorId].perBookingLink && !meeting.joinUrl,
     });
   } catch (err) {
-    console.warn(
-      `[agenda] el conector ${connectorId} no pudo entregar la reunión: ${err}`
-    );
+    log.warn("el conector no pudo entregar la reunión", { org: booking.organizationId, conector: connectorId, cita: booking.id, err });
     if (err instanceof ConnectorError && err.isAuthError) {
-      await markConnectorAuthError(booking.organizationId, connectorId).catch(
-        () => {}
+      await markConnectorAuthError(booking.organizationId, connectorId).catch((e: unknown) =>
+        log.warn("no pude marcar el conector para reconectar", { org: booking.organizationId, conector: connectorId, err: e })
       );
     }
     // La cita ya existe y se queda: el enlace es lo único que falta. Se
@@ -606,10 +608,10 @@ async function withConnector(
     );
     await run(conn, booking.externalRef);
   } catch (err) {
-    console.warn(`[agenda] efecto en ${connectorId} falló: ${describeError(err)}`);
+    log.warn("efecto en el conector falló", { org: booking.organizationId, conector: connectorId, err });
     if (err instanceof ConnectorError && err.isAuthError) {
-      await markConnectorAuthError(booking.organizationId, connectorId).catch(
-        () => {}
+      await markConnectorAuthError(booking.organizationId, connectorId).catch((e: unknown) =>
+        log.warn("no pude marcar el conector para reconectar", { org: booking.organizationId, conector: connectorId, err: e })
       );
     }
   }
@@ -632,7 +634,7 @@ async function refreshOffer(
       FRESH_ALTERNATIVES
     );
   } catch (err) {
-    console.warn(`[agenda] no pude calcular alternativas: ${describeError(err)}`);
+    log.warn("no pude calcular alternativas", { org: organizationId, err });
     return [];
   }
   const offers: OfferedSlot[] = fresh.map((s) => ({
@@ -641,7 +643,7 @@ async function refreshOffer(
   }));
   if (conversationId && offers.length > 0) {
     await replaceOffers(organizationId, conversationId, offers).catch((err) => {
-      console.warn(`[agenda] no pude registrar la nueva oferta: ${describeError(err)}`);
+      log.warn("no pude registrar la nueva oferta", { org: organizationId, err });
     });
   }
   return offers;

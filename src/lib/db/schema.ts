@@ -1674,3 +1674,39 @@ export const teamChatSettings = pgTable("team_chat_settings", {
   coordinatorsCanCreateGroups: boolean("coordinators_can_create_groups").notNull().default(false),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
+
+/**
+ * Fase 1 multitenant (H2) — Llaves del cerebro externo (`/api/bot/*`), UNA
+ * organización por llave: la llave dice sobre qué negocio opera el cerebro.
+ *
+ * Solo se guarda el SHA-256 de la llave (32 bytes aleatorios: no hace falta
+ * un hash lento) y un prefijo para reconocerla. Sin fila activa, la
+ * superficie responde 401 para esa organización. Las crea el operador de la
+ * plataforma (`scripts/bot-key.mjs`), no una pantalla: hoy el cerebro
+ * externo es solo de la organización de la plataforma.
+ *
+ * `source = 'env'` es la `BOT_API_KEY` de la variable de entorno, que el
+ * arranque liga a `PLATFORM_ORG_ID` (y revoca si la variable cambia).
+ */
+export const botApiKey = pgTable(
+  "bot_api_key",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    /** Los primeros caracteres de la llave, para reconocerla en un listado. */
+    keyPrefix: text("key_prefix").notNull(),
+    /** SHA-256 (hex) de la llave completa. */
+    keyHash: text("key_hash").notNull(),
+    source: text("source", { enum: ["script", "env"] }).notNull().default("script"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    lastUsedAt: timestamp("last_used_at"),
+    revokedAt: timestamp("revoked_at"),
+  },
+  (t) => [
+    uniqueIndex("bot_api_key_hash_uq").on(t.keyHash),
+    index("bot_api_key_org_idx").on(t.organizationId),
+  ]
+);

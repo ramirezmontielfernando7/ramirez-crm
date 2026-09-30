@@ -8,7 +8,9 @@ import {
 } from "@/server/inbox/webhook";
 import { processEchoesValue, processMessagesValue } from "@/server/inbox/ingest";
 import { processTemplateStatusValue } from "@/server/whatsapp/template-events";
-import { describeError } from "@/lib/log-safe";
+import { logger } from "@/lib/log";
+
+const log = logger("webhook");
 
 /**
  * Webhook público de WhatsApp (contrato webhook.md).
@@ -70,7 +72,7 @@ export async function POST(req: Request, { params }: Params) {
     try {
       await processPayload(payload);
     } catch (err) {
-      console.error("[webhook] error procesando payload:", describeError(err));
+      log.error("error procesando payload", { err });
     }
   });
 
@@ -87,7 +89,7 @@ function warnMissingSecret(): void {
   const now = Date.now();
   if (now - lastMissingSecretWarnAt < MISSING_SECRET_WARN_EVERY_MS) return;
   lastMissingSecretWarnAt = now;
-  console.warn(MISSING_SECRET_REJECT_WARNING);
+  log.warn(MISSING_SECRET_REJECT_WARNING);
 }
 
 async function processPayload(payload: WebhookPayload): Promise<void> {

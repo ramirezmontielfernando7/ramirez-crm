@@ -82,6 +82,17 @@ export const DEFAULT_BRANDING: Branding = {
 };
 
 /**
+ * Fase 1 multitenant (H11) — la marca de la PLATAFORMA: la que se ve sin
+ * sesión (login, pestaña, favicon público), cuando todavía no se sabe de qué
+ * negocio es quien entra. Neutra: jamás la de un cliente. El nombre lo
+ * decide el dueño de la plataforma; se cambia SOLO aquí.
+ */
+export const PLATFORM_BRANDING: Branding = {
+  ...DEFAULT_BRANDING,
+  name: "Dashfort",
+};
+
+/**
  * Presets. El primero es la marca Dashfort; los demás son tonos alternativos
  * para quien quiera otro color.
  *

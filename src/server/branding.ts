@@ -1,10 +1,14 @@
 import { eq } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
+import { getSessionOrNull } from "@/lib/auth/session";
 import {
-  DEFAULT_BRANDING,
   normalizeBranding,
+  PLATFORM_BRANDING,
   type Branding,
 } from "@/lib/branding";
+import { logger } from "@/lib/log";
+
+const log = logger("branding");
 
 /** Marca guardada en organization.metadata (JSON de Better Auth). */
 
@@ -24,25 +28,24 @@ function parseMetadata(metadata: string | null): Record<string, unknown> {
  * Marca + a qué organización pertenece.
  *
  * El icono se guarda como archivo en `MEDIA_DIR/{organizationId}/favicon`, así
- * que servirlo necesita el id — y la ruta que lo sirve es pública (el login
- * también tiene pestaña), donde no hay sesión de la que sacarlo.
+ * que servirlo necesita el id.
+ *
+ * H11: sin organización (sin sesión: login, pestaña, favicon público) es la
+ * marca NEUTRA de la plataforma, sin tocar la BD. Nunca "la primera
+ * organización": eso le enseñaba el nombre y el logo de un cliente a
+ * cualquiera que abriera el login.
  */
 export async function getBrandingContext(
   organizationId?: string | null
 ): Promise<{ organizationId: string | null; branding: Branding }> {
+  if (!organizationId) return { organizationId: null, branding: PLATFORM_BRANDING };
   const db = getDb();
-  const rows = organizationId
-    ? await db
-        .select({ id: schema.organization.id, metadata: schema.organization.metadata })
-        .from(schema.organization)
-        .where(eq(schema.organization.id, organizationId))
-        .limit(1)
-    : // Sin sesión (login, layout raíz): la única organización de la instancia.
-      await db
-        .select({ id: schema.organization.id, metadata: schema.organization.metadata })
-        .from(schema.organization)
-        .limit(1);
-  if (!rows[0]) return { organizationId: null, branding: DEFAULT_BRANDING };
+  const rows = await db
+    .select({ id: schema.organization.id, metadata: schema.organization.metadata })
+    .from(schema.organization)
+    .where(eq(schema.organization.id, organizationId))
+    .limit(1);
+  if (!rows[0]) return { organizationId: null, branding: PLATFORM_BRANDING };
   const meta = parseMetadata(rows[0].metadata);
   return {
     organizationId: rows[0].id,
@@ -50,6 +53,25 @@ export async function getBrandingContext(
       (meta.branding as Partial<Branding> | undefined) ?? null
     ),
   };
+}
+
+/**
+ * La marca de quien está viendo la página: la de su organización si tiene
+ * sesión, la de la plataforma si no. Para el layout raíz y el favicon, que
+ * sirven a los dos. Si la BD falla, la página se dibuja con la marca de la
+ * plataforma y el error queda en el log (nunca una página rota por la marca).
+ */
+export async function getViewerBrandingContext(): Promise<{
+  organizationId: string | null;
+  branding: Branding;
+}> {
+  const session = await getSessionOrNull();
+  try {
+    return await getBrandingContext(session?.organizationId);
+  } catch (err) {
+    log.error("no se pudo leer la marca", { org: session?.organizationId ?? null, err });
+    return { organizationId: null, branding: PLATFORM_BRANDING };
+  }
 }
 
 export async function getBranding(
