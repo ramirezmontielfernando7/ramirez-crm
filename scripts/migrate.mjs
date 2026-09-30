@@ -19,6 +19,29 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const migrationsFolder =
   process.env.MIGRATIONS_DIR ?? path.join(here, "drizzle");
 
+/**
+ * Solo se reintenta lo que se arregla esperando: que la BD todavía no acepte
+ * conexiones (el contenedor de Postgres arrancando). Un error de la migración
+ * misma (p. ej. la 0024 que aborta porque encontró filas que cruzan
+ * organizaciones) no se arregla esperando: se reporta de inmediato, con su
+ * mensaje, en vez de 15 veces "BD no lista".
+ */
+const CONNECTION_CODES = new Set([
+  "ECONNREFUSED",
+  "ECONNRESET",
+  "ENOTFOUND",
+  "EAI_AGAIN",
+  "ETIMEDOUT",
+  "CONNECT_TIMEOUT",
+  "CONNECTION_CLOSED",
+  "CONNECTION_ENDED",
+  "57P03", // cannot_connect_now: Postgres arrancando o en recuperación
+]);
+function isConnectionError(err) {
+  const codes = [err?.code, err?.cause?.code, ...(err?.errors ?? []).map((e) => e?.code)];
+  return codes.some((c) => CONNECTION_CODES.has(c));
+}
+
 const maxAttempts = 15;
 for (let attempt = 1; attempt <= maxAttempts; attempt++) {
   // TimeZone UTC: invariante de tiempo del proyecto (ver src/lib/db/index.ts).
@@ -33,9 +56,15 @@ for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     await sql.end();
     process.exit(0);
   } catch (err) {
-    await sql.end().catch(() => {});
+    await sql.end().catch((e) => console.error("[migrate] no se pudo cerrar la conexión:", e?.message ?? e));
+    if (!isConnectionError(err)) {
+      // El mensaje de Postgres primero: es lo que hay que leer en el log.
+      console.error(`[migrate] la migración falló: ${err?.cause?.message ?? err?.message ?? err}`);
+      console.error("[migrate] no se aplicó ninguna migración pendiente (todas van en una sola transacción).");
+      process.exit(1);
+    }
     if (attempt === maxAttempts) {
-      console.error("[migrate] falló tras varios intentos:", err);
+      console.error("[migrate] la BD no respondió tras varios intentos:", err?.message ?? err);
       process.exit(1);
     }
     console.log(
