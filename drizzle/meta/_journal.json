@@ -176,6 +176,13 @@
       "when": 1790792695680,
       "tag": "0024_fk_compuestas_riesgo_alto",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1790793052930,
+      "tag": "0025_fk_compuestas_riesgo_medio",
+      "breakpoints": true
     }
   ]
 }

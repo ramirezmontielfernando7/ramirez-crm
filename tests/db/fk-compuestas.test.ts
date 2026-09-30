@@ -215,3 +215,99 @@ describe("FK compuestas de riesgo alto (0024)", () => {
     expect(n!.n).toBe(0);
   });
 });
+
+/**
+ * Guardarraíl (0025 en adelante): TODA FK entre dos tablas de dominio es
+ * compuesta (organization_id, x) → padre(organization_id, id). Si agregas
+ * una tabla o una relación nueva, declárala con foreignKey({ columns:
+ * [t.organizationId, t.xId], … }) en schema.ts. Excepciones con motivo:
+ */
+const FK_SIMPLES_PERMITIDAS: Record<string, string> = {
+  member_sales_team_id_sales_team_id_fk:
+    "member es de better-auth (la escribe su adaptador) y sales_team no tiene interfaz todavía; RLS (PR 4) la acota",
+};
+
+describe("guardarraíl: FK entre tablas de dominio", () => {
+  it("toda FK hacia una tabla de dominio es compuesta con organization_id", async () => {
+    const filas = await getSql()<{ conname: string; hijo: string; padre: string; cols: string[] }[]>`
+      select c.conname, c.conrelid::regclass::text as hijo, c.confrelid::regclass::text as padre,
+             array(select a.attname::text from unnest(c.conkey) with ordinality k(n, i)
+                   join pg_attribute a on a.attrelid = c.conrelid and a.attnum = k.n order by k.i) as cols
+      from pg_constraint c
+      join pg_namespace ns on ns.oid = c.connamespace and ns.nspname = 'public'
+      where c.contype = 'f'
+        and exists (select 1 from pg_attribute a where a.attrelid = c.confrelid and a.attname = 'organization_id')`;
+    const simples = filas
+      .filter((f) => f.cols[0] !== "organization_id" || f.cols.length < 2)
+      .filter((f) => !(f.conname in FK_SIMPLES_PERMITIDAS))
+      .map((f) => `${f.hijo}(${f.cols.join(",")}) → ${f.padre}  [${f.conname}]`);
+    expect(simples, "FK simples entre tablas de dominio:\n" + simples.join("\n")).toEqual([]);
+    expect(filas.length).toBeGreaterThan(30);
+  });
+});
+
+describe("FK compuestas de riesgo medio (0025)", () => {
+  let A: Org;
+  let B: Org;
+  let a: Awaited<ReturnType<typeof sembrar>>;
+  let b: Awaited<ReturnType<typeof sembrar>>;
+
+  beforeAll(async () => {
+    A = await crearOrganizacion("FK medio A");
+    B = await crearOrganizacion("FK medio B");
+    a = await sembrar(A, "5215512340011");
+    b = await sembrar(B, "5215512340012");
+  });
+  afterAll(async () => {
+    await borrarOrganizaciones([A.id, B.id]);
+  });
+
+  it("un mensaje del chat de equipo de A no cae en un hilo de B; un hueco ofrecido tampoco en un chat de B", async () => {
+    const db = getDb();
+    const hiloB = newId("teamChatThread");
+    await db.insert(schema.teamChatThread).values({ id: hiloB, organizationId: B.id, kind: "group", name: "B" });
+    expect(
+      await codigo(
+        db.insert(schema.teamChatMessage).values({
+          id: newId("teamChatMessage"),
+          organizationId: A.id,
+          threadId: hiloB,
+          body: "intruso",
+        })
+      )
+    ).toBe("23503");
+    expect(
+      await codigo(
+        db.insert(schema.offeredSlot).values({
+          id: newId("offeredSlot"),
+          organizationId: A.id,
+          conversationId: b.conv.id,
+          startUtc: new Date(),
+          label: "x",
+        })
+      )
+    ).toBe("23503");
+  });
+
+  it("la bitácora de etapas no apunta a una etapa de B; borrar la etapa pone en NULL solo esa columna", async () => {
+    const db = getDb();
+    const [leadA] = await db.select().from(schema.lead).where(eq(schema.lead.organizationId, A.id));
+    const base = {
+      organizationId: A.id,
+      leadId: leadA!.id,
+      contactId: leadA!.contactId,
+      toStageName: "x",
+    };
+    expect(
+      await codigo(db.insert(schema.leadStageEvent).values({ id: newId("leadStageEvent"), ...base, toStageId: b.stage.id }))
+    ).toBe("23503");
+    const etapa = newId("stage");
+    await db.insert(schema.pipelineStage).values({ id: etapa, organizationId: A.id, name: "temporal", position: 99, kind: "open" });
+    const ev = newId("leadStageEvent");
+    await db.insert(schema.leadStageEvent).values({ id: ev, ...base, toStageId: etapa });
+    await db.delete(schema.pipelineStage).where(eq(schema.pipelineStage.id, etapa));
+    const [fila] = await db.select().from(schema.leadStageEvent).where(eq(schema.leadStageEvent.id, ev));
+    expect(fila!.toStageId).toBeNull();
+    expect(fila!.organizationId).toBe(A.id);
+  });
+});

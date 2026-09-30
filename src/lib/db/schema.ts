@@ -295,7 +295,8 @@ export const contactTag = pgTable(
     color: text("color"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
-  (t) => [uniqueIndex("contact_tag_org_name_uq").on(t.organizationId, t.name),
+  (t) => [
+    uniqueIndex("contact_tag_org_name_uq").on(t.organizationId, t.name),
     unique("contact_tag_org_id_uq").on(t.organizationId, t.id),
   ]
 );
@@ -350,7 +351,8 @@ export const pipelineStage = pgTable(
       .default("open"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
-  (t) => [index("stage_org_pos_idx").on(t.organizationId, t.position),
+  (t) => [
+    index("stage_org_pos_idx").on(t.organizationId, t.position),
     unique("pipeline_stage_org_id_uq").on(t.organizationId, t.id),
   ]
 );
@@ -425,21 +427,15 @@ export const leadStageEvent = pgTable(
       .notNull()
       .references(() => organization.id, { onDelete: "cascade" }),
     leadId: text("lead_id")
-      .notNull()
-      .references(() => lead.id, { onDelete: "cascade" }),
+      .notNull(),
     /** Denormalizado a propósito: casi toda agregación cruza con el contacto,
      *  y el join extra se pagaría en cada consulta. */
     contactId: text("contact_id")
-      .notNull()
-      .references(() => contact.id, { onDelete: "cascade" }),
+      .notNull(),
     /** NULL = el lead nació en `toStage` (evento de creación). */
-    fromStageId: text("from_stage_id").references(() => pipelineStage.id, {
-      onDelete: "set null",
-    }),
+    fromStageId: text("from_stage_id"),
     fromStageName: text("from_stage_name"),
-    toStageId: text("to_stage_id").references(() => pipelineStage.id, {
-      onDelete: "set null",
-    }),
+    toStageId: text("to_stage_id"),
     /** Snapshots: sobreviven al renombre y al borrado de la etapa, para que
      *  reorganizar el tablero de hoy no reescriba el embudo del pasado. */
     toStageName: text("to_stage_name").notNull(),
@@ -488,6 +484,30 @@ export const leadStageEvent = pgTable(
       "lse_loss_reason_ck",
       sql`${t.toStageKind} <> 'lost' OR ${t.approximate} = true OR ${t.lossReason} IS NOT NULL`
     ),
+    // Fase 1 (H6): de la MISMA organización
+    foreignKey({
+      name: "lead_stage_event_org_contact_fk",
+      columns: [t.organizationId, t.contactId],
+      foreignColumns: [contact.organizationId, contact.id],
+    }).onDelete("cascade"),
+    // Fase 1 (H6): de la MISMA organización
+    foreignKey({
+      name: "lead_stage_event_org_lead_fk",
+      columns: [t.organizationId, t.leadId],
+      foreignColumns: [lead.organizationId, lead.id],
+    }).onDelete("cascade"),
+    // Fase 1 (H6). En la BD es ON DELETE SET NULL (from_stage_id) (0025)
+    foreignKey({
+      name: "lead_stage_event_org_from_stage_fk",
+      columns: [t.organizationId, t.fromStageId],
+      foreignColumns: [pipelineStage.organizationId, pipelineStage.id],
+    }).onDelete("set null"),
+    // Fase 1 (H6). En la BD es ON DELETE SET NULL (to_stage_id) (0025)
+    foreignKey({
+      name: "lead_stage_event_org_to_stage_fk",
+      columns: [t.organizationId, t.toStageId],
+      foreignColumns: [pipelineStage.organizationId, pipelineStage.id],
+    }).onDelete("set null"),
   ]
 );
 
@@ -505,10 +525,9 @@ export const contactAssignmentEvent = pgTable(
       .notNull()
       .references(() => organization.id, { onDelete: "cascade" }),
     contactId: text("contact_id")
-      .notNull()
-      .references(() => contact.id, { onDelete: "cascade" }),
+      .notNull(),
     /** Denormalizado para cruzar con el embudo sin otro join. */
-    leadId: text("lead_id").references(() => lead.id, { onDelete: "set null" }),
+    leadId: text("lead_id"),
     /** NULL = estaba sin asignar. */
     fromUserId: text("from_user_id").references(() => user.id, {
       onDelete: "set null",
@@ -536,6 +555,18 @@ export const contactAssignmentEvent = pgTable(
   (t) => [
     index("cae_org_occurred_idx").on(t.organizationId, t.occurredAt),
     index("cae_contact_occurred_idx").on(t.contactId, t.occurredAt),
+    // Fase 1 (H6): de la MISMA organización
+    foreignKey({
+      name: "contact_assignment_event_org_contact_fk",
+      columns: [t.organizationId, t.contactId],
+      foreignColumns: [contact.organizationId, contact.id],
+    }).onDelete("cascade"),
+    // Fase 1 (H6). En la BD es ON DELETE SET NULL (lead_id) (0025)
+    foreignKey({
+      name: "contact_assignment_event_org_lead_fk",
+      columns: [t.organizationId, t.leadId],
+      foreignColumns: [lead.organizationId, lead.id],
+    }).onDelete("set null"),
   ]
 );
 
@@ -585,8 +616,7 @@ export const contactParticipantEvent = pgTable(
       .notNull()
       .references(() => organization.id, { onDelete: "cascade" }),
     contactId: text("contact_id")
-      .notNull()
-      .references(() => contact.id, { onDelete: "cascade" }),
+      .notNull(),
     userId: text("user_id").references(() => user.id, { onDelete: "set null" }),
     action: text("action", { enum: ["added", "removed"] }).notNull(),
     actorUserId: text("actor_user_id").references(() => user.id, {
@@ -597,6 +627,12 @@ export const contactParticipantEvent = pgTable(
   (t) => [
     index("cpe_contact_occurred_idx").on(t.contactId, t.occurredAt),
     index("cpe_org_occurred_idx").on(t.organizationId, t.occurredAt),
+    // Fase 1 (H6): de la MISMA organización
+    foreignKey({
+      name: "contact_participant_event_org_contact_fk",
+      columns: [t.organizationId, t.contactId],
+      foreignColumns: [contact.organizationId, contact.id],
+    }).onDelete("cascade"),
   ]
 );
 
@@ -1017,6 +1053,7 @@ export const agentTestRun = pgTable(
       .on(t.organizationId)
       .where(sql`${t.status} = 'running'`),
     index("test_run_org_idx").on(t.organizationId, t.startedAt),
+    unique("agent_test_run_org_id_uq").on(t.organizationId, t.id),
   ]
 );
 
@@ -1164,8 +1201,7 @@ export const offeredSlot = pgTable(
       .notNull()
       .references(() => organization.id, { onDelete: "cascade" }),
     conversationId: text("conversation_id")
-      .notNull()
-      .references(() => conversation.id, { onDelete: "cascade" }),
+      .notNull(),
     startUtc: timestamp("start_utc").notNull(),
     /** La etiqueta EXACTA que se le mostró al cliente. */
     label: text("label").notNull(),
@@ -1176,6 +1212,12 @@ export const offeredSlot = pgTable(
     // Fase 1 (H20): los huecos ofrecidos de un chat, en orden
     // (agenda/offers.ts: scoped(org, conversation_id) order by start_utc).
     index("offered_slot_org_conv_idx").on(t.organizationId, t.conversationId, t.startUtc),
+    // Fase 1 (H6): de la MISMA organización
+    foreignKey({
+      name: "offered_slot_org_conversation_fk",
+      columns: [t.organizationId, t.conversationId],
+      foreignColumns: [conversation.organizationId, conversation.id],
+    }).onDelete("cascade"),
   ]
 );
 
@@ -1244,12 +1286,9 @@ export const agentTestCase = pgTable(
       .notNull()
       .references(() => organization.id, { onDelete: "cascade" }),
     runId: text("run_id")
-      .notNull()
-      .references(() => agentTestRun.id, { onDelete: "cascade" }),
+      .notNull(),
     persona: text("persona").notNull(),
-    conversationId: text("conversation_id").references(() => conversation.id, {
-      onDelete: "set null",
-    }),
+    conversationId: text("conversation_id"),
     transcript: jsonb("transcript"),
     veredicto: text("veredicto", { enum: ["verde", "amarillo", "rojo"] }),
     hallazgos: jsonb("hallazgos"),
@@ -1265,6 +1304,18 @@ export const agentTestCase = pgTable(
     // Fase 1 (H20): los casos de una corrida del Laboratorio
     // (lab/runs/[id]: scoped(org, run_id) order by created_at).
     index("test_case_org_run_idx").on(t.organizationId, t.runId),
+    // Fase 1 (H6): de la MISMA organización
+    foreignKey({
+      name: "agent_test_case_org_run_fk",
+      columns: [t.organizationId, t.runId],
+      foreignColumns: [agentTestRun.organizationId, agentTestRun.id],
+    }).onDelete("cascade"),
+    // Fase 1 (H6). En la BD es ON DELETE SET NULL (conversation_id) (0025)
+    foreignKey({
+      name: "agent_test_case_org_conversation_fk",
+      columns: [t.organizationId, t.conversationId],
+      foreignColumns: [conversation.organizationId, conversation.id],
+    }).onDelete("set null"),
   ]
 );
 
@@ -1345,6 +1396,7 @@ export const adAttribution = pgTable(
       columns: [t.organizationId, t.imageAssetId],
       foreignColumns: [mediaAsset.organizationId, mediaAsset.id],
     }).onDelete("set null"),
+    unique("ad_attribution_org_id_uq").on(t.organizationId, t.id),
   ]
 );
 
@@ -1361,11 +1413,8 @@ export const conversionEvent = pgTable(
       .notNull()
       .references(() => organization.id, { onDelete: "cascade" }),
     conversationId: text("conversation_id")
-      .notNull()
-      .references(() => conversation.id, { onDelete: "cascade" }),
-    attributionId: text("attribution_id").references(() => adAttribution.id, {
-      onDelete: "set null",
-    }),
+      .notNull(),
+    attributionId: text("attribution_id"),
     /** Nombre del catálogo de Meta tal cual (`QualifiedLead`, `Purchase`). */
     eventName: text("event_name").notNull(),
     status: text("status", { enum: ["pending", "sent", "failed", "skipped"] })
@@ -1394,6 +1443,18 @@ export const conversionEvent = pgTable(
       t.organizationId,
       t.createdAt
     ),
+    // Fase 1 (H6): de la MISMA organización
+    foreignKey({
+      name: "conversion_event_org_conversation_fk",
+      columns: [t.organizationId, t.conversationId],
+      foreignColumns: [conversation.organizationId, conversation.id],
+    }).onDelete("cascade"),
+    // Fase 1 (H6). En la BD es ON DELETE SET NULL (attribution_id) (0025)
+    foreignKey({
+      name: "conversion_event_org_attribution_fk",
+      columns: [t.organizationId, t.attributionId],
+      foreignColumns: [adAttribution.organizationId, adAttribution.id],
+    }).onDelete("set null"),
   ]
 );
 
@@ -1416,17 +1477,22 @@ export const capiSettings = pgTable(
      * evento no se emite. `set null` a propósito: borrar la etapa apaga el
      * evento, no rompe la configuración.
      */
-    qualifiedStageId: text("qualified_stage_id").references(
-      () => pipelineStage.id,
-      { onDelete: "set null" }
-    ),
+    qualifiedStageId: text("qualified_stage_id"),
     status: text("status", { enum: ["connected", "error"] })
       .notNull()
       .default("connected"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },
-  (t) => [uniqueIndex("capi_settings_org_uq").on(t.organizationId)]
+  (t) => [
+    uniqueIndex("capi_settings_org_uq").on(t.organizationId),
+    // Fase 1 (H6). En la BD es ON DELETE SET NULL (qualified_stage_id) (0025)
+    foreignKey({
+      name: "capi_settings_org_qualified_stage_fk",
+      columns: [t.organizationId, t.qualifiedStageId],
+      foreignColumns: [pipelineStage.organizationId, pipelineStage.id],
+    }).onDelete("set null"),
+  ]
 );
 
 /* ============================================================
@@ -1554,8 +1620,7 @@ export const contactActivityEvent = pgTable(
       .notNull()
       .references(() => organization.id, { onDelete: "cascade" }),
     contactId: text("contact_id")
-      .notNull()
-      .references(() => contact.id, { onDelete: "cascade" }),
+      .notNull(),
     kind: text("kind", {
       enum: [
         "note_added",
@@ -1582,6 +1647,12 @@ export const contactActivityEvent = pgTable(
   (t) => [
     index("cace_contact_occurred_idx").on(t.contactId, t.occurredAt),
     index("cace_org_occurred_idx").on(t.organizationId, t.occurredAt),
+    // Fase 1 (H6): de la MISMA organización
+    foreignKey({
+      name: "contact_activity_event_org_contact_fk",
+      columns: [t.organizationId, t.contactId],
+      foreignColumns: [contact.organizationId, contact.id],
+    }).onDelete("cascade"),
   ]
 );
 
@@ -1646,6 +1717,7 @@ export const teamChatThread = pgTable(
     uniqueIndex("team_chat_thread_announcements_uq")
       .on(t.organizationId)
       .where(sql`${t.kind} = 'announcements'`),
+    unique("team_chat_thread_org_id_uq").on(t.organizationId, t.id),
   ]
 );
 
@@ -1657,8 +1729,7 @@ export const teamChatMember = pgTable(
       .notNull()
       .references(() => organization.id, { onDelete: "cascade" }),
     threadId: text("thread_id")
-      .notNull()
-      .references(() => teamChatThread.id, { onDelete: "cascade" }),
+      .notNull(),
     userId: text("user_id")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
@@ -1670,6 +1741,12 @@ export const teamChatMember = pgTable(
   (t) => [
     primaryKey({ columns: [t.threadId, t.userId] }),
     index("team_chat_member_org_user_idx").on(t.organizationId, t.userId),
+    // Fase 1 (H6): de la MISMA organización
+    foreignKey({
+      name: "team_chat_member_org_thread_fk",
+      columns: [t.organizationId, t.threadId],
+      foreignColumns: [teamChatThread.organizationId, teamChatThread.id],
+    }).onDelete("cascade"),
   ]
 );
 
@@ -1686,8 +1763,7 @@ export const teamChatAttachment = pgTable(
       .notNull()
       .references(() => organization.id, { onDelete: "cascade" }),
     threadId: text("thread_id")
-      .notNull()
-      .references(() => teamChatThread.id, { onDelete: "cascade" }),
+      .notNull(),
     uploadedByUserId: text("uploaded_by_user_id").references(() => user.id, {
       onDelete: "set null",
     }),
@@ -1702,6 +1778,13 @@ export const teamChatAttachment = pgTable(
     index("team_chat_attachment_thread_idx").on(t.threadId),
     // Fase 1 (H20): los adjuntos de un hilo del chat de equipo.
     index("team_chat_attachment_org_thread_idx").on(t.organizationId, t.threadId),
+    unique("team_chat_attachment_org_id_uq").on(t.organizationId, t.id),
+    // Fase 1 (H6): de la MISMA organización
+    foreignKey({
+      name: "team_chat_attachment_org_thread_fk",
+      columns: [t.organizationId, t.threadId],
+      foreignColumns: [teamChatThread.organizationId, teamChatThread.id],
+    }).onDelete("cascade"),
   ]
 );
 
@@ -1717,15 +1800,12 @@ export const teamChatMessage = pgTable(
       .notNull()
       .references(() => organization.id, { onDelete: "cascade" }),
     threadId: text("thread_id")
-      .notNull()
-      .references(() => teamChatThread.id, { onDelete: "cascade" }),
+      .notNull(),
     authorUserId: text("author_user_id").references(() => user.id, {
       onDelete: "set null",
     }),
     body: text("body").notNull().default(""),
-    attachmentId: text("attachment_id").references(() => teamChatAttachment.id, {
-      onDelete: "set null",
-    }),
+    attachmentId: text("attachment_id"),
     /** Menciones (PR 2: chats de cliente). Solo ids: el nombre se resuelve al leer. */
     mentions: jsonb("mentions").$type<unknown[]>().notNull().default(sql`'[]'::jsonb`),
     createdAt: timestamp("created_at").notNull().defaultNow(),
@@ -1737,6 +1817,19 @@ export const teamChatMessage = pgTable(
     // Fase 1 (H20): paginar un hilo por fecha dentro de la organización
     // (team-chat/messages.ts: scoped(org, thread_id) order by created_at).
     index("team_chat_message_org_thread_created_idx").on(t.organizationId, t.threadId, t.createdAt),
+    unique("team_chat_message_org_id_uq").on(t.organizationId, t.id),
+    // Fase 1 (H6): de la MISMA organización
+    foreignKey({
+      name: "team_chat_message_org_thread_fk",
+      columns: [t.organizationId, t.threadId],
+      foreignColumns: [teamChatThread.organizationId, teamChatThread.id],
+    }).onDelete("cascade"),
+    // Fase 1 (H6). En la BD es ON DELETE SET NULL (attachment_id) (0025)
+    foreignKey({
+      name: "team_chat_message_org_attachment_fk",
+      columns: [t.organizationId, t.attachmentId],
+      foreignColumns: [teamChatAttachment.organizationId, teamChatAttachment.id],
+    }).onDelete("set null"),
   ]
 );
 
@@ -1748,8 +1841,7 @@ export const teamChatReaction = pgTable(
       .notNull()
       .references(() => organization.id, { onDelete: "cascade" }),
     messageId: text("message_id")
-      .notNull()
-      .references(() => teamChatMessage.id, { onDelete: "cascade" }),
+      .notNull(),
     userId: text("user_id")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
@@ -1761,6 +1853,12 @@ export const teamChatReaction = pgTable(
     // Fase 1 (H20): las reacciones de los mensajes de una página
     // (scoped(org, message_id in …)).
     index("team_chat_reaction_org_message_idx").on(t.organizationId, t.messageId),
+    // Fase 1 (H6): de la MISMA organización
+    foreignKey({
+      name: "team_chat_reaction_org_message_fk",
+      columns: [t.organizationId, t.messageId],
+      foreignColumns: [teamChatMessage.organizationId, teamChatMessage.id],
+    }).onDelete("cascade"),
   ]
 );
 
@@ -1775,8 +1873,7 @@ export const teamChatReadState = pgTable(
       .notNull()
       .references(() => organization.id, { onDelete: "cascade" }),
     threadId: text("thread_id")
-      .notNull()
-      .references(() => teamChatThread.id, { onDelete: "cascade" }),
+      .notNull(),
     userId: text("user_id")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
@@ -1785,6 +1882,12 @@ export const teamChatReadState = pgTable(
   (t) => [
     primaryKey({ columns: [t.threadId, t.userId] }),
     index("team_chat_read_state_org_user_idx").on(t.organizationId, t.userId),
+    // Fase 1 (H6): de la MISMA organización
+    foreignKey({
+      name: "team_chat_read_state_org_thread_fk",
+      columns: [t.organizationId, t.threadId],
+      foreignColumns: [teamChatThread.organizationId, teamChatThread.id],
+    }).onDelete("cascade"),
   ]
 );
 
