@@ -1,0 +1,45 @@
+-- Fase 1 multitenant (H6): ¿hay filas que cuelgan de un padre de OTRA
+-- organización? SOLO LECTURA. Es lo mismo que revisan las migraciones 0024 y
+-- 0025 antes de cambiar nada (si encuentran algo, abortan sin tocar la base).
+-- Uso (Coolify → Postgres → Terminal):
+--   psql -U postgres -d vocero -f cruces-entre-organizaciones.sql
+-- Resultado esperado: 0 filas en cada relación.
+select relacion, filas from (
+  select 'conversation.contact_id → contact' as relacion, count(*) as filas from "conversation" h join "contact" pa on pa."id" = h."contact_id" where pa."organization_id" <> h."organization_id"
+  union all select 'message.conversation_id → conversation' as relacion, count(*) as filas from "message" h join "conversation" pa on pa."id" = h."conversation_id" where pa."organization_id" <> h."organization_id"
+  union all select 'message.media_asset_id → media_asset' as relacion, count(*) as filas from "message" h join "media_asset" pa on pa."id" = h."media_asset_id" where pa."organization_id" <> h."organization_id"
+  union all select 'lead.contact_id → contact' as relacion, count(*) as filas from "lead" h join "contact" pa on pa."id" = h."contact_id" where pa."organization_id" <> h."organization_id"
+  union all select 'lead.stage_id → pipeline_stage' as relacion, count(*) as filas from "lead" h join "pipeline_stage" pa on pa."id" = h."stage_id" where pa."organization_id" <> h."organization_id"
+  union all select 'booking.contact_id → contact' as relacion, count(*) as filas from "booking" h join "contact" pa on pa."id" = h."contact_id" where pa."organization_id" <> h."organization_id"
+  union all select 'booking.conversation_id → conversation' as relacion, count(*) as filas from "booking" h join "conversation" pa on pa."id" = h."conversation_id" where pa."organization_id" <> h."organization_id"
+  union all select 'booking.lead_id → lead' as relacion, count(*) as filas from "booking" h join "lead" pa on pa."id" = h."lead_id" where pa."organization_id" <> h."organization_id"
+  union all select 'campaign.template_id → template' as relacion, count(*) as filas from "campaign" h join "template" pa on pa."id" = h."template_id" where pa."organization_id" <> h."organization_id"
+  union all select 'campaign_recipient.campaign_id → campaign' as relacion, count(*) as filas from "campaign_recipient" h join "campaign" pa on pa."id" = h."campaign_id" where pa."organization_id" <> h."organization_id"
+  union all select 'campaign_recipient.contact_id → contact' as relacion, count(*) as filas from "campaign_recipient" h join "contact" pa on pa."id" = h."contact_id" where pa."organization_id" <> h."organization_id"
+  union all select 'contact_tag_assignment.contact_id → contact' as relacion, count(*) as filas from "contact_tag_assignment" h join "contact" pa on pa."id" = h."contact_id" where pa."organization_id" <> h."organization_id"
+  union all select 'contact_tag_assignment.tag_id → contact_tag' as relacion, count(*) as filas from "contact_tag_assignment" h join "contact_tag" pa on pa."id" = h."tag_id" where pa."organization_id" <> h."organization_id"
+  union all select 'contact_participant.contact_id → contact' as relacion, count(*) as filas from "contact_participant" h join "contact" pa on pa."id" = h."contact_id" where pa."organization_id" <> h."organization_id"
+  union all select 'ad_attribution.contact_id → contact' as relacion, count(*) as filas from "ad_attribution" h join "contact" pa on pa."id" = h."contact_id" where pa."organization_id" <> h."organization_id"
+  union all select 'ad_attribution.conversation_id → conversation' as relacion, count(*) as filas from "ad_attribution" h join "conversation" pa on pa."id" = h."conversation_id" where pa."organization_id" <> h."organization_id"
+  union all select 'ad_attribution.image_asset_id → media_asset' as relacion, count(*) as filas from "ad_attribution" h join "media_asset" pa on pa."id" = h."image_asset_id" where pa."organization_id" <> h."organization_id"
+  union all select 'lead_stage_event.contact_id → contact' as relacion, count(*) as filas from "lead_stage_event" h join "contact" pa on pa."id" = h."contact_id" where pa."organization_id" <> h."organization_id"
+  union all select 'lead_stage_event.lead_id → lead' as relacion, count(*) as filas from "lead_stage_event" h join "lead" pa on pa."id" = h."lead_id" where pa."organization_id" <> h."organization_id"
+  union all select 'lead_stage_event.from_stage_id → pipeline_stage' as relacion, count(*) as filas from "lead_stage_event" h join "pipeline_stage" pa on pa."id" = h."from_stage_id" where pa."organization_id" <> h."organization_id"
+  union all select 'lead_stage_event.to_stage_id → pipeline_stage' as relacion, count(*) as filas from "lead_stage_event" h join "pipeline_stage" pa on pa."id" = h."to_stage_id" where pa."organization_id" <> h."organization_id"
+  union all select 'contact_assignment_event.contact_id → contact' as relacion, count(*) as filas from "contact_assignment_event" h join "contact" pa on pa."id" = h."contact_id" where pa."organization_id" <> h."organization_id"
+  union all select 'contact_assignment_event.lead_id → lead' as relacion, count(*) as filas from "contact_assignment_event" h join "lead" pa on pa."id" = h."lead_id" where pa."organization_id" <> h."organization_id"
+  union all select 'contact_activity_event.contact_id → contact' as relacion, count(*) as filas from "contact_activity_event" h join "contact" pa on pa."id" = h."contact_id" where pa."organization_id" <> h."organization_id"
+  union all select 'contact_participant_event.contact_id → contact' as relacion, count(*) as filas from "contact_participant_event" h join "contact" pa on pa."id" = h."contact_id" where pa."organization_id" <> h."organization_id"
+  union all select 'conversion_event.conversation_id → conversation' as relacion, count(*) as filas from "conversion_event" h join "conversation" pa on pa."id" = h."conversation_id" where pa."organization_id" <> h."organization_id"
+  union all select 'conversion_event.attribution_id → ad_attribution' as relacion, count(*) as filas from "conversion_event" h join "ad_attribution" pa on pa."id" = h."attribution_id" where pa."organization_id" <> h."organization_id"
+  union all select 'offered_slot.conversation_id → conversation' as relacion, count(*) as filas from "offered_slot" h join "conversation" pa on pa."id" = h."conversation_id" where pa."organization_id" <> h."organization_id"
+  union all select 'agent_test_case.run_id → agent_test_run' as relacion, count(*) as filas from "agent_test_case" h join "agent_test_run" pa on pa."id" = h."run_id" where pa."organization_id" <> h."organization_id"
+  union all select 'agent_test_case.conversation_id → conversation' as relacion, count(*) as filas from "agent_test_case" h join "conversation" pa on pa."id" = h."conversation_id" where pa."organization_id" <> h."organization_id"
+  union all select 'capi_settings.qualified_stage_id → pipeline_stage' as relacion, count(*) as filas from "capi_settings" h join "pipeline_stage" pa on pa."id" = h."qualified_stage_id" where pa."organization_id" <> h."organization_id"
+  union all select 'team_chat_member.thread_id → team_chat_thread' as relacion, count(*) as filas from "team_chat_member" h join "team_chat_thread" pa on pa."id" = h."thread_id" where pa."organization_id" <> h."organization_id"
+  union all select 'team_chat_read_state.thread_id → team_chat_thread' as relacion, count(*) as filas from "team_chat_read_state" h join "team_chat_thread" pa on pa."id" = h."thread_id" where pa."organization_id" <> h."organization_id"
+  union all select 'team_chat_attachment.thread_id → team_chat_thread' as relacion, count(*) as filas from "team_chat_attachment" h join "team_chat_thread" pa on pa."id" = h."thread_id" where pa."organization_id" <> h."organization_id"
+  union all select 'team_chat_message.thread_id → team_chat_thread' as relacion, count(*) as filas from "team_chat_message" h join "team_chat_thread" pa on pa."id" = h."thread_id" where pa."organization_id" <> h."organization_id"
+  union all select 'team_chat_message.attachment_id → team_chat_attachment' as relacion, count(*) as filas from "team_chat_message" h join "team_chat_attachment" pa on pa."id" = h."attachment_id" where pa."organization_id" <> h."organization_id"
+  union all select 'team_chat_reaction.message_id → team_chat_message' as relacion, count(*) as filas from "team_chat_reaction" h join "team_chat_message" pa on pa."id" = h."message_id" where pa."organization_id" <> h."organization_id"
+) t order by filas desc, relacion;

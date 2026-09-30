@@ -169,6 +169,13 @@
       "when": 1790792537611,
       "tag": "0023_indices_por_organizacion",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1790792695680,
+      "tag": "0024_fk_compuestas_riesgo_alto",
+      "breakpoints": true
     }
   ]
 }
