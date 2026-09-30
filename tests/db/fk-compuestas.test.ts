@@ -249,13 +249,13 @@ describe("guardarraíl: FK entre tablas de dominio", () => {
 describe("FK compuestas de riesgo medio (0025)", () => {
   let A: Org;
   let B: Org;
-  let a: Awaited<ReturnType<typeof sembrar>>;
   let b: Awaited<ReturnType<typeof sembrar>>;
 
   beforeAll(async () => {
     A = await crearOrganizacion("FK medio A");
     B = await crearOrganizacion("FK medio B");
-    a = await sembrar(A, "5215512340011");
+    // A necesita su cliente con lead (la bitácora de etapas cuelga de él).
+    await sembrar(A, "5215512340011");
     b = await sembrar(B, "5215512340012");
   });
   afterAll(async () => {
