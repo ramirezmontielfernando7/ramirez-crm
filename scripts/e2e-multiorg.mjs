@@ -161,7 +161,7 @@ function escuchar(c) {
 // y para comprobar que los datos de B no cambiaron.
 // ---------------------------------------------------------------------------
 
-const sql = postgres(process.env.DATABASE_URL, { max: 2, onnotice: () => {} });
+const sql = postgres(process.env.DATABASE_URL_SYSTEM || process.env.DATABASE_URL, { max: 2, onnotice: () => {} });
 
 function nid(prefijo) {
   return `${prefijo}_${randomBytes(12).toString("hex").slice(0, 20)}`;

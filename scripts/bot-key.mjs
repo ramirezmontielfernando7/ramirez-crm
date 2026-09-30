@@ -11,7 +11,8 @@
  * `create` imprime la llave UNA sola vez (se guarda solo su SHA-256, igual
  * que src/server/bot/keys.ts). `revoke` sin `--id` revoca todas las de la
  * organización. En el contenedor: `docker exec -it <app> node scripts/bot-key.mjs …`
- * (DATABASE_URL ya viene en su entorno).
+ * (DATABASE_URL_SYSTEM o DATABASE_URL ya vienen en su entorno: administrar
+ * llaves es trabajo de plataforma y usa el rol de sistema si existe).
  */
 import { createHash, randomBytes } from "node:crypto";
 import postgres from "postgres";
@@ -26,10 +27,11 @@ function uso(msg) {
   process.exit(2);
 }
 
-if (!process.env.DATABASE_URL) uso("falta DATABASE_URL");
+const url = process.env.DATABASE_URL_SYSTEM || process.env.DATABASE_URL;
+if (!url) uso("falta DATABASE_URL");
 if (!["create", "list", "revoke"].includes(cmd)) uso();
 
-const sql = postgres(process.env.DATABASE_URL, { max: 1, onnotice: () => {}, connection: { TimeZone: "UTC" } });
+const sql = postgres(url, { max: 1, onnotice: () => {}, connection: { TimeZone: "UTC" } });
 let code = 0;
 try {
   if (cmd === "create") {

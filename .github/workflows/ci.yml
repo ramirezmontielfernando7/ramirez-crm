@@ -108,8 +108,16 @@ jobs:
         options: >-
           --health-cmd "pg_isready -U postgres -d vocero_test"
           --health-interval 5s --health-timeout 5s --health-retries 20
+    # PR 3: las pruebas corren con los roles de producción. Migra `postgres`
+    # (dueño), la app conecta como `vocero_app` y `vocero_system`, y en modo
+    # estricto: una consulta de dominio sin organización hace fallar la prueba.
     env:
-      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/vocero_test
+      DATABASE_URL_MIGRATE: postgresql://postgres:postgres@localhost:5432/vocero_test
+      DATABASE_URL: postgresql://vocero_app:app-ci-password-0123456789@localhost:5432/vocero_test
+      DATABASE_URL_SYSTEM: postgresql://vocero_system:system-ci-password-0123456789@localhost:5432/vocero_test
+      VOCERO_APP_DB_PASSWORD: app-ci-password-0123456789
+      VOCERO_SYSTEM_DB_PASSWORD: system-ci-password-0123456789
+      DB_TENANT_STRICT: "true"
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
@@ -154,7 +162,13 @@ jobs:
         run: |
           {
             echo "APP_BASE_URL=http://localhost:3000"
-            echo "DATABASE_URL=postgresql://postgres:postgres@localhost:5432/vocero"
+            # PR 3: roles de producción y modo estricto (ver job db).
+            echo "DATABASE_URL_MIGRATE=postgresql://postgres:postgres@localhost:5432/vocero"
+            echo "DATABASE_URL=postgresql://vocero_app:app-ci-password-0123456789@localhost:5432/vocero"
+            echo "DATABASE_URL_SYSTEM=postgresql://vocero_system:system-ci-password-0123456789@localhost:5432/vocero"
+            echo "VOCERO_APP_DB_PASSWORD=app-ci-password-0123456789"
+            echo "VOCERO_SYSTEM_DB_PASSWORD=system-ci-password-0123456789"
+            echo "DB_TENANT_STRICT=true"
             echo "BETTER_AUTH_SECRET=$(openssl rand -hex 24)"
             echo "ENCRYPTION_KEY=$(openssl rand -base64 32)"
             echo "META_WEBHOOK_VERIFY_TOKEN=tok_$(openssl rand -hex 12)"
@@ -186,7 +200,7 @@ jobs:
       - name: e2e con PLATFORM_ORG_ID
         run: |
           set -a; . ./.env; set +a
-          export PLATFORM_ORG_ID=$(psql "$DATABASE_URL" -Atc "select m.organization_id from member m join \"user\" u on u.id = m.user_id where u.email = 'e2e@vocero.test'")
+          export PLATFORM_ORG_ID=$(psql "$DATABASE_URL_MIGRATE" -Atc "select m.organization_id from member m join \"user\" u on u.id = m.user_id where u.email = 'e2e@vocero.test'")
           echo "PLATFORM_ORG_ID=$PLATFORM_ORG_ID" >> .env
           setsid node_modules/.bin/next dev -p 3000 > app2.log 2>&1 &
           for i in $(seq 1 120); do curl -sf localhost:3000/api/health >/dev/null && break; sleep 1; done

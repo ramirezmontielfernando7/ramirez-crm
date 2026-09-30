@@ -29,7 +29,18 @@ services:
     restart: unless-stopped
     environment:
       APP_BASE_URL: ${APP_BASE_URL}
-      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/vocero
+      # PR 3 multitenant: tres roles. Las migraciones corren con el dueño
+      # (`postgres`); la app con `vocero_app` (sin DDL; en el PR 4, limitada
+      # por RLS a su organización) y `vocero_system` (enrutamiento del webhook,
+      # arranque, better-auth). migrate.mjs crea los roles y les pone estas
+      # contraseñas al arrancar, antes que la app. Guía en docs/roles-de-bd.md.
+      DATABASE_URL_MIGRATE: postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/vocero
+      DATABASE_URL: postgresql://vocero_app:${VOCERO_APP_DB_PASSWORD:?define VOCERO_APP_DB_PASSWORD (openssl rand -hex 24)}@postgres:5432/vocero
+      DATABASE_URL_SYSTEM: postgresql://vocero_system:${VOCERO_SYSTEM_DB_PASSWORD:?define VOCERO_SYSTEM_DB_PASSWORD (openssl rand -hex 24)}@postgres:5432/vocero
+      VOCERO_APP_DB_PASSWORD: ${VOCERO_APP_DB_PASSWORD}
+      VOCERO_SYSTEM_DB_PASSWORD: ${VOCERO_SYSTEM_DB_PASSWORD}
+      DB_POOL_MAX: ${DB_POOL_MAX:-15}
+      DB_SYSTEM_POOL_MAX: ${DB_SYSTEM_POOL_MAX:-5}
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY}
       META_WEBHOOK_VERIFY_TOKEN: ${META_WEBHOOK_VERIFY_TOKEN}

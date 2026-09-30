@@ -79,7 +79,7 @@ async function hasta(cond, ms = 30000, paso = 400) {
   }
 }
 
-const sql = postgres(process.env.DATABASE_URL, { max: 1, onnotice: () => {} });
+const sql = postgres(process.env.DATABASE_URL_SYSTEM || process.env.DATABASE_URL, { max: 1, onnotice: () => {} });
 
 const tel = (n) => `52157${RUN}${String(n).padStart(2, "0")}`;
 const nombre = (n) => `Resultados ${RUN} ${n}`;

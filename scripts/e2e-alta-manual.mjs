@@ -48,7 +48,7 @@ async function api(path, opts = {}) {
 }
 
 // TimeZone UTC: invariante de tiempo del proyecto (ver src/lib/db/index.ts).
-const sql = postgres(process.env.DATABASE_URL, {
+const sql = postgres(process.env.DATABASE_URL_SYSTEM || process.env.DATABASE_URL, {
   max: 1,
   onnotice: () => {},
   connection: { TimeZone: "UTC" },
