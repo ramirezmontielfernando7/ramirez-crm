@@ -88,9 +88,7 @@ export function attachmentRejection(mime: string, fileName: string, size: number
 }
 
 /** Solo las imágenes raster se muestran en línea; todo lo demás se descarga. */
-export function isInlineImage(mime: string): boolean {
-  return /^image\/(jpeg|png|webp|gif)$/i.test(mime);
-}
+export { isInlineImage } from "@/lib/attachment-headers";
 
 /* ---------- DTOs ---------- */
 

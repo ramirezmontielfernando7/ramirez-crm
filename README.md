@@ -254,8 +254,8 @@ público se cierra tras la primera organización.
 
 Plantillas con varias variables `{{1}}…{{n}}` y aprobación de Meta
 sincronizada; token de WhatsApp cifrado en reposo (AES-256-GCM), webhook
-autenticado en dos capas (URL secreta + firma `x-hub-signature-256`, exigida
-cuando defines `META_APP_SECRET`) y cero dependencias de runtime más allá de
+autenticado en dos capas (URL secreta + firma `x-hub-signature-256` con
+`META_APP_SECRET`, obligatoria en producción) y cero dependencias de runtime más allá de
 Meta y tu proveedor LLM opcional.
 
 ## Requisitos
@@ -345,8 +345,10 @@ Embedded Signup. Hay dos formas de obtenerlo:
 4. En el panel de Meta (WhatsApp → Configuration → Webhook) pega la **URL del
    webhook** y el **verify token** que Vocero te muestra, y suscribe el campo
    `messages` (y `message_template_status_update` si usarás plantillas).
-5. Recomendado: agrega `META_APP_SECRET` (App Secret de tu app) a las
-   variables de la instancia para la verificación de firma de cada evento.
+5. **Obligatorio**: agrega `META_APP_SECRET` (App Secret de tu app) a las
+   variables de la instancia. Sin él, el webhook rechaza todos los eventos
+   (401) y no entra ningún mensaje; el arranque y Configuración → WhatsApp lo
+   avisan.
 
 ### Modo agencia (Tech Provider) — para agencias
 
@@ -402,8 +404,9 @@ del cliente se conecta con el **override de callback por WABA**:
 
 > ⚠️ **Seguridad**: la URL del webhook contiene el verify token como segmento
 > secreto — trátala como una contraseña (no la publiques ni la mandes por
-> canales inseguros). En modo directo puedes añadir la capa extra de firma con
-> `META_APP_SECRET`.
+> canales inseguros). Además, cada evento se valida con la firma de
+> `META_APP_SECRET`, obligatoria en producción (en modo agencia: el App Secret
+> de la app de la agencia, que es la que firma los eventos).
 >
 > ℹ️ **Limitación conocida de Meta**: los eventos de estado de PLANTILLAS
 > (`message_template_status_update`) no siguen el override de callback — van a
@@ -504,8 +507,9 @@ clientes reales.
    Úsalas para comunicar a quien lo pidió, no para mensajes en frío.
 5. **Datos del cliente en su servidor**: cada negocio aloja su instancia; el
    token va cifrado en reposo y los webhooks se validan por URL secreta y
-   por firma (define `META_APP_SECRET`: sin ella, el arranque y
-   Configuración → WhatsApp avisan que la firma no se verifica).
+   por firma (`META_APP_SECRET` es obligatoria en producción: sin ella el
+   webhook rechaza los eventos con 401, y el arranque y Configuración →
+   WhatsApp lo avisan).
 
 ## FAQ de errores comunes
 

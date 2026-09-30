@@ -472,7 +472,37 @@ async function main() {
   });
   ok("el coordinador no cambia roles (403)", coordRoles.res.status === 403);
 
-  console.log(`\n===== ${checks - failures}/${checks} checks OK, ${failures} fallos =====`);
+  console.log("\n== H3: la API del plugin de organización está cerrada para los tres roles ==");
+  const antes = (await owner.api("/api/settings/team")).json?.members ?? [];
+  const orgPlugin = [
+    ["/organization/create", { name: `Otra ${RUN}`, slug: `otra-${RUN}` }],
+    ["/organization/delete", { organizationId: "cualquiera" }],
+    ["/organization/remove-member", { memberIdOrEmail: "asesor.b.e2e@vocero.test" }],
+    ["/organization/invite-member", { email: `invitado.${RUN}@vocero.test`, role: "owner" }],
+  ];
+  for (const [c, rol] of [[owner, "Propietario"], [coord, "Coordinador"], [asesorA, "Asesor"]]) {
+    for (const [ruta, body] of orgPlugin) {
+      const r = await c.api(`/api/auth${ruta}`, { method: "POST", body: JSON.stringify(body) });
+      ok(`${rol}: POST /api/auth${ruta} → 403`, r.res.status === 403,
+        `status=${r.res.status} ${JSON.stringify(r.json)}`);
+    }
+  }
+  const despues = (await owner.api("/api/settings/team")).json?.members ?? [];
+  ok("el equipo y la organización siguen intactos", despues.length === antes.length && despues.length > 0,
+    `antes=${antes.length} después=${despues.length}`);
+  // …y la app sigue haciendo esas operaciones por SUS rutas.
+  const temporal = `temporal.${RUN}@vocero.test`;
+  const altaTemp = await owner.api("/api/settings/team", {
+    method: "POST",
+    body: JSON.stringify({ name: "Temporal E2E", email: temporal, password: PASSWORD, role: "asesor" }),
+  });
+  ok("el propietario da de alta por /api/settings/team", altaTemp.res.status === 201,
+    `status=${altaTemp.res.status}`);
+  const mTemp = ((await owner.api("/api/settings/team")).json?.members ?? []).find((m) => m.email === temporal);
+  const bajaTemp = await owner.api(`/api/settings/team/${mTemp?.id}`, { method: "DELETE" });
+  ok("…y lo da de baja por /api/settings/team/[id]", bajaTemp.res.ok, `status=${bajaTemp.res.status}`);
+
+  console.log(`\n=====${checks - failures}/${checks} checks OK, ${failures} fallos =====`);
   process.exit(failures > 0 ? 1 : 0);
 }
 

@@ -32,3 +32,7 @@ Cuatro sesiones a la vez contra la BD real: propietario (el mismo de
 9. **Roles.** El propietario sube a B a coordinador y B ve lo sin asignar al
    instante; de vuelta a asesor, deja de verlo. El propietario no se puede
    degradar (422) y la coordinadora no cambia roles (403).
+10. **API del plugin de organización cerrada (H3).** Propietario, coordinadora
+    y asesor A reciben **403** en `POST /api/auth/organization/create`,
+    `/delete`, `/remove-member` e `/invite-member`; el equipo sigue igual. El
+    propietario sigue dando de alta y de baja por `/api/settings/team`.

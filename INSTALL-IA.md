@@ -55,8 +55,12 @@ código.
 `DOMAIN` solo aplica en la Ruta B (para Caddy). `MEDIA_DIR` no va en la tabla
 a propósito: la imagen ya la trae (`/data/media`, dentro del volumen de `/data`).
 
+`META_APP_SECRET` es **obligatorio en producción** (sin él el webhook de
+WhatsApp rechaza todos los eventos con 401): pídeselo al usuario junto con
+los demás; la guía está en `.env.example`.
+
 Opcionales, que NO se preguntan (el usuario los agrega después; la guía de
-cada uno está en `.env.example`): `META_APP_SECRET`, `BOT_API_KEY` y
+cada uno está en `.env.example`): `BOT_API_KEY` y
 `BRAIN_HEALTH_URL` (un cerebro externo como Nea), `AGENDA=on`,
 `ATRIBUCION=on` y `CHANNELS`.
 
