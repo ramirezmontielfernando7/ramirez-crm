@@ -1,6 +1,5 @@
 import { readMediaFile } from "@/server/whatsapp/media";
-import { getBrandingContext } from "@/server/branding";
-import { DEFAULT_BRANDING } from "@/lib/branding";
+import { getViewerBrandingContext } from "@/server/branding";
 import { FAVICON_ASSET, generatedFaviconSvg } from "@/lib/favicon";
 
 export const dynamic = "force-dynamic";
@@ -13,7 +12,10 @@ export const dynamic = "force-dynamic";
  * impide que el navegador reinterprete el tipo. Cuesta dos cabeceras y quita
  * de la mesa toda esa clase de problema.
  */
-function cabeceras(mime: string, cacheable: boolean): HeadersInit {
+function cabeceras(mime: string, cacheable: boolean, deUnNegocio: boolean): HeadersInit {
+  // H11: el icono de un negocio es de su sesión; un caché compartido (CDN,
+  // proxy) no debe guardarlo para otros. El de la plataforma, sí.
+  const alcance = deUnNegocio ? "private" : "public";
   return {
     "content-type": mime,
     "content-security-policy": "default-src 'none'; style-src 'unsafe-inline'",
@@ -21,30 +23,32 @@ function cabeceras(mime: string, cacheable: boolean): HeadersInit {
     // La URL lleva `?v=` y cambia con la marca, así que se puede cachear
     // fuerte. Sin ese sufijo —alguien pidiendo la ruta pelada— no.
     "cache-control": cacheable
-      ? "public, max-age=31536000, immutable"
-      : "public, max-age=60",
+      ? `${alcance}, max-age=31536000, immutable`
+      : `${alcance}, max-age=60`,
   };
 }
 
 /**
  * El icono de la pestaña. **Ruta pública**: el login también tiene pestaña, y
- * ahí todavía no hay sesión. Es la misma decisión que ya toma el GET de la
- * marca — en una instancia de un solo negocio, su nombre y su logo no son un
- * secreto.
+ * ahí todavía no hay sesión. H11: con sesión es el icono de SU negocio; sin
+ * sesión, el de la plataforma (nunca el de "la primera organización").
  */
 export async function GET(req: Request) {
   const cacheable = new URL(req.url).searchParams.has("v");
 
-  const ctx = await getBrandingContext().catch(() => null);
-  const branding = ctx?.branding ?? DEFAULT_BRANDING;
+  const ctx = await getViewerBrandingContext();
+  const branding = ctx.branding;
 
-  if (ctx?.organizationId && branding.favicon) {
+  if (ctx.organizationId && branding.favicon) {
     try {
       const buf = await readMediaFile(ctx.organizationId, FAVICON_ASSET);
       return new Response(new Uint8Array(buf), {
-        headers: cabeceras(branding.favicon.mime, cacheable),
+        headers: cabeceras(branding.favicon.mime, cacheable, true),
       });
-    } catch {
+    } catch (err) {
+      console.warn(
+        `[branding] el icono de org=${ctx.organizationId} no está en MEDIA_DIR (${(err as NodeJS.ErrnoException | null)?.code ?? "error"}); se sirve el generado`
+      );
       // El archivo se perdió (volumen sin montar, restauración a medias). Se
       // cae al generado en vez de dejar la pestaña sin icono: un 404 aquí se
       // ve como si la instancia estuviera rota.
@@ -52,6 +56,6 @@ export async function GET(req: Request) {
   }
 
   return new Response(generatedFaviconSvg(branding), {
-    headers: cabeceras("image/svg+xml", cacheable),
+    headers: cabeceras("image/svg+xml", cacheable, ctx.organizationId !== null),
   });
 }

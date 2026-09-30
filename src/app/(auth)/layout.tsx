@@ -1,5 +1,4 @@
-import { DEFAULT_BRANDING } from "@/lib/branding";
-import { getBranding } from "@/server/branding";
+import { PLATFORM_BRANDING } from "@/lib/branding";
 import { BrandLogo } from "@/components/brand-mark";
 
 /**
@@ -7,10 +6,12 @@ import { BrandLogo } from "@/components/brand-mark";
  * acento detrás del formulario. Debajo del logo, una descripción neutra (el
  * nombre ya lo dice el logo; para un lector de pantalla va en el h1).
  */
-export default async function AuthLayout({
+export default function AuthLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
-  const branding = await getBranding().catch(() => DEFAULT_BRANDING);
+  // H11: la entrada es de la PLATAFORMA — antes de iniciar sesión no se sabe
+  // de qué negocio es quien entra, y no se le enseña la marca de ninguno.
+  const branding = PLATFORM_BRANDING;
   return (
     <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-subtle p-4">
       <div className="brand-grid absolute inset-0" aria-hidden />
