@@ -57,9 +57,18 @@ function ok(name, cond, extra = "") {
   }
 }
 
-/** Un cliente HTTP con su propia cookie: una persona distinta cada uno. */
+/**
+ * Un cliente HTTP con su propia cookie: una persona distinta cada uno. Cada
+ * una "llega" desde su propia IP (como hace e2e-selftest.mjs): el límite de
+ * 10 logins por IP cada 10 minutos (FR-062) sigue en pie, pero siete
+ * personas entrando desde la misma máquina, dos corridas seguidas, no deben
+ * chocar con él.
+ */
+let clientes = 0;
 function cliente(nombre) {
   let cookie = "";
+  clientes++;
+  const ip = `10.${Number(RUN.slice(0, 2))}.${Number(RUN.slice(2, 5)) % 256}.${clientes}`;
   async function api(path, opts = {}) {
     const res = await fetch(`${BASE}${path}`, {
       redirect: "manual",
@@ -67,6 +76,7 @@ function cliente(nombre) {
       headers: {
         ...(typeof opts.body === "string" ? { "content-type": "application/json" } : {}),
         origin: BASE,
+        "x-forwarded-for": ip,
         ...(cookie ? { cookie } : {}),
         ...(opts.headers ?? {}),
       },
