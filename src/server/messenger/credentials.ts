@@ -1,5 +1,6 @@
 import { eq } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
+import { scoped } from "@/lib/db/tenant";
 import { newId } from "@/lib/db/ids";
 import { decryptSecret, encryptSecret } from "@/lib/crypto";
 
@@ -52,7 +53,7 @@ export async function getMessengerCredentialsByOrg(
   const rows = await getDb()
     .select()
     .from(schema.messengerCredentials)
-    .where(eq(schema.messengerCredentials.organizationId, organizationId))
+    .where(scoped(schema.messengerCredentials.organizationId, organizationId))
     .limit(1);
   return rows[0] ? toCredentials(rows[0]) : null;
 }
@@ -127,7 +128,7 @@ export async function markMessengerReconnectRequired(
   await getDb()
     .update(schema.messengerCredentials)
     .set({ status: "reconnect_required", updatedAt: new Date() })
-    .where(eq(schema.messengerCredentials.organizationId, organizationId));
+    .where(scoped(schema.messengerCredentials.organizationId, organizationId));
 }
 
 export function tokenLast4(token: string): string {

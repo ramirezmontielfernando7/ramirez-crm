@@ -1,5 +1,6 @@
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
+import { scoped } from "@/lib/db/tenant";
 import { FB_PREFIX } from "@/server/inbox/identity";
 import { ingestInboundMessage } from "@/server/inbox/ingest";
 import {
@@ -193,8 +194,7 @@ async function contactExists(
     .select({ id: schema.contact.id })
     .from(schema.contact)
     .where(
-      and(
-        eq(schema.contact.organizationId, organizationId),
+      scoped(schema.contact.organizationId, organizationId,
         eq(schema.contact.channel, "messenger"),
         eq(schema.contact.waIdentity, identity)
       )

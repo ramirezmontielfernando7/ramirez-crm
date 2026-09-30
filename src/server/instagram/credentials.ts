@@ -1,5 +1,6 @@
 import { eq } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
+import { scoped } from "@/lib/db/tenant";
 import { newId } from "@/lib/db/ids";
 import { decryptSecret, encryptSecret } from "@/lib/crypto";
 
@@ -49,7 +50,7 @@ export async function getInstagramCredentialsByOrg(
   const rows = await getDb()
     .select()
     .from(schema.instagramCredentials)
-    .where(eq(schema.instagramCredentials.organizationId, organizationId))
+    .where(scoped(schema.instagramCredentials.organizationId, organizationId))
     .limit(1);
   return rows[0] ? toCredentials(rows[0]) : null;
 }
@@ -124,7 +125,7 @@ export async function markInstagramReconnectRequired(
   await getDb()
     .update(schema.instagramCredentials)
     .set({ status: "reconnect_required", updatedAt: new Date() })
-    .where(eq(schema.instagramCredentials.organizationId, organizationId));
+    .where(scoped(schema.instagramCredentials.organizationId, organizationId));
 }
 
 export function tokenLast4(token: string): string {

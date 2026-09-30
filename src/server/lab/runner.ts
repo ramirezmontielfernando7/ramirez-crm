@@ -1,5 +1,6 @@
-import { and, asc, eq } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
+import { scoped } from "@/lib/db/tenant";
 import { newId } from "@/lib/db/ids";
 import { publish } from "@/server/events/bus";
 import { runAgentTurn } from "@/server/ai/pipeline";
@@ -90,13 +91,13 @@ async function runAllCases(
   const kbEntries = await db
     .select()
     .from(schema.kbEntry)
-    .where(eq(schema.kbEntry.organizationId, organizationId));
+    .where(scoped(schema.kbEntry.organizationId, organizationId));
   const kbText = renderKb(kbEntries);
 
   const profileRows = await db
     .select()
     .from(schema.agentProfile)
-    .where(eq(schema.agentProfile.organizationId, organizationId))
+    .where(scoped(schema.agentProfile.organizationId, organizationId))
     .limit(1);
   const profile = profileRows[0];
   const behaviorText = profile
@@ -264,8 +265,7 @@ async function upsertTestContact(
     .select({ id: schema.contact.id })
     .from(schema.contact)
     .where(
-      and(
-        eq(schema.contact.organizationId, organizationId),
+      scoped(schema.contact.organizationId, organizationId,
         eq(schema.contact.phone, persona.phone)
       )
     )

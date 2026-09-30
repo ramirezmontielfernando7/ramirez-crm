@@ -1,5 +1,6 @@
 import { and, asc, eq, sql } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
+import { scoped } from "@/lib/db/tenant";
 import { resolveVariables, type CampaignVariable } from "@/lib/campaigns";
 import { publish } from "@/server/events/bus";
 import { getOrCreateConversation } from "@/server/inbox/ingest";
@@ -98,7 +99,7 @@ async function finishCampaign(
   await getDb()
     .update(schema.campaign)
     .set({ status, error, finishedAt: new Date() })
-    .where(and(eq(schema.campaign.id, campaignId), eq(schema.campaign.organizationId, organizationId)));
+    .where(scoped(schema.campaign.organizationId, organizationId, eq(schema.campaign.id, campaignId)));
   await progress(organizationId, campaignId, status);
 }
 
@@ -121,7 +122,7 @@ async function executeCampaign(organizationId: string, campaignId: string): Prom
   const rows = await db
     .select()
     .from(schema.campaign)
-    .where(and(eq(schema.campaign.id, campaignId), eq(schema.campaign.organizationId, organizationId)))
+    .where(scoped(schema.campaign.organizationId, organizationId, eq(schema.campaign.id, campaignId)))
     .limit(1);
   const campaign = rows[0];
   if (!campaign || campaign.status !== "sending") return;

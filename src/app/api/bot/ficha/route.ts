@@ -1,6 +1,7 @@
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { getDb, schema } from "@/lib/db";
+import { scoped } from "@/lib/db/tenant";
 import { apiError, parseBody } from "@/lib/api";
 import { requireBotKey, resolveInstanceOrg } from "@/server/bot/auth";
 import { upsertFicha } from "@/server/bot/ficha";
@@ -37,8 +38,7 @@ export async function PUT(req: Request) {
     .select({ contactId: schema.conversation.contactId })
     .from(schema.conversation)
     .where(
-      and(
-        eq(schema.conversation.organizationId, organizationId),
+      scoped(schema.conversation.organizationId, organizationId,
         eq(schema.conversation.id, body.data.conversationId)
       )
     )

@@ -114,7 +114,7 @@ export async function runAgentTurn(conversationId: string): Promise<void> {
   const profileRows = await db
     .select()
     .from(schema.agentProfile)
-    .where(eq(schema.agentProfile.organizationId, organizationId))
+    .where(scoped(schema.agentProfile.organizationId, organizationId))
     .limit(1);
   const profile = profileRows[0];
   if (!profile) return;
@@ -150,12 +150,12 @@ export async function runAgentTurn(conversationId: string): Promise<void> {
   const kb = await db
     .select()
     .from(schema.kbEntry)
-    .where(eq(schema.kbEntry.organizationId, organizationId))
+    .where(scoped(schema.kbEntry.organizationId, organizationId))
     .orderBy(asc(schema.kbEntry.createdAt));
   const stages = await db
     .select({ id: schema.pipelineStage.id, name: schema.pipelineStage.name })
     .from(schema.pipelineStage)
-    .where(eq(schema.pipelineStage.organizationId, organizationId))
+    .where(scoped(schema.pipelineStage.organizationId, organizationId))
     .orderBy(asc(schema.pipelineStage.position));
 
   const agenda = agendaEnabled();

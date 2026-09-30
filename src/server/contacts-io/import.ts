@@ -1,4 +1,4 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
 import { scoped } from "@/lib/db/tenant";
@@ -148,7 +148,7 @@ export async function importContacts(input: {
           await tx
             .update(schema.contact)
             .set(set)
-            .where(and(eq(schema.contact.id, current.id), eq(schema.contact.organizationId, organizationId)));
+            .where(scoped(schema.contact.organizationId, organizationId, eq(schema.contact.id, current.id)));
         }
         updated++;
         assignments.push({ contactId: current.id, tagId: importTagId });

@@ -1,5 +1,6 @@
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
+import { scoped } from "@/lib/db/tenant";
 import { apiError } from "@/lib/api";
 import { requireBotKey, resolveInstanceOrg } from "@/server/bot/auth";
 import { serializeFicha } from "@/server/bot/ficha";
@@ -54,8 +55,7 @@ export async function GET(req: Request) {
         eq(schema.conversation.contactId, schema.contact.id)
       )
       .where(
-        and(
-          eq(schema.conversation.organizationId, organizationId),
+        scoped(schema.conversation.organizationId, organizationId,
           eq(schema.conversation.id, conversationId)
         )
       )
@@ -74,8 +74,7 @@ export async function GET(req: Request) {
         .select()
         .from(schema.conversation)
         .where(
-          and(
-            eq(schema.conversation.organizationId, organizationId),
+          scoped(schema.conversation.organizationId, organizationId,
             eq(schema.conversation.contactId, contact.id),
             eq(schema.conversation.isTest, false)
           )
@@ -98,8 +97,7 @@ export async function GET(req: Request) {
         eq(schema.lead.stageId, schema.pipelineStage.id)
       )
       .where(
-        and(
-          eq(schema.lead.organizationId, organizationId),
+        scoped(schema.lead.organizationId, organizationId,
           eq(schema.lead.contactId, contact.id)
         )
       )

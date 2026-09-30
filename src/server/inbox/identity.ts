@@ -1,6 +1,7 @@
-import { and, eq, or } from "drizzle-orm";
+import { eq, or } from "drizzle-orm";
 import { CHANNEL_LABEL, type Channel } from "@/lib/channels";
 import { getDb, schema } from "@/lib/db";
+import { scoped } from "@/lib/db/tenant";
 import { newId } from "@/lib/db/ids";
 import { normalizeMx } from "@/lib/meta/client";
 import type { WebhookMessage, WebhookValue } from "@/server/inbox/webhook";
@@ -98,8 +99,7 @@ export async function findWhatsappContact(
     .select()
     .from(schema.contact)
     .where(
-      and(
-        eq(schema.contact.organizationId, organizationId),
+      scoped(schema.contact.organizationId, organizationId,
         eq(schema.contact.channel, "whatsapp"),
         or(...matchers)
       )
@@ -145,8 +145,7 @@ export async function findContactByIdentity(
     .select()
     .from(schema.contact)
     .where(
-      and(
-        eq(schema.contact.organizationId, organizationId),
+      scoped(schema.contact.organizationId, organizationId,
         eq(schema.contact.waIdentity, identity)
       )
     )
@@ -181,8 +180,7 @@ export async function getOrCreateContactByIdentity(
       .select()
       .from(schema.contact)
       .where(
-        and(
-          eq(schema.contact.organizationId, organizationId),
+        scoped(schema.contact.organizationId, organizationId,
           eq(schema.contact.channel, channel),
           eq(schema.contact.waIdentity, resolved.identity)
         )
@@ -223,8 +221,7 @@ export async function getOrCreateContactByIdentity(
       .select()
       .from(schema.contact)
       .where(
-        and(
-          eq(schema.contact.organizationId, organizationId),
+        scoped(schema.contact.organizationId, organizationId,
           eq(schema.contact.channel, channel),
           eq(schema.contact.waIdentity, resolved.identity)
         )
@@ -296,8 +293,7 @@ export async function getOrCreateContactByIdentity(
     .select()
     .from(schema.contact)
     .where(
-      and(
-        eq(schema.contact.organizationId, organizationId),
+      scoped(schema.contact.organizationId, organizationId,
         eq(schema.contact.waIdentity, resolved.identity)
       )
     )

@@ -1,5 +1,6 @@
 import { and, eq, sql } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
+import { scoped } from "@/lib/db/tenant";
 import { newId } from "@/lib/db/ids";
 import { normalizeMx } from "@/lib/meta/client";
 import { publish } from "@/server/events/bus";
@@ -192,8 +193,7 @@ export async function getOrCreateConversation(
     .select()
     .from(schema.conversation)
     .where(
-      and(
-        eq(schema.conversation.organizationId, organizationId),
+      scoped(schema.conversation.organizationId, organizationId,
         eq(schema.conversation.contactId, contactId),
         eq(schema.conversation.isTest, false)
       )

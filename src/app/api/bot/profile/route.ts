@@ -1,5 +1,6 @@
-import { asc, eq } from "drizzle-orm";
+import { asc } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
+import { scoped } from "@/lib/db/tenant";
 import { apiError } from "@/lib/api";
 import { requireBotKey, resolveInstanceOrg } from "@/server/bot/auth";
 import { serializeBotProfile } from "@/server/bot/profile";
@@ -25,7 +26,7 @@ export async function GET(req: Request) {
   const profiles = await db
     .select()
     .from(schema.agentProfile)
-    .where(eq(schema.agentProfile.organizationId, organizationId))
+    .where(scoped(schema.agentProfile.organizationId, organizationId))
     .limit(1);
   const profile = profiles[0];
   if (!profile) {
@@ -36,7 +37,7 @@ export async function GET(req: Request) {
   const kb = await db
     .select()
     .from(schema.kbEntry)
-    .where(eq(schema.kbEntry.organizationId, organizationId))
+    .where(scoped(schema.kbEntry.organizationId, organizationId))
     .orderBy(asc(schema.kbEntry.createdAt));
 
   return Response.json(serializeBotProfile(profile, kb));

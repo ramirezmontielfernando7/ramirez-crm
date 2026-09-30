@@ -1,5 +1,6 @@
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
+import { scoped } from "@/lib/db/tenant";
 import { describeSendError } from "@/lib/meta/send-errors";
 import { publish } from "@/server/events/bus";
 import type { WebhookStatus } from "@/server/inbox/webhook";
@@ -38,8 +39,7 @@ export async function applyStatusUpdate(
     })
     .from(schema.message)
     .where(
-      and(
-        eq(schema.message.organizationId, organizationId),
+      scoped(schema.message.organizationId, organizationId,
         eq(schema.message.waMessageId, status.id)
       )
     )

@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import {
   countVariables,
   renderBody,
@@ -262,8 +262,7 @@ export async function applyTemplateStatusEvent(
       updatedAt: new Date(),
     })
     .where(
-      and(
-        eq(schema.template.organizationId, creds.organizationId),
+      scoped(schema.template.organizationId, creds.organizationId,
         eq(schema.template.name, name),
         eq(schema.template.language, language)
       )

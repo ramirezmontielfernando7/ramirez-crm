@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
 import { decryptSecret, encryptSecret } from "@/lib/crypto";
@@ -118,8 +118,7 @@ export async function stageBelongsToOrg(
     .select({ id: schema.pipelineStage.id })
     .from(schema.pipelineStage)
     .where(
-      and(
-        eq(schema.pipelineStage.organizationId, organizationId),
+      scoped(schema.pipelineStage.organizationId, organizationId,
         eq(schema.pipelineStage.id, stageId)
       )
     )

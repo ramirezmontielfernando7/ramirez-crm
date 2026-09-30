@@ -1,6 +1,7 @@
-import { and, desc, eq, isNotNull } from "drizzle-orm";
+import { desc, eq, isNotNull } from "drizzle-orm";
 import { z } from "zod";
 import { getDb, schema } from "@/lib/db";
+import { scoped } from "@/lib/db/tenant";
 import { apiError, parseBody } from "@/lib/api";
 import { requireBotKey, resolveInstanceOrg } from "@/server/bot/auth";
 import { getCredentialsByOrg } from "@/server/whatsapp/credentials";
@@ -34,8 +35,7 @@ export async function POST(req: Request) {
     .select()
     .from(schema.conversation)
     .where(
-      and(
-        eq(schema.conversation.organizationId, organizationId),
+      scoped(schema.conversation.organizationId, organizationId,
         eq(schema.conversation.id, body.data.conversationId)
       )
     )
@@ -56,8 +56,7 @@ export async function POST(req: Request) {
     .select({ waMessageId: schema.message.waMessageId })
     .from(schema.message)
     .where(
-      and(
-        eq(schema.message.organizationId, organizationId),
+      scoped(schema.message.organizationId, organizationId,
         eq(schema.message.conversationId, conv.id),
         eq(schema.message.direction, "in"),
         isNotNull(schema.message.waMessageId)

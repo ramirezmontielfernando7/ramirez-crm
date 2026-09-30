@@ -1,4 +1,4 @@
-import { and, asc, eq } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
 import { scoped } from "@/lib/db/tenant";
@@ -95,8 +95,7 @@ export async function getAttributionForConversation(
     .select()
     .from(schema.adAttribution)
     .where(
-      and(
-        eq(schema.adAttribution.organizationId, organizationId),
+      scoped(schema.adAttribution.organizationId, organizationId,
         eq(schema.adAttribution.conversationId, conversationId)
       )
     )

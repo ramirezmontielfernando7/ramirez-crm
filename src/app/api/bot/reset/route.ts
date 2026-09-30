@@ -1,6 +1,7 @@
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { getDb, schema } from "@/lib/db";
+import { scoped } from "@/lib/db/tenant";
 import { apiError, parseBody } from "@/lib/api";
 import { requireBotKey, resolveInstanceOrg } from "@/server/bot/auth";
 import { publish } from "@/server/events/bus";
@@ -42,8 +43,7 @@ export async function POST(req: Request) {
     })
     .from(schema.conversation)
     .where(
-      and(
-        eq(schema.conversation.organizationId, organizationId),
+      scoped(schema.conversation.organizationId, organizationId,
         eq(schema.conversation.id, body.data.conversationId)
       )
     )
@@ -75,14 +75,13 @@ export async function POST(req: Request) {
     const stages = await db
       .select()
       .from(schema.pipelineStage)
-      .where(eq(schema.pipelineStage.organizationId, organizationId));
+      .where(scoped(schema.pipelineStage.organizationId, organizationId));
     const first = [...stages].sort((a, b) => a.position - b.position)[0];
     const leadRows = await db
       .select({ id: schema.lead.id })
       .from(schema.lead)
       .where(
-        and(
-          eq(schema.lead.organizationId, organizationId),
+        scoped(schema.lead.organizationId, organizationId,
           eq(schema.lead.contactId, conv.contactId)
         )
       )
