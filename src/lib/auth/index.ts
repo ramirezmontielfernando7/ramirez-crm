@@ -41,6 +41,20 @@ function isInternalSignup(): boolean {
 
 const RATE_LIMITED_PATHS = new Set(["/sign-in/email", "/sign-up/email"]);
 
+/**
+ * H3 — Las rutas del plugin de organización (`/api/auth/organization/*`)
+ * están cerradas para TODOS, Propietario incluido. Vocero no usa ninguna: el
+ * alta de la organización la hace `onUserCreated` directo en la BD, la
+ * organización activa la fija el hook de sesión, y el equipo, los roles y la
+ * marca tienen sus propias rutas (`/api/settings/*`) con permisos, bitácora y
+ * reglas de la app. Dejarlas abiertas es dejar una puerta trasera que se
+ * salta todo eso (crear organizaciones, borrarlas en cascada, invitar o sacar
+ * miembros).
+ */
+export function isOrganizationPluginPath(path: string): boolean {
+  return path === "/organization" || path.startsWith("/organization/");
+}
+
 function createAuth() {
   const env = getEnv();
   return betterAuth({
@@ -65,9 +79,29 @@ function createAuth() {
     },
     // 020: los roles de Vocero (Propietario/Coordinador/Asesor) son los del
     // control de acceso del plugin; la matriz vive en `permissions.ts`.
-    plugins: [organization({ creatorRole: "owner", ac, roles })],
+    //
+    // H3: el plugin queda solo como modelo de datos y control de acceso.
+    // Nadie crea ni borra organizaciones por su API (el hook `before` además
+    // cierra todas sus rutas; esto es la segunda capa si algo las alcanza).
+    plugins: [
+      organization({
+        creatorRole: "owner",
+        ac,
+        roles,
+        allowUserToCreateOrganization: false,
+        disableOrganizationDeletion: true,
+      }),
+    ],
     hooks: {
       before: createAuthMiddleware(async (ctx) => {
+        // H3: la API del plugin de organización no la usa la app.
+        if (isOrganizationPluginPath(ctx.path)) {
+          throw new APIError("FORBIDDEN", {
+            code: "ORGANIZATION_API_DISABLED",
+            message:
+              "Esta operación no está disponible; usa Ajustes para administrar el negocio y el equipo",
+          });
+        }
         // Rate limit por IP en login/registro (FR-062): 10 / 10 min → 429.
         if (RATE_LIMITED_PATHS.has(ctx.path)) {
           const ip = clientIp(ctx.headers);

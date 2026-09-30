@@ -1,8 +1,5 @@
 import { createAccessControl } from "better-auth/plugins/access";
-import {
-  defaultStatements,
-  ownerAc,
-} from "better-auth/plugins/organization/access";
+import { defaultStatements } from "better-auth/plugins/organization/access";
 
 /**
  * 020 — La matriz de permisos de Vocero. UN solo lugar.
@@ -60,7 +57,6 @@ const statements = {
 export const ac = createAccessControl(statements);
 
 const owner = ac.newRole({
-  ...ownerAc.statements,
   pipeline: ["edit"],
   templates: ["manage"],
   settings: ["manage"],
