@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import type { WebhookSettingsDto } from "@/lib/webhook-settings";
 import { cn } from "@/lib/utils";
 
 /**
@@ -36,12 +37,7 @@ type Connection = {
   tokenLast4: string;
 };
 
-type WebhookInfo = {
-  messengerUrl: string | null;
-  verifyToken: string;
-  isHttps: boolean;
-  signatureLayer: boolean;
-};
+type WebhookInfo = WebhookSettingsDto;
 
 const HELP: Record<Source, { title: string; items: string[] }> = {
   zernio: {
@@ -81,7 +77,11 @@ export function MessengerClient() {
     const [c, w] = await Promise.all([
       fetch("/api/settings/messenger").then((r) => (r.ok ? r.json() : null)),
       fetch("/api/settings/webhook").then((r) => (r.ok ? r.json() : null)),
-    ]).catch(() => [null, null]);
+    ]).catch((err: unknown) => {
+      // Sin datos la pantalla sigue (vacía); el error queda en la consola.
+      console.error("[ajustes/messenger] no se pudo cargar la conexión o el webhook:", err);
+      return [null, null];
+    });
     if (c) {
       setConnection(c.connection);
       if (c.connection) {
@@ -281,7 +281,16 @@ export function MessengerClient() {
         </CardContent>
       </Card>
 
-      {webhook?.messengerUrl && (
+      {/* H7: el webhook lo administra la plataforma; solo ella ve su URL. */}
+      {webhook?.managedByPlatform && (
+        <p className="flex items-start gap-2 text-xs text-text-2" data-testid="messenger-webhook-administrado">
+          <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+          {webhook.platformConfigMissing
+            ? "El webhook de Messenger lo administra la plataforma, pero falta configurar PLATFORM_ORG_ID en la instancia: pídeselo a quien la administra."
+            : "El webhook de Messenger lo administra la plataforma: no tienes que configurarlo."}
+        </p>
+      )}
+      {webhook && !webhook.managedByPlatform && webhook.messengerUrl && (
         <Card>
           <CardHeader>
             <CardTitle>Webhook de Messenger</CardTitle>
