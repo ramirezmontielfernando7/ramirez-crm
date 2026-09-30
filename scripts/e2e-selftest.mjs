@@ -1157,6 +1157,44 @@ async function main() {
     headers: { cookie, origin: BASE },
   });
   ok("el binario entrante se sirve desde el volumen local", inImgBin.ok);
+  // H9: la imagen raster sigue en línea (vista previa), pero con nosniff y sandbox.
+  ok(
+    "la imagen entrante se sirve inline con nosniff y sandbox",
+    (inImgBin.headers.get("content-disposition") ?? "").startsWith("inline") &&
+      inImgBin.headers.get("x-content-type-options") === "nosniff" &&
+      inImgBin.headers.get("content-security-policy") === "sandbox",
+    `disposition=${inImgBin.headers.get("content-disposition")}`
+  );
+
+  // H9: un "documento" HTML que manda el cliente jamás se sirve como página.
+  await api("/api/dev/wa-mock/inbound", {
+    method: "POST",
+    body: JSON.stringify({
+      phoneNumberId: PN,
+      from: LEAD,
+      type: "document",
+      mediaId: "media-e2e-html-1",
+      mimeType: "text/html",
+      filename: "factura.html",
+      caption: "documento html del cliente",
+      waMessageId: "wamid.e2e.008.in.html",
+    }),
+  });
+  await sleep(1600);
+  const msgsHtml = (await api(`/api/conversations/${conv008.id}/messages`)).json?.messages ?? [];
+  const inHtml = msgsHtml.find((m) => m.media?.caption === "documento html del cliente");
+  const htmlBin = await fetch(`${BASE}/api/media/${inHtml?.media?.assetId}`, {
+    headers: { cookie, origin: BASE },
+  });
+  ok(
+    "un adjunto text/html sale como descarga (attachment, octet-stream, nosniff, sandbox)",
+    htmlBin.ok &&
+      (htmlBin.headers.get("content-disposition") ?? "").startsWith("attachment") &&
+      htmlBin.headers.get("content-type") === "application/octet-stream" &&
+      htmlBin.headers.get("x-content-type-options") === "nosniff" &&
+      htmlBin.headers.get("content-security-policy") === "sandbox",
+    `status=${htmlBin.status} type=${htmlBin.headers.get("content-type")} disposition=${htmlBin.headers.get("content-disposition")}`
+  );
 
   // Ubicación entrante: payload directo, sin binario (404 en /api/media).
   await api("/api/dev/wa-mock/inbound", {
