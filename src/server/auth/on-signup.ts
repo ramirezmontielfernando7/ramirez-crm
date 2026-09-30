@@ -1,6 +1,7 @@
-import { count, eq, sql } from "drizzle-orm";
+import { asc, count, eq, sql } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
+import { scoped } from "@/lib/db/tenant";
 
 /** Etapas sembradas del pipeline (US2). */
 const SEED_STAGES: { name: string; kind: "open" | "won" | "lost" }[] = [
@@ -58,24 +59,59 @@ export async function onUserCreated(userId: string, userName: string) {
   });
 }
 
-/** Organización activa de un usuario (su primera membresía). */
+/**
+ * Organización con la que se abre una sesión nueva: la membresía más antigua
+ * del usuario (hoy cada usuario tiene una sola; ver `resolveMembership`).
+ */
 export async function resolveActiveOrganizationId(
   userId: string
 ): Promise<string | null> {
   return (await resolveMembership(userId))?.organizationId ?? null;
 }
 
+/**
+ * H4 — La organización (y el rol) de una sesión, de UNA sola fuente
+ * determinista:
+ *
+ * 1. `session.activeOrganizationId` (la fija el hook de creación de sesión),
+ *    SOLO si el usuario sigue siendo miembro de esa organización. Si lo
+ *    sacaron, no vale: se cae al paso 2 y jamás se usa una organización de la
+ *    que ya no es parte.
+ * 2. Si no hay (sesión anterior a su membresía, p. ej. la cuenta de equipo
+ *    recién creada), la membresía MÁS ANTIGUA, con `id` como desempate. Nunca
+ *    "la primera que devuelva Postgres".
+ *
+ * Hoy un usuario pertenece a una sola organización (decisión de la Fase 1);
+ * esto la hace determinista aunque por error tuviera dos.
+ */
 export async function resolveMembership(
-  userId: string
+  userId: string,
+  activeOrganizationId?: string | null
 ): Promise<{ organizationId: string; role: string } | null> {
   const db = getDb();
+  const cols = {
+    organizationId: schema.member.organizationId,
+    role: schema.member.role,
+  };
+  if (activeOrganizationId) {
+    const active = await db
+      .select(cols)
+      .from(schema.member)
+      .where(
+        scoped(
+          schema.member.organizationId,
+          activeOrganizationId,
+          eq(schema.member.userId, userId)
+        )
+      )
+      .limit(1);
+    if (active[0]) return active[0];
+  }
   const rows = await db
-    .select({
-      organizationId: schema.member.organizationId,
-      role: schema.member.role,
-    })
+    .select(cols)
     .from(schema.member)
     .where(eq(schema.member.userId, userId))
+    .orderBy(asc(schema.member.createdAt), asc(schema.member.id))
     .limit(1);
   return rows[0] ?? null;
 }
