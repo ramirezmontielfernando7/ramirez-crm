@@ -358,11 +358,11 @@ function WebhookCard({ webhook }: { webhook: WebhookInfo }) {
             <div className="space-y-1">
               <p className="font-medium">Firma no verificada</p>
               <p>
-                META_APP_SECRET no está definido en la instancia: los eventos
-                de Meta se aceptan sin comprobar su firma
-                (x-hub-signature-256) y el webhook solo lo protege la URL
-                secreta. Agrega META_APP_SECRET (App Secret de tu app de Meta)
-                y reinicia para exigirla.
+                META_APP_SECRET no está definido en la instancia. Es
+                obligatorio en producción: sin él, el webhook de WhatsApp
+                rechaza todos los eventos de Meta y no entra ningún mensaje.
+                Agrega META_APP_SECRET (App Secret de tu app de Meta) en las
+                variables de la instancia y reinicia.
               </p>
             </div>
           </div>

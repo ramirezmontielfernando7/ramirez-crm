@@ -2,7 +2,7 @@ import { mkdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { eq } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
-import { getEnv } from "@/lib/env";
+import { getEnv, isMockEnabled } from "@/lib/env";
 import { unsignedWebhookWarning } from "@/server/inbox/webhook";
 
 /**
@@ -36,9 +36,10 @@ export async function checkMediaDir(): Promise<void> {
 }
 
 /**
- * Aviso al arranque si la firma de los webhooks de Meta no se verifica
- * (META_APP_SECRET ausente). Solo avisa: exigirla tumbaría instancias que ya
- * funcionan sin ella. Con el secreto definido, la ruta exige la firma.
+ * Aviso al arranque si falta META_APP_SECRET. Solo avisa, NUNCA tumba el
+ * arranque: el resto del CRM sigue funcionando. Desde H7 el webhook de
+ * WhatsApp rechaza (401) los eventos sin secreto, salvo en desarrollo con
+ * los mocks (`isMockEnabled()`).
  */
 export function warnIfWebhookUnsigned(): void {
   let secret: string | undefined;
@@ -47,7 +48,7 @@ export function warnIfWebhookUnsigned(): void {
   } catch {
     return; // entorno inválido: lo reporta, con detalle, el primer getEnv() de la app
   }
-  const warning = unsignedWebhookWarning(secret);
+  const warning = unsignedWebhookWarning(secret, isMockEnabled());
   if (warning) console.warn(warning);
 }
 

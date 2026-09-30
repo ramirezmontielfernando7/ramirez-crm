@@ -23,10 +23,10 @@ export function isValidWebhookToken(
 /**
  * Capa 2: firma HMAC-SHA256 de Meta sobre el body CRUDO.
  * Con META_APP_SECRET definido se EXIGE: sin header o con firma inválida →
- * false (la ruta responde 401). Sin secreto la capa queda apagada y devuelve
- * true: así una instancia existente sin la variable no deja de recibir
- * mensajes; lo avisan el arranque (`unsignedWebhookWarning`) y Ajustes →
- * WhatsApp.
+ * false (la ruta responde 401). Sin secreto devuelve true: así lo siguen
+ * usando Instagram y Messenger, donde la firma aún es opcional. WhatsApp NO
+ * pasa por aquí directo: usa `checkWhatsAppSignature` (H7), que sin secreto
+ * rechaza.
  */
 export function isValidSignature(
   rawBody: string,
@@ -41,18 +41,65 @@ export function isValidSignature(
   return safeEqual(signatureHeader.slice("sha256=".length), expected);
 }
 
+export type SignatureCheck =
+  | { ok: true }
+  | { ok: false; reason: "missing_secret" | "bad_signature" };
+
 /**
- * Advertencia de arranque cuando la firma del webhook NO se verifica. null si
- * META_APP_SECRET está definido. Nunca incluye valores de variables.
+ * H7 — Firma del webhook de WhatsApp, OBLIGATORIA.
+ *
+ * - Con META_APP_SECRET: se verifica siempre (sin firma o inválida → rechazo).
+ * - Sin META_APP_SECRET: se rechaza todo evento (`missing_secret`). La URL
+ *   secreta sola no basta: quien la conozca inyectaría mensajes falsos para
+ *   cualquier número de la instancia.
+ * - Única salida: `allowUnsignedDev`, que la ruta enciende SOLO con
+ *   `isMockEnabled()` (WA_MOCK_ENABLED=true y NODE_ENV ≠ production), para
+ *   el desarrollo y los E2E con el wa-mock. En producción jamás aplica.
+ */
+export function checkWhatsAppSignature(
+  rawBody: string,
+  signatureHeader: string | null,
+  appSecret: string | undefined,
+  opts: { allowUnsignedDev: boolean }
+): SignatureCheck {
+  if (!appSecret) {
+    return opts.allowUnsignedDev
+      ? { ok: true }
+      : { ok: false, reason: "missing_secret" };
+  }
+  return isValidSignature(rawBody, signatureHeader, appSecret)
+    ? { ok: true }
+    : { ok: false, reason: "bad_signature" };
+}
+
+/** Aviso cuando se rechaza un evento por falta de META_APP_SECRET. Sin valores. */
+export const MISSING_SECRET_REJECT_WARNING =
+  "[webhook] Evento de WhatsApp rechazado (401): META_APP_SECRET no está definido y en producción la firma " +
+  "x-hub-signature-256 es obligatoria. Define META_APP_SECRET (App Secret de tu app de Meta: Configuración de " +
+  "la app → Básica) en las variables de la plataforma y reinicia; mientras tanto NO entra ningún mensaje.";
+
+/**
+ * Advertencia de arranque cuando falta META_APP_SECRET. null si está
+ * definido. Nunca incluye valores de variables. Solo avisa: el arranque NO
+ * falla (el resto del CRM funciona), pero el webhook de WhatsApp rechaza los
+ * eventos hasta que se defina — salvo en desarrollo con los mocks.
  */
 export function unsignedWebhookWarning(
-  appSecret: string | undefined
+  appSecret: string | undefined,
+  mockEnabled = false
 ): string | null {
   if (appSecret) return null;
+  if (mockEnabled) {
+    return (
+      "[boot] META_APP_SECRET no está definido: la firma x-hub-signature-256 NO se verifica. Solo se aceptan " +
+      "eventos sin firma porque WA_MOCK_ENABLED=true fuera de producción (desarrollo / E2E). En producción el " +
+      "webhook de WhatsApp los rechaza con 401."
+    );
+  }
   return (
     "[boot] META_APP_SECRET no está definido: la firma x-hub-signature-256 de los webhooks de Meta NO se verifica " +
-    "y la única defensa es el token secreto de la URL. Define META_APP_SECRET (App Secret de tu app de Meta: " +
-    "Configuración de la app → Básica) y reinicia; desde ese momento los eventos sin firma válida se rechazan con 401."
+    "y el webhook de WhatsApp RECHAZA todos los eventos (401): no entrará ningún mensaje. Define META_APP_SECRET " +
+    "(App Secret de tu app de Meta: Configuración de la app → Básica) y reinicia."
   );
 }
 

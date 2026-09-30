@@ -1,8 +1,9 @@
 import { after } from "next/server";
-import { getEnv } from "@/lib/env";
+import { getEnv, isMockEnabled } from "@/lib/env";
 import {
-  isValidSignature,
+  checkWhatsAppSignature,
   isValidWebhookToken,
+  MISSING_SECRET_REJECT_WARNING,
   type WebhookPayload,
 } from "@/server/inbox/webhook";
 import { processEchoesValue, processMessagesValue } from "@/server/inbox/ingest";
@@ -12,9 +13,10 @@ import { describeError } from "@/lib/log-safe";
 /**
  * Webhook público de WhatsApp (contrato webhook.md).
  * Capa 1: el segmento [webhookToken] debe coincidir (si no → 404 sin efectos).
- * Capa 2: firma x-hub-signature-256. Con META_APP_SECRET definido se exige
- * (sin firma válida → 401); sin él la capa queda apagada y el arranque y
- * Ajustes → WhatsApp avisan que la firma no se verifica.
+ * Capa 2 (H7, obligatoria): firma x-hub-signature-256 con META_APP_SECRET.
+ * Sin firma válida → 401. Sin META_APP_SECRET → 401 a todo evento y un aviso
+ * en el log; la única excepción es desarrollo con los mocks
+ * (`isMockEnabled()`: WA_MOCK_ENABLED=true y NODE_ENV ≠ production).
  * El POST siempre responde 200 tras validar; el procesamiento va en after().
  */
 export const dynamic = "force-dynamic";
@@ -48,7 +50,11 @@ export async function POST(req: Request, { params }: Params) {
 
   const rawBody = await req.text();
   const signature = req.headers.get("x-hub-signature-256");
-  if (!isValidSignature(rawBody, signature, env.META_APP_SECRET)) {
+  const check = checkWhatsAppSignature(rawBody, signature, env.META_APP_SECRET, {
+    allowUnsignedDev: isMockEnabled(),
+  });
+  if (!check.ok) {
+    if (check.reason === "missing_secret") warnMissingSecret();
     return new Response(null, { status: 401 });
   }
 
@@ -69,6 +75,19 @@ export async function POST(req: Request, { params }: Params) {
   });
 
   return Response.json({ received: true });
+}
+
+/**
+ * Aviso de rechazo por falta de META_APP_SECRET: a lo más uno por minuto
+ * (Meta reintenta cada evento; sin esto el log se inunda).
+ */
+const MISSING_SECRET_WARN_EVERY_MS = 60_000;
+let lastMissingSecretWarnAt = 0;
+function warnMissingSecret(): void {
+  const now = Date.now();
+  if (now - lastMissingSecretWarnAt < MISSING_SECRET_WARN_EVERY_MS) return;
+  lastMissingSecretWarnAt = now;
+  console.warn(MISSING_SECRET_REJECT_WARNING);
 }
 
 async function processPayload(payload: WebhookPayload): Promise<void> {

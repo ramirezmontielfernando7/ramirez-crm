@@ -15,9 +15,11 @@ Query: `hub.mode=subscribe`, `hub.verify_token`, `hub.challenge`.
 ## POST (eventos)
 
 1. **Capa 1**: segmento ≠ token → `404` (sin leer el body).
-2. **Capa 2** (solo si `META_APP_SECRET` configurado): validar
+2. **Capa 2** (obligatoria, H7): validar
    `x-hub-signature-256: sha256=<hmac>` = HMAC-SHA256(app_secret, raw body). Inválida o
-   ausente → `401`. Sin `META_APP_SECRET` → se omite.
+   ausente → `401`. Sin `META_APP_SECRET` → `401` a todo evento + aviso en el log
+   (uno por minuto); el arranque NO falla. Única excepción: `isMockEnabled()`
+   (`WA_MOCK_ENABLED=true` y `NODE_ENV ≠ production`), para desarrollo y E2E.
 3. Responder `200 {"received":true}` SIEMPRE tras encolar/procesar — nunca 5xx por
    errores de dominio (Meta reintenta y desactiva webhooks que fallan).
 

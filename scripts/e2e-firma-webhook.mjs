@@ -2,14 +2,15 @@
  * Self-test E2E — firma del webhook de WhatsApp (tests/e2e/us-firma-webhook.md).
  *
  * Conduce la app REAL en el modo que tenga el servidor:
- *   - SIN META_APP_SECRET: Ajustes → WhatsApp muestra "Firma no verificada"
- *     y un evento sin firma se acepta (200): la instancia no se rompe;
+ *   - SIN META_APP_SECRET: Ajustes → WhatsApp muestra "Firma no verificada".
+ *     H7: un evento sin firma → 401 y el rechazo queda en el log; SOLO con
+ *     WA_MOCK_ENABLED=true (fuera de producción) se acepta (200);
  *   - CON META_APP_SECRET: Ajustes → WhatsApp dice "Verificación de firma
  *     activa", un evento sin firma o con firma falsa → 401, y uno firmado → 200.
  * Con SERVER_LOG=<archivo> comprueba además la advertencia de arranque.
  *
- * El modo se deduce de META_APP_SECRET en el entorno del script (el mismo
- * .env que el servidor). Nunca imprime valores de variables ni la URL del
+ * El modo se deduce de META_APP_SECRET y WA_MOCK_ENABLED en el entorno del
+ * script (los mismos que el servidor). Nunca imprime valores de variables ni la URL del
  * webhook (lleva el token secreto).
  *
  * Uso: app viva con los mocks (`pnpm dev`), después de `pnpm test:e2e`:
@@ -22,6 +23,9 @@ import { chromium } from "playwright";
 
 const BASE = process.env.APP_BASE_URL ?? "http://localhost:3000";
 const SECRET = process.env.META_APP_SECRET || "";
+// Con qué WA_MOCK_ENABLED arrancó el SERVIDOR (pásalo igual al script): sin
+// secreto, solo con mocks fuera de producción se aceptan eventos sin firma.
+const MOCKS = process.env.WA_MOCK_ENABLED === "true";
 const CON_SECRETO = SECRET.length > 0;
 const OWNER = { email: "e2e@vocero.test", password: "password-e2e-123" };
 
@@ -96,8 +100,17 @@ if (typeof url === "string") {
     ok("evento sin firma → 401", (await enviar()) === 401);
     ok("evento con firma falsa → 401", (await enviar({ "x-hub-signature-256": firmar("otro") })) === 401);
     ok("evento firmado con el App Secret → 200", (await enviar({ "x-hub-signature-256": firmar(SECRET) })) === 200);
+  } else if (MOCKS) {
+    // Desarrollo / E2E: la única salida sin secreto (nunca en producción).
+    ok("evento sin firma → 200 (solo porque WA_MOCK_ENABLED=true fuera de producción)", (await enviar()) === 200);
   } else {
-    ok("evento sin firma → 200 (la instancia sigue recibiendo)", (await enviar()) === 200);
+    // H7: sin META_APP_SECRET y sin mocks, el webhook rechaza todo.
+    ok("evento sin firma → 401 (META_APP_SECRET es obligatorio)", (await enviar()) === 401);
+    ok("evento con una firma cualquiera → 401", (await enviar({ "x-hub-signature-256": firmar("otro") })) === 401);
+    if (process.env.SERVER_LOG) {
+      const log = readFileSync(process.env.SERVER_LOG, "utf8");
+      ok("el rechazo queda registrado en el log", log.includes("[webhook] Evento de WhatsApp rechazado (401)"));
+    }
   }
 } else {
   ok("la URL del webhook viene en Ajustes", false);

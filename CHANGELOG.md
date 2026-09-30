@@ -8,9 +8,11 @@ ha publicado imagen propia, así que se instala construyendo desde el código.
 
 ## Sin publicar — versión propuesta: 1.5.0
 
-Todo lo de abajo son funciones nuevas con migraciones que solo agregan, sin
-variables obligatorias nuevas ni nada que reconectar: por el SemVer del README
-es una **menor**, `1.5.0`. `package.json` sigue en 1.4.0 hasta el PR que la
+Todo lo de abajo son funciones nuevas con migraciones que solo agregan y nada
+que reconectar. Hay UNA variable que pasa a ser obligatoria en producción,
+`META_APP_SECRET` (ver abajo): a quien ya la tenga no le cambia nada. Por el
+SemVer del README se propone como **menor**, `1.5.0`; si se considera que
+volver obligatoria una variable rompe la compatibilidad, sería `2.0.0`. `package.json` sigue en 1.4.0 hasta el PR que la
 publique (sube la versión, fecha esta sección y crea el tag `v1.5.0`).
 
 ### Actualizar desde 1.4.0
@@ -23,10 +25,11 @@ publique (sube la versión, fecha esta sección y crea el tag `v1.5.0`).
   `ghcr.io/kevinrivm/vocero-crm` (no trae nada de esto): **construye desde el
   código**. Actualiza con `git pull` y `docker compose up -d --build`. Si tu
   `.env` tenía `VOCERO_CRM_VERSION`, ya no se usa: bórrala.
-- **`META_APP_SECRET` (recomendada).** Sin ella la instancia sigue igual, pero
-  el log de arranque advierte y Configuración → WhatsApp muestra «Firma no
-  verificada». Al definirla, los eventos del webhook sin firma válida se
-  rechazan con 401.
+- **`META_APP_SECRET` (OBLIGATORIA en producción).** Defínela ANTES de
+  actualizar. Sin ella, el webhook de WhatsApp rechaza todos los eventos con
+  401 (no entra ningún mensaje); la app arranca igual y lo avisan el log y
+  Configuración → WhatsApp. Solo en desarrollo, con `WA_MOCK_ENABLED=true`
+  fuera de producción, se aceptan eventos sin firma.
 
 ### Seguridad y mantenimiento
 
@@ -39,9 +42,10 @@ publique (sube la versión, fecha esta sección y crea el tag `v1.5.0`).
   browserslist, baseline-browser-mapping y sharp. `pnpm audit` pasa de 35
   avisos (3 críticos) a 8 (1 crítico y 2 altos). Pendientes:
   `drizzle-orm` (PR aparte), vitest/vite (salto mayor) y esbuild.
-- **Firma del webhook de WhatsApp.** Con `META_APP_SECRET` se exige; sin ella
-  se avisa al arrancar y en Configuración → WhatsApp. Tests de ambos casos y
-  guion E2E `pnpm test:e2e:firma`.
+- **Firma del webhook de WhatsApp, obligatoria.** Con `META_APP_SECRET` se
+  exige siempre; sin ella el webhook rechaza (401) y registra un aviso
+  (a lo más uno por minuto), salvo en desarrollo con los mocks. Tests de los
+  casos y guion E2E `pnpm test:e2e:firma`.
 - **Ruta B construye desde este código** (`build: .`, `pull_policy: build`,
   imagen local `ramirez-crm:local`).
 - Se borra `.f.mjs`, un script suelto de depuración que nada usaba.
