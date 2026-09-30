@@ -89,3 +89,108 @@ jobs:
       - name: build
         if: ${{ !cancelled() }}
         run: pnpm build
+
+  # Fase 1 multitenant: lo que un mock de SQL no puede demostrar. Migraciones
+  # aplicadas DOS veces seguidas (idempotencia) y pruebas de aislamiento
+  # entre organizaciones contra un Postgres de verdad. Es rápido, así que
+  # corre en cada push como los demás gates.
+  db:
+    name: postgres · migraciones ×2 · aislamiento
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: vocero_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres -d vocero_test"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/vocero_test
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: migraciones ×2 + pruebas con BD real
+        run: pnpm test:db
+
+  # E2E de dos organizaciones contra la app real con los mocks. Es el más
+  # lento (build + arranque), así que solo corre en PRs hacia main, no en
+  # cada push.
+  e2e-multiorg:
+    name: e2e · dos organizaciones
+    if: ${{ github.event_name == 'pull_request' && github.base_ref == 'main' }}
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: vocero
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres -d vocero"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      CAMPAIGNS: "on"
+      AGENDA: "on"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: .env de pruebas (mocks, secretos desechables)
+        run: |
+          {
+            echo "APP_BASE_URL=http://localhost:3000"
+            echo "DATABASE_URL=postgresql://postgres:postgres@localhost:5432/vocero"
+            echo "BETTER_AUTH_SECRET=$(openssl rand -hex 24)"
+            echo "ENCRYPTION_KEY=$(openssl rand -base64 32)"
+            echo "META_WEBHOOK_VERIFY_TOKEN=tok_$(openssl rand -hex 12)"
+            echo "META_APP_SECRET=$(openssl rand -hex 16)"
+            echo "WA_MOCK_ENABLED=true"
+            echo "META_GRAPH_BASE_URL=http://localhost:3000/api/dev/wa-mock/graph"
+            echo "OPENROUTER_BASE_URL=http://localhost:3000/api/dev/ai-mock"
+            echo "BOT_API_KEY=$(openssl rand -hex 20)"
+            echo "CAMPAIGNS=on"
+            echo "AGENDA=on"
+            echo "MEDIA_DIR=./.dev-media"
+          } > .env
+      # `next dev` y no `next start`: el build fija NODE_ENV=production y con
+      # eso los mocks (wa-mock, ai-mock) responden 404 por diseño.
+      # Primera vuelta SIN PLATFORM_ORG_ID: nadie ve el token del webhook y la
+      # pantalla avisa que falta configurarla.
+      - name: e2e sin PLATFORM_ORG_ID
+        run: |
+          set -a; . ./.env; set +a
+          MIGRATIONS_DIR=drizzle node scripts/migrate.mjs
+          setsid node_modules/.bin/next dev -p 3000 > app1.log 2>&1 &
+          echo $! > app.pid
+          for i in $(seq 1 120); do curl -sf localhost:3000/api/health >/dev/null && break; sleep 1; done
+          node --env-file=.env scripts/e2e-multiorg.mjs
+          # Se apaga el grupo entero (next dev lanza procesos hijos).
+          kill -- -"$(cat app.pid)"; sleep 2
+      # Segunda vuelta CON PLATFORM_ORG_ID = la organización que creó la
+      # primera: solo esa ve el token; la organización B sigue sin verlo.
+      - name: e2e con PLATFORM_ORG_ID
+        run: |
+          set -a; . ./.env; set +a
+          export PLATFORM_ORG_ID=$(psql "$DATABASE_URL" -Atc "select m.organization_id from member m join \"user\" u on u.id = m.user_id where u.email = 'e2e@vocero.test'")
+          echo "PLATFORM_ORG_ID=$PLATFORM_ORG_ID" >> .env
+          setsid node_modules/.bin/next dev -p 3000 > app2.log 2>&1 &
+          for i in $(seq 1 120); do curl -sf localhost:3000/api/health >/dev/null && break; sleep 1; done
+          node --env-file=.env scripts/e2e-multiorg.mjs
+      - name: logs de la app
+        if: ${{ failure() }}
+        run: tail -n 200 app1.log app2.log || true
