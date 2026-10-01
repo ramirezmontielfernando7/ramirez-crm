@@ -53,7 +53,7 @@ Spec: [specs/028-plataforma](../specs/028-plataforma/spec.md) · migración
 |---|---|---|
 | `Strict-Transport-Security` | `max-age=86400` (1 día, sin subdominios) | sí; se sube en un PR posterior |
 | `X-Frame-Options` | `DENY` | sí |
-| `Content-Security-Policy` | `frame-ancestors 'none'` | sí |
+| `Content-Security-Policy` | `frame-ancestors 'none'` | sí, salvo en adjuntos y favicon (mandan su propia CSP `sandbox`) |
 | `Content-Security-Policy-Report-Only` | política completa (ver `src/lib/security/headers.ts`) | **solo reporta** |
 | `X-Content-Type-Options` | `nosniff` | sí |
 | `Referrer-Policy` | `strict-origin-when-cross-origin` | sí |
@@ -102,6 +102,8 @@ semana sin reportes, se vuelve obligatoria en un PR chico.
 > Vocero con `docker ps --format '{{.Names}}  {{.Image}}'` (el de la app, no
 > el de Postgres) y dime cuál elegiste. Luego corre, SIN `--apply`:
 > `docker exec <contenedor> node ops/platform-admin.mjs add --email <MI CORREO>`
+> (usa `DATABASE_URL_SYSTEM` y `PLATFORM_ORG_ID` del propio contenedor; no
+> las muestres)
 > y muéstrame la salida completa, paso por paso. Detente ahí y pregúntame si
 > continúo. Solo si respondo «sí», corre el mismo comando agregando
 > `--apply` y muéstrame la salida. No corras ningún otro comando que escriba,
