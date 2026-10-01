@@ -42,10 +42,10 @@ tres roles, dos pools y cada consulta marcada con su organización.
 - `set_config(..., true)` es **local a la transacción**: al confirmar o
   revertir, la conexión vuelve limpia al pool. Funciona con el pool de
   postgres-js tal cual, sin PgBouncer.
-- **Sin organización en el contexto**, el pool de la app hoy responde igual y
-  deja un aviso en el log (una vez por consulta distinta). En el PR 4, RLS le
-  devolverá cero filas. Con `DB_TENANT_STRICT=true` (E2E y CI) lanza, para
-  que ningún camino quede sin migrar.
+- **Sin organización en el contexto**, el pool de la app recibe **cero
+  filas** (RLS, [rls.md](rls.md)) y deja un aviso en el log (una vez por
+  consulta distinta). Con `DB_TENANT_STRICT=true` (E2E y CI) lanza, para que
+  ningún camino quede sin migrar.
 - **`getSystemDb()`**: el pool de `vocero_system`. Cada archivo que lo usa
   está en `tests/unit/system-db-guard.test.ts` con su motivo.
 
