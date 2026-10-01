@@ -18,6 +18,18 @@ const envSchema = z.object({
       message:
         "ENCRYPTION_KEY debe ser 32 bytes en base64 (genera con: openssl rand -base64 32)",
     }),
+  // Fase 3, PR 1: llave versionada (src/lib/crypto). ENCRYPTION_KEY es la
+  // ACTUAL y ENCRYPTION_KEY_VERSION su número (default 1). Solo durante una
+  // rotación: la anterior en ENCRYPTION_KEY_OLD + ENCRYPTION_KEY_OLD_VERSION;
+  // el arranque re-cifra todo con la actual (docs/credenciales.md).
+  ENCRYPTION_KEY_VERSION: z.coerce.number().int().min(1).max(32767).default(1),
+  ENCRYPTION_KEY_OLD: z
+    .string()
+    .refine((v) => Buffer.from(v, "base64").length === 32, {
+      message: "ENCRYPTION_KEY_OLD debe ser 32 bytes en base64 (la ENCRYPTION_KEY anterior, tal cual)",
+    })
+    .optional(),
+  ENCRYPTION_KEY_OLD_VERSION: z.coerce.number().int().min(1).max(32767).optional(),
   META_WEBHOOK_VERIFY_TOKEN: z.string().min(8),
   META_APP_SECRET: z.string().optional(),
   META_GRAPH_API_VERSION: z.string().default("v25.0"),
@@ -26,6 +38,11 @@ const envSchema = z.object({
   OPENROUTER_BASE_URL: z.string().url().default("https://openrouter.ai/api"),
   OPENROUTER_MODEL: z.string().optional(),
   OPENROUTER_JUDGE_MODEL: z.string().optional(),
+  // Fase 3, PR 1: tope mensual (mes calendario UTC) de IA por organización
+  // cuando la organización no tiene uno propio (tabla ai_quota). Vacías = sin
+  // tope. Turnos = llamadas al modelo; tokens = entrada + salida.
+  AI_DEFAULT_MONTHLY_TURNS: z.coerce.number().int().min(0).optional(),
+  AI_DEFAULT_MONTHLY_TOKENS: z.coerce.number().int().min(0).optional(),
   // 014/017: canales encendidos, separados por coma. WhatsApp siempre esta on.
   // Ej.: CHANNELS=whatsapp,instagram,messenger. Sin ella, la instancia es solo
   // WhatsApp y las superficies de los demas canales responden 404.
@@ -109,6 +126,15 @@ export function getEnv(): Env {
   }
   cached = parsed.data;
   return cached;
+}
+
+/**
+ * Solo pruebas: olvida el entorno memorizado para que el siguiente
+ * `getEnv()` vuelva a leer `process.env` (p. ej. al cambiar de llave).
+ */
+export function resetEnvCacheForTests(): void {
+  if (process.env.NODE_ENV === "production") return;
+  cached = null;
 }
 
 function stripEmpty(env: NodeJS.ProcessEnv): Record<string, string> {

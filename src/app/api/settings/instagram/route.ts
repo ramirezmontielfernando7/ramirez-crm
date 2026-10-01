@@ -25,6 +25,8 @@ export const GET = withAuth(async (session) => {
       username: creds.username,
       status: creds.status,
       tokenLast4: tokenLast4(creds.token),
+      // Fase 3: sin secreto, los eventos de Zernio se rechazan (401).
+      hasWebhookSecret: Boolean(creds.webhookSecret),
     },
   });
 }, { permission: "settings.manage" });
@@ -56,6 +58,24 @@ export const PUT = withAuth(async (session, req: Request) => {
     );
   }
 
+  // Fase 3: en modo Zernio el secreto del webhook es OBLIGATORIO (sin él, sus
+  // eventos se rechazan con 401). Si no se manda, vale el que ya estaba
+  // guardado para esa misma cuenta.
+  let webhookSecret: string | null = null;
+  if (data.source === "zernio") {
+    const previous = await getInstagramCredentialsByOrg(session.organizationId);
+    webhookSecret =
+      data.webhookSecret ??
+      (previous?.source === "zernio" && previous.accountRef === data.accountRef ? previous.webhookSecret : null);
+    if (!webhookSecret) {
+      return apiError(
+        422,
+        "webhook_secret_required",
+        "En modo Zernio hace falta el secreto del webhook (lo da Zernio al registrar el webhook): sin él, los mensajes se rechazan"
+      );
+    }
+  }
+
   const check = await verify(data);
   if (!check.ok) {
     return apiError(check.status, check.code, check.message);
@@ -68,7 +88,7 @@ export const PUT = withAuth(async (session, req: Request) => {
     accountRef: data.accountRef ?? null,
     username: check.username ?? data.username ?? null,
     token: data.token,
-    webhookSecret: data.webhookSecret ?? null,
+    webhookSecret,
   });
 
   return Response.json({ ok: true, username: check.username ?? null });

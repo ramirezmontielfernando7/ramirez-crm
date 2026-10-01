@@ -1,8 +1,12 @@
 import { eq } from "drizzle-orm";
-import { getDb, getSystemDb, schema } from "@/lib/db";
+import { getDb, schema } from "@/lib/db";
 import { scoped } from "@/lib/db/tenant";
 import { newId } from "@/lib/db/ids";
-import { decryptSecret, encryptSecret } from "@/lib/crypto";
+import {
+  getOrgCredentialsOrNull,
+  sealForStorage,
+  type MessengerCredentials,
+} from "@/server/credentials";
 
 /**
  * 017 — Credenciales del canal de Messenger.
@@ -13,75 +17,18 @@ import { decryptSecret, encryptSecret } from "@/lib/crypto";
  * sale en una respuesta de la API — hacia fuera se expone su cola.
  */
 
-export type MessengerCredentials = {
-  id: string;
-  organizationId: string;
-  source: "zernio" | "meta";
-  /** ID de la página de Facebook. En modo Zernio puede no conocerse. */
-  pageId: string | null;
-  pageName: string | null;
-  /** Zernio: accountId de la cuenta conectada. Meta directo: null. */
-  accountRef: string | null;
-  webhookSecret: string | null;
-  status: "connected" | "reconnect_required";
-  token: string;
-};
+export type { MessengerCredentials };
 
-type Row = typeof schema.messengerCredentials.$inferSelect;
-
-function toCredentials(row: Row): MessengerCredentials {
-  return {
-    id: row.id,
-    organizationId: row.organizationId,
-    source: row.source,
-    pageId: row.pageId,
-    pageName: row.pageName,
-    accountRef: row.accountRef,
-    webhookSecret: row.webhookSecret,
-    status: row.status,
-    token: decryptSecret({
-      cipher: row.tokenCipher,
-      iv: row.tokenIv,
-      tag: row.tokenTag,
-    }),
-  };
-}
-
+/**
+ * La conexión de la organización, o null. Leer y descifrar es de la puerta
+ * única (`src/server/credentials/`); el enrutamiento del webhook (perfil,
+ * página o cuenta de Zernio → organización) está en
+ * `src/server/credentials/resolve.ts`.
+ */
 export async function getMessengerCredentialsByOrg(
   organizationId: string
 ): Promise<MessengerCredentials | null> {
-  const rows = await getDb()
-    .select()
-    .from(schema.messengerCredentials)
-    .where(scoped(schema.messengerCredentials.organizationId, organizationId))
-    .limit(1);
-  return rows[0] ? toCredentials(rows[0]) : null;
-}
-
-/** Enrutado del webhook de Meta: `entry[].id` es el ID de la página. */
-export async function getMessengerCredentialsByPageId(
-  pageId: string
-): Promise<MessengerCredentials | null> {
-  // Enrutamiento: aún no se sabe de qué organización es. Pool de sistema.
-  const rows = await getSystemDb()
-    .select()
-    .from(schema.messengerCredentials)
-    .where(eq(schema.messengerCredentials.pageId, pageId))
-    .limit(1);
-  return rows[0] ? toCredentials(rows[0]) : null;
-}
-
-/** Enrutado del webhook de Zernio: el evento trae `account.id`, no la página. */
-export async function getMessengerCredentialsByAccountRef(
-  accountRef: string
-): Promise<MessengerCredentials | null> {
-  // Enrutamiento: aún no se sabe de qué organización es. Pool de sistema.
-  const rows = await getSystemDb()
-    .select()
-    .from(schema.messengerCredentials)
-    .where(eq(schema.messengerCredentials.accountRef, accountRef))
-    .limit(1);
-  return rows[0] ? toCredentials(rows[0]) : null;
+  return getOrgCredentialsOrNull(organizationId, "messenger");
 }
 
 export async function saveMessengerCredentials(input: {
@@ -94,8 +41,17 @@ export async function saveMessengerCredentials(input: {
   webhookSecret: string | null;
 }): Promise<void> {
   const db = getDb();
-  const enc = encryptSecret(input.token);
-  const existing = await getMessengerCredentialsByOrg(input.organizationId);
+  const enc = sealForStorage(input.token);
+  // El secreto HMAC de Zernio también va cifrado (Fase 3, PR 1), con la
+  // MISMA versión de llave que el token: la fila tiene una sola.
+  const secret = input.webhookSecret ? sealForStorage(input.webhookSecret) : null;
+  // Solo el id: no hace falta descifrar para reemplazar (y con una llave
+  // perdida, volver a guardar es justo como se arregla).
+  const [existing] = await db
+    .select({ id: schema.messengerCredentials.id })
+    .from(schema.messengerCredentials)
+    .where(scoped(schema.messengerCredentials.organizationId, input.organizationId))
+    .limit(1);
 
   const values = {
     organizationId: input.organizationId,
@@ -106,7 +62,11 @@ export async function saveMessengerCredentials(input: {
     tokenCipher: enc.cipher,
     tokenIv: enc.iv,
     tokenTag: enc.tag,
-    webhookSecret: input.webhookSecret,
+    keyVersion: enc.keyVersion,
+    webhookSecret: null,
+    webhookSecretCipher: secret?.cipher ?? null,
+    webhookSecretIv: secret?.iv ?? null,
+    webhookSecretTag: secret?.tag ?? null,
     status: "connected" as const,
     updatedAt: new Date(),
   };

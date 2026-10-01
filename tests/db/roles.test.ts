@@ -9,6 +9,9 @@ import { getSql, getSystemSql } from "@/lib/db";
 
 const usaRoles = new URL(process.env.DATABASE_URL!).username === "vocero_app";
 
+/** Igual que SOLO_SISTEMA en scripts/migrate.mjs. */
+const SOLO_SISTEMA = ["webhook_unrouted"];
+
 describe("roles de base de datos (0026)", () => {
   it("vocero_app no es superusuario ni salta RLS; vocero_system sí salta RLS", async () => {
     const filas = await getSystemSql()<{ rolname: string; rolsuper: boolean; rolbypassrls: boolean; rolcreaterole: boolean; rolcreatedb: boolean }[]>`
@@ -21,12 +24,13 @@ describe("roles de base de datos (0026)", () => {
     ]);
   });
 
-  it("los dos roles pueden leer y escribir todas las tablas de public", async () => {
+  it("los dos roles pueden leer y escribir todas las tablas de public (salvo las solo de sistema)", async () => {
     const [fila] = await getSystemSql()<{ faltan: string[] }[]>`
       select coalesce(array_agg(t.tablename::text || ' ' || r.rol), '{}') as faltan
       from pg_tables t
       cross join (values ('vocero_app'), ('vocero_system')) as r(rol)
       where t.schemaname = 'public'
+        and not (r.rol = 'vocero_app' and t.tablename = any(${SOLO_SISTEMA}))
         and not (
           has_table_privilege(r.rol, format('public.%I', t.tablename), 'select')
           and has_table_privilege(r.rol, format('public.%I', t.tablename), 'insert')
@@ -35,6 +39,17 @@ describe("roles de base de datos (0026)", () => {
         )
     `;
     expect(fila?.faltan).toEqual([]);
+  });
+
+  it("Fase 3: vocero_app no tiene NINGÚN permiso sobre las tablas solo de sistema", async () => {
+    const [fila] = await getSystemSql()<{ con: string[] }[]>`
+      select coalesce(array_agg(t.tablename::text), '{}') as con
+      from pg_tables t
+      where t.schemaname = 'public' and t.tablename = any(${SOLO_SISTEMA})
+        and (has_table_privilege('vocero_app', format('public.%I', t.tablename), 'select')
+          or has_table_privilege('vocero_app', format('public.%I', t.tablename), 'insert'))
+    `;
+    expect(fila?.con).toEqual([]);
   });
 
   it("ninguno de los dos puede hacer TRUNCATE ni es dueño de nada", async () => {

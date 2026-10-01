@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
-import { decryptSecret, encryptSecret } from "@/lib/crypto";
+import { getOrgCredentialsOrNull, sealForStorage, type CapiSettings } from "@/server/credentials";
 import { scoped } from "@/lib/db/tenant";
 
 /**
@@ -12,12 +12,7 @@ import { scoped } from "@/lib/db/tenant";
  * más que auditar.
  */
 
-export type CapiSettings = {
-  datasetId: string;
-  token: string;
-  qualifiedStageId: string | null;
-  status: "connected" | "error";
-};
+export type { CapiSettings };
 
 /** Lo que puede ver el cliente. El token NUNCA sale: solo sus últimos 4. */
 export type CapiSettingsView = {
@@ -27,27 +22,11 @@ export type CapiSettingsView = {
   qualifiedStageId: string | null;
 };
 
+/** La conexión de la organización, o null. Descifra la puerta única (`src/server/credentials/`). */
 export async function getCapiSettings(
   organizationId: string
 ): Promise<CapiSettings | null> {
-  const db = getDb();
-  const rows = await db
-    .select()
-    .from(schema.capiSettings)
-    .where(scoped(schema.capiSettings.organizationId, organizationId))
-    .limit(1);
-  const row = rows[0];
-  if (!row) return null;
-  return {
-    datasetId: row.datasetId,
-    token: decryptSecret({
-      cipher: row.tokenCipher,
-      iv: row.tokenIv,
-      tag: row.tokenTag,
-    }),
-    qualifiedStageId: row.qualifiedStageId,
-    status: row.status,
-  };
+  return getOrgCredentialsOrNull(organizationId, "capi");
 }
 
 export async function getCapiSettingsView(
@@ -70,7 +49,7 @@ export async function saveCapiSettings(input: {
   qualifiedStageId: string | null;
 }): Promise<void> {
   const db = getDb();
-  const enc = encryptSecret(input.token);
+  const enc = sealForStorage(input.token);
   await db
     .insert(schema.capiSettings)
     .values({
@@ -80,6 +59,7 @@ export async function saveCapiSettings(input: {
       tokenCipher: enc.cipher,
       tokenIv: enc.iv,
       tokenTag: enc.tag,
+      keyVersion: enc.keyVersion,
       qualifiedStageId: input.qualifiedStageId,
       status: "connected",
     })
@@ -90,6 +70,7 @@ export async function saveCapiSettings(input: {
         tokenCipher: enc.cipher,
         tokenIv: enc.iv,
         tokenTag: enc.tag,
+        keyVersion: enc.keyVersion,
         qualifiedStageId: input.qualifiedStageId,
         status: "connected",
         updatedAt: new Date(),

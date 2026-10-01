@@ -5,7 +5,8 @@ import { newId } from "@/lib/db/ids";
 import { normalizeMx } from "@/lib/meta/client";
 import { publish } from "@/server/events/bus";
 import { logActivitySafe } from "@/server/activity/log";
-import { getCredentialsByPhoneNumberId } from "@/server/whatsapp/credentials";
+import { resolveWhatsAppNumber } from "@/server/credentials/resolve";
+import { recordUnrouted } from "@/server/webhooks/unrouted";
 import { ensureAssetAvailable } from "@/server/whatsapp/media";
 import type { Channel } from "@/lib/channels";
 import type {
@@ -226,11 +227,12 @@ export async function processMessagesValue(value: WebhookValue): Promise<void> {
   const phoneNumberId = value.metadata?.phone_number_id;
   if (!phoneNumberId) return;
 
-  const credentials = await getCredentialsByPhoneNumberId(phoneNumberId);
+  const credentials = await resolveWhatsAppNumber(phoneNumberId);
   if (!credentials) {
     // Caso típico: webhook/override configurado ANTES de guardar la conexión
     // en el wizard — el evento llega pero no hay a qué organización enrutarlo.
-    log.warn("evento para un phone_number_id desconocido: guarda la conexión en Configuración → WhatsApp para recibir mensajes", { phoneNumberId });
+    // Fase 3: no se descarta; se guarda cifrado 7 días (sin contenido al log).
+    await recordUnrouted({ source: "whatsapp", routeKind: "phone_number_id", routeKey: phoneNumberId, field: "messages", payload: value });
     return;
   }
 
@@ -277,9 +279,9 @@ export async function processEchoesValue(value: WebhookValue): Promise<void> {
   const phoneNumberId = value.metadata?.phone_number_id;
   if (!phoneNumberId) return;
 
-  const credentials = await getCredentialsByPhoneNumberId(phoneNumberId);
+  const credentials = await resolveWhatsAppNumber(phoneNumberId);
   if (!credentials) {
-    log.warn("echo para un phone_number_id desconocido: descartado", { phoneNumberId });
+    await recordUnrouted({ source: "whatsapp", routeKind: "phone_number_id", routeKey: phoneNumberId, field: "smb_message_echoes", payload: value });
     return;
   }
 

@@ -1,6 +1,6 @@
 import { getDb, schema } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
-import { decryptSecret, encryptSecret } from "@/lib/crypto";
+import { getOrgCredentialsOrNull, sealForStorage, type ZoomCreds } from "@/server/credentials";
 import { scoped } from "@/lib/db/tenant";
 
 /**
@@ -11,34 +11,13 @@ import { scoped } from "@/lib/db/tenant";
  * del secreto.
  */
 
-export type ZoomCreds = {
-  accountId: string;
-  clientId: string;
-  clientSecret: string;
-  status: "connected" | "error";
-};
+export type { ZoomCreds };
 
+/** La conexión de la organización, o null. Descifra la puerta única (`src/server/credentials/`). */
 export async function getZoomCredentials(
   organizationId: string
 ): Promise<ZoomCreds | null> {
-  const db = getDb();
-  const rows = await db
-    .select()
-    .from(schema.zoomCredentials)
-    .where(scoped(schema.zoomCredentials.organizationId, organizationId))
-    .limit(1);
-  const row = rows[0];
-  if (!row) return null;
-  return {
-    accountId: row.accountId,
-    clientId: row.clientId,
-    clientSecret: decryptSecret({
-      cipher: row.secretCipher,
-      iv: row.secretIv,
-      tag: row.secretTag,
-    }),
-    status: row.status,
-  };
+  return getOrgCredentialsOrNull(organizationId, "zoom");
 }
 
 export async function saveZoomCredentials(input: {
@@ -48,13 +27,14 @@ export async function saveZoomCredentials(input: {
   clientSecret: string;
 }): Promise<void> {
   const db = getDb();
-  const enc = encryptSecret(input.clientSecret);
+  const enc = sealForStorage(input.clientSecret);
   const values = {
     accountId: input.accountId,
     clientId: input.clientId,
     secretCipher: enc.cipher,
     secretIv: enc.iv,
     secretTag: enc.tag,
+    keyVersion: enc.keyVersion,
     status: "connected" as const,
   };
   await db

@@ -690,6 +690,8 @@ export const conversation = pgTable(
         "ventana",
         "hostilidad",
         "manual_reply",
+        // Fase 3: la organización agotó su cuota mensual de IA.
+        "cuota",
       ],
     }),
     lastInboundAt: timestamp("last_inbound_at"),
@@ -771,6 +773,33 @@ export const message = pgTable(
   ]
 );
 
+
+/**
+ * PR 1 Fase 3 (H8) — De qué organización es cada WABA. `waba_id` es ÚNICO en
+ * la instancia: los eventos a nivel WABA (plantillas, `account_update`) se
+ * enrutan por aquí sin "la primera organización que lo tenga". Una WABA puede
+ * tener varios números; el esquema lo admite (cada número es una fila de
+ * `meta_credentials` que cuelga de su WABA), aunque hoy sea uno por
+ * organización.
+ */
+export const whatsappBusinessAccount = pgTable(
+  "whatsapp_business_account",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    wabaId: text("waba_id").notNull(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("whatsapp_business_account_waba_uq").on(t.wabaId),
+    // Destino de la FK compuesta de meta_credentials; empieza por la organización.
+    unique("whatsapp_business_account_org_waba_uq").on(t.organizationId, t.wabaId),
+  ]
+);
+
 /**
  * 008 — Adjuntos: archivo (imagen/video/audio/documento/sticker) copiado al
  * volumen local (`MEDIA_DIR`) o contenido estructurado (location/contacts) en
@@ -835,6 +864,11 @@ export const metaCredentials = pgTable(
     tokenCipher: text("token_cipher").notNull(),
     tokenIv: text("token_iv").notNull(),
     tokenTag: text("token_tag").notNull(),
+    /**
+     * PR 1 Fase 3 — con qué versión de ENCRYPTION_KEY está cifrado lo de esta
+     * fila (`src/server/credentials/`). La rotación la sube al arrancar.
+     */
+    keyVersion: integer("key_version").notNull().default(1),
     status: text("status", { enum: ["connected", "reconnect_required"] })
       .notNull()
       .default("connected"),
@@ -842,9 +876,18 @@ export const metaCredentials = pgTable(
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },
   (t) => [
+    // Un número por organización POR AHORA (decisión de la Fase 3). Para
+    // varios números basta con quitar este índice: la WABA ya es de UNA
+    // organización por `whatsapp_business_account`.
     uniqueIndex("meta_credentials_org_uq").on(t.organizationId),
     // El webhook enruta por phone_number_id: debe ser único en la instancia.
     uniqueIndex("meta_credentials_phone_uq").on(t.phoneNumberId),
+    // H8: la WABA declarada es de ESTA organización (y de ninguna otra).
+    foreignKey({
+      name: "meta_credentials_org_waba_fk",
+      columns: [t.organizationId, t.wabaId],
+      foreignColumns: [whatsappBusinessAccount.organizationId, whatsappBusinessAccount.wabaId],
+    }),
   ]
 );
 
@@ -872,8 +915,21 @@ export const instagramCredentials = pgTable(
     tokenCipher: text("token_cipher").notNull(),
     tokenIv: text("token_iv").notNull(),
     tokenTag: text("token_tag").notNull(),
-    /** Secreto HMAC de las entregas (Zernio); null en modo Meta. */
+    /**
+     * Secreto HMAC de las entregas (Zernio) EN CLARO: obsoleto desde la 0028.
+     * El arranque lo pasa a `webhook_secret_cipher` y lo deja en NULL
+     * (`src/server/credentials/maintenance.ts`). Nadie lo escribe ya.
+     */
     webhookSecret: text("webhook_secret"),
+    /** Secreto HMAC de las entregas (Zernio), cifrado; null en modo Meta. */
+    webhookSecretCipher: text("webhook_secret_cipher"),
+    webhookSecretIv: text("webhook_secret_iv"),
+    webhookSecretTag: text("webhook_secret_tag"),
+    /**
+     * PR 1 Fase 3 — con qué versión de ENCRYPTION_KEY está cifrado lo de esta
+     * fila (`src/server/credentials/`). La rotación la sube al arrancar.
+     */
+    keyVersion: integer("key_version").notNull().default(1),
     status: text("status", { enum: ["connected", "reconnect_required"] })
       .notNull()
       .default("connected"),
@@ -916,8 +972,21 @@ export const messengerCredentials = pgTable(
     tokenCipher: text("token_cipher").notNull(),
     tokenIv: text("token_iv").notNull(),
     tokenTag: text("token_tag").notNull(),
-    /** Secreto HMAC de las entregas (Zernio); null en modo Meta. */
+    /**
+     * Secreto HMAC de las entregas (Zernio) EN CLARO: obsoleto desde la 0028.
+     * El arranque lo pasa a `webhook_secret_cipher` y lo deja en NULL
+     * (`src/server/credentials/maintenance.ts`). Nadie lo escribe ya.
+     */
     webhookSecret: text("webhook_secret"),
+    /** Secreto HMAC de las entregas (Zernio), cifrado; null en modo Meta. */
+    webhookSecretCipher: text("webhook_secret_cipher"),
+    webhookSecretIv: text("webhook_secret_iv"),
+    webhookSecretTag: text("webhook_secret_tag"),
+    /**
+     * PR 1 Fase 3 — con qué versión de ENCRYPTION_KEY está cifrado lo de esta
+     * fila (`src/server/credentials/`). La rotación la sube al arrancar.
+     */
+    keyVersion: integer("key_version").notNull().default(1),
     status: text("status", { enum: ["connected", "reconnect_required"] })
       .notNull()
       .default("connected"),
@@ -1239,6 +1308,11 @@ export const zoomCredentials = pgTable(
     secretCipher: text("secret_cipher").notNull(),
     secretIv: text("secret_iv").notNull(),
     secretTag: text("secret_tag").notNull(),
+    /**
+     * PR 1 Fase 3 — con qué versión de ENCRYPTION_KEY está cifrado lo de esta
+     * fila (`src/server/credentials/`). La rotación la sube al arrancar.
+     */
+    keyVersion: integer("key_version").notNull().default(1),
     /** `error` SE ESCRIBE cuando el proveedor rechaza la autenticación. */
     status: text("status", { enum: ["connected", "error"] })
       .notNull()
@@ -1268,6 +1342,11 @@ export const googleCredentials = pgTable(
     refreshTokenCipher: text("refresh_token_cipher").notNull(),
     refreshTokenIv: text("refresh_token_iv").notNull(),
     refreshTokenTag: text("refresh_token_tag").notNull(),
+    /**
+     * PR 1 Fase 3 — con qué versión de ENCRYPTION_KEY está cifrado lo de esta
+     * fila (`src/server/credentials/`). La rotación la sube al arrancar.
+     */
+    keyVersion: integer("key_version").notNull().default(1),
     calendarId: text("calendar_id").notNull().default("primary"),
     status: text("status", { enum: ["connected", "error"] })
       .notNull()
@@ -1470,6 +1549,11 @@ export const capiSettings = pgTable(
     tokenCipher: text("token_cipher").notNull(),
     tokenIv: text("token_iv").notNull(),
     tokenTag: text("token_tag").notNull(),
+    /**
+     * PR 1 Fase 3 — con qué versión de ENCRYPTION_KEY está cifrado lo de esta
+     * fila (`src/server/credentials/`). La rotación la sube al arrancar.
+     */
+    keyVersion: integer("key_version").notNull().default(1),
     /**
      * Qué etapa significa "lead calificado" PARA ESTE NEGOCIO. Las etapas
      * sembradas de Vocero no incluyen ninguna con ese nombre y cada quien
@@ -1943,4 +2027,81 @@ export const botApiKey = pgTable(
     uniqueIndex("bot_api_key_hash_uq").on(t.keyHash),
     index("bot_api_key_org_idx").on(t.organizationId),
   ]
+);
+
+/**
+ * PR 1 Fase 3 — Eventos de webhook FIRMADOS por Meta que no se pudieron
+ * enrutar: número, WABA o página que ninguna organización tiene conectada.
+ * Antes se descartaban; ahora se guardan 7 días para diagnóstico.
+ *
+ * Tabla de PLATAFORMA (sin organización: justo no se sabe cuál es). La
+ * escribe y la limpia solo el pool de sistema (`src/server/webhooks/unrouted.ts`).
+ * El evento puede traer mensajes de clientes: va CIFRADO, nunca al log, y no
+ * hay pantalla que lo muestre. Sin reprocesamiento automático.
+ */
+export const webhookUnrouted = pgTable(
+  "webhook_unrouted",
+  {
+    id: text("id").primaryKey(),
+    receivedAt: timestamp("received_at").notNull().defaultNow(),
+    /** whatsapp | instagram | messenger */
+    source: text("source").notNull(),
+    /** Qué se buscó y no apareció: phone_number_id, waba_id, page_id… */
+    routeKind: text("route_kind").notNull(),
+    routeKey: text("route_key").notNull(),
+    /** Campo del webhook (messages, message_template_status_update…). */
+    field: text("field"),
+    /** Por qué no se enrutó (`unknown_route`; en el PR 2, `org_suspended`). */
+    reason: text("reason").notNull().default("unknown_route"),
+    /** SHA-256 del contenido: el mismo evento reintentado por Meta no se duplica. */
+    payloadHash: text("payload_hash").notNull(),
+    payloadCipher: text("payload_cipher").notNull(),
+    payloadIv: text("payload_iv").notNull(),
+    payloadTag: text("payload_tag").notNull(),
+    keyVersion: integer("key_version").notNull().default(1),
+  },
+  (t) => [
+    uniqueIndex("webhook_unrouted_hash_uq").on(t.payloadHash),
+    index("webhook_unrouted_received_idx").on(t.receivedAt),
+    index("webhook_unrouted_route_idx").on(t.routeKind, t.routeKey),
+  ]
+);
+
+/**
+ * PR 1 Fase 3 — Tope mensual de IA de UNA organización (la llave de
+ * OpenRouter es de la plataforma y la comparten todas). Sin fila, o con
+ * NULL, vale el default del entorno (`AI_DEFAULT_MONTHLY_TURNS` /
+ * `AI_DEFAULT_MONTHLY_TOKENS`); sin default, no hay tope.
+ */
+export const aiQuota = pgTable("ai_quota", {
+  organizationId: text("organization_id")
+    .primaryKey()
+    .references(() => organization.id, { onDelete: "cascade" }),
+  monthlyTurnLimit: integer("monthly_turn_limit"),
+  monthlyTokenLimit: integer("monthly_token_limit"),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+/**
+ * PR 1 Fase 3 — Consumo de IA por organización, mes (UTC) y tipo. Un turno
+ * es una llamada a `chatJson` (con sus reintentos internos). Se reserva el
+ * turno ANTES de llamar al modelo (atómico contra el tope) y se suman los
+ * tokens que el proveedor reporta al terminar.
+ */
+export const aiUsage = pgTable(
+  "ai_usage",
+  {
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    /** Primer día del mes en UTC, 'YYYY-MM-01'. */
+    period: text("period").notNull(),
+    /** agent | lab | judge | writing */
+    kind: text("kind").notNull(),
+    turns: integer("turns").notNull().default(0),
+    promptTokens: integer("prompt_tokens").notNull().default(0),
+    completionTokens: integer("completion_tokens").notNull().default(0),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.organizationId, t.period, t.kind] })]
 );

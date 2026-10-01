@@ -1,14 +1,11 @@
 import { IG_PREFIX } from "@/server/inbox/identity";
 import { ingestInboundMessage } from "@/server/inbox/ingest";
 import {
-  getInstagramCredentialsByAccountRef,
-  getInstagramCredentialsByIgUserId,
-} from "@/server/instagram/credentials";
-import {
-  parseZernioEvent,
-  zernioSentAtSeconds,
-  type ZernioEvent,
-} from "@/server/zernio";
+  resolveInstagramByAccountRef,
+  resolveInstagramByIgUserId,
+} from "@/server/credentials/resolve";
+import { recordUnrouted } from "@/server/webhooks/unrouted";
+import { zernioSentAtSeconds, type ZernioEvent } from "@/server/zernio";
 import { logger } from "@/lib/log";
 
 const log = logger("ig");
@@ -29,22 +26,6 @@ const log = logger("ig");
  */
 export { isValidZernioSignature } from "@/server/zernio";
 
-/**
- * Evento de Zernio. Devuelve el secreto esperado para poder validar la firma
- * ANTES de procesar: el enrutado por `account.id` necesita leer el cuerpo, así
- * que la validación ocurre en dos tiempos (resolver cuenta, luego firmar).
- */
-export async function resolveZernioSecret(
-  rawBody: string
-): Promise<{ secret: string | null; accountRef: string | null }> {
-  const parsed: ZernioEvent | null = parseZernioEvent(rawBody);
-  if (!parsed) return { secret: null, accountRef: null };
-  const accountRef = parsed.account?.id ?? null;
-  if (!accountRef) return { secret: null, accountRef: null };
-  const creds = await getInstagramCredentialsByAccountRef(accountRef);
-  return { secret: creds?.webhookSecret ?? null, accountRef };
-}
-
 export async function processZernioEvent(payload: unknown): Promise<void> {
   const evt = payload as ZernioEvent;
 
@@ -58,7 +39,7 @@ export async function processZernioEvent(payload: unknown): Promise<void> {
   const accountRef = evt.account?.id;
   if (!accountRef) return;
 
-  const creds = await getInstagramCredentialsByAccountRef(accountRef);
+  const creds = await resolveInstagramByAccountRef(accountRef);
   if (!creds) {
     log.warn("evento para una cuenta desconocida: guarda la conexión en Configuración → Instagram para recibir mensajes", { cuenta: accountRef });
     return;
@@ -137,9 +118,10 @@ export async function processMetaInstagramPayload(
     const igUserId = entry.id;
     if (!igUserId) continue;
 
-    const creds = await getInstagramCredentialsByIgUserId(igUserId);
+    const creds = await resolveInstagramByIgUserId(igUserId);
     if (!creds) {
-      log.warn("evento para un IG_ID desconocido: guarda la conexión en Configuración → Instagram para recibir mensajes", { igUserId });
+      // Firmado por Meta pero de un perfil que nadie conectó: se guarda 7 días.
+      await recordUnrouted({ source: "instagram", routeKind: "ig_user_id", routeKey: igUserId, field: "messaging", payload: entry });
       continue;
     }
     if (creds.source !== "meta") {

@@ -60,6 +60,11 @@ export function withAuth<Args extends unknown[]>(
       try {
         return await handler(session, ...args);
       } catch (err) {
+        // Fase 3: credenciales guardadas que no se pueden abrir (llave de
+        // cifrado faltante o equivocada). No es un 500 "misterioso": se dice
+        // qué pasa, sin ningún valor secreto.
+        const unreadable = credentialsUnreadable(err);
+        if (unreadable) return unreadable;
         // Sin el error crudo: con drizzle 0.45 su mensaje trae el SQL y los
         // parámetros (teléfonos, textos). El logger usa `describeError`.
         log.error("error no controlado", { err });
@@ -67,6 +72,24 @@ export function withAuth<Args extends unknown[]>(
       }
     });
   };
+}
+
+/**
+ * `CredentialUnavailableError` de `src/server/credentials` (por nombre, para
+ * no atar `lib` a `server`) → 503 con un mensaje que dice qué hacer.
+ */
+export function credentialsUnreadable(err: unknown): Response | null {
+  if (!(err instanceof Error) || err.name !== "CredentialUnavailableError") return null;
+  const code = (err as Error & { code?: string }).code;
+  const kind = (err as Error & { kind?: string }).kind ?? "la conexión";
+  if (code === "reconnect_required") return null;
+  log.error("credenciales que no se pueden leer", { tipo: kind, code });
+  return apiError(
+    503,
+    "credentials_unreadable",
+    `Las credenciales guardadas de ${kind} no se pueden leer con la llave de cifrado actual. ` +
+      "Avisa a quien administra la plataforma (ENCRYPTION_KEY / ENCRYPTION_KEY_OLD) o vuelve a guardar la conexión."
+  );
 }
 
 /** Parsea el body JSON con un esquema Zod; inválido → Response 422. */

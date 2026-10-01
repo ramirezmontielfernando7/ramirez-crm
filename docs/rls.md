@@ -41,6 +41,7 @@ pone CI en rojo, y una excepción con `organization_id` también.
 | `session` | better-auth; sin `organization_id`; solo el pool de sistema |
 | `account` | better-auth (credenciales de login); solo el pool de sistema |
 | `verification` | better-auth (tokens); solo el pool de sistema |
+| `webhook_unrouted` | Fase 3: eventos de Meta que no se pudieron enrutar (justo no se sabe su organización). Cifrada, 7 días; `vocero_app` no tiene permisos sobre ella ([credenciales.md](credenciales.md)) |
 
 ## Reversa (sin migración nueva)
 
@@ -62,7 +63,7 @@ De la más rápida a la más completa:
 ## Verlo en producción
 
 ```
-# Tablas con RLS forzado (esperado: 46)
+# Tablas con RLS forzado (esperado: 46; 49 desde la 0028)
 psql -U postgres -d <base> -Atc "select count(*) from pg_class c join pg_namespace n on n.oid = c.relnamespace where n.nspname = 'public' and c.relkind = 'r' and c.relforcerowsecurity"
 
 # Como la app, SIN organización: cero filas

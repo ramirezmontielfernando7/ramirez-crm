@@ -63,6 +63,82 @@ export async function testConnection(
   }
 }
 
+export type WabaCheck =
+  | { ok: true }
+  | {
+      ok: false;
+      code: "phone_not_in_waba" | "waba_not_accessible" | "missing_permission" | "invalid_token" | "meta_unavailable" | "meta_error";
+      message: string;
+    };
+
+type PhoneNumbersPage = {
+  data?: { id?: string }[];
+  paging?: { cursors?: { after?: string }; next?: string };
+};
+
+/** Más que suficiente: una WABA tiene unos pocos números. */
+const MAX_PAGES = 10;
+
+/**
+ * H25 — El número declarado pertenece a la WABA declarada. Sin esto, se podía
+ * guardar un número con la WABA de OTRO negocio, y los eventos de plantillas
+ * de esa WABA terminaban en la organización equivocada.
+ *
+ * `GET {WABA}/phone_numbers` (paginado) con el MISMO token: requiere el
+ * permiso whatsapp_business_management, que el token de un usuario del
+ * sistema para la Cloud API normalmente tiene. Solo se pide al GUARDAR: una
+ * conexión ya guardada no se vuelve a validar.
+ */
+export async function verifyPhoneInWaba(
+  wabaId: string,
+  phoneNumberId: string,
+  token: string
+): Promise<WabaCheck> {
+  let after: string | undefined;
+  try {
+    for (let page = 0; page < MAX_PAGES; page++) {
+      const query = `fields=id&limit=100${after ? `&after=${encodeURIComponent(after)}` : ""}`;
+      const res = await graphRequest<PhoneNumbersPage | null>(`${wabaId}/phone_numbers?${query}`, { token });
+      const ids = (Array.isArray(res?.data) ? res.data : []).map((n) => n?.id);
+      if (ids.includes(phoneNumberId)) return { ok: true };
+      after = res?.paging?.next ? res.paging.cursors?.after : undefined;
+      if (!after) break;
+    }
+    return {
+      ok: false,
+      code: "phone_not_in_waba",
+      message: `El Phone Number ID ${phoneNumberId} no pertenece a la WABA ${wabaId}. Revisa los dos en el Administrador de WhatsApp (WhatsApp Manager → Números de teléfono).`,
+    };
+  } catch (err) {
+    if (err instanceof MetaApiError) {
+      if (err.isAuthError) {
+        return { ok: false, code: "invalid_token", message: "El token no es válido o expiró." };
+      }
+      if (err.status === 0 || err.status >= 500) {
+        return { ok: false, code: "meta_unavailable", message: "Meta no está disponible en este momento; intenta de nuevo" };
+      }
+      if (err.code === 10 || err.code === 200) {
+        return {
+          ok: false,
+          code: "missing_permission",
+          message:
+            "El token no puede leer los números de esa WABA: necesita el permiso whatsapp_business_management (en el usuario del sistema, asígnale la WABA con control total y genera el token con ese permiso).",
+        };
+      }
+      if (err.code === 100) {
+        return {
+          ok: false,
+          code: "waba_not_accessible",
+          message: `La WABA ${wabaId} no existe o el token no tiene acceso a ella. Revisa el WhatsApp Business Account ID.`,
+        };
+      }
+      log.warn("no se pudo validar el número contra la WABA", { waba: wabaId, status: err.status, code: err.code });
+      return { ok: false, code: "meta_error", message: "Meta rechazó la validación del número contra la WABA; revisa los IDs" };
+    }
+    throw err;
+  }
+}
+
 /** Respuesta de `GET {WABA}/subscribed_apps`: una entrada por app suscrita. */
 type SubscribedApps = {
   data?: {

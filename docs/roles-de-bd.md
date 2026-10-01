@@ -77,6 +77,10 @@ corre en modo estricto); en producción lo registra y sigue.
 | Arranque: corridas huérfanas | sistema | todas |
 | Arranque: campañas por reanudar | sistema para listarlas; app para cada ejecutor | cada una la suya |
 | Arranque: `BOT_API_KEY` → `PLATFORM_ORG_ID` | sistema | la plataforma |
+| Arranque: rotación de `ENCRYPTION_KEY` y secretos en claro → cifrados (Fase 3) | sistema | todas |
+| `webhook_unrouted`: guardar y limpiar (Fase 3) | sistema (la app no tiene permisos) | ninguna |
+| Leer credenciales (`getOrgCredentials`) | app | la pedida; desde el trabajo de otra, lanza |
+| Cuota de IA (`ai_quota`, `ai_usage`) | app | la del turno |
 | `/api/health` | ambos (`select 1`) | ninguna |
 | Migraciones | dueño (`DATABASE_URL_MIGRATE`) | — |
 | Seed de demo (CLI), `bot-key.mjs`, E2E | sistema (`DATABASE_URL_SYSTEM`, o `DATABASE_URL`) | trabajo de plataforma |

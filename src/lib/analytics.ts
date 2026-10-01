@@ -277,4 +277,6 @@ export const HANDOFF_LABEL: Record<string, string> = {
   ventana: "Ventana de 24 h cerrada",
   hostilidad: "El cliente se puso agresivo",
   manual_reply: "Respondiste desde el teléfono",
+  // Fase 3: la organización agotó su cuota mensual de IA.
+  cuota: "Se agotó la cuota mensual de IA",
 };

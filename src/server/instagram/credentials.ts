@@ -1,8 +1,12 @@
 import { eq } from "drizzle-orm";
-import { getDb, getSystemDb, schema } from "@/lib/db";
+import { getDb, schema } from "@/lib/db";
 import { scoped } from "@/lib/db/tenant";
 import { newId } from "@/lib/db/ids";
-import { decryptSecret, encryptSecret } from "@/lib/crypto";
+import {
+  getOrgCredentialsOrNull,
+  sealForStorage,
+  type InstagramCredentials,
+} from "@/server/credentials";
 
 /**
  * 014 — Credenciales del canal de Instagram.
@@ -12,73 +16,18 @@ import { decryptSecret, encryptSecret } from "@/lib/crypto";
  * API — hacia fuera se expone únicamente su cola.
  */
 
-export type InstagramCredentials = {
-  id: string;
-  organizationId: string;
-  source: "zernio" | "meta";
-  igUserId: string;
-  accountRef: string | null;
-  username: string | null;
-  webhookSecret: string | null;
-  status: "connected" | "reconnect_required";
-  token: string;
-};
+export type { InstagramCredentials };
 
-type Row = typeof schema.instagramCredentials.$inferSelect;
-
-function toCredentials(row: Row): InstagramCredentials {
-  return {
-    id: row.id,
-    organizationId: row.organizationId,
-    source: row.source,
-    igUserId: row.igUserId,
-    accountRef: row.accountRef,
-    username: row.username,
-    webhookSecret: row.webhookSecret,
-    status: row.status,
-    token: decryptSecret({
-      cipher: row.tokenCipher,
-      iv: row.tokenIv,
-      tag: row.tokenTag,
-    }),
-  };
-}
-
+/**
+ * La conexión de la organización, o null. Leer y descifrar es de la puerta
+ * única (`src/server/credentials/`); el enrutamiento del webhook (perfil,
+ * página o cuenta de Zernio → organización) está en
+ * `src/server/credentials/resolve.ts`.
+ */
 export async function getInstagramCredentialsByOrg(
   organizationId: string
 ): Promise<InstagramCredentials | null> {
-  const rows = await getDb()
-    .select()
-    .from(schema.instagramCredentials)
-    .where(scoped(schema.instagramCredentials.organizationId, organizationId))
-    .limit(1);
-  return rows[0] ? toCredentials(rows[0]) : null;
-}
-
-/** Enrutado del webhook de Meta: `entry[].id` es el IG_ID del perfil. */
-export async function getInstagramCredentialsByIgUserId(
-  igUserId: string
-): Promise<InstagramCredentials | null> {
-  // Enrutamiento: aún no se sabe de qué organización es. Pool de sistema.
-  const rows = await getSystemDb()
-    .select()
-    .from(schema.instagramCredentials)
-    .where(eq(schema.instagramCredentials.igUserId, igUserId))
-    .limit(1);
-  return rows[0] ? toCredentials(rows[0]) : null;
-}
-
-/** Enrutado del webhook de Zernio: el evento trae `account.id`, no el perfil. */
-export async function getInstagramCredentialsByAccountRef(
-  accountRef: string
-): Promise<InstagramCredentials | null> {
-  // Enrutamiento: aún no se sabe de qué organización es. Pool de sistema.
-  const rows = await getSystemDb()
-    .select()
-    .from(schema.instagramCredentials)
-    .where(eq(schema.instagramCredentials.accountRef, accountRef))
-    .limit(1);
-  return rows[0] ? toCredentials(rows[0]) : null;
+  return getOrgCredentialsOrNull(organizationId, "instagram");
 }
 
 export async function saveInstagramCredentials(input: {
@@ -91,8 +40,17 @@ export async function saveInstagramCredentials(input: {
   webhookSecret: string | null;
 }): Promise<void> {
   const db = getDb();
-  const enc = encryptSecret(input.token);
-  const existing = await getInstagramCredentialsByOrg(input.organizationId);
+  const enc = sealForStorage(input.token);
+  // El secreto HMAC de Zernio también va cifrado (Fase 3, PR 1), con la
+  // MISMA versión de llave que el token: la fila tiene una sola.
+  const secret = input.webhookSecret ? sealForStorage(input.webhookSecret) : null;
+  // Solo el id: no hace falta descifrar para reemplazar (y con una llave
+  // perdida, volver a guardar es justo como se arregla).
+  const [existing] = await db
+    .select({ id: schema.instagramCredentials.id })
+    .from(schema.instagramCredentials)
+    .where(scoped(schema.instagramCredentials.organizationId, input.organizationId))
+    .limit(1);
 
   const values = {
     organizationId: input.organizationId,
@@ -103,7 +61,11 @@ export async function saveInstagramCredentials(input: {
     tokenCipher: enc.cipher,
     tokenIv: enc.iv,
     tokenTag: enc.tag,
-    webhookSecret: input.webhookSecret,
+    keyVersion: enc.keyVersion,
+    webhookSecret: null,
+    webhookSecretCipher: secret?.cipher ?? null,
+    webhookSecretIv: secret?.iv ?? null,
+    webhookSecretTag: secret?.tag ?? null,
     status: "connected" as const,
     updatedAt: new Date(),
   };

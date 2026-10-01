@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { chatJson } from "@/lib/ai";
+import { chatJsonForOrg } from "@/server/ai-quota/llm";
 import { buildJudgePrompt } from "@/server/ai/prompts";
 import { logger } from "@/lib/log";
 
@@ -31,6 +31,8 @@ export type JudgeOutcome =
  * visible en el reporte y excluido del score. La corrida continúa.
  */
 export async function judgeCase(input: {
+  /** Fase 3: el juez gasta de la cuota de IA de esta organización. */
+  organizationId: string;
   personaKey: string;
   transcript: { role: "cliente" | "agente"; text: string }[];
   kbText: string;
@@ -42,7 +44,9 @@ export async function judgeCase(input: {
     kbText: input.kbText,
     behaviorText: input.behaviorText,
   });
-  const result = await chatJson(
+  const result = await chatJsonForOrg(
+    input.organizationId,
+    "judge",
     Verdict,
     [
       { role: "system", content: system },
