@@ -1,6 +1,6 @@
 import type { NextConfig } from "next";
 import { readFileSync } from "node:fs";
-import { securityHeaders } from "./src/lib/security/headers";
+import { ENFORCED_CSP, OWN_CSP_SOURCE, securityHeaders } from "./src/lib/security/headers";
 
 // La versión sale de package.json y no de una constante aparte: duplicarla es
 // tenerla desactualizada en uno de los dos lados, y justo esta no puede mentir.
@@ -22,7 +22,11 @@ const nextConfig: NextConfig = {
   // (`src/lib/version.ts`, #50): puede no ser el del código que corre.
   // Fase 3, PR 2 (H10): cabeceras de seguridad en TODA respuesta.
   async headers() {
-    return [{ source: "/:path*", headers: securityHeaders(process.env.NODE_ENV !== "production") }];
+    return [
+      { source: "/:path*", headers: securityHeaders(process.env.NODE_ENV !== "production") },
+      // Todo MENOS las rutas de adjuntos, que traen su propia CSP `sandbox`.
+      { source: OWN_CSP_SOURCE, headers: [ENFORCED_CSP] },
+    ];
   },
   env: {
     NEXT_PUBLIC_APP_VERSION: version,

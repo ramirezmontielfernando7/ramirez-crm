@@ -38,9 +38,29 @@ export function securityHeaders(dev: boolean): { key: string; value: string }[] 
     { key: "X-Content-Type-Options", value: "nosniff" },
     { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
     { key: "X-Frame-Options", value: "DENY" },
-    // Lo único que se aplica ya de la CSP: nadie nos mete en un iframe.
-    { key: "Content-Security-Policy", value: "frame-ancestors 'none'" },
     { key: "Content-Security-Policy-Report-Only", value: cspReportOnly(dev) },
     { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), payment=(), usb=()" },
   ];
 }
+
+/**
+ * Lo único que se APLICA ya de la CSP: nadie nos mete en un iframe. NO va en
+ * las rutas que sirven adjuntos: ellas mandan su propia CSP `sandbox` (H9) y
+ * una cabecera de next.config la pisaría (el adjunto HTML volvería a poder
+ * ejecutarse). Esas rutas siguen con `X-Frame-Options: DENY`.
+ */
+export const ENFORCED_CSP = { key: "Content-Security-Policy", value: "frame-ancestors 'none'" };
+
+/**
+ * Rutas que mandan su propia CSP: los adjuntos (`sandbox`, src/lib/
+ * attachment-headers.ts) y el favicon SVG de la marca. Si agregas otra, súmala
+ * aquí (tests/unit/security-headers.test.ts lo vigila).
+ */
+export const OWN_CSP_PATHS = [
+  "api/media/",
+  "api/team-chat/attachments/",
+  "api/knowledge/[^/]+/file",
+  "api/branding/favicon",
+] as const;
+
+export const OWN_CSP_SOURCE = `/:path((?!${OWN_CSP_PATHS.join("|")}).*)`;
