@@ -31,17 +31,17 @@ const PERMITIDOS: Record<string, { usos: number; motivo: string }> = {
     usos: 2,
     motivo: "la llave decide la organización de /api/bot/*; y ligar BOT_API_KEY a PLATFORM_ORG_ID al arrancar",
   },
-  "src/server/whatsapp/credentials.ts": {
-    usos: 2,
-    motivo: "enrutamiento del webhook: phone_number_id / WABA → organización",
+  "src/server/credentials/resolve.ts": {
+    usos: 1,
+    motivo: "enrutamiento de webhooks: número / WABA / perfil / página / cuenta de Zernio → organización (sin descifrar tokens)",
   },
-  "src/server/instagram/credentials.ts": {
-    usos: 2,
-    motivo: "enrutamiento del webhook: IG_ID / cuenta de Zernio → organización",
+  "src/server/credentials/maintenance.ts": {
+    usos: 1,
+    motivo: "arranque: rotación de la llave de cifrado y secretos en claro → cifrados, en TODAS las organizaciones",
   },
-  "src/server/messenger/credentials.ts": {
-    usos: 2,
-    motivo: "enrutamiento del webhook: página / cuenta de Zernio → organización",
+  "src/server/webhooks/unrouted.ts": {
+    usos: 1,
+    motivo: "eventos de webhook sin organización (tabla de plataforma webhook_unrouted) y su limpieza de 7 días",
   },
   "src/instrumentation-node.ts": {
     usos: 1,

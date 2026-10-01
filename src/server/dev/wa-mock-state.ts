@@ -68,6 +68,13 @@ type WaMockState = {
   capiEvents: CapiMockEvent[];
   /** Por WABA ID. Sin entrada = la app no está suscrita a esa WABA. */
   wabaSubscriptions: Record<string, MockWabaSubscription>;
+  /**
+   * H25 — Qué números validó cada token (`GET {phone}?fields=…`). El mock no
+   * conoce el árbol real de WABAs: un token "posee" en cualquier WABA los
+   * números con que se probó, salvo en las WABA que empiezan por
+   * `WABA-AJENA`, que no tienen ninguno de ellos.
+   */
+  phonesByToken: Record<string, string[]>;
   counter: number;
 };
 
@@ -79,6 +86,7 @@ function freshState(): WaMockState {
     templates: [],
     capiEvents: [],
     wabaSubscriptions: {},
+    phonesByToken: {},
     counter: 0,
   };
 }

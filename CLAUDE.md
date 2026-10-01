@@ -36,6 +36,9 @@ externas: el trabajo en segundo plano (agente, Laboratorio) es in-process.
 | Las acciones que puede tomar el agente | `src/server/ai/actions.ts` + ejecución en `src/server/ai/pipeline.ts` |
 | Las personas o el juez del Laboratorio | `src/server/lab/personas.ts` · `src/server/lab/judge.ts` |
 | El canal WhatsApp (Graph API) | `src/lib/meta/` (cliente único) + `src/server/whatsapp/` |
+| Leer o guardar credenciales de un negocio (tokens, secretos) | `src/server/credentials/` — ÚNICA puerta: `getOrgCredentials(org, tipo)` con errores tipados y `sealForStorage`; enrutamiento de webhooks (número/WABA/página → organización) en `resolve.ts`; rotación de `ENCRYPTION_KEY` al arrancar en `maintenance.ts` (nadie más importa `lib/crypto`: test de vigilancia) · guía: [docs/credenciales.md](docs/credenciales.md) · spec [027](specs/027-credenciales-webhooks/spec.md) |
+| Eventos de webhook sin organización | `src/server/webhooks/unrouted.ts` (tabla de plataforma `webhook_unrouted`, cifrada, 7 días) |
+| La cuota de IA por organización | `src/server/ai-quota/` (`chatJsonForOrg` es la ÚNICA forma de llamar al modelo: test de vigilancia) · topes en `ai_quota`, consumo en `ai_usage` · operador: `scripts/ai-quota.mjs` |
 | Los canales opcionales (Instagram, Messenger; ADR-001) | `src/lib/channels.ts` (catálogo) · `src/server/channels/` (capacidades y bandera `CHANNELS`) · `src/server/instagram/` · `src/server/messenger/` · `src/server/zernio/` (transporte y firma de la API unificada, compartido) |
 | Campos/tablas | `src/lib/db/schema.ts` → `pnpm db:generate` → migración nueva en `drizzle/` |
 | La ingesta/envío de mensajes | `src/server/inbox/` (ingest idempotente, send con guard de sandbox, ventana 24h) |
@@ -95,8 +98,11 @@ Ver [.specify/memory/constitution.md](.specify/memory/constitution.md).
   dependencia externa y degradación definida (su fallo jamás bloquea la
   operación core), credenciales del negocio cifradas, y CI que lo prueba
   apagado y encendido. Auth y BD self-hosted.
-- **Seguridad (I)**: secretos cifrados en reposo (AES-256-GCM, `lib/crypto`);
+- **Seguridad (I)**: secretos cifrados en reposo (AES-256-GCM, `lib/crypto`,
+  con `key_version` por fila: la llave se rota sin volver a pegar nada);
   jamás al cliente ni a logs. El token de WhatsApp solo muestra sus últimos 4.
+  Una tabla nueva con columnas `*_cipher` lleva `key_version` y entra en
+  `src/server/credentials/maintenance.ts`, o `credentials-gate.test.ts` falla.
 - **Multi-tenancy (III)**: `organization_id` NOT NULL en toda tabla de dominio;
   toda query pasa por `scoped()` de `src/lib/db/tenant.ts` — y, si responde a
   una persona con datos de clientes, por `scopedContacts()` (020).

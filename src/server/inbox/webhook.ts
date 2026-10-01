@@ -23,10 +23,9 @@ export function isValidWebhookToken(
 /**
  * Capa 2: firma HMAC-SHA256 de Meta sobre el body CRUDO.
  * Con META_APP_SECRET definido se EXIGE: sin header o con firma inválida →
- * false (la ruta responde 401). Sin secreto devuelve true: así lo siguen
- * usando Instagram y Messenger, donde la firma aún es opcional. WhatsApp NO
- * pasa por aquí directo: usa `checkWhatsAppSignature` (H7), que sin secreto
- * rechaza.
+ * false (la ruta responde 401). Sin secreto devuelve true: por eso NINGUNA
+ * ruta la usa directo; WhatsApp, Instagram y Messenger pasan por
+ * `checkMetaSignature` (H7 + Fase 3), que sin secreto rechaza.
  */
 export function isValidSignature(
   rawBody: string,
@@ -71,6 +70,12 @@ export function checkWhatsAppSignature(
     ? { ok: true }
     : { ok: false, reason: "bad_signature" };
 }
+
+/**
+ * Fase 3: la misma regla para TODO lo que firma Meta (WhatsApp, Instagram,
+ * Messenger): una sola app de Meta, un solo App Secret, firma obligatoria.
+ */
+export const checkMetaSignature = checkWhatsAppSignature;
 
 /** Aviso cuando se rechaza un evento por falta de META_APP_SECRET. Sin valores. */
 export const MISSING_SECRET_REJECT_WARNING =

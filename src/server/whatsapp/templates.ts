@@ -13,9 +13,10 @@ import { scoped } from "@/lib/db/tenant";
 import { publish } from "@/server/events/bus";
 import {
   getCredentialsByOrg,
-  getCredentialsByWabaId,
   markReconnectRequired,
 } from "@/server/whatsapp/credentials";
+import { resolveWaba } from "@/server/credentials/resolve";
+import { recordUnrouted } from "@/server/webhooks/unrouted";
 import { callGraphSend, SendError } from "@/server/inbox/send";
 import { serializeMessage } from "@/server/inbox/ingest";
 import type { WebhookValue } from "@/server/inbox/webhook";
@@ -246,8 +247,12 @@ export async function applyTemplateStatusEvent(
   value: WebhookValue
 ): Promise<void> {
   if (!wabaId) return;
-  const creds = await getCredentialsByWabaId(wabaId);
-  if (!creds) return;
+  // H8: `waba_id` es único (whatsapp_business_account): una sola organización.
+  const creds = await resolveWaba(wabaId);
+  if (!creds) {
+    await recordUnrouted({ source: "whatsapp", routeKind: "waba_id", routeKey: wabaId, field: "message_template_status_update", payload: value });
+    return;
+  }
 
   const status = mapMetaStatus(value.event);
   const name = value.message_template_name;

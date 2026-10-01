@@ -441,7 +441,8 @@ Dos formas de traer los mensajes; se elige en **Configuración → Messenger**.
    copia el `accountId` de esa cuenta. Crea una API key (Settings → API Keys;
    se muestra una sola vez).
 2. En Vocero, **Configuración → Messenger**: elige *Zernio*, pega el
-   `accountId`, la API key y —recomendado— un secreto de webhook. Pulsa
+   `accountId`, la API key y el secreto del webhook (obligatorio: sin él,
+   los eventos de Zernio se rechazan con 401). Pulsa
    *Probar y guardar*: la llave se valida contra Zernio antes de guardarse
    cifrada, y la pantalla te enseña la URL de callback.
 3. En Zernio, da de alta ese endpoint con el evento `message.received` y el

@@ -1,8 +1,7 @@
 import type { Channel } from "@/lib/channels";
 import { isChannelEnabled } from "@/server/channels/enabled";
-import { getInstagramCredentialsByAccountRef } from "@/server/instagram/credentials";
 import { processZernioEvent } from "@/server/instagram/ingest";
-import { getMessengerCredentialsByAccountRef } from "@/server/messenger/credentials";
+import { getZernioWebhookSecret } from "@/server/credentials/resolve";
 import { processZernioMessengerEvent } from "@/server/messenger/ingest";
 import { parseZernioEvent, type ZernioEvent } from "@/server/zernio";
 import { logger } from "@/lib/log";
@@ -46,14 +45,22 @@ export async function resolveZernioSecret(
   const channel = zernioTargetChannel(evt);
   if (!accountRef) return { secret: null, accountRef: null, channel };
 
-  const creds =
-    channel === "messenger"
-      ? await getMessengerCredentialsByAccountRef(accountRef)
-      : channel === "instagram"
-        ? await getInstagramCredentialsByAccountRef(accountRef)
-        : null;
+  if (channel !== "messenger" && channel !== "instagram") return { secret: null, accountRef, channel };
 
-  return { secret: creds?.webhookSecret ?? null, accountRef, channel };
+  // Fase 3: cuenta desconocida, sin secreto guardado o secreto ilegible →
+  // `secret: null`, y la ruta RECHAZA (401): sin secreto no hay firma que
+  // verificar, y aceptar sin firma deja inyectar DMs a quien sepa la URL.
+  const found = await getZernioWebhookSecret(channel, accountRef);
+  if (!found.ok) {
+    if (found.error !== "unknown_account") {
+      log.error("no se pudo abrir el secreto de webhook de Zernio", { cuenta: accountRef, code: found.error });
+    }
+    return { secret: null, accountRef, channel };
+  }
+  if (!found.secret) {
+    log.warn("cuenta de Zernio sin secreto de webhook: evento rechazado (401). Pega el secreto en Ajustes", { org: found.organizationId, canal: channel });
+  }
+  return { secret: found.secret, accountRef, channel };
 }
 
 /**

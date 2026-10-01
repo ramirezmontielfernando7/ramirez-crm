@@ -15,9 +15,19 @@ export type ChatMessage = {
   content: string;
 };
 
+/** Tokens que reportó el proveedor (`usage`), sumados entre reintentos. */
+export type LlmUsage = { promptTokens: number; completionTokens: number };
+
 export type ChatJsonResult<T> =
-  | { ok: true; data: T; raw: string }
-  | { ok: false; error: "not_configured" | "provider_error" | "invalid_output"; detail: string };
+  | { ok: true; data: T; raw: string; usage?: LlmUsage }
+  | {
+      ok: false;
+      // `quota_exceeded` lo produce `src/server/ai/llm.ts` (Fase 3) antes de
+      // llamar; aquí nunca.
+      error: "not_configured" | "provider_error" | "invalid_output" | "quota_exceeded";
+      detail: string;
+      usage?: LlmUsage;
+    };
 
 /**
  * PR 3 multitenant — Una llamada al LLM tarda segundos. Con una transacción
@@ -72,6 +82,7 @@ export async function chatJson<T>(
   }
 
   let lastDetail = "";
+  const usage: LlmUsage = { promptTokens: 0, completionTokens: 0 };
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     const attemptMessages: ChatMessage[] =
       attempt === 1
@@ -85,7 +96,10 @@ export async function chatJson<T>(
             },
           ];
     try {
-      const raw = await callProvider(model, attemptMessages, opts?.timeoutMs);
+      const reply = await callProvider(model, attemptMessages, opts?.timeoutMs);
+      usage.promptTokens += reply.usage.promptTokens;
+      usage.completionTokens += reply.usage.completionTokens;
+      const raw = reply.content;
       const extracted = extractJson(raw);
       if (extracted === null) {
         lastDetail = `sin JSON extraíble (raw=${truncate(raw)})`;
@@ -98,7 +112,7 @@ export async function chatJson<T>(
           .join("; ")} (raw=${truncate(raw)})`;
         continue;
       }
-      return { ok: true, data: parsed.data, raw };
+      return { ok: true, data: parsed.data, raw, usage };
     } catch (err) {
       lastDetail = err instanceof Error ? err.message : String(err);
       if (attempt < MAX_ATTEMPTS) {
@@ -113,6 +127,7 @@ export async function chatJson<T>(
       ? "invalid_output"
       : "provider_error",
     detail: lastDetail,
+    usage,
   };
 }
 
@@ -120,7 +135,7 @@ async function callProvider(
   model: string,
   messages: ChatMessage[],
   timeoutMs = 60_000
-): Promise<string> {
+): Promise<{ content: string; usage: LlmUsage }> {
   const env = getEnv();
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -141,12 +156,13 @@ async function callProvider(
     }
     const json = (await res.json()) as {
       choices?: { message?: { content?: string } }[];
+      usage?: { prompt_tokens?: unknown; completion_tokens?: unknown };
     };
     const content = json.choices?.[0]?.message?.content;
     if (typeof content !== "string" || content.length === 0) {
       throw new Error("respuesta del proveedor sin contenido");
     }
-    return content;
+    return { content, usage: { promptTokens: tokens(json.usage?.prompt_tokens), completionTokens: tokens(json.usage?.completion_tokens) } };
   } finally {
     clearTimeout(timer);
   }
@@ -175,6 +191,11 @@ export function extractJson(raw: string): unknown | null {
     }
   }
   return null;
+}
+
+/** Un conteo de tokens del proveedor, o 0 si no vino o vino raro. */
+function tokens(v: unknown): number {
+  return typeof v === "number" && Number.isFinite(v) && v > 0 ? Math.floor(v) : 0;
 }
 
 function truncate(s: string, n = 300): string {

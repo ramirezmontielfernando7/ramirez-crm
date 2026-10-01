@@ -49,6 +49,9 @@ const prefixes = {
   participantEvent: "cpe",
   // Fase 1 multitenant — llaves del cerebro externo
   botApiKey: "bak",
+  // PR 1 Fase 3
+  whatsappBusinessAccount: "waba",
+  webhookUnrouted: "whu",
 } as const;
 
 export type IdKind = keyof typeof prefixes;

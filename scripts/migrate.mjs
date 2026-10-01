@@ -23,6 +23,9 @@ if (!url) {
   process.exit(1);
 }
 
+/** Tablas de plataforma que solo usa `vocero_system` (sin permisos para `vocero_app`). */
+const SOLO_SISTEMA = ["webhook_unrouted"];
+
 /** Roles de la 0026 y la variable que trae la contraseña de cada uno. */
 const ROLES = [
   { role: "vocero_app", env: "VOCERO_APP_DB_PASSWORD" },
@@ -60,6 +63,15 @@ async function setupRoles(sql) {
     await sql.unsafe(`grant usage on schema public to ${lista}`);
     await sql.unsafe(`grant select, insert, update, delete on all tables in schema public to ${lista}`);
     await sql.unsafe(`grant usage, select on all sequences in schema public to ${lista}`);
+  }
+  // Fase 3: tablas de PLATAFORMA que la app atendiendo a una organización no
+  // debe tocar ni leer (solo `vocero_system`). Va después del GRANT general,
+  // que las incluía.
+  if (existentes.has("vocero_app")) {
+    for (const tabla of SOLO_SISTEMA) {
+      const [hay] = await sql`select to_regclass(${"public." + tabla}) is not null as ok`;
+      if (hay?.ok) await sql.unsafe(`revoke all on table public.${tabla} from vocero_app`);
+    }
   }
   for (const { role, env } of ROLES) {
     const password = process.env[env];

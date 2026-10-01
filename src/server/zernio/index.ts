@@ -31,16 +31,18 @@ export function zernioSignatureFrom(headers: Headers): string | null {
 
 /**
  * Firma de Zernio: HMAC-SHA256 en hex del cuerpo CRUDO, con el secreto de esa
- * cuenta. Sin secreto configurado la capa queda desactivada y protege solo el
- * segmento secreto de la URL — mismo trato que da el webhook de WhatsApp a
- * `META_APP_SECRET`.
+ * cuenta. Fase 3: sin secreto configurado se RECHAZA (antes la capa se
+ * apagaba y solo protegía el segmento secreto de la URL) — el mismo trato que
+ * da el webhook de WhatsApp a `META_APP_SECRET`.
  */
 export function isValidZernioSignature(
   rawBody: string,
   signature: string | null,
   secret: string | null
 ): boolean {
-  if (!secret) return true;
+  // Fase 3: sin secreto NO se acepta (antes sí). La cuenta tiene que tener
+  // su secreto guardado en Ajustes para que entren sus eventos.
+  if (!secret) return false;
   if (!signature) return false;
   const expected = createHmac("sha256", secret).update(rawBody).digest("hex");
   const a = Buffer.from(expected, "utf8");

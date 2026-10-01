@@ -4,7 +4,8 @@ import { newId } from "@/lib/db/ids";
 import { scoped } from "@/lib/db/tenant";
 import { moveLeadToStage as moveLeadThroughHistory } from "@/server/leads/stage-history";
 import { getEnv, isAiConfigured } from "@/lib/env";
-import { chatJson, type ChatMessage } from "@/lib/ai";
+import type { ChatMessage } from "@/lib/ai";
+import { chatJsonForOrg } from "@/server/ai-quota/llm";
 import { publish } from "@/server/events/bus";
 import { logActivity, logActivitySafe } from "@/server/activity/log";
 import { isWindowOpen } from "@/server/inbox/window";
@@ -213,9 +214,22 @@ export async function runAgentTurn(conversationId: string): Promise<void> {
       : []),
   ];
 
-  const result = await chatJson(agentActionSchema(agenda), messages);
+  // Fase 3: a nombre de la organización y contra su cuota mensual. El
+  // Laboratorio cuenta aparte ("lab") pero contra el mismo tope.
+  const result = await chatJsonForOrg(
+    organizationId,
+    conversation.isTest ? "lab" : "agent",
+    agentActionSchema(agenda),
+    messages
+  );
   if (!result.ok) {
     if (result.error === "not_configured") return;
+    if (result.error === "quota_exceeded") {
+      // Sin cuota el agente no puede contestar: pasa a una persona, con su
+      // motivo en la línea de tiempo. En el Laboratorio solo se calla.
+      if (!conversation.isTest) await applyHandoff(conversationId, organizationId, "cuota");
+      return;
+    }
     // Fallo persistente del proveedor o salida imposible → escalar (FR-022).
     // H27: sin la salida cruda del modelo (puede traer texto de la
     // conversación): el código y cuánto medía bastan para diagnosticar.
@@ -384,7 +398,7 @@ async function persistTestOutbound(
 export async function applyHandoff(
   conversationId: string,
   organizationId: string,
-  reason: "cliente" | "modelo" | "error" | "ventana"
+  reason: "cliente" | "modelo" | "error" | "ventana" | "cuota"
 ): Promise<void> {
   const db = getDb();
   const updated = await db

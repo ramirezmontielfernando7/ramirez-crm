@@ -13,10 +13,17 @@ export async function register(): Promise<void> {
     } = await import("./instrumentation-node");
     const { syncEnvBotKey } = await import("@/server/bot/keys");
     warnIfWebhookUnsigned();
+    // Fase 3: antes que nada que lea credenciales (rotación de la llave y
+    // secretos de Zernio en claro → cifrados). Nunca tumba el arranque.
+    const { credentialMaintenanceOnBoot } = await import("@/server/credentials/maintenance");
+    await credentialMaintenanceOnBoot();
     await checkMediaDir();
     await cleanupOrphanRuns();
     await resumeSendingCampaigns();
     // H2: la BOT_API_KEY de la variable queda ligada a PLATFORM_ORG_ID.
     await syncEnvBotKey();
+    // Fase 3: eventos sin organización, 7 días (al arrancar y cada hora).
+    const { startUnroutedPurge } = await import("@/server/webhooks/unrouted");
+    await startUnroutedPurge();
   }
 }

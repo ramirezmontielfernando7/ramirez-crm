@@ -1,6 +1,6 @@
 import { getDb, schema } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
-import { decryptSecret, encryptSecret } from "@/lib/crypto";
+import { getOrgCredentialsOrNull, sealForStorage, type GoogleCreds } from "@/server/credentials";
 import { scoped } from "@/lib/db/tenant";
 
 /**
@@ -10,40 +10,13 @@ import { scoped } from "@/lib/db/tenant";
  * una sola vez. Mismo mecanismo AES-256-GCM que el resto.
  */
 
-export type GoogleCreds = {
-  clientId: string;
-  clientSecret: string;
-  refreshToken: string;
-  calendarId: string;
-  status: "connected" | "error";
-};
+export type { GoogleCreds };
 
+/** La conexión de la organización, o null. Descifra la puerta única (`src/server/credentials/`). */
 export async function getGoogleCredentials(
   organizationId: string
 ): Promise<GoogleCreds | null> {
-  const db = getDb();
-  const rows = await db
-    .select()
-    .from(schema.googleCredentials)
-    .where(scoped(schema.googleCredentials.organizationId, organizationId))
-    .limit(1);
-  const row = rows[0];
-  if (!row) return null;
-  return {
-    clientId: row.clientId,
-    clientSecret: decryptSecret({
-      cipher: row.clientSecretCipher,
-      iv: row.clientSecretIv,
-      tag: row.clientSecretTag,
-    }),
-    refreshToken: decryptSecret({
-      cipher: row.refreshTokenCipher,
-      iv: row.refreshTokenIv,
-      tag: row.refreshTokenTag,
-    }),
-    calendarId: row.calendarId,
-    status: row.status,
-  };
+  return getOrgCredentialsOrNull(organizationId, "google");
 }
 
 export async function saveGoogleCredentials(input: {
@@ -54,8 +27,9 @@ export async function saveGoogleCredentials(input: {
   calendarId?: string | null;
 }): Promise<void> {
   const db = getDb();
-  const secret = encryptSecret(input.clientSecret);
-  const refresh = encryptSecret(input.refreshToken);
+  // Los dos con la MISMA versión de llave: la fila tiene una sola.
+  const secret = sealForStorage(input.clientSecret);
+  const refresh = sealForStorage(input.refreshToken);
   const values = {
     clientId: input.clientId,
     clientSecretCipher: secret.cipher,
@@ -64,6 +38,7 @@ export async function saveGoogleCredentials(input: {
     refreshTokenCipher: refresh.cipher,
     refreshTokenIv: refresh.iv,
     refreshTokenTag: refresh.tag,
+    keyVersion: secret.keyVersion,
     calendarId: input.calendarId?.trim() || "primary",
     status: "connected" as const,
   };

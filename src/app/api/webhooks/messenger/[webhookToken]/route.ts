@@ -1,6 +1,6 @@
 import { after } from "next/server";
-import { getEnv } from "@/lib/env";
-import { isValidSignature, isValidWebhookToken } from "@/server/inbox/webhook";
+import { getEnv, isMockEnabled } from "@/lib/env";
+import { checkMetaSignature, isValidWebhookToken } from "@/server/inbox/webhook";
 import { processMetaPagePayload } from "@/server/messenger/ingest";
 import {
   channelDisabledResponse,
@@ -70,13 +70,13 @@ export async function POST(req: Request, { params }: Params) {
     // la URL secreta puede inyectar mensajes falsos: el agente los contestaría
     // enviando un mensaje REAL desde la página al destinatario que el atacante
     // elija.
-    if (
-      !isValidSignature(
-        rawBody,
-        req.headers.get("x-hub-signature-256"),
-        env.META_APP_SECRET
-      )
-    ) {
+    // Fase 3: OBLIGATORIA, igual que en WhatsApp. Sin META_APP_SECRET se
+    // rechaza todo (antes la capa se apagaba); solo con los mocks fuera de
+    // producción se aceptan eventos sin firma.
+    const check = checkMetaSignature(rawBody, req.headers.get("x-hub-signature-256"), env.META_APP_SECRET, {
+      allowUnsignedDev: isMockEnabled(),
+    });
+    if (!check.ok) {
       return new Response(null, { status: 401 });
     }
   } else {

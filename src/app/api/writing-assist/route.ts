@@ -29,8 +29,11 @@ export const POST = withAuth(async (session, req: Request) => {
     return apiError(429, "rate_limited", "Demasiadas solicitudes; espera un minuto");
   }
 
-  const result = await rewriteDraft(parsed.data);
+  const result = await rewriteDraft(session.organizationId, parsed.data);
   if (!result.ok) {
+    if (result.error === "quota_exceeded") {
+      return apiError(429, "quota_exceeded", "Tu negocio agotó la cuota mensual de IA. Se renueva el día 1 del próximo mes.");
+    }
     return result.error === "not_configured"
       ? apiError(503, "not_configured", "La IA no está configurada en esta instancia")
       : apiError(502, result.error, "La IA no pudo procesar el texto. Intenta de nuevo.");

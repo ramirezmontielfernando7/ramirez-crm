@@ -31,6 +31,7 @@
     "test:e2e:chat": "node --env-file=.env scripts/e2e-chat-equipo.mjs",
     "test:e2e:participantes": "node --env-file=.env scripts/e2e-participantes-menciones.mjs",
     "test:e2e:multiorg": "node --env-file=.env scripts/e2e-multiorg.mjs",
+    "test:e2e:credenciales": "node --env-file=.env scripts/e2e-credenciales.mjs",
     "test:watch": "vitest",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",

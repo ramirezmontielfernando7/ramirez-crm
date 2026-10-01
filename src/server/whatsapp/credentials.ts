@@ -1,79 +1,58 @@
-import { eq } from "drizzle-orm";
-import { getDb, getSystemDb, schema } from "@/lib/db";
+import { and, notInArray } from "drizzle-orm";
+import { getDb, schema, withTenant } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
-import { decryptSecret, encryptSecret } from "@/lib/crypto";
 import { scoped } from "@/lib/db/tenant";
+import { isMockEnabled } from "@/lib/env";
+import {
+  getOrgCredentialsOrNull,
+  sealForStorage,
+  type WhatsAppCredentials,
+} from "@/server/credentials";
 
-export type Credentials = {
-  id: string;
-  organizationId: string;
-  wabaId: string;
-  phoneNumberId: string;
-  displayPhoneNumber: string | null;
-  verifiedName: string | null;
-  status: "connected" | "reconnect_required";
-  token: string;
-};
+/**
+ * Conexión de WhatsApp de una organización. Leer y descifrar es de la puerta
+ * única (`src/server/credentials/`); aquí quedan guardar y marcar estados.
+ * El enrutamiento del webhook (número/WABA → organización) está en
+ * `src/server/credentials/resolve.ts`.
+ */
 
-type Row = typeof schema.metaCredentials.$inferSelect;
+export type Credentials = WhatsAppCredentials;
 
-function toCredentials(row: Row): Credentials {
-  return {
-    id: row.id,
-    organizationId: row.organizationId,
-    wabaId: row.wabaId,
-    phoneNumberId: row.phoneNumberId,
-    displayPhoneNumber: row.displayPhoneNumber,
-    verifiedName: row.verifiedName,
-    status: row.status,
-    token: decryptSecret({
-      cipher: row.tokenCipher,
-      iv: row.tokenIv,
-      tag: row.tokenTag,
-    }),
-  };
-}
-
-/** Resuelve la conexión por phone_number_id (enrutamiento del webhook). */
-export async function getCredentialsByPhoneNumberId(
-  phoneNumberId: string
-): Promise<Credentials | null> {
-  // Enrutamiento: aún no se sabe de qué organización es. Pool de sistema.
-  const db = getSystemDb();
-  const rows = await db
-    .select()
-    .from(schema.metaCredentials)
-    .where(eq(schema.metaCredentials.phoneNumberId, phoneNumberId))
-    .limit(1);
-  return rows[0] ? toCredentials(rows[0]) : null;
-}
-
-/** Resuelve la conexión por WABA ID (eventos a nivel WABA, ej. plantillas). */
-export async function getCredentialsByWabaId(
-  wabaId: string
-): Promise<Credentials | null> {
-  // Enrutamiento: aún no se sabe de qué organización es. Pool de sistema.
-  const db = getSystemDb();
-  const rows = await db
-    .select()
-    .from(schema.metaCredentials)
-    .where(eq(schema.metaCredentials.wabaId, wabaId))
-    .limit(1);
-  return rows[0] ? toCredentials(rows[0]) : null;
-}
-
+/**
+ * La conexión de la organización, o null si no tiene. Lanza
+ * `CredentialUnavailableError` (tipada) si existe pero no se puede descifrar.
+ */
 export async function getCredentialsByOrg(
   organizationId: string
 ): Promise<Credentials | null> {
-  const db = getDb();
-  const rows = await db
-    .select()
-    .from(schema.metaCredentials)
-    .where(scoped(schema.metaCredentials.organizationId, organizationId))
-    .limit(1);
-  return rows[0] ? toCredentials(rows[0]) : null;
+  return getOrgCredentialsOrNull(organizationId, "whatsapp");
 }
 
+/**
+ * H8: los IDs de Meta (WABA y número) son solo dígitos. Con los mocks fuera
+ * de producción se acepta además un id simple (`WABA-E2E`, `PN-E2E`…), que
+ * es lo que usan los guiones E2E. La validación de fondo es la de Meta
+ * (`verifyPhoneInWaba`, H25).
+ */
+function isValidMetaId(value: string): boolean {
+  if (/^\d{5,25}$/.test(value)) return true;
+  return isMockEnabled() && /^[A-Za-z0-9_-]{1,64}$/.test(value);
+}
+
+export function isValidWabaId(wabaId: string): boolean {
+  return isValidMetaId(wabaId);
+}
+
+export function isValidPhoneNumberId(phoneNumberId: string): boolean {
+  return isValidMetaId(phoneNumberId);
+}
+
+/**
+ * Guarda (o reemplaza) la conexión. En UNA transacción: la WABA queda
+ * registrada como de esta organización (H8; si es de otra, el índice único lo
+ * impide) y el número cuelga de ella. Una WABA anterior que ya no use ningún
+ * número de la organización se suelta.
+ */
 export async function saveCredentials(input: {
   organizationId: string;
   wabaId: string;
@@ -82,36 +61,50 @@ export async function saveCredentials(input: {
   displayPhoneNumber?: string | null;
   verifiedName?: string | null;
 }): Promise<void> {
-  const db = getDb();
-  const enc = encryptSecret(input.token);
-  await db
-    .insert(schema.metaCredentials)
-    .values({
-      id: newId("credentials"),
-      organizationId: input.organizationId,
+  const sealed = sealForStorage(input.token);
+  await withTenant(input.organizationId, async (db) => {
+    await db
+      .insert(schema.whatsappBusinessAccount)
+      .values({
+        id: newId("whatsappBusinessAccount"),
+        organizationId: input.organizationId,
+        wabaId: input.wabaId,
+      })
+      .onConflictDoNothing({ target: [schema.whatsappBusinessAccount.wabaId] });
+
+    const cred = {
       wabaId: input.wabaId,
       phoneNumberId: input.phoneNumberId,
       displayPhoneNumber: input.displayPhoneNumber ?? null,
       verifiedName: input.verifiedName ?? null,
-      tokenCipher: enc.cipher,
-      tokenIv: enc.iv,
-      tokenTag: enc.tag,
-      status: "connected",
-    })
-    .onConflictDoUpdate({
-      target: [schema.metaCredentials.organizationId],
-      set: {
-        wabaId: input.wabaId,
-        phoneNumberId: input.phoneNumberId,
-        displayPhoneNumber: input.displayPhoneNumber ?? null,
-        verifiedName: input.verifiedName ?? null,
-        tokenCipher: enc.cipher,
-        tokenIv: enc.iv,
-        tokenTag: enc.tag,
-        status: "connected",
-        updatedAt: new Date(),
-      },
-    });
+      tokenCipher: sealed.cipher,
+      tokenIv: sealed.iv,
+      tokenTag: sealed.tag,
+      keyVersion: sealed.keyVersion,
+      status: "connected" as const,
+    };
+    await db
+      .insert(schema.metaCredentials)
+      .values({ id: newId("credentials"), organizationId: input.organizationId, ...cred })
+      .onConflictDoUpdate({
+        target: [schema.metaCredentials.organizationId],
+        set: { ...cred, updatedAt: new Date() },
+      });
+
+    // WABAs de la organización que ya no usa ningún número: se sueltan.
+    const enUso = db
+      .select({ wabaId: schema.metaCredentials.wabaId })
+      .from(schema.metaCredentials)
+      .where(scoped(schema.metaCredentials.organizationId, input.organizationId));
+    await db
+      .delete(schema.whatsappBusinessAccount)
+      .where(
+        and(
+          scoped(schema.whatsappBusinessAccount.organizationId, input.organizationId),
+          notInArray(schema.whatsappBusinessAccount.wabaId, enUso)
+        )
+      );
+  });
 }
 
 /** Marca la conexión como vencida (token inválido detectado en runtime). */

@@ -35,6 +35,7 @@ type Connection = {
   accountRef: string | null;
   status: "connected" | "reconnect_required";
   tokenLast4: string;
+  hasWebhookSecret?: boolean;
 };
 
 type WebhookInfo = WebhookSettingsDto;
@@ -46,7 +47,7 @@ const HELP: Record<Source, { title: string; items: string[] }> = {
       "La página se vincula en el panel de Zernio, no desde el CRM. Copia de ahí el accountId de la cuenta de Facebook conectada.",
       "La API key se crea en Zernio → Settings → API Keys y se muestra una sola vez (empieza con sk_).",
       "El mismo webhook de Zernio entrega Instagram, WhatsApp y X si esas cuentas están conectadas; el CRM filtra por plataforma y solo ingiere lo de Facebook aquí.",
-      "El secreto del webhook es opcional pero recomendado: con él se verifica la firma de cada entrega.",
+      "El secreto del webhook es obligatorio: con él se verifica la firma de cada entrega, y sin él los mensajes se rechazan.",
     ],
   },
   meta: {
@@ -141,9 +142,17 @@ export function MessengerClient() {
   if (!loaded) return <p className="text-sm text-muted-foreground">Cargando…</p>;
 
   const help = HELP[source];
+  // Fase 3: en Zernio el secreto es obligatorio; si ya hay uno guardado para
+  // esa cuenta, dejarlo vacío lo conserva.
+  const secretStored =
+    connection?.source === "zernio" &&
+    connection.accountRef === accountRef.trim() &&
+    connection.hasWebhookSecret === true;
   const canSave =
     token.trim().length > 0 &&
-    (source === "zernio" ? accountRef.trim().length > 0 : pageId.trim().length > 0);
+    (source === "zernio"
+      ? accountRef.trim().length > 0 && (webhookSecret.trim().length > 0 || secretStored)
+      : pageId.trim().length > 0);
 
   return (
     <div className="max-w-3xl space-y-6">
@@ -259,13 +268,13 @@ export function MessengerClient() {
             </div>
             {source === "zernio" && (
               <div className="space-y-1.5">
-                <Label htmlFor="fb-secret">Secreto del webhook (opcional)</Label>
+                <Label htmlFor="fb-secret">Secreto del webhook</Label>
                 <Input
                   id="fb-secret"
                   type="password"
                   value={webhookSecret}
                   onChange={(e) => setWebhookSecret(e.target.value)}
-                  placeholder="el mismo que pusiste en Zernio"
+                  placeholder={secretStored ? "guardado · déjalo vacío para conservarlo" : "el mismo que pusiste en Zernio"}
                   autoComplete="off"
                 />
               </div>
@@ -298,8 +307,8 @@ export function MessengerClient() {
               {source === "zernio" ? (
                 <>
                   En Zernio, da de alta este endpoint con el evento{" "}
-                  <code>message.received</code> y, si usas secreto, el mismo que
-                  pegaste arriba.
+                  <code>message.received</code> y el mismo secreto que pegaste
+                  arriba.
                 </>
               ) : (
                 <>

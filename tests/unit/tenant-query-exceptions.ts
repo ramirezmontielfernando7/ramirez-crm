@@ -13,20 +13,20 @@
  */
 export const TENANT_QUERY_EXCEPTIONS: Record<string, { max: number; motivo: string }> = {
   // --- Globales a propósito: aún no hay organización -------------------------
-  "server/whatsapp/credentials.ts": {
-    max: 2,
+  "server/credentials/resolve.ts": {
+    max: 10,
     motivo:
-      "Ruteo del webhook: phone_number_id (único) y waba_id → organización. Es la consulta que DESCUBRE la organización; H8 (waba_id único) es de la Fase 2.",
+      "Fase 3, PR 1 — Ruteo de webhooks: phone_number_id / waba_id (únicos), IG_ID, página y cuenta de Zernio → organización (DESCUBRE la organización, sin descifrar tokens); H25: ¿ese número o WABA ya son de OTRA organización? (excluye la propia por id).",
   },
   "server/instagram/credentials.ts": {
-    max: 3,
+    max: 1,
     motivo:
-      "Ruteo del webhook de Instagram por igUserId/accountRef (descubre la organización) y un update por el id de la fila recién leída de la propia organización.",
+      "Un update por el id de la fila recién leída (con scoped) de la propia organización.",
   },
   "server/messenger/credentials.ts": {
-    max: 3,
+    max: 1,
     motivo:
-      "Ruteo del webhook de Messenger por pageId/accountRef (descubre la organización) y un update por el id de la fila recién leída de la propia organización.",
+      "Un update por el id de la fila recién leída (con scoped) de la propia organización.",
   },
   "server/bot/keys.ts": {
     max: 5,

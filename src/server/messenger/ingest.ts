@@ -5,9 +5,14 @@ import { scoped } from "@/lib/db/tenant";
 import { FB_PREFIX } from "@/server/inbox/identity";
 import { ingestInboundMessage } from "@/server/inbox/ingest";
 import {
-  getMessengerCredentialsByAccountRef,
-  getMessengerCredentialsByPageId,
+  getMessengerCredentialsByOrg,
+  type MessengerCredentials,
 } from "@/server/messenger/credentials";
+import {
+  resolveMessengerByAccountRef,
+  resolveMessengerByPageId,
+} from "@/server/credentials/resolve";
+import { recordUnrouted } from "@/server/webhooks/unrouted";
 import { fetchMessengerProfileName } from "@/server/messenger/send";
 import { zernioSentAtSeconds, type ZernioEvent } from "@/server/zernio";
 import { logger } from "@/lib/log";
@@ -222,15 +227,21 @@ async function ingestAll(
   source: "zernio" | "meta"
 ): Promise<void> {
   for (const evt of events) {
-    const creds =
+    const route =
       source === "meta"
-        ? await getMessengerCredentialsByPageId(evt.routeKey)
-        : await getMessengerCredentialsByAccountRef(evt.routeKey);
+        ? await resolveMessengerByPageId(evt.routeKey)
+        : await resolveMessengerByAccountRef(evt.routeKey);
 
-    if (!creds) {
-      log.warn("evento para una cuenta desconocida: guarda la conexión en Configuración → Messenger para recibir mensajes", { cuenta: evt.routeKey });
+    if (!route) {
+      if (source === "meta") {
+        // Firmado por Meta pero de una página que nadie conectó: 7 días guardado.
+        await recordUnrouted({ source: "messenger", routeKind: "page_id", routeKey: evt.routeKey, field: "messaging", payload: evt });
+      } else {
+        log.warn("evento para una cuenta desconocida: guarda la conexión en Configuración → Messenger para recibir mensajes", { cuenta: evt.routeKey });
+      }
       continue;
     }
+    const creds = route;
     if (creds.source !== source) {
       // Defensa en profundidad: si esta instancia no habla con esa fuente, un
       // payload con su forma no puede ser legítimo aunque llegue por la URL
@@ -240,13 +251,18 @@ async function ingestAll(
     }
 
     // PR 3: lo que sigue ya es de esa organización.
-    await runWithOrganization(creds.organizationId, () => ingestOne(evt, creds));
+    await runWithOrganization(creds.organizationId, async () => {
+      // El token, ya a nombre de esa organización y por la puerta única.
+      const full = await getMessengerCredentialsByOrg(creds.organizationId);
+      if (!full) return;
+      await ingestOne(evt, full);
+    });
   }
 }
 
 async function ingestOne(
   evt: MessengerInbound,
-  creds: NonNullable<Awaited<ReturnType<typeof getMessengerCredentialsByPageId>>>
+  creds: MessengerCredentials
 ): Promise<void> {
   {
     const identity = `${FB_PREFIX}${evt.psid}`;

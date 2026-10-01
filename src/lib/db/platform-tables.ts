@@ -11,4 +11,6 @@ export const PLATFORM_TABLES: Readonly<Record<string, string>> = {
   account: "better-auth: credenciales de login de cada `user`",
   verification: "better-auth: tokens de verificación, sin negocio",
   organization: "la raíz del tenant: ella ES la organización",
+  webhook_unrouted:
+    "eventos de Meta que no se pudieron enrutar: justo no se sabe de qué organización son (solo pool de sistema, cifrados, 7 días)",
 };

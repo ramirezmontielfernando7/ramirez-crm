@@ -23,6 +23,7 @@ const EXCEPCIONES: Record<string, string> = {
   session: "better-auth; sin organization_id; solo la lee y escribe el pool de sistema",
   account: "better-auth (credenciales de login); sin organization_id; solo el pool de sistema",
   verification: "better-auth (tokens de verificación); sin organization_id; solo el pool de sistema",
+  webhook_unrouted: "Fase 3 PR 1: eventos de Meta sin organización conocida (justo no se pudo enrutar); solo el pool de sistema, cifrados, 7 días",
 };
 
 const POLITICA = "aislamiento_por_organizacion";

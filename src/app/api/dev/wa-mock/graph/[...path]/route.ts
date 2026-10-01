@@ -92,6 +92,26 @@ export async function GET(req: Request, ctx: Params) {
     });
   }
 
+  // H25 — GET {wabaId}/phone_numbers → los números de la WABA (paginado como
+  // Meta). Token que termina en `-noperm`: sin whatsapp_business_management.
+  if (path.length === 2 && path[1] === "phone_numbers") {
+    if (token.endsWith("-noperm")) {
+      return Response.json(
+        { error: { message: "(#200) Permissions error", type: "OAuthException", code: 200, fbtrace_id: "mock" } },
+        { status: 403 }
+      );
+    }
+    const own = path[0]!.startsWith("WABA-AJENA") ? [] : (getWaMockState().phonesByToken[token] ?? []);
+    const ids = [...own, "100000000000001", "100000000000002"];
+    // Una página de 1 para que la paginación del cliente se ejercite.
+    const after = new URL(req.url).searchParams.get("after");
+    const i = after ? Number(after) : 0;
+    return Response.json({
+      data: ids.slice(i, i + 1).map((id) => ({ id })),
+      ...(i + 1 < ids.length ? { paging: { cursors: { after: String(i + 1) }, next: "mock-next" } } : {}),
+    });
+  }
+
   // GET {wabaId}/subscribed_apps → la app suscrita y, si lo hay, su override
   // de callback. Misma forma que Meta; sin suscripción, `data` vacío.
   if (path.length === 2 && path[1] === "subscribed_apps") {
@@ -139,6 +159,8 @@ export async function GET(req: Request, ctx: Params) {
 
   // GET {phoneNumberId}?fields=... → validación del wizard
   if (path.length === 1) {
+    const seen = (getWaMockState().phonesByToken[token] ??= []);
+    if (!seen.includes(path[0]!)) seen.push(path[0]!);
     return Response.json({
       display_phone_number: "+52 55 0000 0000",
       verified_name: "Número de prueba Vocero",

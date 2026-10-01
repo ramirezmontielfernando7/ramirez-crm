@@ -268,8 +268,9 @@ describe("017 · firma de Zernio (control de seguridad compartido)", () => {
     expect(isValidZernioSignature(body, null, secret)).toBe(false);
   });
 
-  it("sin secreto configurado la capa queda desactivada, como en WhatsApp", () => {
-    expect(isValidZernioSignature(body, null, null)).toBe(true);
+  it("Fase 3: sin secreto configurado se RECHAZA (con o sin firma), como WhatsApp sin META_APP_SECRET", () => {
+    expect(isValidZernioSignature(body, null, null)).toBe(false);
+    expect(isValidZernioSignature(body, "deadbeef", null)).toBe(false);
   });
 
   it("distingue un payload de Meta de uno de Zernio", () => {
