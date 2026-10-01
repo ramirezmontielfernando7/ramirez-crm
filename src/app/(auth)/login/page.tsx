@@ -26,7 +26,10 @@ export default function LoginPage() {
       setError(
         err.status === 429
           ? "Demasiados intentos. Espera unos minutos."
-          : "Correo o contraseña incorrectos."
+          : // Fase 3: el negocio está suspendido (la contraseña era correcta).
+            err.code === "ORGANIZATION_SUSPENDED"
+            ? "Tu negocio está suspendido. Contacta a soporte de la plataforma."
+            : "Correo o contraseña incorrectos."
       );
       return;
     }

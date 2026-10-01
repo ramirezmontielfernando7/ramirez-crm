@@ -43,6 +43,14 @@ function isInternalSignup(): boolean {
 const RATE_LIMITED_PATHS = new Set(["/sign-in/email", "/sign-up/email"]);
 
 /**
+ * Fase 3, PR 2 — El restablecimiento de contraseña de better-auth (por
+ * correo) no existe en Vocero: no hay correo en el núcleo. El único
+ * restablecimiento es el enlace de un solo uso que genera el administrador
+ * de plataforma (`src/server/platform-admin/links.ts`).
+ */
+const DISABLED_PATHS = new Set(["/forget-password", "/request-password-reset", "/reset-password"]);
+
+/**
  * H3 — Las rutas del plugin de organización (`/api/auth/organization/*`)
  * están cerradas para TODOS, Propietario incluido. Vocero no usa ninguna: el
  * alta de la organización la hace `onUserCreated` directo en la BD, la
@@ -104,6 +112,9 @@ function createAuth() {
             message:
               "Esta operación no está disponible; usa Ajustes para administrar el negocio y el equipo",
           });
+        }
+        if (DISABLED_PATHS.has(ctx.path) || ctx.path.startsWith("/reset-password/")) {
+          throw new APIError("NOT_FOUND", { message: "No disponible" });
         }
         // Rate limit por IP en login/registro (FR-062): 10 / 10 min → 429.
         if (RATE_LIMITED_PATHS.has(ctx.path)) {

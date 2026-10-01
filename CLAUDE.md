@@ -38,6 +38,8 @@ externas: el trabajo en segundo plano (agente, Laboratorio) es in-process.
 | El canal WhatsApp (Graph API) | `src/lib/meta/` (cliente único) + `src/server/whatsapp/` |
 | Leer o guardar credenciales de un negocio (tokens, secretos) | `src/server/credentials/` — ÚNICA puerta: `getOrgCredentials(org, tipo)` con errores tipados y `sealForStorage`; enrutamiento de webhooks (número/WABA/página → organización) en `resolve.ts`; rotación de `ENCRYPTION_KEY` al arrancar en `maintenance.ts` (nadie más importa `lib/crypto`: test de vigilancia) · guía: [docs/credenciales.md](docs/credenciales.md) · spec [027](specs/027-credenciales-webhooks/spec.md) |
 | Eventos de webhook sin organización | `src/server/webhooks/unrouted.ts` (tabla de plataforma `webhook_unrouted`, cifrada, 7 días) |
+| El administrador de plataforma (organizaciones: alta, suspensión, borrado suave, enlaces de contraseña, bitácora) | `src/server/platform-admin/` (`org-status.ts` decide si una organización opera; `admins.ts` quién es administrador y la reautenticación; `organizations.ts`, `links.ts`, `audit.ts`) · rutas `/api/platform/*` con `withPlatformAdmin` (404 a todos los demás) · página `src/app/(app)/platform/` · enlaces públicos `/activar/[token]` y `/restablecer/[token]` · operador: `scripts/platform-admin.mjs`, `scripts/purge-organization.mjs` (en la imagen: `/app/ops/`) · guía: [docs/plataforma.md](docs/plataforma.md) · spec [028](specs/028-plataforma/spec.md) |
+| Cabeceras de seguridad (HSTS, CSP en reporte, frame-ancestors) | `src/lib/security/headers.ts` (aplicadas en `next.config.ts`) · reportes en `POST /api/csp-report` |
 | La cuota de IA por organización | `src/server/ai-quota/` (`chatJsonForOrg` es la ÚNICA forma de llamar al modelo: test de vigilancia) · topes en `ai_quota`, consumo en `ai_usage` · operador: `scripts/ai-quota.mjs` |
 | Los canales opcionales (Instagram, Messenger; ADR-001) | `src/lib/channels.ts` (catálogo) · `src/server/channels/` (capacidades y bandera `CHANNELS`) · `src/server/instagram/` · `src/server/messenger/` · `src/server/zernio/` (transporte y firma de la API unificada, compartido) |
 | Campos/tablas | `src/lib/db/schema.ts` → `pnpm db:generate` → migración nueva en `drizzle/` |
@@ -81,10 +83,17 @@ organización". `BOT_API_KEY` (env) se liga al arrancar solo a
 funciona igual.
 
 **Organización de la plataforma** (`PLATFORM_ORG_ID`, `src/server/platform.ts`):
-hasta el administrador de plataforma (Fase 3), solo ella ve los secretos de
-la plataforma (token del webhook). Sin la variable, nadie los ve: jamás hay
-respaldo a "la primera organización" (guardarraíl en
-`tests/unit/tenant-query-guard.test.ts`).
+solo ella ve los secretos de la plataforma (token del webhook) y solo sus
+miembros pueden ser administradores de plataforma (Fase 3, `platform_admin`).
+Sin la variable, nadie: jamás hay respaldo a "la primera organización"
+(guardarraíl en `tests/unit/tenant-query-guard.test.ts`).
+
+**Estado de la organización** (Fase 3): `active | suspended | deleted`. Todo
+camino que actúe a nombre de una organización (sesión, login, webhook, envío,
+plantillas, campañas, agente, cerebro externo) consulta
+`src/server/platform-admin/org-status.ts`. Un camino nuevo que envíe algo a
+Meta o gaste IA también. El administrador de plataforma NUNCA lee contenido
+de un negocio (conversaciones, mensajes, contactos, notas): solo metadatos.
 
 ## Reglas de la constitución (no negociables)
 

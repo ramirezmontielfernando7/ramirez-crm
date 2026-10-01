@@ -1,5 +1,6 @@
 import type { NextConfig } from "next";
 import { readFileSync } from "node:fs";
+import { securityHeaders } from "./src/lib/security/headers";
 
 // La versión sale de package.json y no de una constante aparte: duplicarla es
 // tenerla desactualizada en uno de los dos lados, y justo esta no puede mentir.
@@ -19,6 +20,10 @@ const nextConfig: NextConfig = {
   // `--build-arg`). Si no llega, esto queda vacío y el servidor cae al
   // `SOURCE_COMMIT` del entorno al arrancar, marcado como NO verificado
   // (`src/lib/version.ts`, #50): puede no ser el del código que corre.
+  // Fase 3, PR 2 (H10): cabeceras de seguridad en TODA respuesta.
+  async headers() {
+    return [{ source: "/:path*", headers: securityHeaders(process.env.NODE_ENV !== "production") }];
+  },
   env: {
     NEXT_PUBLIC_APP_VERSION: version,
     NEXT_PUBLIC_BUILD_COMMIT: process.env.SOURCE_COMMIT ?? "",
