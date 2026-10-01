@@ -17,7 +17,7 @@ export const dynamic = "force-dynamic";
  */
 
 export const GET = withAuth(async (session) => {
-  if (!agendaEnabled()) return agendaDisabledResponse();
+  if (!(await agendaEnabled(session.organizationId))) return agendaDisabledResponse();
   const creds = await getZoomCredentials(session.organizationId);
   if (!creds) return Response.json({ connection: null });
   return Response.json({
@@ -37,7 +37,7 @@ const credsSchema = z.object({
 
 /** Guarda validando ANTES contra Zoom: unas credenciales que no sirven no llegan a la base. */
 export const PUT = withAuth(async (session, req: Request) => {
-  if (!agendaEnabled()) return agendaDisabledResponse();
+  if (!(await agendaEnabled(session.organizationId))) return agendaDisabledResponse();
   const body = await parseBody(req, credsSchema);
   if (!body.ok) return body.response;
 
@@ -62,7 +62,7 @@ export const PUT = withAuth(async (session, req: Request) => {
 }, { permission: "settings.manage" });
 
 export const DELETE = withAuth(async (session) => {
-  if (!agendaEnabled()) return agendaDisabledResponse();
+  if (!(await agendaEnabled(session.organizationId))) return agendaDisabledResponse();
   await deleteZoomCredentials(session.organizationId);
   return Response.json({ ok: true });
 }, { permission: "settings.manage" });

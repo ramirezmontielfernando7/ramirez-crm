@@ -1,7 +1,10 @@
-# Administrador de plataforma y alta de organizaciones (Fase 3 multitenant · PR 2)
+# Administrador de plataforma y alta de organizaciones (Fase 3 multitenant · PR 2 y PR 3)
 
 Spec: [specs/028-plataforma](../specs/028-plataforma/spec.md) · migración
 `0029_plataforma.sql` · reversa `scripts/sql/0029-reversa.sql`.
+Módulos por organización (PR 3): [specs/029-modulos-por-organizacion](../specs/029-modulos-por-organizacion/spec.md)
+· migración `0030_modulos_por_organizacion.sql` · reversa
+`scripts/sql/0030-reversa.sql`.
 
 ## Qué es
 
@@ -69,6 +72,68 @@ Lo que una CSP estricta podría romper, y por qué empieza en modo reporte:
 Nada de Vocero usa iframes, cámara ni micrófono. Los reportes salen en el log
 como `[csp] la CSP bloquearía algo directiva=… bloqueado=<host>`. Tras una
 semana sin reportes, se vuelve obligatoria en un PR chico.
+
+## Módulos por organización (PR 3)
+
+Campañas, Agenda, Atribución, Instagram y Messenger se encienden **por
+organización** desde /platform (interruptores en cada organización, con
+bitácora). Las variables `CAMPAIGNS`, `AGENDA`, `ATRIBUCION`, `CHANNELS` y
+`CAMPAIGN_SEND_RATE` ya no encienden nada para toda la instancia: son el
+valor con el que nace una organización nueva.
+
+- **Al desplegar no cambia nada.** El arranque le pone a cada organización
+  sin fila lo que las variables tienen hoy, y nunca pisa una fila que ya
+  existe. Tu organización queda exactamente igual.
+- **Apagar un módulo** lo hace desaparecer para esa organización al instante:
+  pantallas y rutas en 404, fuera del menú. Lo que tenía guardado (citas,
+  campañas, conexiones) **no se borra**; al encenderlo vuelve a estar.
+  - Campañas: la que esté enviando se detiene.
+  - Atribución: deja de guardarse el `ctwa_clid` y de reportarse a Meta. El
+    origen del anuncio se sigue viendo.
+  - Instagram / Messenger: los mensajes que lleguen se ignoran con un aviso
+    en el log y no se envía nada por ese canal.
+- **Ritmo de campañas:** de 1 a 80 mensajes por segundo por organización.
+  Vacío: el de `CAMPAIGN_SEND_RATE` (o 10).
+- **`parent_id`** (organización madre) existe en la base pero nada lo usa
+  todavía.
+
+### Pasos de Coolify (PR 3)
+
+1. **Backup de la base.** Recurso de PostgreSQL → **Backups** → **Backup Now**.
+   - Debes ver: el backup nuevo en **Success**.
+   - Si falla, no sigas.
+2. **Fusiona y despliega** sin tocar variables.
+   - Debes ver en **Logs**: `[migrate]` aplica la 0030 sin errores y, al
+     arrancar, `[modules] módulos por organización: 1 organización(es) con los
+     valores del entorno`.
+   - Revertir: despliega el commit anterior (el código viejo vuelve a leer
+     las variables para toda la instancia; la tabla nueva no estorba).
+3. **Comprueba que nada cambió.** Entra como siempre.
+   - Debes ver en el menú lo mismo que antes (Campañas y Citas si las tenías)
+     y abrir esas pantallas sin error.
+4. **Mira tus módulos en /platform** (necesitas ser administrador de
+   plataforma: el script de la sección anterior).
+   - Debes ver en tu organización los interruptores encendidos igual que tus
+     variables de hoy.
+   - No hace falta tocarlos. Las variables puedes dejarlas como están.
+
+### Prompt para tu sesión SSH: ver los módulos (solo lectura)
+
+> Conéctate por SSH al servidor de Coolify. Busca el contenedor de Postgres
+> de Vocero con `docker ps --format '{{.Names}}  {{.Image}}'` y dime cuál
+> elegiste. Corre, en SOLO LECTURA:
+> `docker exec <contenedor> psql -U postgres -d <base> -c "select o.name, m.campaigns, m.agenda, m.atribucion, m.channels, m.campaign_send_rate, m.updated_by from organization o left join organization_module m on m.organization_id = o.id order by o.created_at"`
+> y muéstrame la salida. No corras nada que escriba y no muestres variables
+> de entorno.
+
+### Reversa del PR 3 (sin migración nueva)
+
+1. **Código:** vuelve a desplegar el commit anterior al PR 3.
+2. **Base (opcional):** con el código viejo ya corriendo, aplica
+   `scripts/sql/0030-reversa.sql` como dueño del esquema. Se pierde lo que
+   cada organización tenía encendido (con el código viejo vuelven a mandar las
+   variables).
+3. **Último recurso:** restaurar el backup del paso 1.
 
 ## Pasos de Coolify (PR 2)
 

@@ -4,7 +4,7 @@ import { checkMetaSignature, isValidWebhookToken } from "@/server/inbox/webhook"
 import { processMetaPagePayload } from "@/server/messenger/ingest";
 import {
   channelDisabledResponse,
-  isChannelEnabled,
+  someOrgHasChannel,
 } from "@/server/channels/enabled";
 import { isValidZernioSignature, looksLikeMetaPayload, zernioSignatureFrom } from "@/server/zernio";
 import { processZernioPayload, resolveZernioSecret } from "@/server/zernio/dispatch";
@@ -26,7 +26,7 @@ export const dynamic = "force-dynamic";
 type Params = { params: Promise<{ webhookToken: string }> };
 
 export async function GET(req: Request, { params }: Params) {
-  if (!isChannelEnabled("messenger")) return channelDisabledResponse();
+  if (!(await someOrgHasChannel("messenger"))) return channelDisabledResponse();
   const { webhookToken } = await params;
   const env = getEnv();
   if (!isValidWebhookToken(webhookToken, env.META_WEBHOOK_VERIFY_TOKEN)) {
@@ -46,7 +46,7 @@ export async function GET(req: Request, { params }: Params) {
 }
 
 export async function POST(req: Request, { params }: Params) {
-  if (!isChannelEnabled("messenger")) return channelDisabledResponse();
+  if (!(await someOrgHasChannel("messenger"))) return channelDisabledResponse();
   const { webhookToken } = await params;
   const env = getEnv();
   if (!isValidWebhookToken(webhookToken, env.META_WEBHOOK_VERIFY_TOKEN)) {

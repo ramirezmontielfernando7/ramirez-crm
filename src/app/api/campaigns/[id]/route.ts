@@ -10,7 +10,7 @@ type Params = { params: Promise<{ id: string }> };
 /** 021 — Detalle con conteos (pendientes / enviados / fallidos). */
 export const GET = withAuth(
   async (session, _req: Request, ctx: Params) => {
-    if (!campaignsEnabled()) return campaignsDisabledResponse();
+    if (!(await campaignsEnabled(session.organizationId))) return campaignsDisabledResponse();
     const { id } = await ctx.params;
     try {
       return Response.json({ campaign: await getCampaign(session.organizationId, id) });
@@ -24,7 +24,7 @@ export const GET = withAuth(
 /** 021 — Borra un borrador. Una campaña enviada es registro: no se borra. */
 export const DELETE = withAuth(
   async (session, _req: Request, ctx: Params) => {
-    if (!campaignsEnabled()) return campaignsDisabledResponse();
+    if (!(await campaignsEnabled(session.organizationId))) return campaignsDisabledResponse();
     const { id } = await ctx.params;
     try {
       await deleteDraft(session.organizationId, id);

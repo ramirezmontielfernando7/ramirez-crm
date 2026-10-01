@@ -1,6 +1,6 @@
 import { withAuth } from "@/lib/api";
 import { getEnv } from "@/lib/env";
-import { isChannelEnabled } from "@/server/channels/enabled";
+import { enabledChannels } from "@/server/channels/enabled";
 import { isPlatformOrg, platformOrgId } from "@/server/platform";
 import type { WebhookSettingsDto } from "@/lib/webhook-settings";
 
@@ -34,15 +34,16 @@ export const GET = withAuth(async (session) => {
     return Response.json(dto);
   }
   const base = env.APP_BASE_URL.replace(/\/$/, "");
+  const channels = await enabledChannels(session.organizationId);
   const url = `${base}/api/webhooks/wa/${env.META_WEBHOOK_VERIFY_TOKEN}`;
   const dto: WebhookSettingsDto = {
     managedByPlatform: false,
     platformConfigMissing: false,
     url,
-    instagramUrl: isChannelEnabled("instagram")
+    instagramUrl: channels.has("instagram")
       ? `${base}/api/webhooks/ig/${env.META_WEBHOOK_VERIFY_TOKEN}`
       : null,
-    messengerUrl: isChannelEnabled("messenger")
+    messengerUrl: channels.has("messenger")
       ? `${base}/api/webhooks/messenger/${env.META_WEBHOOK_VERIFY_TOKEN}`
       : null,
     verifyToken: env.META_WEBHOOK_VERIFY_TOKEN,

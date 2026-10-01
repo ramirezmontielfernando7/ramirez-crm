@@ -33,6 +33,7 @@
     "test:e2e:multiorg": "node --env-file=.env scripts/e2e-multiorg.mjs",
     "test:e2e:credenciales": "node --env-file=.env scripts/e2e-credenciales.mjs",
     "test:e2e:plataforma": "node --env-file=.env scripts/e2e-plataforma.mjs",
+    "test:e2e:modulos": "node --env-file=.env scripts/e2e-modulos.mjs",
     "test:watch": "vitest",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",

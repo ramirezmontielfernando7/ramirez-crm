@@ -123,10 +123,10 @@ async function prepareSend(
   if (row.conversation.channel === "instagram") {
     // Una conversacion de un canal apagado puede existir (se apago despues de
     // recibirla): falla claro en vez de intentar un transporte que no aplica.
-    if (!isChannelEnabled("instagram")) {
+    if (!(await isChannelEnabled(organizationId, "instagram"))) {
       throw new SendError(
         "not_connected",
-        "El canal de Instagram está desactivado en esta instancia"
+        "El canal de Instagram está desactivado en esta organización"
       );
     }
     const igCreds = await getInstagramCredentialsByOrg(organizationId);
@@ -159,10 +159,10 @@ async function prepareSend(
   // 017: Messenger, mismo trato que Instagram: transporte propio, ventana
   // propia (con etiqueta fuera de ella) y sin plantillas.
   if (row.conversation.channel === "messenger") {
-    if (!isChannelEnabled("messenger")) {
+    if (!(await isChannelEnabled(organizationId, "messenger"))) {
       throw new SendError(
         "not_connected",
-        "El canal de Messenger está desactivado en esta instancia"
+        "El canal de Messenger está desactivado en esta organización"
       );
     }
     const fbCreds = await getMessengerCredentialsByOrg(organizationId);

@@ -7,8 +7,8 @@ export const dynamic = "force-dynamic";
 
 export default async function AdsSettingsPage() {
   // 020: sin permiso, de vuelta a la Bandeja (la API ya responde 403).
-  await requirePagePermission("settings.manage");
-  // Sin la bandera esta pantalla no existe en esta instancia.
-  if (!atribucionEnabled()) notFound();
+  const session = await requirePagePermission("settings.manage");
+  // Sin el módulo esta pantalla no existe para esta organización.
+  if (!(await atribucionEnabled(session.organizationId))) notFound();
   return <AdsClient />;
 }

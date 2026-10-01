@@ -1,5 +1,5 @@
 import type { Channel } from "@/lib/channels";
-import { isChannelEnabled } from "@/server/channels/enabled";
+import { someOrgHasChannel } from "@/server/channels/enabled";
 import { processZernioEvent } from "@/server/instagram/ingest";
 import { getZernioWebhookSecret } from "@/server/credentials/resolve";
 import { processZernioMessengerEvent } from "@/server/messenger/ingest";
@@ -64,15 +64,16 @@ export async function resolveZernioSecret(
 }
 
 /**
- * Procesa el evento por el canal al que pertenece. Un canal apagado descarta
- * con aviso: la instancia no lo tiene, y su superficie no existe (ADR-001).
+ * Procesa el evento por el canal al que pertenece. Un canal que ninguna
+ * organización tiene descarta con aviso (ADR-001); si alguna lo tiene, la
+ * ingesta vuelve a preguntar por la organización dueña de la cuenta.
  */
 export async function processZernioPayload(payload: unknown): Promise<void> {
   const channel = zernioTargetChannel(payload);
   if (!channel) return; // otra plataforma conectada a la misma llave: no es nuestra
 
-  if (!isChannelEnabled(channel)) {
-    log.warn("evento con el canal apagado en esta instancia: descartado", { canal: channel });
+  if (!(await someOrgHasChannel(channel))) {
+    log.warn("evento con el canal apagado en todas las organizaciones: descartado", { canal: channel });
     return;
   }
 

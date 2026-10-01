@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 /** 021 — Campañas del negocio, la más reciente primero. */
 export const GET = withAuth(
   async (session) => {
-    if (!campaignsEnabled()) return campaignsDisabledResponse();
+    if (!(await campaignsEnabled(session.organizationId))) return campaignsDisabledResponse();
     return Response.json({ campaigns: await listCampaigns(session.organizationId) });
   },
   { permission: "campaigns.manage" }
@@ -25,7 +25,7 @@ const createSchema = z.object({
 /** 021 — Crea la campaña como BORRADOR. Enviar es otro paso (`/send`). */
 export const POST = withAuth(
   async (session, req: Request) => {
-    if (!campaignsEnabled()) return campaignsDisabledResponse();
+    if (!(await campaignsEnabled(session.organizationId))) return campaignsDisabledResponse();
     const body = await parseBody(req, createSchema);
     if (!body.ok) return body.response;
     try {

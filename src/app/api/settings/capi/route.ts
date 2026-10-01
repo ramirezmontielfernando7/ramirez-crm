@@ -22,7 +22,7 @@ export const dynamic = "force-dynamic";
  */
 
 export const GET = withAuth(async (session) => {
-  if (!atribucionEnabled()) return atribucionDisabledResponse();
+  if (!(await atribucionEnabled(session.organizationId))) return atribucionDisabledResponse();
   const capi = await getCapiSettingsView(session.organizationId);
   return Response.json({ capi });
 }, { permission: "settings.manage" });
@@ -40,7 +40,7 @@ const putSchema = z.object({
 });
 
 export const PUT = withAuth(async (session, req: Request) => {
-  if (!atribucionEnabled()) return atribucionDisabledResponse();
+  if (!(await atribucionEnabled(session.organizationId))) return atribucionDisabledResponse();
 
   const body = await parseBody(req, putSchema);
   if (!body.ok) return body.response;
@@ -80,7 +80,7 @@ export const PUT = withAuth(async (session, req: Request) => {
 }, { permission: "settings.manage" });
 
 export const DELETE = withAuth(async (session) => {
-  if (!atribucionEnabled()) return atribucionDisabledResponse();
+  if (!(await atribucionEnabled(session.organizationId))) return atribucionDisabledResponse();
   await deleteCapiSettings(session.organizationId);
   return Response.json({ ok: true });
 }, { permission: "settings.manage" });

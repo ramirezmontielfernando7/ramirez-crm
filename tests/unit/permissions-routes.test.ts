@@ -222,6 +222,7 @@ const PLATAFORMA: [string, Method][] = [
   ["platform/organizations", "POST"],
   ["platform/organizations/[id]/members", "GET"],
   ["platform/organizations/[id]/status", "POST"],
+  ["platform/organizations/[id]/modules", "POST"],
   ["platform/users/[id]/link", "POST"],
   ["platform/audit", "GET"],
 ];

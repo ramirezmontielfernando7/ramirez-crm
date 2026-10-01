@@ -14,7 +14,7 @@ export const dynamic = "force-dynamic";
 
 /** 014 — Estado de la conexión de Instagram (el token nunca sale entero). */
 export const GET = withAuth(async (session) => {
-  if (!isChannelEnabled("instagram")) return channelDisabledResponse();
+  if (!(await isChannelEnabled(session.organizationId, "instagram"))) return channelDisabledResponse();
   const creds = await getInstagramCredentialsByOrg(session.organizationId);
   if (!creds) return Response.json({ connection: null });
   return Response.json({
@@ -45,7 +45,7 @@ const putSchema = z.object({
  * wizard de WhatsApp: un token que no sirve no llega a la base.
  */
 export const PUT = withAuth(async (session, req: Request) => {
-  if (!isChannelEnabled("instagram")) return channelDisabledResponse();
+  if (!(await isChannelEnabled(session.organizationId, "instagram"))) return channelDisabledResponse();
   const body = await parseBody(req, putSchema);
   if (!body.ok) return body.response;
   const data = body.data;

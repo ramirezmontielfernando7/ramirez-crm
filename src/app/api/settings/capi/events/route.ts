@@ -15,7 +15,7 @@ export const dynamic = "force-dynamic";
  * escribe.
  */
 export const GET = withAuth(async (session, req: Request) => {
-  if (!atribucionEnabled()) return atribucionDisabledResponse();
+  if (!(await atribucionEnabled(session.organizationId))) return atribucionDisabledResponse();
   const raw = new URL(req.url).searchParams.get("limit");
   const parsed = raw ? Number.parseInt(raw, 10) : NaN;
   // Un límite fuera de rango se recorta, no falla: es un panel, no un contrato

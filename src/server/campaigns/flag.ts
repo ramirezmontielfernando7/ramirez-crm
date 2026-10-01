@@ -2,22 +2,24 @@
  * 021 — Si esta instancia tiene Campañas (envío masivo) o no.
  *
  * Mismo patrón que `AGENDA` y `ATRIBUCION` (ADR-001): el código viaja en
- * main, la migración se aplica siempre, y la variable de despliegue decide si
- * la superficie EXISTE. Apagada, la pantalla y las rutas responden 404.
+ * main y la migración se aplica siempre. Desde la Fase 3 (PR 3) lo que decide
+ * si la superficie EXISTE es el módulo de la organización. Apagado, la
+ * pantalla y las rutas responden 404.
  *
  * Etiquetas, consentimiento e importar/exportar NO dependen de esta bandera:
  * son útiles por sí solos y no tocan la API de Meta.
  */
 
-const ON_VALUES = new Set(["on", "1", "true", "si", "sí", "yes"]);
+import { orgCampaignSendRate, orgHasCampaigns } from "@/server/modules";
 
-export function parseCampaignsFlag(raw: string | undefined): boolean {
-  return ON_VALUES.has((raw ?? "").trim().toLowerCase());
-}
+export { parseCampaignsFlag } from "@/server/modules/defaults";
 
-/** De `process.env` directo, como `agendaEnabled()`: consultar no valida todo el entorno. */
-export function campaignsEnabled(): boolean {
-  return parseCampaignsFlag(process.env.CAMPAIGNS);
+/**
+ * Fase 3, PR 3 — Por ORGANIZACIÓN (`organization_module`); la variable
+ * `CAMPAIGNS` queda como valor por defecto (src/server/modules/).
+ */
+export async function campaignsEnabled(organizationId: string): Promise<boolean> {
+  return orgHasCampaigns(organizationId);
 }
 
 /** 404 y no 403: apagada, la superficie no existe en esta instancia. */
@@ -26,11 +28,9 @@ export function campaignsDisabledResponse(): Response {
 }
 
 /**
- * Mensajes por segundo del envío masivo. Meta admite ~80/s por número, pero
- * un número nuevo tiene límites diarios de destinatarios y la calidad cae si
- * se dispara todo junto: 10/s es conservador y se puede subir.
+ * Mensajes por segundo del envío masivo de esta organización (por defecto
+ * `CAMPAIGN_SEND_RATE`, o 10; tope 80, lo que Meta admite por número).
  */
-export function campaignSendRate(): number {
-  const n = Number(process.env.CAMPAIGN_SEND_RATE ?? "");
-  return Number.isFinite(n) && n > 0 ? Math.min(n, 80) : 10;
+export async function campaignSendRate(organizationId: string): Promise<number> {
+  return orgCampaignSendRate(organizationId);
 }

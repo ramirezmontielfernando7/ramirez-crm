@@ -83,14 +83,12 @@ export async function cleanupOrphanRuns(): Promise<void> {
 
 /**
  * 021 — Campañas que quedaron enviando cuando se reinició el servidor: siguen
- * con sus pendientes (a los ya enviados no se les vuelve a mandar). Si la
- * bandera está apagada no se reanuda nada: no se envía por una superficie que
- * no existe.
+ * con sus pendientes (a los ya enviados no se les vuelve a mandar). Las de
+ * una organización con Campañas apagadas NO se reanudan (Fase 3, PR 3): no
+ * se envía por una superficie que para ella no existe.
  */
 export async function resumeSendingCampaigns(): Promise<void> {
   try {
-    const { campaignsEnabled } = await import("@/server/campaigns/flag");
-    if (!campaignsEnabled()) return;
     const { resumeCampaigns } = await import("@/server/campaigns/runner");
     const n = await resumeCampaigns();
     if (n > 0) log.info(`${n} campaña(s) reanudada(s)`);

@@ -8,7 +8,6 @@ import {
   type LabeledCountDto,
   type SessionsDto,
 } from "@/lib/analytics";
-import { agendaEnabled } from "@/server/agenda/flag";
 import { median, type ResolvedPeriod } from "@/server/analytics/period";
 import { notLabContact } from "@/server/analytics/shared";
 
@@ -28,7 +27,7 @@ import { notLabContact } from "@/server/analytics/shared";
 export async function botBlock(
   scope: Access,
   period: ResolvedPeriod,
-  agenda: boolean = agendaEnabled()
+  agenda: boolean
 ): Promise<BotBlockDto> {
   const { start, end } = period;
 

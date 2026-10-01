@@ -13,6 +13,7 @@ import {
   resolveMessengerByPageId,
 } from "@/server/credentials/resolve";
 import { recordUnrouted, unroutedReasonFor } from "@/server/webhooks/unrouted";
+import { isChannelEnabled } from "@/server/channels/enabled";
 import { fetchMessengerProfileName } from "@/server/messenger/send";
 import { zernioSentAtSeconds, type ZernioEvent } from "@/server/zernio";
 import { logger } from "@/lib/log";
@@ -250,6 +251,12 @@ async function ingestAll(
         payload: evt,
         reason: unroutedReasonFor(route.orgStatus),
       });
+      continue;
+    }
+    if (!(await isChannelEnabled(route.organizationId, "messenger"))) {
+      // Fase 3, PR 3: el canal es de la organización. Apagado para ella, el
+      // evento se ignora con aviso (no se ingiere nada).
+      log.warn("evento de Messenger para una organización con el canal apagado: ignorado", { org: route.organizationId });
       continue;
     }
     const creds = route;

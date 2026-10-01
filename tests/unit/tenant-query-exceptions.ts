@@ -23,6 +23,11 @@ export const TENANT_QUERY_EXCEPTIONS: Record<string, { max: number; motivo: stri
     motivo:
       "Fase 3, PR 2 — El administrador de plataforma gestiona organizaciones (está POR ENCIMA de ellas): cuántas personas tiene cada una, sus Propietarios, si tiene WhatsApp conectado, sus miembros (nombre, correo, rol) y cerrar sus sesiones al suspender. Solo metadatos, nunca contenido; detrás de withPlatformAdmin (404 a todos los demás) y con el pool de sistema.",
   },
+  "server/modules/store.ts": {
+    max: 1,
+    motivo:
+      "Fase 3, PR 3 — Relleno al arrancar: a TODA organización sin fila de módulos le pone los de las variables de entorno (insert … select de organization where not exists). Pool de sistema, una vez por arranque, nunca pisa una fila existente.",
+  },
   "server/platform-admin/links.ts": {
     max: 1,
     motivo:

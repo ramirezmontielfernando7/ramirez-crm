@@ -7,11 +7,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { roleLabel } from "@/lib/auth/permissions";
 
 /**
  * Fase 3, PR 2 — Pantalla del administrador de plataforma. Solo metadatos de
- * las organizaciones (nombre, estado, personas): nunca su contenido.
+ * las organizaciones (nombre, estado, personas, módulos): nunca su contenido.
  */
 
 type Org = {
@@ -26,6 +27,27 @@ type Org = {
   members: number;
   owners: { userId: string; name: string; email: string }[];
   whatsappConnected: boolean;
+  modules: Modules;
+};
+
+/** Fase 3, PR 3 — Los módulos opcionales de una organización. */
+type Modules = {
+  campaigns: boolean;
+  agenda: boolean;
+  atribucion: boolean;
+  instagram: boolean;
+  messenger: boolean;
+  campaignSendRate: number;
+};
+
+type ModuleKey = Exclude<keyof Modules, "campaignSendRate">;
+
+const MODULE_LABEL: Record<ModuleKey, string> = {
+  campaigns: "Campañas",
+  agenda: "Agenda",
+  atribucion: "Atribución (Meta)",
+  instagram: "Instagram",
+  messenger: "Messenger",
 };
 
 type Member = { userId: string; name: string; email: string; role: string };
@@ -53,6 +75,7 @@ const ACTION_LABEL: Record<string, string> = {
   "organization.deleted": "borró la organización (30 días de gracia)",
   "organization.restored": "restauró la organización",
   "organization.purged": "purgó la organización",
+  "organization.modules_changed": "cambió los módulos de la organización",
   "link.activation_created": "generó un enlace de activación",
   "link.reset_created": "generó un enlace de restablecimiento",
   "link.used": "se usó un enlace de contraseña",
@@ -78,6 +101,87 @@ async function api<T>(url: string, init?: RequestInit): Promise<{ ok: boolean; s
 
 function fecha(iso: string | null): string {
   return iso ? new Date(iso).toLocaleString("es-MX", { dateStyle: "medium", timeStyle: "short" }) : "—";
+}
+
+/**
+ * Fase 3, PR 3 — Interruptores de los módulos de UNA organización. Lo que se
+ * apaga deja de existir para ella al instante (pantallas y rutas en 404); lo
+ * que ya tiene guardado no se borra.
+ */
+function ModuleToggles({ org, onChanged }: { org: Org; onChanged: () => void }) {
+  const [modules, setModules] = useState<Modules>(org.modules);
+  const [rate, setRate] = useState(String(org.modules.campaignSendRate));
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setModules(org.modules);
+    setRate(String(org.modules.campaignSendRate));
+  }, [org.modules]);
+
+  async function save(change: Partial<Modules>) {
+    setBusy(true);
+    setError(null);
+    const r = await api<{ modules: Modules }>(`/api/platform/organizations/${org.id}/modules`, {
+      method: "POST",
+      body: JSON.stringify(change),
+    });
+    setBusy(false);
+    if (r.data) setModules(r.data.modules);
+    else setError(r.error);
+    onChanged();
+  }
+
+  const disabled = busy || org.status === "deleted";
+  return (
+    <div className="space-y-2 rounded-md border px-3 py-2" data-testid="platform-modules">
+      <p className="text-xs font-medium text-text-2">Módulos</p>
+      <div className="flex flex-wrap gap-x-5 gap-y-2">
+        {(Object.keys(MODULE_LABEL) as ModuleKey[]).map((key) => (
+          <label key={key} className="flex items-center gap-2 text-sm" data-testid={`platform-module-${key}`}>
+            <Switch
+              size="sm"
+              checked={modules[key]}
+              disabled={disabled}
+              label={`${MODULE_LABEL[key]} en ${org.name}`}
+              onCheckedChange={(next) => void save({ [key]: next })}
+            />
+            {MODULE_LABEL[key]}
+          </label>
+        ))}
+      </div>
+      {modules.campaigns && (
+        <form
+          className="flex flex-wrap items-center gap-2 text-sm"
+          onSubmit={(e) => {
+            e.preventDefault();
+            const n = Number(rate);
+            if (!Number.isInteger(n) || n < 1 || n > 80) {
+              setError("El ritmo va de 1 a 80 mensajes por segundo");
+              return;
+            }
+            void save({ campaignSendRate: n });
+          }}
+        >
+          <Label htmlFor={`rate-${org.id}`} className="text-xs text-text-2">
+            Ritmo de campañas (mensajes/s)
+          </Label>
+          <Input
+            id={`rate-${org.id}`}
+            className="h-8 w-20"
+            inputMode="numeric"
+            value={rate}
+            onChange={(e) => setRate(e.target.value)}
+            disabled={disabled}
+          />
+          <Button size="sm" variant="outline" type="submit" disabled={disabled}>
+            Guardar
+          </Button>
+        </form>
+      )}
+      {error && <p className="text-sm text-destructive">{error}</p>}
+    </div>
+  );
 }
 
 /** Un enlace que se ve UNA vez: con botón de copiar y el aviso de qué es. */
@@ -311,6 +415,7 @@ function OrganizationRow({ org, adminUserId, onChanged }: { org: Org; adminUserI
           </Button>
         )}
       </div>
+      <ModuleToggles org={org} onChanged={onChanged} />
       {error && <p className="text-sm text-destructive">{error}</p>}
       {open && (
         <ul className="space-y-2 border-l-2 pl-3">

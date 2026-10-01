@@ -20,7 +20,7 @@ export const dynamic = "force-dynamic";
  * endpoint y solo salen como últimos 4 dígitos.
  */
 export const GET = withAuth(async (session) => {
-  if (!agendaEnabled()) return agendaDisabledResponse();
+  if (!(await agendaEnabled(session.organizationId))) return agendaDisabledResponse();
   const settings = await getSettings(session.organizationId);
   return Response.json({ settings });
 }, { permission: "settings.manage" });
@@ -55,7 +55,7 @@ const putSchema = z.object({
  * zona horaria que el runtime no conoce, o un conector inexistente.
  */
 export const PUT = withAuth(async (session, req: Request) => {
-  if (!agendaEnabled()) return agendaDisabledResponse();
+  if (!(await agendaEnabled(session.organizationId))) return agendaDisabledResponse();
   const body = await parseBody(req, putSchema);
   if (!body.ok) return body.response;
 

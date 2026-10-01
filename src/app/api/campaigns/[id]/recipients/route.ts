@@ -17,7 +17,7 @@ const STATUSES: RecipientStatus[] = ["pending", "sent", "failed"];
  */
 export const GET = withAuth(
   async (session, req: Request, ctx: Params) => {
-    if (!campaignsEnabled()) return campaignsDisabledResponse();
+    if (!(await campaignsEnabled(session.organizationId))) return campaignsDisabledResponse();
     const { id } = await ctx.params;
     const url = new URL(req.url);
     const rawStatus = url.searchParams.get("status");

@@ -26,25 +26,18 @@
  * todas las instancias comparten la misma estructura.
  */
 
-/** Valores que cuentan como "encendida". Cualquier otra cosa, apagada. */
-const ON_VALUES = new Set(["on", "1", "true", "si", "sí", "yes"]);
+import { orgHasAtribucion } from "@/server/modules";
 
-export function parseAtribucionFlag(raw: string | undefined): boolean {
-  return ON_VALUES.has((raw ?? "").trim().toLowerCase());
-}
+export { parseAtribucionFlag } from "@/server/modules/defaults";
 
 /**
- * Se lee de `process.env` directo, no por `getEnv()`, igual que
- * `agendaEnabled()` e `isMockEnabled()`: preguntar si una feature existe no
- * puede depender de que TODO el entorno valide. La ingesta de un mensaje
- * consulta esta bandera (para decidir si guarda el `ctwa_clid`), y un entorno
- * a medio configurar debe degradar —no reventar— justo ahí.
- *
- * `ATRIBUCION` sí está declarada en el esquema de `lib/env.ts`: ahí viven su
- * documentación y su tipo. Lo que no pasa por el validador es esta consulta.
+ * Fase 3, PR 3 — Por ORGANIZACIÓN (`organization_module`); la variable
+ * `ATRIBUCION` queda como valor por defecto (src/server/modules/). La ingesta
+ * de un mensaje la consulta (para decidir si guarda el `ctwa_clid`) y un
+ * entorno a medio configurar debe degradar —no reventar— justo ahí.
  */
-export function atribucionEnabled(): boolean {
-  return parseAtribucionFlag(process.env.ATRIBUCION);
+export async function atribucionEnabled(organizationId: string): Promise<boolean> {
+  return orgHasAtribucion(organizationId);
 }
 
 /**

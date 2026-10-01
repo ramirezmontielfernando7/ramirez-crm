@@ -17,3 +17,23 @@ vi.mock("@/server/platform-admin/org-status", async (importOriginal) => {
     assertOrgActive: vi.fn(async () => undefined),
   };
 });
+
+/**
+ * Fase 3, PR 3 — Los módulos por organización también se leen de la BD real.
+ * Aquí cada organización tiene lo que dicen las variables de entorno (lo
+ * mismo que una organización sin fila), así que las pruebas que encienden o
+ * apagan `AGENDA`, `CAMPAIGNS`… con `vi.stubEnv` siguen valiendo. Lo que pasa
+ * con dos organizaciones distintas lo prueban `tests/db/modulos.test.ts` y
+ * `scripts/e2e-modulos.mjs`.
+ */
+vi.mock("@/server/modules/store", async (importOriginal) => {
+  const real = await importOriginal<typeof import("@/server/modules/store")>();
+  const { envModuleDefaults } = await import("@/server/modules/defaults");
+  return {
+    ...real,
+    getOrgModules: vi.fn(async () => envModuleDefaults()),
+    anyOrgHasChannel: vi.fn(async (channel: string) =>
+      envModuleDefaults().channels.has(channel as "whatsapp")
+    ),
+  };
+});

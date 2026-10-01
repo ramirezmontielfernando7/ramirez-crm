@@ -119,17 +119,13 @@ describe("anuncioDeWhatsapp", () => {
   });
 });
 
-describe("la bandera ATRIBUCION decide el identificador de clic, no el origen", () => {
-  const original = process.env.ATRIBUCION;
-  afterEach(() => {
-    if (original === undefined) delete process.env.ATRIBUCION;
-    else process.env.ATRIBUCION = original;
-  });
+// Fase 3, PR 3: la atribución es de la ORGANIZACIÓN; quien llama pasa si la
+// tiene (`atribucionEnabled(org)`), así que aquí se prueban las dos posiciones.
+describe("el módulo ATRIBUCION decide el identificador de clic, no el origen", () => {
   const anuncio = anuncioDeWhatsapp(REFERRAL_CTWA)!;
 
   it("apagada: se guarda el anuncio sin ctwa_clid, ni en la columna ni en el raw", () => {
-    delete process.env.ATRIBUCION;
-    const a = anuncioParaGuardar(anuncio);
+    const a = anuncioParaGuardar(anuncio, false);
     expect(a.ctwaClid).toBeNull();
     expect(a.raw).not.toHaveProperty("ctwa_clid");
     expect(JSON.stringify(a)).not.toContain(REFERRAL_CTWA.ctwa_clid);
@@ -143,8 +139,7 @@ describe("la bandera ATRIBUCION decide el identificador de clic, no el origen", 
   });
 
   it("encendida: se guarda con su ctwa_clid", () => {
-    process.env.ATRIBUCION = "on";
-    const a = anuncioParaGuardar(anuncio);
+    const a = anuncioParaGuardar(anuncio, true);
     expect(a.ctwaClid).toBe(REFERRAL_CTWA.ctwa_clid);
     expect(a.raw).toHaveProperty("ctwa_clid", REFERRAL_CTWA.ctwa_clid);
   });
@@ -181,10 +176,6 @@ describe("la bandera ATRIBUCION decide el identificador de clic, no el origen", 
     for (const dto of [encendida, apagada]) {
       expect(JSON.stringify(dto)).not.toContain("clid-secreto");
     }
-    process.env.ATRIBUCION = "on";
-    expect(serializarAnuncio(fila).hasCtwaClid).toBe(true);
-    delete process.env.ATRIBUCION;
-    expect(serializarAnuncio(fila).hasCtwaClid).toBe(false);
   });
 
   it("el enlace «Ver anuncio» solo sale si es https", () => {

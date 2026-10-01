@@ -8,7 +8,7 @@ import { publish } from "@/server/events/bus";
 import { getOrCreateConversation } from "@/server/inbox/ingest";
 import { SendError } from "@/server/inbox/send";
 import { sendTemplate, TemplateError } from "@/server/whatsapp/templates";
-import { campaignSendRate } from "@/server/campaigns/flag";
+import { campaignSendRate, campaignsEnabled } from "@/server/campaigns/flag";
 import { logger } from "@/lib/log";
 
 const log = logger("campaign");
@@ -85,8 +85,16 @@ export async function resumeCampaigns(): Promise<number> {
     .select({ id: schema.campaign.id, organizationId: schema.campaign.organizationId })
     .from(schema.campaign)
     .where(eq(schema.campaign.status, "sending"));
-  for (const r of rows) startCampaignRunner(r.organizationId, r.id);
-  return rows.length;
+  let started = 0;
+  for (const r of rows) {
+    // Fase 3, PR 3: Campañas apagadas para esa organización → se queda en
+    // "enviando" sin avanzar; si se vuelve a encender, el arranque siguiente
+    // (o "Enviar" otra vez) la retoma.
+    if (!(await campaignsEnabled(r.organizationId))) continue;
+    startCampaignRunner(r.organizationId, r.id);
+    started++;
+  }
+  return started;
 }
 
 async function progress(organizationId: string, campaignId: string, status: string) {
@@ -137,7 +145,7 @@ async function executeCampaign(organizationId: string, campaignId: string): Prom
   const campaign = rows[0];
   if (!campaign || campaign.status !== "sending") return;
   const variables = campaign.variables as CampaignVariable[];
-  const minIntervalMs = 1000 / campaignSendRate();
+  const minIntervalMs = 1000 / (await campaignSendRate(organizationId));
 
   await progress(organizationId, campaignId, "sending");
   let lastProgressAt = Date.now();
@@ -162,6 +170,11 @@ async function executeCampaign(organizationId: string, campaignId: string): Prom
         // Fase 3, PR 2: suspender la organización detiene su campaña en curso.
         if (!(await isOrgActive(organizationId))) {
           throw new StopCampaign("Se detuvo: la organización fue suspendida por la plataforma");
+        }
+        // Fase 3, PR 3: si la plataforma apaga Campañas a mitad del envío,
+        // no sale ni un mensaje más.
+        if (!(await campaignsEnabled(organizationId))) {
+          throw new StopCampaign("Se detuvo: Campañas se apagó para esta organización");
         }
         const startedAt = Date.now();
         await sendOne(organizationId, campaign.templateId, variables, recipient, contact);

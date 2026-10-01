@@ -90,11 +90,12 @@ export async function PATCH(req: Request) {
 type Gate = { organizationId: string } | { response: Response };
 
 async function guard(req: Request): Promise<Gate> {
-  if (!agendaEnabled()) return { response: agendaDisabledResponse() };
   // H2: la llave dice la organización; nunca "la de la instancia".
   const auth = await requireBotKey(req);
   if (!auth.ok) return { response: auth.response };
   const { organizationId } = auth;
+  // Fase 3, PR 3: sin agenda en la organización de la llave → 404.
+  if (!(await agendaEnabled(organizationId))) return { response: agendaDisabledResponse() };
   return { organizationId };
 }
 
