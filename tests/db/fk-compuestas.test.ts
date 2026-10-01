@@ -182,7 +182,12 @@ describe("FK compuestas de riesgo alto (0024)", () => {
       name: "propia",
       variables: [],
     });
-    expect(await codigo(db.delete(schema.template).where(eq(schema.template.id, a.tpl)))).toBe("23503");
+    // RESTRICT: PostgreSQL ≤ 17 responde 23503 (foreign_key_violation) y
+    // PostgreSQL 18 —el de producción y CI— 23001 (restrict_violation).
+    // Lo que importa es que la plantilla NO se borra.
+    expect(["23503", "23001"]).toContain(
+      await codigo(db.delete(schema.template).where(eq(schema.template.id, a.tpl)))
+    );
     const [leadA] = await db.select().from(schema.lead).where(eq(schema.lead.organizationId, A.id));
     expect(
       await codigo(db.delete(schema.pipelineStage).where(eq(schema.pipelineStage.id, leadA!.stageId)))
