@@ -17,6 +17,10 @@ export async function register(): Promise<void> {
     // secretos de Zernio en claro → cifrados). Nunca tumba el arranque.
     const { credentialMaintenanceOnBoot } = await import("@/server/credentials/maintenance");
     await credentialMaintenanceOnBoot();
+    // Fase 3, PR 3: cada organización sin fila de módulos recibe los del
+    // entorno ANTES de reanudar campañas o atender nada.
+    const { backfillOrgModules } = await import("@/server/modules/store");
+    await backfillOrgModules();
     await checkMediaDir();
     await cleanupOrphanRuns();
     await resumeSendingCampaigns();

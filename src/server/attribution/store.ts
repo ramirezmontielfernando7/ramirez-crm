@@ -30,7 +30,7 @@ const log = logger("atribucion");
  */
 export function anuncioParaGuardar(
   anuncio: AnuncioDeOrigen,
-  atribuye: boolean = atribucionEnabled()
+  atribuye: boolean
 ): AnuncioDeOrigen {
   return atribuye ? anuncio : sinIdentificadorDeClic(anuncio);
 }
@@ -48,7 +48,7 @@ export async function registrarAnuncioDeOrigen(input: {
   anuncio: AnuncioDeOrigen;
 }): Promise<void> {
   const db = getDb();
-  const a = anuncioParaGuardar(input.anuncio);
+  const a = anuncioParaGuardar(input.anuncio, await atribucionEnabled(input.organizationId));
   const creadas = await db
     .insert(schema.adAttribution)
     .values({
@@ -126,7 +126,7 @@ export async function anuncioDelContacto(
   contactId: string
 ): Promise<AnuncioDto | null> {
   const fila = await primeraFilaDelContacto(organizationId, contactId);
-  return fila ? serializarAnuncio(fila) : null;
+  return fila ? serializarAnuncio(fila, await atribucionEnabled(organizationId)) : null;
 }
 
 /** Como mucho un intento de reparación por anuncio en esta ventana. */
@@ -200,7 +200,7 @@ export function repararImagenSiFalta(organizationId: string, contactId: string):
  */
 export function serializarAnuncio(
   fila: typeof schema.adAttribution.$inferSelect,
-  atribuye: boolean = atribucionEnabled()
+  atribuye: boolean
 ): AnuncioDto {
   return {
     sourceId: fila.sourceId,

@@ -6,8 +6,9 @@ import { campaignsEnabled } from "@/server/campaigns/flag";
 export const dynamic = "force-dynamic";
 
 export default async function CampaignsPage() {
-  // 021: apagada, la pantalla no existe (igual que sus rutas: 404).
-  if (!campaignsEnabled()) notFound();
-  await requirePagePermission("campaigns.manage");
+  const session = await requirePagePermission("campaigns.manage");
+  // 021: apagada, la pantalla no existe (igual que sus rutas: 404). Desde la
+  // Fase 3 (PR 3), apagada para ESTA organización.
+  if (!(await campaignsEnabled(session.organizationId))) notFound();
   return <CampaignsClient />;
 }

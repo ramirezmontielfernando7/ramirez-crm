@@ -18,7 +18,7 @@ const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
  * no un error.
  */
 export const GET = withAuth(async (session, req: Request) => {
-  if (!agendaEnabled()) return agendaDisabledResponse();
+  if (!(await agendaEnabled(session.organizationId))) return agendaDisabledResponse();
 
   const url = new URL(req.url);
   const from = url.searchParams.get("from");

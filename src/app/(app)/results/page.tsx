@@ -27,13 +27,14 @@ export default async function ResultsPage() {
   // `/api/analytics/*` lo niegan con 403 por su cuenta; esto evita pintarle
   // una pantalla que solo mostraría errores.
   if (!can(session, "results.read")) redirect("/inbox");
+  const agenda = await agendaEnabled(session.organizationId);
   const [branding, timezone] = await runWithOrganization(session.organizationId, () =>
     Promise.all([getBranding(session.organizationId), businessTimezone(session.organizationId)])
   );
   return (
     <ResultsClient
       currency={branding.currency}
-      agenda={agendaEnabled()}
+      agenda={agenda}
       today={todayInTz(new Date(), timezone)}
       timezone={timezone}
     />

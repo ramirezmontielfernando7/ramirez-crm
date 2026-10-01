@@ -1,5 +1,5 @@
-import { getEnv } from "@/lib/env";
-import { isChannel, type Channel } from "@/lib/channels";
+import type { Channel } from "@/lib/channels";
+import { anyOrgHasChannel, orgChannels, orgHasChannel } from "@/server/modules";
 
 /**
  * 014 — Qué canales están encendidos en esta instancia.
@@ -19,26 +19,27 @@ import { isChannel, type Channel } from "@/lib/channels";
  * son inertes, y a cambio todas las instancias tienen la misma estructura.
  */
 
-/** WhatsApp no se puede apagar: es el canal por el que existe el producto. */
-const ALWAYS_ON: Channel = "whatsapp";
+export { parseChannels } from "@/server/modules/defaults";
 
-export function parseChannels(raw: string | undefined): Set<Channel> {
-  const enabled = new Set<Channel>([ALWAYS_ON]);
-  for (const part of (raw ?? "").split(",")) {
-    const name = part.trim().toLowerCase();
-    // Cualquier canal del catalogo, no una lista escrita a mano aqui: el
-    // canal siguiente solo tiene que existir en lib/channels.ts.
-    if (isChannel(name)) enabled.add(name);
-  }
-  return enabled;
+/**
+ * Fase 3, PR 3 — Por ORGANIZACIÓN (`organization_module`); la variable
+ * `CHANNELS` queda como valor por defecto (src/server/modules/).
+ */
+export async function enabledChannels(organizationId: string): Promise<ReadonlySet<Channel>> {
+  return orgChannels(organizationId);
 }
 
-export function enabledChannels(): Set<Channel> {
-  return parseChannels(getEnv().CHANNELS);
+/**
+ * ¿Alguna organización tiene este canal? Lo usan las URLs de webhook, que son
+ * de la PLATAFORMA (una sola para todas): si nadie lo tiene, no existen (404).
+ * Después de enrutar, la ingesta vuelve a preguntar por la organización.
+ */
+export async function someOrgHasChannel(channel: Channel): Promise<boolean> {
+  return anyOrgHasChannel(channel);
 }
 
-export function isChannelEnabled(channel: Channel): boolean {
-  return enabledChannels().has(channel);
+export async function isChannelEnabled(organizationId: string, channel: Channel): Promise<boolean> {
+  return orgHasChannel(organizationId, channel);
 }
 
 /**

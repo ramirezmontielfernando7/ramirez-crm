@@ -21,24 +21,18 @@
  * significar lo que dice.
  */
 
-/** Valores que cuentan como "encendida". Cualquier otra cosa, apagada. */
-const ON_VALUES = new Set(["on", "1", "true", "si", "sí", "yes"]);
+import { orgHasAgenda } from "@/server/modules";
 
-export function parseAgendaFlag(raw: string | undefined): boolean {
-  return ON_VALUES.has((raw ?? "").trim().toLowerCase());
-}
+export { parseAgendaFlag } from "@/server/modules/defaults";
 
 /**
- * Se lee de `process.env` directo, no por `getEnv()`, igual que
- * `isMockEnabled()` e `isAiConfigured()`: preguntar si una feature existe no
- * puede depender de que TODO el entorno valide. Con `getEnv()`, un turno del
- * agente reventaba —en vez de degradar— solo por consultar la bandera.
- *
- * `AGENDA` sí está declarada en el esquema de `lib/env.ts`: ahí vive su
- * documentación y su tipo. Lo que no pasa por el validador es esta consulta.
+ * Fase 3, PR 3 — Por ORGANIZACIÓN (`organization_module`); la variable
+ * `AGENDA` queda como valor por defecto (src/server/modules/). No pasa por
+ * `getEnv()`: preguntar si una feature existe no puede depender de que TODO
+ * el entorno valide.
  */
-export function agendaEnabled(): boolean {
-  return parseAgendaFlag(process.env.AGENDA);
+export async function agendaEnabled(organizationId: string): Promise<boolean> {
+  return orgHasAgenda(organizationId);
 }
 
 /**

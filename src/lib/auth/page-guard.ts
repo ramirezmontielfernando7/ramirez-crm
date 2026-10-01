@@ -1,16 +1,17 @@
 import { redirect } from "next/navigation";
 import { can, type Permission } from "@/lib/auth/permissions";
-import { getSessionOrNull } from "@/lib/auth/session";
+import { getSessionOrNull, type SessionContext } from "@/lib/auth/session";
 
 /**
  * 020 — Guardia de PÁGINA: quien no tiene el permiso vuelve a la Bandeja en
  * vez de ver una pantalla que solo le devolvería 403. La seguridad real está
  * en las rutas de la API; esto es para que la experiencia no se rompa.
  */
-export async function requirePagePermission(permission: Permission): Promise<void> {
+export async function requirePagePermission(permission: Permission): Promise<SessionContext> {
   const session = await getSessionOrNull();
   if (!session) redirect("/login");
   if (!can(session, permission)) redirect("/inbox");
+  return session;
 }
 
 /** Pestañas de Ajustes y el permiso que pide cada una. */

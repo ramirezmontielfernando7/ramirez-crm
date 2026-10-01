@@ -52,14 +52,13 @@ function clamp(raw: string | null, l: { min: number; max: number; def: number })
 }
 
 export async function GET(req: Request) {
-  // La bandera se evalúa ANTES que la llave: si esta instancia no tiene
-  // agenda, el endpoint no existe — no hay nada que autenticar.
-  if (!agendaEnabled()) return agendaDisabledResponse();
-
   // H2: la llave dice la organización; nunca "la de la instancia".
   const auth = await requireBotKey(req);
   if (!auth.ok) return auth.response;
   const { organizationId } = auth;
+  // Fase 3, PR 3: la agenda es de la organización de la llave. Sin agenda,
+  // para ella el endpoint no existe (404).
+  if (!(await agendaEnabled(organizationId))) return agendaDisabledResponse();
 
   // PR 3: todo lo que sigue va a nombre de la organización de la llave.
   return runWithOrganization(organizationId, async () => {

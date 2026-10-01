@@ -172,7 +172,7 @@ export async function runAgentTurn(conversationId: string): Promise<void> {
     .where(scoped(schema.pipelineStage.organizationId, organizationId))
     .orderBy(asc(schema.pipelineStage.position));
 
-  const agenda = agendaEnabled();
+  const agenda = await agendaEnabled(organizationId);
 
   /**
    * 015 — Los huecos vigentes, con su instante exacto.

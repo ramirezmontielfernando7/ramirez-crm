@@ -29,7 +29,7 @@ const patchSchema = z.discriminatedUnion("action", [
  * el enlace que el proveedor no entregó.
  */
 export const PATCH = withAuth(async (session, req: Request, ctx: Params) => {
-  if (!agendaEnabled()) return agendaDisabledResponse();
+  if (!(await agendaEnabled(session.organizationId))) return agendaDisabledResponse();
   const { id } = await ctx.params;
   const body = await parseBody(req, patchSchema);
   if (!body.ok) return body.response;

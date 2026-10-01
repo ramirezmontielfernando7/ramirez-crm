@@ -14,7 +14,7 @@ const bodySchema = z.object({ audience: audienceSchema.default({}) });
  */
 export const POST = withAuth(
   async (session, req: Request) => {
-    if (!campaignsEnabled()) return campaignsDisabledResponse();
+    if (!(await campaignsEnabled(session.organizationId))) return campaignsDisabledResponse();
     const body = await parseBody(req, bodySchema);
     if (!body.ok) return body.response;
     return Response.json({ preview: await previewAudience(session.organizationId, body.data.audience ?? {}) });

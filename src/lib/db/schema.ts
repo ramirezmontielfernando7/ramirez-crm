@@ -11,6 +11,7 @@ import {
   timestamp,
   unique,
   uniqueIndex,
+  type AnyPgColumn,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
@@ -102,9 +103,19 @@ export const organization = pgTable(
     statusChangedAt: timestamp("status_changed_at"),
     deletedAt: timestamp("deleted_at"),
     purgeAfter: timestamp("purge_after"),
+    /**
+     * Fase 3, PR 3 — Organización "madre", opcional. Queda lista para la
+     * reventa por agencias (una agencia con sus clientes); hoy NADA la lee ni
+     * la escribe. `restrict`: no se borra una madre con hijas colgando.
+     */
+    parentId: text("parent_id").references((): AnyPgColumn => organization.id, {
+      onDelete: "restrict",
+    }),
   },
   (t) => [
     check("organization_status_chk", sql`${t.status} in ('active', 'suspended', 'deleted')`),
+    index("organization_parent_idx").on(t.parentId),
+    check("organization_parent_not_self_chk", sql`${t.parentId} is null or ${t.parentId} <> ${t.id}`),
   ]
 );
 
@@ -2102,6 +2113,41 @@ export const aiQuota = pgTable("ai_quota", {
   monthlyTokenLimit: integer("monthly_token_limit"),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
+
+/**
+ * Fase 3, PR 3 — Qué módulos opcionales tiene ESTA organización (antes, las
+ * banderas de despliegue CAMPAIGNS, AGENDA, ATRIBUCION y CHANNELS para toda la
+ * instancia). Una fila por organización; la escribe solo el administrador de
+ * plataforma (`src/server/modules/`). Sin fila, valen las variables de
+ * entorno, que ahora son solo el valor por defecto para organizaciones nuevas.
+ *
+ * `channels`: los canales OPCIONALES encendidos (instagram, messenger).
+ * WhatsApp no se apaga: es el canal por el que existe el producto.
+ * `campaign_send_rate`: mensajes por segundo de las campañas; nulo = el de
+ * `CAMPAIGN_SEND_RATE` (o 10).
+ */
+export const organizationModule = pgTable(
+  "organization_module",
+  {
+  organizationId: text("organization_id")
+    .primaryKey()
+    .references(() => organization.id, { onDelete: "cascade" }),
+  campaigns: boolean("campaigns").notNull().default(false),
+  agenda: boolean("agenda").notNull().default(false),
+  atribucion: boolean("atribucion").notNull().default(false),
+  channels: text("channels").array().notNull().default(sql`'{}'::text[]`),
+  campaignSendRate: integer("campaign_send_rate"),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  updatedBy: text("updated_by"),
+},
+  (t) => [
+    check(
+      "organization_module_send_rate_chk",
+      sql`${t.campaignSendRate} is null or ${t.campaignSendRate} between 1 and 80`
+    ),
+    check("organization_module_channels_chk", sql`${t.channels} <@ array['instagram', 'messenger']::text[]`),
+  ]
+);
 
 /**
  * PR 1 Fase 3 — Consumo de IA por organización, mes (UTC) y tipo. Un turno

@@ -16,6 +16,7 @@ export type AuditAction =
   | "organization.deleted"
   | "organization.restored"
   | "organization.purged"
+  | "organization.modules_changed"
   | "link.activation_created"
   | "link.reset_created"
   | "link.used"

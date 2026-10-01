@@ -14,7 +14,7 @@ export const dynamic = "force-dynamic";
 /** 015 — Conexión de Google Calendar. Los secretos entran y no vuelven a salir. */
 
 export const GET = withAuth(async (session) => {
-  if (!agendaEnabled()) return agendaDisabledResponse();
+  if (!(await agendaEnabled(session.organizationId))) return agendaDisabledResponse();
   const creds = await getGoogleCredentials(session.organizationId);
   if (!creds) return Response.json({ connection: null });
   return Response.json({
@@ -34,7 +34,7 @@ const credsSchema = z.object({
 });
 
 export const PUT = withAuth(async (session, req: Request) => {
-  if (!agendaEnabled()) return agendaDisabledResponse();
+  if (!(await agendaEnabled(session.organizationId))) return agendaDisabledResponse();
   const body = await parseBody(req, credsSchema);
   if (!body.ok) return body.response;
 
@@ -62,7 +62,7 @@ export const PUT = withAuth(async (session, req: Request) => {
 }, { permission: "settings.manage" });
 
 export const DELETE = withAuth(async (session) => {
-  if (!agendaEnabled()) return agendaDisabledResponse();
+  if (!(await agendaEnabled(session.organizationId))) return agendaDisabledResponse();
   await deleteGoogleCredentials(session.organizationId);
   return Response.json({ ok: true });
 }, { permission: "settings.manage" });

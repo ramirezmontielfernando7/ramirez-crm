@@ -7,8 +7,8 @@ export const dynamic = "force-dynamic";
 
 export default async function MessengerSettingsPage() {
   // 020: sin permiso, de vuelta a la Bandeja (la API ya responde 403).
-  await requirePagePermission("settings.manage");
-  // Sin el canal encendido esta pantalla no existe en esta instancia (ADR-001).
-  if (!isChannelEnabled("messenger")) notFound();
+  const session = await requirePagePermission("settings.manage");
+  // Sin el canal encendido esta pantalla no existe para esta organización (ADR-001).
+  if (!(await isChannelEnabled(session.organizationId, "messenger"))) notFound();
   return <MessengerClient />;
 }

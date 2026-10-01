@@ -15,7 +15,7 @@ const schema = z.object({
 
 /** Probar sin guardar; con los campos vacíos prueba lo ya guardado. */
 export const POST = withAuth(async (session, req: Request) => {
-  if (!agendaEnabled()) return agendaDisabledResponse();
+  if (!(await agendaEnabled(session.organizationId))) return agendaDisabledResponse();
   const body = await parseBody(req, schema);
   if (!body.ok) return body.response;
 

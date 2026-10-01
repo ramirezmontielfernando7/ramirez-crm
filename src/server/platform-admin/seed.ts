@@ -1,6 +1,7 @@
 import type { Db } from "@/lib/db";
 import { schema } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
+import { seedOrgModules } from "@/server/modules/store";
 
 /** Etapas sembradas del pipeline (US2). */
 export const SEED_STAGES: { name: string; kind: "open" | "won" | "lost" }[] = [
@@ -12,8 +13,8 @@ export const SEED_STAGES: { name: string; kind: "open" | "won" | "lost" }[] = [
 ];
 
 /**
- * Lo que trae toda organización nueva: las etapas del pipeline y el perfil
- * del agente (apagado). La usan el primer registro de la instancia
+ * Lo que trae toda organización nueva: las etapas del pipeline, el perfil
+ * del agente (apagado) y sus módulos (los de las variables de entorno). La usan el primer registro de la instancia
  * (`onUserCreated`) y el alta desde /platform: una sola definición.
  */
 export async function seedOrganization(tx: Db, organizationId: string): Promise<void> {
@@ -30,4 +31,5 @@ export async function seedOrganization(tx: Db, organizationId: string): Promise<
     id: newId("agentProfile"),
     organizationId,
   });
+  await seedOrgModules(tx, organizationId);
 }

@@ -43,6 +43,10 @@ const PERMITIDOS: Record<string, { usos: number; motivo: string }> = {
     usos: 1,
     motivo: "Fase 3: ¿la organización opera? (activa / suspendida / borrada) lo decide la plataforma, también antes de saber la organización de una sesión",
   },
+  "src/server/modules/store.ts": {
+    usos: 1,
+    motivo: "Fase 3, PR 3: los módulos de una organización los decide la plataforma; se consultan también antes de abrir el contexto (webhook recién enrutado, arranque) y los escribe el administrador de plataforma",
+  },
   "src/server/platform-admin/admins.ts": {
     usos: 1,
     motivo: "Fase 3: quién es administrador de plataforma y su reautenticación (tabla de plataforma)",

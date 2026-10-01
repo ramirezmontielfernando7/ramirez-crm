@@ -191,8 +191,8 @@ export async function citasParaContexto(
   contactId: string,
   now = new Date()
 ): Promise<CitasEnContexto | null> {
-  if (!agendaEnabled()) return null;
   try {
+    if (!(await agendaEnabled(organizationId))) return null;
     return await leerCitas(organizationId, contactId, now);
   } catch (err) {
     log.error("no pude leer las citas del contacto para el contexto", { org: organizationId, contacto: contactId, err });

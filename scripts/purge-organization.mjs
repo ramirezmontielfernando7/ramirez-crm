@@ -47,6 +47,10 @@ try {
   if (!org.purge_after || org.purge_after > new Date()) {
     throw new Error(`todavía está en su plazo de gracia: se puede purgar desde ${org.purge_after?.toISOString() ?? "?"}`);
   }
+  // Fase 3, PR 3: una organización "madre" (parent_id) no se borra con hijas
+  // colgando (la FK es RESTRICT). Hoy nada escribe parent_id.
+  const [hijas] = await sql`select count(*)::int as n from organization where parent_id = ${org.id}`;
+  if ((hijas?.n ?? 0) > 0) throw new Error(`tiene ${hijas.n} organización(es) hija(s): no se purga mientras dependan de ella`);
 
   // Lo que se va (solo conteos: nunca contenido).
   const tablas = await sql`

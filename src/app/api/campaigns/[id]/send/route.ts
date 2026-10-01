@@ -13,7 +13,7 @@ type Params = { params: Promise<{ id: string }> };
  */
 export const POST = withAuth(
   async (session, _req: Request, ctx: Params) => {
-    if (!campaignsEnabled()) return campaignsDisabledResponse();
+    if (!(await campaignsEnabled(session.organizationId))) return campaignsDisabledResponse();
     const { id } = await ctx.params;
     try {
       return Response.json({ campaign: await launchCampaign(session.organizationId, id) }, { status: 202 });

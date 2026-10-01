@@ -24,10 +24,10 @@ export default async function BookingsPage({
 }: {
   searchParams: Promise<Params>;
 }) {
-  // Sin la bandera esta pantalla no existe en esta instancia.
-  if (!agendaEnabled()) notFound();
   const session = await getSessionOrNull();
   if (!session) redirect("/login");
+  // Sin el módulo esta pantalla no existe para esta organización.
+  if (!(await agendaEnabled(session.organizationId))) notFound();
 
   const settings = await runWithOrganization(session.organizationId, () =>
     getSettings(session.organizationId)

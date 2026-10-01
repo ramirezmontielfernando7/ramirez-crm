@@ -18,7 +18,7 @@ const schema = z.object({
  * un secreto que la UI nunca le devolvió.
  */
 export const POST = withAuth(async (session, req: Request) => {
-  if (!agendaEnabled()) return agendaDisabledResponse();
+  if (!(await agendaEnabled(session.organizationId))) return agendaDisabledResponse();
   const body = await parseBody(req, schema);
   if (!body.ok) return body.response;
 

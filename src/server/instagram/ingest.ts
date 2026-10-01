@@ -5,6 +5,7 @@ import {
   resolveInstagramByIgUserId,
 } from "@/server/credentials/resolve";
 import { recordUnrouted, unroutedReasonFor } from "@/server/webhooks/unrouted";
+import { isChannelEnabled } from "@/server/channels/enabled";
 import { zernioSentAtSeconds, type ZernioEvent } from "@/server/zernio";
 import { logger } from "@/lib/log";
 
@@ -46,6 +47,12 @@ export async function processZernioEvent(payload: unknown): Promise<void> {
   }
   if (creds.orgStatus !== "active") {
     await recordUnrouted({ source: "instagram", routeKind: "account_ref", routeKey: accountRef, field: "message.received", payload: evt, reason: unroutedReasonFor(creds.orgStatus) });
+    return;
+  }
+  if (!(await isChannelEnabled(creds.organizationId, "instagram"))) {
+    // Fase 3, PR 3: el canal es de la organización. Apagado para ella, el
+    // evento se ignora con aviso (no se ingiere nada).
+    log.warn("evento de Instagram para una organización con el canal apagado: ignorado", { org: creds.organizationId });
     return;
   }
 
@@ -131,6 +138,10 @@ export async function processMetaInstagramPayload(
     }
     if (creds.orgStatus !== "active") {
       await recordUnrouted({ source: "instagram", routeKind: "ig_user_id", routeKey: igUserId, field: "messaging", payload: entry, reason: unroutedReasonFor(creds.orgStatus) });
+      continue;
+    }
+    if (!(await isChannelEnabled(creds.organizationId, "instagram"))) {
+      log.warn("evento de Instagram para una organización con el canal apagado: ignorado", { org: creds.organizationId });
       continue;
     }
     if (creds.source !== "meta") {

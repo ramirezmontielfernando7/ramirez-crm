@@ -8,6 +8,13 @@ import { recordPlatformAudit, type AuditActor } from "./audit";
 import { createAccountLink } from "./links";
 import { forgetOrgStatus, type OrgStatus } from "./org-status";
 import { seedOrganization } from "./seed";
+import {
+  getOrgModules,
+  OPTIONAL_CHANNELS,
+  type OrgModules,
+} from "@/server/modules";
+import { envModuleDefaults } from "@/server/modules/defaults";
+import { updateOrgModules, type ModulesPatch } from "@/server/modules/store";
 
 /**
  * Fase 3, PR 2 — Gestión de organizaciones por el administrador de
@@ -49,7 +56,32 @@ export type OrganizationSummary = {
   members: number;
   owners: { userId: string; name: string; email: string }[];
   whatsappConnected: boolean;
+  modules: ModulesDto;
 };
+
+/**
+ * Fase 3, PR 3 — Los módulos opcionales de una organización tal como los ve
+ * y edita /platform. Solo interruptores: ningún dato del negocio.
+ */
+export type ModulesDto = {
+  campaigns: boolean;
+  agenda: boolean;
+  atribucion: boolean;
+  instagram: boolean;
+  messenger: boolean;
+  campaignSendRate: number;
+};
+
+export function modulesDto(m: OrgModules): ModulesDto {
+  return {
+    campaigns: m.campaigns,
+    agenda: m.agenda,
+    atribucion: m.atribucion,
+    instagram: m.channels.has("instagram"),
+    messenger: m.channels.has("messenger"),
+    campaignSendRate: m.campaignSendRate,
+  };
+}
 
 /** Todas las organizaciones, con solo metadatos. */
 export async function listOrganizations(): Promise<OrganizationSummary[]> {
@@ -72,6 +104,8 @@ export async function listOrganizations(): Promise<OrganizationSummary[]> {
     .from(schema.metaCredentials)
     .where(inArray(schema.metaCredentials.organizationId, ids));
   const platform = platformOrgId();
+  const modules = new Map<string, ModulesDto>();
+  for (const id of ids) modules.set(id, modulesDto(await getOrgModules(id)));
   return orgs.map((o) => ({
     id: o.id,
     name: o.name,
@@ -85,6 +119,7 @@ export async function listOrganizations(): Promise<OrganizationSummary[]> {
     members: Number(counts.find((c) => c.org === o.id)?.n ?? 0),
     owners: owners.filter((w) => w.org === o.id).map(({ userId, name, email }) => ({ userId, name, email })),
     whatsappConnected: wa.some((w) => w.org === o.id),
+    modules: modules.get(o.id) ?? modulesDto(envModuleDefaults()),
   }));
 }
 
@@ -236,6 +271,57 @@ export async function changeOrganizationStatus(
     ip,
   });
   return { status: t.to, purgeAfter };
+}
+
+export type ModulesChange = Partial<Omit<ModulesDto, "campaignSendRate">> & {
+  campaignSendRate?: number | null;
+};
+
+/**
+ * Fase 3, PR 3 — Encender o apagar módulos de una organización. Vale también
+ * para la de la plataforma (son sus módulos, no su estado). Cada cambio queda
+ * en la bitácora con el antes y el después.
+ */
+export async function changeOrganizationModules(
+  organizationId: string,
+  change: ModulesChange,
+  actor: AuditActor,
+  ip: string | null
+): Promise<ModulesDto> {
+  const [org] = await sys()
+    .select({ id: schema.organization.id, name: schema.organization.name })
+    .from(schema.organization)
+    .where(eq(schema.organization.id, organizationId))
+    .limit(1);
+  if (!org) throw new PlatformError(404, "not_found", "Organización no encontrada");
+  const patch: ModulesPatch = {
+    campaigns: change.campaigns,
+    agenda: change.agenda,
+    atribucion: change.atribucion,
+    campaignSendRate: change.campaignSendRate,
+  };
+  if (change.instagram !== undefined || change.messenger !== undefined) {
+    const current = modulesDto(await getOrgModules(organizationId));
+    const want = {
+      instagram: change.instagram ?? current.instagram,
+      messenger: change.messenger ?? current.messenger,
+    };
+    patch.channels = OPTIONAL_CHANNELS.filter((c) => want[c]);
+  }
+  const { before, after } = await updateOrgModules(organizationId, patch, actor?.email ?? "plataforma");
+  const de = modulesDto(before);
+  const a = modulesDto(after);
+  const cambios = (Object.keys(a) as (keyof ModulesDto)[]).filter((k) => de[k] !== a[k]);
+  if (cambios.length > 0) {
+    await recordPlatformAudit({
+      actor,
+      action: "organization.modules_changed",
+      org: { id: org.id, name: org.name },
+      detail: Object.fromEntries(cambios.map((k) => [k, { de: de[k], a: a[k] }])),
+      ip,
+    });
+  }
+  return a;
 }
 
 function verb(a: StatusAction): string {

@@ -174,9 +174,9 @@ export async function reportStageChange(input: {
   toStageId: string;
   toStageKind: "open" | "won" | "lost";
 }): Promise<void> {
-  if (!atribucionEnabled()) return;
-
   try {
+    if (!(await atribucionEnabled(input.organizationId))) return;
+
     const settings = await getCapiSettings(input.organizationId);
     const isQualified =
       settings?.qualifiedStageId != null &&

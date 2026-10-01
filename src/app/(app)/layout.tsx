@@ -44,8 +44,8 @@ export default async function AppLayout({
       // Qué módulos opcionales existen se decide en el servidor y baja por
       // prop, igual que los canales de la Bandeja. El nav es un componente de
       // cliente: no puede —ni debe— leer variables de entorno.
-      agenda={agendaEnabled()}
-      campaigns={campaignsEnabled()}
+      agenda={await agendaEnabled(session.organizationId)}
+      campaigns={await campaignsEnabled(session.organizationId)}
       platform={(await currentPlatformAdmin()) !== null}
       navMode={resolveNavMode(prefs, session.role)}
     >
