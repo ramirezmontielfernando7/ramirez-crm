@@ -158,6 +158,9 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # e2e-plataforma recorre /platform y los enlaces con un navegador real.
+      - name: chromium para Playwright
+        run: pnpm exec playwright install --with-deps chromium
       - name: .env de pruebas (mocks, secretos desechables)
         run: |
           {
