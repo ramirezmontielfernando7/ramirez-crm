@@ -96,6 +96,18 @@ psql -U postgres -Atc "show max_connections"
 psql -U postgres -Atc "select usename, count(*) from pg_stat_activity group by 1 order by 2 desc"
 ```
 
+La migración 0026 necesita que el usuario de las migraciones sea
+superusuario (`BYPASSRLS` lo exige). Con el usuario de tu `DATABASE_URL`
+(aquí `postgres`):
+
+```
+psql -U postgres -Atc "select rolname, rolsuper from pg_roles where rolname = current_user"
+```
+
+Debe decir `postgres|t`. Si dice `f`, crea `vocero_system` a mano como
+superusuario antes de desplegar (`CREATE ROLE vocero_system NOLOGIN BYPASSRLS;`):
+la migración lo reutiliza.
+
 Si subes los pools, mantén `2 × (DB_POOL_MAX + DB_SYSTEM_POOL_MAX) + 5` por
 debajo de `max_connections − 3`.
 
