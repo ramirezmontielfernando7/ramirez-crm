@@ -23,6 +23,9 @@ const EXCEPCIONES: Record<string, string> = {
   session: "better-auth; sin organization_id; solo la lee y escribe el pool de sistema",
   account: "better-auth (credenciales de login); sin organization_id; solo el pool de sistema",
   verification: "better-auth (tokens de verificación); sin organization_id; solo el pool de sistema",
+  platform_admin: "Fase 3 PR 2: administradores de la plataforma, por encima de las organizaciones; solo el pool de sistema",
+  platform_audit_log: "Fase 3 PR 2: bitácora del administrador de plataforma, sobrevive al borrado de la organización; solo el pool de sistema",
+  account_link_token: "Fase 3 PR 2: enlaces de un solo uso para poner contraseña, antes de tener sesión; solo el pool de sistema",
   webhook_unrouted: "Fase 3 PR 1: eventos de Meta sin organización conocida (justo no se pudo enrutar); solo el pool de sistema, cifrados, 7 días",
 };
 

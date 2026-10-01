@@ -1,3 +1,4 @@
+import { isOrgActive } from "@/server/platform-admin/org-status";
 import { asc, desc, eq } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
@@ -121,6 +122,8 @@ export async function runAgentTurn(conversationId: string): Promise<void> {
 
   // Condiciones de silencio: handoff activo o IA apagada en la conversación.
   if (conversation.handoffAt || !conversation.aiEnabled) return;
+  // Fase 3, PR 2: una organización suspendida no gasta IA ni contesta.
+  if (!(await isOrgActive(organizationId))) return;
 
   const profileRows = await db
     .select()

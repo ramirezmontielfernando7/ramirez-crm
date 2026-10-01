@@ -1,3 +1,4 @@
+import { assertOrgActive } from "@/server/platform-admin/org-status";
 import { eq } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
@@ -89,6 +90,8 @@ async function prepareSend(
   conversationId: string,
   organizationId: string
 ): Promise<SendTarget> {
+  // Fase 3, PR 2: nada sale de una organización suspendida o dada de baja.
+  await assertOrgActive(organizationId);
   const db = getDb();
   const rows = await db
     .select({

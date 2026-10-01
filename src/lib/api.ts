@@ -65,6 +65,10 @@ export function withAuth<Args extends unknown[]>(
         // qué pasa, sin ningún valor secreto.
         const unreadable = credentialsUnreadable(err);
         if (unreadable) return unreadable;
+        // Fase 3, PR 2: la organización se suspendió a mitad de la request.
+        if (err instanceof Error && err.name === "OrganizationInactiveError") {
+          return apiError(403, "organization_suspended", "Tu negocio está suspendido. Contacta a soporte de la plataforma.");
+        }
         // Sin el error crudo: con drizzle 0.45 su mensaje trae el SQL y los
         // parámetros (teléfonos, textos). El logger usa `describeError`.
         log.error("error no controlado", { err });

@@ -10,7 +10,8 @@
  * AI_DEFAULT_MONTHLY_TURNS / AI_DEFAULT_MONTHLY_TOKENS; sin default, sin
  * tope). Antes de escribir muestra lo que va a cambiar; con `--dry-run` solo
  * lo muestra. Usa el rol de sistema (DATABASE_URL_SYSTEM) si existe: es
- * trabajo de plataforma, sobre cualquier organización.
+ * trabajo de plataforma, sobre cualquier organización. En la imagen de
+ * Docker viaja como `/app/ops/ai-quota.mjs` (docker exec … node ops/ai-quota.mjs).
  */
 import postgres from "postgres";
 

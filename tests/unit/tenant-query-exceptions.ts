@@ -18,6 +18,16 @@ export const TENANT_QUERY_EXCEPTIONS: Record<string, { max: number; motivo: stri
     motivo:
       "Fase 3, PR 1 — Ruteo de webhooks: phone_number_id / waba_id (únicos), IG_ID, página y cuenta de Zernio → organización (DESCUBRE la organización, sin descifrar tokens); H25: ¿ese número o WABA ya son de OTRA organización? (excluye la propia por id).",
   },
+  "server/platform-admin/organizations.ts": {
+    max: 6,
+    motivo:
+      "Fase 3, PR 2 — El administrador de plataforma gestiona organizaciones (está POR ENCIMA de ellas): cuántas personas tiene cada una, sus Propietarios, si tiene WhatsApp conectado, sus miembros (nombre, correo, rol) y cerrar sus sesiones al suspender. Solo metadatos, nunca contenido; detrás de withPlatformAdmin (404 a todos los demás) y con el pool de sistema.",
+  },
+  "server/platform-admin/links.ts": {
+    max: 1,
+    motivo:
+      "Fase 3, PR 2 — Al usar un enlace de un solo uso: de qué organización es la persona (para la bitácora y el aviso). Aún no hay sesión; el usuario lo dice el token.",
+  },
   "server/instagram/credentials.ts": {
     max: 1,
     motivo:

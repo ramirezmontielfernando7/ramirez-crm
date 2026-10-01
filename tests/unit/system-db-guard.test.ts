@@ -39,6 +39,26 @@ const PERMITIDOS: Record<string, { usos: number; motivo: string }> = {
     usos: 1,
     motivo: "arranque: rotación de la llave de cifrado y secretos en claro → cifrados, en TODAS las organizaciones",
   },
+  "src/server/platform-admin/org-status.ts": {
+    usos: 1,
+    motivo: "Fase 3: ¿la organización opera? (activa / suspendida / borrada) lo decide la plataforma, también antes de saber la organización de una sesión",
+  },
+  "src/server/platform-admin/admins.ts": {
+    usos: 1,
+    motivo: "Fase 3: quién es administrador de plataforma y su reautenticación (tabla de plataforma)",
+  },
+  "src/server/platform-admin/audit.ts": {
+    usos: 1,
+    motivo: "Fase 3: bitácora de plataforma (tabla de plataforma, sin organización)",
+  },
+  "src/server/platform-admin/links.ts": {
+    usos: 1,
+    motivo: "Fase 3: enlaces de un solo uso para poner contraseña (antes de tener sesión)",
+  },
+  "src/server/platform-admin/organizations.ts": {
+    usos: 1,
+    motivo: "Fase 3: el administrador de plataforma da de alta, suspende y borra organizaciones (por encima de ellas)",
+  },
   "src/server/webhooks/unrouted.ts": {
     usos: 1,
     motivo: "eventos de webhook sin organización (tabla de plataforma webhook_unrouted) y su limpieza de 7 días",

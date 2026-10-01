@@ -12,6 +12,7 @@ import {
   resolveActiveOrganizationId,
 } from "@/server/auth/on-signup";
 import { isPublicSignupAllowed } from "@/server/auth/registration";
+import { isOrgActive } from "@/server/platform-admin/org-status";
 
 /**
  * Contexto interno del proceso: permite que el alta de cuentas de equipo
@@ -140,6 +141,15 @@ function createAuth() {
             const organizationId = await resolveActiveOrganizationId(
               session.userId
             );
+            // Fase 3, PR 2: los usuarios de una organización suspendida o
+            // dada de baja no inician sesión. El administrador de plataforma
+            // nunca queda fuera por esto: su organización no se suspende.
+            if (organizationId && !(await isOrgActive(organizationId))) {
+              throw new APIError("FORBIDDEN", {
+                code: "ORGANIZATION_SUSPENDED",
+                message: "Tu negocio está suspendido. Contacta a soporte de la plataforma.",
+              });
+            }
             return {
               data: { ...session, activeOrganizationId: organizationId },
             };

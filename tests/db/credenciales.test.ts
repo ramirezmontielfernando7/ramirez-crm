@@ -60,8 +60,8 @@ describe("H8: una WABA es de UNA organización", () => {
   });
 
   it("guardar la conexión registra la WABA a nombre de su organización", async () => {
-    expect(await resolveWaba(A.wabaId)).toEqual({ organizationId: A.id });
-    expect(await resolveWaba(B.wabaId)).toEqual({ organizationId: B.id });
+    expect(await resolveWaba(A.wabaId)).toEqual({ organizationId: A.id, orgStatus: "active" });
+    expect(await resolveWaba(B.wabaId)).toEqual({ organizationId: B.id, orgStatus: "active" });
   });
 
   it("B no puede declarar la WABA de A: la BD lo impide aunque la ruta no preguntara", async () => {
@@ -71,7 +71,7 @@ describe("H8: una WABA es de UNA organización", () => {
       )
     ).rejects.toThrow();
     // Y B conserva su WABA de antes (la transacción se revirtió completa).
-    expect(await resolveWaba(B.wabaId)).toEqual({ organizationId: B.id });
+    expect(await resolveWaba(B.wabaId)).toEqual({ organizationId: B.id, orgStatus: "active" });
   });
 
   it("H25: se sabe de antemano si el número o la WABA ya son de otra organización", async () => {
@@ -85,7 +85,7 @@ describe("H8: una WABA es de UNA organización", () => {
     await runWithOrganization(A.id, () =>
       saveCredentials({ organizationId: A.id, wabaId: nueva, phoneNumberId: A.phoneNumberId, token: "tok-a2" })
     );
-    expect(await resolveWaba(nueva)).toEqual({ organizationId: A.id });
+    expect(await resolveWaba(nueva)).toEqual({ organizationId: A.id, orgStatus: "active" });
     expect(await resolveWaba(A.wabaId)).toBeNull();
     A = { ...A, wabaId: nueva };
   });
