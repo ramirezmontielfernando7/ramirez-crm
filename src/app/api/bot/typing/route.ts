@@ -6,6 +6,7 @@ import { apiError, parseBody } from "@/lib/api";
 import { requireBotKey } from "@/server/bot/auth";
 import { getCredentialsByOrg } from "@/server/whatsapp/credentials";
 import { graphRequest } from "@/lib/meta/client";
+import { runWithOrganization } from "@/lib/request-context";
 
 export const dynamic = "force-dynamic";
 
@@ -24,64 +25,68 @@ export async function POST(req: Request) {
   const auth = await requireBotKey(req);
   if (!auth.ok) return auth.response;
   const { organizationId } = auth;
-  const body = await parseBody(req, bodySchema);
-  if (!body.ok) return body.response;
 
-  const db = getDb();
-  const convs = await db
-    .select()
-    .from(schema.conversation)
-    .where(
-      scoped(schema.conversation.organizationId, organizationId,
-        eq(schema.conversation.id, body.data.conversationId)
+  // PR 3: todo lo que sigue va a nombre de la organización de la llave.
+  return runWithOrganization(organizationId, async () => {
+    const body = await parseBody(req, bodySchema);
+    if (!body.ok) return body.response;
+
+    const db = getDb();
+    const convs = await db
+      .select()
+      .from(schema.conversation)
+      .where(
+        scoped(schema.conversation.organizationId, organizationId,
+          eq(schema.conversation.id, body.data.conversationId)
+        )
       )
-    )
-    .limit(1);
-  const conv = convs[0];
-  if (!conv) return apiError(404, "not_found", "Conversación no encontrada");
-  if (conv.isTest) {
-    // Sandbox: jamás toca la API real (guardrail del Laboratorio).
-    return Response.json({ ok: false, reason: "sandbox" });
-  }
-  if (!conv.aiEnabled || conv.handoffAt) {
-    // Handoff/IA pausada: un humano atiende — "escribiendo…" aquí sería
-    // mentirle al cliente. Se omite sin tocar Meta.
-    return Response.json({ ok: false, reason: "ai_paused" });
-  }
+      .limit(1);
+    const conv = convs[0];
+    if (!conv) return apiError(404, "not_found", "Conversación no encontrada");
+    if (conv.isTest) {
+      // Sandbox: jamás toca la API real (guardrail del Laboratorio).
+      return Response.json({ ok: false, reason: "sandbox" });
+    }
+    if (!conv.aiEnabled || conv.handoffAt) {
+      // Handoff/IA pausada: un humano atiende — "escribiendo…" aquí sería
+      // mentirle al cliente. Se omite sin tocar Meta.
+      return Response.json({ ok: false, reason: "ai_paused" });
+    }
 
-  const msgs = await db
-    .select({ waMessageId: schema.message.waMessageId })
-    .from(schema.message)
-    .where(
-      scoped(schema.message.organizationId, organizationId,
-        eq(schema.message.conversationId, conv.id),
-        eq(schema.message.direction, "in"),
-        isNotNull(schema.message.waMessageId)
+    const msgs = await db
+      .select({ waMessageId: schema.message.waMessageId })
+      .from(schema.message)
+      .where(
+        scoped(schema.message.organizationId, organizationId,
+          eq(schema.message.conversationId, conv.id),
+          eq(schema.message.direction, "in"),
+          isNotNull(schema.message.waMessageId)
+        )
       )
-    )
-    .orderBy(desc(schema.message.createdAt))
-    .limit(1);
-  const wamid = msgs[0]?.waMessageId;
-  if (!wamid) return Response.json({ ok: false, reason: "no_inbound" });
+      .orderBy(desc(schema.message.createdAt))
+      .limit(1);
+    const wamid = msgs[0]?.waMessageId;
+    if (!wamid) return Response.json({ ok: false, reason: "no_inbound" });
 
-  const creds = await getCredentialsByOrg(organizationId);
-  if (!creds) {
-    return apiError(409, "no_connection", "WhatsApp no está conectado");
-  }
+    const creds = await getCredentialsByOrg(organizationId);
+    if (!creds) {
+      return apiError(409, "no_connection", "WhatsApp no está conectado");
+    }
 
-  try {
-    await graphRequest(`${creds.phoneNumberId}/messages`, {
-      method: "POST",
-      token: creds.token,
-      body: {
-        messaging_product: "whatsapp",
-        status: "read",
-        message_id: wamid,
-        typing_indicator: { type: "text" },
-      },
-    });
-    return Response.json({ ok: true });
-  } catch {
-    return Response.json({ ok: false, reason: "meta_error" });
-  }
+    try {
+      await graphRequest(`${creds.phoneNumberId}/messages`, {
+        method: "POST",
+        token: creds.token,
+        body: {
+          messaging_product: "whatsapp",
+          status: "read",
+          message_id: wamid,
+          typing_indicator: { type: "text" },
+        },
+      });
+      return Response.json({ ok: true });
+    } catch {
+      return Response.json({ ok: false, reason: "meta_error" });
+    }
+  });
 }

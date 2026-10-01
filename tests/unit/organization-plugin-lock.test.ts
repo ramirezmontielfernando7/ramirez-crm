@@ -36,7 +36,7 @@ vi.mock("@/lib/env", () => ({
 // que si alguna ruta de /organization/* la tocara, respondería 500, no 403.
 vi.mock("@/lib/db", () => ({
   schema,
-  getDb: () => drizzle(postgres("postgres://nadie:nada@127.0.0.1:1/ninguna", { max: 1 }), { schema }),
+  getSystemDb: () => drizzle(postgres("postgres://nadie:nada@127.0.0.1:1/ninguna", { max: 1 }), { schema }),
 }));
 
 const { getAuth, isOrganizationPluginPath } = await import("@/lib/auth");

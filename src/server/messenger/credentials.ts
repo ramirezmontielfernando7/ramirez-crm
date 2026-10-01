@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { getDb, schema } from "@/lib/db";
+import { getDb, getSystemDb, schema } from "@/lib/db";
 import { scoped } from "@/lib/db/tenant";
 import { newId } from "@/lib/db/ids";
 import { decryptSecret, encryptSecret } from "@/lib/crypto";
@@ -62,7 +62,8 @@ export async function getMessengerCredentialsByOrg(
 export async function getMessengerCredentialsByPageId(
   pageId: string
 ): Promise<MessengerCredentials | null> {
-  const rows = await getDb()
+  // Enrutamiento: aún no se sabe de qué organización es. Pool de sistema.
+  const rows = await getSystemDb()
     .select()
     .from(schema.messengerCredentials)
     .where(eq(schema.messengerCredentials.pageId, pageId))
@@ -74,7 +75,8 @@ export async function getMessengerCredentialsByPageId(
 export async function getMessengerCredentialsByAccountRef(
   accountRef: string
 ): Promise<MessengerCredentials | null> {
-  const rows = await getDb()
+  // Enrutamiento: aún no se sabe de qué organización es. Pool de sistema.
+  const rows = await getSystemDb()
     .select()
     .from(schema.messengerCredentials)
     .where(eq(schema.messengerCredentials.accountRef, accountRef))

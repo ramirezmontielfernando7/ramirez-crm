@@ -8,6 +8,7 @@ import { publish } from "@/server/events/bus";
 import { logActivitySafe } from "@/server/activity/log";
 import { toHandoffReason } from "@/server/bot/handoff";
 import { announceHandoff } from "@/server/inbox/handoff-notice";
+import { runWithOrganization } from "@/lib/request-context";
 
 export const dynamic = "force-dynamic";
 
@@ -34,50 +35,53 @@ export async function POST(req: Request) {
   if (!auth.ok) return auth.response;
   const { organizationId } = auth;
 
-  const body = await parseBody(req, bodySchema);
-  if (!body.ok) return body.response;
+  // PR 3: todo lo que sigue va a nombre de la organización de la llave.
+  return runWithOrganization(organizationId, async () => {
+    const body = await parseBody(req, bodySchema);
+    if (!body.ok) return body.response;
 
-  const db = getDb();
-  const rows = await db
-    .select({
-      id: schema.conversation.id,
-      contactId: schema.conversation.contactId,
-      handoffAt: schema.conversation.handoffAt,
-    })
-    .from(schema.conversation)
-    .where(
-      scoped(schema.conversation.organizationId, organizationId,
-        eq(schema.conversation.id, body.data.conversationId)
-      )
-    )
-    .limit(1);
-  const conv = rows[0];
-  if (!conv) return apiError(404, "not_found", "Conversación no encontrada");
-
-  if (!conv.handoffAt) {
-    await db
-      .update(schema.conversation)
-      .set({
-        aiEnabled: false,
-        handoffAt: new Date(),
-        handoffReason: toHandoffReason(body.data.reason),
-        updatedAt: new Date(),
+    const db = getDb();
+    const rows = await db
+      .select({
+        id: schema.conversation.id,
+        contactId: schema.conversation.contactId,
+        handoffAt: schema.conversation.handoffAt,
       })
-      .where(eq(schema.conversation.id, conv.id));
-    publish(organizationId, {
-      type: "conversation.updated",
-      data: { conversation: { id: conv.id } },
-    });
-    // 026: el aviso (asignado + quien ve todo; no participantes).
-    await announceHandoff(organizationId, conv.id, toHandoffReason(body.data.reason));
-    // 022: queda en la línea de tiempo del chat.
-    await logActivitySafe({
-      organizationId,
-      contactId: conv.contactId,
-      kind: "ai_handoff",
-      source: "api",
-      detail: { reason: toHandoffReason(body.data.reason) },
-    });
-  }
-  return Response.json({ ok: true });
+      .from(schema.conversation)
+      .where(
+        scoped(schema.conversation.organizationId, organizationId,
+          eq(schema.conversation.id, body.data.conversationId)
+        )
+      )
+      .limit(1);
+    const conv = rows[0];
+    if (!conv) return apiError(404, "not_found", "Conversación no encontrada");
+
+    if (!conv.handoffAt) {
+      await db
+        .update(schema.conversation)
+        .set({
+          aiEnabled: false,
+          handoffAt: new Date(),
+          handoffReason: toHandoffReason(body.data.reason),
+          updatedAt: new Date(),
+        })
+        .where(eq(schema.conversation.id, conv.id));
+      publish(organizationId, {
+        type: "conversation.updated",
+        data: { conversation: { id: conv.id } },
+      });
+      // 026: el aviso (asignado + quien ve todo; no participantes).
+      await announceHandoff(organizationId, conv.id, toHandoffReason(body.data.reason));
+      // 022: queda en la línea de tiempo del chat.
+      await logActivitySafe({
+        organizationId,
+        contactId: conv.contactId,
+        kind: "ai_handoff",
+        source: "api",
+        detail: { reason: toHandoffReason(body.data.reason) },
+      });
+    }
+    return Response.json({ ok: true });
+  });
 }

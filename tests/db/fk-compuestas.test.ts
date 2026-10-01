@@ -1,6 +1,8 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+// PR 3: la prueba prepara y revisa como PLATAFORMA (pool de sistema); lo que
+// prueba (ingesta, llaves, membresía) elige su pool por su cuenta.
 import { and, eq } from "drizzle-orm";
-import { getDb, getSql, schema } from "@/lib/db";
+import { getSystemDb as getDb, getSystemSql as getSql, schema } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
 import { processMessagesValue } from "@/server/inbox/ingest";
 import type { WebhookValue } from "@/server/inbox/webhook";

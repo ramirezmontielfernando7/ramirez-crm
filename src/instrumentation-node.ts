@@ -1,7 +1,7 @@
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { eq } from "drizzle-orm";
-import { getDb, schema } from "@/lib/db";
+import { getSystemDb, schema } from "@/lib/db";
 import { getEnv, isMockEnabled } from "@/lib/env";
 import { unsignedWebhookWarning } from "@/server/inbox/webhook";
 import { logger } from "@/lib/log";
@@ -61,7 +61,8 @@ export function warnIfWebhookUnsigned(): void {
  */
 export async function cleanupOrphanRuns(): Promise<void> {
   try {
-    const db = getDb();
+    // Arranque, sobre todas las organizaciones: pool de sistema.
+    const db = getSystemDb();
     const updated = await db
       .update(schema.agentTestRun)
       .set({

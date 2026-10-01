@@ -183,6 +183,13 @@
       "when": 1790793052930,
       "tag": "0025_fk_compuestas_riesgo_medio",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1790804844152,
+      "tag": "0026_roles_de_bd",
+      "breakpoints": true
     }
   ]
 }

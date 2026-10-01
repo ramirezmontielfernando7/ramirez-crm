@@ -5,6 +5,7 @@ import { scoped } from "@/lib/db/tenant";
 import { apiError, parseBody } from "@/lib/api";
 import { requireBotKey } from "@/server/bot/auth";
 import { SendError, sendText } from "@/server/inbox/send";
+import { runWithOrganization } from "@/lib/request-context";
 
 export const dynamic = "force-dynamic";
 
@@ -28,49 +29,52 @@ export async function POST(req: Request) {
   if (!auth.ok) return auth.response;
   const { organizationId } = auth;
 
-  const body = await parseBody(req, bodySchema);
-  if (!body.ok) return body.response;
+  // PR 3: todo lo que sigue va a nombre de la organización de la llave.
+  return runWithOrganization(organizationId, async () => {
+    const body = await parseBody(req, bodySchema);
+    if (!body.ok) return body.response;
 
-  // Gate de handoff: el bot JAMÁS habla sobre una conversación pausada. Se
-  // relee aquí porque entre que el bot pidió el contexto y armó su respuesta
-  // (segundos de un LLM) el dueño pudo haber tomado la conversación.
-  const db = getDb();
-  const convs = await db
-    .select({
-      aiEnabled: schema.conversation.aiEnabled,
-      handoffAt: schema.conversation.handoffAt,
-    })
-    .from(schema.conversation)
-    .where(
-      scoped(schema.conversation.organizationId, organizationId,
-        eq(schema.conversation.id, body.data.conversationId)
+    // Gate de handoff: el bot JAMÁS habla sobre una conversación pausada. Se
+    // relee aquí porque entre que el bot pidió el contexto y armó su respuesta
+    // (segundos de un LLM) el dueño pudo haber tomado la conversación.
+    const db = getDb();
+    const convs = await db
+      .select({
+        aiEnabled: schema.conversation.aiEnabled,
+        handoffAt: schema.conversation.handoffAt,
+      })
+      .from(schema.conversation)
+      .where(
+        scoped(schema.conversation.organizationId, organizationId,
+          eq(schema.conversation.id, body.data.conversationId)
+        )
       )
-    )
-    .limit(1);
-  const conv = convs[0];
-  if (!conv) return apiError(404, "not_found", "Conversación no encontrada");
-  if (!conv.aiEnabled || conv.handoffAt) {
-    return apiError(409, "ai_paused", "La IA está en pausa en esta conversación");
-  }
-
-  try {
-    const result = await sendText({
-      conversationId: body.data.conversationId,
-      organizationId,
-      text: body.data.text,
-      aiGenerated: true,
-    });
-    return Response.json({ messageId: result.messageId });
-  } catch (err) {
-    if (err instanceof SendError) {
-      if (err.code === "window_closed") {
-        return apiError(409, "window_closed", err.message);
-      }
-      if (err.code === "sandbox_violation") {
-        return apiError(409, "sandbox_violation", err.message);
-      }
-      return apiError(502, err.code, err.message);
+      .limit(1);
+    const conv = convs[0];
+    if (!conv) return apiError(404, "not_found", "Conversación no encontrada");
+    if (!conv.aiEnabled || conv.handoffAt) {
+      return apiError(409, "ai_paused", "La IA está en pausa en esta conversación");
     }
-    throw err;
-  }
+
+    try {
+      const result = await sendText({
+        conversationId: body.data.conversationId,
+        organizationId,
+        text: body.data.text,
+        aiGenerated: true,
+      });
+      return Response.json({ messageId: result.messageId });
+    } catch (err) {
+      if (err instanceof SendError) {
+        if (err.code === "window_closed") {
+          return apiError(409, "window_closed", err.message);
+        }
+        if (err.code === "sandbox_violation") {
+          return apiError(409, "sandbox_violation", err.message);
+        }
+        return apiError(502, err.code, err.message);
+      }
+      throw err;
+    }
+  });
 }

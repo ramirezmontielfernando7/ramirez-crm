@@ -1,5 +1,6 @@
 import { and, asc, eq, sql } from "drizzle-orm";
-import { getDb, schema } from "@/lib/db";
+import { getDb, getSystemDb, schema } from "@/lib/db";
+import { runWithOrganization } from "@/lib/request-context";
 import { scoped } from "@/lib/db/tenant";
 import { resolveVariables, type CampaignVariable } from "@/lib/campaigns";
 import { publish } from "@/server/events/bus";
@@ -61,19 +62,25 @@ class StopCampaign extends Error {}
 export function startCampaignRunner(organizationId: string, campaignId: string): void {
   if (running().has(campaignId)) return;
   running().add(campaignId);
-  void executeCampaign(organizationId, campaignId)
-    .catch(async (err) => {
-      log.error("la campaña falló", { org: organizationId, campana: campaignId, err });
-      await finishCampaign(organizationId, campaignId, "failed", "Error interno del envío; revisa los registros del servidor").catch(
-        (e: unknown) => log.error("no se pudo marcar la campaña como fallida", { org: organizationId, campana: campaignId, err: e })
-      );
-    })
-    .finally(() => running().delete(campaignId));
+  // PR 3: el ejecutor corre a nombre de SU organización (cada consulta fija
+  // `app.org_id`), lo arranque una request o el arranque del servidor.
+  void runWithOrganization(organizationId, () =>
+    executeCampaign(organizationId, campaignId)
+      .catch(async (err) => {
+        log.error("la campaña falló", { org: organizationId, campana: campaignId, err });
+        await finishCampaign(organizationId, campaignId, "failed", "Error interno del envío; revisa los registros del servidor").catch(
+          (e: unknown) => log.error("no se pudo marcar la campaña como fallida", { org: organizationId, campana: campaignId, err: e })
+        );
+      })
+      .finally(() => running().delete(campaignId))
+  );
 }
 
 /** Al arrancar el servidor: reanuda las campañas que quedaron enviando. */
 export async function resumeCampaigns(): Promise<number> {
-  const rows = await getDb()
+  // Recorre TODAS las organizaciones (arranque): pool de sistema. Cada
+  // ejecutor sigue luego a nombre de la suya.
+  const rows = await getSystemDb()
     .select({ id: schema.campaign.id, organizationId: schema.campaign.organizationId })
     .from(schema.campaign)
     .where(eq(schema.campaign.status, "sending"));

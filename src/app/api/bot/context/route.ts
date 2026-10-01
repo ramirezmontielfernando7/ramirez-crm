@@ -7,6 +7,7 @@ import { serializeFicha } from "@/server/bot/ficha";
 import { findContactByIdentity } from "@/server/inbox/identity";
 import { isWindowOpen, windowRemainingMs } from "@/server/inbox/window";
 import { citasParaContexto } from "@/server/agenda/context";
+import { runWithOrganization } from "@/lib/request-context";
 
 export const dynamic = "force-dynamic";
 
@@ -30,107 +31,110 @@ export async function GET(req: Request) {
   if (!auth.ok) return auth.response;
   const { organizationId } = auth;
 
-  const url = new URL(req.url);
-  const waIdentity =
-    url.searchParams.get("identity") ?? url.searchParams.get("waIdentity");
-  const conversationId = url.searchParams.get("conversationId");
-  if (!waIdentity && !conversationId) {
-    return apiError(422, "invalid", "Falta identity (o waIdentity) o conversationId");
-  }
+  // PR 3: todo lo que sigue va a nombre de la organización de la llave.
+  return runWithOrganization(organizationId, async () => {
+    const url = new URL(req.url);
+    const waIdentity =
+      url.searchParams.get("identity") ?? url.searchParams.get("waIdentity");
+    const conversationId = url.searchParams.get("conversationId");
+    if (!waIdentity && !conversationId) {
+      return apiError(422, "invalid", "Falta identity (o waIdentity) o conversationId");
+    }
 
-  const db = getDb();
+    const db = getDb();
 
-  let contact: typeof schema.contact.$inferSelect | undefined;
-  let conversation: typeof schema.conversation.$inferSelect | undefined;
+    let contact: typeof schema.contact.$inferSelect | undefined;
+    let conversation: typeof schema.conversation.$inferSelect | undefined;
 
-  if (conversationId) {
-    const rows = await db
-      .select({ conversation: schema.conversation, contact: schema.contact })
-      .from(schema.conversation)
-      .innerJoin(
-        schema.contact,
-        eq(schema.conversation.contactId, schema.contact.id)
-      )
-      .where(
-        scoped(schema.conversation.organizationId, organizationId,
-          eq(schema.conversation.id, conversationId)
-        )
-      )
-      .limit(1);
-    contact = rows[0]?.contact;
-    conversation = rows[0]?.conversation;
-  } else if (waIdentity) {
-    // Exacta primero; si no, la reconciliación de la ingesta (R11): quien
-    // escribió con teléfono y ahora llega solo con BSUID es el mismo contacto.
-    contact = await findContactByIdentity(organizationId, waIdentity);
-    if (contact) {
-      // La conversación del Laboratorio jamás se resuelve por identidad: ese
-      // camino es para el bot de producción, que nunca debe hablarle a un
-      // cliente simulado.
-      const convs = await db
-        .select()
+    if (conversationId) {
+      const rows = await db
+        .select({ conversation: schema.conversation, contact: schema.contact })
         .from(schema.conversation)
+        .innerJoin(
+          schema.contact,
+          eq(schema.conversation.contactId, schema.contact.id)
+        )
         .where(
           scoped(schema.conversation.organizationId, organizationId,
-            eq(schema.conversation.contactId, contact.id),
-            eq(schema.conversation.isTest, false)
+            eq(schema.conversation.id, conversationId)
           )
         )
         .limit(1);
-      conversation = convs[0];
+      contact = rows[0]?.contact;
+      conversation = rows[0]?.conversation;
+    } else if (waIdentity) {
+      // Exacta primero; si no, la reconciliación de la ingesta (R11): quien
+      // escribió con teléfono y ahora llega solo con BSUID es el mismo contacto.
+      contact = await findContactByIdentity(organizationId, waIdentity);
+      if (contact) {
+        // La conversación del Laboratorio jamás se resuelve por identidad: ese
+        // camino es para el bot de producción, que nunca debe hablarle a un
+        // cliente simulado.
+        const convs = await db
+          .select()
+          .from(schema.conversation)
+          .where(
+            scoped(schema.conversation.organizationId, organizationId,
+              eq(schema.conversation.contactId, contact.id),
+              eq(schema.conversation.isTest, false)
+            )
+          )
+          .limit(1);
+        conversation = convs[0];
+      }
     }
-  }
 
-  if (!contact || !conversation) {
-    return apiError(404, "not_found", "Conversación no encontrada");
-  }
+    if (!contact || !conversation) {
+      return apiError(404, "not_found", "Conversación no encontrada");
+    }
 
-  const [leadRows, booking] = await Promise.all([
-    db
-      .select({ lead: schema.lead, stage: schema.pipelineStage })
-      .from(schema.lead)
-      .innerJoin(
-        schema.pipelineStage,
-        eq(schema.lead.stageId, schema.pipelineStage.id)
-      )
-      .where(
-        scoped(schema.lead.organizationId, organizationId,
-          eq(schema.lead.contactId, contact.id)
+    const [leadRows, booking] = await Promise.all([
+      db
+        .select({ lead: schema.lead, stage: schema.pipelineStage })
+        .from(schema.lead)
+        .innerJoin(
+          schema.pipelineStage,
+          eq(schema.lead.stageId, schema.pipelineStage.id)
         )
-      )
-      .limit(1),
-    citasParaContexto(organizationId, contact.id),
-  ]);
+        .where(
+          scoped(schema.lead.organizationId, organizationId,
+            eq(schema.lead.contactId, contact.id)
+          )
+        )
+        .limit(1),
+      citasParaContexto(organizationId, contact.id),
+    ]);
 
-  return Response.json({
-    contact: {
-      id: contact.id,
-      name: contact.name,
-      /** Nombre neutro (014). Preferir este en clientes nuevos. */
-      identity: contact.waIdentity,
-      /** Alias heredado: sigue aqui para no romper bots ya desplegados. */
-      waIdentity: contact.waIdentity,
-      channel: contact.channel,
-      phone: contact.phone,
-      ficha: serializeFicha(contact),
-    },
-    conversation: {
-      id: conversation.id,
-      // Una sola verdad para el bot: si hay handoff, la IA está apagada
-      // aunque el flag siga en true.
-      aiEnabled: conversation.aiEnabled && !conversation.handoffAt,
-      handoffAt: conversation.handoffAt?.toISOString() ?? null,
-      windowOpen: isWindowOpen(conversation.lastInboundAt),
-      windowRemainingMs: windowRemainingMs(conversation.lastInboundAt),
-    },
-    lead: leadRows[0]
-      ? { id: leadRows[0].lead.id, stageName: leadRows[0].stage.name }
-      : null,
-    /**
-     * 015 — Las citas del contacto. FALTA con la agenda apagada (o si no se
-     * pudieron leer): un cerebro que no lo recibe no afirma nada sobre citas,
-     * y uno que no lo lee no cambia. Aditivo.
-     */
-    ...(booking ? { booking } : {}),
+    return Response.json({
+      contact: {
+        id: contact.id,
+        name: contact.name,
+        /** Nombre neutro (014). Preferir este en clientes nuevos. */
+        identity: contact.waIdentity,
+        /** Alias heredado: sigue aqui para no romper bots ya desplegados. */
+        waIdentity: contact.waIdentity,
+        channel: contact.channel,
+        phone: contact.phone,
+        ficha: serializeFicha(contact),
+      },
+      conversation: {
+        id: conversation.id,
+        // Una sola verdad para el bot: si hay handoff, la IA está apagada
+        // aunque el flag siga en true.
+        aiEnabled: conversation.aiEnabled && !conversation.handoffAt,
+        handoffAt: conversation.handoffAt?.toISOString() ?? null,
+        windowOpen: isWindowOpen(conversation.lastInboundAt),
+        windowRemainingMs: windowRemainingMs(conversation.lastInboundAt),
+      },
+      lead: leadRows[0]
+        ? { id: leadRows[0].lead.id, stageName: leadRows[0].stage.name }
+        : null,
+      /**
+       * 015 — Las citas del contacto. FALTA con la agenda apagada (o si no se
+       * pudieron leer): un cerebro que no lo recibe no afirma nada sobre citas,
+       * y uno que no lo lee no cambia. Aditivo.
+       */
+      ...(booking ? { booking } : {}),
+    });
   });
 }

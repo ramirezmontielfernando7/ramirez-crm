@@ -22,6 +22,7 @@ import { agendaEnabled } from "@/server/agenda/flag";
 import { bookSlot, offerSlots } from "@/server/agenda/agent";
 import { getOffers, mapaDeHuecosParaModelo } from "@/server/agenda/offers";
 import { logger } from "@/lib/log";
+import { currentOrganizationId, runWithOrganization } from "@/lib/request-context";
 
 const log = logger("agente");
 
@@ -53,6 +54,13 @@ function coalesceMap(): Map<string, CoalesceEntry> {
 
 /** Punto de entrada con debounce (mensajes entrantes reales). */
 export function scheduleAgentTurn(conversationId: string): void {
+  // PR 3: el turno hereda la organización de quien lo agenda (la ingesta ya
+  // enrutada o la request). Sin ella no hay a nombre de quién consultar.
+  const organizationId = currentOrganizationId();
+  if (!organizationId) {
+    log.error("turno agendado sin organización: descartado", { conversacion: conversationId });
+    return;
+  }
   const map = coalesceMap();
   const entry = map.get(conversationId) ?? {
     timer: null,
@@ -69,7 +77,7 @@ export function scheduleAgentTurn(conversationId: string): void {
   const delay = getEnv().AGENT_COALESCE_MS;
   entry.timer = setTimeout(() => {
     entry.timer = null;
-    void executeTurn(conversationId);
+    void runWithOrganization(organizationId, () => executeTurn(conversationId));
   }, delay);
 }
 

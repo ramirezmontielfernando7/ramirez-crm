@@ -100,6 +100,15 @@ Ver [.specify/memory/constitution.md](.specify/memory/constitution.md).
 - **Multi-tenancy (III)**: `organization_id` NOT NULL en toda tabla de dominio;
   toda query pasa por `scoped()` de `src/lib/db/tenant.ts` — y, si responde a
   una persona con datos de clientes, por `scopedContacts()` (020).
+  Además (PR 3 multitenant, [docs/roles-de-bd.md](docs/roles-de-bd.md)): la app
+  conecta como `vocero_app` y cada consulta de `getDb()` fija `app.org_id` con
+  la organización del contexto (`withAuth`, `runWithOrganization`) o de
+  `withTenant(org, fn)`. Trabajo fuera de una request (timers, arranque,
+  webhooks ya enrutados) abre su propio contexto. `getSystemDb()`
+  (`vocero_system`) solo para lo que decide la organización (sesión, webhook,
+  llave) o es de plataforma; cada uso va en
+  `tests/unit/system-db-guard.test.ts`. Jamás llames al LLM dentro de
+  `withTenant` ni de `db.transaction()`: `chatJson` lanza.
 - **Permisos (020)**: se validan en el SERVIDOR, en cada ruta, con la matriz
   de `src/lib/auth/permissions.ts`. Nunca `session.role === "owner"` suelto;
   una ruta nueva va en la tabla de `tests/unit/permissions-routes.test.ts`.

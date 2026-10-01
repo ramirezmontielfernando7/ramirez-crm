@@ -4,6 +4,7 @@ import {
   renderBody,
   validateBodyVariables,
 } from "@/lib/templates";
+import { runWithOrganization } from "@/lib/request-context";
 import { getDb, schema } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
 import { graphRequest, MetaApiError, normalizeRecipient } from "@/lib/meta/client";
@@ -253,8 +254,9 @@ export async function applyTemplateStatusEvent(
   const language = value.message_template_language;
   if (!status || !name || !language) return;
 
+  // PR 3: la consulta fija `app.org_id` de la organización del WABA.
   const db = getDb();
-  await db
+  await runWithOrganization(creds.organizationId, () => db
     .update(schema.template)
     .set({
       status,
@@ -266,7 +268,7 @@ export async function applyTemplateStatusEvent(
         eq(schema.template.name, name),
         eq(schema.template.language, language)
       )
-    );
+    ));
 }
 
 /** Envía una plantilla APROBADA a una conversación (ventana cerrada, FR-051). */

@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { runWithOrganization } from "@/lib/request-context";
 import { getSessionOrNull } from "@/lib/auth/session";
 import { can } from "@/lib/auth/permissions";
 import { todayInTz } from "@/lib/time/slots";
@@ -26,10 +27,9 @@ export default async function ResultsPage() {
   // `/api/analytics/*` lo niegan con 403 por su cuenta; esto evita pintarle
   // una pantalla que solo mostraría errores.
   if (!can(session, "results.read")) redirect("/inbox");
-  const [branding, timezone] = await Promise.all([
-    getBranding(session.organizationId),
-    businessTimezone(session.organizationId),
-  ]);
+  const [branding, timezone] = await runWithOrganization(session.organizationId, () =>
+    Promise.all([getBranding(session.organizationId), businessTimezone(session.organizationId)])
+  );
   return (
     <ResultsClient
       currency={branding.currency}

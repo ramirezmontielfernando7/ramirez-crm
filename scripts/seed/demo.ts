@@ -21,7 +21,9 @@ function loadEnvVar(name: string): string | undefined {
   }
 }
 
-const url = loadEnvVar("DATABASE_URL");
+// PR 3: sembrar es trabajo de plataforma (sin sesión ni organización en
+// contexto): rol de sistema si la instancia ya separó roles.
+const url = loadEnvVar("DATABASE_URL_SYSTEM") ?? loadEnvVar("DATABASE_URL");
 if (!url) {
   console.error("[seed] DATABASE_URL no está definida");
   process.exit(1);

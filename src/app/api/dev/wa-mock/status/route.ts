@@ -2,7 +2,8 @@ import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { mockGuard } from "@/lib/dev-guard";
 import { apiError, parseBody } from "@/lib/api";
-import { getDb, schema } from "@/lib/db";
+import { getSystemDb, schema } from "@/lib/db";
+import { runWithOrganization } from "@/lib/request-context";
 import { getCredentialsByOrg } from "@/server/whatsapp/credentials";
 import {
   buildStatusPayload,
@@ -27,7 +28,8 @@ export async function POST(req: Request) {
   if (!body.ok) return body.response;
 
   // Resolver el número desde el mensaje (el payload real lleva metadata).
-  const db = getDb();
+  // Como Meta, el mock todavía no sabe de qué organización es: sistema.
+  const db = getSystemDb();
   const rows = await db
     .select({ organizationId: schema.message.organizationId })
     .from(schema.message)
@@ -35,7 +37,8 @@ export async function POST(req: Request) {
     .limit(1);
   if (!rows[0]) return apiError(404, "not_found", "Mensaje no encontrado");
 
-  const creds = await getCredentialsByOrg(rows[0].organizationId);
+  const orgId = rows[0].organizationId;
+  const creds = await runWithOrganization(orgId, () => getCredentialsByOrg(orgId));
   if (!creds) return apiError(409, "not_connected", "Sin número conectado");
 
   const payload = buildStatusPayload({

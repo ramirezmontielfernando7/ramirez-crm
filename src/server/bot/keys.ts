@@ -1,6 +1,6 @@
 import { createHash, randomBytes } from "node:crypto";
 import { and, eq, isNull, ne } from "drizzle-orm";
-import { getDb, schema } from "@/lib/db";
+import { getDb, getSystemDb, schema } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
 import { scoped } from "@/lib/db/tenant";
 import { platformOrgId } from "@/server/platform";
@@ -42,7 +42,8 @@ export async function resolveBotKey(
   provided: string | null
 ): Promise<{ keyId: string; organizationId: string } | null> {
   if (!provided || provided.length < MIN_KEY_LENGTH) return null;
-  const rows = await getDb()
+  // Es lo que decide la organización de la llamada: pool de sistema.
+  const rows = await getSystemDb()
     .select({ id: schema.botApiKey.id, organizationId: schema.botApiKey.organizationId })
     .from(schema.botApiKey)
     .where(and(eq(schema.botApiKey.keyHash, hashBotKey(provided)), isNull(schema.botApiKey.revokedAt)))
@@ -93,7 +94,8 @@ export async function syncEnvBotKey(): Promise<void> {
   const key = process.env.BOT_API_KEY?.trim();
   const orgId = platformOrgId();
   try {
-    const db = getDb();
+    // Arranque, a nombre de la plataforma: pool de sistema.
+    const db = getSystemDb();
     if (!key || key.length < MIN_KEY_LENGTH) {
       if (key) log.warn("BOT_API_KEY es demasiado corta (mínimo 16): no abre /api/bot/*");
       // Sin llave en la variable: ninguna llave de origen env sigue activa.

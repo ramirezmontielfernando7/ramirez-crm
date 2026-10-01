@@ -285,6 +285,12 @@ export async function processEchoesValue(value: WebhookValue): Promise<void> {
 
   // Meta documenta `message_echoes`; parser tolerante a `messages` (R1).
   const echoes = value.message_echoes ?? value.messages ?? [];
+  // PR 3: de aquí en adelante, cada consulta fija `app.org_id`.
+  await runWithOrganization(credentials.organizationId, () => ingestEchoes(credentials.organizationId, echoes));
+}
+
+async function ingestEchoes(organizationId: string, echoes: WebhookMessage[]): Promise<void> {
+  const credentials = { organizationId };
   for (const echo of echoes) {
     if (!SUPPORTED_TYPES.has(echo.type)) continue;
     if (!echo.to) {
@@ -392,7 +398,18 @@ async function ingestManualEcho(
   });
 }
 
-export async function ingestInboundMessage(input: {
+/**
+ * Punto de entrada común de los tres canales. PR 3: corre a nombre de la
+ * organización ya enrutada (cada consulta fija `app.org_id`, cada log lleva
+ * `org=`), la haya abierto o no quien llama.
+ */
+export async function ingestInboundMessage(
+  input: Parameters<typeof ingestInboundMessageInOrg>[0]
+): Promise<void> {
+  return runWithOrganization(input.organizationId, () => ingestInboundMessageInOrg(input));
+}
+
+async function ingestInboundMessageInOrg(input: {
   organizationId: string;
   identity: ResolvedIdentity;
   waMessageId: string;

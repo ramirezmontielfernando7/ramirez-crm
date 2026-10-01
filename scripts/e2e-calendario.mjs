@@ -229,8 +229,8 @@ async function main() {
   // crea el runner del Laboratorio, que no pasa por la API del operador.
   // `scheduled_at` es `timestamp` SIN zona y guarda UTC: va como texto ISO; un
   // Date lo mandaría como timestamptz y la sesión lo pasaría a la hora local.
-  if (process.env.DATABASE_URL && citas[0]) {
-    sql = postgres(process.env.DATABASE_URL, { max: 1, onnotice: () => {} });
+  if ((process.env.DATABASE_URL_SYSTEM || process.env.DATABASE_URL) && citas[0]) {
+    sql = postgres(process.env.DATABASE_URL_SYSTEM || process.env.DATABASE_URL, { max: 1, onnotice: () => {} });
     const [{ organization_id: org }] = await sql`select organization_id from booking where id = ${citas[0].id}`;
     testBookingId = `bk_e2e215${CORRIDA}`;
     await sql`insert into booking (id, organization_id, kind, status, source, contact_id, scheduled_at, duration_minutes, connector, is_test, notes)

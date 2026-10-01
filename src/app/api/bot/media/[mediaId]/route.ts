@@ -2,6 +2,7 @@ import { apiError } from "@/lib/api";
 import { requireBotKey } from "@/server/bot/auth";
 import { getCredentialsByOrg } from "@/server/whatsapp/credentials";
 import { downloadGraphMedia, MediaFetchError } from "@/server/whatsapp/media";
+import { runWithOrganization } from "@/lib/request-context";
 
 export const dynamic = "force-dynamic";
 
@@ -23,39 +24,43 @@ export async function GET(
   const auth = await requireBotKey(req);
   if (!auth.ok) return auth.response;
   const { organizationId } = auth;
-  const creds = await getCredentialsByOrg(organizationId);
-  if (!creds) {
-    return apiError(409, "no_connection", "WhatsApp no está conectado");
-  }
 
-  const { mediaId } = await ctx.params;
-  if (!/^[\w.-]{1,64}$/.test(mediaId)) {
-    return apiError(422, "invalid", "mediaId inválido");
-  }
-
-  try {
-    const { data, mimeType } = await downloadGraphMedia(
-      creds.token,
-      mediaId,
-      MAX_MEDIA_BYTES
-    );
-    return new Response(new Uint8Array(data), {
-      headers: {
-        "content-type": mimeType ?? "application/octet-stream",
-        "cache-control": "no-store",
-      },
-    });
-  } catch (err) {
-    if (err instanceof MediaFetchError) {
-      if (err.message.includes("límite")) {
-        return apiError(413, "too_large", "El adjunto excede el límite de 16 MB");
-      }
-      return apiError(
-        err.gone ? 404 : 502,
-        "media_download_failed",
-        err.message
-      );
+  // PR 3: todo lo que sigue va a nombre de la organización de la llave.
+  return runWithOrganization(organizationId, async () => {
+    const creds = await getCredentialsByOrg(organizationId);
+    if (!creds) {
+      return apiError(409, "no_connection", "WhatsApp no está conectado");
     }
-    return apiError(502, "media_download_failed", "No se pudo descargar el adjunto");
-  }
+
+    const { mediaId } = await ctx.params;
+    if (!/^[\w.-]{1,64}$/.test(mediaId)) {
+      return apiError(422, "invalid", "mediaId inválido");
+    }
+
+    try {
+      const { data, mimeType } = await downloadGraphMedia(
+        creds.token,
+        mediaId,
+        MAX_MEDIA_BYTES
+      );
+      return new Response(new Uint8Array(data), {
+        headers: {
+          "content-type": mimeType ?? "application/octet-stream",
+          "cache-control": "no-store",
+        },
+      });
+    } catch (err) {
+      if (err instanceof MediaFetchError) {
+        if (err.message.includes("límite")) {
+          return apiError(413, "too_large", "El adjunto excede el límite de 16 MB");
+        }
+        return apiError(
+          err.gone ? 404 : 502,
+          "media_download_failed",
+          err.message
+        );
+      }
+      return apiError(502, "media_download_failed", "No se pudo descargar el adjunto");
+    }
+  });
 }
