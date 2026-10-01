@@ -190,6 +190,13 @@
       "when": 1790804844152,
       "tag": "0026_roles_de_bd",
       "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1790824500685,
+      "tag": "0027_rls_por_organizacion",
+      "breakpoints": true
     }
   ]
 }

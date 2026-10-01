@@ -109,6 +109,11 @@ Ver [.specify/memory/constitution.md](.specify/memory/constitution.md).
   llave) o es de plataforma; cada uso va en
   `tests/unit/system-db-guard.test.ts`. Jamás llames al LLM dentro de
   `withTenant` ni de `db.transaction()`: `chatJson` lanza.
+  **RLS (PR 4, [docs/rls.md](docs/rls.md))**: toda tabla de dominio tiene
+  `FORCE ROW LEVEL SECURITY` con la política `organization_id =
+  current_setting('app.org_id', true)`: fuera de un contexto de organización
+  la app (`vocero_app`) ve CERO filas. Una tabla nueva con `organization_id`
+  lleva la política en su migración o `tests/db/rls.test.ts` falla.
 - **Permisos (020)**: se validan en el SERVIDOR, en cada ruta, con la matriz
   de `src/lib/auth/permissions.ts`. Nunca `session.role === "owner"` suelto;
   una ruta nueva va en la tabla de `tests/unit/permissions-routes.test.ts`.
