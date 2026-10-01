@@ -4,7 +4,7 @@ import {
   resolveInstagramByAccountRef,
   resolveInstagramByIgUserId,
 } from "@/server/credentials/resolve";
-import { recordUnrouted } from "@/server/webhooks/unrouted";
+import { recordUnrouted, unroutedReasonFor } from "@/server/webhooks/unrouted";
 import { zernioSentAtSeconds, type ZernioEvent } from "@/server/zernio";
 import { logger } from "@/lib/log";
 
@@ -44,6 +44,11 @@ export async function processZernioEvent(payload: unknown): Promise<void> {
     log.warn("evento para una cuenta desconocida: guarda la conexión en Configuración → Instagram para recibir mensajes", { cuenta: accountRef });
     return;
   }
+  if (creds.orgStatus !== "active") {
+    await recordUnrouted({ source: "instagram", routeKind: "account_ref", routeKey: accountRef, field: "message.received", payload: evt, reason: unroutedReasonFor(creds.orgStatus) });
+    return;
+  }
+
   if (creds.source !== "zernio") {
     // Defensa en profundidad: esta instancia no habla con Zernio, asi que un
     // payload con su forma no puede ser legitimo aunque llegue por la URL
@@ -122,6 +127,10 @@ export async function processMetaInstagramPayload(
     if (!creds) {
       // Firmado por Meta pero de un perfil que nadie conectó: se guarda 7 días.
       await recordUnrouted({ source: "instagram", routeKind: "ig_user_id", routeKey: igUserId, field: "messaging", payload: entry });
+      continue;
+    }
+    if (creds.orgStatus !== "active") {
+      await recordUnrouted({ source: "instagram", routeKind: "ig_user_id", routeKey: igUserId, field: "messaging", payload: entry, reason: unroutedReasonFor(creds.orgStatus) });
       continue;
     }
     if (creds.source !== "meta") {

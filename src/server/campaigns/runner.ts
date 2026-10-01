@@ -1,3 +1,4 @@
+import { isOrgActive } from "@/server/platform-admin/org-status";
 import { and, asc, eq, sql } from "drizzle-orm";
 import { getDb, getSystemDb, schema } from "@/lib/db";
 import { runWithOrganization } from "@/lib/request-context";
@@ -158,6 +159,10 @@ async function executeCampaign(organizationId: string, campaignId: string): Prom
       if (batch.length === 0) break;
 
       for (const { recipient, contact } of batch) {
+        // Fase 3, PR 2: suspender la organización detiene su campaña en curso.
+        if (!(await isOrgActive(organizationId))) {
+          throw new StopCampaign("Se detuvo: la organización fue suspendida por la plataforma");
+        }
         const startedAt = Date.now();
         await sendOne(organizationId, campaign.templateId, variables, recipient, contact);
         if (Date.now() - lastProgressAt > 1000) {

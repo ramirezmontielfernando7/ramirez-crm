@@ -10,7 +10,7 @@
  *
  * `create` imprime la llave UNA sola vez (se guarda solo su SHA-256, igual
  * que src/server/bot/keys.ts). `revoke` sin `--id` revoca todas las de la
- * organización. En el contenedor: `docker exec -it <app> node scripts/bot-key.mjs …`
+ * organización. En el contenedor (Fase 3): `docker exec -it <app> node ops/bot-key.mjs …`
  * (DATABASE_URL_SYSTEM o DATABASE_URL ya vienen en su entorno: administrar
  * llaves es trabajo de plataforma y usa el rol de sistema si existe).
  */

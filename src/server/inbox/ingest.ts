@@ -6,7 +6,7 @@ import { normalizeMx } from "@/lib/meta/client";
 import { publish } from "@/server/events/bus";
 import { logActivitySafe } from "@/server/activity/log";
 import { resolveWhatsAppNumber } from "@/server/credentials/resolve";
-import { recordUnrouted } from "@/server/webhooks/unrouted";
+import { recordUnrouted, unroutedReasonFor } from "@/server/webhooks/unrouted";
 import { ensureAssetAvailable } from "@/server/whatsapp/media";
 import type { Channel } from "@/lib/channels";
 import type {
@@ -235,6 +235,11 @@ export async function processMessagesValue(value: WebhookValue): Promise<void> {
     await recordUnrouted({ source: "whatsapp", routeKind: "phone_number_id", routeKey: phoneNumberId, field: "messages", payload: value });
     return;
   }
+  if (credentials.orgStatus !== "active") {
+    // Fase 3, PR 2: la organización está suspendida o dada de baja.
+    await recordUnrouted({ source: "whatsapp", routeKind: "phone_number_id", routeKey: phoneNumberId, field: "messages", payload: value, reason: unroutedReasonFor(credentials.orgStatus) });
+    return;
+  }
 
   const organizationId = credentials.organizationId;
 
@@ -282,6 +287,10 @@ export async function processEchoesValue(value: WebhookValue): Promise<void> {
   const credentials = await resolveWhatsAppNumber(phoneNumberId);
   if (!credentials) {
     await recordUnrouted({ source: "whatsapp", routeKind: "phone_number_id", routeKey: phoneNumberId, field: "smb_message_echoes", payload: value });
+    return;
+  }
+  if (credentials.orgStatus !== "active") {
+    await recordUnrouted({ source: "whatsapp", routeKind: "phone_number_id", routeKey: phoneNumberId, field: "smb_message_echoes", payload: value, reason: unroutedReasonFor(credentials.orgStatus) });
     return;
   }
 

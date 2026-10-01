@@ -158,6 +158,9 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # e2e-plataforma recorre /platform y los enlaces con un navegador real.
+      - name: chromium para Playwright
+        run: pnpm exec playwright install --with-deps chromium
       - name: .env de pruebas (mocks, secretos desechables)
         run: |
           {
@@ -211,6 +214,8 @@ jobs:
           node --env-file=.env scripts/e2e-multiorg.mjs
           # Fase 3, PR 1: credenciales, webhooks sin organización y cuota de IA.
           node --env-file=.env scripts/e2e-credenciales.mjs
+          # Fase 3, PR 2: administrador de plataforma, alta y suspensión.
+          node --env-file=.env scripts/e2e-plataforma.mjs
       - name: logs de la app
         if: ${{ failure() }}
         run: tail -n 200 app1.log app2.log || true

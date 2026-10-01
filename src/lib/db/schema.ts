@@ -78,14 +78,35 @@ export const verification = pgTable("verification", {
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
-export const organization = pgTable("organization", {
-  id: text("id").primaryKey(),
-  name: text("name").notNull(),
-  slug: text("slug").unique(),
-  logo: text("logo"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  metadata: text("metadata"),
-});
+export const organization = pgTable(
+  "organization",
+  {
+    id: text("id").primaryKey(),
+    name: text("name").notNull(),
+    slug: text("slug").unique(),
+    logo: text("logo"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    metadata: text("metadata"),
+    /**
+     * Fase 3, PR 2 — Estado de la organización, lo cambia SOLO el
+     * administrador de plataforma (`src/server/platform/`):
+     * `active` · `suspended` (sus usuarios no entran, sus webhooks van a
+     * `webhook_unrouted`, no se envía nada) · `deleted` (borrado suave: igual
+     * que suspendida, y `purge_after` dice desde cuándo se puede borrar de
+     * verdad con `scripts/purge-organization.mjs`).
+     */
+    status: text("status", { enum: ["active", "suspended", "deleted"] })
+      .notNull()
+      .default("active"),
+    statusReason: text("status_reason"),
+    statusChangedAt: timestamp("status_changed_at"),
+    deletedAt: timestamp("deleted_at"),
+    purgeAfter: timestamp("purge_after"),
+  },
+  (t) => [
+    check("organization_status_chk", sql`${t.status} in ('active', 'suspended', 'deleted')`),
+  ]
+);
 
 export const member = pgTable("member", {
   id: text("id").primaryKey(),
@@ -2104,4 +2125,82 @@ export const aiUsage = pgTable(
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },
   (t) => [primaryKey({ columns: [t.organizationId, t.period, t.kind] })]
+);
+
+/**
+ * Fase 3, PR 2 — Administradores de PLATAFORMA (no son un rol de
+ * organización: ser Propietario de un negocio no da nada aquí). El primero lo
+ * crea el operador con `scripts/platform-admin.mjs`; nunca desde la interfaz.
+ * Tabla de plataforma: solo el pool de sistema (`vocero_app` sin permisos).
+ *
+ * `failed_reauth` / `locked_until`: confirmar su propia contraseña antes de
+ * generar un enlace de restablecimiento; 3 fallos → bloqueo temporal. En la
+ * BD (no en memoria): reiniciar el servidor no lo borra.
+ */
+export const platformAdmin = pgTable("platform_admin", {
+  userId: text("user_id")
+    .primaryKey()
+    .references(() => user.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  /** null = lo creó el script del operador. */
+  createdBy: text("created_by"),
+  failedReauth: integer("failed_reauth").notNull().default(0),
+  lockedUntil: timestamp("locked_until"),
+});
+
+/**
+ * Fase 3, PR 2 — Bitácora de lo que hace un administrador de plataforma
+ * sobre una organización o un usuario. Sin FK a propósito: sobrevive al
+ * borrado definitivo de la organización (por eso copia nombre y correo).
+ * Nunca guarda secretos ni enlaces.
+ */
+export const platformAuditLog = pgTable(
+  "platform_audit_log",
+  {
+    id: text("id").primaryKey(),
+    at: timestamp("at").notNull().defaultNow(),
+    actorUserId: text("actor_user_id"),
+    actorEmail: text("actor_email"),
+    action: text("action").notNull(),
+    targetOrgId: text("target_org_id"),
+    targetOrgName: text("target_org_name"),
+    targetUserId: text("target_user_id"),
+    targetUserEmail: text("target_user_email"),
+    detail: jsonb("detail"),
+    ip: text("ip"),
+  },
+  (t) => [
+    index("platform_audit_log_at_idx").on(t.at),
+    index("platform_audit_log_org_idx").on(t.targetOrgId, t.at),
+  ]
+);
+
+/**
+ * Fase 3, PR 2 — Enlaces de un solo uso para que una persona ponga SU
+ * contraseña: activación del primer Propietario de una organización nueva y
+ * restablecimiento que genera el administrador de plataforma. Solo se guarda
+ * el SHA-256 del token; el enlace se muestra una vez. Tabla de plataforma
+ * (la persona aún no tiene sesión): solo el pool de sistema.
+ */
+export const accountLinkToken = pgTable(
+  "account_link_token",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    purpose: text("purpose", { enum: ["activate", "reset"] }).notNull(),
+    tokenHash: text("token_hash").notNull(),
+    expiresAt: timestamp("expires_at").notNull(),
+    usedAt: timestamp("used_at"),
+    usedIp: text("used_ip"),
+    usedUserAgent: text("used_user_agent"),
+    /** El administrador que lo generó (null = el alta de la organización). */
+    createdBy: text("created_by"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("account_link_token_hash_uq").on(t.tokenHash),
+    index("account_link_token_user_idx").on(t.userId),
+  ]
 );

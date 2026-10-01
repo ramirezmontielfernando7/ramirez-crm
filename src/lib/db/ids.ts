@@ -52,6 +52,11 @@ const prefixes = {
   // PR 1 Fase 3
   whatsappBusinessAccount: "waba",
   webhookUnrouted: "whu",
+  // PR 2 Fase 3
+  platformAudit: "pal",
+  accountLinkToken: "alt",
+  user: "usr",
+  account: "acc",
 } as const;
 
 export type IdKind = keyof typeof prefixes;

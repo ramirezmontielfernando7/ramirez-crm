@@ -204,6 +204,13 @@
       "when": 1790836831812,
       "tag": "0028_credenciales_y_webhooks",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1790862846571,
+      "tag": "0029_plataforma",
+      "breakpoints": true
     }
   ]
 }

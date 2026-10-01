@@ -1,3 +1,4 @@
+import { isOrgActive } from "@/server/platform-admin/org-status";
 import { apiError } from "@/lib/api";
 import { runWithOrganization } from "@/lib/request-context";
 import { checkRateLimit, clientIp } from "@/lib/rate-limit";
@@ -56,6 +57,10 @@ export async function requireBotKey(req: Request): Promise<BotAuth> {
         ? apiError(401, "unauthorized", "No autorizado")
         : apiError(429, "rate_limited", "Demasiados intentos fallidos"),
     };
+  }
+  // Fase 3, PR 2: la llave de una organización suspendida no abre nada.
+  if (!(await isOrgActive(key.organizationId))) {
+    return { ok: false, response: apiError(403, "organization_suspended", "La organización está suspendida") };
   }
   // «Quién responde»: la única huella que deja el cerebro externo en el CRM,
   // por organización. Se marca al autenticar, antes del presupuesto: un

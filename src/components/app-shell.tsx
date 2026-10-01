@@ -38,6 +38,7 @@ export function AppShell({
   commit,
   agenda = false,
   campaigns = false,
+  platform = false,
   navMode = "expanded",
   children,
 }: {
@@ -55,6 +56,8 @@ export function AppShell({
   agenda?: boolean;
   /** 021 — ¿esta instancia tiene Campañas? Lo decide el servidor (CAMPAIGNS). */
   campaigns?: boolean;
+  /** Fase 3 — ¿quien mira es administrador de plataforma? Lo decide el servidor. */
+  platform?: boolean;
   /**
    * 022 — En qué estado arranca la barra lateral en escritorio (expandida,
    * solo íconos u oculta). Lo resuelve el servidor: la preferencia guardada
@@ -79,6 +82,7 @@ export function AppShell({
           commit={commit}
           agenda={agenda}
           campaigns={campaigns}
+          platform={platform}
           navMode={navMode}
         >
           {children}
@@ -98,6 +102,7 @@ function ShellFrame({
   commit,
   agenda,
   campaigns,
+  platform,
   navMode,
   children,
 }: {
@@ -108,6 +113,7 @@ function ShellFrame({
   commit?: ResolvedCommit;
   agenda: boolean;
   campaigns: boolean;
+  platform: boolean;
   navMode: NavMode;
   children: React.ReactNode;
 }) {
@@ -198,6 +204,7 @@ function ShellFrame({
           theme={theme}
           agenda={agenda}
           campaigns={campaigns}
+          platform={platform}
           open={navOpen}
           onClose={closeNav}
           mode={mode}

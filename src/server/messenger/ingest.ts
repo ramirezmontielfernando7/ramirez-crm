@@ -12,7 +12,7 @@ import {
   resolveMessengerByAccountRef,
   resolveMessengerByPageId,
 } from "@/server/credentials/resolve";
-import { recordUnrouted } from "@/server/webhooks/unrouted";
+import { recordUnrouted, unroutedReasonFor } from "@/server/webhooks/unrouted";
 import { fetchMessengerProfileName } from "@/server/messenger/send";
 import { zernioSentAtSeconds, type ZernioEvent } from "@/server/zernio";
 import { logger } from "@/lib/log";
@@ -239,6 +239,17 @@ async function ingestAll(
       } else {
         log.warn("evento para una cuenta desconocida: guarda la conexión en Configuración → Messenger para recibir mensajes", { cuenta: evt.routeKey });
       }
+      continue;
+    }
+    if (route.orgStatus !== "active") {
+      await recordUnrouted({
+        source: "messenger",
+        routeKind: source === "meta" ? "page_id" : "account_ref",
+        routeKey: evt.routeKey,
+        field: "messaging",
+        payload: evt,
+        reason: unroutedReasonFor(route.orgStatus),
+      });
       continue;
     }
     const creds = route;

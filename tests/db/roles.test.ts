@@ -10,7 +10,7 @@ import { getSql, getSystemSql } from "@/lib/db";
 const usaRoles = new URL(process.env.DATABASE_URL!).username === "vocero_app";
 
 /** Igual que SOLO_SISTEMA en scripts/migrate.mjs. */
-const SOLO_SISTEMA = ["webhook_unrouted"];
+const SOLO_SISTEMA = ["webhook_unrouted", "platform_admin", "platform_audit_log", "account_link_token"];
 
 describe("roles de base de datos (0026)", () => {
   it("vocero_app no es superusuario ni salta RLS; vocero_system sí salta RLS", async () => {

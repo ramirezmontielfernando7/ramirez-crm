@@ -16,7 +16,8 @@ import {
   markReconnectRequired,
 } from "@/server/whatsapp/credentials";
 import { resolveWaba } from "@/server/credentials/resolve";
-import { recordUnrouted } from "@/server/webhooks/unrouted";
+import { assertOrgActive } from "@/server/platform-admin/org-status";
+import { recordUnrouted, unroutedReasonFor } from "@/server/webhooks/unrouted";
 import { callGraphSend, SendError } from "@/server/inbox/send";
 import { serializeMessage } from "@/server/inbox/ingest";
 import type { WebhookValue } from "@/server/inbox/webhook";
@@ -253,6 +254,10 @@ export async function applyTemplateStatusEvent(
     await recordUnrouted({ source: "whatsapp", routeKind: "waba_id", routeKey: wabaId, field: "message_template_status_update", payload: value });
     return;
   }
+  if (creds.orgStatus !== "active") {
+    await recordUnrouted({ source: "whatsapp", routeKind: "waba_id", routeKey: wabaId, field: "message_template_status_update", payload: value, reason: unroutedReasonFor(creds.orgStatus) });
+    return;
+  }
 
   const status = mapMetaStatus(value.event);
   const name = value.message_template_name;
@@ -283,6 +288,8 @@ export async function sendTemplate(input: {
   templateId: string;
   variables?: string[];
 }): Promise<{ messageId: string }> {
+  // Fase 3, PR 2: nada sale de una organización suspendida o dada de baja.
+  await assertOrgActive(input.organizationId);
   const db = getDb();
 
   const templates = await db

@@ -17,6 +17,7 @@ import {
   Megaphone,
   MessagesSquare,
   Settings,
+  ShieldCheck,
   Sparkles,
   Users,
   X,
@@ -99,6 +100,13 @@ const CAMPAIGNS_ITEM: NavItem = {
   permission: "campaigns.manage",
 };
 
+/** Fase 3 — Administración de la plataforma (organizaciones). */
+const PLATFORM_ITEM: NavItem = {
+  href: "/platform",
+  label: "Plataforma",
+  icon: ShieldCheck,
+};
+
 /**
  * Un renglón del menú, como el `side-item` del mockup de la landing: texto
  * semibold, esquinas de 9px y, activo, lavado del acento con tinta azul.
@@ -124,6 +132,7 @@ export function AppNav({
   commit,
   agenda = false,
   campaigns = false,
+  platform = false,
   open = false,
   onClose,
   mode = "expanded",
@@ -147,6 +156,8 @@ export function AppNav({
   agenda?: boolean;
   /** 021 — ¿hay Campañas en esta instancia? Viene del servidor. */
   campaigns?: boolean;
+  /** Fase 3 — ¿es administrador de plataforma? Viene del servidor. */
+  platform?: boolean;
   /** Solo aplica por debajo de `lg`: en escritorio el lateral es fijo. */
   open?: boolean;
   onClose?: () => void;
@@ -192,8 +203,12 @@ export function AppNav({
     const campaignsAfter = base.findIndex((i) => i.href === "/knowledge");
     return (
       campaigns ? [...base.slice(0, campaignsAfter + 1), CAMPAIGNS_ITEM, ...base.slice(campaignsAfter + 1)] : base
-    ).filter((item) => !item.permission || viewer.can(item.permission));
-  }, [agenda, campaigns, viewer]);
+    )
+      .filter((item) => !item.permission || viewer.can(item.permission))
+      // Fase 3: solo el administrador de plataforma (lo decide el servidor;
+      // /platform responde 404 a cualquier otra persona de todos modos).
+      .concat(platform ? [PLATFORM_ITEM] : []);
+  }, [agenda, campaigns, platform, viewer]);
   // Ajustes solo si hay al menos una pestaña que pueda abrir.
   const showSettings =
     viewer.can("settings.manage") ||

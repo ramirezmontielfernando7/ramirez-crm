@@ -11,6 +11,7 @@ import { agendaEnabled } from "@/server/agenda/flag";
 import { campaignsEnabled } from "@/server/campaigns/flag";
 import { getUserPreferences } from "@/server/preferences";
 import { resolveNavMode } from "@/lib/preferences";
+import { currentPlatformAdmin } from "@/server/platform-admin/admins";
 
 export default async function AppLayout({
   children,
@@ -45,6 +46,7 @@ export default async function AppLayout({
       // cliente: no puede —ni debe— leer variables de entorno.
       agenda={agendaEnabled()}
       campaigns={campaignsEnabled()}
+      platform={(await currentPlatformAdmin()) !== null}
       navMode={resolveNavMode(prefs, session.role)}
     >
       {children}

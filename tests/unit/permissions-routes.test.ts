@@ -212,8 +212,26 @@ const POR_MEMBRESIA: [string, Method][] = [
   ["team-chat/people", "GET"],
 ];
 
-/** Sin sesión de usuario: tienen su propia autenticación o son públicas. */
-const EXENTAS_PREFIJOS = ["auth/", "bot/", "webhooks/", "dev/", "health", "branding/favicon"];
+/**
+ * Fase 3, PR 2 — Solo el ADMINISTRADOR DE PLATAFORMA (`withPlatformAdmin`).
+ * Cualquier otra sesión, de cualquier rol de cualquier organización, recibe
+ * 404: como si la ruta no existiera.
+ */
+const PLATAFORMA: [string, Method][] = [
+  ["platform/organizations", "GET"],
+  ["platform/organizations", "POST"],
+  ["platform/organizations/[id]/members", "GET"],
+  ["platform/organizations/[id]/status", "POST"],
+  ["platform/users/[id]/link", "POST"],
+  ["platform/audit", "GET"],
+];
+
+/**
+ * Sin sesión de usuario: tienen su propia autenticación o son públicas.
+ * `account-link/` (Fase 3): el token de un solo uso ES la credencial.
+ * `csp-report` (Fase 3): reportes del navegador, sin datos de nadie.
+ */
+const EXENTAS_PREFIJOS = ["auth/", "bot/", "webhooks/", "dev/", "health", "branding/favicon", "account-link/", "csp-report"];
 
 async function handler(route: string, method: Method): Promise<Handler> {
   const mod = (await import(`@/app/api/${route}/route`)) as Record<string, Handler>;
@@ -273,6 +291,22 @@ describe("020 — un COORDINADOR recibe 403 en lo que es solo del Propietario", 
   });
 });
 
+describe("Fase 3 — /api/platform/* responde 404 a quien no es administrador de plataforma", () => {
+  it.each(PLATAFORMA)("%s %s → 404 al Propietario de una organización", async (route, method) => {
+    como("owner");
+    const h = await handler(route, method);
+    const res = await h(req(method), ctx);
+    expect(res.status).toBe(404);
+    expect(state.dbTouched).toBe(false);
+  });
+  it("cada ruta de plataforma está envuelta en withPlatformAdmin", () => {
+    for (const [route, method] of PLATAFORMA) {
+      const code = readFileSync(path.join(API, route, "route.ts"), "utf8");
+      expect(code, `${route} ${method}`).toMatch(new RegExp(`export const ${method} = withPlatformAdmin\\(`));
+    }
+  });
+});
+
 describe("020 — un asesor no puede pedir los resultados de otro", () => {
   it.each(["sales", "ads", "bot", "hygiene"])("analytics/%s?userId=otro → 403", async (b) => {
     const h = await handler(`analytics/${b}`, "GET");
@@ -302,7 +336,7 @@ function routeFiles(dir: string): string[] {
 describe("020 — cobertura: ninguna ruta sin decidir su permiso", () => {
   it("cada handler exportado está en PROTEGIDAS, FILTRADAS, DEL_NEGOCIO, POR_MEMBRESIA o es exento", () => {
     const conocidas = new Set(
-      [...PROTEGIDAS, ...FILTRADAS, ...DEL_NEGOCIO, ...POR_MEMBRESIA].map(([r, m]) => `${r} ${m}`)
+      [...PROTEGIDAS, ...FILTRADAS, ...DEL_NEGOCIO, ...POR_MEMBRESIA, ...PLATAFORMA].map(([r, m]) => `${r} ${m}`)
     );
     const sinDecidir: string[] = [];
     for (const file of routeFiles(API)) {

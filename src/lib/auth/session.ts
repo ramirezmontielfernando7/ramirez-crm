@@ -5,6 +5,7 @@ import type { Access } from "@/lib/db/tenant";
 import { resolveMembership } from "@/server/auth/on-signup";
 import { runWithOrganization } from "@/lib/request-context";
 import { delegatedGrants } from "@/server/team-chat/settings";
+import { isOrgActive } from "@/server/platform-admin/org-status";
 
 export type SessionContext = {
   userId: string;
@@ -63,6 +64,11 @@ export async function requireSession(): Promise<SessionContext> {
   );
   if (!membership) {
     throw new UnauthorizedError("Sesión sin organización activa");
+  }
+  // Fase 3, PR 2: una organización suspendida o dada de baja no opera; sus
+  // sesiones abiertas dejan de valer al instante (no solo el próximo login).
+  if (!(await isOrgActive(membership.organizationId))) {
+    throw new UnauthorizedError("Organización suspendida");
   }
   return sessionContext(
     session.user.id,

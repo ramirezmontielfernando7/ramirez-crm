@@ -22,7 +22,7 @@ import {
   renderMentions,
 } from "@/lib/team-chat-mentions";
 import { notFound, TeamChatError } from "./errors";
-import { threadAccess, threadDir, type ThreadAccess } from "./threads";
+import { announcementsIdFor, ensureAnnouncements, threadAccess, threadDir, type ThreadAccess } from "./threads";
 import { publishTeam, publishToUser } from "./audience";
 
 /**
@@ -491,5 +491,49 @@ export async function readAttachment(
     return { row, data: await readFile(path.join(getEnv().MEDIA_DIR, row.storagePath)) };
   } catch {
     throw new TeamChatError(404, "gone", "El archivo ya no está en el servidor");
+  }
+}
+
+/**
+ * Fase 3, PR 2 — Aviso de SISTEMA en el canal de Avisos de una organización
+ * (sin autor: no lo escribe ninguna persona). Lo usa la plataforma para avisar
+ * al equipo de algo que le pasó a una de sus cuentas, p. ej. que se usó un
+ * enlace de restablecimiento de contraseña. Sin menciones ni adjuntos.
+ */
+export async function postSystemNotice(organizationId: string, body: string): Promise<void> {
+  const text = cleanBody(body);
+  if (!text) return;
+  await ensureAnnouncements(organizationId);
+  const threadId = announcementsIdFor(organizationId);
+  const id = newId("teamChatMessage");
+  const now = new Date();
+  await getDb().transaction(async (tx) => {
+    await tx.insert(schema.teamChatMessage).values({
+      id,
+      organizationId,
+      threadId,
+      authorUserId: null,
+      body: text,
+      createdAt: now,
+    });
+    await tx
+      .update(schema.teamChatThread)
+      .set({ lastMessageAt: now, updatedAt: now })
+      .where(scoped(schema.teamChatThread.organizationId, organizationId, eq(schema.teamChatThread.id, threadId)));
+  });
+  const [thread] = await getDb()
+    .select()
+    .from(schema.teamChatThread)
+    .where(scoped(schema.teamChatThread.organizationId, organizationId, eq(schema.teamChatThread.id, threadId)))
+    .limit(1);
+  if (!thread) return;
+  // Sin menciones: el DTO neutro es el mismo para todos.
+  const rows = await selectMessages()
+    .where(scoped(schema.teamChatMessage.organizationId, organizationId, eq(schema.teamChatMessage.id, id)))
+    .limit(1);
+  const system = { organizationId, userId: "", role: "", access: { organizationId, userId: "", seesAll: false } } as SessionContext;
+  const [message] = await serialize(system, rows, { neutral: true });
+  if (message) {
+    await publishTeam(organizationId, thread, { type: "team.message", data: { threadId, change: "new", message } });
   }
 }

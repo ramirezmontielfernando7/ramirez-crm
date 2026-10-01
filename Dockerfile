@@ -27,6 +27,12 @@ RUN pnpm build
 RUN pnpm exec esbuild scripts/migrate.mjs --bundle --platform=node \
     --format=esm --outfile=migrate.bundle.mjs \
     --banner:js="import { createRequire } from 'module'; const require = createRequire(import.meta.url);"
+# Fase 3: scripts de OPERADOR autocontenidos, para correrlos dentro del
+# contenedor (docker exec … node ops/<script>.mjs). Usan DATABASE_URL_SYSTEM.
+RUN for s in platform-admin purge-organization ai-quota bot-key; do \
+      pnpm exec esbuild scripts/$s.mjs --bundle --platform=node --format=esm --outfile=ops/$s.mjs \
+        --banner:js="import { createRequire } from 'module'; const require = createRequire(import.meta.url);" || exit 1; \
+    done
 RUN pnpm exec esbuild scripts/seed/demo.ts --bundle --platform=node \
     --format=esm --outfile=seed-demo.bundle.mjs --alias:@=./src \
     --banner:js="import { createRequire } from 'module'; const require = createRequire(import.meta.url);"
@@ -53,6 +59,7 @@ COPY --from=builder --chown=vocero:vocero /app/.next/static ./.next/static
 COPY --from=builder --chown=vocero:vocero /app/public ./public
 COPY --from=builder --chown=vocero:vocero /app/migrate.bundle.mjs ./migrate.mjs
 COPY --from=builder --chown=vocero:vocero /app/seed-demo.bundle.mjs ./seed-demo.mjs
+COPY --from=builder --chown=vocero:vocero /app/ops ./ops
 COPY --from=builder --chown=vocero:vocero /app/drizzle ./drizzle
 # Nombre propio a propósito: la imagen de node ya trae su docker-entrypoint.sh
 # (antepone `node` si el primer argumento no es un comando) y el nuestro le

@@ -135,9 +135,17 @@ describe("guardarraíl: nada de «la primera organización»", () => {
    * H2/H11: leer `organization` sin `where` es elegir un negocio al azar.
    * Solo se permite CONTAR (¿la instancia está vacía?), que no elige a nadie.
    */
+  /**
+   * Fase 3, PR 2: listar TODAS las organizaciones (sin elegir ninguna) para el
+   * administrador de plataforma. Detrás de `withPlatformAdmin` (404 a
+   * cualquier otra persona) y con el pool de sistema.
+   */
+  const LISTAN_TODAS = new Set(["server/platform-admin/organizations.ts"]);
+
   it("ninguna lectura de organization sin where (salvo un count)", () => {
     const mal: string[] = [];
     for (const { rel, code } of archivos) {
+      if (LISTAN_TODAS.has(rel)) continue;
       const re = /\.from\(\s*schema\.organization\s*\)/g;
       let m: RegExpExecArray | null;
       while ((m = re.exec(code)) !== null) {
