@@ -4,6 +4,7 @@ import { scoped } from "@/lib/db/tenant";
 import type { Db } from "@/lib/db";
 import type { Channel } from "@/lib/channels";
 import { logger } from "@/lib/log";
+import { MODULE_PROFILES, type ModuleProfile } from "@/lib/modules/registry";
 import {
   envModuleDefaults,
   optionalChannelsOf,
@@ -51,6 +52,13 @@ function fromRow(row: Row, defaults: OrgModules): OrgModules {
     atribucion: row.atribucion,
     channels,
     campaignSendRate: parseSendRate(row.campaignSendRate) ?? defaults.campaignSendRate,
+    knowledge: row.knowledge,
+    agent: row.agent,
+    // El CHECK de la 0034 ya lo impide; se repite por si alguien escribe a mano.
+    lab: row.lab && row.agent,
+    teamChat: row.teamChat,
+    results: row.results,
+    customNav: row.customNav,
   };
 }
 
@@ -115,6 +123,12 @@ function defaultsRow(organizationId: string) {
     channels: optionalChannelsOf(d.channels),
     // Nulo: sigue a CAMPAIGN_SEND_RATE mientras nadie lo fije a mano.
     campaignSendRate: null,
+    knowledge: d.knowledge,
+    lab: d.lab,
+    agent: d.agent,
+    teamChat: d.teamChat,
+    results: d.results,
+    customNav: d.customNav,
     updatedBy: "entorno",
   };
 }
@@ -123,8 +137,35 @@ function defaultsRow(organizationId: string) {
  * Lo que toda organización nueva trae: los módulos que dicen las variables
  * de entorno. Dentro de la transacción del alta (`seedOrganization`).
  */
-export async function seedOrgModules(tx: Db, organizationId: string): Promise<void> {
-  await tx.insert(schema.organizationModule).values(defaultsRow(organizationId)).onConflictDoNothing();
+export async function seedOrgModules(
+  tx: Db,
+  organizationId: string,
+  profile?: ModuleProfile
+): Promise<void> {
+  await tx
+    .insert(schema.organizationModule)
+    .values({ ...defaultsRow(organizationId), ...(profile ? profileRow(profile) : {}) })
+    .onConflictDoNothing();
+}
+
+/**
+ * 030 (PR 4) — Perfil de alta (Básico o Completo): SOLO una plantilla para
+ * los interruptores al crear la organización; no se guarda cuál fue.
+ */
+function profileRow(profile: ModuleProfile) {
+  const p = MODULE_PROFILES[profile].modules;
+  return {
+    campaigns: p.campaigns,
+    agenda: p.agenda,
+    atribucion: p.atribucion,
+    knowledge: p.knowledge,
+    agent: p.agent,
+    lab: p.lab && p.agent,
+    teamChat: p.team_chat,
+    results: p.results,
+    customNav: p.customNav,
+    updatedBy: `perfil:${profile}`,
+  };
 }
 
 /**
@@ -147,6 +188,12 @@ export async function backfillOrgModules(): Promise<number> {
             atribucion: sql<boolean>`${d.atribucion}::boolean`.as("atribucion"),
             channels: sql<string[]>`${`{${d.channels.join(",")}}`}::text[]`.as("channels"),
             campaignSendRate: sql<number | null>`null::integer`.as("campaign_send_rate"),
+            knowledge: sql<boolean>`${d.knowledge}::boolean`.as("knowledge"),
+            lab: sql<boolean>`${d.lab}::boolean`.as("lab"),
+            agent: sql<boolean>`${d.agent}::boolean`.as("agent"),
+            teamChat: sql<boolean>`${d.teamChat}::boolean`.as("team_chat"),
+            results: sql<boolean>`${d.results}::boolean`.as("results"),
+            customNav: sql<boolean>`${d.customNav}::boolean`.as("custom_nav"),
             updatedAt: sql<Date>`now()`.as("updated_at"),
             updatedBy: sql<string>`${d.updatedBy}`.as("updated_by"),
           })
@@ -181,7 +228,34 @@ export type ModulesPatch = {
   atribucion?: boolean;
   channels?: OptionalChannel[];
   campaignSendRate?: number | null;
+  knowledge?: boolean;
+  lab?: boolean;
+  agent?: boolean;
+  teamChat?: boolean;
+  results?: boolean;
+  customNav?: boolean;
 };
+
+/**
+ * 030 (PR 4) — El Laboratorio requiere al Agente. Apagar el Agente apaga
+ * también el Laboratorio; encender el Laboratorio sin Agente es un error de
+ * quien lo pide (lo decide `resolveModulesPatch` antes de escribir).
+ */
+export class ModuleDependencyError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ModuleDependencyError";
+  }
+}
+
+export function resolveLabAgent(before: { lab: boolean; agent: boolean }, patch: { lab?: boolean; agent?: boolean }): { lab: boolean; agent: boolean } {
+  const agent = patch.agent ?? before.agent;
+  if (patch.lab === true && !agent) {
+    throw new ModuleDependencyError("El Laboratorio requiere el Agente: enciende primero el Agente");
+  }
+  const lab = agent ? (patch.lab ?? before.lab) : false;
+  return { lab, agent };
+}
 
 /**
  * Lo cambia SOLO el administrador de plataforma (`/platform`). Devuelve el
@@ -201,6 +275,11 @@ export async function updateOrgModules(
     agenda: patch.agenda ?? before.agenda,
     atribucion: patch.atribucion ?? before.atribucion,
     channels: patch.channels ?? optionalChannelsOf(before.channels),
+    knowledge: patch.knowledge ?? before.knowledge,
+    teamChat: patch.teamChat ?? before.teamChat,
+    results: patch.results ?? before.results,
+    customNav: patch.customNav ?? before.customNav,
+    ...resolveLabAgent(before, patch),
     updatedBy: actor,
     updatedAt: new Date(),
   };
@@ -222,6 +301,12 @@ export async function updateOrgModules(
         atribucion: values.atribucion,
         channels: values.channels,
         campaignSendRate,
+        knowledge: values.knowledge,
+        lab: values.lab,
+        agent: values.agent,
+        teamChat: values.teamChat,
+        results: values.results,
+        customNav: values.customNav,
         updatedBy: actor,
         updatedAt: values.updatedAt,
       },

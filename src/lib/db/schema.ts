@@ -2274,6 +2274,18 @@ export const organizationModule = pgTable(
   atribucion: boolean("atribucion").notNull().default(false),
   channels: text("channels").array().notNull().default(sql`'{}'::text[]`),
   campaignSendRate: integer("campaign_send_rate"),
+  /**
+   * 030 (PR 4) — Módulos que antes eran de todas las organizaciones. Nacen
+   * ENCENDIDOS (DEFAULT true): migrar no le quita nada a nadie. `lab`
+   * requiere `agent` (src/lib/modules/registry.ts).
+   */
+  knowledge: boolean("knowledge").notNull().default(true),
+  lab: boolean("lab").notNull().default(true),
+  agent: boolean("agent").notNull().default(true),
+  teamChat: boolean("team_chat").notNull().default(true),
+  results: boolean("results").notNull().default(true),
+  /** 030 (PR 4) — ¿Puede el Propietario personalizar el menú por rol? Apagado por defecto. */
+  customNav: boolean("custom_nav").notNull().default(false),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
   updatedBy: text("updated_by"),
 },
@@ -2283,6 +2295,60 @@ export const organizationModule = pgTable(
       sql`${t.campaignSendRate} is null or ${t.campaignSendRate} between 1 and 80`
     ),
     check("organization_module_channels_chk", sql`${t.channels} <@ array['instagram', 'messenger']::text[]`),
+    // 030 (PR 4): el Laboratorio evalúa al agente; sin agente no existe.
+    check("organization_module_lab_requires_agent_chk", sql`not ${t.lab} or ${t.agent}`),
+  ]
+);
+
+/**
+ * 030 (PR 4) — Menú lateral de un ROL en una organización (Ajustes →
+ * Navegación). `items`: `[{ key, hidden }]` en orden (claves del registro de
+ * módulos). Solo estético: el permiso y el módulo se validan en el servidor
+ * aunque la entrada se vea. Sin fila, el menú de fábrica. Solo se aplica si la
+ * plataforma encendió `organization_module.custom_nav`.
+ */
+export const navLayout = pgTable(
+  "nav_layout",
+  {
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    role: text("role").notNull(),
+    items: jsonb("items").notNull(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+    updatedBy: text("updated_by").references(() => user.id, { onDelete: "set null" }),
+  },
+  (t) => [
+    primaryKey({ columns: [t.organizationId, t.role] }),
+    check("nav_layout_role_chk", sql`${t.role} in ('owner', 'coordinador', 'asesor')`),
+    check("nav_layout_items_chk", sql`jsonb_typeof(${t.items}) = 'array'`),
+  ]
+);
+
+/**
+ * 030 (PR 4) — Bitácora de Ajustes → Navegación: quién cambió el menú de qué
+ * rol, con el antes y el después. Append-only (un disparador rechaza UPDATE).
+ */
+export const navLayoutEvent = pgTable(
+  "nav_layout_event",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    role: text("role").notNull(),
+    action: text("action", { enum: ["saved", "reset"] }).notNull(),
+    actorUserId: text("actor_user_id").references(() => user.id, { onDelete: "set null" }),
+    /** NULL = era el de fábrica. */
+    before: jsonb("before"),
+    /** NULL = volvió al de fábrica. */
+    after: jsonb("after"),
+    at: timestamp("at").notNull().defaultNow(),
+  },
+  (t) => [
+    index("nav_layout_event_org_at_idx").on(t.organizationId, t.at),
+    check("nav_layout_event_role_chk", sql`${t.role} in ('owner', 'coordinador', 'asesor')`),
+    check("nav_layout_event_action_chk", sql`${t.action} in ('saved', 'reset')`),
   ]
 );
 

@@ -38,17 +38,36 @@ type Modules = {
   instagram: boolean;
   messenger: boolean;
   campaignSendRate: number;
+  /** 030 (PR 4) — nacen encendidos; `lab` requiere `agent`. */
+  knowledge: boolean;
+  agent: boolean;
+  lab: boolean;
+  teamChat: boolean;
+  results: boolean;
+  customNav: boolean;
 };
 
 type ModuleKey = Exclude<keyof Modules, "campaignSendRate">;
 
 const MODULE_LABEL: Record<ModuleKey, string> = {
+  teamChat: "Chat de equipo",
+  knowledge: "Conocimientos",
+  results: "Resultados",
+  agent: "Agente",
+  lab: "Laboratorio",
   campaigns: "Campañas",
   agenda: "Agenda",
   atribucion: "Atribución (Meta)",
   instagram: "Instagram",
   messenger: "Messenger",
+  customNav: "Menú personalizable",
 };
+
+/** 030 (PR 4) — Por qué un interruptor está bloqueado (dependencias del registro). */
+function blockedBy(key: ModuleKey, m: Modules): string | null {
+  if (key === "lab" && !m.agent) return "Requiere el Agente";
+  return null;
+}
 
 type Member = { userId: string; name: string; email: string; role: string };
 
@@ -137,18 +156,27 @@ function ModuleToggles({ org, onChanged }: { org: Org; onChanged: () => void }) 
     <div className="space-y-2 rounded-md border px-3 py-2" data-testid="platform-modules">
       <p className="text-xs font-medium text-text-2">Módulos</p>
       <div className="flex flex-wrap gap-x-5 gap-y-2">
-        {(Object.keys(MODULE_LABEL) as ModuleKey[]).map((key) => (
-          <label key={key} className="flex items-center gap-2 text-sm" data-testid={`platform-module-${key}`}>
-            <Switch
-              size="sm"
-              checked={modules[key]}
-              disabled={disabled}
-              label={`${MODULE_LABEL[key]} en ${org.name}`}
-              onCheckedChange={(next) => void save({ [key]: next })}
-            />
-            {MODULE_LABEL[key]}
-          </label>
-        ))}
+        {(Object.keys(MODULE_LABEL) as ModuleKey[]).map((key) => {
+          const blocked = blockedBy(key, modules);
+          return (
+            <label
+              key={key}
+              className="flex items-center gap-2 text-sm"
+              data-testid={`platform-module-${key}`}
+              title={blocked ?? undefined}
+            >
+              <Switch
+                size="sm"
+                checked={modules[key]}
+                disabled={disabled || blocked !== null}
+                label={`${MODULE_LABEL[key]} en ${org.name}`}
+                onCheckedChange={(next) => void save({ [key]: next })}
+              />
+              {MODULE_LABEL[key]}
+              {blocked && <span className="text-xs text-text-3">({blocked})</span>}
+            </label>
+          );
+        })}
       </div>
       {modules.campaigns && (
         <form
@@ -220,6 +248,8 @@ function CreateOrganization({ onCreated }: { onCreated: () => void }) {
   const [name, setName] = useState("");
   const [ownerName, setOwnerName] = useState("");
   const [ownerEmail, setOwnerEmail] = useState("");
+  // 030 (PR 4): plantilla de módulos; vacío = los de las variables de entorno.
+  const [profile, setProfile] = useState<"" | "basico" | "completo">("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [link, setLink] = useState<{ url: string; expiresAt: string } | null>(null);
@@ -229,7 +259,7 @@ function CreateOrganization({ onCreated }: { onCreated: () => void }) {
     setError(null);
     const r = await api<{ activationUrl: string; expiresAt: string }>("/api/platform/organizations", {
       method: "POST",
-      body: JSON.stringify({ name, ownerName, ownerEmail }),
+      body: JSON.stringify({ name, ownerName, ownerEmail, ...(profile ? { profile } : {}) }),
     });
     setSaving(false);
     if (!r.ok || !r.data) {
@@ -240,6 +270,7 @@ function CreateOrganization({ onCreated }: { onCreated: () => void }) {
     setName("");
     setOwnerName("");
     setOwnerEmail("");
+    setProfile("");
     onCreated();
   }
 
@@ -268,6 +299,21 @@ function CreateOrganization({ onCreated }: { onCreated: () => void }) {
             <Label htmlFor="owner-email">Correo del Propietario</Label>
             <Input id="owner-email" type="email" value={ownerEmail} onChange={(e) => setOwnerEmail(e.target.value)} />
           </div>
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="org-profile">Módulos al crear</Label>
+          <select
+            id="org-profile"
+            value={profile}
+            onChange={(e) => setProfile(e.target.value as typeof profile)}
+            className="h-9 rounded-sm border bg-background px-2 text-sm"
+            data-testid="platform-create-profile"
+          >
+            <option value="">Los de las variables de entorno</option>
+            <option value="basico">Básico (sin Agente, Laboratorio ni Campañas)</option>
+            <option value="completo">Completo (todo, con menú personalizable)</option>
+          </select>
+          <p className="text-xs text-text-3">Solo es la plantilla inicial: después cada módulo se enciende o apaga aparte.</p>
         </div>
         {error && <p className="text-sm text-destructive">{error}</p>}
         <Button

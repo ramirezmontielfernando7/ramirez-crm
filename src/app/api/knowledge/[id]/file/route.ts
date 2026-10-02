@@ -1,5 +1,6 @@
 import { apiError, withAuth } from "@/lib/api";
 import { getKnowledge, readKnowledgeFile } from "@/server/knowledge/store";
+import { moduleOff } from "@/server/modules";
 
 export const dynamic = "force-dynamic";
 
@@ -14,6 +15,8 @@ const INLINE = /^(image\/(jpeg|png|webp|gif)|application\/pdf)$/;
  * imágenes y PDF, `attachment`.
  */
 export const GET = withAuth(async (session, _req: Request, ctx: Params) => {
+  const off = await moduleOff(session.organizationId, "knowledge");
+  if (off) return off;
   const { id } = await ctx.params;
   const row = await getKnowledge(session.organizationId, id);
   if (!row?.filePath || !row.fileMime) {

@@ -72,6 +72,10 @@ const PROTEGIDAS: [string, Method, Permission][] = [
   ["calendar/settings", "GET", "settings.manage"],
   ["calendar/settings", "PUT", "settings.manage"],
   ["seed/demo", "POST", "settings.manage"],
+  // 030 (PR 4): Ajustes → Navegación (menú por rol), solo el Propietario.
+  ["settings/navigation", "GET", "settings.manage"],
+  ["settings/navigation", "PUT", "settings.manage"],
+  ["settings/navigation", "DELETE", "settings.manage"],
   // Agente de IA, base de conocimiento y Laboratorio.
   ["agent/profile", "GET", "agent.manage"],
   ["agent/profile", "PUT", "agent.manage"],

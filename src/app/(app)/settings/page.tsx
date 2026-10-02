@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { can } from "@/lib/auth/permissions";
 import { getSessionOrNull } from "@/lib/auth/session";
+import { campaignsEnabled } from "@/server/campaigns/flag";
 
 export const dynamic = "force-dynamic";
 
@@ -9,7 +10,10 @@ export default async function SettingsPage() {
   const session = await getSessionOrNull();
   if (!session) redirect("/login");
   if (can(session, "settings.manage")) redirect("/settings/whatsapp");
-  if (can(session, "templates.manage")) redirect("/settings/templates");
+  // 030 (PR 4): con Campañas, Plantillas ya no es una pestaña de Ajustes.
+  if (can(session, "templates.manage") && !(await campaignsEnabled(session.organizationId))) {
+    redirect("/settings/templates");
+  }
   if (can(session, "users.read")) redirect("/settings/team");
   redirect("/inbox");
 }

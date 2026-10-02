@@ -420,8 +420,8 @@ export function NewCampaign({ initialAudienceId }: { initialAudienceId: string |
                       {templates !== null && approved.length === 0 ? (
                         <p className="text-sm text-muted-foreground">
                           No hay plantillas aprobadas.{" "}
-                          <Link href="/settings/templates" className="font-medium text-brand-text underline underline-offset-2">
-                            Crear o sincronizar en Configuración →
+                          <Link href="/campaigns/templates" className="font-medium text-brand-text underline underline-offset-2">
+                            Crear o sincronizar en Plantillas →
                           </Link>
                         </p>
                       ) : (

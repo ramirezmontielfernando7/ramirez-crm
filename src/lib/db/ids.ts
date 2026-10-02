@@ -59,6 +59,8 @@ const prefixes = {
   phoneHealth: "wph",
   // Campañas v2 (PR 2)
   audienceImport: "aud",
+  // Campañas v2 (PR 4)
+  navLayoutEvent: "nle",
   user: "usr",
   account: "acc",
 } as const;

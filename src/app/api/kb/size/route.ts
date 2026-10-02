@@ -3,6 +3,7 @@ import { withAuth } from "@/lib/api";
 import { getDb, schema } from "@/lib/db";
 import { scoped } from "@/lib/db/tenant";
 import { renderKb } from "@/server/ai/prompts";
+import { moduleOff } from "@/server/modules";
 
 export const dynamic = "force-dynamic";
 
@@ -13,6 +14,8 @@ export const dynamic = "force-dynamic";
 const WARN_CHARS = 24_000;
 
 export const GET = withAuth(async (session) => {
+  const off = await moduleOff(session.organizationId, "agent");
+  if (off) return off;
   const db = getDb();
   const entries = await db
     .select()

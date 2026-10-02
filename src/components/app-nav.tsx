@@ -9,18 +9,22 @@ import {
   AlertTriangle,
   BookOpen,
   CalendarDays,
+  Camera,
   ChartColumn,
   FlaskConical,
   Inbox,
   Kanban,
   LogOut,
   Megaphone,
+  MessageCircle,
   MessagesSquare,
   Settings,
   ShieldCheck,
   Sparkles,
+  Target,
   Users,
   X,
+  type LucideIcon,
 } from "lucide-react";
 import type { Branding } from "@/lib/branding";
 import type { ThemePreference } from "@/lib/theme";
@@ -34,7 +38,9 @@ import type { NavMode } from "@/lib/preferences";
 import { isHouseName } from "@/lib/brand";
 import { useViewer } from "@/components/viewer-context";
 import { TeamUnreadLogoBadge, TeamUnreadRowBadge } from "@/components/team-chat/unread-badge";
-import { roleLabel, type Permission } from "@/lib/auth/permissions";
+import { roleLabel } from "@/lib/auth/permissions";
+import { moduleDef, type ModuleIcon, type ModuleKey } from "@/lib/modules/registry";
+import type { NavEntries } from "@/lib/modules/nav-layout";
 import {
   BUILD_COMMIT,
   UNVERIFIED_COMMIT_NOTE,
@@ -46,59 +52,48 @@ import {
 type NavItem = {
   href: string;
   label: string;
-  icon: typeof Inbox;
+  icon: LucideIcon;
   badge?: boolean;
   /** 025 — globo de no leídos del chat de equipo. */
   teamBadge?: boolean;
-  /** 020 — sin este permiso la entrada no se pinta (la API ya lo niega). */
-  permission?: Permission;
-};
-
-const NAV: NavItem[] = [
-  { href: "/inbox", label: "Bandeja", icon: Inbox, badge: true },
-  // 025 — Comunicación interna: junto a la Bandeja, porque se usa atendiendo.
-  { href: "/chat", label: "Chat de equipo", icon: MessagesSquare, teamBadge: true },
-  { href: "/pipeline", label: "Pipeline", icon: Kanban },
-  { href: "/contacts", label: "Contactos", icon: Users },
-  // 024 — Material que el equipo envía a los clientes: junto a Contactos,
-  // porque se usa atendiendo. Todos los roles (editar: knowledge.manage).
-  { href: "/knowledge", label: "Conocimientos", icon: BookOpen },
-  // 019 — Después de Contactos: primero se atiende y se organiza, luego se
-  // mide. Antes de Agente y Laboratorio, que son configuración.
-  {
-    href: "/results",
-    label: "Resultados",
-    icon: ChartColumn,
-    // 022: el Asesor no tiene Resultados, colapsado o expandido.
-    permission: "results.read",
-  },
-  { href: "/agent", label: "Agente", icon: Sparkles, permission: "agent.manage" },
-  {
-    href: "/lab",
-    label: "Laboratorio",
-    icon: FlaskConical,
-    permission: "agent.manage",
-  },
-];
-
-/** 015 — "Citas" solo existe si esta instancia encendió la agenda. */
-const AGENDA_ITEM: NavItem = {
-  href: "/bookings",
-  label: "Citas",
-  icon: CalendarDays,
 };
 
 /**
- * 021 — "Campañas" solo si la instancia encendió CAMPAIGNS y el rol puede
- * mandarlas. Va junto a Contactos: una campaña es mandarle algo a una parte
- * de la base.
+ * 030 (PR 4) — Los íconos del registro de módulos (`src/lib/modules/registry.ts`
+ * los nombra; aquí se pintan). Qué entradas se ven y en qué orden lo decide el
+ * SERVIDOR (`navForSession`: módulos de la organización, permisos del rol y el
+ * menú que el Propietario guardó en Ajustes → Navegación).
  */
-const CAMPAIGNS_ITEM: NavItem = {
-  href: "/campaigns",
-  label: "Campañas",
-  icon: Megaphone,
-  permission: "campaigns.manage",
+export const NAV_ICONS: Record<ModuleIcon, LucideIcon> = {
+  Inbox,
+  MessagesSquare,
+  CalendarDays,
+  Kanban,
+  Users,
+  BookOpen,
+  Megaphone,
+  ChartColumn,
+  Sparkles,
+  FlaskConical,
+  Settings,
+  Target,
+  Camera,
+  MessageCircle,
 };
+
+function navItemOf(key: ModuleKey): NavItem {
+  const def = moduleDef(key);
+  return {
+    href: def.route ?? "/",
+    label: def.label,
+    icon: NAV_ICONS[def.icon],
+    badge: def.badge === "inbox",
+    teamBadge: def.badge === "team",
+  };
+}
+
+/** Lo de fábrica, para quien pinte el menú sin servidor (vista previa). */
+const DEFAULT_ENTRIES: NavEntries = { keys: ["inbox", "pipeline", "contacts"], settings: false };
 
 /** Fase 3 — Administración de la plataforma (organizaciones). */
 const PLATFORM_ITEM: NavItem = {
@@ -130,8 +125,7 @@ export function AppNav({
   role,
   theme,
   commit,
-  agenda = false,
-  campaigns = false,
+  nav = DEFAULT_ENTRIES,
   platform = false,
   open = false,
   onClose,
@@ -149,13 +143,11 @@ export function AppNav({
    */
   commit?: ResolvedCommit;
   /**
-   * 015 — ¿hay agenda en esta instancia? Viene del servidor por prop y no se
-   * deduce de los datos: una instancia con la agenda encendida pero sin citas
-   * todavía debe ver la entrada igual.
+   * 030 (PR 4) — Las entradas del menú, en orden, y si va Ajustes. Las
+   * resuelve el servidor: módulos de la organización, permisos del rol y el
+   * menú del rol (Ajustes → Navegación). Ocultar es solo estético.
    */
-  agenda?: boolean;
-  /** 021 — ¿hay Campañas en esta instancia? Viene del servidor. */
-  campaigns?: boolean;
+  nav?: NavEntries;
   /** Fase 3 — ¿es administrador de plataforma? Viene del servidor. */
   platform?: boolean;
   /** Solo aplica por debajo de `lg`: en escritorio el lateral es fijo. */
@@ -192,28 +184,19 @@ export function AppNav({
     [commit]
   );
   const settingsActive = pathname.startsWith("/settings");
-  // Citas va después de Pipeline: es el paso siguiente de un trato, no una
-  // sección aparte.
   const viewer = useViewer();
   // Memoizada: la lista de renglones (memo) no se vuelve a pintar al cambiar
   // de estado el menú.
-  const items = useMemo(() => {
-    const base = agenda ? [...NAV.slice(0, 2), AGENDA_ITEM, ...NAV.slice(2)] : NAV;
-    // 024: Campañas va después de Conocimientos, que se queda pegado a Contactos.
-    const campaignsAfter = base.findIndex((i) => i.href === "/knowledge");
-    return (
-      campaigns ? [...base.slice(0, campaignsAfter + 1), CAMPAIGNS_ITEM, ...base.slice(campaignsAfter + 1)] : base
-    )
-      .filter((item) => !item.permission || viewer.can(item.permission))
-      // Fase 3: solo el administrador de plataforma (lo decide el servidor;
-      // /platform responde 404 a cualquier otra persona de todos modos).
-      .concat(platform ? [PLATFORM_ITEM] : []);
-  }, [agenda, campaigns, platform, viewer]);
-  // Ajustes solo si hay al menos una pestaña que pueda abrir.
-  const showSettings =
-    viewer.can("settings.manage") ||
-    viewer.can("templates.manage") ||
-    viewer.can("users.read");
+  const items = useMemo(
+    () =>
+      nav.keys
+        .map(navItemOf)
+        // Fase 3: solo el administrador de plataforma (lo decide el servidor;
+        // /platform responde 404 a cualquier otra persona de todos modos).
+        .concat(platform ? [PLATFORM_ITEM] : []),
+    [nav, platform]
+  );
+  const showSettings = nav.settings;
 
   return (
     <aside

@@ -4,6 +4,7 @@ import { deliverKnowledgeEntry, KnowledgeDeliveryError } from "@/server/knowledg
 import { getKnowledge } from "@/server/knowledge/store";
 import { threadAccess } from "@/server/team-chat/threads";
 import { teamChatErrorResponse } from "@/server/team-chat/errors";
+import { moduleOff } from "@/server/modules";
 
 export const dynamic = "force-dynamic";
 
@@ -20,6 +21,10 @@ const bodySchema = z.object({
  * escribir; ajeno = 404.
  */
 export const POST = withAuth(async (session, req: Request, ctx: Params) => {
+  const off = await moduleOff(session.organizationId, "team_chat");
+  if (off) return off;
+  const off2 = await moduleOff(session.organizationId, "knowledge");
+  if (off2) return off2;
   const { id } = await ctx.params;
   const body = await parseBody(req, bodySchema);
   if (!body.ok) return body.response;

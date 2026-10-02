@@ -2,6 +2,7 @@ import { apiError, forbidden, withAuth } from "@/lib/api";
 import { resultsScope } from "@/server/analytics/scope";
 import { PeriodError, periodFromRequest } from "@/server/analytics/period";
 import { adsBlock } from "@/server/analytics/ads";
+import { moduleOff } from "@/server/modules";
 
 export const dynamic = "force-dynamic";
 
@@ -10,6 +11,8 @@ export const dynamic = "force-dynamic";
  * anuncio. Solo conteos: sin gasto, sin costo, sin retorno (spec 019, D1-D2).
  */
 export const GET = withAuth(async (session, req: Request) => {
+  const off = await moduleOff(session.organizationId, "results");
+  if (off) return off;
   const url = new URL(req.url);
   const who = resultsScope(session, url);
   if (!who.ok) return forbidden();

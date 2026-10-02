@@ -4,11 +4,14 @@ import { getDb, schema } from "@/lib/db";
 import { scoped } from "@/lib/db/tenant";
 import { isAiConfigured } from "@/lib/env";
 import { RunConflictError, startRun } from "@/server/lab/runner";
+import { moduleOff } from "@/server/modules";
 
 export const dynamic = "force-dynamic";
 
 /** Historial de corridas con delta de score vs la anterior (FR-033). */
 export const GET = withAuth(async (session) => {
+  const off = await moduleOff(session.organizationId, "lab");
+  if (off) return off;
   const db = getDb();
   const runs = await db
     .select()
@@ -38,6 +41,8 @@ export const GET = withAuth(async (session) => {
 }, { permission: "agent.manage" });
 
 export const POST = withAuth(async (session) => {
+  const off = await moduleOff(session.organizationId, "lab");
+  if (off) return off;
   if (!isAiConfigured()) {
     return apiError(
       409,

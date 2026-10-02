@@ -25,6 +25,7 @@ import { bookSlot, offerSlots } from "@/server/agenda/agent";
 import { getOffers, mapaDeHuecosParaModelo } from "@/server/agenda/offers";
 import { logger } from "@/lib/log";
 import { currentOrganizationId, runWithOrganization } from "@/lib/request-context";
+import { orgHasModule } from "@/server/modules";
 
 const log = logger("agente");
 
@@ -124,6 +125,9 @@ export async function runAgentTurn(conversationId: string): Promise<void> {
   if (conversation.handoffAt || !conversation.aiEnabled) return;
   // Fase 3, PR 2: una organización suspendida no gasta IA ni contesta.
   if (!(await isOrgActive(organizationId))) return;
+  // 030 (PR 4): con el módulo Agente apagado por la plataforma, el agente
+  // incluido no existe para esta organización (el Laboratorio tampoco).
+  if (!(await orgHasModule(organizationId, conversation.isTest ? "lab" : "agent"))) return;
 
   const profileRows = await db
     .select()

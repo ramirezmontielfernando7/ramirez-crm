@@ -3,12 +3,15 @@ import { apiError, withAuth } from "@/lib/api";
 import { getDb, schema } from "@/lib/db";
 import { scoped } from "@/lib/db/tenant";
 import { PERSONA_LABELS } from "@/server/lab/personas";
+import { moduleOff } from "@/server/modules";
 
 export const dynamic = "force-dynamic";
 
 type Params = { params: Promise<{ id: string }> };
 
 export const GET = withAuth(async (session, _req: Request, ctx: Params) => {
+  const off = await moduleOff(session.organizationId, "lab");
+  if (off) return off;
   const { id } = await ctx.params;
   const db = getDb();
   const runs = await db

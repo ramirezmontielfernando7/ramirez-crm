@@ -23,6 +23,9 @@ viva, los mocks y
 5. Webhooks: un anuncio a B se guarda SIN `ctwa_clid` (a A, con él). Un
    mensaje de Messenger a la página de B → 200 pero no entra; con Messenger
    encendido para B, el siguiente sí.
+   030 (PR 4): también Conocimientos, Agente (+ base de conocimiento),
+   Laboratorio, Chat de equipo y Resultados: sus rutas y pantallas → 404
+   para B y no están en su menú; encender el Laboratorio sin el Agente → 422.
 6. Desde /platform (navegador) se enciende Campañas de B con el interruptor:
    B vuelve a tener Campañas (200) y Agenda sigue en 404. La bitácora tiene
    cada cambio.

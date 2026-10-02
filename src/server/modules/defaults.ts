@@ -1,4 +1,5 @@
 import { isChannel, type Channel } from "@/lib/channels";
+import { effectiveModules, type ModuleKey } from "@/lib/modules/registry";
 
 /**
  * Fase 3, PR 3 — Los módulos opcionales de UNA organización.
@@ -51,6 +52,18 @@ export type OrgModules = {
   channels: ReadonlySet<Channel>;
   /** Mensajes por segundo de las campañas (1–80). */
   campaignSendRate: number;
+  /**
+   * 030 (PR 4) — Módulos que nacieron para todas y ahora se pueden apagar.
+   * Encendidos por defecto (no tienen variable de entorno). `lab` ya viene
+   * con la dependencia aplicada: sin `agent`, `lab` es falso.
+   */
+  knowledge: boolean;
+  lab: boolean;
+  agent: boolean;
+  teamChat: boolean;
+  results: boolean;
+  /** 030 (PR 4) — ¿El Propietario puede personalizar el menú? Apagado por defecto. */
+  customNav: boolean;
 };
 
 export const DEFAULT_SEND_RATE = 10;
@@ -75,7 +88,37 @@ export function envModuleDefaults(): OrgModules {
     atribucion: parseAtribucionFlag(process.env.ATRIBUCION),
     channels: parseChannels(process.env.CHANNELS),
     campaignSendRate: parseSendRate(process.env.CAMPAIGN_SEND_RATE) ?? DEFAULT_SEND_RATE,
+    ...NEW_MODULE_DEFAULTS,
   };
+}
+
+/** 030 (PR 4) — Lo que traen las columnas de la 0034 (sin variable de entorno). */
+export const NEW_MODULE_DEFAULTS = {
+  knowledge: true,
+  lab: true,
+  agent: true,
+  teamChat: true,
+  results: true,
+  customNav: false,
+} as const;
+
+/**
+ * 030 (PR 4) — Los módulos encendidos, con las claves del registro
+ * (`src/lib/modules/registry.ts`) y las dependencias aplicadas.
+ */
+export function enabledModuleKeys(m: OrgModules): Set<ModuleKey> {
+  const on = new Set<ModuleKey>();
+  if (m.campaigns) on.add("campaigns");
+  if (m.agenda) on.add("agenda");
+  if (m.atribucion) on.add("atribucion");
+  if (m.knowledge) on.add("knowledge");
+  if (m.agent) on.add("agent");
+  if (m.lab) on.add("lab");
+  if (m.teamChat) on.add("team_chat");
+  if (m.results) on.add("results");
+  if (m.channels.has("instagram")) on.add("instagram");
+  if (m.channels.has("messenger")) on.add("messenger");
+  return effectiveModules(on);
 }
 
 /** Los canales opcionales de un conjunto, en el orden del catálogo. */

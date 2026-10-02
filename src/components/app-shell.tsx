@@ -17,6 +17,8 @@ import { MotionProvider, NAV } from "@/components/motion";
 import { NavModeProvider } from "@/components/nav-mode";
 import { nextNavMode, type NavMode } from "@/lib/preferences";
 import type { Permission } from "@/lib/auth/permissions";
+import type { ModuleKey } from "@/lib/modules/registry";
+import type { NavEntries } from "@/lib/modules/nav-layout";
 
 /**
  * Cascarón de la app en dos modos:
@@ -38,9 +40,10 @@ export function AppShell({
   grants,
   theme,
   commit,
-  agenda = false,
   campaigns = false,
   platform = false,
+  nav,
+  modules,
   navMode = "expanded",
   children,
 }: {
@@ -54,10 +57,14 @@ export function AppShell({
   theme: ThemePreference;
   /** Commit resuelto en el servidor, con su procedencia (ver `resolveCommit`). */
   commit?: ResolvedCommit;
-  /** 015 — ¿esta instancia tiene agenda? Lo decide el servidor. */
-  agenda?: boolean;
-  /** 021 — ¿esta instancia tiene Campañas? Lo decide el servidor (CAMPAIGNS). */
+  /** 021 — ¿esta organización tiene Campañas? (avisos de salud y pausa). */
   campaigns?: boolean;
+  /**
+   * 030 (PR 4) — El menú ya resuelto en el servidor (módulos, permisos y el
+   * menú del rol) y los módulos encendidos de la organización.
+   */
+  nav?: NavEntries;
+  modules?: readonly ModuleKey[];
   /** Fase 3 — ¿quien mira es administrador de plataforma? Lo decide el servidor. */
   platform?: boolean;
   /**
@@ -74,7 +81,7 @@ export function AppShell({
   // `LazyMotion` arrastra con él a cada `m.*` de la pantalla (ver
   // `MotionProvider`). Medido: 60 filas de la Bandeja por clic.
   return (
-    <ViewerProvider userId={userId} role={role} grants={grants}>
+    <ViewerProvider userId={userId} role={role} grants={grants} modules={modules}>
       <MotionProvider>
         <ShellFrame
           branding={branding}
@@ -82,9 +89,9 @@ export function AppShell({
           role={role}
           theme={theme}
           commit={commit}
-          agenda={agenda}
           campaigns={campaigns}
           platform={platform}
+          nav={nav}
           navMode={navMode}
         >
           {children}
@@ -102,9 +109,9 @@ function ShellFrame({
   role,
   theme,
   commit,
-  agenda,
   campaigns,
   platform,
+  nav,
   navMode,
   children,
 }: {
@@ -113,9 +120,9 @@ function ShellFrame({
   role: string;
   theme: ThemePreference;
   commit?: ResolvedCommit;
-  agenda: boolean;
   campaigns: boolean;
   platform: boolean;
+  nav?: NavEntries;
   navMode: NavMode;
   children: React.ReactNode;
 }) {
@@ -204,8 +211,7 @@ function ShellFrame({
           userName={userName}
           role={role}
           theme={theme}
-          agenda={agenda}
-          campaigns={campaigns}
+          nav={nav}
           platform={platform}
           open={navOpen}
           onClose={closeNav}

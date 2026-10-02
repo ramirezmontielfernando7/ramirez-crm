@@ -7,8 +7,9 @@ import { normalizeThemePreference, THEME_COOKIE } from "@/lib/theme";
 import { getBranding } from "@/server/branding";
 import { AppShell } from "@/components/app-shell";
 import { resolveCommit } from "@/lib/version";
-import { agendaEnabled } from "@/server/agenda/flag";
 import { campaignsEnabled } from "@/server/campaigns/flag";
+import { navForSession } from "@/server/navigation/resolve";
+import { toNavEntries } from "@/lib/modules/nav-layout";
 import { getUserPreferences } from "@/server/preferences";
 import { resolveNavMode } from "@/lib/preferences";
 import { currentPlatformAdmin } from "@/server/platform-admin/admins";
@@ -25,6 +26,10 @@ export default async function AppLayout({
   const authSession = await getAuth().api.getSession({
     headers: await headers(),
   });
+  // 030 (PR 4): el menú se resuelve aquí (módulos de la organización,
+  // permisos del rol y, con custom_nav, el menú del rol). Ocultar es solo
+  // estético: cada ruta valida permiso y módulo por su cuenta.
+  const nav = await navForSession(session);
   const theme = normalizeThemePreference(
     (await cookies()).get(THEME_COOKIE)?.value
   );
@@ -44,8 +49,9 @@ export default async function AppLayout({
       // Qué módulos opcionales existen se decide en el servidor y baja por
       // prop, igual que los canales de la Bandeja. El nav es un componente de
       // cliente: no puede —ni debe— leer variables de entorno.
-      agenda={await agendaEnabled(session.organizationId)}
       campaigns={await campaignsEnabled(session.organizationId)}
+      nav={toNavEntries(nav)}
+      modules={nav.modules}
       platform={(await currentPlatformAdmin()) !== null}
       navMode={resolveNavMode(prefs, session.role)}
     >

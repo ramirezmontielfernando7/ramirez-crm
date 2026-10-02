@@ -7,12 +7,15 @@ import {
 } from "@/server/knowledge/store";
 import { readKnowledgeInput } from "@/server/knowledge/input";
 import { MediaValidationError } from "@/server/whatsapp/media";
+import { moduleOff } from "@/server/modules";
 
 export const dynamic = "force-dynamic";
 
 type Params = { params: Promise<{ id: string }> };
 
 export const GET = withAuth(async (session, _req: Request, ctx: Params) => {
+  const off = await moduleOff(session.organizationId, "knowledge");
+  if (off) return off;
   const { id } = await ctx.params;
   const row = await getKnowledge(session.organizationId, id);
   if (!row) return apiError(404, "not_found", "Entrada no encontrada");
@@ -21,6 +24,8 @@ export const GET = withAuth(async (session, _req: Request, ctx: Params) => {
 
 /** 024 — Editar (Propietario y Coordinador). `removeFile=true` quita el archivo. */
 export const PATCH = withAuth(async (session, req: Request, ctx: Params) => {
+  const off = await moduleOff(session.organizationId, "knowledge");
+  if (off) return off;
   const { id } = await ctx.params;
   const input = await readKnowledgeInput(req);
   if (!input.ok) return input.response;
@@ -46,6 +51,8 @@ export const PATCH = withAuth(async (session, req: Request, ctx: Params) => {
 }, { permission: "knowledge.manage" });
 
 export const DELETE = withAuth(async (session, _req: Request, ctx: Params) => {
+  const off = await moduleOff(session.organizationId, "knowledge");
+  if (off) return off;
   const { id } = await ctx.params;
   const ok = await deleteKnowledge(session.organizationId, id);
   if (!ok) return apiError(404, "not_found", "Entrada no encontrada");

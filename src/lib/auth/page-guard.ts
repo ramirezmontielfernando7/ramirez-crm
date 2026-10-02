@@ -27,4 +27,6 @@ export const SETTINGS_TAB_PERMISSION = {
   // 025: grupos (Propietario, o Coordinador con la delegación); la
   // supervisión dentro de la pestaña es solo del Propietario.
   "team-chat": "team_chat.create_groups",
+  // 030 (PR 4): menú por rol; además, solo si la plataforma encendió custom_nav.
+  navigation: "settings.manage",
 } as const satisfies Record<string, Permission>;

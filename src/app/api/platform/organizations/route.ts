@@ -14,6 +14,8 @@ const createSchema = z.object({
   name: z.string().trim().min(2).max(120),
   ownerName: z.string().trim().min(1).max(120),
   ownerEmail: z.string().trim().email().max(200),
+  // 030 (PR 4): plantilla de módulos del alta; sin ella, los del entorno.
+  profile: z.enum(["basico", "completo"]).optional(),
 });
 
 /**
