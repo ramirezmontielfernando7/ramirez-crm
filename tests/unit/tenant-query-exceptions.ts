@@ -63,10 +63,10 @@ export const TENANT_QUERY_EXCEPTIONS: Record<string, { max: number; motivo: stri
     motivo:
       "Arranque (cleanupOrphanRuns): marca como fallidas las corridas del Laboratorio que quedaron 'running' en TODAS las organizaciones; una réplica (H24).",
   },
-  "server/campaigns/runner.ts": {
-    max: 4,
+  "server/campaigns/dispatcher.ts": {
+    max: 1,
     motivo:
-      "resumeCampaigns lista las campañas 'sending' de todas las organizaciones al arrancar (cada ejecutor sigue con la organización de su fila); el resto va por campaign_id/recipient id de esa campaña ya validada.",
+      "Campañas v2: el programador (campaignSchedulerTick) lista las organizaciones con campañas enviando, programadas o con pausa por límite vencida, en TODAS las organizaciones (pool de sistema); el trabajo de cada una corre luego a nombre de la suya con scoped().",
   },
   "app/api/dev/wa-mock/status/route.ts": {
     max: 1,

@@ -674,6 +674,14 @@ export async function sendTemplate(input: {
   conversationId: string;
   templateId: string;
   variables?: string[];
+  /**
+   * Campañas v2 (PR 2): crea el mensaje ANTES de llamar a Meta (sin wamid) y
+   * avisa su id, para que la campaña lo enlace a su destinatario. Si el
+   * contenedor muere durante la llamada, el mensaje sin wamid dice "resultado
+   * incierto" y la recuperación NO reenvía. Si Meta responde con error, el
+   * mensaje reservado se borra (nunca salió).
+   */
+  reserve?: (messageId: string) => Promise<void>;
 }): Promise<{ messageId: string }> {
   // Fase 3, PR 2: nada sale de una organización suspendida o dada de baja.
   await assertOrgActive(input.organizationId);
@@ -785,7 +793,7 @@ export async function sendTemplate(input: {
     components.push({ type: "body", parameters: values.map((text) => ({ type: "text", text })) });
   }
 
-  const waMessageId = await callGraphSend(creds, {
+  const payload = {
     messaging_product: "whatsapp",
     ...destinatario,
     type: "template",
@@ -794,23 +802,61 @@ export async function sendTemplate(input: {
       language: { code: template.language },
       ...(components.length > 0 ? { components } : {}),
     },
-  });
+  };
 
-  const inserted = await db
-    .insert(schema.message)
-    .values({
-      id: newId("message"),
-      organizationId: input.organizationId,
-      conversationId: input.conversationId,
-      waMessageId,
-      direction: "out",
-      type: "template",
-      text: renderBody(template.body, values),
-      status: "pending",
-      origin: "template",
-    })
-    .returning();
-  const message = inserted[0]!;
+  let message: typeof schema.message.$inferSelect;
+  if (input.reserve) {
+    const reserved = await db
+      .insert(schema.message)
+      .values({
+        id: newId("message"),
+        organizationId: input.organizationId,
+        conversationId: input.conversationId,
+        waMessageId: null,
+        direction: "out",
+        type: "template",
+        text: renderBody(template.body, values),
+        status: "pending",
+        origin: "template",
+      })
+      .returning();
+    const pending = reserved[0]!;
+    await input.reserve(pending.id);
+    let waMessageId: string;
+    try {
+      waMessageId = await callGraphSend(creds, payload);
+    } catch (err) {
+      // Meta respondió con error: el mensaje no salió. Se borra la reserva
+      // (la FK suelta campaign_recipient.message_id).
+      await db
+        .delete(schema.message)
+        .where(scoped(schema.message.organizationId, input.organizationId, eq(schema.message.id, pending.id)));
+      throw err;
+    }
+    const updated = await db
+      .update(schema.message)
+      .set({ waMessageId })
+      .where(scoped(schema.message.organizationId, input.organizationId, eq(schema.message.id, pending.id)))
+      .returning();
+    message = updated[0] ?? { ...pending, waMessageId };
+  } else {
+    const waMessageId = await callGraphSend(creds, payload);
+    const inserted = await db
+      .insert(schema.message)
+      .values({
+        id: newId("message"),
+        organizationId: input.organizationId,
+        conversationId: input.conversationId,
+        waMessageId,
+        direction: "out",
+        type: "template",
+        text: renderBody(template.body, values),
+        status: "pending",
+        origin: "template",
+      })
+      .returning();
+    message = inserted[0]!;
+  }
 
   await db
     .update(schema.conversation)

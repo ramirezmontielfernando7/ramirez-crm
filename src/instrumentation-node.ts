@@ -82,17 +82,16 @@ export async function cleanupOrphanRuns(): Promise<void> {
 }
 
 /**
- * 021 — Campañas que quedaron enviando cuando se reinició el servidor: siguen
- * con sus pendientes (a los ya enviados no se les vuelve a mandar). Las de
- * una organización con Campañas apagadas NO se reanudan (Fase 3, PR 3): no
- * se envía por una superficie que para ella no existe.
+ * 021 / Campañas v2 (PR 2) — El programador de campañas: al arrancar y cada
+ * 15 s retoma las que quedaron enviando (los reclamos abandonados se
+ * recuperan sin reenviar), arranca las programadas y reanuda las pausas por
+ * límite. Las de una organización con Campañas apagadas NO se tocan.
  */
 export async function resumeSendingCampaigns(): Promise<void> {
   try {
-    const { resumeCampaigns } = await import("@/server/campaigns/runner");
-    const n = await resumeCampaigns();
-    if (n > 0) log.info(`${n} campaña(s) reanudada(s)`);
+    const { startCampaignScheduler } = await import("@/server/campaigns/dispatcher");
+    startCampaignScheduler();
   } catch (err) {
-    log.error("no se pudieron reanudar las campañas", { err });
+    log.error("no se pudo arrancar el programador de campañas", { err });
   }
 }

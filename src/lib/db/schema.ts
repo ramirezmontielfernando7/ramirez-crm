@@ -1725,7 +1725,7 @@ export const campaign = pgTable(
      * destinatario (ver `CampaignVariable` en lib/campaigns.ts).
      */
     variables: jsonb("variables")
-      .$type<({ kind: "fixed"; value: string } | { kind: "contact_name" })[]>()
+      .$type<({ kind: "fixed"; value: string } | { kind: "contact_name" } | { kind: "column"; column: string })[]>()
       .notNull()
       .default([]),
     /** El filtro de público tal como se eligió (etiquetas, fuente). */
