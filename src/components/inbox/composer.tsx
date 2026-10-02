@@ -25,6 +25,7 @@ import {
   type KnowledgePickAction,
 } from "@/components/knowledge/knowledge-picker";
 import type { KnowledgeEntryDto } from "@/lib/knowledge";
+import { useViewer } from "@/components/viewer-context";
 
 /**
  * 008 — Panel secundario del clip: formulario de ubicación o contacto.
@@ -106,6 +107,8 @@ export function Composer({
   onSend: (text: string) => Promise<string | null>;
   onSent: () => void;
 }) {
+  // 030 (PR 4): sin el módulo Conocimientos no se ofrece (la API ya da 404).
+  const knowledgeOn = useViewer().hasModule("knowledge");
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -642,6 +645,7 @@ export function Composer({
               )}
             </AnimatePresence>
           </div>
+          {knowledgeOn && (
           <button
             type="button"
             onClick={() => {
@@ -657,6 +661,7 @@ export function Composer({
           >
             <BookOpen className="h-[18px] w-[18px]" strokeWidth={1.7} />
           </button>
+          )}
         </div>
         <textarea
           ref={taRef}
@@ -667,7 +672,7 @@ export function Composer({
           aria-busy={rewriting}
           onChange={(e) => {
             // 024 — `/` en el editor vacío abre Conocimientos (el `/` no se escribe).
-            if (e.target.value === "/" && text === "" && !file) {
+            if (knowledgeOn && e.target.value === "/" && text === "" && !file) {
               setPanel("knowledge");
               return;
             }

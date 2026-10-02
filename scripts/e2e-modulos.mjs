@@ -13,6 +13,8 @@
  *     para B aunque A lo tenga). Al encender Messenger, el siguiente entra.
  *  5. Desde /platform (navegador) se vuelve a encender Campañas para B, y la
  *     bitácora lo registra.
+ *  030 (PR 4): lo mismo con Conocimientos, Agente, Laboratorio, Chat de
+ *  equipo y Resultados, y Laboratorio requiere Agente (422).
  *
  * Uso: app viva con WA_MOCK_ENABLED=true, los mocks y PLATFORM_ORG_ID = la
  * organización de e2e@vocero.test (corre antes pnpm test:e2e). Las variables
@@ -118,8 +120,12 @@ function entorno() {
   };
 }
 
-const TODO_ENCENDIDO = { campaigns: true, agenda: true, atribucion: true, instagram: true, messenger: true };
-const TODO_APAGADO = { campaigns: false, agenda: false, atribucion: false, instagram: false, messenger: false };
+// 030 (PR 4): también Conocimientos, Agente, Laboratorio, Chat de equipo y
+// Resultados (el menú personalizable, `customNav`, lo prueba e2e-navegacion).
+const NUEVOS_ON = { knowledge: true, agent: true, lab: true, teamChat: true, results: true };
+const NUEVOS_OFF = { knowledge: false, agent: false, lab: false, teamChat: false, results: false };
+const TODO_ENCENDIDO = { campaigns: true, agenda: true, atribucion: true, instagram: true, messenger: true, ...NUEVOS_ON };
+const TODO_APAGADO = { campaigns: false, agenda: false, atribucion: false, instagram: false, messenger: false, ...NUEVOS_OFF };
 
 async function main() {
   const A = await persona();
@@ -177,6 +183,8 @@ async function main() {
   ok("el administrador apaga todo en B", apaga.status === 200 && Object.values(apaga.json?.modules ?? {}).filter((v) => v === true).length === 0, JSON.stringify(apaga.json));
   const malo = await A.call("POST", `/api/platform/organizations/${orgB}/modules`, { campaignSendRate: 500 });
   ok("un ritmo fuera de 1–80 → 400/422", malo.status === 400 || malo.status === 422, String(malo.status));
+  const sinAgente = await A.call("POST", `/api/platform/organizations/${orgB}/modules`, { lab: true });
+  ok("encender el Laboratorio sin el Agente → 422 (030 PR 4)", sinAgente.status === 422, JSON.stringify(sinAgente.json));
   const nadie = await A.call("POST", `/api/platform/organizations/org_no_existe/modules`, { agenda: true });
   ok("una organización que no existe → 404", nadie.status === 404);
   await sleep(5500); // la caché de módulos dura 5 s por proceso
@@ -192,13 +200,34 @@ async function main() {
     "/api/settings/capi",
     "/api/settings/messenger",
     "/api/settings/instagram",
+    // 030 (PR 4)
+    "/api/knowledge",
+    "/api/agent/profile",
+    "/api/kb",
+    "/api/lab/runs",
+    "/api/team-chat/threads",
+    "/api/team-chat/unread",
+    "/api/analytics/sales?from=2026-01-01&to=2026-01-31",
   ];
   for (const ruta of RUTAS) {
     const b = (await B.call("GET", ruta)).status;
     const a = (await A.call("GET", ruta)).status;
     ok(`GET ${ruta}: B → 404, A → ${a}`, b === 404 && a !== 404, `B=${b} A=${a}`);
   }
-  const PAGINAS = ["/campaigns", "/campaigns/new", "/bookings", "/settings/calendar", "/settings/ads", "/settings/messenger"];
+  const PAGINAS = [
+    "/campaigns",
+    "/campaigns/new",
+    "/bookings",
+    "/settings/calendar",
+    "/settings/ads",
+    "/settings/messenger",
+    // 030 (PR 4)
+    "/knowledge",
+    "/chat",
+    "/agent",
+    "/lab",
+    "/results",
+  ];
   for (const ruta of PAGINAS) {
     const b = await B.pagina(ruta);
     const a = await A.pagina(ruta);
@@ -210,9 +239,19 @@ async function main() {
   ok("B no recibe URLs de Instagram ni Messenger (no es la plataforma)", !webB?.instagramUrl && !webB?.messengerUrl);
   const navB = await B.pagina("/inbox");
   ok("el menú de B no muestra Campañas ni Citas", (await navB.p.getByRole("link", { name: "Campañas" }).count()) === 0 && (await navB.p.getByRole("link", { name: "Citas" }).count()) === 0);
+  const NUEVOS_MENU = ["Conocimientos", "Chat de equipo", "Resultados", "Agente", "Laboratorio"];
+  const quedan = [];
+  for (const n of NUEVOS_MENU) if ((await navB.p.getByRole("link", { name: n, exact: true }).count()) > 0) quedan.push(n);
+  ok("…ni Conocimientos, Chat de equipo, Resultados, Agente ni Laboratorio (030 PR 4)", quedan.length === 0, quedan.join());
   await navB.p.close();
   const navA = await A.pagina("/inbox");
-  ok("el menú de A sí", (await navA.p.getByRole("link", { name: "Campañas" }).count()) > 0 && (await navA.p.getByRole("link", { name: "Citas" }).count()) > 0);
+  ok(
+    "el menú de A sí (también Conocimientos y Resultados)",
+    (await navA.p.getByRole("link", { name: "Campañas" }).count()) > 0 &&
+      (await navA.p.getByRole("link", { name: "Citas" }).count()) > 0 &&
+      (await navA.p.getByRole("link", { name: "Conocimientos", exact: true }).count()) > 0 &&
+      (await navA.p.getByRole("link", { name: "Resultados", exact: true }).count()) > 0
+  );
   await navA.p.close();
   const ajustesB = await B.pagina("/settings/whatsapp");
   ok("Ajustes de B no muestra Messenger ni Anuncios", (await ajustesB.p.getByRole("link", { name: "Messenger" }).count()) === 0 && (await ajustesB.p.getByRole("link", { name: /Anuncios/ }).count()) === 0);

@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { SPRING } from "@/components/motion";
 import { KnowledgePicker, type KnowledgePickAction } from "@/components/knowledge/knowledge-picker";
 import { formatBytes } from "@/components/inbox/helpers";
+import { useViewer } from "@/components/viewer-context";
 
 // El selector de emojis (frimousse, datos servidos por la propia instancia)
 // solo se descarga al abrirlo.
@@ -62,6 +63,8 @@ export function TeamComposer({
   relation: "member" | "oversight";
   onSent: (message: TeamMessageDto | null) => void;
 }) {
+  // 030 (PR 4): sin el módulo Conocimientos no se ofrece (la API ya da 404).
+  const knowledgeOn = useViewer().hasModule("knowledge");
   const [text, setText] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [sending, setSending] = useState(false);
@@ -344,6 +347,7 @@ export function TeamComposer({
             {mentionOpen && <MentionPicker onPick={insertMention} onClose={() => setMentionOpen(false)} />}
           </AnimatePresence>
         </div>
+        {knowledgeOn && (
         <button
           type="button"
           onClick={() => setKnowledgeOpen((v) => !v)}
@@ -356,6 +360,7 @@ export function TeamComposer({
         >
           <BookOpen className="h-[18px] w-[18px]" strokeWidth={1.7} />
         </button>
+        )}
         <span className={cn("ml-auto text-[11px] tabular-nums", over ? "text-danger-text" : "text-text-3")}>
           {text.length > TEAM_MESSAGE_MAX * 0.8 ? `${text.length}/${TEAM_MESSAGE_MAX}` : "Enter envía · Shift+Enter salto"}
         </span>

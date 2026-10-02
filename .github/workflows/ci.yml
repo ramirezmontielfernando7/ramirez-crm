@@ -221,6 +221,8 @@ jobs:
           node --env-file=.env scripts/e2e-plataforma.mjs
           # Fase 3, PR 3: módulos por organización.
           node --env-file=.env scripts/e2e-modulos.mjs
+          # Campañas v2, PR 4: módulos nuevos y navegación personalizable.
+          node --env-file=.env scripts/e2e-navegacion.mjs
           kill -- -"$(cat app.pid)"; sleep 2
       # Tercera vuelta, con un `next dev` recién arrancado: el servidor de
       # desarrollo acumula memoria al compilar rutas y, al acercarse a su

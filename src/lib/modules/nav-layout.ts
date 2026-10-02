@@ -65,6 +65,13 @@ export function normalizeLayout(saved: readonly unknown[] | null | undefined, ro
   return [...fixed.filter((i) => !moduleDef(i.key).pinnedBottom), ...fixed.filter((i) => moduleDef(i.key).pinnedBottom)];
 }
 
+/** Lo que el servidor le baja al menú (cliente): claves en orden y Ajustes. */
+export type NavEntries = { keys: ModuleKey[]; settings: boolean };
+
+export function toNavEntries(nav: ResolvedNav): NavEntries {
+  return { keys: nav.main.map((m) => m.key), settings: nav.settings };
+}
+
 export type ResolvedNav = {
   /** Entradas del menú, en orden (sin Ajustes). */
   main: ModuleDef[];
