@@ -1,4 +1,4 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, or } from "drizzle-orm";
 import {
   bodyFromComponents,
   buildTemplateComponents,
@@ -526,11 +526,14 @@ export async function applyTemplateCategoryEvent(
   const next = str(value.new_category).toUpperCase().slice(0, 32);
   if (!next || (!id && !name)) return;
   const db = getDb();
-  const where = id
-    ? eq(schema.template.waTemplateId, id)
-    : language
+  // Por id de Meta, o por nombre (+ idioma) para las que el CRM aún no
+  // conoce por id.
+  const byName = name
+    ? language
       ? and(eq(schema.template.name, name), eq(schema.template.language, language))
-      : eq(schema.template.name, name);
+      : eq(schema.template.name, name)
+    : undefined;
+  const where = id && byName ? or(eq(schema.template.waTemplateId, id), byName) : id ? eq(schema.template.waTemplateId, id) : byName;
   const rows = await db
     .select()
     .from(schema.template)

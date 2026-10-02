@@ -181,8 +181,11 @@ async function saveReading(
           throughputLevel: keep(t.throughputLevel),
           nameStatus: keep(t.nameStatus),
           accountEvent: keep(t.accountEvent),
-          source,
-          fetchedAt: new Date(),
+          // Un webhook no es una lectura de Meta: no cambia el origen ni la
+          // hora de la última lectura (de eso dependen la sincronización
+          // diaria —que si no volvería a leer cada hora— y el freno del botón).
+          source: sql`case when excluded.source = 'webhook' then ${t.source} else excluded.source end`,
+          fetchedAt: sql`case when excluded.source = 'webhook' then ${t.fetchedAt} else excluded.fetched_at end`,
         },
       })
       .returning()
