@@ -17,7 +17,7 @@ import {
 import { SPRING } from "@/components/motion";
 import type { ConversationDto, TemplateDto } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { formatBytes, formatRemaining } from "./helpers";
+import { formatBytes, formatRemaining, takePastedImage } from "./helpers";
 import { TemplateSender } from "./template-sender";
 import { WritingAssist } from "./writing-assist";
 import {
@@ -72,17 +72,6 @@ function useDismiss(
       window.removeEventListener("keydown", onKey);
     };
   }, [open, ref]);
-}
-
-/**
- * La imagen pegada con Ctrl+V llega como "image.png" (o sin nombre): se le da
- * uno con fecha para que el cliente no reciba diez "image.png" iguales.
- */
-function namePasted(f: File): File {
-  if (f.name && f.name !== "image.png") return f;
-  const ext = f.type.split("/")[1]?.replace("jpeg", "jpg") || "png";
-  const stamp = new Date().toISOString().slice(0, 19).replace(/[-:T]/g, "");
-  return new File([f], `imagen-${stamp}.${ext}`, { type: f.type });
 }
 
 /** Extrae lat,long de "21.019, -101.257" o de un enlace de Google Maps. */
@@ -196,19 +185,10 @@ export function Composer({
     });
   }
 
-  /**
-   * Ctrl+V con una imagen en el portapapeles = adjuntarla, igual que elegirla
-   * del explorador. Si trae texto (aunque también traiga imagen, como al
-   * copiar celdas de Excel) se pega el texto como siempre.
-   */
+  /** Ctrl+V con una imagen = adjuntarla (mecanismo en helpers, compartido). */
   function onPaste(e: React.ClipboardEvent<HTMLTextAreaElement>) {
-    if (e.clipboardData.getData("text/plain")) return;
-    const image = Array.from(e.clipboardData.items)
-      .find((i) => i.kind === "file" && i.type.startsWith("image/"))
-      ?.getAsFile();
-    if (!image) return;
-    e.preventDefault();
-    pickFile(namePasted(image));
+    const image = takePastedImage(e);
+    if (image) pickFile(image);
   }
 
   /** Una opción del menú del clip: cierra el menú y hace lo de siempre. */

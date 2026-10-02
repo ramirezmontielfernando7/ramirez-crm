@@ -33,4 +33,7 @@ app viva (`next dev`, `WA_MOCK_ENABLED=true`) y el servidor recién reiniciado
     peticiones responden 401.
 13. **Navegador (dos personas)**: A envía; a B (en la Bandeja) se le enciende
     el globo del menú; B abre el hilo; el siguiente mensaje le llega sin
-    recargar; emoji desde frimousse; B reacciona y A lo ve en vivo.
+    recargar; emoji desde frimousse; **Ctrl+V** con una imagen la adjunta
+    (nombre `imagen-<fecha>.png`, igual que la Bandeja) y se envía; con texto
+    en el portapapeles el pegado normal no cambia; B reacciona y A lo ve en
+    vivo.

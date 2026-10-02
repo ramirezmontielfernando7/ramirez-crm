@@ -1,5 +1,7 @@
 /** Utilidades de presentación de la bandeja. */
 
+import type { ClipboardEvent } from "react";
+
 export function formatTime(iso: string | null): string {
   if (!iso) return "";
   const d = new Date(iso);
@@ -47,4 +49,32 @@ export function formatBytes(bytes: number): string {
 export function previewText(preview: string | null): string {
   if (!preview) return "";
   return MEDIA_LABELS[preview] ? `📎 ${MEDIA_LABELS[preview]}` : preview;
+}
+
+/**
+ * La imagen pegada con Ctrl+V llega como "image.png" (o sin nombre): se le da
+ * uno con fecha para que no lleguen diez "image.png" iguales.
+ */
+export function namePasted(f: File): File {
+  if (f.name && f.name !== "image.png") return f;
+  const ext = f.type.split("/")[1]?.replace("jpeg", "jpg") || "png";
+  const stamp = new Date().toISOString().slice(0, 19).replace(/[-:T]/g, "");
+  return new File([f], `imagen-${stamp}.${ext}`, { type: f.type });
+}
+
+/**
+ * Ctrl+V con una imagen en el portapapeles = adjuntarla, igual que elegirla
+ * del explorador. Si trae texto (aunque también traiga imagen, como al
+ * copiar celdas de Excel) devuelve null y se pega el texto como siempre.
+ * Cuando hay imagen, cancela el pegado y la devuelve ya con nombre.
+ * Lo comparten la Bandeja y el chat de equipo.
+ */
+export function takePastedImage(e: ClipboardEvent<HTMLElement>): File | null {
+  if (e.clipboardData.getData("text/plain")) return null;
+  const image = Array.from(e.clipboardData.items)
+    .find((i) => i.kind === "file" && i.type.startsWith("image/"))
+    ?.getAsFile();
+  if (!image) return null;
+  e.preventDefault();
+  return namePasted(image);
 }
