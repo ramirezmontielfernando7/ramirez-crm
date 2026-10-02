@@ -1,17 +1,13 @@
 import { apiError, withAuth } from "@/lib/api";
 import { importContacts } from "@/server/contacts-io/import";
-import { decodeCsvBytes, IMPORT_MAX_BYTES, ImportError } from "@/server/contacts-io/validate";
+import {
+  decodeCsvBytes,
+  IMPORT_ERROR_STATUS,
+  IMPORT_MAX_BYTES,
+  ImportError,
+} from "@/server/contacts-io/validate";
 
 export const dynamic = "force-dynamic";
-
-const IMPORT_ERROR_STATUS: Record<ImportError["code"], number> = {
-  too_large: 413,
-  empty: 422,
-  malformed: 422,
-  missing_columns: 422,
-  too_many_rows: 413,
-  not_csv: 415,
-};
 
 const MB = (IMPORT_MAX_BYTES / 1024 / 1024).toFixed(0);
 

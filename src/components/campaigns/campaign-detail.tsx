@@ -3,9 +3,11 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, ArrowLeft, Download, Send, Trash2 } from "lucide-react";
+import { AlertTriangle, ArrowLeft, CalendarClock, Download, Pause, Play, Send, Trash2, XCircle } from "lucide-react";
 import {
   DELIVERY_STATUS_LABEL,
+  EXCLUSION_LABEL,
+  type ExclusionReason,
   RECIPIENT_STATUS_LABEL,
   resolveVariables,
   type DeliveryStatus,
@@ -13,7 +15,7 @@ import {
   type CampaignRecipientDto,
   type RecipientStatus,
 } from "@/lib/campaigns";
-import { fetchJson } from "@/lib/fetch-json";
+import { fetchJson, jsonInit } from "@/lib/fetch-json";
 import { renderBody } from "@/lib/templates";
 import { formatPhone } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -27,6 +29,7 @@ const TABS: { key: RecipientStatus | "all"; label: string }[] = [
   { key: "all", label: "Todos" },
   { key: "sent", label: "Enviados" },
   { key: "failed", label: "Fallidos" },
+  { key: "skipped", label: "Omitidos" },
   { key: "pending", label: "Pendientes" },
 ];
 
@@ -34,6 +37,8 @@ const RECIPIENT_BADGE: Record<RecipientStatus, "success" | "destructive" | "seco
   sent: "success",
   failed: "destructive",
   pending: "secondary",
+  sending: "secondary",
+  skipped: "secondary",
 };
 
 const DELIVERY_BADGE: Record<DeliveryStatus, "success" | "destructive" | "secondary"> = {
@@ -106,7 +111,7 @@ export function CampaignDetail({ campaignId }: { campaignId: string }) {
   // Mientras envía, la lista se refresca cada pocos segundos (los conteos ya
   // llegan en vivo por SSE; la lista completa no viaja por el evento).
   useEffect(() => {
-    if (campaign?.status !== "sending") return;
+    if (campaign?.status !== "sending" && campaign?.status !== "scheduled") return;
     const t = setInterval(() => void loadRecipients(), 4000);
     return () => clearInterval(t);
   }, [campaign?.status, loadRecipients]);
@@ -118,6 +123,20 @@ export function CampaignDetail({ campaignId }: { campaignId: string }) {
     setBusy(false);
     if (!res.ok) {
       setActionError(`No se inició el envío: ${res.error}`);
+      return;
+    }
+    setCampaign(res.data.campaign);
+    void loadRecipients();
+  }
+
+  async function setState(action: "pause" | "resume" | "cancel") {
+    if (action === "cancel" && !window.confirm("¿Cancelar la campaña? A quien aún no le llegó, ya no le llegará.")) return;
+    setBusy(true);
+    setActionError(null);
+    const res = await fetchJson<{ campaign: CampaignDto }>(`/api/campaigns/${campaignId}/state`, jsonInit("POST", { action }));
+    setBusy(false);
+    if (!res.ok) {
+      setActionError(res.error);
       return;
     }
     setCampaign(res.data.campaign);
@@ -152,8 +171,18 @@ export function CampaignDetail({ campaignId }: { campaignId: string }) {
 
   const { counts, total } = campaign;
   const sample = campaign.template
-    ? renderBody(campaign.template.body, resolveVariables(campaign.variables, "Ana López"))
+    ? renderBody(
+        campaign.template.body,
+        resolveVariables(campaign.variables, "Ana López").map((v, i) => {
+          const def = campaign.variables[i];
+          return v || (def?.kind === "column" ? `[${def.column}]` : "");
+        })
+      )
     : null;
+  const canPause = campaign.status === "sending" || campaign.status === "scheduled";
+  const canResume = campaign.status === "paused";
+  const canCancel = canPause || canResume;
+  const excluded = (Object.entries(campaign.excluded ?? {}) as [ExclusionReason, number][]).filter(([, n]) => n > 0);
 
   return (
     <div className="flex h-full flex-col">
@@ -166,6 +195,25 @@ export function CampaignDetail({ campaignId }: { campaignId: string }) {
         </Link>
         <h2 className="min-w-0 truncate text-[17px] font-bold tracking-tight">{campaign.name}</h2>
         <CampaignStatusBadge status={campaign.status} />
+        {(canPause || canResume || canCancel) && (
+          <div className="ml-auto flex flex-wrap gap-2" data-testid="campaign-actions">
+            {canPause && (
+              <Button size="sm" variant="outline" disabled={busy} onClick={() => void setState("pause")} data-testid="campaign-pause">
+                <Pause className="mr-1 h-4 w-4" /> Pausar
+              </Button>
+            )}
+            {canResume && (
+              <Button size="sm" disabled={busy} onClick={() => void setState("resume")} data-testid="campaign-resume">
+                <Play className="mr-1 h-4 w-4" /> Reanudar
+              </Button>
+            )}
+            {canCancel && (
+              <Button size="sm" variant="ghost" disabled={busy} onClick={() => void setState("cancel")} data-testid="campaign-cancel">
+                <XCircle className="mr-1 h-4 w-4" /> Cancelar
+              </Button>
+            )}
+          </div>
+        )}
       </header>
 
       <div className="flex-1 overflow-y-auto p-4 sm:p-6">
@@ -174,6 +222,37 @@ export function CampaignDetail({ campaignId }: { campaignId: string }) {
             <p role="alert" className="rounded-md border border-danger-soft bg-danger-tint px-3 py-2 text-sm text-danger-text">
               {error}
             </p>
+          )}
+          {actionError && campaign.status !== "draft" && (
+            <p role="alert" className="rounded-md border border-danger-soft bg-danger-tint px-3 py-2 text-sm text-danger-text">
+              {actionError}
+            </p>
+          )}
+          {campaign.status === "paused" && campaign.pauseReason && (
+            <div
+              data-testid="campaign-pause-reason"
+              className={`flex items-start gap-2 rounded-md border p-3 text-sm ${
+                campaign.autoPaused ? "border-warning-soft bg-warning-tint text-warning-text" : "bg-subtle"
+              }`}
+            >
+              <Pause className="mt-0.5 h-4 w-4 shrink-0" />
+              <p>
+                <b>{campaign.autoPaused ? "Pausa de seguridad:" : "En pausa:"}</b>{" "}
+                {campaign.pauseReason.replace(/^Pausa de seguridad:\s*/, "")}
+                {campaign.resumeAt &&
+                  ` Se reintenta sola a las ${new Date(campaign.resumeAt).toLocaleTimeString("es-MX", { timeStyle: "short" })}.`}
+              </p>
+            </div>
+          )}
+          {campaign.status === "scheduled" && campaign.scheduledAt && (
+            <div className="flex items-start gap-2 rounded-md border bg-subtle p-3 text-sm" data-testid="campaign-scheduled">
+              <CalendarClock className="mt-0.5 h-4 w-4 shrink-0" />
+              <p>
+                Programada para el{" "}
+                <b>{new Date(campaign.scheduledAt).toLocaleString("es-MX", { dateStyle: "full", timeStyle: "short" })}</b>.
+                Puedes pausarla o cancelarla antes.
+              </p>
+            </div>
           )}
           {campaign.status === "failed" && campaign.error && (
             <div className="flex items-start gap-2 rounded-md border border-danger-soft bg-danger-tint p-3 text-sm text-danger-text">
@@ -213,11 +292,12 @@ export function CampaignDetail({ campaignId }: { campaignId: string }) {
           ) : (
             <Card>
               <CardContent className="space-y-3 pt-5">
-                <div className="grid grid-cols-2 gap-2 text-center sm:grid-cols-4" data-testid="campaign-counts">
+                <div className="grid grid-cols-2 gap-2 text-center sm:grid-cols-5" data-testid="campaign-counts">
                   <Stat label="destinatarios" value={total} />
                   <Stat label="enviados" value={counts.sent} />
                   <Stat label="fallidos" value={counts.failed} danger={counts.failed > 0} />
-                  <Stat label="pendientes" value={counts.pending} />
+                  <Stat label="omitidos" value={counts.skipped} />
+                  <Stat label="pendientes" value={counts.pending + counts.sending} />
                 </div>
                 {counts.sent > 0 && (
                   <div className="grid grid-cols-3 gap-2 text-center" data-testid="campaign-delivery">
@@ -230,7 +310,24 @@ export function CampaignDetail({ campaignId }: { campaignId: string }) {
                     />
                   </div>
                 )}
-                <CampaignProgress total={total} sent={counts.sent} failed={counts.failed} />
+                <CampaignProgress total={total} sent={counts.sent} failed={counts.failed + counts.skipped} />
+                {(excluded.length > 0 || campaign.estimatedCost !== null) && (
+                  <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs text-muted-foreground" data-testid="campaign-launch-info">
+                    {excluded.length > 0 && (
+                      <p>
+                        Excluidos al lanzar:{" "}
+                        {excluded.map(([r, n]) => `${n} ${EXCLUSION_LABEL[r].toLowerCase()}`).join(" · ")}
+                      </p>
+                    )}
+                    {campaign.estimatedCost !== null && (
+                      <p>
+                        Costo{" "}
+                        <span className="rounded bg-warning-tint px-1 text-warning-text">Estimado</span>:{" "}
+                        {campaign.estimatedCost.toLocaleString("es-MX", { maximumFractionDigits: 2 })} {campaign.costCurrency ?? ""}
+                      </p>
+                    )}
+                  </div>
+                )}
                 <p className="text-xs text-muted-foreground">
                   {campaign.startedAt &&
                     `Inició ${new Date(campaign.startedAt).toLocaleString("es-MX", { dateStyle: "medium", timeStyle: "short" })}`}

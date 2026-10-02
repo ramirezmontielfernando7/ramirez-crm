@@ -438,6 +438,19 @@ export async function POST(req: Request, ctx: Params) {
         { status: 400 }
       );
     }
+    // Campañas v2 (PR 2) — termina en 13100 → 131000: fallo genérico de Meta
+    // que SÍ habla de la salud del número (dispara la pausa por tasa de fallos).
+    if (destino && destino.endsWith("13100")) {
+      return Response.json(
+        { error: { message: "(#131000) Something went wrong", code: 131000, type: "OAuthException" } },
+        { status: 400 }
+      );
+    }
+    // Campañas v2 (PR 2) — termina en 55500 → Meta tarda 700 ms en responder
+    // (para pausar una campaña a mitad del envío en el E2E).
+    if (destino && destino.endsWith("55500")) {
+      await new Promise((r) => setTimeout(r, 700));
+    }
     if (destino && destino.endsWith("42900")) {
       const limited = (globalThis as { __waMockRateLimited?: Set<string> });
       limited.__waMockRateLimited ??= new Set();

@@ -127,7 +127,11 @@ export function getWaMockState(): WaMockState {
 }
 
 export function resetWaMockState(): void {
-  globalForMock.__waMockState = freshState();
+  // El contador NO vuelve a cero: los wamid ya emitidos viven en la BD
+  // (UNIQUE) y Meta jamás repite uno. Vaciar el outbox a mitad de un
+  // self-test no puede hacer que el siguiente envío choque con uno anterior.
+  const counter = globalForMock.__waMockState?.counter ?? 0;
+  globalForMock.__waMockState = { ...freshState(), counter };
 }
 
 export function nextN(): number {

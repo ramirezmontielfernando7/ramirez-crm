@@ -41,7 +41,7 @@ export type SseEvent =
       data: {
         campaignId: string;
         status: string;
-        counts: { pending: number; sent: number; failed: number };
+        counts: { pending: number; sending: number; sent: number; failed: number; skipped: number };
       };
     }
   /**

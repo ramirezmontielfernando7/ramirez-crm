@@ -6,6 +6,7 @@ import {
   index,
   integer,
   jsonb,
+  numeric,
   pgTable,
   primaryKey,
   text,
@@ -288,11 +289,18 @@ export const contact = pgTable(
       onDelete: "set null",
     }),
     assignedAt: timestamp("assigned_at"),
+    /**
+     * Campañas v2 (PR 2): correo OPCIONAL, solo como atributo (Vocero no
+     * envía correos). No es único: dos contactos pueden compartirlo. Lo
+     * llena la importación de audiencias sin pisar un valor existente.
+     */
+    email: text("email"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },
   (t) => [
     index("contact_org_assigned_idx").on(t.organizationId, t.assignedUserId),
+    index("contact_org_email_idx").on(t.organizationId, sql`lower(${t.email})`),
     // 014: el canal entra en la llave. Sin el, un IGSID que coincidiera con
     // un telefono normalizado mezclaria dos personas en silencio.
     uniqueIndex("contact_org_channel_identity_uq").on(
@@ -1717,7 +1725,7 @@ export const campaign = pgTable(
      * destinatario (ver `CampaignVariable` en lib/campaigns.ts).
      */
     variables: jsonb("variables")
-      .$type<({ kind: "fixed"; value: string } | { kind: "contact_name" })[]>()
+      .$type<({ kind: "fixed"; value: string } | { kind: "contact_name" } | { kind: "column"; column: string })[]>()
       .notNull()
       .default([]),
     /** El filtro de público tal como se eligió (etiquetas, fuente). */
@@ -1725,8 +1733,14 @@ export const campaign = pgTable(
     createdBy: text("created_by").references(() => user.id, {
       onDelete: "set null",
     }),
+    /**
+     * Campañas v2 (PR 2): `scheduled` (espera su hora), `paused` (a mano o
+     * por la pausa de seguridad) y `cancelled`. Texto sin CHECK en la BD: el
+     * código anterior solo reanuda `sending`, así que revertir deja quietas
+     * las pausadas y programadas (sin envíos fantasma).
+     */
     status: text("status", {
-      enum: ["draft", "sending", "completed", "failed"],
+      enum: ["draft", "scheduled", "sending", "paused", "completed", "cancelled", "failed"],
     })
       .notNull()
       .default("draft"),
@@ -1736,6 +1750,23 @@ export const campaign = pgTable(
     createdAt: timestamp("created_at").notNull().defaultNow(),
     startedAt: timestamp("started_at"),
     finishedAt: timestamp("finished_at"),
+    /** Campañas v2: hora de envío programada (UTC; se elige en la zona de la organización). */
+    scheduledAt: timestamp("scheduled_at"),
+    /** El número que envía (la cola es POR NÚMERO). Se fija al lanzar. */
+    phoneNumberId: text("phone_number_id"),
+    /** Por qué está en pausa (a mano o automática), en español. */
+    pauseReason: text("pause_reason"),
+    /** true = la pausó la pausa de seguridad, no una persona. */
+    autoPaused: boolean("auto_paused").notNull().default(false),
+    /** Pausa automática por uso del límite: cuándo se vuelve a intentar sola. */
+    resumeAt: timestamp("resume_at"),
+    /** Costo ESTIMADO al lanzar (destinatarios × tarifa de la categoría). NULL = sin tarifa capturada. */
+    estimatedCost: numeric("estimated_cost", { precision: 14, scale: 4, mode: "number" }),
+    costCurrency: text("cost_currency"),
+    /** Excluidos al lanzar, por motivo: { noConsent, optOut, invalid, duplicate, archived }. */
+    excluded: jsonb("excluded").$type<Record<string, number>>(),
+    /** Última prueba enviada a un número propio (no cuenta en la campaña). */
+    testSentAt: timestamp("test_sent_at"),
   },
   (t) => [
     index("campaign_org_created_idx").on(t.organizationId, t.createdAt),
@@ -1767,7 +1798,12 @@ export const campaignRecipient = pgTable(
     contactId: text("contact_id"),
     contactName: text("contact_name").notNull(),
     phone: text("phone"),
-    status: text("status", { enum: ["pending", "sent", "failed"] })
+    /**
+     * Campañas v2 (PR 2): `sending` = reclamado por un despachador (con
+     * `claimed_at`/`claimed_by`); `skipped` = no se le envió por una regla
+     * (se dio de baja, se archivó) — no cuenta como fallo del número.
+     */
+    status: text("status", { enum: ["pending", "sending", "sent", "failed", "skipped"] })
       .notNull()
       .default("pending"),
     /** `message.id` del CRM (no el wamid): enlaza con el chat. */
@@ -1775,6 +1811,18 @@ export const campaignRecipient = pgTable(
     errorMessage: text("error_message"),
     sentAt: timestamp("sent_at"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
+    /** Cuándo lo reclamó un despachador. Un reclamo vencido se recupera. */
+    claimedAt: timestamp("claimed_at"),
+    /** Qué proceso lo reclamó (id aleatorio por contenedor). */
+    claimedBy: text("claimed_by"),
+    /** Intentos ante errores transitorios (límite de ritmo, Meta caído). */
+    attempts: integer("attempts").notNull().default(0),
+    /** No antes de esta hora (espera creciente tras un error transitorio). */
+    nextAttemptAt: timestamp("next_attempt_at"),
+    /** Los valores de {{1}}…{{n}} ya resueltos para este destinatario. */
+    variables: jsonb("variables").$type<string[]>(),
+    /** Código de error de Meta del último intento, si lo hubo. */
+    errorCode: integer("error_code"),
   },
   (t) => [
     // Idempotencia: reanudar tras un reinicio nunca manda dos veces a nadie.
@@ -2413,4 +2461,140 @@ export const messagingSettings = pgTable(
       sql`${t.usageAlertPercent} between 1 and 100`
     ),
   ]
+);
+
+/* ============================================================
+ * Campañas v2 (PR 2) — Audiencias, ajustes de envío y cola por número
+ * ============================================================ */
+
+/**
+ * Una base de contactos subida (.xlsx o .csv) desde Campañas → Audiencias.
+ * Es la "base guardada" que el asistente ofrece como público: sus miembros
+ * están en `audience_member`, y además todos quedan con la etiqueta de la
+ * importación (`tag_id`) para filtrarlos en Contactos.
+ *
+ * `failures` guarda hasta 5 000 filas rechazadas para descargarlas después;
+ * `consent_source` es lo que la persona DECLARÓ sobre cómo obtuvo el
+ * consentimiento (queda también en cada contacto).
+ */
+export const audienceImport = pgTable(
+  "audience_import",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    fileName: text("file_name").notNull(),
+    fileKind: text("file_kind", { enum: ["csv", "xlsx"] }).notNull(),
+    tagId: text("tag_id"),
+    consentSource: text("consent_source").notNull(),
+    /** Columnas extra del archivo (no nombre/número/correo/etiquetas): sirven como variables. */
+    columns: jsonb("columns").$type<string[]>().notNull().default([]),
+    /** { totalRows, created, updated, invalid, duplicate, empty, members }. */
+    counts: jsonb("counts").$type<Record<string, number>>().notNull(),
+    /** Filas rechazadas: { line, name, phone, reason }[] (máx. 5 000). */
+    failures: jsonb("failures")
+      .$type<{ line: number; name: string; phone: string; reason: string }[]>()
+      .notNull()
+      .default([]),
+    createdBy: text("created_by").references(() => user.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    unique("audience_import_org_id_uq").on(t.organizationId, t.id),
+    index("audience_import_org_created_idx").on(t.organizationId, t.createdAt),
+    check("audience_import_file_kind_chk", sql`${t.fileKind} in ('csv', 'xlsx')`),
+    // En la BD es ON DELETE SET NULL (tag_id) (0032): borrar la etiqueta no
+    // borra la base.
+    foreignKey({
+      name: "audience_import_org_tag_fk",
+      columns: [t.organizationId, t.tagId],
+      foreignColumns: [contactTag.organizationId, contactTag.id],
+    }).onDelete("set null"),
+  ]
+);
+
+/**
+ * Quién está en cada base, con los valores de sus columnas extra (`fields`),
+ * que el asistente usa para llenar variables ("{{2}}" = columna "cupón").
+ */
+export const audienceMember = pgTable(
+  "audience_member",
+  {
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    importId: text("import_id").notNull(),
+    contactId: text("contact_id").notNull(),
+    fields: jsonb("fields").$type<Record<string, string>>().notNull().default({}),
+  },
+  (t) => [
+    primaryKey({ name: "audience_member_pk", columns: [t.organizationId, t.importId, t.contactId] }),
+    index("audience_member_org_contact_idx").on(t.organizationId, t.contactId),
+    foreignKey({
+      name: "audience_member_org_import_fk",
+      columns: [t.organizationId, t.importId],
+      foreignColumns: [audienceImport.organizationId, audienceImport.id],
+    }).onDelete("cascade"),
+    foreignKey({
+      name: "audience_member_org_contact_fk",
+      columns: [t.organizationId, t.contactId],
+      foreignColumns: [contact.organizationId, contact.id],
+    }).onDelete("cascade"),
+  ]
+);
+
+/**
+ * Ajustes de envío de campañas por organización. Sin fila = los valores por
+ * defecto del código (`src/server/campaigns/settings.ts`).
+ *
+ * - Pausa de seguridad: tasa de fallos (%) sobre los últimos N intentos (con
+ *   mínimo N), calidad ROJA del número y uso del límite diario (%).
+ * - Tarifas ESTIMADAS por categoría de plantilla y su moneda: las captura el
+ *   negocio; Vocero no trae precios de Meta.
+ * - Ventana de respuestas (horas) para Métricas (PR 3).
+ */
+export const campaignSettings = pgTable(
+  "campaign_settings",
+  {
+    organizationId: text("organization_id")
+      .primaryKey()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    failRatePercent: integer("fail_rate_percent").notNull().default(20),
+    failRateWindow: integer("fail_rate_window").notNull().default(50),
+    pauseOnQualityRed: boolean("pause_on_quality_red").notNull().default(true),
+    usagePausePercent: integer("usage_pause_percent").notNull().default(95),
+    /** { marketing?, utility?, authentication? }: costo estimado por mensaje. */
+    rates: jsonb("rates").$type<Record<string, number>>().notNull().default({}),
+    currency: text("currency"),
+    replyWindowHours: integer("reply_window_hours").notNull().default(72),
+    updatedBy: text("updated_by").references(() => user.id, { onDelete: "set null" }),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => [
+    check("campaign_settings_fail_rate_chk", sql`${t.failRatePercent} between 1 and 100`),
+    check("campaign_settings_fail_window_chk", sql`${t.failRateWindow} between 10 and 1000`),
+    check("campaign_settings_usage_pause_chk", sql`${t.usagePausePercent} between 1 and 100`),
+    check("campaign_settings_reply_window_chk", sql`${t.replyWindowHours} between 1 and 720`),
+  ]
+);
+
+/**
+ * Quién despacha los envíos de un número. Varias réplicas del contenedor
+ * pueden correr a la vez: solo la dueña de la concesión (renovada cada pocos
+ * segundos) envía por ese número, así el ritmo es POR NÚMERO y no se suma
+ * entre réplicas. Una concesión sin renovar vence y la toma otra.
+ */
+export const waSendLease = pgTable(
+  "wa_send_lease",
+  {
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    phoneNumberId: text("phone_number_id").notNull(),
+    owner: text("owner").notNull(),
+    heartbeatAt: timestamp("heartbeat_at").notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ name: "wa_send_lease_pk", columns: [t.organizationId, t.phoneNumberId] })]
 );

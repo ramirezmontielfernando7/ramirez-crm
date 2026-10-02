@@ -246,7 +246,12 @@ async function main() {
   const audience = { tagIds: [importTagId] };
   const prev = await api("/api/campaigns/preview", { method: "POST", body: JSON.stringify({ audience }) });
   const p = prev.json?.preview;
-  ok("3 elegibles, 2 sin consentimiento (1 opt_out)", p?.eligible === 3 && p?.withoutConsent === 2 && p?.optedOut === 1, prev.text);
+  // Campañas v2: el desglose de excluidos viene por motivo.
+  ok(
+    "3 elegibles, 2 sin consentimiento (1 opt_out)",
+    p?.eligible === 3 && p?.excluded?.noConsent === 1 && p?.excluded?.optOut === 1,
+    prev.text
+  );
   const sneaky = await api("/api/campaigns/preview", {
     method: "POST",
     body: JSON.stringify({ audience: { ...audience, consent: "desconocido" } }),

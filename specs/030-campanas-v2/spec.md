@@ -7,7 +7,7 @@ y despliega antes de empezar el siguiente.
 | PR | Contenido | Migración |
 |---|---|---|
 | 1 | Fundamentos de datos de Meta (este documento, sección PR 1) | 0031 |
-| 2 | Campañas v2: pestañas, audiencias .xlsx/.csv, asistente de 3 pasos, cola por número | 0032 (por confirmar) |
+| 2 | Campañas v2: pestañas, audiencias .xlsx/.csv, asistente de 3 pasos, cola por número | 0032 |
 | 3 | Métricas: KPIs, analíticas de Meta a la base propia, conciliación de costo | 0033 (por confirmar) |
 | 4 | Registro de módulos y navegación personalizable por rol | 0034 (por confirmar) |
 
@@ -92,3 +92,71 @@ Referencia de la API de Meta y lo NO VERIFICADO:
 - BD real: `tests/db/estados-mensaje.test.ts` (incluye concurrencia),
   `tests/db/bajas.test.ts`, RLS de las tablas nuevas.
 - E2E: `scripts/e2e-datos-meta.mjs` (guion `tests/e2e/us-datos-meta.md`).
+
+## PR 2 — Campañas v2
+
+### Historias
+
+1. **Pestañas** Campañas, Audiencias y Métricas (rutas; Métricas con un
+   aviso hasta el PR 3) y Ajustes de envío.
+2. **Audiencias.** Subir .xlsx o .csv (5 MB, 20 000 filas; sin macros;
+   de una fórmula se usa el valor guardado). Columnas por nombre y sinónimos
+   (nombre; numero/telefono/celular/whatsapp; correo/email; etiquetas/tags)
+   o, si no se reconocen, el paso "¿qué es cada columna?". Vista previa con
+   las inválidas en rojo y resumen (válidas, inválidas, duplicadas). La
+   declaración del origen del consentimiento es obligatoria: deja `opt_in` a
+   quien no trae columna de consentimiento (un `opt_out` no se revierte).
+   Se reutiliza el importador de Contactos (`importValidated`), con su
+   etiqueta automática. El correo se guarda en `contact.email` (opcional,
+   sin pisar uno existente). Filas con error descargables (CSV protegido
+   contra fórmulas) y archivo de ejemplo .xlsx/.csv. La base queda guardada
+   con sus columnas extra.
+3. **Asistente de 3 pasos.** (1) audiencia: base guardada, etiquetas o
+   archivo nuevo; (2) mensaje: solo plantillas aprobadas y activas,
+   variables desde texto, nombre o columna de la base, burbuja de WhatsApp;
+   (3) revisar y enviar: cuántos recibirán y excluidos por motivo (sin
+   opt_in, opt_out, inválidos, duplicados, archivados, sin valor de
+   variable), costo ESTIMADO (tarifas que captura el negocio), margen frente
+   al límite de 24 h leído de Meta, prueba a un número propio y enviar ya o
+   programar en la zona horaria del negocio.
+4. **Envío: cola POR NÚMERO.** Un despachador por (organización, número)
+   atiende por turnos a todas sus campañas al ritmo de la organización. Solo
+   la réplica con la concesión del número (`wa_send_lease`) despacha; cada
+   destinatario se reclama con `FOR UPDATE SKIP LOCKED` (CTE). El mensaje se
+   reserva ANTES de llamar a Meta: tras un reinicio, sin mensaje → vuelve a
+   la fila; con wamid → enviado; sin wamid → fallido sin reenvío. Un reclamo
+   cuyo dueño sigue vivo no se toca. Reintentos con espera creciente solo
+   para errores transitorios (130429, 80007, 4, Meta caído); 131049 no se
+   reintenta. Pausar, reanudar y cancelar.
+5. **Pausa de seguridad automática** (umbrales en `campaign_settings`):
+   tasa de fallos ≥ 20 % en los últimos 50 intentos (sin contar 131026,
+   131049, 131050), calidad ROJA, aviso de restricción de la cuenta, y uso
+   ≥ 95 % del límite de 24 h (se reintenta sola a los 30 min). Aviso en la
+   app para Propietario y Coordinador.
+6. **Detalle** con progreso en vivo (SSE), excluidos, costo estimado, motivo
+   de pausa, programación y acciones.
+7. **Permisos:** `campaigns.manage` (Propietario y Coordinador); subir
+   audiencias pide además `contacts.import`. El Asesor recibe 403; con el
+   módulo apagado, 404.
+
+### Diseño
+
+- Migración `0032_campanas_v2_envio.sql`, aditiva e idempotente; reversa
+  opcional `scripts/sql/0032-reversa.sql` (revertir = imagen anterior).
+- Tablas nuevas con RLS forzado: `audience_import`, `audience_member`,
+  `campaign_settings`, `wa_send_lease`.
+- `src/server/campaigns/`: `audiences.ts`, `audience.ts` (regla opt_in),
+  `service.ts`, `dispatcher.ts` (despachador y programador), `queue.ts`
+  (concesión, reclamo, recuperación), `lifecycle.ts` (transiciones
+  condicionales), `outcome.ts` (errores), `safety.ts` (pausa de seguridad),
+  `settings.ts`.
+- `src/server/contacts-io/spreadsheet.ts` (`read-excel-file` + `fflate`) y
+  `xlsx-write.ts` (archivo de ejemplo).
+
+### Pruebas
+
+- Unitarias: lectura de Excel (fórmulas, macros, tipos), sinónimos y
+  asignación, vista previa, pausa de seguridad, costo estimado, errores.
+- BD real: `tests/db/audiencias.test.ts`, `tests/db/cola-campanas.test.ts`
+  (dos despachadores, reclamo concurrente, recuperación, programador).
+- E2E: `scripts/e2e-campanas-v2.mjs` (guion `tests/e2e/us-campanas-v2.md`).

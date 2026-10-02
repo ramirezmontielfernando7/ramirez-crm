@@ -1,5 +1,5 @@
 import { eq, inArray } from "drizzle-orm";
-import { getDb, schema } from "@/lib/db";
+import { getDb, schema, type Db } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
 import { scoped } from "@/lib/db/tenant";
 import { normalizeTagName, type WaConsent } from "@/lib/tags";
@@ -8,6 +8,7 @@ import {
   ImportError,
   validateImport,
   type RowFailure,
+  type ValidationResult,
   type ValidRow,
 } from "@/server/contacts-io/validate";
 
@@ -64,15 +65,50 @@ export async function importContacts(input: {
   tagName?: string | null;
   createLeads?: boolean;
 }): Promise<ImportSummary> {
-  const { organizationId } = input;
-  const validation = validateImport(input.text);
+  return importValidated({ ...input, validation: validateImport(input.text) });
+}
+
+/** Un contacto de la importación (nuevo o existente) y su fila del archivo. */
+export type ImportedMember = { contactId: string; row: ValidRow; created: boolean };
+
+type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
+
+/**
+ * El núcleo de la importación, sobre filas YA validadas (de CSV o de Excel).
+ *
+ * Campañas v2 (PR 2):
+ * - `consentDeclaration`: lo que la persona declaró sobre cómo obtuvo el
+ *   consentimiento de esta base. Con él, las filas que no traen columna de
+ *   consentimiento quedan `opt_in` con esa declaración como origen (un
+ *   `opt_out` sigue sin revertirse).
+ * - `onMembers`: corre DENTRO de la misma transacción con cada contacto y su
+ *   fila (la base guardada de Audiencias se escribe todo o nada).
+ * - El correo solo llena un correo vacío.
+ */
+export async function importValidated(input: {
+  organizationId: string;
+  actorUserId: string;
+  fileName: string;
+  validation: ValidationResult;
+  tagName?: string | null;
+  createLeads?: boolean;
+  consentDeclaration?: string | null;
+  onMembers?: (tx: Tx, members: ImportedMember[], tag: { id: string; name: string }) => Promise<void>;
+}): Promise<ImportSummary> {
+  const { organizationId, validation } = input;
   const tagName = importTagName(input.fileName, input.tagName);
+  const declaration = input.consentDeclaration?.trim().slice(0, 200) || null;
+  /** El consentimiento que se aplica a una fila: el del archivo, o el declarado. */
+  const consentOf = (row: ValidRow): WaConsent | null => row.waConsent ?? (declaration ? "opt_in" : null);
+  const sourceOf = (row: ValidRow): string =>
+    row.waConsentSource ?? (!row.waConsent && declaration ? declaration : consentSource(row, input.fileName));
   if (validation.rows.length === 0 && validation.failures.length === 0) {
     throw new ImportError("empty", "El archivo solo tiene la cabecera: no hay contactos que importar");
   }
 
-  const warnings: RowFailure[] = [];
+  const warnings: RowFailure[] = [...validation.warnings];
   const createdIds: string[] = [];
+  const members: ImportedMember[] = [];
   let updated = 0;
   const db = getDb();
 
@@ -129,18 +165,20 @@ export async function importContacts(input: {
         const set: Partial<typeof schema.contact.$inferInsert> = {};
         if (!current.phone) set.phone = row.phone;
         if (!current.source && row.source) set.source = row.source;
-        if (row.waConsent && row.waConsent !== current.waConsent) {
+        if (!current.email && row.email) set.email = row.email;
+        const consent = consentOf(row);
+        if (consent && consent !== current.waConsent) {
           if (current.waConsent === "opt_out") {
             warnings.push({
               line: row.line,
               name: row.name,
               phone: row.phone,
-              reason: `Se conservó "No quiere mensajes": el CSV decía ${row.waConsent}, y una baja solo se revierte a mano`,
+              reason: `Se conservó "No quiere mensajes": el archivo decía ${consent}, y una baja solo se revierte a mano`,
             });
           } else {
-            set.waConsent = row.waConsent;
+            set.waConsent = consent;
             set.waConsentAt = now;
-            set.waConsentSource = consentSource(row, input.fileName);
+            set.waConsentSource = sourceOf(row);
           }
         }
         if (Object.keys(set).length > 0) {
@@ -151,6 +189,7 @@ export async function importContacts(input: {
             .where(scoped(schema.contact.organizationId, organizationId, eq(schema.contact.id, current.id)));
         }
         updated++;
+        members.push({ contactId: current.id, row, created: false });
         assignments.push({ contactId: current.id, tagId: importTagId });
         for (const t of row.tags) assignments.push({ contactId: current.id, tagId: tagIdByName.get(t)! });
       }
@@ -169,9 +208,10 @@ export async function importContacts(input: {
               // Lo escribió una persona (en su base): WhatsApp no lo pisa.
               nameSource: "manual" as const,
               source: r.source,
-              waConsent: (r.waConsent ?? "desconocido") as WaConsent,
-              waConsentSource: consentSource(r, input.fileName),
-              waConsentAt: r.waConsent ? now : null,
+              email: r.email,
+              waConsent: (consentOf(r) ?? "desconocido") as WaConsent,
+              waConsentSource: sourceOf(r),
+              waConsentAt: consentOf(r) ? now : null,
             }))
           )
           // Una carrera con el webhook (el cliente escribió justo ahora) no
@@ -184,6 +224,7 @@ export async function importContacts(input: {
         for (const r of toInsert) {
           if (insertedIds.has(r.id)) {
             createdIds.push(r.id);
+            members.push({ contactId: r.id, row: r, created: true });
             assignments.push({ contactId: r.id, tagId: importTagId });
             for (const t of r.tags) assignments.push({ contactId: r.id, tagId: tagIdByName.get(t)! });
           } else {
@@ -204,7 +245,9 @@ export async function importContacts(input: {
         .values(batch.map((a) => ({ organizationId, ...a })))
         .onConflictDoNothing();
     }
-    return { id: importTagId, name: tagName };
+    const tag = { id: importTagId, name: tagName };
+    if (input.onMembers) await input.onMembers(tx, members, tag);
+    return tag;
   });
 
   // Leads fuera de la transacción: son opcionales y cada uno es independiente.

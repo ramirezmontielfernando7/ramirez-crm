@@ -71,9 +71,9 @@ const PERMITIDOS: Record<string, { usos: number; motivo: string }> = {
     usos: 1,
     motivo: "arranque: corridas del Laboratorio huérfanas de TODAS las organizaciones",
   },
-  "src/server/campaigns/runner.ts": {
+  "src/server/campaigns/dispatcher.ts": {
     usos: 1,
-    motivo: "arranque: campañas que quedaron enviando en TODAS las organizaciones (cada ejecutor sigue luego a nombre de la suya)",
+    motivo: "Campañas v2: el programador de campañas (al arrancar y cada 15 s) lista las organizaciones con campañas por despachar en TODAS las organizaciones; cada despachador corre luego a nombre de la suya",
   },
   "src/server/meta-sync/daily.ts": {
     usos: 1,

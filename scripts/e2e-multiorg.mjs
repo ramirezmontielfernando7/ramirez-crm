@@ -552,8 +552,16 @@ async function main() {
   const despuesA = await huella(orgA);
   ok("un entrante al número de B (mismo teléfono que un cliente de A) no toca A", diferencias(antesA, despuesA).length === 0,
     diferencias(antesA, despuesA).join(", "));
-  const [enB] = await sql`select count(*)::int as n from "message" where organization_id = ${orgB} and wa_message_id = ${`wamid.mo.cruce.${RUN}`}`;
+  // La ruta del webhook puede estar compilándose por primera vez (next dev
+  // recién arrancado): se espera a que el mensaje llegue, no un tiempo fijo.
+  let enB = { n: 0 };
+  for (let i = 0; i < 40 && enB.n !== 1; i++) {
+    [enB] = await sql`select count(*)::int as n from "message" where organization_id = ${orgB} and wa_message_id = ${`wamid.mo.cruce.${RUN}`}`;
+    if (enB.n !== 1) await sleep(500);
+  }
   ok("…y sí queda en B", enB.n === 1);
+  const despuesA2 = await huella(orgA);
+  ok("…y ya procesado, A sigue intacta", diferencias(antesA, despuesA2).length === 0, diferencias(antesA, despuesA2).join(", "));
 
   console.log("\n== H2: el cerebro externo opera sobre la organización de SU llave ==");
   const bot = async (key, ruta) => {

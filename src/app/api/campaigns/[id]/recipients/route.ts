@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 
 type Params = { params: Promise<{ id: string }> };
 
-const STATUSES: RecipientStatus[] = ["pending", "sent", "failed"];
+const STATUSES: RecipientStatus[] = ["pending", "sending", "sent", "failed", "skipped"];
 
 /**
  * 021 — El log de auditoría: a quién, cuándo y con qué resultado.

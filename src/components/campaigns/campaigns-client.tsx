@@ -9,7 +9,7 @@ import { fetchJson } from "@/lib/fetch-json";
 import { Button } from "@/components/ui/button";
 import { useEvents } from "@/components/use-events";
 import { CampaignProgress, CampaignStatusBadge } from "./status-badge";
-import { NavRevealButton } from "@/components/nav-mode";
+import { CampaignsTabs } from "./campaigns-tabs";
 
 /** 021 — Campañas: el historial de envíos masivos del negocio. */
 export function CampaignsClient() {
@@ -31,29 +31,30 @@ export function CampaignsClient() {
   }, [refetch]);
 
   useEvents({
-    onCampaignProgress: (d) =>
+    onCampaignProgress: (d) => {
+      // Un cambio de estado (pausa, programada → enviando) trae motivo y horas: refetch.
+      if (d.status !== "sending") void refetch();
       setCampaigns((prev) =>
         prev?.map((c) =>
           c.id === d.campaignId ? { ...c, status: d.status as CampaignDto["status"], counts: d.counts } : c
         ) ?? prev
-      ),
+      );
+    },
     onReconnect: () => void refetch(),
   });
 
   return (
     <div className="flex h-full flex-col">
-      <header className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3 sm:px-6 sm:py-4">
-        <div className="flex items-center gap-2">
-          <NavRevealButton />
-          <h2 className="text-[17px] font-bold tracking-tight">Campañas</h2>
-        </div>
-        <Link href="/campaigns/new">
-          <Button size="sm">
-            <Plus className="mr-1.5 h-4 w-4" strokeWidth={1.8} />
-            Nueva campaña
-          </Button>
-        </Link>
-      </header>
+      <CampaignsTabs
+        actions={
+          <Link href="/campaigns/new">
+            <Button size="sm">
+              <Plus className="mr-1.5 h-4 w-4" strokeWidth={1.8} />
+              Nueva campaña
+            </Button>
+          </Link>
+        }
+      />
 
       <div className="flex-1 overflow-y-auto p-4 sm:p-6">
         {/* Campañas v2: antes de mandar, cómo está el número. */}
@@ -79,7 +80,7 @@ export function CampaignsClient() {
         ) : (
           <ul className="space-y-2">
             {campaigns.map((c) => {
-              const done = c.counts.sent + c.counts.failed;
+              const done = c.counts.sent + c.counts.failed + c.counts.skipped;
               return (
                 <li key={c.id}>
                   <Link
@@ -96,13 +97,22 @@ export function CampaignsClient() {
                       </div>
                       <CampaignStatusBadge status={c.status} />
                     </div>
-                    {c.status !== "draft" && (
+                    {c.status === "scheduled" && c.scheduledAt && (
+                      <p className="mt-1 text-[11px] text-muted-foreground">
+                        Programada para {new Date(c.scheduledAt).toLocaleString("es-MX", { dateStyle: "medium", timeStyle: "short" })}
+                      </p>
+                    )}
+                    {c.status === "paused" && c.pauseReason && (
+                      <p className={`mt-1 text-[11px] ${c.autoPaused ? "text-warning-text" : "text-muted-foreground"}`}>{c.pauseReason}</p>
+                    )}
+                    {c.status !== "draft" && c.status !== "scheduled" && (
                       <div className="mt-2 space-y-1">
-                        <CampaignProgress total={c.total} sent={c.counts.sent} failed={c.counts.failed} />
+                        <CampaignProgress total={c.total} sent={c.counts.sent} failed={c.counts.failed + c.counts.skipped} />
                         <p className="text-[11px] text-muted-foreground">
                           {c.counts.sent} de {c.total} enviados
                           {c.counts.failed > 0 ? ` · ${c.counts.failed} fallidos` : ""}
-                          {c.status === "sending" ? ` · ${c.total - done} pendientes` : ""}
+                          {c.counts.skipped > 0 ? ` · ${c.counts.skipped} omitidos` : ""}
+                          {c.status === "sending" || c.status === "paused" ? ` · ${c.total - done} pendientes` : ""}
                         </p>
                       </div>
                     )}
