@@ -6,7 +6,7 @@ import {
   validateTemplateDraft,
   type TemplateDraft,
 } from "@/lib/templates";
-import { mapMetaStatus } from "@/server/whatsapp/templates";
+import { mapMetaStatus, sameJson } from "@/server/whatsapp/templates";
 
 const base: TemplateDraft = {
   name: "promo",
@@ -83,5 +83,13 @@ describe("plantillas v2: qué necesita el envío", () => {
     expect(mapMetaStatus("DISABLED")).toBe("rejected");
     expect(mapMetaStatus("IN_APPEAL")).toBe("pending");
     expect(mapMetaStatus("ALGO_NUEVO")).toBeNull();
+  });
+});
+
+describe("plantillas v2: comparación de componentes", () => {
+  it("no depende del orden de las llaves (jsonb las reordena)", () => {
+    expect(sameJson([{ type: "BODY", text: "x", example: { a: 1 } }], [{ example: { a: 1 }, text: "x", type: "BODY" }])).toBe(true);
+    expect(sameJson([{ type: "BODY", text: "x" }], [{ type: "BODY", text: "y" }])).toBe(false);
+    expect(sameJson(null, undefined)).toBe(true);
   });
 });

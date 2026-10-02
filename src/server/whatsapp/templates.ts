@@ -331,6 +331,25 @@ async function fetchAllTemplates(wabaId: string, token: string): Promise<RemoteT
   return out;
 }
 
+/**
+ * Igualdad de componentes sin depender del orden de las llaves: Postgres
+ * reordena las llaves de un `jsonb`, así que lo leído de la BD y lo que
+ * manda Meta nunca coinciden como texto aunque sean lo mismo.
+ */
+export function sameJson(a: unknown, b: unknown): boolean {
+  const norm = (v: unknown): unknown =>
+    Array.isArray(v)
+      ? v.map(norm)
+      : v && typeof v === "object"
+        ? Object.fromEntries(
+            Object.keys(v as Record<string, unknown>)
+              .sort()
+              .map((k) => [k, norm((v as Record<string, unknown>)[k])])
+          )
+        : v;
+  return JSON.stringify(norm(a ?? null)) === JSON.stringify(norm(b ?? null));
+}
+
 function qualityOf(q: RemoteTemplate["quality_score"]): string | null {
   const v = typeof q === "string" ? q : q?.score;
   return v ? v.toUpperCase().slice(0, 32) : null;
@@ -414,7 +433,7 @@ export async function syncTemplates(organizationId: string): Promise<number> {
       !categoryChanged &&
       match.metaStatus === metaStatus &&
       match.qualityScore === qualityOf(r.quality_score) &&
-      JSON.stringify(match.components) === JSON.stringify(components ?? match.components);
+      sameJson(match.components, components ?? match.components);
     await db
       .update(schema.template)
       .set({

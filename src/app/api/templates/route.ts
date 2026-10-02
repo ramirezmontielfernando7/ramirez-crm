@@ -4,6 +4,7 @@ import { apiError, parseBody, withAuth } from "@/lib/api";
 import { getDb, schema } from "@/lib/db";
 import { scoped } from "@/lib/db/tenant";
 import { isHeaderImageAvailable } from "@/lib/meta/upload";
+import { countVariables, type TemplateDraft } from "@/lib/templates";
 import {
   createTemplate,
   serializeTemplate,
@@ -40,7 +41,10 @@ const createSchema = z.object({
   body: z.string().trim().min(1).max(4096),
   // Campañas v2: ejemplos, encabezado, pie y botones (opcionales: el
   // contrato anterior —solo cuerpo— sigue valiendo).
-  bodyExamples: z.array(z.string().max(1000)).max(20).default([]),
+  // Sin `bodyExamples` (contrato anterior: integraciones y guiones que solo
+  // mandan el cuerpo) se generan "ejemplo 1", "ejemplo 2"… como antes. La
+  // pantalla de Ajustes siempre los manda escritos por la persona.
+  bodyExamples: z.array(z.string().max(1000)).max(20).optional(),
   header: z
     .discriminatedUnion("format", [
       z.object({ format: z.literal("NONE") }),
@@ -52,6 +56,10 @@ const createSchema = z.object({
   buttons: z.array(buttonSchema).max(20).default([]),
 });
 
+function legacyExamples(body: string): string[] {
+  return Array.from({ length: countVariables(body) }, (_, i) => `ejemplo ${i + 1}`);
+}
+
 /** El tamaño máximo del cuerpo multipart (la imagen + el borrador). */
 const MAX_MULTIPART_BYTES = 6 * 1024 * 1024;
 
@@ -60,7 +68,7 @@ const MAX_MULTIPART_BYTES = 6 * 1024 * 1024;
  * + `headerImage` (archivo) cuando el encabezado es de imagen.
  */
 export const POST = withAuth(async (session, req: Request) => {
-  let draft: z.infer<typeof createSchema>;
+  let draft: TemplateDraft;
   let headerImage: HeaderImageInput | null = null;
   if ((req.headers.get("content-type") ?? "").startsWith("multipart/form-data")) {
     const length = Number(req.headers.get("content-length") ?? 0);
@@ -80,7 +88,7 @@ export const POST = withAuth(async (session, req: Request) => {
     }
     const parsed = createSchema.safeParse(json);
     if (!parsed.success) return apiError(422, "invalid_body", "La plantilla no es válida");
-    draft = parsed.data;
+    draft = { ...parsed.data, bodyExamples: parsed.data.bodyExamples ?? legacyExamples(parsed.data.body) };
     const file = form.get("headerImage");
     if (file instanceof File) {
       headerImage = {
@@ -95,7 +103,7 @@ export const POST = withAuth(async (session, req: Request) => {
     // parseBody tipa la entrada (sin los defaults aplicados): se completan aquí.
     draft = {
       ...body.data,
-      bodyExamples: body.data.bodyExamples ?? [],
+      bodyExamples: body.data.bodyExamples ?? legacyExamples(body.data.body),
       header: body.data.header ?? { format: "NONE" },
       buttons: body.data.buttons ?? [],
     };

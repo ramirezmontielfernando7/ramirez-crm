@@ -45,6 +45,9 @@ function applyMockContent(
 ): void {
   if (type === "text") {
     message.text = { body: input.text ?? "hola" };
+  } else if (type === "button") {
+    // Campañas v2: toque en un botón de respuesta rápida de una plantilla.
+    message.button = { text: input.text ?? "Me interesa", payload: input.text ?? "Me interesa" };
   } else if (type === "location") {
     message.location = input.location ?? {
       latitude: 21.019,
