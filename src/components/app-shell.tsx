@@ -12,6 +12,7 @@ import { ViewerProvider } from "@/components/viewer-context";
 import { TeamUnreadLogoBadge } from "@/components/team-chat/unread-badge";
 import { HandoffNotices } from "@/components/handoff-notices";
 import { NumberHealthBanner } from "@/components/number-health";
+import { CampaignPauseBanner } from "@/components/campaigns/campaign-pause-banner";
 import { MotionProvider, NAV } from "@/components/motion";
 import { NavModeProvider } from "@/components/nav-mode";
 import { nextNavMode, type NavMode } from "@/lib/preferences";
@@ -235,6 +236,8 @@ function ShellFrame({
 
           {/* Campañas v2: aviso de salud del número (Propietario y Coordinador). */}
           <NumberHealthBanner campaigns={campaigns} />
+          {/* Campañas v2: pausa de seguridad automática (Propietario y Coordinador). */}
+          <CampaignPauseBanner campaigns={campaigns} />
           <main className="min-h-0 min-w-0 flex-1 overflow-hidden">{children}</main>
         </div>
       </div>

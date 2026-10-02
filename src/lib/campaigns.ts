@@ -77,6 +77,8 @@ export type CampaignPreview = {
   margin: number | null;
   /** Categoría de la plantilla (para la tarifa). */
   category: string | null;
+  /** Zona horaria del negocio (para programar). */
+  timezone: string;
 };
 
 export type CampaignCounts = { pending: number; sending: number; sent: number; failed: number; skipped: number };

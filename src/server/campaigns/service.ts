@@ -27,6 +27,7 @@ import { estimateCost, getCampaignSettings } from "@/server/campaigns/settings";
 import { ensureDispatcher } from "@/server/campaigns/dispatcher";
 import { cancelCampaign, pauseCampaign, resumeCampaign } from "@/server/campaigns/lifecycle";
 import { humanMetaError } from "@/server/campaigns/outcome";
+import { businessTimezone } from "@/server/analytics/period";
 
 /**
  * 021 — Campañas: crear (borrador), lanzar y consultar.
@@ -421,7 +422,11 @@ export async function previewCampaign(
     excluded.missingVariable += missing;
     eligible -= missing;
   }
-  const [settings, health] = await Promise.all([getCampaignSettings(organizationId), getHealthSummary(organizationId)]);
+  const [settings, health, timezone] = await Promise.all([
+    getCampaignSettings(organizationId),
+    getHealthSummary(organizationId),
+    businessTimezone(organizationId),
+  ]);
   const limit = health.today?.messagingLimitValue ?? parseMessagingLimit(health.today?.messagingLimit ?? null);
   return {
     eligible,
@@ -431,6 +436,7 @@ export async function previewCampaign(
     usage: health.usage,
     margin: limit === null ? null : Math.max(0, limit - health.usage),
     category,
+    timezone,
   };
 }
 

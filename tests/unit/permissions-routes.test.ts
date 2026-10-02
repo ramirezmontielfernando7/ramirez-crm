@@ -115,6 +115,18 @@ const PROTEGIDAS: [string, Method, Permission][] = [
   ["campaigns/[id]", "DELETE", "campaigns.manage"],
   ["campaigns/[id]/send", "POST", "campaigns.manage"],
   ["campaigns/[id]/recipients", "GET", "campaigns.manage"],
+  // Campañas v2 (PR 2)
+  ["campaigns/[id]/state", "POST", "campaigns.manage"],
+  ["campaigns/[id]/test", "POST", "campaigns.manage"],
+  ["campaigns/alerts", "GET", "campaigns.manage"],
+  ["campaigns/settings", "GET", "campaigns.manage"],
+  ["campaigns/settings", "PUT", "campaigns.manage"],
+  ["campaigns/audiences", "GET", "campaigns.manage"],
+  ["campaigns/audiences", "POST", "campaigns.manage"],
+  ["campaigns/audiences/preview", "POST", "campaigns.manage"],
+  ["campaigns/audiences/[id]", "DELETE", "campaigns.manage"],
+  ["campaigns/audiences/[id]/failures", "GET", "campaigns.manage"],
+  ["campaigns/audiences/sample", "GET", "campaigns.manage"],
   // 022 — Resultados: el Asesor no entra, ni a los suyos.
   ["analytics/sales", "GET", "results.read"],
   ["analytics/ads", "GET", "results.read"],
