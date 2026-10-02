@@ -215,7 +215,8 @@ async function main() {
 
   // Un miembro pide la baja: la vista previa lo muestra y el tratamiento se aplica a todos.
   const miembros = (await api(`/api/contacts?tag=${aud?.tag?.id}`)).json?.contacts ?? [];
-  const dadoDeBaja = miembros[0];
+  // «Sin cupón»: no es la fila que la prueba usa como muestra de variables (Ana).
+  const dadoDeBaja = miembros.find((c) => c.name === "Sin cupón");
   await api(`/api/contacts/${dadoDeBaja?.id}`, { method: "PATCH", body: JSON.stringify({ waConsent: "opt_out" }) });
   const prevBaja = await api("/api/campaigns/audiences/preview", { method: "POST", body: fileForm(`base-${RUN}.xlsx`, bytes, { mapping }) });
   ok("vista previa: 1 con baja, con desde cuándo", prevBaja.json?.preview?.optOut?.count === 1 && !!prevBaja.json?.preview?.optOut?.rows?.[0]?.since, prevBaja.text);
