@@ -2,6 +2,7 @@ import type { Db } from "@/lib/db";
 import { schema } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
 import { seedOrgModules } from "@/server/modules/store";
+import type { ModuleProfile } from "@/lib/modules/registry";
 
 /** Etapas sembradas del pipeline (US2). */
 export const SEED_STAGES: { name: string; kind: "open" | "won" | "lost" }[] = [
@@ -17,7 +18,12 @@ export const SEED_STAGES: { name: string; kind: "open" | "won" | "lost" }[] = [
  * del agente (apagado) y sus módulos (los de las variables de entorno). La usan el primer registro de la instancia
  * (`onUserCreated`) y el alta desde /platform: una sola definición.
  */
-export async function seedOrganization(tx: Db, organizationId: string): Promise<void> {
+export async function seedOrganization(
+  tx: Db,
+  organizationId: string,
+  /** 030 (PR 4) — Plantilla de módulos del alta desde /platform (opcional). */
+  profile?: ModuleProfile
+): Promise<void> {
   await tx.insert(schema.pipelineStage).values(
     SEED_STAGES.map((s, i) => ({
       id: newId("stage"),
@@ -31,5 +37,5 @@ export async function seedOrganization(tx: Db, organizationId: string): Promise<
     id: newId("agentProfile"),
     organizationId,
   });
-  await seedOrgModules(tx, organizationId);
+  await seedOrgModules(tx, organizationId, profile);
 }

@@ -14,7 +14,8 @@ import {
   type OrgModules,
 } from "@/server/modules";
 import { envModuleDefaults } from "@/server/modules/defaults";
-import { updateOrgModules, type ModulesPatch } from "@/server/modules/store";
+import { ModuleDependencyError, updateOrgModules, type ModulesPatch } from "@/server/modules/store";
+import type { ModuleProfile } from "@/lib/modules/registry";
 
 /**
  * Fase 3, PR 2 — Gestión de organizaciones por el administrador de
@@ -70,6 +71,13 @@ export type ModulesDto = {
   instagram: boolean;
   messenger: boolean;
   campaignSendRate: number;
+  /** 030 (PR 4) */
+  knowledge: boolean;
+  agent: boolean;
+  lab: boolean;
+  teamChat: boolean;
+  results: boolean;
+  customNav: boolean;
 };
 
 export function modulesDto(m: OrgModules): ModulesDto {
@@ -80,6 +88,12 @@ export function modulesDto(m: OrgModules): ModulesDto {
     instagram: m.channels.has("instagram"),
     messenger: m.channels.has("messenger"),
     campaignSendRate: m.campaignSendRate,
+    knowledge: m.knowledge,
+    agent: m.agent,
+    lab: m.lab,
+    teamChat: m.teamChat,
+    results: m.results,
+    customNav: m.customNav,
   };
 }
 
@@ -158,7 +172,7 @@ export function slugFor(name: string): string {
  * 409 (sin decir de qué organización es).
  */
 export async function createOrganization(
-  input: { name: string; ownerName: string; ownerEmail: string },
+  input: { name: string; ownerName: string; ownerEmail: string; profile?: ModuleProfile },
   actor: AuditActor,
   ip: string | null
 ): Promise<{ organizationId: string; activationUrl: string; expiresAt: Date }> {
@@ -184,7 +198,7 @@ export async function createOrganization(
   try {
     await db.transaction(async (tx) => {
       await tx.insert(schema.organization).values({ id: organizationId, name, slug: slugFor(name) });
-      await seedOrganization(tx as unknown as Db, organizationId);
+      await seedOrganization(tx as unknown as Db, organizationId, input.profile);
       await tx.insert(schema.user).values({ id: userId, name: ownerName, email, emailVerified: false });
       await tx.insert(schema.account).values({
         id: newId("account"),
@@ -204,7 +218,14 @@ export async function createOrganization(
   }
 
   const link = await createAccountLink(userId, "activate", actor?.userId ?? null);
-  await recordPlatformAudit({ actor, action: "organization.created", org: { id: organizationId, name }, user: { id: userId, email }, ip });
+  await recordPlatformAudit({
+    actor,
+    action: "organization.created",
+    org: { id: organizationId, name },
+    user: { id: userId, email },
+    ...(input.profile ? { detail: { perfil_de_modulos: input.profile } } : {}),
+    ip,
+  });
   await recordPlatformAudit({ actor, action: "link.activation_created", org: { id: organizationId, name }, user: { id: userId, email }, detail: { caduca: link.expiresAt.toISOString() }, ip });
   return { organizationId, activationUrl: link.url, expiresAt: link.expiresAt };
 }
@@ -299,6 +320,12 @@ export async function changeOrganizationModules(
     agenda: change.agenda,
     atribucion: change.atribucion,
     campaignSendRate: change.campaignSendRate,
+    knowledge: change.knowledge,
+    agent: change.agent,
+    lab: change.lab,
+    teamChat: change.teamChat,
+    results: change.results,
+    customNav: change.customNav,
   };
   if (change.instagram !== undefined || change.messenger !== undefined) {
     const current = modulesDto(await getOrgModules(organizationId));
@@ -308,7 +335,14 @@ export async function changeOrganizationModules(
     };
     patch.channels = OPTIONAL_CHANNELS.filter((c) => want[c]);
   }
-  const { before, after } = await updateOrgModules(organizationId, patch, actor?.email ?? "plataforma");
+  let result: Awaited<ReturnType<typeof updateOrgModules>>;
+  try {
+    result = await updateOrgModules(organizationId, patch, actor?.email ?? "plataforma");
+  } catch (err) {
+    if (err instanceof ModuleDependencyError) throw new PlatformError(422, "module_dependency", err.message);
+    throw err;
+  }
+  const { before, after } = result;
   const de = modulesDto(before);
   const a = modulesDto(after);
   const cambios = (Object.keys(a) as (keyof ModulesDto)[]).filter((k) => de[k] !== a[k]);
