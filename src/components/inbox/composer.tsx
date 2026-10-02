@@ -137,7 +137,7 @@ export function Composer({
       .then((r) => (r.ok ? r.json() : { templates: [] }))
       .then((d: { templates?: TemplateDto[] }) => {
         if (!cancelled)
-          setTemplates((d.templates ?? []).filter((t) => t.status === "approved"));
+          setTemplates((d.templates ?? []).filter((t) => t.status === "approved" && t.sendable !== false));
       })
       .catch(() => {});
     return () => {

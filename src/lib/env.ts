@@ -33,6 +33,15 @@ const envSchema = z.object({
   META_WEBHOOK_VERIFY_TOKEN: z.string().min(8),
   META_APP_SECRET: z.string().optional(),
   META_GRAPH_API_VERSION: z.string().default("v25.0"),
+  /**
+   * Campañas v2: App ID de la app de Meta (público). Solo para subir la
+   * imagen de ejemplo de una plantilla con encabezado de imagen. Un
+   * placeholder `REEMPLAZA_…` o algo que no son dígitos cuenta como ausente.
+   */
+  META_APP_ID: z
+    .string()
+    .optional()
+    .transform((v) => (v && /^\d+$/.test(v.trim()) ? v.trim() : undefined)),
   META_GRAPH_BASE_URL: z.string().url().default("https://graph.facebook.com"),
   OPENROUTER_API_TOKEN: z.string().optional(),
   OPENROUTER_BASE_URL: z.string().url().default("https://openrouter.ai/api"),

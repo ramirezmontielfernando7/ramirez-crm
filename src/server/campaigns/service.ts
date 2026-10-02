@@ -75,7 +75,7 @@ async function countsFor(campaignIds: string[]): Promise<Map<string, CampaignCou
  * Campañas v2 — conteo por estado de ENTREGA, derivado del mensaje de cada
  * destinatario (no se duplica en campaign_recipient).
  */
-async function deliveryFor(campaignIds: string[]): Promise<Map<string, CampaignDelivery>> {
+async function deliveryFor(organizationId: string, campaignIds: string[]): Promise<Map<string, CampaignDelivery>> {
   const out = new Map<string, CampaignDelivery>();
   if (campaignIds.length === 0) return out;
   const rows = await getDb()
@@ -92,7 +92,9 @@ async function deliveryFor(campaignIds: string[]): Promise<Map<string, CampaignD
         eq(schema.message.id, schema.campaignRecipient.messageId)
       )
     )
-    .where(inArray(schema.campaignRecipient.campaignId, campaignIds))
+    .where(
+      scoped(schema.campaignRecipient.organizationId, organizationId, inArray(schema.campaignRecipient.campaignId, campaignIds))
+    )
     .groupBy(schema.campaignRecipient.campaignId, schema.message.status);
   for (const r of rows) {
     const d = out.get(r.campaignId) ?? { delivered: 0, read: 0, failed: 0 };
@@ -140,7 +142,7 @@ export async function listCampaigns(organizationId: string): Promise<CampaignDto
     .orderBy(desc(schema.campaign.createdAt))
     .limit(200);
   const ids = rows.map((r) => r.campaign.id);
-  const [counts, delivery] = await Promise.all([countsFor(ids), deliveryFor(ids)]);
+  const [counts, delivery] = await Promise.all([countsFor(ids), deliveryFor(organizationId, ids)]);
   return rows.map((r) =>
     serializeCampaign(r.campaign, r.template, counts.get(r.campaign.id), delivery.get(r.campaign.id))
   );
@@ -155,7 +157,7 @@ export async function getCampaign(organizationId: string, campaignId: string): P
     .limit(1);
   const row = rows[0];
   if (!row) throw new CampaignError("not_found", "Campaña no encontrada");
-  const [counts, delivery] = await Promise.all([countsFor([campaignId]), deliveryFor([campaignId])]);
+  const [counts, delivery] = await Promise.all([countsFor([campaignId]), deliveryFor(organizationId, [campaignId])]);
   return serializeCampaign(row.campaign, row.template, counts.get(campaignId), delivery.get(campaignId));
 }
 

@@ -1,3 +1,4 @@
+import type { TemplateComponentDto } from "@/lib/templates";
 /** DTOs que viajan por la API interna (lado cliente). */
 
 import type { Channel } from "@/lib/channels";
@@ -92,6 +93,16 @@ export type TemplateDto = {
   body: string;
   status: "draft" | "pending" | "approved" | "rejected";
   rejectionReason: string | null;
+  /** Campañas v2 (PR 1): lo completo de Meta y si se puede enviar hoy. */
+  components: TemplateComponentDto[] | null;
+  metaStatus: string | null;
+  pausedReason: string | null;
+  qualityScore: string | null;
+  categoryChange: { from: string; to: string; at: string } | null;
+  hasHeaderImage: boolean;
+  sendable: boolean;
+  unsendableReason: string | null;
+  syncedAt: string | null;
 };
 
 export type StageDto = {

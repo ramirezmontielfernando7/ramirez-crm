@@ -1,4 +1,4 @@
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { eq, inArray, sql } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { scoped } from "@/lib/db/tenant";
 import { describeSendError } from "@/lib/meta/send-errors";
@@ -78,7 +78,7 @@ export async function applyStatusUpdate(
 
   const db = getDb();
   const at = statusTime(status.timestamp) ?? new Date();
-  const byWamid = scoped(schema.message.organizationId, organizationId, eq(schema.message.waMessageId, status.id));
+  const byWamid = eq(schema.message.waMessageId, status.id);
 
   const failure = status.errors?.[0];
   const errorCode = typeof failure?.code === "number" ? failure.code : null;
@@ -94,7 +94,7 @@ export async function applyStatusUpdate(
         ? { status: next, error, errorCode, failedAt: at }
         : { status: next, error: null, errorCode: null }
     )
-    .where(and(byWamid, inArray(schema.message.status, ALLOWED_FROM[next])))
+    .where(scoped(schema.message.organizationId, organizationId, byWamid, inArray(schema.message.status, ALLOWED_FROM[next])))
     .returning({ id: schema.message.id, conversationId: schema.message.conversationId });
 
   const pricing = pricingOf(status);
@@ -111,7 +111,7 @@ export async function applyStatusUpdate(
       patch.pricingModel = sql`coalesce(${schema.message.pricingModel}, ${pricing.model}::text)`;
       patch.pricingType = sql`coalesce(${schema.message.pricingType}, ${pricing.type}::text)`;
     }
-    await db.update(schema.message).set(patch).where(byWamid);
+    await db.update(schema.message).set(patch).where(scoped(schema.message.organizationId, organizationId, byWamid));
   }
 
   const msg = changed[0];
