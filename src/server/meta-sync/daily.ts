@@ -72,7 +72,10 @@ export async function runDailyMetaSync(): Promise<{ orgs: number; failed: number
  * salud del número: un «Actualizar» de la mañana no debe saltarse esto.
  * Un fallo también cuenta como intento: se reintenta mañana, no cada hora.
  */
-export async function runDailyAnalyticsSync(now: Date = new Date()): Promise<{ orgs: number; failed: number }> {
+export async function runDailyAnalyticsSync(
+  now: Date = new Date(),
+  opts: { force?: boolean } = {}
+): Promise<{ orgs: number; failed: number }> {
   const startOfDay = new Date(`${utcDay(now)}T00:00:00Z`);
   const pending = await getSystemDb()
     .select({ organizationId: schema.metaCredentials.organizationId })
@@ -90,7 +93,8 @@ export async function runDailyAnalyticsSync(now: Date = new Date()): Promise<{ o
       and(
         eq(schema.metaCredentials.status, "connected"),
         eq(schema.organization.status, "active"),
-        or(isNull(schema.waAnalyticsSync.attemptedAt), lt(schema.waAnalyticsSync.attemptedAt, startOfDay))
+        // `force`: solo el guion E2E (ruta de mocks), para no esperar a mañana.
+        opts.force ? undefined : or(isNull(schema.waAnalyticsSync.attemptedAt), lt(schema.waAnalyticsSync.attemptedAt, startOfDay))
       )
     );
 

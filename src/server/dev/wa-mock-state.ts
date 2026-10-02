@@ -101,6 +101,8 @@ type WaMockState = {
   phoneHealth: Record<string, MockPhoneHealth>;
   /** Campañas v2: sesiones de la subida reanudable (`upload:…`). */
   uploads: Record<string, { length: number; type: string; received?: number }>;
+  /** Campañas v2 (PR 3): true = las analíticas de plantillas "no están activas" en la WABA. */
+  templateAnalyticsDisabled?: boolean;
   counter: number;
 };
 
