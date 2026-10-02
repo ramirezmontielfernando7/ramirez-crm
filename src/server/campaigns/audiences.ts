@@ -3,7 +3,12 @@ import { getDb, schema } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
 import { scoped } from "@/lib/db/tenant";
 import type { AudienceCounts, AudienceDto, AudiencePreviewDto, PreviewRow } from "@/lib/audiences";
-import { importValidated, type ImportSummary } from "@/server/contacts-io/import";
+import {
+  DECLARED_CONSENT_SOURCE,
+  type ConsentAnswer,
+  type OptOutTreatment,
+} from "@/lib/import-consent";
+import { findOptOutConflicts, importValidated, type ImportSummary } from "@/server/contacts-io/import";
 import { readSpreadsheet } from "@/server/contacts-io/spreadsheet";
 import {
   detectColumns,
@@ -24,7 +29,8 @@ import {
  * guarda con el MISMO núcleo (`importValidated`): dedupe por teléfono, opt_out
  * pegajoso, etiqueta automática de origen. Lo propio de Audiencias es:
  * - el paso "¿qué es cada columna?" cuando los encabezados no se reconocen;
- * - la declaración del origen del consentimiento (obligatoria);
+ * - la declaración del consentimiento (obligatoria: "Sí, todos aceptaron" o
+ *   "No lo sé") y el tratamiento de quien ya tiene `opt_out`;
  * - la base guardada (`audience_import` + `audience_member`) con sus
  *   columnas extra, que el asistente usa como variables.
  *
@@ -91,6 +97,8 @@ function previewSample(table: ImportTable, failures: Map<number, { reason: strin
  * primeras filas con las inválidas marcadas y el resumen de lo que pasaría.
  */
 export async function previewAudienceFile(input: {
+  /** Sin organización (pruebas puras) no se buscan contactos con baja. */
+  organizationId?: string;
   fileName: string;
   bytes: Uint8Array;
   mapping?: unknown;
@@ -109,6 +117,7 @@ export async function previewAudienceFile(input: {
       extraColumns: [],
       sample: previewSample(table, new Map(), new Map()),
       summary: null,
+      optOut: { count: 0, rows: [] },
     };
   }
   const v = validateTable(table, mapping);
@@ -127,6 +136,9 @@ export async function previewAudienceFile(input: {
       empty: v.emptyRows,
       warnings: v.warnings.length,
     },
+    optOut: input.organizationId
+      ? await findOptOutConflicts(input.organizationId, v.rows)
+      : { count: 0, rows: [] },
   };
 }
 
@@ -141,12 +153,10 @@ export async function importAudienceFile(input: {
   bytes: Uint8Array;
   mapping?: unknown;
   name?: string | null;
-  consentDeclaration: string;
+  /** La ruta ya lo exige (sin respuesta no se importa). */
+  consentAnswer: ConsentAnswer;
+  optOutTreatment?: OptOutTreatment;
 }): Promise<{ audience: AudienceDto; summary: ImportSummary }> {
-  const declaration = input.consentDeclaration.trim();
-  if (declaration.length < 3) {
-    throw new AudienceError("invalid", "Indica cómo obtuviste el consentimiento de estos contactos");
-  }
   const { kind, table, mapping } = await tableAndMapping(input.fileName, input.bytes, input.mapping);
   const validation = validateTable(table, mapping);
   if (validation.rows.length === 0 && validation.failures.length === 0) {
@@ -161,8 +171,9 @@ export async function importAudienceFile(input: {
     actorUserId: input.userId,
     fileName: input.fileName,
     validation,
-    consentDeclaration: declaration,
-    onMembers: async (tx, members, tag) => {
+    consentAnswer: input.consentAnswer,
+    optOutTreatment: input.optOutTreatment,
+    onMembers: async (tx, members, tag, consent) => {
       const counts: AudienceCounts = {
         totalRows: validation.totalRows,
         created: members.filter((m) => m.created).length,
@@ -171,6 +182,11 @@ export async function importAudienceFile(input: {
         duplicate,
         empty: validation.emptyRows,
         members: members.length,
+        consentOptIn: consent.optIn,
+        consentOptOut: consent.optOut,
+        consentUnknown: consent.unknown,
+        reactivated: consent.reactivated,
+        toUnknown: consent.toUnknown,
       };
       await tx.insert(schema.audienceImport).values({
         id: audienceId,
@@ -179,7 +195,7 @@ export async function importAudienceFile(input: {
         fileName: input.fileName.slice(0, 120),
         fileKind: kind,
         tagId: tag.id,
-        consentSource: declaration.slice(0, 200),
+        consentSource: input.consentAnswer === "yes" ? DECLARED_CONSENT_SOURCE : "sin declarar",
         columns: validation.extraColumns,
         counts,
         failures: validation.failures.slice(0, MAX_FAILURES_STORED).map((f) => ({

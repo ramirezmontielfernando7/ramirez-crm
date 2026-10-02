@@ -63,9 +63,11 @@ async function hasta(cond, ms = 30000, paso = 400) {
   }
 }
 
-function csvFile(name, content, type = "text/csv") {
+/** Por defecto responde «No lo sé» a la pregunta de consentimiento (lo de siempre). */
+function csvFile(name, content, type = "text/csv", fields = { consentAnswer: "unknown" }) {
   const form = new FormData();
   form.set("file", new Blob([content], { type }), name);
+  for (const [k, v] of Object.entries(fields)) form.set(k, v);
   return form;
 }
 
@@ -357,6 +359,77 @@ async function main() {
     after.length === 5 && after.every((c) => !(c.tags ?? []).some((t) => t.id === vipId)),
     JSON.stringify(after.map((c) => c.tags))
   );
+
+  console.log("== 13. Consentimiento al importar ==");
+  const consentCsv = (rows) => `name,phone,waConsent\n${rows.map((r) => r.join(",")).join("\n")}\n`;
+  const P = { nueva: tel(6), col: tel(7), baja: tel(8), baja2: tel(9) };
+  const sinRespuesta = await api("/api/contacts/import", {
+    method: "POST",
+    body: csvFile(`c0-${RUN}.csv`, consentCsv([["Nueva", P.nueva, ""]]), "text/csv", {}),
+  });
+  ok("sin responder la pregunta → 422", sinRespuesta.res.status === 422 && sinRespuesta.json?.error?.code === "consent_required", sinRespuesta.text);
+  const malTrat = await api("/api/contacts/import", {
+    method: "POST",
+    body: csvFile(`c0-${RUN}.csv`, consentCsv([["Nueva", P.nueva, ""]]), "text/csv", { consentAnswer: "yes", optOutTreatment: "quiza" }),
+  });
+  ok("tratamiento inválido → 422", malTrat.res.status === 422, malTrat.text);
+
+  // Dos bajas previas (por la columna del archivo).
+  const bajas = await api("/api/contacts/import", {
+    method: "POST",
+    body: csvFile(`c1-${RUN}.csv`, consentCsv([["Baja Uno", P.baja, "opt_out"], ["Baja Dos", P.baja2, "opt_out"]])),
+  });
+  ok("bajas previas creadas", bajas.json?.summary?.consent?.optOut === 2, bajas.text);
+
+  // «Sí, todos aceptaron»: nueva → opt_in declarado; columna explícita manda.
+  const yesCsv = consentCsv([
+    ["Nueva Sí", P.nueva, ""],
+    ["Columna Manda", P.col, "desconocido"],
+    ["Baja Uno", P.baja, ""],
+    ["Baja Dos", P.baja2, ""],
+  ]);
+  const prevC = await api("/api/contacts/import/preview", { method: "POST", body: csvFile(`c2-${RUN}.csv`, yesCsv) });
+  ok("vista previa: 4 entran, 2 con baja", prevC.json?.preview?.valid === 4 && prevC.json?.preview?.optOut?.count === 2, prevC.text);
+  ok(
+    "vista previa: lista con nombre, teléfono y desde cuándo",
+    prevC.json?.preview?.optOut?.rows?.every((r) => r.name && r.phone && r.since),
+    JSON.stringify(prevC.json?.preview?.optOut?.rows)
+  );
+  const yes = await api("/api/contacts/import", {
+    method: "POST",
+    body: csvFile(`c2-${RUN}.csv`, yesCsv, "text/csv", { consentAnswer: "yes", optOutTreatment: "respect" }),
+  });
+  const yc = yes.json?.summary?.consent;
+  ok("«Sí» + respetar: 1 acepta, 2 baja, 1 sin confirmar", yc?.optIn === 1 && yc?.optOut === 2 && yc?.unknown === 1, yes.text);
+  const look = async (phone) => (await api(`/api/contacts?q=${phone.slice(-7)}`)).json?.contacts?.[0];
+  const nueva = await look(P.nueva);
+  ok("nueva → opt_in «declarado al importar»", nueva?.waConsent === "opt_in" && nueva?.waConsentSource === "declarado al importar", JSON.stringify(nueva));
+  ok("la columna manda sobre la declaración", (await look(P.col))?.waConsent === "desconocido");
+
+  // Reactivar (Propietario): opt_in con bitácora.
+  const reac = await api("/api/contacts/import", {
+    method: "POST",
+    body: csvFile(`c3-${RUN}.csv`, consentCsv([["Baja Uno", P.baja, ""]]), "text/csv", { consentAnswer: "unknown", optOutTreatment: "opt_in" }),
+  });
+  ok("reactivar: 1 reactivado", reac.json?.summary?.consent?.reactivated === 1 && reac.json?.summary?.consent?.optIn === 1, reac.text);
+  const baja1 = await look(P.baja);
+  ok("Baja Uno → opt_in con origen del archivo", baja1?.waConsent === "opt_in" && /Reactivado al importar/.test(baja1?.waConsentSource ?? ""), JSON.stringify(baja1));
+  const tl = (await api(`/api/contacts/${baja1?.id}/timeline`)).json?.items ?? [];
+  const ev = tl.find((i) => i.kind === "consent" && i.detail?.to === "opt_in");
+  ok("queda en la línea de tiempo con quién y desde dónde", !!ev && ev.detail?.from === "opt_out" && !!ev.actor, JSON.stringify(ev));
+
+  // Pasar a desconocido; una fila que dice opt_out no se toca.
+  const limbo = await api("/api/contacts/import", {
+    method: "POST",
+    body: csvFile(`c4-${RUN}.csv`, consentCsv([["Baja Dos", P.baja2, ""]]), "text/csv", { consentAnswer: "yes", optOutTreatment: "desconocido" }),
+  });
+  ok("a sin confirmar: 1", limbo.json?.summary?.consent?.toUnknown === 1 && limbo.json?.summary?.consent?.unknown === 1, limbo.text);
+  await api(`/api/contacts/${(await look(P.baja2))?.id}`, { method: "PATCH", body: JSON.stringify({ waConsent: "opt_out" }) });
+  const fila = await api("/api/contacts/import", {
+    method: "POST",
+    body: csvFile(`c5-${RUN}.csv`, consentCsv([["Baja Dos", P.baja2, "opt_out"]]), "text/csv", { consentAnswer: "yes", optOutTreatment: "opt_in" }),
+  });
+  ok("fila con opt_out explícito no se reactiva", fila.json?.summary?.consent?.optOut === 1 && fila.json?.summary?.consent?.reactivated === 0, fila.text);
 
   console.log(`\n${checks - failures}/${checks} verificaciones OK`);
   process.exit(failures > 0 ? 1 : 0);

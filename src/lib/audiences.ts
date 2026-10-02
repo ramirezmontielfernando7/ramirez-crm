@@ -1,3 +1,5 @@
+import type { OptOutPreview } from "@/lib/import-consent";
+
 /**
  * Campañas v2 (PR 2) — Contrato compartido de Audiencias (cliente y
  * servidor): las bases .xlsx/.csv que se suben desde Campañas → Audiencias.
@@ -30,14 +32,6 @@ export const IMPORT_COLUMN_LABEL: Record<ImportColumn, string> = {
 export const AUDIENCE_MAX_MB = 5;
 export const AUDIENCE_ACCEPT = ".xlsx,.csv";
 
-/** Cómo obtuvo el negocio el consentimiento de una base (declaración). */
-export const CONSENT_ORIGINS = [
-  "Formulario en mi sitio web",
-  "Lo pidieron en mi tienda o punto de venta",
-  "Me escribieron por WhatsApp primero",
-  "Casilla en un contrato o registro",
-] as const;
-
 export type AudienceCounts = {
   totalRows: number;
   created: number;
@@ -46,6 +40,12 @@ export type AudienceCounts = {
   duplicate: number;
   empty: number;
   members: number;
+  /** Consentimiento de los miembros AL IMPORTAR (bases anteriores no los traen). */
+  consentOptIn?: number;
+  consentOptOut?: number;
+  consentUnknown?: number;
+  reactivated?: number;
+  toUnknown?: number;
 };
 
 export type AudienceDto = {
@@ -84,4 +84,6 @@ export type AudiencePreviewDto = {
   /** Primeras filas, con las inválidas marcadas. */
   sample: PreviewRow[];
   summary: { totalRows: number; valid: number; invalid: number; duplicate: number; empty: number; warnings: number } | null;
+  /** Contactos del archivo que ya pidieron no recibir mensajes. */
+  optOut: OptOutPreview;
 };

@@ -6,13 +6,15 @@ import { Download, FileSpreadsheet, Trash2, Upload, Users } from "lucide-react";
 import {
   AUDIENCE_ACCEPT,
   AUDIENCE_MAX_MB,
-  CONSENT_ORIGINS,
   IMPORT_COLUMN_LABEL,
   type AudienceDto,
   type AudiencePreviewDto,
   type ImportColumn,
 } from "@/lib/audiences";
 import { fetchJson } from "@/lib/fetch-json";
+import type { ConsentAnswer, ImportConsentResult, OptOutTreatment } from "@/lib/import-consent";
+import { ConsentQuestion, ConsentResultLine, OptOutPanel } from "@/components/import-consent";
+import { useViewer } from "@/components/viewer-context";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -21,17 +23,23 @@ import { CampaignsTabs } from "./campaigns-tabs";
 
 /** Los campos que se pueden asignar en "¿qué es cada columna?". */
 const MAPPABLE: ImportColumn[] = ["name", "phone", "email", "tags"];
-const OTHER = "__otro__";
 
 type ImportResult = {
   audience: AudienceDto;
-  summary: { created: number; updated: number; failed: number; warnings: { reason: string }[] };
+  summary: {
+    created: number;
+    updated: number;
+    failed: number;
+    warnings: { reason: string }[];
+    consent: ImportConsentResult;
+  };
 };
 
 /**
  * Campañas v2 — Audiencias: subir una base .xlsx o .csv, decir qué es cada
  * columna si no se reconoce, revisar las filas (inválidas en rojo), declarar
- * cómo se obtuvo el consentimiento e importarla. La base queda guardada para
+ * si aceptaron mensajes (antes de la vista previa), decidir qué pasa con
+ * quien ya pidió no recibir e importarla. La base queda guardada para
  * usarla como público de una campaña.
  */
 export function AudiencesClient() {
@@ -187,10 +195,10 @@ export function UploadFlow({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [name, setName] = useState("");
-  const [origin, setOrigin] = useState<string>("");
-  const [otherOrigin, setOtherOrigin] = useState("");
-  const [confirmed, setConfirmed] = useState(false);
+  const [answer, setAnswer] = useState<ConsentAnswer | null>(null);
+  const [treatment, setTreatment] = useState<OptOutTreatment | null>(null);
   const [result, setResult] = useState<ImportResult | null>(null);
+  const canOverride = useViewer().can("contacts.consent_override");
 
   async function runPreview(f: File, m?: Partial<Record<ImportColumn, number>>) {
     setBusy(true);
@@ -209,6 +217,7 @@ export function UploadFlow({
       return;
     }
     setPreview(res.data.preview);
+    setTreatment(null);
     setMapping(res.data.preview.mapping);
     if (res.data.preview.missing.length > 0) setEditingColumns(true);
   }
@@ -218,18 +227,32 @@ export function UploadFlow({
     setFile(f);
     setPreview(null);
     setEditingColumns(false);
+    setError(null);
     if (!f) return;
     if (f.size > AUDIENCE_MAX_MB * 1024 * 1024) {
       setError(`El archivo pesa más de ${AUDIENCE_MAX_MB} MB: divídelo en varios`);
       return;
     }
     setName(f.name.replace(/\.(xlsx|csv|txt)$/i, ""));
-    void runPreview(f);
+    // La vista previa llega DESPUÉS de responder la pregunta de consentimiento.
+    if (answer) void runPreview(f);
   }
 
-  const declaration = origin === OTHER ? otherOrigin.trim() : origin;
+  function answerConsent(a: ConsentAnswer) {
+    const first = answer === null;
+    setAnswer(a);
+    if (first && file && !preview && !error) void runPreview(file);
+  }
+
+  const needsTreatment = (preview?.optOut.count ?? 0) > 0;
   const canImport =
-    !!file && !!preview && preview.missing.length === 0 && (preview.summary?.valid ?? 0) > 0 && declaration.length >= 3 && confirmed && !busy;
+    !!file &&
+    !!preview &&
+    !!answer &&
+    preview.missing.length === 0 &&
+    (preview.summary?.valid ?? 0) > 0 &&
+    (!needsTreatment || !!treatment) &&
+    !busy;
 
   async function doImport() {
     if (!file) return;
@@ -239,7 +262,8 @@ export function UploadFlow({
     form.set("file", file);
     form.set("mapping", JSON.stringify(mapping));
     form.set("name", name);
-    form.set("consentDeclaration", declaration);
+    if (answer) form.set("consentAnswer", answer);
+    form.set("optOutTreatment", treatment ?? "respect");
     const res = await fetchJson<ImportResult>("/api/campaigns/audiences", { method: "POST", body: form });
     setBusy(false);
     if (!res.ok) {
@@ -267,12 +291,7 @@ export function UploadFlow({
             <Stat label="Inválidos" value={c.invalid} tone={c.invalid ? "danger" : undefined} />
             <Stat label="Duplicados" value={c.duplicate} tone={c.duplicate ? "warning" : undefined} />
           </ul>
-          <p>
-            <b>{result.audience.consent.optIn.toLocaleString("es-MX")}</b> pueden recibir campañas
-            {result.audience.consent.optOut > 0 &&
-              ` · ${result.audience.consent.optOut} conservan «no quiere mensajes» (una baja solo se revierte a mano)`}
-            .
-          </p>
+          <ConsentResultLine consent={result.summary.consent} />
           {result.summary.warnings.length > 0 && (
             <p className="text-xs text-muted-foreground">{result.summary.warnings.length} fila(s) con salvedad (p. ej. correo inválido ignorado).</p>
           )}
@@ -326,6 +345,8 @@ export function UploadFlow({
           {file && <span className="text-sm">{file.name}</span>}
           <SampleLinks />
         </div>
+
+        {file && <ConsentQuestion value={answer} onChange={answerConsent} disabled={busy} />}
 
         {busy && <p className="text-sm text-muted-foreground">Leyendo el archivo…</p>}
         {error && (
@@ -441,46 +462,15 @@ export function UploadFlow({
                 <Label htmlFor="aud-name">Nombre de la base</Label>
                 <Input id="aud-name" value={name} maxLength={120} onChange={(e) => setName(e.target.value)} />
               </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="aud-consent">¿Cómo obtuviste su consentimiento para recibir WhatsApp?</Label>
-                <select
-                  id="aud-consent"
-                  data-testid="audience-consent"
-                  value={origin}
-                  onChange={(e) => setOrigin(e.target.value)}
-                  className="h-9 w-full rounded-md border border-input bg-card px-2 text-sm"
-                >
-                  <option value="">Elige una opción</option>
-                  {CONSENT_ORIGINS.map((o) => (
-                    <option key={o} value={o}>
-                      {o}
-                    </option>
-                  ))}
-                  <option value={OTHER}>Otro…</option>
-                </select>
-                {origin === OTHER && (
-                  <Input
-                    aria-label="Otro origen del consentimiento"
-                    value={otherOrigin}
-                    maxLength={200}
-                    placeholder="Ej.: lista de asistentes al evento de marzo"
-                    onChange={(e) => setOtherOrigin(e.target.value)}
-                  />
-                )}
-              </div>
-              <label className="flex items-start gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  data-testid="audience-consent-confirm"
-                  checked={confirmed}
-                  onChange={(e) => setConfirmed(e.target.checked)}
-                  className="mt-1"
+              {preview.optOut.count > 0 && (
+                <OptOutPanel
+                  preview={preview.optOut}
+                  value={treatment}
+                  onChange={setTreatment}
+                  canOverride={canOverride}
+                  disabled={busy}
                 />
-                <span>
-                  Confirmo que estos contactos aceptaron recibir mensajes de WhatsApp de mi negocio. Quedarán como
-                  «acepta mensajes» (salvo quien ya pidió no recibir, que se respeta).
-                </span>
-              </label>
+              )}
               <div className="flex flex-wrap gap-2">
                 <Button disabled={!canImport} onClick={() => void doImport()} data-testid="audience-import">
                   {busy ? "Importando…" : `Importar ${preview.summary.valid} contacto(s)`}

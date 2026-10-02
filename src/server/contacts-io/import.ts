@@ -3,6 +3,16 @@ import { getDb, schema, type Db } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
 import { scoped } from "@/lib/db/tenant";
 import { normalizeTagName, type WaConsent } from "@/lib/tags";
+import {
+  DECLARED_CONSENT_SOURCE,
+  OPT_OUT_PREVIEW_MAX,
+  type ConsentAnswer,
+  type ImportConsentResult,
+  type OptOutConflict,
+  type OptOutPreview,
+  type OptOutTreatment,
+} from "@/lib/import-consent";
+import { logActivities, type ActivityInput } from "@/server/activity/log";
 import { createLeadForContact } from "@/server/inbox/lead-activity";
 import {
   ImportError,
@@ -18,10 +28,13 @@ import {
  * Reglas (spec 021, decisiones del dueño):
  * - Dedupe por (organización, canal whatsapp, wa_identity) — la llave única
  *   de `contact` —, con el teléfono normalizado por `normalizeMx`.
- * - Contacto nuevo: consentimiento `desconocido` salvo que el CSV lo traiga.
+ * - Consentimiento: el de la columna del archivo si la fila lo trae; si no,
+ *   la DECLARACIÓN de quien importa ("Sí, todos aceptaron" → `opt_in`;
+ *   "No lo sé" → `desconocido`, que en un contacto existente no cambia nada).
  * - Contacto existente: solo se llenan los campos VACÍOS (teléfono, fuente);
- *   el nombre no se toca. El consentimiento del CSV se aplica, EXCEPTO sobre
- *   un `opt_out`: pedir la baja no se revierte con una base vieja.
+ *   el nombre no se toca. Un `opt_out` se respeta salvo que quien importa
+ *   (con `contacts.consent_override`) elija otro tratamiento; cada cambio de
+ *   consentimiento queda en la línea de tiempo con quién, cuándo y por qué.
  * - Todos los contactos del archivo (nuevos y existentes) reciben la etiqueta
  *   del import, para saber después de qué base vino cada uno.
  * - Todo o nada: si la BD falla a la mitad, no queda una importación parcial.
@@ -39,6 +52,8 @@ export type ImportSummary = {
   /** Filas importadas con una salvedad (p. ej. opt_out conservado). */
   warnings: RowFailure[];
   leadsCreated: number;
+  /** Cómo quedó el consentimiento de los contactos del archivo. */
+  consent: ImportConsentResult;
 };
 
 /** Nombre de la etiqueta del import: la que eligió el usuario o "Import: archivo.csv". */
@@ -64,8 +79,53 @@ export async function importContacts(input: {
   text: string;
   tagName?: string | null;
   createLeads?: boolean;
+  consentAnswer?: ConsentAnswer;
+  optOutTreatment?: OptOutTreatment;
 }): Promise<ImportSummary> {
   return importValidated({ ...input, validation: validateImport(input.text) });
+}
+
+/**
+ * Los contactos del archivo que YA pidieron no recibir mensajes, para la
+ * vista previa (no escribe nada).
+ */
+export async function findOptOutConflicts(organizationId: string, rows: ValidRow[]): Promise<OptOutPreview> {
+  const byPhone = new Map(rows.map((r) => [r.phone, r]));
+  const found: OptOutConflict[] = [];
+  for (const batch of chunks([...byPhone.keys()])) {
+    // scoped-ok: importar es de quien ve todo (permiso contacts.import).
+    const hits = await getDb()
+      .select({
+        waIdentity: schema.contact.waIdentity,
+        name: schema.contact.name,
+        phone: schema.contact.phone,
+        since: schema.contact.waConsentAt,
+        source: schema.contact.waConsentSource,
+      })
+      .from(schema.contact)
+      .where(
+        scoped(
+          schema.contact.organizationId,
+          organizationId,
+          eq(schema.contact.channel, "whatsapp"),
+          eq(schema.contact.waConsent, "opt_out"),
+          inArray(schema.contact.waIdentity, batch)
+        )
+      );
+    for (const h of hits) {
+      const row = byPhone.get(h.waIdentity);
+      if (!row) continue;
+      found.push({
+        line: row.line,
+        name: h.name ?? row.name,
+        phone: h.phone ?? h.waIdentity,
+        since: h.since ? h.since.toISOString() : null,
+        source: h.source,
+      });
+    }
+  }
+  found.sort((a, b) => a.line - b.line);
+  return { count: found.length, rows: found.slice(0, OPT_OUT_PREVIEW_MAX) };
 }
 
 /** Un contacto de la importación (nuevo o existente) y su fila del archivo. */
@@ -76,11 +136,13 @@ type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
 /**
  * El núcleo de la importación, sobre filas YA validadas (de CSV o de Excel).
  *
- * Campañas v2 (PR 2):
- * - `consentDeclaration`: lo que la persona declaró sobre cómo obtuvo el
- *   consentimiento de esta base. Con él, las filas que no traen columna de
- *   consentimiento quedan `opt_in` con esa declaración como origen (un
- *   `opt_out` sigue sin revertirse).
+ * - `consentAnswer`: la declaración de quien importa. "yes" deja `opt_in`
+ *   (origen "declarado al importar") a las filas sin consentimiento propio;
+ *   "unknown" (o sin declarar) las deja `desconocido` si son nuevas y no
+ *   toca a las existentes.
+ * - `optOutTreatment`: qué hacer con quien YA tiene `opt_out` ("respect" por
+ *   defecto). La ruta valida el permiso `contacts.consent_override` antes de
+ *   pasar otro valor. Una fila cuya columna dice `opt_out` nunca se reactiva.
  * - `onMembers`: corre DENTRO de la misma transacción con cada contacto y su
  *   fila (la base guardada de Audiencias se escribe todo o nada).
  * - El correo solo llena un correo vacío.
@@ -92,16 +154,26 @@ export async function importValidated(input: {
   validation: ValidationResult;
   tagName?: string | null;
   createLeads?: boolean;
-  consentDeclaration?: string | null;
-  onMembers?: (tx: Tx, members: ImportedMember[], tag: { id: string; name: string }) => Promise<void>;
+  consentAnswer?: ConsentAnswer;
+  optOutTreatment?: OptOutTreatment;
+  onMembers?: (
+    tx: Tx,
+    members: ImportedMember[],
+    tag: { id: string; name: string },
+    consent: ImportConsentResult
+  ) => Promise<void>;
 }): Promise<ImportSummary> {
   const { organizationId, validation } = input;
   const tagName = importTagName(input.fileName, input.tagName);
-  const declaration = input.consentDeclaration?.trim().slice(0, 200) || null;
+  const declared = input.consentAnswer === "yes";
+  const treatment: OptOutTreatment = input.optOutTreatment ?? "respect";
+  const file = input.fileName.slice(0, 120);
   /** El consentimiento que se aplica a una fila: el del archivo, o el declarado. */
-  const consentOf = (row: ValidRow): WaConsent | null => row.waConsent ?? (declaration ? "opt_in" : null);
+  const consentOf = (row: ValidRow): WaConsent | null => row.waConsent ?? (declared ? "opt_in" : null);
   const sourceOf = (row: ValidRow): string =>
-    row.waConsentSource ?? (!row.waConsent && declaration ? declaration : consentSource(row, input.fileName));
+    row.waConsentSource ?? (!row.waConsent && declared ? DECLARED_CONSENT_SOURCE : consentSource(row, input.fileName));
+  const treatmentSource =
+    treatment === "opt_in" ? `Reactivado al importar (${file})` : `Pasado a sin confirmar al importar (${file})`;
   if (validation.rows.length === 0 && validation.failures.length === 0) {
     throw new ImportError("empty", "El archivo solo tiene la cabecera: no hay contactos que importar");
   }
@@ -109,6 +181,11 @@ export async function importValidated(input: {
   const warnings: RowFailure[] = [...validation.warnings];
   const createdIds: string[] = [];
   const members: ImportedMember[] = [];
+  /** Consentimiento final de cada contacto del archivo (para el resumen). */
+  const finalConsent = new Map<string, WaConsent>();
+  const consentEvents: ActivityInput[] = [];
+  let reactivated = 0;
+  let toUnknown = 0;
   let updated = 0;
   const db = getDb();
 
@@ -139,6 +216,8 @@ export async function importValidated(input: {
 
     for (const batch of chunks(validation.rows)) {
       // scoped-ok: importar es de quien ve todo (permiso contacts.import).
+      // FOR UPDATE: una baja (STOP) que llega mientras se importa espera a
+      // esta transacción y no se pisa con lo que se leyó antes.
       const existing = await tx
         .select()
         .from(schema.contact)
@@ -152,7 +231,8 @@ export async function importValidated(input: {
               batch.map((r) => r.phone)
             )
           )
-        );
+        )
+        .for("update");
       const byIdentity = new Map(existing.map((c) => [c.waIdentity, c]));
 
       const toInsert: (ValidRow & { id: string })[] = [];
@@ -166,21 +246,47 @@ export async function importValidated(input: {
         if (!current.phone) set.phone = row.phone;
         if (!current.source && row.source) set.source = row.source;
         if (!current.email && row.email) set.email = row.email;
-        const consent = consentOf(row);
-        if (consent && consent !== current.waConsent) {
-          if (current.waConsent === "opt_out") {
-            warnings.push({
-              line: row.line,
-              name: row.name,
-              phone: row.phone,
-              reason: `Se conservó "No quiere mensajes": el archivo decía ${consent}, y una baja solo se revierte a mano`,
-            });
-          } else {
-            set.waConsent = consent;
-            set.waConsentAt = now;
-            set.waConsentSource = sourceOf(row);
+        let next: WaConsent = current.waConsent;
+        let nextSource: string | null = null;
+        if (current.waConsent === "opt_out") {
+          if (treatment !== "respect" && row.waConsent !== "opt_out") {
+            next = treatment;
+            nextSource = treatmentSource;
+            if (treatment === "opt_in") reactivated++;
+            else toUnknown++;
+          } else if (treatment === "respect") {
+            const consent = consentOf(row);
+            if (consent && consent !== "opt_out") {
+              warnings.push({
+                line: row.line,
+                name: row.name,
+                phone: row.phone,
+                reason: `Se respetó "No quiere mensajes": el archivo o la declaración decían ${consent}`,
+              });
+            }
+          }
+        } else {
+          const consent = consentOf(row);
+          if (consent && consent !== current.waConsent) {
+            next = consent;
+            nextSource = sourceOf(row);
           }
         }
+        if (next !== current.waConsent && nextSource) {
+          set.waConsent = next;
+          set.waConsentAt = now;
+          set.waConsentSource = nextSource;
+          consentEvents.push({
+            organizationId,
+            contactId: current.id,
+            kind: "consent_changed",
+            actorUserId: input.actorUserId,
+            source: "usuario",
+            detail: { from: current.waConsent, to: next, source: nextSource, file },
+            occurredAt: now,
+          });
+        }
+        finalConsent.set(current.id, next);
         if (Object.keys(set).length > 0) {
           set.updatedAt = now;
           await tx
@@ -224,6 +330,7 @@ export async function importValidated(input: {
         for (const r of toInsert) {
           if (insertedIds.has(r.id)) {
             createdIds.push(r.id);
+            finalConsent.set(r.id, consentOf(r) ?? "desconocido");
             members.push({ contactId: r.id, row: r, created: true });
             assignments.push({ contactId: r.id, tagId: importTagId });
             for (const t of r.tags) assignments.push({ contactId: r.id, tagId: tagIdByName.get(t)! });
@@ -245,10 +352,23 @@ export async function importValidated(input: {
         .values(batch.map((a) => ({ organizationId, ...a })))
         .onConflictDoNothing();
     }
+    // La bitácora va en la MISMA transacción: un cambio de consentimiento
+    // sin su registro de quién y por qué no debe quedar.
+    await logActivities(consentEvents, tx);
     const tag = { id: importTagId, name: tagName };
-    if (input.onMembers) await input.onMembers(tx, members, tag);
+    if (input.onMembers) await input.onMembers(tx, members, tag, tallyConsent());
     return tag;
   });
+
+  function tallyConsent(): ImportConsentResult {
+    const out: ImportConsentResult = { optIn: 0, optOut: 0, unknown: 0, reactivated, toUnknown };
+    for (const c of finalConsent.values()) {
+      if (c === "opt_in") out.optIn++;
+      else if (c === "opt_out") out.optOut++;
+      else out.unknown++;
+    }
+    return out;
+  }
 
   // Leads fuera de la transacción: son opcionales y cada uno es independiente.
   let leadsCreated = 0;
@@ -275,6 +395,7 @@ export async function importValidated(input: {
     failures: validation.failures,
     warnings,
     leadsCreated,
+    consent: tallyConsent(),
   };
 }
 

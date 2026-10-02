@@ -1,59 +1,37 @@
 import { apiError, withAuth } from "@/lib/api";
+import { consentFromForm } from "@/server/contacts-io/consent-form";
+import { readCsvForm } from "@/server/contacts-io/csv-form";
 import { importContacts } from "@/server/contacts-io/import";
-import {
-  decodeCsvBytes,
-  IMPORT_ERROR_STATUS,
-  IMPORT_MAX_BYTES,
-  ImportError,
-} from "@/server/contacts-io/validate";
+import { IMPORT_ERROR_STATUS, ImportError } from "@/server/contacts-io/validate";
 
 export const dynamic = "force-dynamic";
 
-const MB = (IMPORT_MAX_BYTES / 1024 / 1024).toFixed(0);
-
 /**
  * 021 — Importa contactos desde un CSV (multipart: `file`, `tagName?`,
- * `createLeads?`). Responde el resumen con el detalle por fila de lo que no
- * entró; nunca un "falló" genérico.
+ * `createLeads?`, `consentAnswer` yes|unknown, `optOutTreatment?`
+ * respect|opt_in|desconocido — distinto de "respect" pide
+ * `contacts.consent_override`). Responde el resumen con el detalle por fila
+ * de lo que no entró; nunca un "falló" genérico.
  */
 export const POST = withAuth(
   async (session, req: Request) => {
-    // Primer filtro barato: si el navegador ya dice que pesa de más, no se lee.
-    const declared = Number(req.headers.get("content-length") ?? "0");
-    if (declared > IMPORT_MAX_BYTES + 64 * 1024) {
-      return apiError(413, "too_large", `El archivo pesa más de ${MB} MB: divídelo en varios`);
-    }
-
-    let form: FormData;
-    try {
-      form = await req.formData();
-    } catch {
-      return apiError(422, "invalid_body", "Sube el archivo como formulario (campo `file`)");
-    }
-    const file = form.get("file");
-    if (!(file instanceof File)) {
-      return apiError(422, "missing_file", "Falta el archivo CSV (campo `file`)");
-    }
-    if (file.size === 0) return apiError(422, "empty", "El archivo está vacío");
-    if (file.size > IMPORT_MAX_BYTES) {
-      return apiError(413, "too_large", `El archivo pesa más de ${MB} MB: divídelo en varios`);
-    }
-    const fileName = (file.name || "archivo.csv").slice(0, 120);
-    if (!/\.(csv|txt)$/i.test(fileName)) {
-      return apiError(415, "not_csv", `"${fileName}" no es un CSV: exporta tu hoja como .csv`);
-    }
-    const tagName = String(form.get("tagName") ?? "").trim() || null;
-    const createLeads = String(form.get("createLeads") ?? "") === "true";
+    const csv = await readCsvForm(req);
+    if (!csv.ok) return csv.response;
+    const consent = consentFromForm(session, csv.form);
+    if (!consent.ok) return consent.response;
+    const tagName = String(csv.form.get("tagName") ?? "").trim() || null;
+    const createLeads = String(csv.form.get("createLeads") ?? "") === "true";
 
     try {
-      const text = decodeCsvBytes(new Uint8Array(await file.arrayBuffer()));
       const summary = await importContacts({
         organizationId: session.organizationId,
         actorUserId: session.userId,
-        fileName,
-        text,
+        fileName: csv.fileName,
+        text: csv.text,
         tagName,
         createLeads,
+        consentAnswer: consent.answer,
+        optOutTreatment: consent.treatment,
       });
       return Response.json({ summary });
     } catch (err) {

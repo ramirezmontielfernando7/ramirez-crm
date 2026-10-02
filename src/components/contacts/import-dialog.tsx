@@ -4,6 +4,9 @@ import { useState } from "react";
 import { Download, Upload } from "lucide-react";
 import { toCsv } from "@/lib/csv";
 import { fetchJson } from "@/lib/fetch-json";
+import type { ConsentAnswer, ImportConsentResult, OptOutPreview, OptOutTreatment } from "@/lib/import-consent";
+import { ConsentQuestion, ConsentResultLine, OptOutPanel } from "@/components/import-consent";
+import { useViewer } from "@/components/viewer-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,7 +23,10 @@ type Summary = {
   failures: RowIssue[];
   warnings: RowIssue[];
   leadsCreated: number;
+  consent: ImportConsentResult;
 };
+
+type Preview = { totalRows: number; valid: number; failed: number; emptyRows: number; optOut: OptOutPreview };
 
 /** Debe coincidir con IMPORT_MAX_BYTES del servidor (se revisa antes de subir). */
 const MAX_BYTES = 5 * 1024 * 1024;
@@ -43,8 +49,11 @@ function download(name: string, content: string) {
 }
 
 /**
- * 021 — Importar contactos desde CSV. El resultado dice exactamente qué pasó:
- * creados, actualizados y el detalle de cada fila que no entró (descargable).
+ * 021 — Importar contactos desde CSV. Antes de la vista previa se pregunta si
+ * los contactos aceptaron recibir WhatsApp (obligatorio); la vista previa dice
+ * cuántos ya pidieron no recibir y qué hacer con ellos. El resultado dice
+ * exactamente qué pasó: creados, actualizados, cómo quedó el consentimiento y
+ * el detalle de cada fila que no entró (descargable).
  */
 export function ImportDialog({ onClose, onImported }: { onClose: () => void; onImported: () => void }) {
   const [file, setFile] = useState<File | null>(null);
@@ -53,19 +62,62 @@ export function ImportDialog({ onClose, onImported }: { onClose: () => void; onI
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [summary, setSummary] = useState<Summary | null>(null);
+  const [answer, setAnswer] = useState<ConsentAnswer | null>(null);
+  const [preview, setPreview] = useState<Preview | null>(null);
+  const [treatment, setTreatment] = useState<OptOutTreatment | null>(null);
+  const canOverride = useViewer().can("contacts.consent_override");
 
-  async function upload() {
-    if (!file) return;
-    if (file.size > MAX_BYTES) {
-      setError(`El archivo pesa ${(file.size / 1024 / 1024).toFixed(1)} MB; el máximo es 5 MB. Divídelo en varios.`);
+  function tooBig(f: File): boolean {
+    if (f.size <= MAX_BYTES) return false;
+    setError(`El archivo pesa ${(f.size / 1024 / 1024).toFixed(1)} MB; el máximo es 5 MB. Divídelo en varios.`);
+    return true;
+  }
+
+  async function runPreview(f: File) {
+    if (tooBig(f)) return;
+    setBusy(true);
+    setError(null);
+    const form = new FormData();
+    form.set("file", f);
+    const res = await fetchJson<{ preview: Preview }>("/api/contacts/import/preview", { method: "POST", body: form });
+    setBusy(false);
+    if (!res.ok) {
+      setError(res.error);
       return;
     }
+    setPreview(res.data.preview);
+    setTreatment(null);
+  }
+
+  function pick(f: File | null) {
+    setFile(f);
+    setPreview(null);
+    setTreatment(null);
+    setError(null);
+    // La vista previa llega DESPUÉS de responder la pregunta de consentimiento.
+    if (f && answer) void runPreview(f);
+  }
+
+  function answerConsent(a: ConsentAnswer) {
+    const first = answer === null;
+    setAnswer(a);
+    if (first && file && !preview) void runPreview(file);
+  }
+
+  const needsTreatment = (preview?.optOut.count ?? 0) > 0;
+  const canImport = !!file && !!answer && !!preview && preview.valid > 0 && (!needsTreatment || !!treatment) && !busy;
+
+  async function upload() {
+    if (!file || !answer) return;
+    if (tooBig(file)) return;
     setBusy(true);
     setError(null);
     const form = new FormData();
     form.set("file", file);
     if (tagName.trim()) form.set("tagName", tagName.trim());
     form.set("createLeads", String(createLeads));
+    form.set("consentAnswer", answer);
+    form.set("optOutTreatment", treatment ?? "respect");
     const res = await fetchJson<{ summary: Summary }>("/api/contacts/import", { method: "POST", body: form });
     setBusy(false);
     if (!res.ok) {
@@ -113,9 +165,9 @@ export function ImportDialog({ onClose, onImported }: { onClose: () => void; onI
                 se aceptan en español: nombre, teléfono, fuente, consentimiento, etiquetas.
               </p>
               <p className="mt-2">
-                Sin columna de consentimiento, los contactos entran como <b>«Sin confirmar»</b> y no
-                recibirán campañas hasta que se marquen como «acepta». Un contacto que ya existe
-                conserva su nombre, y si pidió no recibir mensajes, sigue así.
+                Antes de importar te preguntaremos si estos contactos aceptaron recibir WhatsApp. Un
+                contacto que ya existe conserva su nombre; si pidió no recibir mensajes, eliges qué
+                hacer con él.
               </p>
               <button
                 type="button"
@@ -132,12 +184,31 @@ export function ImportDialog({ onClose, onImported }: { onClose: () => void; onI
                 id="import-file"
                 type="file"
                 accept=".csv,text/csv"
-                onChange={(e) => {
-                  setFile(e.target.files?.[0] ?? null);
-                  setError(null);
-                }}
+                onChange={(e) => pick(e.target.files?.[0] ?? null)}
               />
             </div>
+
+            {file && <ConsentQuestion value={answer} onChange={answerConsent} disabled={busy} />}
+
+            {busy && !preview && <p className="text-sm text-muted-foreground">Leyendo el archivo…</p>}
+            {preview && (
+              <div className="space-y-2" data-testid="import-preview">
+                <p className="text-sm">
+                  <b>{preview.valid}</b> contacto(s) entran
+                  {preview.failed > 0 && (
+                    <span className="text-danger-text"> · {preview.failed} fila(s) no se importarán</span>
+                  )}
+                  {preview.emptyRows > 0 ? ` · ${preview.emptyRows} vacía(s)` : ""}.
+                </p>
+                <OptOutPanel
+                  preview={preview.optOut}
+                  value={treatment}
+                  onChange={setTreatment}
+                  canOverride={canOverride}
+                  disabled={busy}
+                />
+              </div>
+            )}
 
             <div className="space-y-1.5">
               <Label htmlFor="import-tag">Etiqueta para esta base</Label>
@@ -178,7 +249,7 @@ export function ImportDialog({ onClose, onImported }: { onClose: () => void; onI
               <Button variant="ghost" onClick={onClose}>
                 Cancelar
               </Button>
-              <Button disabled={!file || busy} onClick={() => void upload()}>
+              <Button disabled={!canImport} onClick={() => void upload()} data-testid="import-submit">
                 <Upload className="mr-1.5 h-4 w-4" />
                 {busy ? "Importando…" : "Importar"}
               </Button>
@@ -202,6 +273,7 @@ export function ImportDialog({ onClose, onImported }: { onClose: () => void; onI
                 <p className="text-xs text-muted-foreground">no se importaron</p>
               </div>
             </div>
+            <ConsentResultLine consent={summary.consent} />
             <p className="text-sm text-text-2">
               {summary.totalRows} fila(s) leídas
               {summary.emptyRows > 0 ? `, ${summary.emptyRows} vacía(s) ignorada(s)` : ""}. Etiqueta:{" "}

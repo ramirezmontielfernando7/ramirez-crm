@@ -15,8 +15,9 @@ import { borrarOrganizaciones, crearOrganizacion } from "./fixtures";
 
 /**
  * Campañas v2, PR 2 — Audiencias contra Postgres real: la base .xlsx entra
- * con el núcleo de la importación (dedupe, opt_out pegajoso, etiqueta), la
- * declaración de consentimiento deja `opt_in` a los que no traen columna,
+ * con el núcleo de la importación (dedupe, opt_out respetado, etiqueta), la
+ * declaración «Sí, todos aceptaron» deja `opt_in` a los que no traen columna
+ * (el resto del consentimiento: `consentimiento-import.test.ts`),
  * se guardan miembros y columnas extra, y otra organización no la ve.
  */
 describe("audiencias", () => {
@@ -64,7 +65,7 @@ describe("audiencias", () => {
         fileName: "base.xlsx",
         bytes,
         mapping: { name: 0, phone: 1, email: 2 },
-        consentDeclaration: "Formulario en mi sitio web",
+        consentAnswer: "yes",
       })
     );
     expect(summary).toMatchObject({ created: 1, updated: 1, failed: 2 });
@@ -74,7 +75,9 @@ describe("audiencias", () => {
       counts: { totalRows: 4, created: 1, updated: 1, invalid: 1, duplicate: 1, members: 2 },
       consent: { optIn: 1, optOut: 1, unknown: 0 },
       failuresCount: 2,
+      consentSource: "declarado al importar",
     });
+    expect(summary.consent).toEqual({ optIn: 1, optOut: 1, unknown: 0, reactivated: 0, toUnknown: 0 });
     expect(audience.tag?.name).toBe("Import: base.xlsx");
 
     const contacts = await runWithOrganization(A.id, () =>
@@ -82,7 +85,7 @@ describe("audiencias", () => {
     );
     const ana = contacts.find((c) => c.waIdentity === "524621000001")!;
     const beto = contacts.find((c) => c.waIdentity === "524621000002")!;
-    expect(ana).toMatchObject({ waConsent: "opt_in", waConsentSource: "Formulario en mi sitio web", email: "ana@x.mx" });
+    expect(ana).toMatchObject({ waConsent: "opt_in", waConsentSource: "declarado al importar", email: "ana@x.mx" });
     // opt_out pegajoso y el correo existente no se pisa.
     expect(beto).toMatchObject({ waConsent: "opt_out", email: "previo@x.mx" });
 
@@ -96,20 +99,6 @@ describe("audiencias", () => {
 
     const failures = await runWithOrganization(A.id, () => audienceFailures(A.id, audience.id));
     expect(failures.failures.map((f) => f.line)).toEqual([4, 5]);
-  });
-
-  it("sin declaración de consentimiento no importa nada", async () => {
-    await expect(
-      runWithOrganization(A.id, () =>
-        importAudienceFile({
-          organizationId: A.id,
-          userId,
-          fileName: "x.csv",
-          bytes: new TextEncoder().encode("nombre,numero\nZed,5214621000009\n"),
-          consentDeclaration: " ",
-        })
-      )
-    ).rejects.toMatchObject({ code: "invalid" });
   });
 
   it("otra organización no ve ni borra la audiencia (404)", async () => {

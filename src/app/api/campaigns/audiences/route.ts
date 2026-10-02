@@ -3,6 +3,7 @@ import { can } from "@/lib/auth/permissions";
 import { campaignsDisabledResponse, campaignsEnabled } from "@/server/campaigns/flag";
 import { campaignErrorResponse, formFile, formMapping } from "@/server/campaigns/http";
 import { importAudienceFile, listAudiences } from "@/server/campaigns/audiences";
+import { consentFromForm } from "@/server/contacts-io/consent-form";
 import { IMPORT_MAX_BYTES } from "@/server/contacts-io/validate";
 
 export const dynamic = "force-dynamic";
@@ -18,8 +19,10 @@ export const GET = withAuth(
 
 /**
  * Campañas v2 — Sube e importa una base .xlsx/.csv (multipart: `file`,
- * `mapping?` JSON, `name?`, `consentDeclaration`). Usa el mismo núcleo que la
- * importación de Contactos, así que además pide `contacts.import`.
+ * `mapping?` JSON, `name?`, `consentAnswer` yes|unknown, `optOutTreatment?`
+ * respect|opt_in|desconocido). Usa el mismo núcleo que la importación de
+ * Contactos, así que además pide `contacts.import`; cambiar una baja pide
+ * `contacts.consent_override`.
  */
 export const POST = withAuth(
   async (session, req: Request) => {
@@ -27,6 +30,8 @@ export const POST = withAuth(
     if (!can(session, "contacts.import")) return forbidden();
     const f = await formFile(req, IMPORT_MAX_BYTES);
     if (!f.ok) return f.response;
+    const consent = consentFromForm(session, f.form);
+    if (!consent.ok) return consent.response;
     try {
       const result = await importAudienceFile({
         organizationId: session.organizationId,
@@ -35,7 +40,8 @@ export const POST = withAuth(
         bytes: f.bytes,
         mapping: formMapping(f.form),
         name: String(f.form.get("name") ?? "").trim() || null,
-        consentDeclaration: String(f.form.get("consentDeclaration") ?? ""),
+        consentAnswer: consent.answer,
+        optOutTreatment: consent.treatment,
       });
       return Response.json(result, { status: 201 });
     } catch (err) {

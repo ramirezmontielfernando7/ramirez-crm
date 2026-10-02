@@ -37,6 +37,7 @@ const MATRIZ: Record<Permission, Record<Role, boolean>> = {
   "team_chat.announce": { owner: true, coordinador: true, asesor: false },
   "team_chat.oversee": { owner: true, coordinador: false, asesor: false },
   "number_health.read": { owner: true, coordinador: true, asesor: false },
+  "contacts.consent_override": { owner: true, coordinador: true, asesor: false },
 };
 
 describe("matriz de permisos (020)", () => {

@@ -104,6 +104,7 @@ const PROTEGIDAS: [string, Method, Permission][] = [
   ["contact-tags/[id]", "PATCH", "tags.manage"],
   ["contact-tags/[id]", "DELETE", "tags.manage"],
   ["contacts/import", "POST", "contacts.import"],
+  ["contacts/import/preview", "POST", "contacts.import"],
   ["contacts/export", "GET", "contacts.export"],
   // Campañas v2 (PR 1): salud del número (Propietario y Coordinador).
   ["number-health", "GET", "number_health.read"],
