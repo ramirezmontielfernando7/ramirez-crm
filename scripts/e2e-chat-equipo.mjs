@@ -12,7 +12,7 @@
  *    404 al ajeno); grupos con la delegación al Coordinador; Conocimientos.
  *  - Un usuario removido de la organización deja de recibir SSE y de leer.
  *  - Navegador: dos personas en vivo (mensaje sin recargar, globo del menú,
- *    emoji desde frimousse, reacción).
+ *    emoji desde frimousse, Ctrl+V con imagen = adjunto, reacción).
  *
  * Uso: app viva con WA_MOCK_ENABLED=true (next dev) y BD migrada:
  *   node --env-file=.env scripts/e2e-chat-equipo.mjs
@@ -402,6 +402,35 @@ async function navegador({ A, B, D }) {
     ok("el emoji entra al editor", (await pa.getByLabel("Mensaje para el equipo").inputValue()).includes("🔥"));
     await pa.getByLabel("Mensaje para el equipo").press("Enter");
     ok("…y se envía", await aparece(pb.getByText("🔥").first(), 8000));
+
+    // Ctrl+V con una imagen = adjunto (mismo mecanismo que la Bandeja); con
+    // texto en el portapapeles el pegado normal no cambia.
+    const PNG_B64 =
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg==";
+    const editor = pa.getByLabel("Mensaje para el equipo");
+    const pegar = (payload) =>
+      editor.evaluate((el, p) => {
+        const dt = new DataTransfer();
+        if (p.text) dt.setData("text/plain", p.text);
+        if (p.png) {
+          const bin = Uint8Array.from(atob(p.png), (c) => c.charCodeAt(0));
+          dt.items.add(new File([bin], "image.png", { type: "image/png" }));
+        }
+        const ev = new ClipboardEvent("paste", { clipboardData: dt, bubbles: true, cancelable: true });
+        el.dispatchEvent(ev);
+        return ev.defaultPrevented;
+      }, payload);
+    const quitar = pa.getByRole("button", { name: "Quitar adjunto" });
+    ok("Ctrl+V con texto (aunque traiga imagen) no se intercepta", !(await pegar({ text: "hola", png: PNG_B64 })));
+    ok("…y no adjunta nada", (await quitar.count()) === 0);
+    ok("Ctrl+V con una imagen se intercepta", await pegar({ png: PNG_B64 }));
+    const nombre = pa.getByText(/^imagen-\d{14}\.png$/).first();
+    ok("…y queda adjunta con nombre con fecha, no «image.png»", await aparece(nombre, 3000));
+    const pie = `Captura pegada ${S}`;
+    await editor.fill(pie);
+    await editor.press("Enter");
+    ok("la imagen pegada se envía y B la recibe", await aparece(pb.getByText(pie).first(), 8000));
+    ok("el adjunto se limpia tras enviar", await hasta(async () => (await quitar.count()) === 0, 5000));
 
     // Reacción de B al último mensaje de A.
     const burbuja = pb.locator("[class*='group/msg']").filter({ hasText: texto2 }).first();

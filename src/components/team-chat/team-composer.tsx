@@ -12,7 +12,7 @@ import type { KnowledgeEntryDto } from "@/lib/knowledge";
 import { cn } from "@/lib/utils";
 import { SPRING } from "@/components/motion";
 import { KnowledgePicker, type KnowledgePickAction } from "@/components/knowledge/knowledge-picker";
-import { formatBytes } from "@/components/inbox/helpers";
+import { formatBytes, takePastedImage } from "@/components/inbox/helpers";
 import { useViewer } from "@/components/viewer-context";
 
 // El selector de emojis (frimousse, datos servidos por la propia instancia)
@@ -257,6 +257,11 @@ export function TeamComposer({
           onChange={(e) => {
             setText(e.target.value);
             autogrow();
+          }}
+          onPaste={(e) => {
+            // Ctrl+V con una imagen = adjuntarla, igual que en la Bandeja.
+            const image = takePastedImage(e);
+            if (image) pickFile(image);
           }}
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
