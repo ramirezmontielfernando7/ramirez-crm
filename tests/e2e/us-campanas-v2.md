@@ -30,8 +30,19 @@ responde 131000, `00000` 131026, `31049` 131049, `42900` 130429 la primera vez.
    aparece en los avisos de la app.
 7. **Asesor.** Sin acceso: 403 en campañas, audiencias, estado, ajustes y
    archivo de ejemplo.
+7b. **Métricas (PR 3).** Ana responde a «Cupones» → cuenta como respuesta
+   (ventana de 72 h de `campaign_settings`). Tras correr la sincronización
+   (ruta de mocks): la campaña aparece en la tabla comparativa con 2
+   enviados y costo Estimado 1; KPIs del periodo, fallidos con motivo en
+   español, serie con todos los días; «Reportado por Meta» en MXN junto al
+   estimado, con la diferencia; analíticas de plantillas al día. Otro
+   número → 0; periodo inválido → 422; CSV con la campaña y el total. Con
+   las analíticas de plantillas «no activas» en la WABA: se avisa y los KPIs
+   y el costo reportado siguen.
 8. **Interfaz.** Pestañas Campañas / Audiencias / Métricas; aviso de pausa
-   de seguridad; Métricas con su aviso. Subir un .xlsx, asignar columnas,
+   de seguridad; Métricas con KPIs en %, costo «Estimado» junto a
+   «Reportado por Meta», tabla de campañas, aviso de analíticas no activas,
+   tarjeta «Salud del número» y descarga del CSV. Subir un .xlsx, asignar columnas,
    ver la inválida en rojo, declarar el consentimiento e importar. Asistente:
    paso 1 con el conteo, paso 2 con la burbuja de WhatsApp, paso 3 con costo
    «Estimado», margen del límite y prueba; programar, pausar a mano (con
