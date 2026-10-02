@@ -46,6 +46,30 @@ export async function logActivity(input: ActivityInput, db: Db = getDb()) {
 }
 
 /**
+ * Varias líneas de una vez (p. ej. los cambios de consentimiento de una
+ * importación), en la transacción que se le pase: todo o nada.
+ */
+export async function logActivities(inputs: ActivityInput[], db: Db = getDb()): Promise<void> {
+  const now = new Date();
+  for (let i = 0; i < inputs.length; i += 500) {
+    const rows = inputs.slice(i, i + 500).map(
+      (input) =>
+        ({
+          id: newId("activityEvent"),
+          organizationId: input.organizationId,
+          contactId: input.contactId,
+          kind: input.kind,
+          actorUserId: input.actorUserId ?? null,
+          source: input.source ?? (input.actorUserId ? "usuario" : "sistema"),
+          detail: input.detail ?? null,
+          occurredAt: input.occurredAt ?? now,
+        }) satisfies typeof schema.contactActivityEvent.$inferInsert
+    );
+    if (rows.length > 0) await db.insert(schema.contactActivityEvent).values(rows);
+  }
+}
+
+/**
  * Para las anotaciones AL MARGEN de una operación que ya ocurrió (pausar la
  * IA, cambiar etiquetas): si la bitácora falla, la operación no se revierte
  * ni se reporta como fallida — se pierde la línea y queda en el log.

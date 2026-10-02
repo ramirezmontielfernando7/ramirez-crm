@@ -27,8 +27,13 @@ const statements = {
   agent: ["manage"],
   /** Cuentas del equipo y sus roles. */
   users: ["manage", "read"],
-  /** Exportar contactos (la base entera) e importarlos (021). */
-  contacts: ["export", "import"],
+  /**
+   * Exportar contactos (la base entera) e importarlos (021).
+   * `consent_override`: al importar, cambiar el consentimiento de quien YA
+   * pidió no recibir mensajes (opt_out → opt_in o desconocido). Sin él, una
+   * baja se respeta siempre.
+   */
+  contacts: ["export", "import", "consent_override"],
   /** 021 — Crear, renombrar y borrar etiquetas de contacto. */
   tags: ["manage"],
   /** 021 — Crear y lanzar campañas de envío masivo por plantilla. */
@@ -67,7 +72,7 @@ const owner = ac.newRole({
   settings: ["manage"],
   agent: ["manage"],
   users: ["manage", "read"],
-  contacts: ["export", "import"],
+  contacts: ["export", "import", "consent_override"],
   tags: ["manage"],
   campaigns: ["manage"],
   assignment: ["manage"],
@@ -85,7 +90,7 @@ const coordinador = ac.newRole({
   users: ["read"],
   // 021: importa y exporta bases y lanza campañas: es la operación del día a
   // día de una agencia con su cliente (decisión del dueño, 2026-09-25).
-  contacts: ["import", "export"],
+  contacts: ["import", "export", "consent_override"],
   tags: ["manage"],
   campaigns: ["manage"],
   assignment: ["manage"],
@@ -127,6 +132,7 @@ export type Permission =
   | "users.read"
   | "contacts.export"
   | "contacts.import"
+  | "contacts.consent_override"
   | "tags.manage"
   | "campaigns.manage"
   | "assignment.manage"

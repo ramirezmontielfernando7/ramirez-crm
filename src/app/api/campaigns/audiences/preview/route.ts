@@ -10,7 +10,8 @@ export const dynamic = "force-dynamic";
 /**
  * Campañas v2 — Vista previa de una base SIN escribir nada: columnas
  * reconocidas (o qué falta asignar), primeras filas con las inválidas
- * marcadas y el resumen.
+ * marcadas, el resumen y los contactos del archivo que ya pidieron no recibir
+ * mensajes.
  */
 export const POST = withAuth(
   async (session, req: Request) => {
@@ -20,6 +21,7 @@ export const POST = withAuth(
     if (!f.ok) return f.response;
     try {
       const preview = await previewAudienceFile({
+        organizationId: session.organizationId,
         fileName: (f.file.name || "base.csv").slice(0, 120),
         bytes: f.bytes,
         mapping: formMapping(f.form),
