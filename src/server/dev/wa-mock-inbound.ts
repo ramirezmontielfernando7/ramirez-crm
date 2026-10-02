@@ -220,6 +220,10 @@ export function buildStatusPayload(input: {
   /** Meta adjunta `errors[]` en los `failed` (ej. 130472 del 2026-08-05). */
   errorCode?: number;
   errorMessage?: string;
+  /** Campañas v2: el objeto `pricing` del estado (cobro por mensaje). */
+  pricing?: Record<string, unknown>;
+  /** Campañas v2: hora del estado (segundos Unix); por defecto, ahora. */
+  timestamp?: number;
 }) {
   return {
     object: "whatsapp_business_account",
@@ -239,8 +243,9 @@ export function buildStatusPayload(input: {
                 {
                   id: input.waMessageId,
                   status: input.status,
-                  timestamp: String(Math.floor(Date.now() / 1000)),
+                  timestamp: String(input.timestamp ?? Math.floor(Date.now() / 1000)),
                   recipient_id: input.recipientId ?? "5215511111111",
+                  ...(input.pricing ? { pricing: input.pricing } : {}),
                   ...(input.errorCode != null
                     ? {
                         errors: [
@@ -266,7 +271,7 @@ export function buildTemplateStatusPayload(input: {
   wabaId: string;
   name: string;
   language: string;
-  event: "APPROVED" | "REJECTED";
+  event: "APPROVED" | "REJECTED" | "PAUSED" | "DISABLED";
   reason?: string;
   templateId?: string;
 }) {
@@ -289,5 +294,13 @@ export function buildTemplateStatusPayload(input: {
         ],
       },
     ],
+  };
+}
+
+/** Campañas v2 — Un evento a nivel WABA (calidad del número, cuenta, categoría de plantilla). */
+export function buildWabaEventPayload(input: { wabaId: string; field: string; value: Record<string, unknown> }) {
+  return {
+    object: "whatsapp_business_account",
+    entry: [{ id: input.wabaId, time: Math.floor(Date.now() / 1000), changes: [{ field: input.field, value: input.value }] }],
   };
 }

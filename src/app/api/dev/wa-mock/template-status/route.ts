@@ -13,7 +13,7 @@ const bodySchema = z.object({
   wabaId: z.string().min(1),
   name: z.string().min(1),
   language: z.string().min(1),
-  event: z.enum(["APPROVED", "REJECTED"]),
+  event: z.enum(["APPROVED", "REJECTED", "PAUSED", "DISABLED"]),
   reason: z.string().optional(),
   /** Meta reclasifica al aprobar (UTILITY → MARKETING). Solo lado "Meta". */
   category: z.string().optional(),
@@ -36,7 +36,10 @@ export async function POST(req: Request) {
   // Mantener coherente el estado del "panel de Meta" simulado (para el sync).
   const state = getWaMockState();
   const tpl = state.templates.find(
-    (t) => t.name === body.data.name && t.language === body.data.language
+    (t) =>
+      t.name === body.data.name &&
+      t.language === body.data.language &&
+      (!t.wabaId || t.wabaId === body.data.wabaId)
   );
   if (tpl) {
     tpl.status = body.data.event;

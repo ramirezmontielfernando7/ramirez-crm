@@ -77,18 +77,75 @@ export async function GET(req: Request, ctx: Params) {
   const token = bearerToken(req);
   if (token.endsWith("-invalid")) return invalidTokenResponse();
 
-  // GET {wabaId}/message_templates → lista para el sync
+  // GET {wabaId}/message_templates → lista para el sync. Campañas v2: solo
+  // las de ESA WABA, y paginada como Meta (páginas de 2 para que la
+  // paginación del cliente se ejercite siempre).
   if (path.length === 2 && path[1] === "message_templates") {
     const state = getWaMockState();
+    const all = state.templates.filter((t) => !t.wabaId || t.wabaId === path[0]);
+    const sp = new URL(req.url).searchParams;
+    const start = Number(sp.get("after") ?? 0) || 0;
+    const size = Math.min(Number(sp.get("limit") ?? 2) || 2, 2);
+    const page = all.slice(start, start + size);
     return Response.json({
-      data: state.templates.map((t) => ({
+      data: page.map((t) => ({
         id: t.id,
         name: t.name,
         language: t.language,
         category: t.category,
         status: t.status,
         components: t.components ?? [{ type: "BODY", text: t.body }],
+        ...(t.qualityScore ? { quality_score: { score: t.qualityScore } } : {}),
+        ...(t.rejectedReason ? { rejected_reason: t.rejectedReason } : {}),
       })),
+      ...(start + size < all.length
+        ? { paging: { cursors: { after: String(start + size) }, next: "mock-next" } }
+        : {}),
+    });
+  }
+
+  // Campañas v2 — GET {wabaId}?fields=template_analytics… / pricing_analytics…
+  // (los usará la sincronización diaria del PR 3). Datos fijos, misma forma.
+  const fieldsParam = new URL(req.url).searchParams.get("fields") ?? "";
+  if (path.length === 1 && /template_analytics|pricing_analytics/.test(fieldsParam)) {
+    const day = Math.floor(Date.now() / 86_400_000) * 86_400;
+    return Response.json({
+      id: path[0],
+      ...(fieldsParam.includes("template_analytics")
+        ? {
+            template_analytics: {
+              data: [
+                {
+                  granularity: "DAILY",
+                  data_points: getWaMockState()
+                    .templates.filter((t) => !t.wabaId || t.wabaId === path[0])
+                    .map((t) => ({
+                      template_id: t.id,
+                      start: day,
+                      end: day + 86_400,
+                      sent: 10,
+                      delivered: 9,
+                      read: 6,
+                      clicked: [{ type: "quick_reply_button", button_content: "Me interesa", count: 2 }],
+                    })),
+                },
+              ],
+            },
+          }
+        : {}),
+      ...(fieldsParam.includes("pricing_analytics")
+        ? {
+            pricing_analytics: {
+              data: [
+                {
+                  data_points: [
+                    { start: day, end: day + 86_400, country: "MX", pricing_type: "REGULAR", pricing_category: "MARKETING", volume: 10, cost: 0.5 },
+                  ],
+                },
+              ],
+            },
+          }
+        : {}),
     });
   }
 
@@ -157,6 +214,31 @@ export async function GET(req: Request, ctx: Params) {
     return Response.json({ id: path[0], name: "Página de prueba Vocero" });
   }
 
+  // Campañas v2 — GET {phoneNumberId}?fields=quality_rating,… → salud del
+  // número según el "panel de Meta" simulado (POST /api/dev/wa-mock/health).
+  if (path.length === 1 && fields.includes("quality_rating")) {
+    const state = getWaMockState();
+    state.phoneHealth ??= {};
+    const h = state.phoneHealth[path[0]!] ?? {};
+    if (h.rejectNewFields && fields.includes("whatsapp_business_manager_messaging_limit")) {
+      return Response.json(
+        { error: { message: "(#100) Tried accessing nonexisting field", type: "OAuthException", code: 100 } },
+        { status: 400 }
+      );
+    }
+    return Response.json({
+      id: path[0],
+      quality_rating: h.quality_rating ?? "GREEN",
+      status: h.status ?? "CONNECTED",
+      name_status: h.name_status ?? "APPROVED",
+      messaging_limit_tier: h.messaging_limit_tier ?? "TIER_1K",
+      ...(fields.includes("throughput") ? { throughput: h.throughput ?? { level: "STANDARD" } } : {}),
+      ...(fields.includes("whatsapp_business_manager_messaging_limit") && h.whatsapp_business_manager_messaging_limit
+        ? { whatsapp_business_manager_messaging_limit: h.whatsapp_business_manager_messaging_limit }
+        : {}),
+    });
+  }
+
   // GET {phoneNumberId}?fields=... → validación del wizard
   if (path.length === 1) {
     const seen = (getWaMockState().phonesByToken[token] ??= []);
@@ -191,6 +273,39 @@ export async function POST(req: Request, ctx: Params) {
     }
     // El id arranca con "media" para que el GET de metadata lo resuelva.
     return Response.json({ id: `media-up-${nextN()}` });
+  }
+
+  // Campañas v2 — Subida reanudable (imagen de ejemplo de una plantilla).
+  // 1) POST {appId}/uploads?file_length=…&file_type=… → { id: "upload:…" }
+  if (path.length === 2 && path[1] === "uploads") {
+    const sp = new URL(req.url).searchParams;
+    const length = Number(sp.get("file_length"));
+    const type = sp.get("file_type") ?? "";
+    if (!token || !length || !/^image\/(jpeg|png)$/.test(type)) {
+      return Response.json(
+        { error: { message: "(#100) Invalid file_length or file_type", type: "GraphMethodException", code: 100 } },
+        { status: 400 }
+      );
+    }
+    const state = getWaMockState();
+    state.uploads ??= {};
+    const id = `upload:mock${nextN()}`;
+    state.uploads[id] = { length, type };
+    return Response.json({ id });
+  }
+  // 2) POST {upload:…} con el archivo (Authorization: OAuth …, file_offset: 0) → { h }
+  if (path.length === 1 && path[0]!.startsWith("upload:")) {
+    const session = getWaMockState().uploads?.[path[0]!];
+    const auth = req.headers.get("authorization") ?? "";
+    const bytes = new Uint8Array(await req.arrayBuffer());
+    if (!session || !auth.startsWith("OAuth ") || req.headers.get("file_offset") !== "0" || bytes.byteLength !== session.length) {
+      return Response.json(
+        { error: { message: "(#100) Invalid upload session or file", type: "GraphMethodException", code: 100 } },
+        { status: 400 }
+      );
+    }
+    session.received = bytes.byteLength;
+    return Response.json({ h: `mock-handle-${nextN()}` });
   }
 
   const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
@@ -309,6 +424,20 @@ export async function POST(req: Request, ctx: Params) {
         { status: 400 }
       );
     }
+    // Campañas v2 — termina en 31049 → 131049: Meta no entrega marketing a
+    // ese usuario por el límite de marketing por usuario ("healthy ecosystem").
+    if (destino && destino.endsWith("31049")) {
+      return Response.json(
+        {
+          error: {
+            message: "(#131049) This message was not delivered to maintain healthy ecosystem engagement.",
+            code: 131049,
+            type: "OAuthException",
+          },
+        },
+        { status: 400 }
+      );
+    }
     if (destino && destino.endsWith("42900")) {
       const limited = (globalThis as { __waMockRateLimited?: Set<string> });
       limited.__waMockRateLimited ??= new Set();
@@ -345,6 +474,27 @@ export async function POST(req: Request, ctx: Params) {
           tplSend?.components?.find(
             (c) => (c.type ?? "").toLowerCase() === "body"
           )?.parameters?.length ?? 0;
+        // Campañas v2: una plantilla con IMAGEN en el encabezado exige la
+        // imagen en cada envío (si falta, Meta responde 132012).
+        const headerFormat = (known.components as { type?: string; format?: string }[] | undefined)
+          ?.find((c) => (c.type ?? "").toUpperCase() === "HEADER")
+          ?.format?.toUpperCase();
+        if (headerFormat === "IMAGE") {
+          const header = tplSend?.components?.find((c) => (c.type ?? "").toLowerCase() === "header");
+          const p = header?.parameters?.[0] as { type?: string; image?: { id?: string; link?: string } } | undefined;
+          if (p?.type !== "image" || !(p.image?.id || p.image?.link)) {
+            return Response.json(
+              {
+                error: {
+                  message: "(#132012) Parameter format does not match format in the created template: header image missing",
+                  type: "OAuthException",
+                  code: 132012,
+                },
+              },
+              { status: 400 }
+            );
+          }
+        }
         if (expected !== got) {
           return Response.json(
             {
@@ -411,8 +561,26 @@ export async function POST(req: Request, ctx: Params) {
         { status: 400 }
       );
     }
+    // Campañas v2: encabezado de imagen = Meta exige el handle de ejemplo.
+    const header = components.find((c) => (c.type ?? "").toUpperCase() === "HEADER") as
+      | { format?: string; example?: { header_handle?: string[] } }
+      | undefined;
+    if (header?.format?.toUpperCase() === "IMAGE" && !header.example?.header_handle?.[0]?.startsWith("mock-handle-")) {
+      return Response.json(
+        {
+          error: {
+            message: "Invalid parameter: header_handle is required for IMAGE header",
+            type: "GraphMethodException",
+            code: 100,
+            fbtrace_id: "mock",
+          },
+        },
+        { status: 400 }
+      );
+    }
     const tpl: MockTemplate = {
       id: nextTemplateId(),
+      wabaId: path[0]!,
       name: String(body.name ?? ""),
       language: String(body.language ?? "es_MX"),
       category: String(body.category ?? "UTILITY"),
