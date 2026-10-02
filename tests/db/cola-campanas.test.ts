@@ -304,8 +304,12 @@ describe("cola de campañas por número", () => {
 
   it("programador: arranca la programada vencida y reanuda la pausa por límite vencida", async () => {
     // Destinatarios dados de baja: el despachador los omite sin llamar a Meta.
-    const { campaignId: due, contactIds } = await campaignWith(2);
-    const { campaignId: limited } = await campaignWith(1);
+    // Nadie de estas dos campañas puede llegar a Meta: en CI la llamada real
+    // fallaría con error de autenticación y dejaría el número "por reconectar"
+    // para las pruebas siguientes.
+    const { campaignId: due, contactIds: dueContacts } = await campaignWith(2);
+    const { campaignId: limited, contactIds: limitedContacts } = await campaignWith(1);
+    const contactIds = [...dueContacts, ...limitedContacts];
     await runWithOrganization(A.id, async () => {
       const db = getDb();
       await db
@@ -322,7 +326,9 @@ describe("cola de campañas por número", () => {
         .where(and(eq(schema.campaign.organizationId, A.id), eq(schema.campaign.id, limited)));
     });
     await campaignSchedulerTick();
-    expect((await campaignRow(limited)).status).toBe("sending");
+    const resumed = await campaignRow(limited);
+    expect(["sending", "completed"]).toContain(resumed.status);
+    expect(resumed.autoPaused).toBe(false);
     const started = await campaignRow(due);
     expect(["sending", "completed"]).toContain(started.status);
     expect(started.startedAt).not.toBeNull();
@@ -338,8 +344,6 @@ describe("cola de campañas por número", () => {
       }, 100);
     });
     expect(await statuses(due)).toEqual({ skipped: 2 });
-    // Que no se quede despachando la otra (su envío real necesitaría Meta).
-    await runWithOrganization(A.id, () => cancelCampaign(A.id, limited));
   });
 
   it("lanzar: solo opt_in, excluidos por motivo y variables desde columnas de la base", async () => {
