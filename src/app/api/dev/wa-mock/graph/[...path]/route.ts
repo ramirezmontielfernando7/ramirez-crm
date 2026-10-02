@@ -132,10 +132,15 @@ export async function GET(req: Request, ctx: Params) {
               data: [
                 {
                   granularity: "DAILY",
-                  data_points: getWaMockState()
-                    .templates.filter((t) => !t.wabaId || t.wabaId === path[0])
-                    .map((t) => ({
-                      template_id: t.id,
+                  // Como Meta: un punto por cada id pedido en `template_ids([...])`
+                  // (el estado del mock se vacía entre secciones del guion).
+                  data_points: (/template_ids\((\[[^)]*\])\)/.exec(fieldsParam)?.[1]
+                    ? (JSON.parse(/template_ids\((\[[^)]*\])\)/.exec(fieldsParam)![1]!) as string[])
+                    : getWaMockState()
+                        .templates.filter((t) => !t.wabaId || t.wabaId === path[0])
+                        .map((t) => t.id)
+                  ).map((id) => ({
+                      template_id: id,
                       start: day,
                       end: day + 86_400,
                       sent: 10,
