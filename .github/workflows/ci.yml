@@ -150,6 +150,10 @@ jobs:
     env:
       CAMPAIGNS: "on"
       AGENDA: "on"
+      # `next dev` se reinicia solo al acercarse a su tope de memoria y corta
+      # las peticiones en vuelo (se vio a mitad de e2e-datos-meta). Con más
+      # heap el servidor de pruebas aguanta la corrida completa de guiones.
+      NODE_OPTIONS: "--max-old-space-size=4096"
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
