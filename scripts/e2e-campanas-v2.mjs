@@ -533,6 +533,33 @@ async function main() {
     await page.getByTestId("campaign-cancel").click();
     await page.getByText("Cancelada", { exact: true }).waitFor({ timeout: 45000 });
     ok("UI: cancelada", true);
+
+    // Contactos → Importar CSV: la misma pregunta antes de la vista previa y el panel de bajas.
+    const [uiBaja, uiNueva] = [num(72, "10072"), num(73, "10073")];
+    const bajaForm = new FormData();
+    bajaForm.set("file", new Blob([`name,phone,waConsent\nBaja UI,${uiBaja},opt_out\n`]), `baja-${RUN}.csv`);
+    bajaForm.set("consentAnswer", "unknown");
+    await api("/api/contacts/import", { method: "POST", body: bajaForm });
+    await page.goto(`${BASE}/contacts`, { timeout: 180000 });
+    await page.getByRole("button", { name: "Importar" }).click();
+    await page.locator("#import-file").setInputFiles({
+      name: `contactos-${RUN}.csv`,
+      mimeType: "text/csv",
+      buffer: Buffer.from(`name,phone\nBaja UI,${uiBaja}\nNueva UI,${uiNueva}\n`),
+    });
+    await page.getByTestId("consent-question").waitFor({ timeout: 45000 });
+    ok("UI Contactos: pregunta antes de la vista previa", (await page.getByTestId("import-preview").count()) === 0);
+    ok("UI Contactos: sin responder no se importa", await page.getByTestId("import-submit").isDisabled());
+    await page.getByTestId("consent-yes").check();
+    await page.getByTestId("opt-out-panel").waitFor({ timeout: 45000 });
+    ok("UI Contactos: 1 con baja en la vista previa", (await page.getByTestId("opt-out-count").innerText()).trim() === "1");
+    ok("UI Contactos: el Propietario ve los tres tratamientos", (await page.locator('[data-testid^="opt-out-"][type="radio"]').count()) === 3);
+    ok("UI Contactos: sin elegir tratamiento no se importa", await page.getByTestId("import-submit").isDisabled());
+    await page.getByTestId("opt-out-respect").check();
+    await page.getByTestId("import-submit").click();
+    await page.getByTestId("consent-result").waitFor({ timeout: 45000 });
+    const res = await page.getByTestId("consent-result").innerText();
+    ok("UI Contactos: resumen 1 acepta · 1 no quiere", /1\s+acepta mensajes/i.test(res) && /1\s+no quiere mensajes/i.test(res), res);
   } catch (err) {
     ok("interfaz sin errores", false, err?.message ?? String(err));
   } finally {

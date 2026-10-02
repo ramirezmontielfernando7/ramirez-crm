@@ -1,5 +1,10 @@
 import { apiError } from "@/lib/api";
-import { decodeCsvBytes, IMPORT_MAX_BYTES } from "@/server/contacts-io/validate";
+import {
+  decodeCsvBytes,
+  IMPORT_ERROR_STATUS,
+  IMPORT_MAX_BYTES,
+  ImportError,
+} from "@/server/contacts-io/validate";
 
 const MB = (IMPORT_MAX_BYTES / 1024 / 1024).toFixed(0);
 
@@ -35,5 +40,11 @@ export async function readCsvForm(
   if (!/\.(csv|txt)$/i.test(fileName)) {
     return fail(415, "not_csv", `"${fileName}" no es un CSV: exporta tu hoja como .csv`);
   }
-  return { ok: true, form, fileName, text: decodeCsvBytes(new Uint8Array(await file.arrayBuffer())) };
+  try {
+    return { ok: true, form, fileName, text: decodeCsvBytes(new Uint8Array(await file.arrayBuffer())) };
+  } catch (err) {
+    // Un Excel con extensión .csv, un archivo binario…: error claro, no un 500.
+    if (err instanceof ImportError) return fail(IMPORT_ERROR_STATUS[err.code], err.code, err.message);
+    throw err;
+  }
 }
