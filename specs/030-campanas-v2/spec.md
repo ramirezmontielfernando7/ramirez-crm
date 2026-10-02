@@ -9,7 +9,7 @@ y despliega antes de empezar el siguiente.
 | 1 | Fundamentos de datos de Meta (este documento, sección PR 1) | 0031 |
 | 2 | Campañas v2: pestañas, audiencias .xlsx/.csv, asistente de 3 pasos, cola por número | 0032 |
 | 3 | Métricas: KPIs, analíticas de Meta a la base propia, conciliación de costo | 0033 |
-| 4 | Registro de módulos y navegación personalizable por rol | 0034 (por confirmar) |
+| 4 | Registro de módulos y navegación personalizable por rol; Plantillas pasa a Campañas | 0034 |
 
 Decisiones del dueño (no se repreguntan): solo `opt_in` recibe campañas; los
 costos son "Estimado" hasta conciliarse con lo que reporta Meta; un número de
@@ -220,3 +220,53 @@ Referencia de la API de Meta y lo NO VERIFICADO:
   no activas, KPIs con respuestas en 72 h y bajas, filtro por número,
   aislamiento, una vez al día).
 - E2E: sección 7b y la interfaz de `scripts/e2e-campanas-v2.mjs`.
+
+## PR 4 — Módulos y navegación personalizable
+
+### Historias
+
+1. **Registro central de módulos** (`src/lib/modules/registry.ts`): clave,
+   nombre, ruta, ícono, núcleo u opcional, roles por defecto y dependencias.
+   Núcleo (no se apaga): Bandeja, Contactos, Pipeline y Ajustes. Laboratorio
+   requiere Agente.
+2. **Capa plataforma.** `organization_module` suma Conocimientos, Agente,
+   Laboratorio, Chat de equipo y Resultados (encendidos por defecto: migrar
+   no le quita nada a nadie) y `custom_nav` (apagado). Apagado, un módulo no
+   existe para esa organización: sus rutas y pantallas responden 404 en el
+   servidor (403 primero si falta el permiso) y no está en el menú; con el
+   Agente apagado el agente incluido no contesta. Encender el Laboratorio sin
+   Agente → 422; apagar el Agente apaga el Laboratorio. Perfiles Básico y
+   Completo: solo plantilla del alta desde /platform.
+3. **Capa organización (Ajustes → Navegación)**, solo Propietario y solo con
+   `custom_nav`: reordenar y ocultar el menú de cada rol con arrastre
+   (@dnd-kit) o teclado (manija + flechas, botones ↑ ↓), vista previa,
+   «Restaurar valores por defecto» y cambios recientes. Ocultar es solo
+   estético. Cada rol conserva al menos una entrada visible; el Propietario
+   no se oculta Ajustes (y con él, Navegación). Igual en los tres estados del
+   menú y en el teléfono.
+4. **Plantillas en Campañas.** Con Campañas encendido, las plantillas viven
+   en `/campaigns/templates` (pestaña junto a Campañas, Audiencias y
+   Métricas) y `/settings/templates` redirige ahí. Sin Campañas, Ajustes →
+   Plantillas sigue como antes: la Bandeja también las usa.
+5. **White-label:** los textos de Ajustes de envío dicen el nombre de la
+   marca de la organización (`branding.name`), no «Vocero».
+
+### Diseño
+
+- Migración `0034_modulos_y_navegacion.sql`, aditiva e idempotente; reversa
+  opcional `scripts/sql/0034-reversa.sql` (revertir = imagen anterior).
+- Tablas nuevas con RLS forzado: `nav_layout` (org + rol, `items` jsonb) y
+  `nav_layout_event` (bitácora append-only: un disparador rechaza UPDATE salvo
+  el `SET NULL` del autor borrado).
+- `src/lib/modules/nav-layout.ts` (menú por rol, puro) · `src/server/modules/`
+  (`moduleOff`, `requireModulePage`, dependencia, perfiles) ·
+  `src/server/navigation/` (`store.ts` única puerta de `nav_layout`,
+  `resolve.ts` el menú de quien pide) · `/api/settings/navigation`.
+
+### Pruebas
+
+- Unitarias: `modules-registry.test.ts`, `modules-routes-guard.test.ts`
+  (vigilancia del 404 por módulo), matriz de permisos.
+- BD real: `tests/db/navegacion.test.ts`.
+- E2E: `scripts/e2e-navegacion.mjs` (guion `tests/e2e/us-navegacion.md`) y
+  `e2e-modulos` con los módulos nuevos.

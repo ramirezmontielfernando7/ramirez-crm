@@ -18,7 +18,7 @@ const CATEGORIES = ["marketing", "utility", "authentication"] as const;
  * el negocio (Vocero no trae precios de Meta) y solo sirven para el costo
  * ESTIMADO; el reportado por Meta llega con Métricas.
  */
-export function CampaignSettingsForm() {
+export function CampaignSettingsForm({ brandName }: { brandName: string }) {
   const [s, setS] = useState<CampaignSettingsDto | null>(null);
   const [rates, setRates] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
@@ -96,7 +96,7 @@ export function CampaignSettingsForm() {
                 <CardHeader>
                   <CardTitle>Pausa de seguridad</CardTitle>
                   <CardDescription>
-                    Vocero pausa una campaña sola si algo indica que seguir enviando dañaría tu número. Te avisa en
+                    {brandName} pausa una campaña sola si algo indica que seguir enviando dañaría tu número. Te avisa en
                     la app con el motivo; la reanudas cuando lo revises.
                   </CardDescription>
                 </CardHeader>
@@ -129,7 +129,7 @@ export function CampaignSettingsForm() {
                   <CardTitle>Tarifas para el costo estimado</CardTitle>
                   <CardDescription>
                     Lo que te cobra Meta por mensaje según la categoría de la plantilla. Consulta tu tarifa vigente en
-                    el Administrador de WhatsApp: Vocero no la adivina. El costo se muestra siempre como{" "}
+                    el Administrador de WhatsApp: {brandName} no la adivina. El costo se muestra siempre como{" "}
                     <b>Estimado</b>.
                   </CardDescription>
                 </CardHeader>

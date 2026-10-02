@@ -5,20 +5,26 @@ import { usePathname } from "next/navigation";
 import { Settings2 } from "lucide-react";
 import { NavRevealButton } from "@/components/nav-mode";
 import { cn } from "@/lib/utils";
+import { useViewer } from "@/components/viewer-context";
+import type { Permission } from "@/lib/auth/permissions";
 
 /**
- * Campañas v2 — Encabezado de Campañas con sus tres pestañas (Campañas,
- * Audiencias, Métricas) y el acceso a Ajustes de envío. Las pestañas son
+ * Campañas v2 — Encabezado de Campañas con sus pestañas (Campañas,
+ * Audiencias, Métricas y, desde el PR 4, Plantillas) y el acceso a Ajustes de
+ * envío. Las pestañas son
  * rutas: el enlace a una pestaña se puede compartir y el botón Atrás funciona.
  */
 const TABS = [
   { href: "/campaigns", label: "Campañas" },
   { href: "/campaigns/audiences", label: "Audiencias" },
   { href: "/campaigns/metrics", label: "Métricas" },
-] as const;
+  // 030 (PR 4): antes en Ajustes → Plantillas (que ahora redirige aquí).
+  { href: "/campaigns/templates", label: "Plantillas", permission: "templates.manage" },
+] as const satisfies readonly { href: string; label: string; permission?: Permission }[];
 
 export function CampaignsTabs({ actions }: { actions?: React.ReactNode }) {
   const pathname = usePathname();
+  const viewer = useViewer();
   return (
     <header className="border-b px-4 pt-3 sm:px-6 sm:pt-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -39,7 +45,7 @@ export function CampaignsTabs({ actions }: { actions?: React.ReactNode }) {
         </div>
       </div>
       <nav aria-label="Secciones de Campañas" className="-mb-px mt-2 flex gap-1 overflow-x-auto">
-        {TABS.map((t) => {
+        {TABS.filter((t) => !("permission" in t) || viewer.can(t.permission)).map((t) => {
           const active = pathname === t.href;
           return (
             <Link

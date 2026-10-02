@@ -305,6 +305,28 @@ async function main() {
     JSON.stringify(deA?.events ?? []).slice(0, 200)
   );
   await A.call("POST", `/api/platform/organizations/${orgA}/modules`, { customNav: false });
+
+  console.log("\n== 8 · Plantillas: en Campañas si está encendido; si no, en Ajustes ==");
+  const tpl = await O.pagina("/settings/templates");
+  ok("con Campañas, /settings/templates redirige a /campaigns/templates", new URL(tpl.p.url()).pathname === "/campaigns/templates", tpl.p.url());
+  const tabs = tpl.p.getByRole("navigation", { name: "Secciones de Campañas" });
+  ok("la pestaña «Plantillas» está junto a Campañas, Audiencias y Métricas", (await tabs.getByRole("link", { name: "Plantillas" }).count()) === 1);
+  ok("con el flujo de plantillas (lista)", await hasta(async () => (await tpl.p.getByTestId("template-list").count()) > 0));
+  await tpl.p.goto(`${BASE}/settings/team`);
+  ok("Ajustes ya no muestra la pestaña «Plantillas»", (await tpl.p.getByRole("link", { name: "Plantillas", exact: true }).count()) === 0);
+  await tpl.p.close();
+  const tplAsesor = await S.pagina("/campaigns/templates");
+  ok("el Asesor no entra a Campañas → Plantillas (vuelve a la Bandeja)", new URL(tplAsesor.p.url()).pathname === "/inbox", tplAsesor.p.url());
+  await tplAsesor.p.close();
+  const MB = await persona();
+  ok("la Propietaria del negocio Básico entra", (await MB.entrar(OWNER_M.email, PASS)).status < 400);
+  const tplM = await MB.pagina("/settings/templates");
+  ok("sin Campañas, Ajustes → Plantillas sigue como hoy (200, sin redirigir)", tplM.status === 200 && new URL(tplM.p.url()).pathname === "/settings/templates", `${tplM.status} ${tplM.p.url()}`);
+  ok("…con su pestaña en Ajustes", (await tplM.p.getByRole("link", { name: "Plantillas", exact: true }).count()) > 0);
+  await tplM.p.close();
+  const camM = await MB.pagina("/campaigns/templates");
+  ok("y /campaigns/templates no existe para ella (404)", camM.status === 404, String(camM.status));
+  await camM.p.close();
 }
 
 try {

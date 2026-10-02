@@ -32,3 +32,8 @@ la app viva, los mocks y `PLATFORM_ORG_ID` = la organización de
    (`nav_layout_event`: saved, reset).
 7. **Aislamiento.** La organización del operador: sin `custom_nav` → 404; con
    él, no ve el menú ni la bitácora de N.
+8. **Plantillas.** Con Campañas encendido, `/settings/templates` redirige a
+   `/campaigns/templates` (pestaña «Plantillas» junto a Campañas, Audiencias
+   y Métricas) y Ajustes ya no la muestra; el Asesor no entra. En el negocio
+   Básico (sin Campañas), Ajustes → Plantillas sigue igual (200) y
+   `/campaigns/templates` → 404.

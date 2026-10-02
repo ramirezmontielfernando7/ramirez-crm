@@ -32,12 +32,15 @@ export function SettingsNav({
   atribucion = false,
   messenger = false,
   navigation = false,
+  templates = true,
   allowed,
 }: {
   agenda?: boolean;
   atribucion?: boolean;
   messenger?: boolean;
   navigation?: boolean;
+  /** 030 (PR 4) — con Campañas encendido, Plantillas vive en Campañas. */
+  templates?: boolean;
   /** 020 — pestañas que el rol puede abrir (`/settings/<clave>`); lo decide el servidor. */
   allowed?: string[];
 }) {
@@ -52,7 +55,9 @@ export function SettingsNav({
     ...(agenda ? [AGENDA_TAB] : []),
     ...(atribucion ? [ADS_TAB] : []),
     ...(navigation ? [NAVIGATION_TAB] : []),
-  ].filter((t) => !allowed || allowed.includes(t.href.replace("/settings/", "")));
+  ]
+    .filter((t) => templates || t.href !== "/settings/templates")
+    .filter((t) => !allowed || allowed.includes(t.href.replace("/settings/", "")));
   return (
     <nav className="flex shrink-0 gap-1 overflow-x-auto border-b p-2 sm:w-44 sm:flex-col sm:space-y-1 sm:overflow-visible sm:border-b-0 sm:border-r sm:p-3">
       {tabs.map((t) => (
