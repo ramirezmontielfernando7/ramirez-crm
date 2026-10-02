@@ -493,21 +493,38 @@ async function main() {
     await page.getByLabel("Cuerpo").fill("Hola {{1}}");
     ok("formulario: pide el ejemplo de {{1}}", await page.getByLabel("Ejemplo de {{1}}").isVisible());
 
-    await page.goto(`${BASE}/settings/whatsapp`, { timeout: 180000 });
     // Las tarjetas se llenan con su propia petición: se espera a que lleguen.
-    const visible = (testId) =>
-      page.getByTestId(testId).waitFor({ timeout: 60000 }).then(
-        () => true,
-        (err) => {
-          console.log(`    (no apareció ${testId}: ${err.message.split("\n")[0]})`);
-          return false;
-        }
-      );
-    ok("Ajustes → WhatsApp: tarjeta de salud del número", await visible("health-limit"));
-    ok("Ajustes → WhatsApp: bajas por palabra clave", await visible("opt-out-settings"));
+    // `next dev` en CI puede reiniciarse por memoria a mitad de la carga (se
+    // vio en el job e2e: "approaching the used memory threshold,
+    // restarting"); eso corta las peticiones de la página. Si los tres
+    // elementos no aparecen, se espera a que el servidor vuelva y se recarga
+    // UNA vez. No es un reintento del producto: es del servidor de desarrollo.
+    const IDS = ["health-limit", "opt-out-settings", "number-health-banner"];
+    const allVisible = async () => {
+      const found = {};
+      for (const id of IDS) {
+        found[id] = await page.getByTestId(id).waitFor({ timeout: 45000 }).then(
+          () => true,
+          (err) => {
+            console.log(`    (no apareció ${id}: ${err.message.split("\n")[0]})`);
+            return false;
+          }
+        );
+      }
+      return found;
+    };
+    await page.goto(`${BASE}/settings/whatsapp`, { timeout: 180000 });
+    let seenIds = await allVisible();
+    if (!IDS.every((id) => seenIds[id])) {
+      console.log("    (recargando Ajustes → WhatsApp una vez tras esperar al servidor)");
+      await until(async () => (await fetch(`${BASE}/api/health`).then((r) => r.ok, () => false)) || null, 120000);
+      await page.reload({ timeout: 180000 });
+      seenIds = await allVisible();
+    }
+    ok("Ajustes → WhatsApp: tarjeta de salud del número", seenIds["health-limit"]);
+    ok("Ajustes → WhatsApp: bajas por palabra clave", seenIds["opt-out-settings"]);
     const alertBanner = page.getByTestId("number-health-banner");
-    await alertBanner.waitFor({ timeout: 30000 });
-    ok("aviso global de salud del número (calidad baja / restricción)", await alertBanner.isVisible());
+    ok("aviso global de salud del número (calidad baja / restricción)", seenIds["number-health-banner"] && (await alertBanner.isVisible()));
   } finally {
     await browser.close();
   }
