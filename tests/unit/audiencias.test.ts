@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { strToU8, zipSync } from "fflate";
-import { cellToText, detectFileKind, readSpreadsheet } from "@/server/contacts-io/spreadsheet";
+import { cellToText, detectFileKind, inflatedSize, readSpreadsheet } from "@/server/contacts-io/spreadsheet";
 import { buildXlsx, SAMPLE_AUDIENCE_ROWS } from "@/server/contacts-io/xlsx-write";
 import {
   detectColumns,
@@ -28,6 +28,14 @@ describe("Campañas v2 — tipo de archivo", () => {
   it("un .xlsx con macros (vbaProject.bin) se rechaza aunque diga .xlsx", async () => {
     const files = { "xl/workbook.xml": strToU8("<workbook/>"), "xl/vbaProject.bin": new Uint8Array([1, 2, 3]) };
     await expect(readSpreadsheet("base.xlsx", zipSync(files))).rejects.toMatchObject({ code: "macros" });
+  });
+
+  it("bomba zip: se cuentan los bytes REALES al descomprimir (el encabezado puede mentir)", async () => {
+    const big = new Uint8Array(3 * 1024 * 1024); // ceros: se comprimen a casi nada
+    const zipped = zipSync({ "xl/workbook.xml": strToU8("<workbook/>"), "xl/worksheets/sheet1.xml": big }, { level: 9 });
+    expect(zipped.length).toBeLessThan(64 * 1024);
+    expect(inflatedSize(zipped, 1024 * 1024)).toBeGreaterThan(1024 * 1024);
+    expect(inflatedSize(zipped, 10 * 1024 * 1024)).toBe(3 * 1024 * 1024 + "<workbook/>".length);
   });
 
   it("un zip que no es libro de Excel se rechaza", async () => {

@@ -59,6 +59,7 @@ const log = logger("campaign");
 
 const HEARTBEAT_MS = 10_000;
 const SAFETY_EVERY_MS = 10_000;
+const SAFETY_EVERY_FAILS = 5;
 const HEALTH_CACHE_MS = 30_000;
 const PROGRESS_EVERY_MS = 1_000;
 const DEFAULT_TICK_MS = 15_000;
@@ -233,6 +234,8 @@ export async function dispatchNumber(
     let cooldownUntil = 0;
     let rr = 0;
     const lastSafety = new Map<string, number>();
+    /** Fallos desde la última revisión: la tasa de fallos se revisa también cada pocos fallos. */
+    const failsSince = new Map<string, number>();
     const lastProgress = new Map<string, number>();
     const idle = new Set<string>();
 
@@ -264,8 +267,9 @@ export async function dispatchNumber(
         settings = await getCampaignSettings(organizationId);
         settingsAt = now;
       }
-      if (now - (lastSafety.get(campaign.id) ?? 0) >= SAFETY_EVERY_MS) {
+      if (now - (lastSafety.get(campaign.id) ?? 0) >= SAFETY_EVERY_MS || (failsSince.get(campaign.id) ?? 0) >= SAFETY_EVERY_FAILS) {
         lastSafety.set(campaign.id, now);
+        failsSince.set(campaign.id, 0);
         if (!health || now - healthAt > HEALTH_CACHE_MS) {
           health = await readHealth(organizationId);
           healthAt = now;
@@ -296,6 +300,7 @@ export async function dispatchNumber(
         log.warn("campaña pausada por un error que afecta a todos", { org: organizationId, campana: campaign.id, motivo: result.reason });
         continue;
       }
+      if (result.kind === "failed") failsSince.set(campaign.id, (failsSince.get(campaign.id) ?? 0) + 1);
       if (result.kind === "retry" && result.rateLimit) {
         // Meta pidió bajar el ritmo DEL NÚMERO: frena a todas sus campañas.
         cooldownUntil = Date.now() + retryDelayMs(1);

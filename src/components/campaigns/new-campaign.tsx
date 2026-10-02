@@ -51,7 +51,7 @@ export function NewCampaign({ initialAudienceId }: { initialAudienceId: string |
   const [audiences, setAudiences] = useState<AudienceDto[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
 
-  const [mode, setMode] = useState<Mode>(initialAudienceId ? "base" : "base");
+  const [mode, setMode] = useState<Mode>("base");
   const [importId, setImportId] = useState<string>(initialAudienceId ?? "");
   const [tagIds, setTagIds] = useState<string[]>([]);
   const [source, setSource] = useState("");

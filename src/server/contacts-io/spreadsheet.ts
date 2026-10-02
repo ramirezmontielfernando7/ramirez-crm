@@ -1,4 +1,4 @@
-import { unzipSync } from "fflate";
+import { Unzip, UnzipInflate, unzipSync } from "fflate";
 import readXlsxFile from "read-excel-file/node";
 import { csvToTable, decodeCsvBytes, ImportError, type ImportTable } from "@/server/contacts-io/validate";
 
@@ -67,6 +67,40 @@ function inspectXlsx(bytes: Uint8Array): void {
   if (total > XLSX_MAX_UNCOMPRESSED) {
     throw new ImportError("too_large", "El archivo de Excel es demasiado grande al abrirlo: divídelo en varios");
   }
+  // El tamaño del encabezado del zip lo escribe quien arma el archivo: se
+  // puede mentir. Se descomprime en flujo CONTANDO los bytes reales y se corta
+  // al pasar el tope, antes de que la librería lo abra entero en memoria.
+  if (inflatedSize(bytes, XLSX_MAX_UNCOMPRESSED) > XLSX_MAX_UNCOMPRESSED) {
+    throw new ImportError("too_large", "El archivo de Excel es demasiado grande al abrirlo: divídelo en varios");
+  }
+}
+
+/** Bytes reales al descomprimir, deteniéndose en cuanto pasan `cap`. */
+export function inflatedSize(bytes: Uint8Array, cap: number): number {
+  let total = 0;
+  let over = false;
+  const unzip = new Unzip((file) => {
+    file.ondata = (err, chunk) => {
+      if (err || over) return;
+      total += chunk.length;
+      if (total > cap) {
+        over = true;
+        file.terminate();
+      }
+    };
+    if (!over) file.start();
+  });
+  unzip.register(UnzipInflate);
+  try {
+    // En trozos: así la descompresión se detiene poco después del tope.
+    const STEP = 64 * 1024;
+    for (let i = 0; i < bytes.length && !over; i += STEP) {
+      unzip.push(bytes.subarray(i, Math.min(i + STEP, bytes.length)), i + STEP >= bytes.length);
+    }
+  } catch {
+    throw new ImportError("not_spreadsheet", "El archivo de Excel está dañado o no es un .xlsx");
+  }
+  return total;
 }
 
 /** Una celda de Excel → texto, como la vería la persona. */
