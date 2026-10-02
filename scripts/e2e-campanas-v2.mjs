@@ -200,16 +200,36 @@ async function main() {
 
   const noDecl = await api("/api/campaigns/audiences", {
     method: "POST",
-    body: fileForm(`base-${RUN}.xlsx`, bytes, { mapping, consentDeclaration: "" }),
+    body: fileForm(`base-${RUN}.xlsx`, bytes, { mapping, consentAnswer: "" }),
   });
-  ok("sin declaración de consentimiento → 422", noDecl.res.status === 422, noDecl.text);
+  ok("sin responder la pregunta de consentimiento → 422", noDecl.res.status === 422 && noDecl.json?.error?.code === "consent_required", noDecl.text);
   const imp = await api("/api/campaigns/audiences", {
     method: "POST",
-    body: fileForm(`base-${RUN}.xlsx`, bytes, { mapping, name: `Base ${RUN}`, consentDeclaration: "Formulario en mi sitio web" }),
+    body: fileForm(`base-${RUN}.xlsx`, bytes, { mapping, name: `Base ${RUN}`, consentAnswer: "yes" }),
   });
   const aud = imp.json?.audience;
   ok("base importada → 201", imp.res.status === 201 && aud?.counts?.members === 3, imp.text);
   ok("3 pueden recibir campañas (opt_in por la declaración)", aud?.consent?.optIn === 3, JSON.stringify(aud?.consent));
+  ok("resumen por estado al importar", imp.json?.summary?.consent?.optIn === 3 && aud?.counts?.consentOptIn === 3, imp.text);
+  ok("la base registra «declarado al importar»", aud?.consentSource === "declarado al importar", aud?.consentSource);
+
+  // Un miembro pide la baja: la vista previa lo muestra y el tratamiento se aplica a todos.
+  const miembros = (await api(`/api/contacts?tag=${aud?.tag?.id}`)).json?.contacts ?? [];
+  const dadoDeBaja = miembros[0];
+  await api(`/api/contacts/${dadoDeBaja?.id}`, { method: "PATCH", body: JSON.stringify({ waConsent: "opt_out" }) });
+  const prevBaja = await api("/api/campaigns/audiences/preview", { method: "POST", body: fileForm(`base-${RUN}.xlsx`, bytes, { mapping }) });
+  ok("vista previa: 1 con baja, con desde cuándo", prevBaja.json?.preview?.optOut?.count === 1 && !!prevBaja.json?.preview?.optOut?.rows?.[0]?.since, prevBaja.text);
+  const respeta = await api("/api/campaigns/audiences", {
+    method: "POST",
+    body: fileForm(`base-${RUN}.xlsx`, bytes, { mapping, name: `Base ${RUN} b`, consentAnswer: "yes", optOutTreatment: "respect" }),
+  });
+  ok("respetar: 2 aceptan, 1 baja", respeta.json?.summary?.consent?.optIn === 2 && respeta.json?.summary?.consent?.optOut === 1, respeta.text);
+  const limbo = await api("/api/campaigns/audiences", {
+    method: "POST",
+    body: fileForm(`base-${RUN}.xlsx`, bytes, { mapping, name: `Base ${RUN} c`, consentAnswer: "yes", optOutTreatment: "desconocido" }),
+  });
+  ok("a sin confirmar: 1 pasa a desconocido", limbo.json?.summary?.consent?.toUnknown === 1 && limbo.json?.summary?.consent?.unknown === 1, limbo.text);
+  await api(`/api/contacts/${dadoDeBaja?.id}`, { method: "PATCH", body: JSON.stringify({ waConsent: "opt_in" }) });
   const fails = await api(`/api/campaigns/audiences/${aud?.id}/failures`);
   ok("descarga de filas con error (CSV)", fails.res.ok && /linea,nombre,numero,motivo/.test(fails.text ?? ""), fails.text);
   ok("protegida contra fórmulas", (fails.text ?? "").includes("'=cmd"), fails.text);
@@ -299,7 +319,7 @@ async function main() {
   const slowImp = await api("/api/campaigns/audiences", {
     method: "POST",
     body: fileForm(`lentos-${RUN}.csv`, strToU8(["nombre,numero", ...slow.map((n, i) => `Lento ${i},${n}`)].join("\n")), {
-      consentDeclaration: "Formulario en mi sitio web",
+      consentAnswer: "yes",
     }),
   });
   ok("base de 8 importada (csv, columnas reconocidas)", slowImp.json?.audience?.counts?.members === 8, slowImp.text);
@@ -385,7 +405,7 @@ async function main() {
   const badImp = await api("/api/campaigns/audiences", {
     method: "POST",
     body: fileForm(`fallan-${RUN}.csv`, strToU8(["nombre,numero", ...bad.map((n, i) => `Falla ${i},${n}`)].join("\n")), {
-      consentDeclaration: "Formulario en mi sitio web",
+      consentAnswer: "yes",
     }),
   });
   const c4 = await api("/api/campaigns", {
@@ -464,6 +484,10 @@ async function main() {
       mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       buffer: Buffer.from(xlsx([["Persona", "Móvil 1", "Cupón"], ["Uri UI", uiPhones[0], "U1"], ["Vero UI", uiPhones[1], "V2"], ["Mal", "12", ""]])),
     });
+    await page.getByTestId("consent-question").waitFor({ timeout: 45000 });
+    ok("UI: la pregunta de consentimiento va antes de la vista previa", (await page.getByTestId("audience-mapping").count()) === 0);
+    ok("UI: sin responder no se puede importar", (await page.getByTestId("audience-import").count()) === 0);
+    await page.getByTestId("consent-yes").check();
     await page.getByTestId("audience-mapping").waitFor({ timeout: 45000 });
     ok("UI: pide «¿qué es cada columna?»", true);
     await page.getByTestId("map-name").selectOption("0");
@@ -471,11 +495,10 @@ async function main() {
     await page.getByRole("button", { name: "Aplicar columnas" }).click();
     await page.getByTestId("audience-preview-table").waitFor({ timeout: 45000 });
     ok("UI: la fila inválida aparece en rojo", (await page.locator('[data-invalid="true"]').count()) === 1);
-    await page.getByTestId("audience-consent").selectOption({ index: 1 });
-    await page.getByTestId("audience-consent-confirm").check();
     await page.getByTestId("audience-import").click();
     await page.getByTestId("audience-result").waitFor({ timeout: 45000 });
     ok("UI: base importada con su resumen", await page.getByTestId("audience-result").getByText("Creados").isVisible());
+    ok("UI: resumen por estado de consentimiento", /2\s+acepta mensajes/i.test(await page.getByTestId("consent-result").innerText()));
     const uiAud = ((await api("/api/campaigns/audiences")).json?.audiences ?? []).find((a) => a.fileName === `ui-${RUN}.xlsx`);
 
     // Asistente de 3 pasos desde la base recién subida.

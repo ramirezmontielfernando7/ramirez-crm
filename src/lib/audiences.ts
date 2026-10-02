@@ -32,14 +32,6 @@ export const IMPORT_COLUMN_LABEL: Record<ImportColumn, string> = {
 export const AUDIENCE_MAX_MB = 5;
 export const AUDIENCE_ACCEPT = ".xlsx,.csv";
 
-/** Cómo obtuvo el negocio el consentimiento de una base (declaración). */
-export const CONSENT_ORIGINS = [
-  "Formulario en mi sitio web",
-  "Lo pidieron en mi tienda o punto de venta",
-  "Me escribieron por WhatsApp primero",
-  "Casilla en un contrato o registro",
-] as const;
-
 export type AudienceCounts = {
   totalRows: number;
   created: number;
