@@ -218,6 +218,13 @@
       "when": 1790872943763,
       "tag": "0030_modulos_por_organizacion",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1790908988968,
+      "tag": "0031_campanas_v2_datos_meta",
+      "breakpoints": true
     }
   ]
 }

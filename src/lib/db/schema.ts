@@ -1,5 +1,6 @@
 import {
   boolean,
+  date,
   foreignKey,
   check,
   index,
@@ -782,9 +783,31 @@ export const message = pgTable(
     /** 008 — Adjunto del mensaje (imagen, doc, ubicación…), si lo hay. */
     mediaAssetId: text("media_asset_id"),
     waTimestamp: timestamp("wa_timestamp"),
+    /**
+     * Campañas v2 (PR 1) — hora de cada estado, según el `timestamp` que
+     * manda Meta. Se guarda una sola vez cada una (la primera gana) y aunque
+     * lleguen fuera de orden: un `delivered` que llega después del `read`
+     * no cambia el estado, pero sí deja su hora. Ver `src/server/inbox/status.ts`.
+     */
+    sentAt: timestamp("sent_at"),
+    deliveredAt: timestamp("delivered_at"),
+    readAt: timestamp("read_at"),
+    failedAt: timestamp("failed_at"),
+    /** Código numérico del error de Meta (131049, 131026…); `error` lleva su traducción. */
+    errorCode: integer("error_code"),
+    /**
+     * Objeto `pricing` del webhook de estados, tal como lo manda Meta (no se
+     * deduce: las reglas de cobro cambian). NULL = Meta no lo reportó.
+     */
+    pricingBillable: boolean("pricing_billable"),
+    pricingCategory: text("pricing_category"),
+    pricingModel: text("pricing_model"),
+    pricingType: text("pricing_type"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
   (t) => [
+    // Campañas v2: destino de la FK compuesta de campaign_recipient.
+    unique("message_org_id_uq").on(t.organizationId, t.id),
     index("message_org_conv_idx").on(
       t.organizationId,
       t.conversationId,
@@ -1102,6 +1125,19 @@ export const knowledgeEntry = pgTable(
   (t) => [index("knowledge_entry_org_updated_idx").on(t.organizationId, t.updatedAt)]
 );
 
+/**
+ * Campañas v2 (PR 1) — Un componente de plantilla como lo devuelve Meta.
+ * Subconjunto tipado de lo que el CRM lee; el resto se conserva tal cual.
+ */
+export type TemplateComponent = {
+  type: string;
+  format?: string;
+  text?: string;
+  buttons?: { type: string; text?: string; url?: string; phone_number?: string; example?: unknown }[];
+  example?: unknown;
+  [key: string]: unknown;
+};
+
 export const template = pgTable(
   "template",
   {
@@ -1120,10 +1156,46 @@ export const template = pgTable(
       .default("draft"),
     rejectionReason: text("rejection_reason"),
     waTemplateId: text("wa_template_id"),
+    /**
+     * Campañas v2 (PR 1) — los componentes completos tal como los guarda
+     * Meta (HEADER, BODY, FOOTER, BUTTONS). NULL en plantillas anteriores a
+     * la 0031 hasta la siguiente sincronización; `body` sigue siendo el
+     * texto del cuerpo para quien ya lo lee.
+     */
+    components: jsonb("components").$type<TemplateComponent[]>(),
+    /**
+     * Estado crudo de Meta (APPROVED, PAUSED, DISABLED, IN_APPEAL…). `status`
+     * conserva sus cuatro valores; solo se envía con `status = approved` Y
+     * `meta_status` APPROVED (o NULL, filas anteriores a la 0031).
+     */
+    metaStatus: text("meta_status"),
+    /** Motivo de pausa o desactivación que manda Meta. */
+    pausedReason: text("paused_reason"),
+    /** Calificación de calidad de la plantilla (GREEN, YELLOW, RED, UNKNOWN). */
+    qualityScore: text("quality_score"),
+    /** Meta cambió la categoría: la anterior, cuándo, y cuándo lo vio el equipo. */
+    previousCategory: text("previous_category"),
+    categoryChangedAt: timestamp("category_changed_at"),
+    categoryChangeSeenAt: timestamp("category_change_seen_at"),
+    /** Última vez que se leyó de Meta (sincronización o webhook). */
+    syncedAt: timestamp("synced_at"),
+    /**
+     * La imagen del encabezado, guardada en el disco propio (MEDIA_DIR) al
+     * crear la plantilla desde el CRM: al ENVIAR, Meta pide la imagen en
+     * cada mensaje y esta es la que se manda.
+     */
+    headerMediaAssetId: text("header_media_asset_id"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },
   (t) => [
+    index("template_org_wa_template_idx").on(t.organizationId, t.waTemplateId),
+    // Campañas v2 (PR 1). En la BD es ON DELETE SET NULL (header_media_asset_id) (0031)
+    foreignKey({
+      name: "template_org_header_media_fk",
+      columns: [t.organizationId, t.headerMediaAssetId],
+      foreignColumns: [mediaAsset.organizationId, mediaAsset.id],
+    }).onDelete("set null"),
     uniqueIndex("template_org_name_lang_uq").on(
       t.organizationId,
       t.name,
@@ -1712,6 +1784,15 @@ export const campaignRecipient = pgTable(
       columns: [t.organizationId, t.campaignId],
       foreignColumns: [campaign.organizationId, campaign.id],
     }).onDelete("cascade"),
+    index("campaign_recipient_org_message_idx").on(t.organizationId, t.messageId),
+    // Campañas v2 (PR 1): el mensaje es de la MISMA organización. El estado
+    // de entrega se deriva de él (no se duplica). En la BD es
+    // ON DELETE SET NULL (message_id) (0031).
+    foreignKey({
+      name: "campaign_recipient_org_message_fk",
+      columns: [t.organizationId, t.messageId],
+      foreignColumns: [message.organizationId, message.id],
+    }).onDelete("set null"),
     // Fase 1 (H6). En la BD es ON DELETE SET NULL (contact_id) (0024)
     foreignKey({
       name: "campaign_recipient_org_contact_fk",
@@ -2248,5 +2329,80 @@ export const accountLinkToken = pgTable(
   (t) => [
     uniqueIndex("account_link_token_hash_uq").on(t.tokenHash),
     index("account_link_token_user_idx").on(t.userId),
+  ]
+);
+
+/**
+ * Campañas v2 (PR 1) — Historial DIARIO de la salud de cada número de
+ * WhatsApp: calidad, límite de mensajería, estado y rendimiento, tal como
+ * los reporta Meta. Una fila por (organización, número, día), con upsert: la
+ * sincronización diaria, el botón "Actualizar" y los webhooks
+ * `phone_number_quality_update` / `account_update` escriben la fila del día.
+ * Lleva `phone_number_id` desde ya: el esquema admite varios números aunque
+ * hoy haya uno por organización. Sin FK a `meta_credentials` a propósito: el
+ * historial sobrevive a una reconexión.
+ */
+export const waPhoneHealth = pgTable(
+  "wa_phone_health",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    phoneNumberId: text("phone_number_id").notNull(),
+    /** Día en UTC al que corresponde la lectura. */
+    day: date("day", { mode: "string" }).notNull(),
+    /** GREEN, YELLOW, RED, UNKNOWN (crudo de Meta). */
+    qualityRating: text("quality_rating"),
+    /** Límite crudo de Meta (TIER_250, TIER_1K… o UNLIMITED). */
+    messagingLimit: text("messaging_limit"),
+    /** El mismo límite como número de destinatarios; NULL = ilimitado o desconocido. */
+    messagingLimitValue: integer("messaging_limit_value"),
+    /** Estado del número (CONNECTED, FLAGGED, RESTRICTED…). */
+    status: text("status"),
+    /** Nivel de rendimiento (STANDARD, HIGH…). */
+    throughputLevel: text("throughput_level"),
+    /** Estado del nombre para mostrar (APPROVED, PENDING_REVIEW…). */
+    nameStatus: text("name_status"),
+    /** Último evento `account_update` de la WABA (violación o restricción), crudo. */
+    accountEvent: jsonb("account_event").$type<Record<string, unknown>>(),
+    source: text("source", { enum: ["sync", "manual", "webhook"] }).notNull(),
+    fetchedAt: timestamp("fetched_at").notNull().defaultNow(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("wa_phone_health_org_phone_day_uq").on(t.organizationId, t.phoneNumberId, t.day),
+    check("wa_phone_health_source_chk", sql`${t.source} in ('sync', 'manual', 'webhook')`),
+  ]
+);
+
+/**
+ * Campañas v2 (PR 1) — Ajustes de mensajería por organización. Sin fila =
+ * los valores por defecto del código (`src/server/messaging-settings.ts`).
+ *
+ * - Palabras de baja (STOP/BAJA): un entrante que coincide COMPLETO con una
+ *   de ellas pasa al contacto a `opt_out`.
+ * - Respuesta automática a la baja: apagada por defecto.
+ * - Umbral de la alerta de uso del límite de mensajería (porcentaje).
+ */
+export const messagingSettings = pgTable(
+  "messaging_settings",
+  {
+    organizationId: text("organization_id")
+      .primaryKey()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    stopKeywordsEnabled: boolean("stop_keywords_enabled").notNull().default(true),
+    stopKeywords: text("stop_keywords").array().notNull(),
+    stopReplyEnabled: boolean("stop_reply_enabled").notNull().default(false),
+    stopReplyText: text("stop_reply_text"),
+    usageAlertPercent: integer("usage_alert_percent").notNull().default(80),
+    updatedBy: text("updated_by").references(() => user.id, { onDelete: "set null" }),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => [
+    check(
+      "messaging_settings_usage_alert_chk",
+      sql`${t.usageAlertPercent} between 1 and 100`
+    ),
   ]
 );
