@@ -73,7 +73,7 @@ async function api(path, opts = {}) {
 const post = (path, body) => api(path, { method: "POST", body: JSON.stringify(body) });
 
 /** Espera a que `fn` devuelva algo verdadero (los webhooks se procesan en after()). */
-async function until(fn, ms = 6000) {
+async function until(fn, ms = 30000) {
   const end = Date.now() + ms;
   for (;;) {
     const v = await fn();
@@ -86,16 +86,25 @@ async function outbox() {
   return (await api("/api/dev/wa-mock/outbox")).json?.outbox ?? [];
 }
 
+let inboundN = 0;
+/** Id propio por entrante: el contador del mock se reinicia con el servidor y la ingesta descarta ids repetidos. */
 async function inbound(from, extra) {
-  return post("/api/dev/wa-mock/inbound", { phoneNumberId: PN, from, name: `Cliente ${from.slice(-4)}`, ...extra });
+  return post("/api/dev/wa-mock/inbound", {
+    phoneNumberId: PN,
+    from,
+    name: `Cliente ${from.slice(-4)}`,
+    waMessageId: `wamid.e2e.meta.${RUN}.${++inboundN}`,
+    ...extra,
+  });
 }
 
+/** La conversación del contacto, una vez que la ingesta registró su entrante (ventana abierta). */
 async function conversationOf(phone) {
   return until(async () => {
     const [row] = await sql`
       select cv.id, ct.id as contact_id, ct.organization_id
       from conversation cv join contact ct on ct.id = cv.contact_id and ct.organization_id = cv.organization_id
-      where ct.wa_identity = ${phone} and cv.is_test = false
+      where ct.wa_identity = ${phone} and cv.is_test = false and cv.last_inbound_at is not null
       order by cv.created_at desc limit 1`;
     return row ?? null;
   });
@@ -278,7 +287,11 @@ async function main() {
     field: "account_update",
     value: { event: "ACCOUNT_VIOLATION" },
   });
-  const [unrouted] = await sql`select count(*)::int as n from webhook_unrouted where route_key = ${`WABA-NADIE-${RUN}`}`;
+  // El webhook se procesa en after(): se espera a que quede guardado.
+  const unrouted = await until(async () => {
+    const [r] = await sql`select count(*)::int as n from webhook_unrouted where route_key = ${`WABA-NADIE-${RUN}`}`;
+    return r?.n > 0 ? r : null;
+  });
   ok("evento de una WABA sin organización: guardado como sin ruta", otherWaba.res.ok && unrouted?.n === 1, JSON.stringify(unrouted));
 
   /* ------------------------------------------------------------ */
@@ -434,9 +447,17 @@ async function main() {
     ok("formulario: pide el ejemplo de {{1}}", await page.getByLabel("Ejemplo de {{1}}").isVisible());
 
     await page.goto(`${BASE}/settings/whatsapp`, { timeout: 180000 });
-    await page.getByTestId("phone-health-card").waitFor({ timeout: 60000 });
-    ok("Ajustes → WhatsApp: tarjeta de salud del número", await page.getByTestId("health-limit").isVisible());
-    ok("Ajustes → WhatsApp: bajas por palabra clave", await page.getByTestId("opt-out-settings").isVisible());
+    // Las tarjetas se llenan con su propia petición: se espera a que lleguen.
+    const visible = (testId) =>
+      page.getByTestId(testId).waitFor({ timeout: 60000 }).then(
+        () => true,
+        (err) => {
+          console.log(`    (no apareció ${testId}: ${err.message.split("\n")[0]})`);
+          return false;
+        }
+      );
+    ok("Ajustes → WhatsApp: tarjeta de salud del número", await visible("health-limit"));
+    ok("Ajustes → WhatsApp: bajas por palabra clave", await visible("opt-out-settings"));
     const alertBanner = page.getByTestId("number-health-banner");
     await alertBanner.waitFor({ timeout: 30000 });
     ok("aviso global de salud del número (calidad baja / restricción)", await alertBanner.isVisible());
