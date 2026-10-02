@@ -24,9 +24,9 @@ export const TENANT_QUERY_EXCEPTIONS: Record<string, { max: number; motivo: stri
       "Fase 3, PR 2 — El administrador de plataforma gestiona organizaciones (está POR ENCIMA de ellas): cuántas personas tiene cada una, sus Propietarios, si tiene WhatsApp conectado, sus miembros (nombre, correo, rol) y cerrar sus sesiones al suspender. Solo metadatos, nunca contenido; detrás de withPlatformAdmin (404 a todos los demás) y con el pool de sistema.",
   },
   "server/meta-sync/daily.ts": {
-    max: 1,
+    max: 2,
     motivo:
-      "Campañas v2 — Sincronización diaria con Meta: lista las organizaciones ACTIVAS con número conectado y sin la lectura de hoy (cruza organizaciones a propósito, pool de sistema). El trabajo de cada una corre después a nombre de la suya.",
+      "Campañas v2 — Sincronización diaria con Meta: lista las organizaciones ACTIVAS con número conectado y sin la lectura de hoy (salud) o sin el intento de hoy de las analíticas (PR 3); cruza organizaciones a propósito, pool de sistema. El trabajo de cada una corre después a nombre de la suya.",
   },
   "server/modules/store.ts": {
     max: 1,

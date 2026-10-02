@@ -232,6 +232,13 @@
       "when": 1790922412656,
       "tag": "0032_campanas_v2_envio",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1790960018314,
+      "tag": "0033_campanas_v2_metricas",
+      "breakpoints": true
     }
   ]
 }

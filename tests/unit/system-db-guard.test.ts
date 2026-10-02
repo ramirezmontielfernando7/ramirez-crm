@@ -76,8 +76,8 @@ const PERMITIDOS: Record<string, { usos: number; motivo: string }> = {
     motivo: "Campañas v2: el programador de campañas (al arrancar y cada 15 s) lista las organizaciones con campañas por despachar en TODAS las organizaciones; cada despachador corre luego a nombre de la suya",
   },
   "src/server/meta-sync/daily.ts": {
-    usos: 1,
-    motivo: "Campañas v2: la sincronización diaria con Meta lista las organizaciones activas con número conectado (cruza organizaciones); el trabajo de cada una corre luego a nombre de la suya",
+    usos: 2,
+    motivo: "Campañas v2: la sincronización diaria con Meta (salud + plantillas; y, PR 3, analíticas) lista las organizaciones activas con número conectado (cruza organizaciones); el trabajo de cada una corre luego a nombre de la suya",
   },
   "src/app/api/health/route.ts": {
     usos: 2,

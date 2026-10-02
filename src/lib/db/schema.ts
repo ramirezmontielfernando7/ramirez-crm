@@ -2598,3 +2598,105 @@ export const waSendLease = pgTable(
   },
   (t) => [primaryKey({ name: "wa_send_lease_pk", columns: [t.organizationId, t.phoneNumberId] })]
 );
+
+/* ============================================================
+ * Campañas v2 (PR 3) — Analíticas de Meta copiadas a la base propia
+ * ============================================================ */
+
+/**
+ * Lo que Meta reporta de cada plantilla por día (`template_analytics` de la
+ * WABA): enviados, entregados, leídos y clics de botón. Meta lo guarda 90
+ * días; aquí se conserva. Lo escribe SOLO la sincronización diaria
+ * (`src/server/meta-sync/analytics.ts`, upsert por llave): ninguna pantalla
+ * consulta a Meta en vivo. Sin FK a `template` a propósito: Meta reporta
+ * plantillas que el CRM pudo haber borrado; el nombre se busca al leer.
+ */
+export const waTemplateAnalyticsDaily = pgTable(
+  "wa_template_analytics_daily",
+  {
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    wabaId: text("waba_id").notNull(),
+    /** El id de la plantilla en Meta (`template.wa_template_id`). */
+    waTemplateId: text("wa_template_id").notNull(),
+    /** Día (UTC, como lo corta Meta). */
+    day: date("day", { mode: "string" }).notNull(),
+    sent: integer("sent").notNull().default(0),
+    delivered: integer("delivered").notNull().default(0),
+    read: integer("read").notNull().default(0),
+    /** Suma de los clics de todos los botones. */
+    clicked: integer("clicked").notNull().default(0),
+    /** Detalle crudo de clics: { type, button_content, count }[]. */
+    clicks: jsonb("clicks").$type<{ type?: string; button_content?: string; count?: number }[]>().notNull().default([]),
+    syncedAt: timestamp("synced_at").notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({ name: "wa_template_analytics_daily_pk", columns: [t.organizationId, t.wabaId, t.waTemplateId, t.day] }),
+    index("wa_template_analytics_daily_org_day_idx").on(t.organizationId, t.day),
+  ]
+);
+
+/**
+ * Volumen y costo que Meta reporta por día (`pricing_analytics` de la WABA),
+ * por número, país, categoría y tipo de cobro. Meta lo guarda 1 año. Es lo
+ * "Reportado por Meta" frente al costo "Estimado" de las campañas. Las
+ * dimensiones que Meta no mande quedan en '' (forman parte de la llave).
+ */
+export const waPricingAnalyticsDaily = pgTable(
+  "wa_pricing_analytics_daily",
+  {
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    wabaId: text("waba_id").notNull(),
+    day: date("day", { mode: "string" }).notNull(),
+    phoneNumberId: text("phone_number_id").notNull().default(""),
+    country: text("country").notNull().default(""),
+    /** MARKETING, UTILITY, AUTHENTICATION, SERVICE… (crudo de Meta). */
+    pricingCategory: text("pricing_category").notNull().default(""),
+    /** REGULAR, FREE_CUSTOMER_SERVICE, FREE_ENTRY_POINT… (crudo de Meta). */
+    pricingType: text("pricing_type").notNull().default(""),
+    volume: integer("volume").notNull().default(0),
+    cost: numeric("cost", { precision: 14, scale: 4, mode: "number" }).notNull().default(0),
+    /** Moneda de la WABA según Meta; NULL si no la reportó. */
+    currency: text("currency"),
+    syncedAt: timestamp("synced_at").notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({
+      name: "wa_pricing_analytics_daily_pk",
+      columns: [t.organizationId, t.wabaId, t.day, t.phoneNumberId, t.country, t.pricingCategory, t.pricingType],
+    }),
+    index("wa_pricing_analytics_daily_org_day_idx").on(t.organizationId, t.day),
+  ]
+);
+
+/**
+ * Estado de la última sincronización de cada analítica (plantillas, precios)
+ * por WABA: decide la primera carga (90 días / 1 año) frente a la diaria, y
+ * deja dicho en la pantalla si Meta respondió que las analíticas de
+ * plantillas no están activas (`not_enabled`).
+ */
+export const waAnalyticsSync = pgTable(
+  "wa_analytics_sync",
+  {
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    wabaId: text("waba_id").notNull(),
+    kind: text("kind", { enum: ["template", "pricing"] }).notNull(),
+    status: text("status", { enum: ["ok", "not_enabled", "error"] }).notNull(),
+    /** Mensaje de Meta del último fallo (sin secretos), si lo hubo. */
+    error: text("error"),
+    /** Último intento (éxito o fallo). */
+    attemptedAt: timestamp("attempted_at").notNull().defaultNow(),
+    /** Última sincronización completa; NULL = nunca (toca la carga inicial). */
+    syncedAt: timestamp("synced_at"),
+  },
+  (t) => [
+    primaryKey({ name: "wa_analytics_sync_pk", columns: [t.organizationId, t.wabaId, t.kind] }),
+    check("wa_analytics_sync_kind_chk", sql`${t.kind} in ('template', 'pricing')`),
+    check("wa_analytics_sync_status_chk", sql`${t.status} in ('ok', 'not_enabled', 'error')`),
+  ]
+);
