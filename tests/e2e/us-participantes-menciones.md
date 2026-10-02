@@ -25,7 +25,9 @@ Automatizado en `scripts/e2e-participantes-menciones.mjs`
    chat en la Bandeja; C ve «chat sin acceso» y la página no contiene el
    nombre; el botón @ de C abre el selector con **Compañeros** (A y B, sin la
    coordinadora ni C) arriba de **Chats de clientes**; elegir a A escribe
-   `@{Nombre}`, se envía y A lo ve como mención; a la asignada le aparece el
-   aviso de atención humana.
+   `@{Nombre}`, se envía y A lo ve como mención (la suya no es enlace); al
+   presionar la mención de A, C llega al **directo con A** en el chat de
+   equipo (nunca a la Bandeja); a la asignada le aparece el aviso de
+   atención humana.
 6. **Quitar** a B: 404 en X, la mención ya le sale sin acceso y la línea de
    tiempo registra la salida.

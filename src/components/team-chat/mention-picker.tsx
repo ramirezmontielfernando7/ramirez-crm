@@ -159,19 +159,38 @@ export function MentionPicker({
 /** La pastilla de una mención en una burbuja. Sin acceso, no dice de qué chat es. */
 export function MentionChip({
   mention,
+  viewerId,
   onOpen,
+  onOpenUser,
 }: {
   mention: import("@/lib/team-chat-mentions").MentionDto;
+  viewerId: string;
   onOpen: (contactId: string) => void;
+  onOpenUser: (userId: string) => void;
 }) {
+  // Un compañero: solo aviso (globo de no leídos). Al presionarlo se abre el
+  // directo con esa persona en el chat de equipo; nunca un chat de cliente.
   if (mention.accessible && mention.kind === "user") {
+    const me = mention.userId === viewerId;
+    if (me) {
+      return (
+        <span
+          title="Te mencionaron"
+          className="mx-0.5 inline-flex items-center gap-1 rounded-full bg-brand px-1.5 py-px align-baseline text-[12.5px] font-semibold text-brand-fg"
+        >
+          @{mention.label}
+        </span>
+      );
+    }
     return (
-      <span
-        title={`Mención a ${mention.label}`}
-        className="mx-0.5 inline-flex items-center gap-1 rounded-full bg-brand-tint px-1.5 py-px align-baseline text-[12.5px] font-semibold text-brand-text"
+      <button
+        type="button"
+        onClick={() => onOpenUser(mention.userId)}
+        title={`Abrir el chat directo con ${mention.label}`}
+        className="mx-0.5 inline-flex items-center gap-1 rounded-full bg-brand-tint px-1.5 py-px align-baseline text-[12.5px] font-semibold text-brand-text hover:underline"
       >
         @{mention.label}
-      </span>
+      </button>
     );
   }
   if (!mention.accessible) {

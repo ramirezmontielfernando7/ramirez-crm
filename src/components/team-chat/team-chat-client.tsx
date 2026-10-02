@@ -69,6 +69,18 @@ export function TeamChatClient() {
     setList(res.data);
   }, []);
 
+  // Mención de un compañero: abre (o reutiliza) el directo con esa persona.
+  const openDirectWith = useCallback(
+    async (userId: string): Promise<string | null> => {
+      const res = await fetchJson<{ threadId: string }>("/api/team-chat/threads", jsonInit("POST", { userId }));
+      if (!res.ok) return res.error;
+      void refetchList();
+      select(res.data.threadId);
+      return null;
+    },
+    [refetchList, select]
+  );
+
   const markRead = useCallback(async (id: string) => {
     if (document.visibilityState !== "visible") return;
     const res = await fetchJson<{ marked: boolean }>(`/api/team-chat/threads/${id}/read`, { method: "POST" });
@@ -276,6 +288,7 @@ export function TeamChatClient() {
                     canReact={thread.canReact}
                     onLoadOlder={() => void loadOlder()}
                     onChanged={upsert}
+                    onOpenDirect={openDirectWith}
                   />
                 </m.div>
                 <TeamComposer

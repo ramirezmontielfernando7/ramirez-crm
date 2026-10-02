@@ -347,7 +347,30 @@ async function navegador({ A, B, C, G, nombreX, X, equipo }) {
     const burbujaA = pa0.locator("[class*='group/msg']").filter({ hasText: `¿me ayudas? ${S}` }).first();
     ok("A recibe el mensaje con su nombre como mención", await aparece(burbujaA.getByText(`@${equipo.a[1]}`), 15000));
     if (process.env.CAPTURAS_DIR) await pa0.screenshot({ path: `${process.env.CAPTURAS_DIR}/mencion-companero.png` });
+    ok("para A (la mencionada) su propia mención no es un enlace", (await burbujaA.getByRole("button", { name: `@${equipo.a[1]}` }).count()) === 0);
     await pa0.close();
+
+    // Presionar la mención de un compañero abre el DIRECTO con esa persona en
+    // el chat de equipo; nunca la Bandeja ni un chat de cliente.
+    const burbujaC = pc.locator("[class*='group/msg']").filter({ hasText: `¿me ayudas? ${S}` }).first();
+    const chipA = burbujaC.getByRole("button", { name: `@${equipo.a[1]}` });
+    ok("C ve la mención de A como enlace", await aparece(chipA, 10000));
+    await chipA.click();
+    ok(
+      "al presionarla abre otro hilo del chat de equipo (no la Bandeja)",
+      await hasta(async () => {
+        const u = new URL(pc.url());
+        return u.pathname === "/chat" && !!u.searchParams.get("t") && u.searchParams.get("t") !== G;
+      }, 10000)
+    );
+    const tDirecto = new URL(pc.url()).searchParams.get("t");
+    const hilosC = (await C.api("/api/team-chat/threads")).json?.threads ?? [];
+    const directo = hilosC.find((t) => t.id === tDirecto);
+    ok(
+      "…y es el directo de C con A",
+      directo?.kind === "direct" && directo.members.some((p) => p.name === equipo.a[1]) && directo.members.length === 2
+    );
+    ok("…con el editor listo para escribirle", await aparece(pc.getByLabel("Mensaje para el equipo"), 10000));
 
     await chip.click();
     ok("al presionarla navega al chat en la Bandeja", await hasta(async () => pb.url().includes(`/inbox?contact=${X.contact.id}`), 10000));
