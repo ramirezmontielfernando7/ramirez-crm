@@ -57,6 +57,8 @@ const prefixes = {
   accountLinkToken: "alt",
   // Campañas v2 (PR 1)
   phoneHealth: "wph",
+  // Campañas v2 (PR 2)
+  audienceImport: "aud",
   user: "usr",
   account: "acc",
 } as const;

@@ -8,20 +8,36 @@ export type CampaignVariable =
   /** El nombre de pila del destinatario ("Hola {{1}}" → "Hola Ana"). */
   | { kind: "contact_name" };
 
-export type CampaignStatus = "draft" | "sending" | "completed" | "failed";
-export type RecipientStatus = "pending" | "sent" | "failed";
+export type CampaignStatus =
+  | "draft"
+  | "scheduled"
+  | "sending"
+  | "paused"
+  | "completed"
+  | "cancelled"
+  | "failed";
+/**
+ * `sending` = un despachador lo reclamó y está hablando con Meta; `skipped`
+ * = no se le envió por una regla (se dio de baja, se archivó, ya no existe).
+ */
+export type RecipientStatus = "pending" | "sending" | "sent" | "failed" | "skipped";
 
 export const CAMPAIGN_STATUS_LABEL: Record<CampaignStatus, string> = {
   draft: "Borrador",
+  scheduled: "Programada",
   sending: "Enviando",
+  paused: "En pausa",
   completed: "Terminada",
+  cancelled: "Cancelada",
   failed: "Detenida",
 };
 
 export const RECIPIENT_STATUS_LABEL: Record<RecipientStatus, string> = {
   pending: "Pendiente",
+  sending: "Enviando",
   sent: "Enviado",
   failed: "Falló",
+  skipped: "Omitido",
 };
 
 /** Público de una campaña. El consentimiento NO es elegible: siempre opt_in. */
@@ -30,7 +46,11 @@ export type CampaignAudience = {
   source?: string;
 };
 
-export type CampaignCounts = { pending: number; sent: number; failed: number };
+export type CampaignCounts = { pending: number; sending: number; sent: number; failed: number; skipped: number };
+
+export function emptyCounts(): CampaignCounts {
+  return { pending: 0, sending: 0, sent: 0, failed: 0, skipped: 0 };
+}
 
 /**
  * Campañas v2 — estado REAL de entrega, derivado del mensaje de cada

@@ -3,7 +3,7 @@ import { and, asc, eq, sql } from "drizzle-orm";
 import { getDb, getSystemDb, schema } from "@/lib/db";
 import { runWithOrganization } from "@/lib/request-context";
 import { scoped } from "@/lib/db/tenant";
-import { resolveVariables, type CampaignVariable } from "@/lib/campaigns";
+import { emptyCounts, resolveVariables, type CampaignVariable } from "@/lib/campaigns";
 import { publish } from "@/server/events/bus";
 import { getOrCreateConversation } from "@/server/inbox/ingest";
 import { SendError } from "@/server/inbox/send";
@@ -103,7 +103,7 @@ async function progress(organizationId: string, campaignId: string, status: stri
     .from(schema.campaignRecipient)
     .where(eq(schema.campaignRecipient.campaignId, campaignId))
     .groupBy(schema.campaignRecipient.status);
-  const counts = { pending: 0, sent: 0, failed: 0 };
+  const counts = emptyCounts();
   for (const r of rows) counts[r.status] = Number(r.n);
   publish(organizationId, { type: "campaign.progress", data: { campaignId, status, counts } });
 }

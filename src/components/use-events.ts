@@ -30,7 +30,7 @@ export type EventHandlers = {
   onCampaignProgress?: (data: {
     campaignId: string;
     status: string;
-    counts: { pending: number; sent: number; failed: number };
+    counts: { pending: number; sending: number; sent: number; failed: number; skipped: number };
   }) => void;
   /** 026 — Entró o salió un participante de uno o más chats: refetch. */
   onParticipantsChanged?: (data: { contactIds: string[]; userIds: string[] }) => void;

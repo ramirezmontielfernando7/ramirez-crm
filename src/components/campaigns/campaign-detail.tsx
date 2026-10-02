@@ -34,6 +34,8 @@ const RECIPIENT_BADGE: Record<RecipientStatus, "success" | "destructive" | "seco
   sent: "success",
   failed: "destructive",
   pending: "secondary",
+  sending: "secondary",
+  skipped: "secondary",
 };
 
 const DELIVERY_BADGE: Record<DeliveryStatus, "success" | "destructive" | "secondary"> = {

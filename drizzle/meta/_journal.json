@@ -225,6 +225,13 @@
       "when": 1790916015490,
       "tag": "0031_campanas_v2_datos_meta",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1790922412656,
+      "tag": "0032_campanas_v2_envio",
+      "breakpoints": true
     }
   ]
 }

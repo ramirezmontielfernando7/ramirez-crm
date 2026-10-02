@@ -3,6 +3,7 @@ import { getDb, schema } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
 import { scoped } from "@/lib/db/tenant";
 import { countVariables } from "@/lib/templates";
+import { emptyCounts } from "@/lib/campaigns";
 import type {
   CampaignAudience,
   CampaignCounts,
@@ -64,7 +65,7 @@ async function countsFor(campaignIds: string[]): Promise<Map<string, CampaignCou
     .where(inArray(schema.campaignRecipient.campaignId, campaignIds))
     .groupBy(schema.campaignRecipient.campaignId, schema.campaignRecipient.status);
   for (const r of rows) {
-    const c = out.get(r.campaignId) ?? { pending: 0, sent: 0, failed: 0 };
+    const c = out.get(r.campaignId) ?? emptyCounts();
     c[r.status] = Number(r.n);
     out.set(r.campaignId, c);
   }
@@ -123,7 +124,7 @@ function serializeCampaign(
     variables: c.variables as CampaignVariable[],
     audience: c.audience as CampaignAudience,
     total: c.total,
-    counts: counts ?? { pending: 0, sent: 0, failed: 0 },
+    counts: counts ?? emptyCounts(),
     delivery: delivery ?? { delivered: 0, read: 0, failed: 0 },
     error: c.error,
     createdBy: c.createdBy,

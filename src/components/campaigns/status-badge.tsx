@@ -3,8 +3,11 @@ import { Badge } from "@/components/ui/badge";
 
 const VARIANT: Record<CampaignStatus, "secondary" | "warning" | "success" | "destructive"> = {
   draft: "secondary",
+  scheduled: "secondary",
   sending: "warning",
+  paused: "warning",
   completed: "success",
+  cancelled: "secondary",
   failed: "destructive",
 };
 
