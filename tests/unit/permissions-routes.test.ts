@@ -122,6 +122,8 @@ const PROTEGIDAS: [string, Method, Permission][] = [
   ["campaigns/alerts", "GET", "campaigns.manage"],
   ["campaigns/settings", "GET", "campaigns.manage"],
   ["campaigns/settings", "PUT", "campaigns.manage"],
+  ["campaigns/metrics", "GET", "campaigns.manage"],
+  ["campaigns/metrics/export", "GET", "campaigns.manage"],
   ["campaigns/audiences", "GET", "campaigns.manage"],
   ["campaigns/audiences", "POST", "campaigns.manage"],
   ["campaigns/audiences/preview", "POST", "campaigns.manage"],

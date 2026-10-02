@@ -688,7 +688,7 @@ function ReviewSummary({ preview, error }: { preview: CampaignPreview | null; er
             </Link>
           </p>
         )}
-        <p className="mt-1 text-[11px] text-muted-foreground">El reportado por Meta llega con Métricas.</p>
+        <p className="mt-1 text-[11px] text-muted-foreground">Lo reportado por Meta está en la pestaña Métricas.</p>
       </div>
       <div className={cn("rounded-md border p-3", overLimit ? "border-warning-soft bg-warning-tint" : "bg-subtle")} data-testid="review-limit">
         <p className="text-xs text-muted-foreground">Margen del límite de 24 h</p>

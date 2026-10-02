@@ -105,22 +105,42 @@ export async function GET(req: Request, ctx: Params) {
   }
 
   // Campañas v2 — GET {wabaId}?fields=template_analytics… / pricing_analytics…
-  // (los usará la sincronización diaria del PR 3). Datos fijos, misma forma.
+  // (la sincronización diaria del PR 3). Datos fijos, misma forma. Con
+  // `templateAnalyticsDisabled`, Meta responde que no están activas.
   const fieldsParam = new URL(req.url).searchParams.get("fields") ?? "";
   if (path.length === 1 && /template_analytics|pricing_analytics/.test(fieldsParam)) {
     const day = Math.floor(Date.now() / 86_400_000) * 86_400;
+    if (fieldsParam.includes("template_analytics") && getWaMockState().templateAnalyticsDisabled) {
+      return Response.json(
+        {
+          error: {
+            message: "(#100) Template analytics is not enabled for this WhatsApp Business Account (is_enabled_for_insights)",
+            type: "OAuthException",
+            code: 100,
+            fbtrace_id: "mock",
+          },
+        },
+        { status: 400 }
+      );
+    }
     return Response.json({
       id: path[0],
+      ...(fieldsParam.includes("currency") ? { currency: "MXN" } : {}),
       ...(fieldsParam.includes("template_analytics")
         ? {
             template_analytics: {
               data: [
                 {
                   granularity: "DAILY",
-                  data_points: getWaMockState()
-                    .templates.filter((t) => !t.wabaId || t.wabaId === path[0])
-                    .map((t) => ({
-                      template_id: t.id,
+                  // Como Meta: un punto por cada id pedido en `template_ids([...])`
+                  // (el estado del mock se vacía entre secciones del guion).
+                  data_points: (/template_ids\((\[[^)]*\])\)/.exec(fieldsParam)?.[1]
+                    ? (JSON.parse(/template_ids\((\[[^)]*\])\)/.exec(fieldsParam)![1]!) as string[])
+                    : getWaMockState()
+                        .templates.filter((t) => !t.wabaId || t.wabaId === path[0])
+                        .map((t) => t.id)
+                  ).map((id) => ({
+                      template_id: id,
                       start: day,
                       end: day + 86_400,
                       sent: 10,

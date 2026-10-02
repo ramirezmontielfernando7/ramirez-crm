@@ -454,6 +454,44 @@ async function main() {
   }
 
   /* ------------------------------------------------------------ */
+  console.log("\n== 7b. Métricas (PR 3): base propia, analíticas de Meta y CSV ==");
+  // Ana respondió a «Cupones»: cuenta como respuesta (dentro de 72 h).
+  await api("/api/dev/wa-mock/inbound", {
+    method: "POST",
+    body: JSON.stringify({ phoneNumberId: "PN-E2E", from: ana, name: "Ana", text: "¡Gracias!", waMessageId: `wamid.e2e.metricas.${RUN}` }),
+  });
+  await api("/api/dev/wa-mock/analytics", { method: "POST", body: JSON.stringify({ templateAnalyticsDisabled: false, sync: true }) });
+  let met;
+  const metOk = await hasta(async () => {
+    met = (await api("/api/campaigns/metrics")).json;
+    return (met?.campaigns ?? []).find((c) => c.id === id1)?.replied >= 1;
+  });
+  const row1 = (met?.campaigns ?? []).find((c) => c.id === id1);
+  ok("la campaña aparece en la tabla comparativa con su respuesta", metOk && row1?.sent === 2 && row1?.replied >= 1, JSON.stringify(row1));
+  ok("costo por campaña = Estimado (2 × 0.5)", row1?.estimatedCost === 1, JSON.stringify(row1));
+  ok("KPIs del periodo: enviados ≥ 10 y fallidos con motivo en español", met?.totals?.sent >= 10 && (met?.failureReasons ?? []).every((f) => typeof f.reason === "string" && f.reason.length > 0), JSON.stringify(met?.totals));
+  ok("ventana de respuestas de campaign_settings (72 h)", met?.replyWindowHours === 72);
+  ok("serie por día con todos los días del periodo", (met?.series ?? []).length === met?.period?.days, String(met?.series?.length));
+  ok("reportado por Meta sincronizado (pricing_analytics)", met?.cost?.reported > 0 && met?.cost?.reportedCurrency === "MXN" && met?.sync?.pricing?.status === "ok", JSON.stringify(met?.cost));
+  ok("estimado junto a reportado, con la diferencia", met?.cost?.estimated !== null && typeof met?.cost?.difference === "number", JSON.stringify(met?.cost));
+  ok("analíticas de plantillas al día", met?.sync?.template?.status === "ok" && (met?.templates ?? []).some((t) => t.name === tplName), JSON.stringify(met?.sync));
+  const otroNum = (await api("/api/campaigns/metrics?phone=PN-OTRO")).json;
+  ok("filtro por número: otro número no ve las campañas", otroNum?.totals?.sent === 0, JSON.stringify(otroNum?.totals));
+  const malPeriodo = await api("/api/campaigns/metrics?from=2026-02-31");
+  ok("periodo inválido → 422", malPeriodo.res.status === 422, malPeriodo.text);
+  const csv = await api("/api/campaigns/metrics/export");
+  ok(
+    "exportación CSV con la campaña y el total",
+    csv.res.ok && (csv.res.headers.get("content-type") ?? "").includes("text/csv") && csv.text.includes(`Cupones ${RUN}`) && csv.text.includes("Total del periodo"),
+    csv.text.slice(0, 200)
+  );
+  // Meta: «las analíticas de plantillas no están activas» → se dice, lo demás sigue.
+  await api("/api/dev/wa-mock/analytics", { method: "POST", body: JSON.stringify({ templateAnalyticsDisabled: true, sync: true }) });
+  const metOff = (await api("/api/campaigns/metrics")).json;
+  ok("analíticas de plantillas no activas: se avisa", metOff?.sync?.template?.status === "not_enabled", JSON.stringify(metOff?.sync));
+  ok("…y lo demás funciona (KPIs y costo reportado)", metOff?.totals?.sent >= 10 && metOff?.cost?.reported > 0 && metOff?.sync?.pricing?.status === "ok");
+
+  /* ------------------------------------------------------------ */
   console.log("\n== 8. Interfaz (navegador real) ==");
   const browser = await chromium.launch(process.env.PLAYWRIGHT_CHROMIUM ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM } : {});
   try {
@@ -474,7 +512,15 @@ async function main() {
     ok("aviso de pausa de seguridad visible", await banner.waitFor({ timeout: 45000 }).then(() => true, () => false));
 
     await page.goto(`${BASE}/campaigns/metrics`, { timeout: 180000 });
-    ok("Métricas: la ruta existe con su aviso", await page.getByTestId("metrics-soon").waitFor({ timeout: 45000 }).then(() => true, () => false));
+    await page.getByTestId("kpi-sent").waitFor({ timeout: 45000 });
+    ok("UI Métricas: KPIs con porcentajes", /%/.test(await page.getByTestId("kpi-delivered").innerText()));
+    ok("UI Métricas: costo «Estimado» junto a «Reportado por Meta»", (await page.getByTestId("kpi-cost").innerText()).includes("Estimado") && /\d/.test(await page.getByTestId("cost-reported").innerText()));
+    ok("UI Métricas: tabla comparativa de campañas", (await page.getByTestId("metrics-campaigns").innerText()).includes(`Cupones ${RUN}`));
+    ok("UI Métricas: aviso de analíticas de plantillas no activas", await page.getByTestId("template-analytics-disabled").isVisible());
+    ok("UI Métricas: tarjeta «Salud del número»", await page.getByTestId("phone-health-card").isVisible());
+    const [descarga] = await Promise.all([page.waitForEvent("download"), page.getByTestId("metrics-export").click()]);
+    ok("UI Métricas: descarga el CSV", /^metricas-campanas-.*\.csv$/.test(descarga.suggestedFilename()), descarga.suggestedFilename());
+    await api("/api/dev/wa-mock/analytics", { method: "POST", body: JSON.stringify({ templateAnalyticsDisabled: false }) });
 
     // Audiencias: subir con columnas desconocidas, asignarlas, revisar e importar.
     await page.goto(`${BASE}/campaigns/audiences`, { timeout: 180000 });

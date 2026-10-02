@@ -1,10 +1,12 @@
-import { and, eq, inArray, isNull } from "drizzle-orm";
+import { and, eq, inArray, isNull, lt, or } from "drizzle-orm";
 import { getSystemDb, schema } from "@/lib/db";
 import { logger } from "@/lib/log";
 import { utcDay } from "@/lib/phone-health";
 import { runWithOrganization } from "@/lib/request-context";
 import { refreshPhoneHealth } from "@/server/whatsapp/health";
 import { syncTemplates } from "@/server/whatsapp/templates";
+import { campaignsEnabled } from "@/server/campaigns/flag";
+import { syncMetaAnalytics } from "@/server/meta-sync/analytics";
 
 const log = logger("meta-diario");
 
@@ -59,7 +61,59 @@ export async function runDailyMetaSync(): Promise<{ orgs: number; failed: number
       log.error("la sincronización diaria de una organización falló", { org: organizationId, err });
     }
   }
-  return { orgs: pending.length, failed };
+  const analytics = await runDailyAnalyticsSync();
+  return { orgs: pending.length + analytics.orgs, failed: failed + analytics.failed };
+}
+
+/**
+ * Campañas v2 (PR 3) — Analíticas de Meta (plantillas y precios) a la base
+ * propia, una vez al día por organización con el módulo Campañas: las que
+ * no tienen intento de HOY (UTC) en `wa_analytics_sync`. Va aparte de la
+ * salud del número: un «Actualizar» de la mañana no debe saltarse esto.
+ * Un fallo también cuenta como intento: se reintenta mañana, no cada hora.
+ */
+export async function runDailyAnalyticsSync(
+  now: Date = new Date(),
+  opts: { force?: boolean } = {}
+): Promise<{ orgs: number; failed: number }> {
+  const startOfDay = new Date(`${utcDay(now)}T00:00:00Z`);
+  const pending = await getSystemDb()
+    .select({ organizationId: schema.metaCredentials.organizationId })
+    .from(schema.metaCredentials)
+    .innerJoin(schema.organization, eq(schema.organization.id, schema.metaCredentials.organizationId))
+    .leftJoin(
+      schema.waAnalyticsSync,
+      and(
+        eq(schema.waAnalyticsSync.organizationId, schema.metaCredentials.organizationId),
+        eq(schema.waAnalyticsSync.wabaId, schema.metaCredentials.wabaId),
+        eq(schema.waAnalyticsSync.kind, "pricing")
+      )
+    )
+    .where(
+      and(
+        eq(schema.metaCredentials.status, "connected"),
+        eq(schema.organization.status, "active"),
+        // `force`: solo el guion E2E (ruta de mocks), para no esperar a mañana.
+        opts.force ? undefined : or(isNull(schema.waAnalyticsSync.attemptedAt), lt(schema.waAnalyticsSync.attemptedAt, startOfDay))
+      )
+    );
+
+  let failed = 0;
+  let orgs = 0;
+  for (const { organizationId } of pending) {
+    try {
+      await runWithOrganization(organizationId, async () => {
+        if (!(await campaignsEnabled(organizationId))) return;
+        orgs++;
+        const r = await syncMetaAnalytics(organizationId, now);
+        if (r.some((x) => x.status === "error")) failed++;
+      });
+    } catch (err) {
+      failed++;
+      log.error("las analíticas de Meta de una organización fallaron", { org: organizationId, err });
+    }
+  }
+  return { orgs, failed };
 }
 
 const HOUR_MS = 60 * 60 * 1000;
