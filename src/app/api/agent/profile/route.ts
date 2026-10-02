@@ -3,10 +3,13 @@ import { apiError, parseBody, withAuth } from "@/lib/api";
 import { getDb, schema } from "@/lib/db";
 import { scoped } from "@/lib/db/tenant";
 import { isAiConfigured } from "@/lib/env";
+import { moduleOff } from "@/server/modules";
 
 export const dynamic = "force-dynamic";
 
 export const GET = withAuth(async (session) => {
+  const off = await moduleOff(session.organizationId, "agent");
+  if (off) return off;
   const db = getDb();
   const rows = await db
     .select()
@@ -38,6 +41,8 @@ const putSchema = z.object({
 });
 
 export const PUT = withAuth(async (session, req: Request) => {
+  const off = await moduleOff(session.organizationId, "agent");
+  if (off) return off;
   const body = await parseBody(req, putSchema);
   if (!body.ok) return body.response;
 

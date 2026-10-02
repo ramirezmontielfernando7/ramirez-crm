@@ -3,6 +3,7 @@ import { parseBody, withAuth } from "@/lib/api";
 import { TEAM_GROUP_NAME_MAX } from "@/lib/team-chat";
 import { deleteGroup, updateGroup } from "@/server/team-chat/threads";
 import { teamChatErrorResponse } from "@/server/team-chat/errors";
+import { moduleOff } from "@/server/modules";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +19,8 @@ const schema = z
 /** 025 — Renombrar un grupo o reemplazar sus participantes. Otro tenant = 404. */
 export const PATCH = withAuth(
   async (session, req: Request, ctx: Params) => {
+    const off = await moduleOff(session.organizationId, "team_chat");
+    if (off) return off;
     const { id } = await ctx.params;
     const body = await parseBody(req, schema);
     if (!body.ok) return body.response;
@@ -34,6 +37,8 @@ export const PATCH = withAuth(
 /** Borrar un grupo con sus mensajes y archivos. */
 export const DELETE = withAuth(
   async (session, _req: Request, ctx: Params) => {
+    const off = await moduleOff(session.organizationId, "team_chat");
+    if (off) return off;
     const { id } = await ctx.params;
     try {
       await deleteGroup(session, id);

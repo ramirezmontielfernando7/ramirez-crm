@@ -2,6 +2,7 @@ import { withAuth } from "@/lib/api";
 import { isInlineImage } from "@/lib/team-chat";
 import { readAttachment } from "@/server/team-chat/messages";
 import { teamChatErrorResponse } from "@/server/team-chat/errors";
+import { moduleOff } from "@/server/modules";
 
 export const dynamic = "force-dynamic";
 
@@ -13,6 +14,8 @@ type Params = { params: Promise<{ id: string }> };
  * imágenes raster (jpeg/png/webp/gif), descarga con `attachment`.
  */
 export const GET = withAuth(async (session, _req: Request, ctx: Params) => {
+  const off = await moduleOff(session.organizationId, "team_chat");
+  if (off) return off;
   const { id } = await ctx.params;
   try {
     const { row, data } = await readAttachment(session, id);

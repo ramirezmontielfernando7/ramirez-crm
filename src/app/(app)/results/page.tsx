@@ -7,12 +7,13 @@ import { getBranding } from "@/server/branding";
 import { agendaEnabled } from "@/server/agenda/flag";
 import { businessTimezone } from "@/server/analytics/period";
 import { ResultsClient } from "@/components/results/results-client";
+import { requireModulePage } from "@/server/modules/page";
 
 export const dynamic = "force-dynamic";
 
 /**
- * 019 — Resultados. Siempre disponible: no depende de nada externo, así que no
- * lleva bandera (spec 019, D3).
+ * 019 — Resultados. No depende de nada externo; desde el 030 (PR 4) la
+ * plataforma puede apagarlo por organización (encendido por defecto).
  *
  * Moneda, zona y "hoy" se resuelven en el servidor y bajan como props: si los
  * pidiera el cliente, la pantalla pintaría un instante con la moneda o el día
@@ -27,6 +28,8 @@ export default async function ResultsPage() {
   // `/api/analytics/*` lo niegan con 403 por su cuenta; esto evita pintarle
   // una pantalla que solo mostraría errores.
   if (!can(session, "results.read")) redirect("/inbox");
+  // 030 (PR 4): sin el módulo, la pantalla no existe para esta organización.
+  await requireModulePage("results");
   const agenda = await agendaEnabled(session.organizationId);
   const [branding, timezone] = await runWithOrganization(session.organizationId, () =>
     Promise.all([getBranding(session.organizationId), businessTimezone(session.organizationId)])

@@ -3,12 +3,15 @@ import { parseBody, withAuth } from "@/lib/api";
 import { TEAM_GROUP_NAME_MAX } from "@/lib/team-chat";
 import { createGroup, listGroups } from "@/server/team-chat/threads";
 import { teamChatErrorResponse } from "@/server/team-chat/errors";
+import { moduleOff } from "@/server/modules";
 
 export const dynamic = "force-dynamic";
 
 /** 025 — Todos los grupos, para administrarlos (mismo permiso que crearlos). */
 export const GET = withAuth(
   async (session) => {
+    const off = await moduleOff(session.organizationId, "team_chat");
+    if (off) return off;
     try {
       return Response.json({ groups: await listGroups(session.organizationId) });
     } catch (err) {
@@ -29,6 +32,8 @@ const schema = z.object({
  */
 export const POST = withAuth(
   async (session, req: Request) => {
+    const off = await moduleOff(session.organizationId, "team_chat");
+    if (off) return off;
     const body = await parseBody(req, schema);
     if (!body.ok) return body.response;
     try {

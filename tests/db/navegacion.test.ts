@@ -1,5 +1,5 @@
 import { eq, sql } from "drizzle-orm";
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { getDb, getSystemDb, schema, withTenant } from "@/lib/db";
 import { runWithOrganization } from "@/lib/request-context";
 import { defaultLayout, type NavLayoutItem } from "@/lib/modules/nav-layout";
@@ -15,6 +15,7 @@ import {
   resetNavLayout,
   saveNavLayout,
 } from "@/server/navigation/store";
+import { navForSession } from "@/server/navigation/resolve";
 import { borrarOrganizaciones, crearOrganizacion } from "./fixtures";
 
 /**
@@ -24,6 +25,51 @@ import { borrarOrganizaciones, crearOrganizacion } from "./fixtures";
  */
 
 const ACTOR = { userId: "usr_admin_nav", email: "admin@nav.test" };
+
+type Sesion = {
+  userId: string;
+  organizationId: string;
+  role: string;
+  grants: never[];
+  access: { organizationId: string; userId: string; seesAll: boolean };
+};
+const state = vi.hoisted(() => ({ session: null as null | Sesion }));
+
+vi.mock("@/lib/auth/session", async (importOriginal) => {
+  const real = await importOriginal<typeof import("@/lib/auth/session")>();
+  return {
+    ...real,
+    requireSession: async () => {
+      if (!state.session) throw new real.UnauthorizedError();
+      return state.session;
+    },
+    getSessionOrNull: async () => state.session,
+  };
+});
+
+function como(organizationId: string, role: "owner" | "coordinador" | "asesor", userId = `usr_${role}_${organizationId}`): Sesion {
+  state.session = {
+    userId,
+    organizationId,
+    role,
+    grants: [],
+    access: { organizationId, userId, seesAll: role !== "asesor" },
+  };
+  return state.session;
+}
+
+type Handler = (req: Request, ctx: { params: Promise<Record<string, string>> }) => Promise<Response>;
+async function llamar(method: "GET" | "PUT" | "DELETE", route: string, body?: unknown): Promise<Response> {
+  const mod = (await import(`@/app/api/${route.split("?")[0]}/route`)) as Record<string, Handler>;
+  return mod[method]!(
+    new Request(`http://localhost/api/${route}`, {
+      method,
+      headers: { "content-type": "application/json" },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    }),
+    { params: Promise.resolve({}) }
+  );
+}
 
 beforeEach(() => forgetOrgModules());
 
@@ -181,5 +227,121 @@ describe("menú por rol: guardar, restaurar y bitácora", () => {
     const quedan = await getSystemDb().select().from(schema.navLayoutEvent).where(eq(schema.navLayoutEvent.organizationId, C.id));
     expect(quedan).toEqual([]);
     await getSystemDb().delete(schema.user).where(eq(schema.user.id, dueñaC));
+  });
+});
+
+describe("API de Ajustes → Navegación y lo que cada rol ve", () => {
+  let A: { id: string };
+  let B: { id: string };
+  let dueñaA: string;
+  let dueñaB: string;
+  beforeAll(async () => {
+    A = await crearOrganizacion("NavApiA");
+    B = await crearOrganizacion("NavApiB");
+    dueñaA = await usuario(A.id);
+    dueñaB = await usuario(B.id);
+  });
+  afterAll(async () => {
+    state.session = null;
+    await getSystemDb().delete(schema.user).where(eq(schema.user.id, dueñaA));
+    await getSystemDb().delete(schema.user).where(eq(schema.user.id, dueñaB));
+    await borrarOrganizaciones([A.id, B.id]);
+  });
+
+  it("sin custom_nav: 404 al Propietario; el Coordinador recibe 403 antes", async () => {
+    como(A.id, "owner", dueñaA);
+    expect((await llamar("GET", "settings/navigation")).status).toBe(404);
+    expect((await llamar("PUT", "settings/navigation", { role: "asesor", items: asesorSoloBandeja() })).status).toBe(404);
+    como(A.id, "coordinador");
+    expect((await llamar("GET", "settings/navigation")).status).toBe(403);
+    const nav = await navForSession(como(A.id, "owner", dueñaA));
+    expect(nav.customNav).toBe(false);
+  });
+
+  it("con custom_nav: el Propietario oculta y el rol deja de verlo, pero la ruta sigue respondiendo", async () => {
+    await changeOrganizationModules(A.id, { customNav: true }, ACTOR, null);
+    como(A.id, "owner", dueñaA);
+    const res = await llamar("PUT", "settings/navigation", { role: "asesor", items: asesorSoloBandeja() });
+    expect(res.status).toBe(200);
+    const asesor = await navForSession(como(A.id, "asesor"));
+    expect(asesor.main.map((m) => m.key)).not.toContain("knowledge");
+    expect(asesor.main.map((m) => m.key).slice(0, 2)).toEqual(["contacts", "inbox"]);
+    // Oculto ≠ prohibido: Conocimientos sigue respondiendo al Asesor.
+    expect((await llamar("GET", "knowledge")).status).toBe(200);
+    // Y mostrar algo sin permiso no lo abre: Resultados sigue en 403.
+    como(A.id, "owner", dueñaA);
+    const visibleTodo = (await (await llamar("GET", "settings/navigation")).json()) as {
+      roles: Record<string, { items: NavLayoutItem[]; available: string[]; customized: boolean }>;
+    };
+    expect(visibleTodo.roles.asesor?.customized).toBe(true);
+    expect(visibleTodo.roles.asesor?.available).not.toContain("results");
+    await llamar("PUT", "settings/navigation", {
+      role: "asesor",
+      items: visibleTodo.roles.asesor!.items.map((i) => ({ ...i, hidden: false })),
+    });
+    como(A.id, "asesor");
+    expect((await navForSession(state.session!)).main.map((m) => m.key)).not.toContain("results");
+    expect((await llamar("GET", "analytics/sales?from=2026-01-01&to=2026-01-31")).status).toBe(403);
+    // Los otros roles no cambian.
+    const coord = await navForSession(como(A.id, "coordinador"));
+    expect(coord.main.map((m) => m.key)).toContain("knowledge");
+  });
+
+  it("reglas en la API: 422 si el Propietario se oculta Ajustes o un rol queda sin nada", async () => {
+    como(A.id, "owner", dueñaA);
+    const sinAjustes = defaultLayout("owner").map((i) => (i.key === "settings" ? { ...i, hidden: true } : i));
+    const r1 = await llamar("PUT", "settings/navigation", { role: "owner", items: sinAjustes });
+    expect(r1.status).toBe(422);
+    const r2 = await llamar("PUT", "settings/navigation", {
+      role: "coordinador",
+      items: defaultLayout("coordinador").map((i) => ({ ...i, hidden: true })),
+    });
+    expect(((await r2.json()) as { error: { code: string } }).error.code).toBe("empty");
+    expect((await llamar("PUT", "settings/navigation", { role: "x", items: [] })).status).toBe(422);
+  });
+
+  it("restaurar deja el de fábrica y queda en la bitácora", async () => {
+    como(A.id, "owner", dueñaA);
+    expect((await llamar("DELETE", "settings/navigation?role=asesor")).status).toBe(200);
+    const asesor = await navForSession(como(A.id, "asesor"));
+    expect(asesor.main.map((m) => m.key)).toContain("knowledge");
+    como(A.id, "owner", dueñaA);
+    const body = (await (await llamar("GET", "settings/navigation")).json()) as { events: { action: string; role: string }[] };
+    expect(body.events[0]).toMatchObject({ role: "asesor", action: "reset" });
+  });
+
+  it("un módulo apagado no aparece ni responde, aunque el menú lo muestre (403 primero si falta permiso)", async () => {
+    await changeOrganizationModules(A.id, { knowledge: false, results: false }, ACTOR, null);
+    const owner = await navForSession(como(A.id, "owner", dueñaA));
+    expect(owner.main.map((m) => m.key)).not.toContain("knowledge");
+    expect(owner.main.map((m) => m.key)).not.toContain("results");
+    expect((await llamar("GET", "knowledge")).status).toBe(404);
+    expect((await llamar("GET", "analytics/sales?from=2026-01-01&to=2026-01-31")).status).toBe(404);
+    como(A.id, "asesor");
+    expect((await llamar("GET", "knowledge")).status).toBe(404);
+    expect((await llamar("GET", "analytics/sales?from=2026-01-01&to=2026-01-31")).status).toBe(403);
+    // El editor tampoco lo ofrece como disponible.
+    como(A.id, "owner", dueñaA);
+    const body = (await (await llamar("GET", "settings/navigation")).json()) as { roles: Record<string, { available: string[] }> };
+    expect(body.roles.owner?.available).not.toContain("knowledge");
+    await changeOrganizationModules(A.id, { knowledge: true, results: true }, ACTOR, null);
+  });
+
+  it("aislamiento: B no ve ni cambia el menú de A", async () => {
+    como(A.id, "owner", dueñaA);
+    await llamar("PUT", "settings/navigation", { role: "asesor", items: asesorSoloBandeja() });
+    await changeOrganizationModules(B.id, { customNav: true }, ACTOR, null);
+    como(B.id, "owner", dueñaB);
+    const deB = (await (await llamar("GET", "settings/navigation")).json()) as {
+      roles: Record<string, { customized: boolean }>;
+      events: unknown[];
+    };
+    expect(deB.roles.asesor?.customized).toBe(false);
+    expect(deB.events).toEqual([]);
+    await llamar("DELETE", "settings/navigation?role=asesor");
+    const asesorA = await navForSession(como(A.id, "asesor"));
+    expect(asesorA.main.map((m) => m.key).slice(0, 2)).toEqual(["contacts", "inbox"]);
+    const asesorB = await navForSession(como(B.id, "asesor"));
+    expect(asesorB.main.map((m) => m.key)[0]).toBe("inbox");
   });
 });

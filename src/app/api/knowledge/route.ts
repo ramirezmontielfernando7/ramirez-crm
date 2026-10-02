@@ -2,6 +2,7 @@ import { apiError, withAuth } from "@/lib/api";
 import { createKnowledge, knowledgeTags, listKnowledge, serializeKnowledge } from "@/server/knowledge/store";
 import { readKnowledgeInput } from "@/server/knowledge/input";
 import { MediaValidationError } from "@/server/whatsapp/media";
+import { moduleOff } from "@/server/modules";
 
 export const dynamic = "force-dynamic";
 
@@ -11,6 +12,8 @@ export const dynamic = "force-dynamic";
  * clientes.
  */
 export const GET = withAuth(async (session, req: Request) => {
+  const off = await moduleOff(session.organizationId, "knowledge");
+  if (off) return off;
   const url = new URL(req.url);
   const [entries, tags] = await Promise.all([
     listKnowledge(session.organizationId, {
@@ -24,6 +27,8 @@ export const GET = withAuth(async (session, req: Request) => {
 
 /** Crear: Propietario y Coordinador. Texto, archivo o ambos. */
 export const POST = withAuth(async (session, req: Request) => {
+  const off = await moduleOff(session.organizationId, "knowledge");
+  if (off) return off;
   const input = await readKnowledgeInput(req);
   if (!input.ok) return input.response;
   const { title, body = "", tags = [], file } = input.data;

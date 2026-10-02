@@ -4,6 +4,7 @@ import { apiError, parseBody, withAuth } from "@/lib/api";
 import { getDb, schema } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
 import { scoped } from "@/lib/db/tenant";
+import { moduleOff } from "@/server/modules";
 
 export const dynamic = "force-dynamic";
 
@@ -20,6 +21,8 @@ const bodySchema = z.object({
 });
 
 export const POST = withAuth(async (session, req: Request) => {
+  const off = await moduleOff(session.organizationId, "lab");
+  if (off) return off;
   const body = await parseBody(req, bodySchema);
   if (!body.ok) return body.response;
 

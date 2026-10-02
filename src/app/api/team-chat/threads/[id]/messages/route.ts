@@ -3,6 +3,7 @@ import { apiError, withAuth } from "@/lib/api";
 import { TEAM_MESSAGE_MAX, TEAM_PAGE_MAX } from "@/lib/team-chat";
 import { listMessages, postMessage, type TeamFileInput } from "@/server/team-chat/messages";
 import { teamChatErrorResponse } from "@/server/team-chat/errors";
+import { moduleOff } from "@/server/modules";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +19,8 @@ const pageSchema = z.object({
  * 404 si quien pregunta no participa (ni supervisa).
  */
 export const GET = withAuth(async (session, req: Request, ctx: Params) => {
+  const off = await moduleOff(session.organizationId, "team_chat");
+  if (off) return off;
   const { id } = await ctx.params;
   const url = new URL(req.url);
   const page = pageSchema.safeParse({
@@ -48,6 +51,8 @@ const textSchema = z.object({ body: z.string().max(TEAM_MESSAGE_MAX * 2) });
  * se valida en el servidor (TEAM_MESSAGE_MAX); SVG y HTML se rechazan.
  */
 export const POST = withAuth(async (session, req: Request, ctx: Params) => {
+  const off = await moduleOff(session.organizationId, "team_chat");
+  if (off) return off;
   const { id } = await ctx.params;
   let body = "";
   let file: TeamFileInput | null = null;

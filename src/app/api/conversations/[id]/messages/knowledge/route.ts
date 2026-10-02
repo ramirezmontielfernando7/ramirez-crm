@@ -5,6 +5,7 @@ import { SendError } from "@/server/inbox/send";
 import { deliverKnowledgeEntry, KnowledgeDeliveryError } from "@/server/knowledge/deliver";
 import { getKnowledge } from "@/server/knowledge/store";
 import { MediaValidationError } from "@/server/whatsapp/media";
+import { moduleOff } from "@/server/modules";
 
 export const dynamic = "force-dynamic";
 
@@ -31,6 +32,8 @@ const SEND_ERROR_STATUS: Record<SendError["code"], number> = {
  * que pueda ver (020: el ajeno es 404).
  */
 export const POST = withAuth(async (session, req: Request, ctx: Params) => {
+  const off = await moduleOff(session.organizationId, "knowledge");
+  if (off) return off;
   const { id } = await ctx.params;
   if (!(await getConversation(session.access, id))) {
     return apiError(404, "not_found", "Conversación no encontrada");

@@ -3,6 +3,7 @@ import { parseBody, withAuth } from "@/lib/api";
 import { TEAM_MESSAGE_MAX } from "@/lib/team-chat";
 import { deleteMessage, editMessage, readMessage } from "@/server/team-chat/messages";
 import { teamChatErrorResponse } from "@/server/team-chat/errors";
+import { moduleOff } from "@/server/modules";
 
 export const dynamic = "force-dynamic";
 
@@ -13,6 +14,8 @@ type Params = { params: Promise<{ id: string }> };
  * evento SSE viaja neutro). Hilo que no ve = 404.
  */
 export const GET = withAuth(async (session, _req: Request, ctx: Params) => {
+  const off = await moduleOff(session.organizationId, "team_chat");
+  if (off) return off;
   const { id } = await ctx.params;
   try {
     return Response.json({ message: await readMessage(session, id) });
@@ -28,6 +31,8 @@ const editSchema = z.object({ body: z.string().max(TEAM_MESSAGE_MAX * 2) });
  * supervisión nunca edita (403); un hilo que no ve es 404.
  */
 export const PATCH = withAuth(async (session, req: Request, ctx: Params) => {
+  const off = await moduleOff(session.organizationId, "team_chat");
+  if (off) return off;
   const { id } = await ctx.params;
   const body = await parseBody(req, editSchema);
   if (!body.ok) return body.response;
@@ -41,6 +46,8 @@ export const PATCH = withAuth(async (session, req: Request, ctx: Params) => {
 
 /** Borrar (suave) un mensaje propio: queda "Mensaje eliminado" y el adjunto se borra. */
 export const DELETE = withAuth(async (session, _req: Request, ctx: Params) => {
+  const off = await moduleOff(session.organizationId, "team_chat");
+  if (off) return off;
   const { id } = await ctx.params;
   try {
     const { message } = await deleteMessage(session, id);

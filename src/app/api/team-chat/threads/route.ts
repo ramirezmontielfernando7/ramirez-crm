@@ -2,6 +2,7 @@ import { z } from "zod";
 import { parseBody, withAuth } from "@/lib/api";
 import { listThreads, openDirect } from "@/server/team-chat/threads";
 import { teamChatErrorResponse } from "@/server/team-chat/errors";
+import { moduleOff } from "@/server/modules";
 
 export const dynamic = "force-dynamic";
 
@@ -12,6 +13,8 @@ export const dynamic = "force-dynamic";
  * Visibilidad por MEMBRESÍA, no por `scope.all`.
  */
 export const GET = withAuth(async (session) => {
+  const off = await moduleOff(session.organizationId, "team_chat");
+  if (off) return off;
   try {
     return Response.json(await listThreads(session));
   } catch (err) {
@@ -23,6 +26,8 @@ const directSchema = z.object({ userId: z.string().min(1).max(64) });
 
 /** Abre (o reutiliza) un directo con otra persona de la organización. */
 export const POST = withAuth(async (session, req: Request) => {
+  const off = await moduleOff(session.organizationId, "team_chat");
+  if (off) return off;
   const body = await parseBody(req, directSchema);
   if (!body.ok) return body.response;
   try {

@@ -4,6 +4,7 @@ import { scoped } from "@/lib/db/tenant";
 import { getEnv, isAiConfigured } from "@/lib/env";
 import { hasActiveBotKey } from "@/server/bot/keys";
 import { isPlatformOrg } from "@/server/platform";
+import { orgHasModule } from "@/server/modules";
 import {
   botLastSeenAt,
   computeBrainStatus,
@@ -31,9 +32,11 @@ export const GET = withAuth(async (session) => {
       : Promise.resolve(null),
     hasActiveBotKey(session.organizationId),
   ]);
+  // 030 (PR 4): con el módulo Agente apagado, el agente incluido no contesta.
+  const agentModule = await orgHasModule(session.organizationId, "agent");
   const status = computeBrainStatus({
     aiConfigured: isAiConfigured(),
-    agentEnabled: rows[0]?.enabled ?? false,
+    agentEnabled: agentModule && (rows[0]?.enabled ?? false),
     botKeyConfigured,
     lastSeenAt: botLastSeenAt(session.organizationId),
     health,

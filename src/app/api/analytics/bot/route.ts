@@ -3,11 +3,14 @@ import { resultsScope } from "@/server/analytics/scope";
 import { PeriodError, periodFromRequest } from "@/server/analytics/period";
 import { botBlock } from "@/server/analytics/bot";
 import { agendaEnabled } from "@/server/agenda/flag";
+import { moduleOff } from "@/server/modules";
 
 export const dynamic = "force-dynamic";
 
 /** 019 — El trabajo del agente. Las citas, solo con la agenda de la organización. */
 export const GET = withAuth(async (session, req: Request) => {
+  const off = await moduleOff(session.organizationId, "results");
+  if (off) return off;
   const url = new URL(req.url);
   const who = resultsScope(session, url);
   if (!who.ok) return forbidden();

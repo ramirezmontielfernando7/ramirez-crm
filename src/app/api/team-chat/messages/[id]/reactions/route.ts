@@ -2,6 +2,7 @@ import { z } from "zod";
 import { parseBody, withAuth } from "@/lib/api";
 import { setReaction } from "@/server/team-chat/messages";
 import { teamChatErrorResponse } from "@/server/team-chat/errors";
+import { moduleOff } from "@/server/modules";
 
 export const dynamic = "force-dynamic";
 
@@ -11,6 +12,8 @@ const schema = z.object({ emoji: z.string().min(1).max(16) });
 
 /** 025 — Poner una reacción propia (idempotente). La supervisión no reacciona. */
 export const PUT = withAuth(async (session, req: Request, ctx: Params) => {
+  const off = await moduleOff(session.organizationId, "team_chat");
+  if (off) return off;
   const { id } = await ctx.params;
   const body = await parseBody(req, schema);
   if (!body.ok) return body.response;
@@ -24,6 +27,8 @@ export const PUT = withAuth(async (session, req: Request, ctx: Params) => {
 
 /** Quitar una reacción propia. */
 export const DELETE = withAuth(async (session, req: Request, ctx: Params) => {
+  const off = await moduleOff(session.organizationId, "team_chat");
+  if (off) return off;
   const { id } = await ctx.params;
   const body = await parseBody(req, schema);
   if (!body.ok) return body.response;
