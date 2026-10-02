@@ -51,6 +51,8 @@ const PROTEGIDAS: [string, Method, Permission][] = [
   ["settings/whatsapp", "PUT", "settings.manage"],
   ["settings/whatsapp/test", "POST", "settings.manage"],
   ["settings/webhook", "GET", "settings.manage"],
+  ["settings/messaging", "GET", "settings.manage"],
+  ["settings/messaging", "PUT", "settings.manage"],
   ["settings/instagram", "GET", "settings.manage"],
   ["settings/instagram", "PUT", "settings.manage"],
   ["settings/messenger", "GET", "settings.manage"],
