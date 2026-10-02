@@ -26,7 +26,7 @@ oficial.
 | `POST {app-id}/uploads?file_length&file_type` → `POST {upload-id}` (cabecera `file_offset: 0`, `Authorization: OAuth …`) | `{id: "upload:…"}` y luego `{h}` = `header_handle` del ejemplo de imagen | token del sistema + **`META_APP_ID`** | — | 1 |
 | `GET {phone-number-id}?fields=quality_rating,status,throughput,name_status,messaging_limit_tier,whatsapp_business_manager_messaging_limit` | calidad (GREEN, YELLOW, RED, UNKNOWN; `NA` es sinónimo de UNKNOWN), estado, rendimiento, estado del nombre y límite (TIER_250…UNLIMITED). Si Meta rechaza un campo (código 100), Vocero reintenta con `quality_rating,status,name_status,messaging_limit_tier` | management | — | 1 |
 | `POST {phone-number-id}/media` | `id` del archivo (la imagen del encabezado al ENVIAR la plantilla) | messaging | — | 1 |
-| `GET {waba}?fields=template_analytics…` | enviados, entregados, leídos y clics de botón por plantilla y día; **retención 90 días** | management | Puede requerir activar las analíticas de plantillas en la WABA | 3 |
+| `GET {waba}?fields=template_analytics…` | enviados, entregados, leídos y clics de botón por plantilla y día; **retención 90 días** (detalle en "PR 3", abajo) | management | Puede requerir activar las analíticas de plantillas en la WABA | 3 |
 | `GET {waba}?fields=pricing_analytics…` | volumen y costo por día, país, categoría y tipo; **retención 1 año** (desde el 1-dic-2025; antes 10 años) | management | — | 3 |
 | `conversation_analytics` | Sigue existiendo, pero describe el cobro por conversación, reemplazado por el cobro por mensaje el 1-jul-2025 | — | — | **No se usa** |
 | Error **131049** | Meta no entregó un mensaje de marketing para "cuidar el ecosistema" (límite de marketing por usuario, sumando a todas las empresas). Reintentar antes de 24 h no sirve | — | aprox. 2 plantillas de marketing por usuario al día; utility y authentication exentas (las cifras NO se usan en el código) | 1 (traducción), 2 (no reintentar), 3 (motivo) |
@@ -93,6 +93,49 @@ ajusto antes de fusionar:
 12. **Límites de uso**: el rate limit de Business Management API para
     `message_templates` y para el nodo del número (la sincronización diaria
     hace 1 lectura por número y N/100 páginas de plantillas al día).
+
+## PR 3 — Analíticas: qué pide Vocero y qué confirmar a mano
+
+La sincronización diaria (`src/server/meta-sync/analytics.ts`) hace, por
+WABA, llamadas `GET {waba-id}?fields=…` con **expansión de campos**:
+
+```
+template_analytics.start(<unix>).end(<unix>).granularity(DAILY)
+  .metric_types(["SENT","DELIVERED","READ","CLICKED"])
+  .template_ids(["<id>", …])            # hasta 10 por llamada, tramos de 30 días
+
+currency,pricing_analytics.start(<unix>).end(<unix>).granularity(DAILY)
+  .dimensions(["PRICING_CATEGORY","PRICING_TYPE","COUNTRY","PHONE"])  # tramos de 90 días
+```
+
+Lee `…data[].data_points[]`: en plantillas `template_id`, `start`, `sent`,
+`delivered`, `read`, `clicked[]` (`type`, `button_content`, `count`); en
+precios `start`, `volume`, `cost`, `country`, `pricing_category`,
+`pricing_type` y `phone_number` (o `phone_number_id`). La lectura es
+tolerante: lo que no venga queda en 0 o vacío y nunca tumba la
+sincronización. Primera vez: 90 días de plantillas y 1 año de precios;
+luego, desde 3 días antes de la última.
+
+**NO VERIFICADO** (confirmar antes de fusionar el PR 3, en tu sesión local):
+
+13. **Sintaxis de `template_analytics`**: nombres `metric_types`,
+    `template_ids` (¿obligatorio?, ¿tope de 10?), `granularity(DAILY)` y
+    si el rango máximo por llamada admite 30 días.
+14. **"Analíticas no activas"**: el código y texto exactos del error cuando
+    la WABA no las tiene activas. Vocero lo reconoce por palabras
+    (`is_enabled_for_insights`, "not enabled", "analytics…disabled"); si el
+    texto real es otro, la tarjeta dirá "la última sincronización falló"
+    en vez de "no están activas" (lo demás funciona igual). Cómo se activan
+    (Administrador de WhatsApp o `POST {waba}?is_enabled_for_insights=true`).
+15. **Sintaxis de `pricing_analytics`**: `dimensions` con `PHONE`, el
+    nombre del campo del número en cada punto, y que `cost` venga en la
+    moneda de la WABA (`currency` del nodo WABA).
+16. **Paginación**: Vocero NO sigue `paging.next` dentro de la expansión;
+    pide tramos chicos para no necesitarla. Si Meta pagina antes, faltarían
+    días.
+17. **Retenciones**: 90 días de plantillas y 1 año de precios (si el inicio
+    queda fuera, Meta podría rechazar la llamada; Vocero empieza un día
+    dentro).
 
 ## Fuentes (secundarias)
 

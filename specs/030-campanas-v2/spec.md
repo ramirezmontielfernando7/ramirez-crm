@@ -8,7 +8,7 @@ y despliega antes de empezar el siguiente.
 |---|---|---|
 | 1 | Fundamentos de datos de Meta (este documento, sección PR 1) | 0031 |
 | 2 | Campañas v2: pestañas, audiencias .xlsx/.csv, asistente de 3 pasos, cola por número | 0032 |
-| 3 | Métricas: KPIs, analíticas de Meta a la base propia, conciliación de costo | 0033 (por confirmar) |
+| 3 | Métricas: KPIs, analíticas de Meta a la base propia, conciliación de costo | 0033 |
 | 4 | Registro de módulos y navegación personalizable por rol | 0034 (por confirmar) |
 
 Decisiones del dueño (no se repreguntan): solo `opt_in` recibe campañas; los
@@ -160,3 +160,63 @@ Referencia de la API de Meta y lo NO VERIFICADO:
 - BD real: `tests/db/audiencias.test.ts`, `tests/db/cola-campanas.test.ts`
   (dos despachadores, reclamo concurrente, recuperación, programador).
 - E2E: `scripts/e2e-campanas-v2.mjs` (guion `tests/e2e/us-campanas-v2.md`).
+
+## PR 3 — Métricas
+
+### Historias
+
+1. **Analíticas de Meta en la base propia.** La sincronización diaria (el
+   mismo temporizador del PR 1, una vez al día por organización con el
+   módulo Campañas) copia `template_analytics` (enviados, entregados,
+   leídos y clics por plantilla y día) y `pricing_analytics` (volumen y
+   costo por día, número, país, categoría y tipo, con la moneda de la WABA).
+   La primera vez trae 90 días de plantillas y 1 año de precios; después,
+   desde 3 días antes de la última sincronización (Meta corrige días
+   recientes). Upsert por llave: repetir no duplica. Ninguna pantalla
+   consulta a Meta en vivo.
+2. **Pestaña Métricas.** KPIs sencillos del periodo: enviados (aceptados
+   por Meta), entregados (%), leídos (%), respondieron (%), fallidos con
+   motivo en español, bajas y costo estimado. Gráfica por día (por mes en
+   rangos de más de 92 días), tabla comparativa de campañas, filtros por
+   periodo (zona del negocio) y por número, exportación CSV.
+3. **Respuestas** = mensajes entrantes del contacto en esa conversación
+   dentro de `campaign_settings.reply_window_hours` (72 h por defecto,
+   editable en Ajustes de envío) tras el envío.
+4. **Conciliación honesta.** Costo por campaña = "Estimado" (lo estimado al
+   lanzar, prorrateado por lo enviado; o la tarifa de hoy si al lanzar no
+   había). Los totales del periodo muestran "Estimado" junto a "Reportado
+   por Meta" y la diferencia; si falta uno de los dos o las monedas no
+   coinciden, no se resta y se dice por qué. Lo reportado incluye todos los
+   mensajes cobrados del número (no solo campañas) y va en días UTC.
+5. **Salud del número**: la misma tarjeta del PR 1.
+6. **Analíticas no activas.** Si Meta responde que las analíticas de
+   plantillas no están activas en la WABA, se anota (`not_enabled`), la
+   tarjeta lo dice y lo demás (KPIs, costo reportado) funciona.
+
+### Diseño
+
+- Migración `0033_campanas_v2_metricas.sql`, solo aditiva e idempotente;
+  reversa opcional `scripts/sql/0033-reversa.sql` (revertir = imagen
+  anterior).
+- Tablas nuevas de dominio con RLS forzado e índices que empiezan por
+  organización: `wa_template_analytics_daily`, `wa_pricing_analytics_daily`
+  y `wa_analytics_sync` (estado de la última sincronización de cada una;
+  decide primera carga o diaria y guarda el "no activas").
+- `src/lib/meta-analytics.ts` (ventana, tramos, lectura tolerante de las
+  respuestas, detección de "no activas") · `src/server/meta-sync/analytics.ts`
+  (Meta fuera de transacción, escritura en `withTenant`) · `daily.ts`
+  (`runDailyAnalyticsSync`).
+- `src/lib/campaign-metrics.ts` (contratos, porcentajes, conciliación, CSV)
+  · `src/server/campaigns/metrics.ts` · `GET /api/campaigns/metrics` y
+  `/export` (`campaigns.manage`) · UI `src/components/campaigns/metrics-client.tsx`.
+- wa-mock: moneda y modo "analíticas no activas"; `POST
+  /api/dev/wa-mock/analytics` corre la sincronización ya (solo con mocks).
+
+### Pruebas
+
+- Unitarias: `tests/unit/meta-analytics.test.ts` (ventana, lectura,
+  no activas, costo, conciliación, CSV) y guardarraíles.
+- BD real: `tests/db/metricas.test.ts` (primera carga y diaria, upsert,
+  no activas, KPIs con respuestas en 72 h y bajas, filtro por número,
+  aislamiento, una vez al día).
+- E2E: sección 7b y la interfaz de `scripts/e2e-campanas-v2.mjs`.
