@@ -8,6 +8,7 @@ import {
 } from "@/server/inbox/webhook";
 import { processEchoesValue, processMessagesValue } from "@/server/inbox/ingest";
 import { processTemplateStatusValue } from "@/server/whatsapp/template-events";
+import { isWabaField, processWabaEvent } from "@/server/whatsapp/waba-events";
 import { logger } from "@/lib/log";
 
 const log = logger("webhook");
@@ -103,6 +104,10 @@ async function processPayload(payload: WebhookPayload): Promise<void> {
         await processEchoesValue(change.value);
       } else if (change.field === "message_template_status_update") {
         await processTemplateStatusValue(entry.id ?? null, change.value);
+      } else if (isWabaField(change.field)) {
+        // Campañas v2: salud del número, avisos de la cuenta y cambio de
+        // categoría de plantillas (a nivel WABA).
+        await processWabaEvent(change.field, entry.id ?? null, change.value as Record<string, unknown>);
       }
       // otros fields: ignorar sin error
     }

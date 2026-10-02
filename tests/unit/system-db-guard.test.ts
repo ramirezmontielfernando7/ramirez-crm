@@ -75,6 +75,10 @@ const PERMITIDOS: Record<string, { usos: number; motivo: string }> = {
     usos: 1,
     motivo: "arranque: campañas que quedaron enviando en TODAS las organizaciones (cada ejecutor sigue luego a nombre de la suya)",
   },
+  "src/server/meta-sync/daily.ts": {
+    usos: 1,
+    motivo: "Campañas v2: la sincronización diaria con Meta lista las organizaciones activas con número conectado (cruza organizaciones); el trabajo de cada una corre luego a nombre de la suya",
+  },
   "src/app/api/health/route.ts": {
     usos: 2,
     motivo: "salud: `select 1` en los dos pools, sin organización",

@@ -1,3 +1,4 @@
+import { PhoneHealthCard } from "@/components/number-health";
 import { OptOutSettings } from "@/components/settings/opt-out-settings";
 import { WhatsappWizard } from "@/components/settings/whatsapp-wizard";
 import { requirePagePermission } from "@/lib/auth/page-guard";
@@ -10,6 +11,7 @@ export default async function WhatsappSettingsPage() {
   return (
     <div className="space-y-6">
       <WhatsappWizard />
+      <PhoneHealthCard />
       <OptOutSettings />
     </div>
   );

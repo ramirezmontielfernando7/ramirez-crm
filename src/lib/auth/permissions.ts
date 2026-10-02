@@ -52,6 +52,11 @@ const statements = {
    * ajustes de supervisión.
    */
   team_chat: ["create_groups", "announce", "oversee"],
+  /**
+   * Campañas v2 — ver la salud del número de WhatsApp (calidad, límite, uso
+   * del día), sus alertas, y pedir a Meta una lectura nueva ("Actualizar").
+   */
+  number_health: ["read"],
 } as const;
 
 export const ac = createAccessControl(statements);
@@ -70,6 +75,7 @@ const owner = ac.newRole({
   results: ["read", "all"],
   knowledge: ["manage"],
   team_chat: ["create_groups", "announce", "oversee"],
+  number_health: ["read"],
 });
 
 /** Operación: reparte, ve todo, edita etapas y plantillas. No configura. */
@@ -90,6 +96,8 @@ const coordinador = ac.newRole({
   // 025: publica avisos. Crear grupos solo si el Propietario lo delega
   // (DELEGABLE, abajo); supervisar, nunca.
   team_chat: ["announce"],
+  // Campañas v2: opera las campañas, así que ve la salud del número.
+  number_health: ["read"],
 });
 
 /** Solo lo suyo: sus chats y sus leads (que sí puede mover). Sin Resultados (022). */
@@ -128,7 +136,8 @@ export type Permission =
   | "knowledge.manage"
   | "team_chat.create_groups"
   | "team_chat.announce"
-  | "team_chat.oversee";
+  | "team_chat.oversee"
+  | "number_health.read";
 
 /**
  * 025 — Permisos que el Propietario puede DELEGAR por organización, desde
