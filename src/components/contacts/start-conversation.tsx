@@ -40,7 +40,7 @@ export function StartConversation({
       const res = await fetch("/api/templates").catch(() => null);
       if (!res?.ok) return setTemplates([]);
       const data = (await res.json()) as { templates: TemplateDto[] };
-      const aprobadas = data.templates.filter((t) => t.status === "approved");
+      const aprobadas = data.templates.filter((t) => t.status === "approved" && t.sendable !== false);
       setTemplates(aprobadas);
       setTemplateId(aprobadas[0]?.id ?? "");
     })();

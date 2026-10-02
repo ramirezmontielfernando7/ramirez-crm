@@ -187,6 +187,8 @@ jobs:
             echo "CAMPAIGNS=on"
             echo "AGENDA=on"
             echo "MEDIA_DIR=./.dev-media"
+            # Campañas v2: con App ID se prueba la plantilla con imagen.
+            echo "META_APP_ID=1234567890"
           } > .env
       # `next dev` y no `next start`: el build fija NODE_ENV=production y con
       # eso los mocks (wa-mock, ai-mock) responden 404 por diseño.
@@ -218,6 +220,8 @@ jobs:
           node --env-file=.env scripts/e2e-plataforma.mjs
           # Fase 3, PR 3: módulos por organización.
           node --env-file=.env scripts/e2e-modulos.mjs
+          # Campañas v2, PR 1: datos de Meta (estados, bajas, salud, plantillas).
+          node --env-file=.env scripts/e2e-datos-meta.mjs
       - name: logs de la app
         if: ${{ failure() }}
         run: tail -n 200 app1.log app2.log || true

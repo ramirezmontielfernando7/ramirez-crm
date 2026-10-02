@@ -39,6 +39,23 @@ const DESCRIPTIONS: Record<number, string> = {
     "La plantilla está pausada por baja calidad: Meta no la deja enviar hasta que se recupere.",
   132016:
     "La plantilla fue deshabilitada por calidad y ya no se puede enviar.",
+  131050:
+    "El contacto dejó de recibir mensajes de marketing de tu negocio desde WhatsApp. No se le volverá a entregar marketing.",
+  131051: "Ese tipo de mensaje no está soportado por WhatsApp.",
+  131052: "No se pudo descargar el archivo que mandó el cliente.",
+  131053: "No se pudo subir el archivo a WhatsApp (formato o tamaño no válido).",
+  131056:
+    "Demasiados mensajes seguidos de tu número a ESTE contacto. Espera un poco antes de volver a escribirle.",
+  131042:
+    "Hay un problema con el método de pago de tu cuenta de WhatsApp Business. Revísalo en el Administrador de WhatsApp.",
+  131045: "El número no tiene certificado de registro válido.",
+  131008: "Falta un parámetro obligatorio en el mensaje.",
+  131009: "Un parámetro del mensaje no es válido.",
+  131016: "WhatsApp no está disponible en este momento. Se puede reintentar más tarde.",
+  131021: "El destinatario es tu propio número: no se puede enviar a sí mismo.",
+  131000: "Meta tuvo un error desconocido al enviar. Reintenta más tarde.",
+  80007: "Tu cuenta de WhatsApp Business alcanzó su límite de uso de la API. Reintenta en unos minutos.",
+  4: "Tu app de Meta alcanzó su límite de llamadas a la API. Reintenta en unos minutos.",
   133010: "El número no está registrado en la Cloud API.",
   368: "El número está temporalmente bloqueado por infringir las políticas de Meta.",
 };

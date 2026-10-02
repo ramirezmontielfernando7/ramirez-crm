@@ -29,5 +29,9 @@ export async function register(): Promise<void> {
     // Fase 3: eventos sin organización, 7 días (al arrancar y cada hora).
     const { startUnroutedPurge } = await import("@/server/webhooks/unrouted");
     await startUnroutedPurge();
+    // Campañas v2: salud del número y plantillas de Meta, una vez al día por
+    // organización (revisa cada hora; no frena el arranque).
+    const { startDailyMetaSync } = await import("@/server/meta-sync/daily");
+    startDailyMetaSync();
   }
 }

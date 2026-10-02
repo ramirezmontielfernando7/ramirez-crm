@@ -1,5 +1,6 @@
 "use client";
 
+import { PhoneHealthCard } from "@/components/number-health";
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { Megaphone, Plus } from "lucide-react";
@@ -55,6 +56,10 @@ export function CampaignsClient() {
       </header>
 
       <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+        {/* Campañas v2: antes de mandar, cómo está el número. */}
+        <div className="mb-4">
+          <PhoneHealthCard />
+        </div>
         {error && (
           <p role="alert" className="mb-3 rounded-md border border-danger-soft bg-danger-tint px-3 py-2 text-sm text-danger-text">
             {error}
@@ -63,7 +68,7 @@ export function CampaignsClient() {
         {campaigns === null ? (
           !error && <p className="text-sm text-muted-foreground">Cargando…</p>
         ) : campaigns.length === 0 ? (
-          <div className="flex h-full flex-col items-center justify-center gap-2 text-center">
+          <div className="flex flex-col items-center justify-center gap-2 py-12 text-center">
             <Megaphone className="h-8 w-8 text-text-3" strokeWidth={1.5} />
             <p className="text-sm font-medium">Sin campañas todavía</p>
             <p className="max-w-sm text-xs text-muted-foreground">

@@ -44,6 +44,12 @@ externas: el trabajo en segundo plano (agente, Laboratorio) es in-process.
 | La cuota de IA por organización | `src/server/ai-quota/` (`chatJsonForOrg` es la ÚNICA forma de llamar al modelo: test de vigilancia) · topes en `ai_quota`, consumo en `ai_usage` · operador: `scripts/ai-quota.mjs` |
 | Los canales opcionales (Instagram, Messenger; ADR-001) | `src/lib/channels.ts` (catálogo) · `src/server/channels/` (capacidades; canales encendidos por organización: `enabled.ts` → `src/server/modules/`) · `src/server/instagram/` · `src/server/messenger/` · `src/server/zernio/` (transporte y firma de la API unificada, compartido) |
 | Campos/tablas | `src/lib/db/schema.ts` → `pnpm db:generate` → migración nueva en `drizzle/` |
+| Estados del mensaje (horas, `pricing`, error de Meta; monotónico y atómico) | `src/server/inbox/status.ts` · traducción de errores en `src/lib/meta/send-errors.ts` · referencia de la API de Meta y lo NO VERIFICADO: [docs/campanas-v2-meta.md](docs/campanas-v2-meta.md) · spec [030](specs/030-campanas-v2/spec.md) |
+| Bajas por palabra clave (STOP/BAJA) y su respuesta automática | `src/lib/opt-out.ts` (reglas puras) · `src/server/inbox/opt-out.ts` (llamado desde la ingesta) · ajustes por organización en `src/server/messaging-settings.ts` (`messaging_settings`) |
+| Salud del número (calidad, límite, uso, alertas) | `src/lib/phone-health.ts` · `src/server/whatsapp/health.ts` (`wa_phone_health`; Meta fuera de transacción, escritura en `withTenant`) · `GET/POST /api/number-health` (permiso `number_health.read`) · UI `src/components/number-health.tsx` |
+| Webhooks a nivel WABA (calidad, cuenta, categoría de plantilla) | `src/server/whatsapp/waba-events.ts` |
+| Trabajo diario con Meta (salud + plantillas; analíticas en PR 3) | `src/server/meta-sync/daily.ts` (arranca en `src/instrumentation.ts`) |
+| Plantillas (componentes, importación paginada, creación con encabezado/pie/botones, pausa, categoría) | `src/lib/templates.ts` (borrador y requisitos de envío) · `src/server/whatsapp/templates.ts` · subida reanudable en `src/lib/meta/upload.ts` (`META_APP_ID`) |
 | La ingesta/envío de mensajes | `src/server/inbox/` (ingest idempotente, send con guard de sandbox, ventana 24h) |
 | Cómo se identifica a un contacto | `src/server/inbox/identity.ts` (teléfono normalizado o `bsuid:<id>`) |
 | Conectar TU propio bot en vez del agente | `src/app/api/bot/*` + `src/server/bot/auth.ts` (X-API-Key) · quién responde (agente incluido, cerebro externo, doble respuesta): `src/server/bot/status.ts` + `GET /api/agent/brain-status` |

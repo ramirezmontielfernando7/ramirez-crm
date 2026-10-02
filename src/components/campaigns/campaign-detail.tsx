@@ -5,8 +5,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, ArrowLeft, Download, Send, Trash2 } from "lucide-react";
 import {
+  DELIVERY_STATUS_LABEL,
   RECIPIENT_STATUS_LABEL,
   resolveVariables,
+  type DeliveryStatus,
   type CampaignDto,
   type CampaignRecipientDto,
   type RecipientStatus,
@@ -32,6 +34,14 @@ const RECIPIENT_BADGE: Record<RecipientStatus, "success" | "destructive" | "seco
   sent: "success",
   failed: "destructive",
   pending: "secondary",
+};
+
+const DELIVERY_BADGE: Record<DeliveryStatus, "success" | "destructive" | "secondary"> = {
+  pending: "secondary",
+  sent: "secondary",
+  delivered: "success",
+  read: "success",
+  failed: "destructive",
 };
 
 /**
@@ -209,6 +219,17 @@ export function CampaignDetail({ campaignId }: { campaignId: string }) {
                   <Stat label="fallidos" value={counts.failed} danger={counts.failed > 0} />
                   <Stat label="pendientes" value={counts.pending} />
                 </div>
+                {counts.sent > 0 && (
+                  <div className="grid grid-cols-3 gap-2 text-center" data-testid="campaign-delivery">
+                    <Stat label="entregados" value={campaign.delivery.delivered} />
+                    <Stat label="leídos" value={campaign.delivery.read} />
+                    <Stat
+                      label="no entregados"
+                      value={campaign.delivery.failed}
+                      danger={campaign.delivery.failed > 0}
+                    />
+                  </div>
+                )}
                 <CampaignProgress total={total} sent={counts.sent} failed={counts.failed} />
                 <p className="text-xs text-muted-foreground">
                   {campaign.startedAt &&
@@ -281,8 +302,15 @@ export function CampaignDetail({ campaignId }: { campaignId: string }) {
                               ` · ${new Date(r.sentAt).toLocaleString("es-MX", { dateStyle: "short", timeStyle: "short" })}`}
                           </p>
                           {r.errorMessage && <p className="text-xs text-danger-text">{r.errorMessage}</p>}
+                          {r.delivery?.error && <p className="text-xs text-danger-text">{r.delivery.error}</p>}
                         </div>
-                        <Badge variant={RECIPIENT_BADGE[r.status]}>{RECIPIENT_STATUS_LABEL[r.status]}</Badge>
+                        {r.delivery ? (
+                          <Badge variant={DELIVERY_BADGE[r.delivery.status]}>
+                            {DELIVERY_STATUS_LABEL[r.delivery.status]}
+                          </Badge>
+                        ) : (
+                          <Badge variant={RECIPIENT_BADGE[r.status]}>{RECIPIENT_STATUS_LABEL[r.status]}</Badge>
+                        )}
                       </li>
                     ))}
                   </ul>

@@ -20,6 +20,7 @@ import {
   type ResolvedIdentity,
 } from "@/server/inbox/identity";
 import { applyStatusUpdate } from "@/server/inbox/status";
+import { handleStopKeyword } from "@/server/inbox/opt-out";
 import {
   anuncioDeWhatsapp,
   type AnuncioDeOrigen,
@@ -250,7 +251,11 @@ export async function processMessagesValue(value: WebhookValue): Promise<void> {
     }
 
     for (const msg of value.messages ?? []) {
-      if (!SUPPORTED_TYPES.has(msg.type)) continue; // reacciones, etc.: ignorar
+      // Campañas v2: el toque en un botón de respuesta rápida de una
+      // plantilla es una respuesta del cliente; entra como texto (así lo ve
+      // también en su WhatsApp) y cuenta para la baja por palabra clave.
+      const button = msg.type === "button" ? (msg.button?.text ?? msg.button?.payload ?? "").trim() : null;
+      if (!button && !SUPPORTED_TYPES.has(msg.type)) continue; // reacciones, etc.: ignorar
       const resolved = resolveIdentity(msg, value.contacts);
       if (!resolved) {
         // Mensaje sin NINGUNA identidad utilizable (ni teléfono ni BSUID):
@@ -262,8 +267,8 @@ export async function processMessagesValue(value: WebhookValue): Promise<void> {
         organizationId,
         identity: resolved,
         waMessageId: msg.id,
-        type: msg.type,
-        text: msg.text?.body ?? null,
+        type: button ? "text" : msg.type,
+        text: button || (msg.text?.body ?? null),
         timestamp: msg.timestamp,
         media: mediaInputFrom(msg),
         // 018: normalizado aquí, en el adaptador del canal; la ingesta no sabe
@@ -515,6 +520,16 @@ async function ingestInboundMessageInOrg(input: {
     type: "conversation.updated",
     data: { conversation: { id: conversation.id } },
   });
+
+  // Campañas v2: baja por palabra clave (STOP/BAJA). Si falla, el mensaje
+  // ya entró: se registra y sigue el flujo normal.
+  let isStop = false;
+  try {
+    isStop = await handleStopKeyword({ organizationId, contact, conversation, text: input.text });
+  } catch (err) {
+    log.error("no se pudo procesar la palabra de baja", { org: organizationId, err });
+  }
+  if (isStop) return;
 
   await maybeRunAgentTurn(conversation.id);
 }

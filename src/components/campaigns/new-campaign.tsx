@@ -60,7 +60,7 @@ export function NewCampaign() {
   }, []);
 
   // Solo aprobadas por Meta: una pendiente o rechazada no se puede elegir.
-  const approved = useMemo(() => (templates ?? []).filter((t) => t.status === "approved"), [templates]);
+  const approved = useMemo(() => (templates ?? []).filter((t) => t.status === "approved" && t.sendable !== false), [templates]);
   const notApproved = (templates ?? []).length - approved.length;
   const template = approved.find((t) => t.id === templateId) ?? null;
   const varCount = template ? countVariables(template.body) : 0;

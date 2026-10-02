@@ -55,6 +55,8 @@ const prefixes = {
   // PR 2 Fase 3
   platformAudit: "pal",
   accountLinkToken: "alt",
+  // Campañas v2 (PR 1)
+  phoneHealth: "wph",
   user: "usr",
   account: "acc",
 } as const;

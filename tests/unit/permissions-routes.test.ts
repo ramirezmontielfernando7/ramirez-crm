@@ -51,6 +51,8 @@ const PROTEGIDAS: [string, Method, Permission][] = [
   ["settings/whatsapp", "PUT", "settings.manage"],
   ["settings/whatsapp/test", "POST", "settings.manage"],
   ["settings/webhook", "GET", "settings.manage"],
+  ["settings/messaging", "GET", "settings.manage"],
+  ["settings/messaging", "PUT", "settings.manage"],
   ["settings/instagram", "GET", "settings.manage"],
   ["settings/instagram", "PUT", "settings.manage"],
   ["settings/messenger", "GET", "settings.manage"],
@@ -93,6 +95,7 @@ const PROTEGIDAS: [string, Method, Permission][] = [
   ["pipeline/stages/[id]", "DELETE", "pipeline.edit"],
   ["templates", "POST", "templates.manage"],
   ["templates/sync", "POST", "templates.manage"],
+  ["templates/category-seen", "POST", "templates.manage"],
   // Asignación.
   ["assignments", "POST", "assignment.manage"],
   ["assignments/bulk", "POST", "assignment.manage"],
@@ -102,6 +105,9 @@ const PROTEGIDAS: [string, Method, Permission][] = [
   ["contact-tags/[id]", "DELETE", "tags.manage"],
   ["contacts/import", "POST", "contacts.import"],
   ["contacts/export", "GET", "contacts.export"],
+  // Campañas v2 (PR 1): salud del número (Propietario y Coordinador).
+  ["number-health", "GET", "number_health.read"],
+  ["number-health", "POST", "number_health.read"],
   ["campaigns", "GET", "campaigns.manage"],
   ["campaigns", "POST", "campaigns.manage"],
   ["campaigns/preview", "POST", "campaigns.manage"],

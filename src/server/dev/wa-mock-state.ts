@@ -27,13 +27,35 @@ export type OutboxEntry = {
 
 export type MockTemplate = {
   id: string;
+  /**
+   * Campañas v2: de qué WABA es (el listado se filtra por ella, como Meta).
+   * Sin ella, la plantilla aparece en todas (compatibilidad).
+   */
+  wabaId?: string;
   name: string;
   language: string;
   category: string;
-  status: "PENDING" | "APPROVED" | "REJECTED";
+  status: "PENDING" | "APPROVED" | "REJECTED" | "PAUSED" | "DISABLED";
   body: string;
   /** Componentes tal cual los mandó el CRM: Meta valida aquí los `example`. */
   components?: unknown[];
+  qualityScore?: string;
+  rejectedReason?: string;
+};
+
+/**
+ * Campañas v2 — Salud de un número en el "panel de Meta" simulado. Sin
+ * entrada, el número está sano (GREEN, TIER_1K, CONNECTED).
+ */
+export type MockPhoneHealth = {
+  quality_rating?: string;
+  status?: string;
+  name_status?: string;
+  throughput?: { level?: string };
+  messaging_limit_tier?: string;
+  whatsapp_business_manager_messaging_limit?: string;
+  /** true = responde error 100 a los campos nuevos (fuerza el respaldo al mínimo). */
+  rejectNewFields?: boolean;
 };
 
 /**
@@ -75,6 +97,10 @@ type WaMockState = {
    * `WABA-AJENA`, que no tienen ninguno de ellos.
    */
   phonesByToken: Record<string, string[]>;
+  /** Campañas v2: salud por phone_number_id. */
+  phoneHealth: Record<string, MockPhoneHealth>;
+  /** Campañas v2: sesiones de la subida reanudable (`upload:…`). */
+  uploads: Record<string, { length: number; type: string; received?: number }>;
   counter: number;
 };
 
@@ -87,6 +113,8 @@ function freshState(): WaMockState {
     capiEvents: [],
     wabaSubscriptions: {},
     phonesByToken: {},
+    phoneHealth: {},
+    uploads: {},
     counter: 0,
   };
 }

@@ -23,6 +23,11 @@ export const TENANT_QUERY_EXCEPTIONS: Record<string, { max: number; motivo: stri
     motivo:
       "Fase 3, PR 2 — El administrador de plataforma gestiona organizaciones (está POR ENCIMA de ellas): cuántas personas tiene cada una, sus Propietarios, si tiene WhatsApp conectado, sus miembros (nombre, correo, rol) y cerrar sus sesiones al suspender. Solo metadatos, nunca contenido; detrás de withPlatformAdmin (404 a todos los demás) y con el pool de sistema.",
   },
+  "server/meta-sync/daily.ts": {
+    max: 1,
+    motivo:
+      "Campañas v2 — Sincronización diaria con Meta: lista las organizaciones ACTIVAS con número conectado y sin la lectura de hoy (cruza organizaciones a propósito, pool de sistema). El trabajo de cada una corre después a nombre de la suya.",
+  },
   "server/modules/store.ts": {
     max: 1,
     motivo:
@@ -117,11 +122,6 @@ export const TENANT_QUERY_EXCEPTIONS: Record<string, { max: number; motivo: stri
     motivo:
       "El envío lee la conversación por id y COMPARA su organización con la del llamador antes de seguir; los updates van por ese id.",
   },
-  "server/inbox/status.ts": {
-    max: 1,
-    motivo:
-      "Update del estado por el id del mensaje leído con scoped(organización, wa_message_id).",
-  },
   "server/inbox/lead-activity.ts": {
     max: 1,
     motivo:
@@ -153,9 +153,9 @@ export const TENANT_QUERY_EXCEPTIONS: Record<string, { max: number; motivo: stri
       "Descarga de adjuntos: lee/actualiza el media_asset por el id que la ingesta creó con la organización ruteada.",
   },
   "server/whatsapp/templates.ts": {
-    max: 2,
+    max: 1,
     motivo:
-      "Update de la plantilla por el id de la fila local ya leída con scoped(); update de la conversación por el id validado por el envío.",
+      "Update de la conversación por el id validado por el envío (leída antes con scoped()).",
   },
   "server/campaigns/service.ts": {
     max: 1,

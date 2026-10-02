@@ -159,6 +159,11 @@ export type WebhookMessage = {
   timestamp: string;
   type: string;
   text?: { body: string };
+  /**
+   * Campañas v2 — toque en un botón de respuesta rápida de una plantilla
+   * (`type: "button"`). Se ingiere como texto: es la respuesta del cliente.
+   */
+  button?: { text?: string; payload?: string };
   image?: WebhookMediaPayload;
   video?: WebhookMediaPayload;
   audio?: WebhookMediaPayload;
@@ -175,7 +180,23 @@ export type WebhookStatus = {
   status: string;
   timestamp: string;
   recipient_id?: string;
-  errors?: { code: number; title?: string; message?: string }[];
+  errors?: {
+    code: number;
+    title?: string;
+    message?: string;
+    error_data?: { details?: string };
+  }[];
+  /**
+   * Campañas v2 — objeto de precios (cobro por mensaje). Se guarda tal cual:
+   * `billable`, `pricing_model` ("PMP"), `category` y `type` (NO VERIFICADO
+   * contra la documentación oficial: ver docs/campanas-v2-meta.md).
+   */
+  pricing?: {
+    billable?: boolean;
+    pricing_model?: string;
+    category?: string;
+    type?: string;
+  };
 };
 
 export type WebhookValue = {
