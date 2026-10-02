@@ -598,7 +598,12 @@ export async function sendCampaignTest(
   let sample: Record<string, string> = {};
   if (current.audience.importId && current.variables.some((v) => v.kind === "column")) {
     const contacts = await audienceContacts(organizationId, current.audience);
-    sample = contacts.find((c) => variablesFor(current.variables, c.name, c.fields))?.fields ?? {};
+    // Siempre el mismo (el primero por nombre): sin orden, Postgres devuelve
+    // cualquiera y dos pruebas seguidas mostrarían ejemplos distintos.
+    sample =
+      [...contacts]
+        .sort((a, b) => a.name.localeCompare(b.name, "es") || a.id.localeCompare(b.id))
+        .find((c) => variablesFor(current.variables, c.name, c.fields))?.fields ?? {};
   }
   const values = resolveVariables(current.variables, "Prueba", sample).map(
     (v, i) => v || (current.variables[i]?.kind === "column" ? `[${(current.variables[i] as { column: string }).column}]` : "ejemplo")
