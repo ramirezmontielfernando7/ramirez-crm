@@ -1,4 +1,4 @@
-import { desc, eq, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
 import { scoped } from "@/lib/db/tenant";
@@ -6,6 +6,7 @@ import { countVariables } from "@/lib/templates";
 import type {
   CampaignAudience,
   CampaignCounts,
+  CampaignDelivery,
   CampaignDto,
   CampaignRecipientDto,
   CampaignVariable,
@@ -70,10 +71,45 @@ async function countsFor(campaignIds: string[]): Promise<Map<string, CampaignCou
   return out;
 }
 
+/**
+ * Campañas v2 — conteo por estado de ENTREGA, derivado del mensaje de cada
+ * destinatario (no se duplica en campaign_recipient).
+ */
+async function deliveryFor(campaignIds: string[]): Promise<Map<string, CampaignDelivery>> {
+  const out = new Map<string, CampaignDelivery>();
+  if (campaignIds.length === 0) return out;
+  const rows = await getDb()
+    .select({
+      campaignId: schema.campaignRecipient.campaignId,
+      status: schema.message.status,
+      n: sql<number>`count(*)::int`,
+    })
+    .from(schema.campaignRecipient)
+    .innerJoin(
+      schema.message,
+      and(
+        eq(schema.message.organizationId, schema.campaignRecipient.organizationId),
+        eq(schema.message.id, schema.campaignRecipient.messageId)
+      )
+    )
+    .where(inArray(schema.campaignRecipient.campaignId, campaignIds))
+    .groupBy(schema.campaignRecipient.campaignId, schema.message.status);
+  for (const r of rows) {
+    const d = out.get(r.campaignId) ?? { delivered: 0, read: 0, failed: 0 };
+    const n = Number(r.n);
+    if (r.status === "delivered" || r.status === "read") d.delivered += n;
+    if (r.status === "read") d.read += n;
+    if (r.status === "failed") d.failed += n;
+    out.set(r.campaignId, d);
+  }
+  return out;
+}
+
 function serializeCampaign(
   c: CampaignRow,
   template: TemplateRow | null,
-  counts: CampaignCounts | undefined
+  counts: CampaignCounts | undefined,
+  delivery: CampaignDelivery | undefined
 ): CampaignDto {
   return {
     id: c.id,
@@ -86,6 +122,7 @@ function serializeCampaign(
     audience: c.audience as CampaignAudience,
     total: c.total,
     counts: counts ?? { pending: 0, sent: 0, failed: 0 },
+    delivery: delivery ?? { delivered: 0, read: 0, failed: 0 },
     error: c.error,
     createdBy: c.createdBy,
     createdAt: c.createdAt.toISOString(),
@@ -102,8 +139,11 @@ export async function listCampaigns(organizationId: string): Promise<CampaignDto
     .where(scoped(schema.campaign.organizationId, organizationId))
     .orderBy(desc(schema.campaign.createdAt))
     .limit(200);
-  const counts = await countsFor(rows.map((r) => r.campaign.id));
-  return rows.map((r) => serializeCampaign(r.campaign, r.template, counts.get(r.campaign.id)));
+  const ids = rows.map((r) => r.campaign.id);
+  const [counts, delivery] = await Promise.all([countsFor(ids), deliveryFor(ids)]);
+  return rows.map((r) =>
+    serializeCampaign(r.campaign, r.template, counts.get(r.campaign.id), delivery.get(r.campaign.id))
+  );
 }
 
 export async function getCampaign(organizationId: string, campaignId: string): Promise<CampaignDto> {
@@ -115,8 +155,8 @@ export async function getCampaign(organizationId: string, campaignId: string): P
     .limit(1);
   const row = rows[0];
   if (!row) throw new CampaignError("not_found", "Campaña no encontrada");
-  const counts = await countsFor([campaignId]);
-  return serializeCampaign(row.campaign, row.template, counts.get(campaignId));
+  const [counts, delivery] = await Promise.all([countsFor([campaignId]), deliveryFor([campaignId])]);
+  return serializeCampaign(row.campaign, row.template, counts.get(campaignId), delivery.get(campaignId));
 }
 
 export async function listRecipients(
@@ -126,8 +166,15 @@ export async function listRecipients(
 ): Promise<CampaignRecipientDto[]> {
   await getCampaign(organizationId, campaignId); // 404 si no es de este negocio
   const rows = await getDb()
-    .select()
+    .select({ r: schema.campaignRecipient, m: schema.message })
     .from(schema.campaignRecipient)
+    .leftJoin(
+      schema.message,
+      and(
+        eq(schema.message.organizationId, schema.campaignRecipient.organizationId),
+        eq(schema.message.id, schema.campaignRecipient.messageId)
+      )
+    )
     .where(
       scoped(
         schema.campaignRecipient.organizationId,
@@ -139,7 +186,7 @@ export async function listRecipients(
     .orderBy(schema.campaignRecipient.contactName)
     .limit(Math.min(opts.limit ?? 500, 20_000))
     .offset(opts.offset ?? 0);
-  return rows.map((r) => ({
+  return rows.map(({ r, m }) => ({
     id: r.id,
     contactId: r.contactId,
     contactName: r.contactName,
@@ -147,6 +194,14 @@ export async function listRecipients(
     status: r.status,
     errorMessage: r.errorMessage,
     sentAt: r.sentAt?.toISOString() ?? null,
+    delivery: m
+      ? {
+          status: m.status,
+          deliveredAt: m.deliveredAt?.toISOString() ?? null,
+          readAt: m.readAt?.toISOString() ?? null,
+          error: m.status === "failed" ? m.error : null,
+        }
+      : null,
   }));
 }
 
@@ -235,7 +290,7 @@ export async function createCampaign(input: {
       status: "draft",
     })
     .returning();
-  return serializeCampaign(inserted[0]!, template, undefined);
+  return serializeCampaign(inserted[0]!, template, undefined, undefined);
 }
 
 /**

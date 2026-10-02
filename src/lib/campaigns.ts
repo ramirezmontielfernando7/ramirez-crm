@@ -32,6 +32,24 @@ export type CampaignAudience = {
 
 export type CampaignCounts = { pending: number; sent: number; failed: number };
 
+/**
+ * Campañas v2 — estado REAL de entrega, derivado del mensaje de cada
+ * destinatario (`campaign_recipient.message_id → message`), no copiado. Lo
+ * actualiza el webhook de estados de Meta.
+ */
+export type DeliveryStatus = "pending" | "sent" | "delivered" | "read" | "failed";
+
+export const DELIVERY_STATUS_LABEL: Record<DeliveryStatus, string> = {
+  pending: "Enviando",
+  sent: "Enviado",
+  delivered: "Entregado",
+  read: "Leído",
+  failed: "No entregado",
+};
+
+/** Conteo por estado de entrega: `delivered` incluye a los leídos. */
+export type CampaignDelivery = { delivered: number; read: number; failed: number };
+
 export type CampaignDto = {
   id: string;
   name: string;
@@ -41,6 +59,7 @@ export type CampaignDto = {
   audience: CampaignAudience;
   total: number;
   counts: CampaignCounts;
+  delivery: CampaignDelivery;
   error: string | null;
   createdBy: string | null;
   createdAt: string;
@@ -56,6 +75,13 @@ export type CampaignRecipientDto = {
   status: RecipientStatus;
   errorMessage: string | null;
   sentAt: string | null;
+  /** Estado real del mensaje en WhatsApp; null si nunca salió. */
+  delivery: {
+    status: DeliveryStatus;
+    deliveredAt: string | null;
+    readAt: string | null;
+    error: string | null;
+  } | null;
 };
 
 /** Primer nombre, para saludar sin sonar a base de datos ("Ana", no "ANA MARÍA LÓPEZ"). */

@@ -1,6 +1,6 @@
 import { apiError, withAuth } from "@/lib/api";
 import { toCsv } from "@/lib/csv";
-import { RECIPIENT_STATUS_LABEL, type RecipientStatus } from "@/lib/campaigns";
+import { DELIVERY_STATUS_LABEL, RECIPIENT_STATUS_LABEL, type RecipientStatus } from "@/lib/campaigns";
 import { campaignsDisabledResponse, campaignsEnabled } from "@/server/campaigns/flag";
 import { campaignErrorResponse } from "@/server/campaigns/http";
 import { listRecipients } from "@/server/campaigns/service";
@@ -34,8 +34,18 @@ export const GET = withAuth(
       });
       if (!csv) return Response.json({ recipients });
       const body = toCsv(
-        ["name", "phone", "status", "error", "sentAt"],
-        recipients.map((r) => [r.contactName, r.phone, RECIPIENT_STATUS_LABEL[r.status], r.errorMessage, r.sentAt])
+        ["name", "phone", "status", "error", "sentAt", "delivery", "deliveredAt", "readAt", "deliveryError"],
+        recipients.map((r) => [
+          r.contactName,
+          r.phone,
+          RECIPIENT_STATUS_LABEL[r.status],
+          r.errorMessage,
+          r.sentAt,
+          r.delivery ? DELIVERY_STATUS_LABEL[r.delivery.status] : null,
+          r.delivery?.deliveredAt ?? null,
+          r.delivery?.readAt ?? null,
+          r.delivery?.error ?? null,
+        ])
       );
       return new Response(body, {
         headers: {
