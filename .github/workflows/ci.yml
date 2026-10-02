@@ -150,10 +150,6 @@ jobs:
     env:
       CAMPAIGNS: "on"
       AGENDA: "on"
-      # `next dev` se reinicia solo al acercarse a su tope de memoria y corta
-      # las peticiones en vuelo (se vio a mitad de e2e-datos-meta). Con más
-      # heap el servidor de pruebas aguanta la corrida completa de guiones.
-      NODE_OPTIONS: "--max-old-space-size=4096"
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
@@ -216,6 +212,7 @@ jobs:
           export PLATFORM_ORG_ID=$(psql "$DATABASE_URL_MIGRATE" -Atc "select m.organization_id from member m join \"user\" u on u.id = m.user_id where u.email = 'e2e@vocero.test'")
           echo "PLATFORM_ORG_ID=$PLATFORM_ORG_ID" >> .env
           setsid node_modules/.bin/next dev -p 3000 > app2.log 2>&1 &
+          echo $! > app.pid
           for i in $(seq 1 120); do curl -sf localhost:3000/api/health >/dev/null && break; sleep 1; done
           node --env-file=.env scripts/e2e-multiorg.mjs
           # Fase 3, PR 1: credenciales, webhooks sin organización y cuota de IA.
@@ -224,10 +221,24 @@ jobs:
           node --env-file=.env scripts/e2e-plataforma.mjs
           # Fase 3, PR 3: módulos por organización.
           node --env-file=.env scripts/e2e-modulos.mjs
+          kill -- -"$(cat app.pid)"; sleep 2
+      # Tercera vuelta, con un `next dev` recién arrancado: el servidor de
+      # desarrollo acumula memoria al compilar rutas y, al acercarse a su
+      # tope, se reinicia solo cortando las peticiones en vuelo (se vio a
+      # mitad de e2e-datos-meta). Mismo .env que la segunda vuelta.
+      - name: e2e de Campañas v2
+        run: |
+          set -a; . ./.env; set +a
+          setsid node_modules/.bin/next dev -p 3000 > app3.log 2>&1 &
+          echo $! > app.pid
+          for i in $(seq 1 120); do curl -sf localhost:3000/api/health >/dev/null && break; sleep 1; done
+          # Al arrancar, la sincronización diaria lee la salud del número; el
+          # botón «Actualizar» tiene freno de 1 por minuto (e2e-datos-meta lo usa).
+          sleep 65
           # Campañas v2, PR 1: datos de Meta (estados, bajas, salud, plantillas).
           node --env-file=.env scripts/e2e-datos-meta.mjs
           # Campañas v2, PR 2: audiencias, asistente, cola por número, pausas.
           node --env-file=.env scripts/e2e-campanas-v2.mjs
       - name: logs de la app
         if: ${{ failure() }}
-        run: tail -n 200 app1.log app2.log || true
+        run: tail -n 200 app1.log app2.log app3.log || true
