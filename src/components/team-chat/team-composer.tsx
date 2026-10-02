@@ -7,7 +7,13 @@ import { AtSign, BookOpen, Eye, FileText, Megaphone, Paperclip, SendHorizontal, 
 import { encodeMentions } from "@/lib/team-chat-mentions";
 import { MentionPicker } from "./mention-picker";
 import { fetchJson, jsonInit } from "@/lib/fetch-json";
-import { attachmentRejection, TEAM_MESSAGE_MAX, type TeamMessageDto, type TeamThreadKind } from "@/lib/team-chat";
+import {
+  attachmentRejection,
+  TEAM_MESSAGE_MAX,
+  type TeamMessageDto,
+  type TeamPersonDto,
+  type TeamThreadKind,
+} from "@/lib/team-chat";
 import type { KnowledgeEntryDto } from "@/lib/knowledge";
 import { cn } from "@/lib/utils";
 import { SPRING } from "@/components/motion";
@@ -55,23 +61,28 @@ export function TeamComposer({
   kind,
   canPost,
   relation,
+  members,
   onSent,
 }: {
   threadId: string;
   kind: TeamThreadKind;
+  /** Participantes del hilo (directo/grupo): a quiénes se puede mencionar. */
+  members: readonly TeamPersonDto[];
   canPost: boolean;
   relation: "member" | "oversight";
   onSent: (message: TeamMessageDto | null) => void;
 }) {
   // 030 (PR 4): sin el módulo Conocimientos no se ofrece (la API ya da 404).
-  const knowledgeOn = useViewer().hasModule("knowledge");
+  const viewer = useViewer();
+  const knowledgeOn = viewer.hasModule("knowledge");
   const [text, setText] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [emojiOpen, setEmojiOpen] = useState(false);
   const [knowledgeOpen, setKnowledgeOpen] = useState(false);
-  // 026 — Menciones: el editor muestra @{Nombre}; el mapa dice a qué chat va.
+  // 026 — Menciones: el editor muestra @{Nombre}; el mapa dice a qué chat
+  // (su id) o a qué compañero (`user:<id>`) va.
   const [mentionOpen, setMentionOpen] = useState(false);
   const [picked, setPicked] = useState<Map<string, string>>(new Map());
   const taRef = useRef<HTMLTextAreaElement>(null);
@@ -108,14 +119,14 @@ export function TeamComposer({
     });
   }
 
-  /** Inserta @{Nombre} en el cursor; dos clientes con el mismo nombre no chocan. */
-  function insertMention(conversationId: string, name: string) {
+  /** Inserta @{Nombre} en el cursor; dos con el mismo nombre no chocan. */
+  function insertMention(ref: string, name: string) {
     setMentionOpen(false);
     let label = name.replace(/[{}]/g, "").trim() || "chat";
-    const taken = (l: string) => picked.has(l) && picked.get(l) !== conversationId;
+    const taken = (l: string) => picked.has(l) && picked.get(l) !== ref;
     for (let n = 2; taken(label); n++) label = `${name.replace(/[{}]/g, "").trim()} (${n})`;
     const next = new Map(picked);
-    next.set(label, conversationId);
+    next.set(label, ref);
     setPicked(next);
     insertEmoji(`@{${label}} `);
   }
@@ -337,10 +348,10 @@ export function TeamComposer({
           <button
             type="button"
             onClick={() => setMentionOpen((v) => !v)}
-            aria-label="Mencionar un chat de cliente"
+            aria-label="Mencionar"
             aria-haspopup="dialog"
             aria-expanded={mentionOpen}
-            title="Mencionar un chat de cliente"
+            title="Mencionar a un compañero o un chat de cliente"
             className={cn(
               "rounded p-1.5 text-text-3 transition-[color,background-color,transform] duration-150 hover:bg-secondary hover:text-foreground active:scale-90",
               mentionOpen && "bg-secondary text-brand"
@@ -349,7 +360,15 @@ export function TeamComposer({
             <AtSign className="h-[18px] w-[18px]" strokeWidth={1.7} />
           </button>
           <AnimatePresence>
-            {mentionOpen && <MentionPicker onPick={insertMention} onClose={() => setMentionOpen(false)} />}
+            {mentionOpen && (
+              <MentionPicker
+                kind={kind}
+                members={members}
+                userId={viewer.userId}
+                onPick={insertMention}
+                onClose={() => setMentionOpen(false)}
+              />
+            )}
           </AnimatePresence>
         </div>
         {knowledgeOn && (

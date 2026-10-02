@@ -255,7 +255,33 @@ async function main() {
   ok("la vista previa de la lista no lleva el id", !JSON.stringify(listaC).includes(X.id));
   ok("C sigue sin poder abrir X (404)", (await C.api(`/api/conversations/${X.id}/messages`)).res.status === 404);
 
-  await navegador({ A, B, C, G, nombreX, X, sse });
+  console.log("\n== Menciones a compañeros ==");
+  const unreadG = async (c) => ((await c.api("/api/team-chat/threads")).json?.threads ?? []).find((t) => t.id === G)?.unread ?? 0;
+  ok(
+    "A no puede mencionar a quien no está en el grupo (coordinadora) → 422",
+    (await A.api(`/api/team-chat/threads/${G}/messages`, { method: "POST", body: JSON.stringify({ body: `hola @[user:${ID.coord}]` }) })).res.status === 422
+  );
+  const antesB = await unreadG(B);
+  const mu = await A.api(`/api/team-chat/threads/${G}/messages`, {
+    method: "POST",
+    body: JSON.stringify({ body: `@[user:${ID.B}] revisa ${tokenX}` }),
+  });
+  ok("A menciona a B (y a X) en el grupo", mu.res.status === 201, `status=${mu.res.status}`);
+  const mm = mu.json?.message?.mentions ?? [];
+  ok(
+    "la mención del compañero sale con su nombre, antes que la del chat",
+    mm[0]?.kind === "user" && mm[0]?.userId === ID.B && mm[0]?.label === equipo.b[1] && mm[1]?.label === nombreX
+  );
+  ok("a B le sube el globo de no leídos del grupo", await hasta(async () => (await unreadG(B)) > antesB));
+  const vistaCu = (await C.api(`/api/team-chat/messages/${mu.json?.message?.id}`)).json?.message;
+  ok(
+    "C ve el nombre de B pero no el chat X",
+    vistaCu?.mentions?.[0]?.label === equipo.b[1] && vistaCu?.mentions?.[1]?.accessible === false && !JSON.stringify(vistaCu).includes(X.id)
+  );
+  const hilosB = (await B.api("/api/team-chat/threads")).json?.threads ?? [];
+  ok("la vista previa no lleva el id de B", !JSON.stringify(hilosB.find((t) => t.id === G)).includes(`user:${ID.B}`));
+
+  await navegador({ A, B, C, G, nombreX, X, sse, equipo });
 
   console.log("\n== Quitar participante ==");
   const baja = await coord.api(`${addPath}?userId=${ID.B}`, { method: "DELETE" });
@@ -271,7 +297,7 @@ async function main() {
   process.exit(failures ? 1 : 0);
 }
 
-async function navegador({ A, B, C, G, nombreX, X }) {
+async function navegador({ A, B, C, G, nombreX, X, equipo }) {
   console.log("\n== Navegador ==");
   const browser = await chromium.launch(
     process.env.PLAYWRIGHT_CHROMIUM ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM } : {}
@@ -299,6 +325,30 @@ async function navegador({ A, B, C, G, nombreX, X }) {
       await pb.screenshot({ path: `${process.env.CAPTURAS_DIR}/mencion-con-acceso.png` });
       await pc.screenshot({ path: `${process.env.CAPTURAS_DIR}/mencion-sin-acceso.png` });
     }
+    // El dropdown de @: compañeros del grupo arriba, chats de clientes abajo.
+    await pc.getByRole("button", { name: "Mencionar", exact: true }).click();
+    const picker = pc.getByRole("dialog", { name: /Mencionar a un compañero/ });
+    ok("@ abre el selector de menciones", await aparece(picker, 8000));
+    const mates = picker.getByRole("list", { name: "Compañeros" });
+    const chatsL = picker.getByRole("list", { name: "Chats de clientes" });
+    ok("en Compañeros salen A y B (del grupo)", await aparece(mates.getByText(equipo.a[1]), 8000) && (await mates.getByText(equipo.b[1]).count()) === 1);
+    ok("…y no la coordinadora (no está en el grupo) ni uno mismo", (await mates.getByText(equipo.coord[1]).count()) === 0 && (await mates.getByText(equipo.c[1]).count()) === 0);
+    const yMates = (await mates.boundingBox())?.y ?? 0;
+    const yChats = (await chatsL.boundingBox())?.y ?? 0;
+    ok("Compañeros va arriba de Chats de clientes", yMates > 0 && yChats > yMates);
+    await mates.getByText(equipo.a[1]).click();
+    const editorC = pc.getByLabel("Mensaje para el equipo");
+    ok("elegir a A escribe @{Nombre} en el editor", (await editorC.inputValue()).includes(`@{${equipo.a[1]}}`));
+    await editorC.press("End");
+    await editorC.type(` ¿me ayudas? ${S}`);
+    await editorC.press("Enter");
+    const pa0 = await abrir(A);
+    await pa0.goto(`${BASE}/chat?t=${G}`);
+    const burbujaA = pa0.locator("[class*='group/msg']").filter({ hasText: `¿me ayudas? ${S}` }).first();
+    ok("A recibe el mensaje con su nombre como mención", await aparece(burbujaA.getByText(`@${equipo.a[1]}`), 15000));
+    if (process.env.CAPTURAS_DIR) await pa0.screenshot({ path: `${process.env.CAPTURAS_DIR}/mencion-companero.png` });
+    await pa0.close();
+
     await chip.click();
     ok("al presionarla navega al chat en la Bandeja", await hasta(async () => pb.url().includes(`/inbox?contact=${X.contact.id}`), 10000));
     ok("…y abre ese chat", await aparece(pb.getByRole("heading", { name: nombreX }).or(pb.locator("header").getByText(nombreX)).first(), 15000));

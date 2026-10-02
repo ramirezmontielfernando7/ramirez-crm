@@ -18,9 +18,11 @@ import {
 } from "@/lib/team-chat";
 import {
   extractMentionIds,
+  extractUserMentionIds,
   MENTIONS_MAX,
   renderMentions,
 } from "@/lib/team-chat-mentions";
+import { listPeople } from "./people";
 import { notFound, TeamChatError } from "./errors";
 import { announcementsIdFor, ensureAnnouncements, threadAccess, threadDir, type ThreadAccess } from "./threads";
 import { publishTeam, publishToUser } from "./audience";
@@ -130,21 +132,57 @@ async function visibleMentions(
 
 /**
  * 026 — Quien escribe solo menciona chats que ve: si no, 422 (y no se dice
- * cuál ni si existe). Devuelve lo que se guarda en `mentions` (solo ids).
+ * cuál ni si existe). A un compañero, solo si puede leer este hilo (Avisos:
+ * todo el equipo; directo/grupo: sus participantes): así la mención le llega
+ * con su globo de no leídos y nunca le muestra a nadie un hilo ajeno.
+ * Devuelve lo que se guarda en `mentions` (solo ids).
  */
 async function validateMentions(
   session: SessionContext,
-  body: string
-): Promise<{ kind: "contact_chat"; conversationId: string }[]> {
+  body: string,
+  thread: ThreadAccess["thread"]
+): Promise<({ kind: "contact_chat"; conversationId: string } | { kind: "user"; userId: string })[]> {
   const ids = extractMentionIds(body);
-  if (ids.length > MENTIONS_MAX) {
-    throw new TeamChatError(422, "too_many_mentions", `Un mensaje menciona hasta ${MENTIONS_MAX} chats`);
+  const userIds = extractUserMentionIds(body);
+  if (ids.length + userIds.length > MENTIONS_MAX) {
+    throw new TeamChatError(422, "too_many_mentions", `Un mensaje menciona hasta ${MENTIONS_MAX} chats o compañeros`);
   }
   const visible = await visibleMentions(session, ids);
   if (ids.some((id) => !visible.has(id))) {
     throw new TeamChatError(422, "mention_forbidden", "Solo puedes mencionar chats de clientes que tú puedes ver");
   }
-  return ids.map((conversationId) => ({ kind: "contact_chat" as const, conversationId }));
+  if (userIds.length > 0) {
+    const readers = await threadReaders(session.organizationId, thread, userIds);
+    if (userIds.some((id) => !readers.has(id))) {
+      throw new TeamChatError(422, "mention_forbidden", "Solo puedes mencionar a compañeros que están en esta conversación");
+    }
+  }
+  return [
+    ...ids.map((conversationId) => ({ kind: "contact_chat" as const, conversationId })),
+    ...userIds.map((userId) => ({ kind: "user" as const, userId })),
+  ];
+}
+
+/** De estos compañeros, quiénes pueden leer el hilo (miembros actuales del equipo). */
+async function threadReaders(
+  organizationId: string,
+  thread: ThreadAccess["thread"],
+  userIds: string[]
+): Promise<Set<string>> {
+  const people = new Set((await listPeople(organizationId)).map((p) => p.id));
+  if (thread.kind === "announcements") return new Set(userIds.filter((id) => people.has(id)));
+  const rows = await getDb()
+    .select({ userId: schema.teamChatMember.userId })
+    .from(schema.teamChatMember)
+    .where(
+      scoped(
+        schema.teamChatMember.organizationId,
+        organizationId,
+        eq(schema.teamChatMember.threadId, thread.id),
+        inArray(schema.teamChatMember.userId, userIds)
+      )
+    );
+  return new Set(rows.map((r) => r.userId).filter((id) => people.has(id)));
 }
 
 async function serialize(
@@ -159,8 +197,13 @@ async function serialize(
   const allIds = [...new Set(rows.flatMap((r) => (r.m.deletedAt ? [] : extractMentionIds(r.m.body))))];
   // Neutro (SSE): nadie resuelve nada; cada cliente pide su versión.
   const visible = opts.neutral ? new Map() : await visibleMentions(session, allIds);
+  // Compañeros mencionados: su nombre (solo del equipo actual).
+  const anyUser = !opts.neutral && rows.some((r) => !r.m.deletedAt && extractUserMentionIds(r.m.body).length > 0);
+  const people = anyUser
+    ? new Map((await listPeople(session.organizationId)).map((p) => [p.id, p.name]))
+    : new Map<string, string>();
   return rows.map(({ m, authorName, att }) => {
-    const rendered = m.deletedAt ? { body: "", mentions: [] } : renderMentions(m.body, visible);
+    const rendered = m.deletedAt ? { body: "", mentions: [] } : renderMentions(m.body, visible, people);
     return {
     id: m.id,
     threadId: m.threadId,
@@ -287,7 +330,7 @@ export async function postMessage(
   if (!body && !input.file) {
     throw new TeamChatError(422, "invalid_body", "Escribe un mensaje o adjunta un archivo");
   }
-  const mentions = await validateMentions(session, body);
+  const mentions = await validateMentions(session, body, access.thread);
   const attachment = input.file ? await saveAttachment(session, threadId, input.file) : null;
   const id = newId("teamChatMessage");
   const now = new Date();
@@ -390,7 +433,7 @@ export async function editMessage(
   if (!body && !row.attachmentId) {
     throw new TeamChatError(422, "invalid_body", "El mensaje no puede quedar vacío");
   }
-  const mentions = await validateMentions(session, body);
+  const mentions = await validateMentions(session, body, access.thread);
   await getDb()
     .update(schema.teamChatMessage)
     .set({ body, mentions, editedAt: new Date() })

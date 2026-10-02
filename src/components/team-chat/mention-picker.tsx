@@ -2,26 +2,40 @@
 
 import { useEffect, useRef, useState } from "react";
 import { m } from "motion/react";
-import { MessageCircle, Search } from "lucide-react";
+import { MessageCircle, Search, UserRound } from "lucide-react";
 import type { ConversationDto } from "@/lib/types";
+import type { TeamPersonDto, TeamThreadKind } from "@/lib/team-chat";
+import { userMentionRef } from "@/lib/team-chat-mentions";
 import { fetchJson } from "@/lib/fetch-json";
 import { matchesQuery } from "@/lib/search";
 import { SPRING } from "@/components/motion";
 
 /**
- * 026 — Buscador de chats de CLIENTE para mencionarlos en el chat de equipo.
- * Solo lista los que quien escribe puede ver (la Bandeja ya viene filtrada
- * por `scopedContacts`); el servidor lo vuelve a validar al publicar.
+ * 026 — Buscador de menciones del chat de equipo, en dos secciones:
+ *  - Compañeros: solo quienes pueden leer ESTE hilo (Avisos: todo el equipo;
+ *    directo/grupo: sus participantes), para que la mención les llegue con su
+ *    globo de no leídos. Nunca uno mismo.
+ *  - Chats de clientes: solo los que quien escribe puede ver (la Bandeja ya
+ *    viene filtrada por `scopedContacts`).
+ * El servidor vuelve a validar las dos cosas al publicar.
+ * `onPick` recibe el id del chat, o `user:<id>` para un compañero.
  */
 export function MentionPicker({
+  kind,
+  members,
+  userId,
   onPick,
   onClose,
 }: {
-  onPick: (conversationId: string, name: string) => void;
+  kind: TeamThreadKind;
+  members: readonly TeamPersonDto[];
+  userId: string;
+  onPick: (ref: string, name: string) => void;
   onClose: () => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [chats, setChats] = useState<ConversationDto[] | null>(null);
+  const [people, setPeople] = useState<TeamPersonDto[] | null>(kind === "announcements" ? null : [...members]);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
 
@@ -32,10 +46,18 @@ export function MentionPicker({
       if (res.ok) setChats(res.data.conversations);
       else setError(`No se pudieron cargar los chats: ${res.error}`);
     });
+    // En Avisos lee todo el equipo: se piden sus nombres.
+    if (kind === "announcements") {
+      void fetchJson<{ people: TeamPersonDto[] }>("/api/team-chat/people").then((res) => {
+        if (cancelled) return;
+        if (res.ok) setPeople(res.data.people);
+        else setError(`No se pudo cargar el equipo: ${res.error}`);
+      });
+    }
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [kind]);
 
   useEffect(() => {
     const onDown = (e: MouseEvent) => {
@@ -50,6 +72,11 @@ export function MentionPicker({
     };
   }, [onClose]);
 
+  const mates = (people ?? [])
+    .filter((p) => p.id !== userId)
+    .filter((p) => matchesQuery(query, { text: [p.name, p.role] }))
+    .sort((a, b) => a.name.localeCompare(b.name, "es"))
+    .slice(0, 30);
   const shown = (chats ?? [])
     .filter((c) => matchesQuery(query, { text: [c.contact.name], phone: c.contact.phone ?? undefined }))
     .slice(0, 30);
@@ -58,7 +85,7 @@ export function MentionPicker({
     <m.div
       ref={ref}
       role="dialog"
-      aria-label="Mencionar un chat de cliente"
+      aria-label="Mencionar a un compañero o un chat de cliente"
       initial={{ opacity: 0, y: 6, scale: 0.96 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: 4, scale: 0.98, transition: { duration: 0.1 } }}
@@ -72,8 +99,8 @@ export function MentionPicker({
           autoFocus
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Buscar un chat de cliente…"
-          aria-label="Buscar un chat de cliente"
+          placeholder="Buscar un compañero o un chat…"
+          aria-label="Buscar un compañero o un chat de cliente"
           className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-text-3 max-sm:text-base"
         />
       </div>
@@ -82,24 +109,49 @@ export function MentionPicker({
           {error}
         </p>
       )}
-      <ul className="max-h-64 overflow-y-auto py-1">
-        {chats === null && !error && <li className="px-3 py-2 text-xs text-text-3">Cargando…</li>}
-        {chats !== null && shown.length === 0 && (
-          <li className="px-3 py-2 text-xs text-text-3">{chats.length === 0 ? "No ves ningún chat de cliente" : "Ningún chat coincide"}</li>
-        )}
-        {shown.map((c) => (
-          <li key={c.id}>
-            <button
-              type="button"
-              onClick={() => onPick(c.id, c.contact.name)}
-              className="flex w-full items-center gap-2 px-3 py-1.5 text-left hover:bg-row-hover"
-            >
-              <MessageCircle className="h-4 w-4 shrink-0 text-brand" strokeWidth={1.7} />
-              <span className="min-w-0 flex-1 truncate text-[13px] font-medium">{c.contact.name}</span>
-            </button>
-          </li>
-        ))}
-      </ul>
+      <div className="max-h-72 overflow-y-auto py-1">
+        <p className="kicker px-3 pb-1 pt-1.5">Compañeros</p>
+        <ul aria-label="Compañeros">
+          {people === null && !error && <li className="px-3 py-1.5 text-xs text-text-3">Cargando…</li>}
+          {people !== null && mates.length === 0 && (
+            <li className="px-3 py-1.5 text-xs text-text-3">
+              {people.some((p) => p.id !== userId) ? "Ningún compañero coincide" : "No hay más compañeros en esta conversación"}
+            </li>
+          )}
+          {mates.map((p) => (
+            <li key={p.id}>
+              <button
+                type="button"
+                onClick={() => onPick(userMentionRef(p.id), p.name)}
+                className="flex w-full items-center gap-2 px-3 py-1.5 text-left hover:bg-row-hover"
+              >
+                <UserRound className="h-4 w-4 shrink-0 text-brand" strokeWidth={1.7} />
+                <span className="min-w-0 flex-1 truncate text-[13px] font-medium">{p.name}</span>
+                <span className="shrink-0 text-[11px] text-text-3">{p.role}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+        <p className="kicker mt-1 border-t px-3 pb-1 pt-2">Chats de clientes</p>
+        <ul aria-label="Chats de clientes">
+          {chats === null && !error && <li className="px-3 py-1.5 text-xs text-text-3">Cargando…</li>}
+          {chats !== null && shown.length === 0 && (
+            <li className="px-3 py-1.5 text-xs text-text-3">{chats.length === 0 ? "No ves ningún chat de cliente" : "Ningún chat coincide"}</li>
+          )}
+          {shown.map((c) => (
+            <li key={c.id}>
+              <button
+                type="button"
+                onClick={() => onPick(c.id, c.contact.name)}
+                className="flex w-full items-center gap-2 px-3 py-1.5 text-left hover:bg-row-hover"
+              >
+                <MessageCircle className="h-4 w-4 shrink-0 text-brand" strokeWidth={1.7} />
+                <span className="min-w-0 flex-1 truncate text-[13px] font-medium">{c.contact.name}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      </div>
     </m.div>
   );
 }
@@ -112,6 +164,16 @@ export function MentionChip({
   mention: import("@/lib/team-chat-mentions").MentionDto;
   onOpen: (contactId: string) => void;
 }) {
+  if (mention.accessible && mention.kind === "user") {
+    return (
+      <span
+        title={`Mención a ${mention.label}`}
+        className="mx-0.5 inline-flex items-center gap-1 rounded-full bg-brand-tint px-1.5 py-px align-baseline text-[12.5px] font-semibold text-brand-text"
+      >
+        @{mention.label}
+      </span>
+    );
+  }
   if (!mention.accessible) {
     return (
       <span

@@ -16,7 +16,7 @@ import { cn } from "@/lib/utils";
 import { SPRING } from "@/components/motion";
 import { formatBytes } from "@/components/inbox/helpers";
 import { useRouter } from "next/navigation";
-import { encodeMentions, splitBody, MENTION_SLOT } from "@/lib/team-chat-mentions";
+import { encodeMentions, splitBody, MENTION_SLOT, userMentionRef } from "@/lib/team-chat-mentions";
 import { MentionChip } from "./mention-picker";
 
 /**
@@ -32,7 +32,7 @@ function draftFromMessage(message: TeamMessageDto): { text: string; map: Map<str
       ok = false;
       return "";
     }
-    map.set(mention.label, mention.conversationId);
+    map.set(mention.label, mention.kind === "user" ? userMentionRef(mention.userId) : mention.conversationId);
     return `@{${mention.label}}`;
   });
   return ok ? { text, map } : null;

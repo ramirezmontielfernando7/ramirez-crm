@@ -283,6 +283,7 @@ export function TeamChatClient() {
                   kind={selected.kind}
                   canPost={thread.canPost}
                   relation={thread.relation}
+                  members={selected.members}
                   onSent={(message) => {
                     if (message) upsert(message);
                     scheduleList();
