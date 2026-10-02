@@ -36,5 +36,7 @@ ALTER TABLE "template"
   DROP COLUMN IF EXISTS "category_changed_at",
   DROP COLUMN IF EXISTS "category_change_seen_at",
   DROP COLUMN IF EXISTS "synced_at",
+  DROP COLUMN IF EXISTS "upcoming_category",
+  DROP COLUMN IF EXISTS "upcoming_category_at",
   DROP COLUMN IF EXISTS "header_media_asset_id";
 COMMIT;

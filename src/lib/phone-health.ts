@@ -6,7 +6,8 @@
  * como TIER_1K) y solo se traduce a número para comparar el uso del día.
  */
 
-export type QualityRating = "GREEN" | "YELLOW" | "RED" | "UNKNOWN";
+/** "NA" y "UNKNOWN" son sinónimos en la documentación de Meta: sin calificar. */
+export type QualityRating = "GREEN" | "YELLOW" | "RED" | "UNKNOWN" | "NA";
 
 export type PhoneHealthSnapshot = {
   day: string;
@@ -53,6 +54,7 @@ export const QUALITY_LABEL: Record<string, string> = {
   YELLOW: "Media",
   RED: "Baja",
   UNKNOWN: "Sin calificar",
+  NA: "Sin calificar",
 };
 
 const QUALITY_RANK: Record<string, number> = { GREEN: 3, YELLOW: 2, RED: 1 };

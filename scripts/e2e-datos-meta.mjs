@@ -410,15 +410,62 @@ async function main() {
   );
   ok("webhook PAUSED: queda pausada con motivo", pausedNow?.sendable === false && pausedNow?.pausedReason === "Baja calidad", JSON.stringify(pausedNow));
   const mockTplId = (await sql`select wa_template_id from template where id = ${createdId}`)[0]?.wa_template_id;
+  // Cambio PRÓXIMO: new_category = la actual, correct_category = la que tendrá.
+  const when = Math.floor(Date.now() / 1000) + 7 * 86_400;
   await post("/api/dev/wa-mock/waba-event", {
     wabaId: WABA,
     field: "template_category_update",
-    value: { message_template_id: mockTplId, message_template_name: tplName, message_template_language: "es_MX", previous_category: "UTILITY", old_category: "UTILITY", new_category: "MARKETING" },
+    value: {
+      message_template_id: mockTplId,
+      message_template_name: tplName,
+      message_template_language: "es_MX",
+      new_category: "UTILITY",
+      correct_category: "MARKETING",
+      category_update_timestamp: when,
+    },
+  });
+  const upcoming = await until(async () =>
+    ((await api("/api/templates")).json?.templates ?? []).find((t) => t.id === createdId && t.upcomingCategory)
+  );
+  ok(
+    "cambio próximo: sigue UTILITY y avisa MARKETING con fecha",
+    upcoming?.category === "UTILITY" &&
+      upcoming?.upcomingCategory?.to === "MARKETING" &&
+      new Date(upcoming?.upcomingCategory?.at ?? 0).getTime() === when * 1000 &&
+      upcoming?.categoryChange === null,
+    JSON.stringify({ c: upcoming?.category, u: upcoming?.upcomingCategory, ch: upcoming?.categoryChange })
+  );
+  // Cambio HECHO: previous_category + new_category (la nueva real).
+  await post("/api/dev/wa-mock/waba-event", {
+    wabaId: WABA,
+    field: "template_category_update",
+    value: { message_template_id: mockTplId, message_template_name: tplName, message_template_language: "es_MX", previous_category: "UTILITY", new_category: "MARKETING" },
   });
   const changed = await until(async () =>
     ((await api("/api/templates")).json?.templates ?? []).find((t) => t.id === createdId && t.categoryChange)
   );
-  ok("webhook de categoría: UTILITY → MARKETING con aviso", changed?.category === "MARKETING" && changed?.categoryChange?.from === "UTILITY", JSON.stringify(changed?.categoryChange));
+  ok(
+    "cambio hecho: UTILITY → MARKETING con aviso, y el próximo ya no queda pendiente",
+    changed?.category === "MARKETING" && changed?.categoryChange?.from === "UTILITY" && changed?.upcomingCategory === null,
+    JSON.stringify({ ch: changed?.categoryChange, u: changed?.upcomingCategory })
+  );
+  // Estado de Meta que el CRM no conoce: se guarda tal cual y no rompe nada.
+  await post("/api/dev/wa-mock/template-status", { wabaId: WABA, name: tplName, language: "es_MX", event: "APPROVED" });
+  await until(async () => ((await api("/api/templates")).json?.templates ?? []).find((t) => t.id === createdId && t.metaStatus === "APPROVED"));
+  const raw = await post("/api/dev/wa-mock/waba-event", {
+    wabaId: WABA,
+    field: "message_template_status_update",
+    value: { event: "REINSTATED", message_template_id: mockTplId, message_template_name: tplName, message_template_language: "es_MX", reason: null },
+  });
+  ok("webhook con estado desconocido entregado", raw.res.ok, JSON.stringify(raw.json));
+  const reinstated = await until(async () =>
+    ((await api("/api/templates")).json?.templates ?? []).find((t) => t.id === createdId && t.metaStatus === "REINSTATED")
+  );
+  ok(
+    "estado desconocido (REINSTATED): guardado tal cual, sigue aprobada y enviable",
+    reinstated?.status === "approved" && reinstated?.sendable === true,
+    JSON.stringify({ s: reinstated?.status, m: reinstated?.metaStatus, e: reinstated?.sendable })
+  );
 
   /* ------------------------------------------------------------ */
   console.log("\n== 5. Interfaz (navegador real) ==");

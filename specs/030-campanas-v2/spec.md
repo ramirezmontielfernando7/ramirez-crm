@@ -58,9 +58,12 @@ Referencia de la API de Meta y lo NO VERIFICADO:
    estado crudo de Meta y calidad. Desde el CRM se crean con ejemplos por
    variable, encabezado de texto o imagen (subida reanudable; requiere
    `META_APP_ID`), pie y botones de respuesta rápida o URL. Pausada o
-   desactivada por Meta = no enviable, con motivo. El cambio de categoría
-   (webhook o sincronización) se avisa en la interfaz hasta que alguien
-   pulsa "Entendido".
+   desactivada por Meta = no enviable, con motivo; un estado de Meta que el
+   CRM no conoce se guarda tal cual y no bloquea nada. El cambio de categoría
+   se avisa en la interfaz hasta que alguien pulsa "Entendido", distinguiendo
+   el cambio ya hecho (`previous_category` + `new_category`) del cambio
+   próximo (`correct_category` = la futura, `new_category` = la actual,
+   `category_update_timestamp`).
 6. **wa-mock**: estados con `pricing` y hora, 131049, salud del número (y
    rechazo de campos nuevos), plantillas por WABA y paginadas, siembra de
    plantillas existentes, subida reanudable, analíticas y eventos a nivel

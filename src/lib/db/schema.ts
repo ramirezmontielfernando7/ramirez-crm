@@ -1171,12 +1171,20 @@ export const template = pgTable(
     metaStatus: text("meta_status"),
     /** Motivo de pausa o desactivación que manda Meta. */
     pausedReason: text("paused_reason"),
-    /** Calificación de calidad de la plantilla (GREEN, YELLOW, RED, UNKNOWN). */
+    /** Calificación de calidad de la plantilla (GREEN, YELLOW, RED, UNKNOWN o NA). */
     qualityScore: text("quality_score"),
     /** Meta cambió la categoría: la anterior, cuándo, y cuándo lo vio el equipo. */
     previousCategory: text("previous_category"),
     categoryChangedAt: timestamp("category_changed_at"),
     categoryChangeSeenAt: timestamp("category_change_seen_at"),
+    /**
+     * Meta AVISÓ que la categoría va a cambiar (webhook
+     * `template_category_update` con `correct_category`): la que tendrá y
+     * desde cuándo (`category_update_timestamp`). `category` sigue siendo la
+     * actual hasta que llegue el cambio hecho.
+     */
+    upcomingCategory: text("upcoming_category"),
+    upcomingCategoryAt: timestamp("upcoming_category_at"),
     /** Última vez que se leyó de Meta (sincronización o webhook). */
     syncedAt: timestamp("synced_at"),
     /**
@@ -2352,7 +2360,7 @@ export const waPhoneHealth = pgTable(
     phoneNumberId: text("phone_number_id").notNull(),
     /** Día en UTC al que corresponde la lectura. */
     day: date("day", { mode: "string" }).notNull(),
-    /** GREEN, YELLOW, RED, UNKNOWN (crudo de Meta). */
+    /** GREEN, YELLOW, RED, UNKNOWN o NA (crudo de Meta). */
     qualityRating: text("quality_rating"),
     /** Límite crudo de Meta (TIER_250, TIER_1K… o UNLIMITED). */
     messagingLimit: text("messaging_limit"),

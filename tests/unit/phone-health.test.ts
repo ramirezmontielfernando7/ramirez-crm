@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeHealthAlerts, parseMessagingLimit, type PhoneHealthSnapshot } from "@/lib/phone-health";
+import { computeHealthAlerts, parseMessagingLimit, QUALITY_LABEL, type PhoneHealthSnapshot } from "@/lib/phone-health";
 import { readingFromGraph } from "@/server/whatsapp/health";
 
 const snap = (p: Partial<PhoneHealthSnapshot>): PhoneHealthSnapshot => ({
@@ -34,6 +34,11 @@ describe("salud del número", () => {
     expect(readingFromGraph({ messaging_limit_tier: "tier_250" }).messagingLimit).toBe("TIER_250");
     expect(readingFromGraph({ throughput: { level: "HIGH" } }).throughputLevel).toBe("HIGH");
     expect(readingFromGraph({}).qualityRating).toBeNull();
+  });
+
+  it("NA es sinónimo de UNKNOWN: sin calificar y sin alerta", () => {
+    expect(computeHealthAlerts({ today: snap({ qualityRating: "NA" }), previous: snap({}), usage: 0, usageAlertPercent: 80 })).toEqual([]);
+    expect(QUALITY_LABEL.NA).toBe(QUALITY_LABEL.UNKNOWN);
   });
 
   it("todo bien → sin alertas", () => {

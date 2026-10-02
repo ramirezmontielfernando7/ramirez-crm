@@ -77,10 +77,26 @@ type TemplateRow = typeof schema.template.$inferSelect;
  * ¿Se puede ENVIAR? Aprobada localmente Y (Campañas v2) sin pausa ni
  * desactivación de Meta, y con todo lo que el envío necesita.
  */
+const BLOCKING_META_STATUSES = new Set([
+  "PAUSED",
+  "DISABLED",
+  "REJECTED",
+  "PENDING",
+  "IN_APPEAL",
+  "PENDING_DELETION",
+  "DELETED",
+  "ARCHIVED",
+  "LIMIT_EXCEEDED",
+]);
+
 export function templateSendability(t: TemplateRow): { sendable: boolean; reason: string | null } {
   if (t.status !== "approved") return { sendable: false, reason: "No está aprobada por Meta" };
   const meta = t.metaStatus?.toUpperCase();
-  if (meta && meta !== "APPROVED") {
+  // Solo los estados de Meta que se sabe que impiden enviar. Uno que el CRM
+  // no conoce (UNARCHIVED, FLAGGED, LOCKED, REINSTATED…) se guarda tal cual
+  // y no cambia nada: decide el estado local, y si Meta rechaza el envío su
+  // motivo se muestra igual.
+  if (meta && BLOCKING_META_STATUSES.has(meta)) {
     return {
       sendable: false,
       reason:
@@ -120,6 +136,11 @@ export function serializeTemplate(t: TemplateRow) {
     categoryChange:
       t.categoryChangedAt && t.previousCategory && !t.categoryChangeSeenAt
         ? { from: t.previousCategory, to: t.category, at: t.categoryChangedAt.toISOString() }
+        : null,
+    /** Meta avisó un cambio de categoría que todavía no ocurre. */
+    upcomingCategory:
+      t.upcomingCategory && !t.categoryChangeSeenAt
+        ? { from: t.category, to: t.upcomingCategory, at: t.upcomingCategoryAt?.toISOString() ?? null }
         : null,
     hasHeaderImage: Boolean(t.headerMediaAssetId),
     sendable,
@@ -447,7 +468,13 @@ export async function syncTemplates(organizationId: string): Promise<number> {
           nextStatus === "rejected" ? (r.rejected_reason && r.rejected_reason !== "NONE" ? r.rejected_reason : match.rejectionReason) : null,
         waTemplateId: match.waTemplateId ?? r.id ?? null,
         ...(categoryChanged
-          ? { previousCategory: match.category, categoryChangedAt: now, categoryChangeSeenAt: null }
+          ? {
+              previousCategory: match.category,
+              categoryChangedAt: now,
+              categoryChangeSeenAt: null,
+              // Si era el cambio que Meta había avisado, ya no es "próximo".
+              ...(match.upcomingCategory === category ? { upcomingCategory: null, upcomingCategoryAt: null } : {}),
+            }
           : {}),
         syncedAt: now,
         ...(same ? {} : { updatedAt: now }),
@@ -494,10 +521,16 @@ export async function applyTemplateStatusEvent(
   await runWithOrganization(organizationId, () => db
     .update(schema.template)
     .set({
-      ...(status ? { status } : {}),
+      // Un estado que el CRM no conoce se guarda tal cual en meta_status y
+      // no toca el estado local ni los motivos.
+      ...(status
+        ? {
+            status,
+            rejectionReason: status === "rejected" ? reason : null,
+            pausedReason: metaStatus === "PAUSED" || metaStatus === "DISABLED" ? reason : null,
+          }
+        : {}),
       metaStatus,
-      rejectionReason: status === "rejected" ? reason : null,
-      pausedReason: metaStatus === "PAUSED" || metaStatus === "DISABLED" ? reason : null,
       syncedAt: new Date(),
       updatedAt: new Date(),
     })
@@ -510,11 +543,37 @@ export async function applyTemplateStatusEvent(
 }
 
 /**
- * Campañas v2 — Webhook `template_category_update`: Meta cambió la categoría
- * de una plantilla (p. ej. UTILITY → MARKETING, que cambia el costo). Se
- * guarda la nueva, la anterior y cuándo, para avisar en la interfaz. Corre
- * ya a nombre de la organización (waba-events.ts la enrutó).
+ * Campañas v2 — Webhook `template_category_update`. Meta manda dos avisos
+ * distintos:
+ *
+ * - **Cambio ya hecho**: `previous_category` + `new_category`. `new_category`
+ *   es la categoría real desde ahora; se guarda la anterior y cuándo.
+ * - **Cambio próximo**: `correct_category` + `new_category` +
+ *   `category_update_timestamp`. Aquí `new_category` es la categoría ACTUAL
+ *   y `correct_category` la que tendrá a partir de esa fecha.
+ *
+ * Los dos se avisan en la interfaz hasta que alguien pulsa «Entendido».
+ * Corre ya a nombre de la organización (waba-events.ts la enrutó).
  */
+export type TemplateCategoryEvent =
+  | { kind: "upcoming"; current: string; upcoming: string; at: Date | null }
+  | { kind: "changed"; previous: string | null; current: string };
+
+/** Lee el `value` del webhook. null si no trae lo mínimo. Exportada para las pruebas. */
+export function parseTemplateCategoryEvent(value: Record<string, unknown>): TemplateCategoryEvent | null {
+  const cat = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim().toUpperCase().slice(0, 32) : null);
+  const current = cat(value.new_category);
+  if (!current) return null;
+  const correct = cat(value.correct_category);
+  if (correct) {
+    const ts = value.category_update_timestamp;
+    const n = typeof ts === "number" ? ts : typeof ts === "string" && /^\d+$/.test(ts.trim()) ? Number(ts) : NaN;
+    const at = Number.isFinite(n) && n > 0 ? new Date(n * 1000) : typeof ts === "string" && !Number.isNaN(Date.parse(ts)) ? new Date(ts) : null;
+    return { kind: "upcoming", current, upcoming: correct, at };
+  }
+  return { kind: "changed", previous: cat(value.previous_category), current };
+}
+
 export async function applyTemplateCategoryEvent(
   organizationId: string,
   value: Record<string, unknown>
@@ -523,8 +582,8 @@ export async function applyTemplateCategoryEvent(
   const id = str(value.message_template_id);
   const name = str(value.message_template_name);
   const language = str(value.message_template_language);
-  const next = str(value.new_category).toUpperCase().slice(0, 32);
-  if (!next || (!id && !name)) return;
+  const event = parseTemplateCategoryEvent(value);
+  if (!event || (!id && !name)) return;
   const db = getDb();
   // Por id de Meta, o por nombre (+ idioma) para las que el CRM aún no
   // conoce por id.
@@ -538,17 +597,32 @@ export async function applyTemplateCategoryEvent(
     .select()
     .from(schema.template)
     .where(scoped(schema.template.organizationId, organizationId, where));
+  const now = new Date();
   for (const t of rows) {
-    if (t.category === next) continue;
+    let patch: Partial<TemplateRow>;
+    if (event.kind === "upcoming") {
+      if (t.category === event.current && t.upcomingCategory === event.upcoming) continue;
+      patch = {
+        category: event.current,
+        upcomingCategory: event.upcoming,
+        upcomingCategoryAt: event.at,
+        categoryChangeSeenAt: null,
+      };
+    } else {
+      if (t.category === event.current && !t.upcomingCategory) continue;
+      patch = {
+        previousCategory: event.previous ?? (t.category !== event.current ? t.category : t.previousCategory),
+        category: event.current,
+        categoryChangedAt: now,
+        categoryChangeSeenAt: null,
+        // El cambio que se avisaba ya ocurrió.
+        upcomingCategory: null,
+        upcomingCategoryAt: null,
+      };
+    }
     await db
       .update(schema.template)
-      .set({
-        previousCategory: str(value.old_category).toUpperCase().slice(0, 32) || t.category,
-        category: next,
-        categoryChangedAt: new Date(),
-        categoryChangeSeenAt: null,
-        updatedAt: new Date(),
-      })
+      .set({ ...patch, updatedAt: now })
       .where(scoped(schema.template.organizationId, organizationId, eq(schema.template.id, t.id)));
   }
 }

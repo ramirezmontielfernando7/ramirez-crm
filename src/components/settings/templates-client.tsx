@@ -90,12 +90,14 @@ export function TemplatesClient() {
   }, [refetch, sync]);
 
   const categoryChanges = templates.filter((t) => t.categoryChange);
+  const upcomingChanges = templates.filter((t) => t.upcomingCategory);
+  const noticed = [...categoryChanges, ...upcomingChanges];
 
   async function acknowledge() {
     const res = await fetchJson<{ updated: number }>("/api/templates/category-seen", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ templateIds: categoryChanges.map((t) => t.id) }),
+      body: JSON.stringify({ templateIds: [...new Set(noticed.map((t) => t.id))] }),
     });
     if (res.ok) void refetch();
     else setSyncMsg(res.error);
@@ -120,7 +122,7 @@ export function TemplatesClient() {
       {syncMsg && <p className="text-xs text-muted-foreground">{syncMsg}</p>}
       {loadError && <p className="text-sm text-destructive">{loadError}</p>}
 
-      {categoryChanges.length > 0 && (
+      {noticed.length > 0 && (
         <div
           role="status"
           data-testid="template-category-changes"
@@ -128,15 +130,35 @@ export function TemplatesClient() {
         >
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
           <div className="min-w-0 flex-1 space-y-1">
-            <p className="font-medium">Meta cambió la categoría de {categoryChanges.length === 1 ? "una plantilla" : `${categoryChanges.length} plantillas`}</p>
-            <ul className="list-inside list-disc text-muted-foreground">
-              {categoryChanges.map((t) => (
-                <li key={t.id}>
-                  <span className="font-mono">{t.name}</span>: {t.categoryChange!.from} → {t.categoryChange!.to}
-                  {t.categoryChange!.to === "MARKETING" && " (ahora se cobra como marketing y aplica el límite de marketing por usuario)"}
-                </li>
-              ))}
-            </ul>
+            {categoryChanges.length > 0 && (
+              <>
+                <p className="font-medium">Meta cambió la categoría de {categoryChanges.length === 1 ? "una plantilla" : `${categoryChanges.length} plantillas`}</p>
+                <ul className="list-inside list-disc text-muted-foreground">
+                  {categoryChanges.map((t) => (
+                    <li key={t.id}>
+                      <span className="font-mono">{t.name}</span>: {t.categoryChange!.from} → {t.categoryChange!.to}
+                      {t.categoryChange!.to === "MARKETING" && " (ahora se cobra como marketing y aplica el límite de marketing por usuario)"}
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+            {upcomingChanges.length > 0 && (
+              <>
+                <p className="font-medium" data-testid="template-upcoming-changes">
+                  Meta avisó que va a cambiar la categoría de {upcomingChanges.length === 1 ? "una plantilla" : `${upcomingChanges.length} plantillas`}
+                </p>
+                <ul className="list-inside list-disc text-muted-foreground">
+                  {upcomingChanges.map((t) => (
+                    <li key={t.id}>
+                      <span className="font-mono">{t.name}</span>: {t.upcomingCategory!.from} → {t.upcomingCategory!.to}
+                      {t.upcomingCategory!.at &&
+                        ` a partir del ${new Date(t.upcomingCategory!.at).toLocaleDateString("es-MX", { dateStyle: "medium" })}`}
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
           </div>
           <Button size="sm" variant="outline" onClick={() => void acknowledge()}>
             Entendido
@@ -165,7 +187,8 @@ export function TemplatesClient() {
                   ) : (
                     <Badge variant={STATUS_BADGE[t.status].variant}>{STATUS_BADGE[t.status].label}</Badge>
                   )}
-                  {t.qualityScore && t.qualityScore !== "UNKNOWN" && t.qualityScore !== "GREEN" && (
+                  {/* Solo media o baja: GREEN, UNKNOWN y NA (sinónimo de UNKNOWN) no llevan aviso. */}
+                  {(t.qualityScore === "YELLOW" || t.qualityScore === "RED") && (
                     <Badge variant={t.qualityScore === "RED" ? "destructive" : "warning"}>
                       Calidad {t.qualityScore === "RED" ? "baja" : "media"}
                     </Badge>

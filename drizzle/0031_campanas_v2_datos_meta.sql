@@ -3,7 +3,8 @@
 -- 1. `message`: hora de cada estado (sent/delivered/read/failed), código de
 --    error numérico y el objeto `pricing` del webhook de estados.
 -- 2. `template`: componentes completos, estado crudo de Meta (pausa,
---    desactivación), calidad, aviso de cambio de categoría y la imagen del
+--    desactivación), calidad, aviso de cambio de categoría (hecho o
+--    próximo, con la categoría futura y su fecha) y la imagen del
 --    encabezado guardada en el disco propio (FK compuesta a media_asset).
 -- 3. `campaign_recipient.message_id` → `message` con FK compuesta: el estado
 --    de entrega de cada destinatario se DERIVA del mensaje (sin duplicarlo).
@@ -64,6 +65,8 @@ ALTER TABLE "template" ADD COLUMN IF NOT EXISTS "previous_category" text;--> sta
 ALTER TABLE "template" ADD COLUMN IF NOT EXISTS "category_changed_at" timestamp;--> statement-breakpoint
 ALTER TABLE "template" ADD COLUMN IF NOT EXISTS "category_change_seen_at" timestamp;--> statement-breakpoint
 ALTER TABLE "template" ADD COLUMN IF NOT EXISTS "synced_at" timestamp;--> statement-breakpoint
+ALTER TABLE "template" ADD COLUMN IF NOT EXISTS "upcoming_category" text;--> statement-breakpoint
+ALTER TABLE "template" ADD COLUMN IF NOT EXISTS "upcoming_category_at" timestamp;--> statement-breakpoint
 ALTER TABLE "template" ADD COLUMN IF NOT EXISTS "header_media_asset_id" text;--> statement-breakpoint
 DO $$
 BEGIN

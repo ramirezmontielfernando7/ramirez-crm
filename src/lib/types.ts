@@ -99,6 +99,8 @@ export type TemplateDto = {
   pausedReason: string | null;
   qualityScore: string | null;
   categoryChange: { from: string; to: string; at: string } | null;
+  /** Meta avisó un cambio de categoría que todavía no ocurre (`at` = desde cuándo). */
+  upcomingCategory: { from: string; to: string; at: string | null } | null;
   hasHeaderImage: boolean;
   sendable: boolean;
   unsendableReason: string | null;

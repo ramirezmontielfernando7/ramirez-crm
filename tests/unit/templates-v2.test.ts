@@ -6,7 +6,7 @@ import {
   validateTemplateDraft,
   type TemplateDraft,
 } from "@/lib/templates";
-import { mapMetaStatus, sameJson } from "@/server/whatsapp/templates";
+import { mapMetaStatus, parseTemplateCategoryEvent, sameJson, templateSendability } from "@/server/whatsapp/templates";
 
 const base: TemplateDraft = {
   name: "promo",
@@ -91,5 +91,59 @@ describe("plantillas v2: comparación de componentes", () => {
     expect(sameJson([{ type: "BODY", text: "x", example: { a: 1 } }], [{ example: { a: 1 }, text: "x", type: "BODY" }])).toBe(true);
     expect(sameJson([{ type: "BODY", text: "x" }], [{ type: "BODY", text: "y" }])).toBe(false);
     expect(sameJson(null, undefined)).toBe(true);
+  });
+});
+
+describe("plantillas v2: webhook template_category_update", () => {
+  it("cambio próximo: new_category es la ACTUAL y correct_category la futura", () => {
+    expect(
+      parseTemplateCategoryEvent({ new_category: "utility", correct_category: "MARKETING", category_update_timestamp: 1790000000 })
+    ).toEqual({ kind: "upcoming", current: "UTILITY", upcoming: "MARKETING", at: new Date(1790000000 * 1000) });
+    expect(parseTemplateCategoryEvent({ new_category: "UTILITY", correct_category: "MARKETING" })).toMatchObject({
+      kind: "upcoming",
+      at: null,
+    });
+  });
+
+  it("cambio hecho: previous_category + new_category (la nueva real)", () => {
+    expect(parseTemplateCategoryEvent({ previous_category: "UTILITY", new_category: "MARKETING" })).toEqual({
+      kind: "changed",
+      previous: "UTILITY",
+      current: "MARKETING",
+    });
+  });
+
+  it("old_category no existe: se ignora", () => {
+    expect(parseTemplateCategoryEvent({ old_category: "UTILITY", new_category: "MARKETING" })).toEqual({
+      kind: "changed",
+      previous: null,
+      current: "MARKETING",
+    });
+  });
+
+  it("sin new_category no hay nada que aplicar", () => {
+    expect(parseTemplateCategoryEvent({ correct_category: "MARKETING" })).toBeNull();
+  });
+});
+
+describe("plantillas v2: estados de Meta desconocidos", () => {
+  const base = {
+    status: "approved",
+    metaStatus: "APPROVED",
+    pausedReason: null,
+    components: [{ type: "BODY", text: "Hola" }],
+    headerMediaAssetId: null,
+  } as unknown as Parameters<typeof templateSendability>[0];
+
+  it("UNARCHIVED, FLAGGED, LOCKED o REINSTATED no rompen nada ni bloquean el envío", () => {
+    for (const metaStatus of ["UNARCHIVED", "FLAGGED", "LOCKED", "REINSTATED"]) {
+      expect(mapMetaStatus(metaStatus)).toBeNull();
+      expect(templateSendability({ ...base, metaStatus }).sendable).toBe(true);
+    }
+  });
+
+  it("los que se sabe que impiden enviar sí bloquean", () => {
+    expect(templateSendability({ ...base, metaStatus: "PAUSED" }).sendable).toBe(false);
+    expect(templateSendability({ ...base, metaStatus: "DISABLED" }).sendable).toBe(false);
   });
 });

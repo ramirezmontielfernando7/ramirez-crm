@@ -1,5 +1,5 @@
 {
-  "id": "4645095c-a0a5-4607-9d97-f0a7cc4ea5b5",
+  "id": "a01bf308-eb05-4314-a971-65e5f83e295a",
   "prevId": "a81032e2-684e-4299-8b0d-04d9a3167547",
   "version": "7",
   "dialect": "postgresql",
@@ -7455,6 +7455,18 @@
         },
         "category_change_seen_at": {
           "name": "category_change_seen_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "upcoming_category": {
+          "name": "upcoming_category",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "upcoming_category_at": {
+          "name": "upcoming_category_at",
           "type": "timestamp",
           "primaryKey": false,
           "notNull": false
