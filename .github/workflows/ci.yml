@@ -222,6 +222,8 @@ jobs:
           node --env-file=.env scripts/e2e-modulos.mjs
           # Campañas v2, PR 1: datos de Meta (estados, bajas, salud, plantillas).
           node --env-file=.env scripts/e2e-datos-meta.mjs
+          # Campañas v2, PR 2: audiencias, asistente, cola por número, pausas.
+          node --env-file=.env scripts/e2e-campanas-v2.mjs
       - name: logs de la app
         if: ${{ failure() }}
         run: tail -n 200 app1.log app2.log || true

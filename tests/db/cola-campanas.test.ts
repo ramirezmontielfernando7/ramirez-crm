@@ -5,7 +5,7 @@ import { newId } from "@/lib/db/ids";
 import { runWithOrganization } from "@/lib/request-context";
 import { forgetOrgModules } from "@/server/modules/store";
 import { getOrCreateConversation } from "@/server/inbox/ingest";
-import { dispatchNumber, type SendFn } from "@/server/campaigns/dispatcher";
+import { campaignSchedulerTick, dispatchNumber, type SendFn } from "@/server/campaigns/dispatcher";
 import {
   acquireLease,
   claimNext,
@@ -277,15 +277,15 @@ describe("cola de campañas por número", () => {
       await finishClaim(org, r, { status: "failed", error: "rechazado", code: 131000 }, owner);
       return { kind: "failed" };
     };
-    // La revisión de seguridad corre cada 10 s por campaña: la primera, al
-    // empezar (aún sin intentos); se fuerza otra pasada tras los fallos.
-    await runWithOrganization(A.id, () => dispatchNumber(A.id, A.phoneNumberId, { owner: "c1", send: failing, maxSends: 12 }));
+    // La revisión corre al empezar, cada 10 s y cada 5 fallos: se pausa sola
+    // en cuanto la ventana (10) está completa, sin quemar los 40.
     await runWithOrganization(A.id, () => dispatchNumber(A.id, A.phoneNumberId, { owner: "c1", send: failing }));
     const c = await campaignRow(campaignId);
     expect(c).toMatchObject({ status: "paused", autoPaused: true });
     expect(c.pauseReason).toMatch(/fallaron 10 de los últimos 10/);
     const s = await statuses(campaignId);
-    expect(s.pending).toBeGreaterThan(0);
+    expect(s.failed).toBe(10);
+    expect(s.pending).toBe(30);
     await runWithOrganization(A.id, () => saveCampaignSettings(A.id, userId, DEFAULT_CAMPAIGN_SETTINGS));
   });
 
@@ -300,6 +300,46 @@ describe("cola de campañas por número", () => {
     });
     expect(await statuses(campaignId)).toEqual({ skipped: 3 });
     expect((await campaignRow(campaignId)).status).toBe("cancelled");
+  });
+
+  it("programador: arranca la programada vencida y reanuda la pausa por límite vencida", async () => {
+    // Destinatarios dados de baja: el despachador los omite sin llamar a Meta.
+    const { campaignId: due, contactIds } = await campaignWith(2);
+    const { campaignId: limited } = await campaignWith(1);
+    await runWithOrganization(A.id, async () => {
+      const db = getDb();
+      await db
+        .update(schema.contact)
+        .set({ waConsent: "opt_out" })
+        .where(and(eq(schema.contact.organizationId, A.id), sql`${schema.contact.id} in ${contactIds}`));
+      await db
+        .update(schema.campaign)
+        .set({ status: "scheduled", startedAt: null, scheduledAt: new Date(Date.now() - 1000) })
+        .where(and(eq(schema.campaign.organizationId, A.id), eq(schema.campaign.id, due)));
+      await db
+        .update(schema.campaign)
+        .set({ status: "paused", autoPaused: true, pauseReason: "límite", resumeAt: new Date(Date.now() - 1000) })
+        .where(and(eq(schema.campaign.organizationId, A.id), eq(schema.campaign.id, limited)));
+    });
+    await campaignSchedulerTick();
+    expect((await campaignRow(limited)).status).toBe("sending");
+    const started = await campaignRow(due);
+    expect(["sending", "completed"]).toContain(started.status);
+    expect(started.startedAt).not.toBeNull();
+    // El despachador que arrancó el pulso termina la programada (todos omitidos).
+    await new Promise<void>((resolve) => {
+      const t = setInterval(() => {
+        void campaignRow(due).then((c) => {
+          if (c.status === "completed") {
+            clearInterval(t);
+            resolve();
+          }
+        });
+      }, 100);
+    });
+    expect(await statuses(due)).toEqual({ skipped: 2 });
+    // Que no se quede despachando la otra (su envío real necesitaría Meta).
+    await runWithOrganization(A.id, () => cancelCampaign(A.id, limited));
   });
 
   it("lanzar: solo opt_in, excluidos por motivo y variables desde columnas de la base", async () => {
