@@ -27,12 +27,16 @@ const config: Config = {
       // Los resortes de verdad van con `motion` (src/components/motion.tsx).
       transitionTimingFunction: {
         spring: "cubic-bezier(0.3, 1.2, 0.5, 1)",
+        // Los paneles que entran y salen (menú lateral y Detalles): arranque
+        // decidido y frenado largo y suave, sin rebote. La MISMA curva que
+        // `NAV` en src/components/motion.tsx.
+        panel: "cubic-bezier(0.32, 0.72, 0, 1)",
       },
-      // El menú lateral al cambiar de estado: la misma duración que el resorte
-      // `NAV` de src/components/motion.tsx, para que texto y columna lleguen
-      // juntos.
+      // Los paneles (menú lateral y Detalles) al abrir/cerrar: la misma
+      // duración que `NAV` de src/components/motion.tsx, para que texto,
+      // columna y panel lleguen juntos.
       transitionDuration: {
-        nav: "280ms",
+        nav: "360ms",
       },
       colors: {
         border: "var(--border)",

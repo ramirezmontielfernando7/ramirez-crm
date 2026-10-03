@@ -14,7 +14,8 @@ import { cn } from "@/lib/utils";
  *   cargaría el paquete entero — `strict` lo convierte en error.
  * - `reducedMotion="user"`: quien pidió menos movimiento en su sistema recibe
  *   cambios instantáneos (además de la regla global de `globals.css`).
- * - Calibración: sutil, nunca protagonista. Nada pasa de 300 ms; el resorte
+ * - Calibración: sutil, nunca protagonista. Nada pasa de 300 ms (salvo los
+ *   paneles que entran y salen, `NAV`: 360 ms a pedido del dueño); el resorte
  *   se asienta en ~200 ms con un rebote que se siente (asienta) pero no se ve
  *   (0.12). Con 0.18 el giro del chevron ya se leía como rebote. La misma
  *   intención tiene `ease-spring` en CSS (tailwind.config.ts).
@@ -35,13 +36,16 @@ export const SLIDE = { type: "spring", duration: 0.22, bounce: 0 } as const;
  */
 export const MORPH = { type: "spring", duration: 0.26, bounce: 0 } as const;
 /**
- * El menú lateral al cambiar de estado (expandido → íconos → oculto): la
- * columna de contenido se desliza de ~170 px. 280 ms y sin rebote: con los
- * 220 ms de SLIDE y CPU lenta, la mitad del recorrido se iba en el primer
- * cuadro y se leía como un salto (medido con `scripts/perf-sidebar.mjs`).
- * Los textos del menú usan la misma duración en CSS (`duration-nav`).
+ * Los paneles que entran y salen: el menú lateral al cambiar de estado
+ * (expandido → íconos → oculto; la columna de contenido se desliza ~170 px) y
+ * el panel de Detalles de la Bandeja. Los dos con el MISMO tiempo y la MISMA
+ * curva para que se sientan una sola familia: 360 ms (antes 280: se leía
+ * como un pantallazo) con arranque decidido y frenado largo, sin rebote. En
+ * CSS son `duration-nav` + `ease-panel` (tailwind.config.ts). Con 220 ms y
+ * CPU lenta la mitad del recorrido se iba en el primer cuadro y se leía como
+ * un salto (medido con `scripts/perf-sidebar.mjs`): más largo, no más corto.
  */
-export const NAV = { type: "spring", duration: 0.28, bounce: 0 } as const;
+export const NAV = { type: "tween", duration: 0.36, ease: [0.32, 0.72, 0, 1] } as const;
 /** Para lo que entra (filas de la línea de tiempo): sin rebote, más corto. */
 export const ENTER = { type: "spring", duration: 0.18, bounce: 0 } as const;
 
