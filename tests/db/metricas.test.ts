@@ -22,6 +22,10 @@ vi.mock("@/lib/meta/client", async (orig) => ({
 
 const DAY = 86_400;
 const hoy = () => Math.floor(Date.now() / 1000 / DAY) * DAY;
+// Los datos de Meta van en el día UTC de AYER: el periodo de Métricas se corta
+// en la zona del negocio (detrás de UTC) y, entre las 00:00 UTC y la
+// medianoche local, el día UTC de hoy aún no entra (la prueba fallaba según la hora).
+const ayer = () => hoy() - DAY;
 
 function respuestaMeta(path: string): unknown {
   const fields = decodeURIComponent(path.split("fields=")[1] ?? "");
@@ -31,7 +35,7 @@ function respuestaMeta(path: string): unknown {
         data: [
           {
             data_points: [
-              { template_id: "WT-1", start: hoy(), end: hoy() + DAY, sent: 10, delivered: 9, read: 6, clicked: [{ type: "quick_reply_button", count: 2 }] },
+              { template_id: "WT-1", start: ayer(), end: ayer() + DAY, sent: 10, delivered: 9, read: 6, clicked: [{ type: "quick_reply_button", count: 2 }] },
             ],
           },
         ],
@@ -41,7 +45,7 @@ function respuestaMeta(path: string): unknown {
   return {
     currency: "MXN",
     pricing_analytics: {
-      data: [{ data_points: [{ start: hoy(), end: hoy() + DAY, pricing_category: "MARKETING", pricing_type: "REGULAR", country: "MX", volume: 10, cost: 7.5 }] }],
+      data: [{ data_points: [{ start: ayer(), end: ayer() + DAY, pricing_category: "MARKETING", pricing_type: "REGULAR", country: "MX", volume: 10, cost: 7.5 }] }],
     },
   };
 }
