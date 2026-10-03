@@ -3,44 +3,76 @@
 @tailwind utilities;
 
 /*
-  Sistema de diseño de Vocero: la misma marca que vocerocrm.com dentro del CRM.
-  Papel frío (#f6f8fc), tinta azul marino, acento azul eléctrico con remate
-  cian, tipografía Archivo para la interfaz, Instrument Serif itálica para los
-  acentos editoriales e IBM Plex Mono para etiquetas y horas.
+  Sistema de diseño de Dashfort (marca de Demfort, white-label).
+
+  Dos capas de tokens:
+  1. Tokens POR FUNCIÓN (fondo, superficie, texto, radio, sombra, letra): los
+     que decide el estilo. Una sesión futura cuelga aquí `[data-style]`
+     (Moderno / Plano) y `[data-font]` redefiniendo SOLO este bloque; los
+     componentes no se enteran.
+  2. Tokens de uso (--bg, --bg-subtle, --text-2…): los que ya consumen los
+     componentes vía tailwind.config.ts. Los de superficie apuntan a la capa 1.
+
+  Estilo actual: fondo base gris muy claro; encima, tarjetas y paneles
+  blancos que "flotan" (radio + sombra suave). El acento (--accent*) es SOLO
+  para lo interactivo y de estado (botón principal, enlaces, ítem activo,
+  badges, foco) y NUNCA se escribe a mano: lo sobreescribe en runtime el
+  white-label de la organización (Ajustes → Marca), para AMBOS temas.
 
   El tema activo se selecciona con `data-theme` en <html> (ver src/lib/theme.ts):
   el servidor lo escribe desde la cookie, así que no hay parpadeo.
-  Los tokens de acento (--accent*) se sobreescriben en runtime por el
-  white-label de la organización (Configuración → Marca), para AMBOS temas.
 */
 @layer base {
   :root {
     color-scheme: light;
 
-    /* Neutros: papel frío de la landing */
-    --bg: #ffffff;
-    --bg-subtle: #f6f8fc;
-    --bg-panel: #eef2f9;
-    --bg-hover: #e9eef8;
+    /* ── 1. Tokens por función ─────────────────────────────────────── */
+    /* Fondo base de la página (lo que queda DEBAJO de los paneles). */
+    --surface-base: #f5f5f7;
+    /* Superficie: tarjetas, paneles, sidebar. */
+    --surface: #ffffff;
+    /* Hueco dentro de una superficie (hilo del chat, columnas). */
+    --surface-sunken: #f5f5f7;
+    /* Radios: controles, tarjetas y contenedores grandes. */
+    --radius-control: 8px;
+    --radius-card: 12px;
+    --radius-panel: 16px;
+    /* Sombras suaves y neutras (sin tinte de color). */
+    --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.04), 0 4px 14px -6px rgba(0, 0, 0, 0.08);
+    --shadow-panel: 0 1px 2px rgba(0, 0, 0, 0.04), 0 10px 30px -12px rgba(0, 0, 0, 0.1);
+    /* Letra: familia de interfaz, tamaño base y pesos por función. */
+    --font-ui: var(--font-inter), system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --text-base: 14px;
+    --weight-title: 600;
+    --weight-ui: 500;
+    --weight-body: 400;
+
+    /* ── 2. Tokens de uso ──────────────────────────────────────────── */
+    /* Neutros: gris claro de base, superficies blancas */
+    --bg: var(--surface);
+    --bg-subtle: var(--surface-sunken);
+    --bg-panel: #efeff2;
+    --bg-hover: #eaeaee;
     /* Lo que flota sobre la página: diálogos, cajones, menús. En claro es el
        mismo blanco de siempre; en oscuro se aclara para despegarse. */
-    --bg-raised: #ffffff;
-    --text: #0a1730;
-    --text-2: #42506b;
-    --text-3: #8391aa;
-    --text-4: #aab4c8;
-    --border: #e8edf6;
-    --border-strong: #dde5f1;
+    --bg-raised: var(--surface);
+    /* Texto: gris muy oscuro (no negro puro); secundario en gris medio. */
+    --text: #1d1d1f;
+    --text-2: #48484d;
+    --text-3: #6e6e73;
+    --text-4: #a1a1a6;
+    --border: #e6e6eb;
+    --border-strong: #d8d8de;
     /* Chips dentro de una fila y la fila bajo el cursor. En claro coinciden
        con --bg y --bg-subtle; en oscuro NO: ahí --bg-subtle es más oscuro que
        --bg y un chip con fondo --bg desaparece dentro de la fila. */
     --chip-bg: #ffffff;
-    --row-hover: #f6f8fc;
+    --row-hover: #f5f5f7;
     /* 215 — Lo no hábil del calendario de Citas (ver .cal-off). */
-    --cal-off: #f6f8fc;
+    --cal-off: #f5f5f7;
 
     /* Chat: el cliente entra en verde WhatsApp, el CRM contesta en el acento */
-    --chat-bg: #f6f8fc;
+    --chat-bg: var(--surface-sunken);
     --bubble-in: #eaf7ef;
     --bubble-in-border: #d7eede;
     --bubble-out: var(--accent-tint);
@@ -89,14 +121,14 @@
     --overlay: rgba(4, 16, 46, 0.55);
     --knob: #ffffff;
 
-    /* Radios y sombras (las de la landing, con tinte azul marino) */
-    --radius-sm: 9px;
-    --radius: 12px;
-    --radius-lg: 16px;
-    --shadow-sm: 0 1px 2px rgba(8, 27, 82, 0.06);
-    --shadow-md: 0 14px 40px -16px rgba(8, 27, 82, 0.16);
-    --shadow-pop: 0 30px 80px -20px rgba(8, 27, 82, 0.22),
-      0 8px 24px -12px rgba(8, 27, 82, 0.12);
+    /* Radios y sombras de uso: apuntan a los de función */
+    --radius-sm: var(--radius-control);
+    --radius: var(--radius-card);
+    --radius-lg: var(--radius-panel);
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+    --shadow-md: var(--shadow-card);
+    --shadow-pop: 0 24px 64px -20px rgba(0, 0, 0, 0.22),
+      0 8px 24px -12px rgba(0, 0, 0, 0.1);
 
     /* Densidad de filas de conversación */
     --row-py: 9px;
@@ -116,8 +148,16 @@
     /* Escalera de superficies, de la más honda a la más alta. --bg-subtle es
        el hueco (hilo del chat, columnas del pipeline, fuera de horario), como
        el papel gris del tema claro. */
-    --bg-subtle: #141c30;
-    --bg: #1c263c;
+    /* Tokens por función en oscuro: la base va un escalón DEBAJO de la
+       superficie para que los paneles floten también aquí. */
+    --surface-base: #10172a;
+    --surface: #1c263c;
+    --surface-sunken: #141c30;
+    --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4), 0 6px 18px -8px rgba(0, 0, 0, 0.55);
+    --shadow-panel: 0 1px 2px rgba(0, 0, 0, 0.4), 0 12px 32px -12px rgba(0, 0, 0, 0.65);
+
+    --bg-subtle: var(--surface-sunken);
+    --bg: var(--surface);
     --row-hover: #212c45;
     --bg-raised: #222d47;
     --chip-bg: #26334d;
@@ -136,7 +176,7 @@
     --border-strong: #4a5d8e;
 
     /* Chat */
-    --chat-bg: #141c30;
+    --chat-bg: var(--surface-sunken);
     --bubble-in: #173d2c;
     --bubble-in-border: #2a5e45;
 
@@ -180,7 +220,7 @@
 
     /* Sombras: sobre oscuro necesitan más negro para leerse */
     --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.45);
-    --shadow-md: 0 14px 40px -16px rgba(0, 0, 0, 0.6);
+    --shadow-md: var(--shadow-card);
     --shadow-pop: 0 30px 80px -20px rgba(0, 0, 0, 0.75),
       0 8px 24px -12px rgba(0, 0, 0, 0.5);
   }
@@ -200,6 +240,10 @@
   */
   .nav-dark {
     color-scheme: dark;
+    /* El fondo del panel de la barra (lo que pinta `bg-nav`). Con los
+       colores de Marca es su propio hueco; con "Panel claro" (ver
+       sidebarTokens en lib/branding.ts) es la superficie del tema. */
+    --nav-surface: var(--bg-subtle);
     --bg: #0b1327;
     --bg-subtle: #070e20;
     --bg-panel: #131f3d;
@@ -225,7 +269,8 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground antialiased;
+    @apply text-foreground antialiased;
+    background-color: var(--surface-base);
     letter-spacing: -0.01em;
     text-rendering: optimizeLegibility;
   }
@@ -303,23 +348,10 @@
     }
   }
 
-  /* Fondo del hilo: un leve resplandor del acento en la esquina, como en el
-     mockup de la landing. Si el navegador no sabe color-mix, queda el plano. */
+  /* Fondo del hilo: el hueco neutro de la superficie. El acento ya no se usa
+     como fondo grande (solo en lo interactivo y de estado). */
   .thread-bg {
     background-color: var(--chat-bg);
-    background-image: radial-gradient(
-      circle at 82% 0%,
-      color-mix(in srgb, var(--accent) 7%, transparent),
-      transparent 55%
-    );
-  }
-  /* En oscuro el 7% no se percibe y el hilo vacío se ve como un hueco. */
-  :root[data-theme="dark"] .thread-bg {
-    background-image: radial-gradient(
-      circle at 82% 0%,
-      color-mix(in srgb, var(--accent) 16%, transparent),
-      transparent 60%
-    );
   }
 
   /* 215 — Rejilla del calendario de Citas: una línea por hora. El alto de la

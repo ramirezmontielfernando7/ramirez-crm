@@ -35,11 +35,20 @@ function variables(css: string, selector: string): Record<string, string> {
   const cuerpo = css
     .slice(css.indexOf("{", inicio) + 1, css.indexOf("}", inicio))
     .replace(/\/\*[\s\S]*?\*\//g, ""); // un comentario puede nombrar un token
-  return Object.fromEntries(
+  const crudas: Record<string, string> = Object.fromEntries(
     [...cuerpo.matchAll(/(--[\w-]+):\s*([^;]+);/g)].map((m) => [
       m[1]!,
       m[2]!.replace(/\s+/g, " ").trim(),
     ])
+  );
+  // Los tokens de uso apuntan a los de función del MISMO bloque
+  // (`--bg: var(--surface)`): se resuelve ese nivel para comparar colores.
+  return Object.fromEntries(
+    Object.entries(crudas).map(([k, v]) => {
+      const ref = /^var\((--[\w-]+)\)$/.exec(v)?.[1];
+      const real = ref ? crudas[ref] : undefined;
+      return [k, real && real.startsWith("#") ? real : v];
+    })
   );
 }
 
@@ -231,11 +240,31 @@ describe("white-label: normalización", () => {
 });
 
 describe("barra lateral de color (Configuración → Marca)", () => {
-  it("por default es el teal profundo; un valor raro cae al default", () => {
-    expect(DEFAULT_BRANDING.sidebar).toBe("teal-deep");
-    expect(normalizeBranding(null).sidebar).toBe("teal-deep");
-    expect(normalizeBranding({ sidebar: "rosa" as never }).sidebar).toBe("teal-deep");
+  it("por default es el Panel claro; un valor raro cae al default", () => {
+    expect(DEFAULT_BRANDING.sidebar).toBe("panel");
+    expect(normalizeBranding(null).sidebar).toBe("panel");
+    expect(normalizeBranding({ sidebar: "rosa" as never }).sidebar).toBe("panel");
     expect(normalizeBranding({ sidebar: "teal-night" }).sidebar).toBe("teal-night");
+  });
+
+  it("un color ya guardado se respeta: el nuevo default no pisa a nadie", () => {
+    for (const t of ["teal-deep", "teal", "teal-night", "navy"] as const) {
+      expect(normalizeBranding({ sidebar: t }).sidebar).toBe(t);
+    }
+  });
+
+  it("Panel claro hereda neutros y acento del tema; su fondo es la superficie", () => {
+    const k = sidebarTokens("panel");
+    expect(k["--nav-surface"]).toBe("var(--surface)");
+    expect(k["--bg-subtle"]).toBe("var(--surface)");
+    for (const v of ["--text", "--text-3", "--border", "--accent", "--accent-tint", "--accent-text", "--ring"]) {
+      expect(k[v], v).toBe("inherit");
+    }
+    const css = sidebarCssVariables("panel");
+    expect(css).toMatch(/^\.nav-dark\{color-scheme:inherit;/);
+    expect(css).toContain("--accent:inherit;");
+    // El acento NO es blanco (eso es solo sobre teal): sale de la marca.
+    expect(css).not.toContain("--accent:#ffffff;");
   });
 
   it("teal profundo y teal noche: el texto de la barra pasa AA", () => {

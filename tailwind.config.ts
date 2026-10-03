@@ -41,6 +41,11 @@ const config: Config = {
         // En claro es el acento; en oscuro, su variante aclarada: el acento
         // sólido queda bajo 3:1 sobre la fila seleccionada y los diálogos.
         ring: "var(--ring)",
+        // Tokens por función (globals.css): fondo base de la página, la
+        // superficie de tarjetas y paneles, y el panel de la barra lateral.
+        base: "var(--surface-base)",
+        surface: "var(--surface)",
+        nav: "var(--nav-surface)",
         background: "var(--bg)",
         foreground: "var(--text)",
         subtle: "var(--bg-subtle)",
@@ -65,7 +70,7 @@ const config: Config = {
           foreground: "var(--text)",
         },
         card: {
-          DEFAULT: "var(--bg)",
+          DEFAULT: "var(--surface)",
           foreground: "var(--text)",
         },
         // Lo que flota (diálogos, cajones, menús): en oscuro, un escalón
@@ -127,11 +132,16 @@ const config: Config = {
         sm: "var(--radius-sm)",
         md: "var(--radius)",
         lg: "var(--radius-lg)",
+        control: "var(--radius-control)",
+        card: "var(--radius-card)",
+        panel: "var(--radius-panel)",
       },
       boxShadow: {
         sm: "var(--shadow-sm)",
         md: "var(--shadow-md)",
         pop: "var(--shadow-pop)",
+        card: "var(--shadow-card)",
+        panel: "var(--shadow-panel)",
       },
       // Las tres voces de la marca (ver src/app/layout.tsx, donde next/font
       // las descarga en build y las sirve self-hosted, sin CDN en runtime).

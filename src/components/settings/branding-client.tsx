@@ -238,6 +238,9 @@ export function BrandingClient({
           <div
             aria-label="Vista previa de la marca"
             className="flex flex-col overflow-hidden rounded-md border border-border-strong sm:flex-row"
+            // El acento elegido (aún sin guardar) para la página; con "Panel
+            // claro" la barra lo hereda de aquí.
+            style={accentVars(previewSet)}
           >
             <div
               className="nav-dark shrink-0 bg-subtle p-3 text-foreground sm:w-60"
