@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { memo, useRef, useState } from "react";
 import { m } from "motion/react";
 import { CheckSquare, Megaphone, Sparkles, UserRound } from "lucide-react";
 import type { ConversationDto } from "@/lib/types";
@@ -96,7 +96,8 @@ function EmptyState({ onSeeded }: { onSeeded: () => void }) {
   );
 }
 
-export function ConversationList({
+/** Memoizado por lo mismo que `MessageThread`: el panel de Detalles no la toca. */
+export const ConversationList = memo(function ConversationList({
   conversations: conversationsProp,
   channels,
   selectedId,
@@ -533,4 +534,4 @@ export function ConversationList({
       </div>
     </div>
   );
-}
+});

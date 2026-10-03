@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { memo, useEffect, useRef } from "react";
 import {
   AlertTriangle,
   Check,
@@ -182,7 +182,12 @@ function bubbleTime(iso: string): string {
   });
 }
 
-export function MessageThread({ messages }: { messages: MessageDto[] }) {
+/**
+ * Memoizado: abrir o cerrar Detalles (u otro estado de la Bandeja que no
+ * toca los mensajes) no vuelve a pintar cientos de burbujas; así la
+ * animación del panel arranca en el siguiente cuadro.
+ */
+export const MessageThread = memo(function MessageThread({ messages }: { messages: MessageDto[] }) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -297,4 +302,4 @@ export function MessageThread({ messages }: { messages: MessageDto[] }) {
       })}
     </div>
   );
-}
+});
