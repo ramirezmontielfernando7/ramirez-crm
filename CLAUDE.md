@@ -11,8 +11,8 @@ el caso típico: una agencia adaptando Vocero para un cliente.
 (`strict` + `noUncheckedIndexedAccess`) · Tailwind CSS (sistema de diseño de la
 marca Vocero, el mismo de vocerocrm.com: tokens en `src/app/globals.css`, tema
 claro/oscuro, marca de la casa **Dashfort by Demfort** con acento
-white-label por defecto el teal `#12999d`, letra de interfaz la del sistema
-(`system-ui`) y acentos Instrument Serif + IBM Plex Mono self-hosted vía
+white-label por defecto el teal `#12999d`, letra de interfaz
+Inter (400/500/600, tokens por función en `globals.css`) e IBM Plex Mono self-hosted vía
 `next/font`; el logo (burbuja
 de chat sobre mosaico teal), el nombre y la firma viven en `src/lib/brand.ts`
 y se dibujan con `src/components/brand-mark.tsx`) ·

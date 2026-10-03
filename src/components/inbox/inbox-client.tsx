@@ -363,7 +363,7 @@ export function InboxClient({ channels }: { channels: readonly Channel[] }) {
           </>
         ) : (
           <div className="thread-bg flex flex-1 flex-col items-center justify-center gap-2 px-6 text-center">
-            <p className="font-serif text-[24px] italic leading-tight text-text-2">
+            <p className="text-[24px] font-semibold leading-tight text-text-2">
               Elige una conversación para ver el hilo
             </p>
             <p className="kicker">Bandeja · tiempo real</p>

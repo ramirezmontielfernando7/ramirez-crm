@@ -1,21 +1,20 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
-import { IBM_Plex_Mono, Instrument_Serif } from "next/font/google";
+import { IBM_Plex_Mono, Inter } from "next/font/google";
 import { accentCssVariables, sidebarCssVariables } from "@/lib/branding";
 import { faviconHref } from "@/lib/favicon";
 import { normalizeThemePreference, THEME_COOKIE } from "@/lib/theme";
 import { getViewerBrandingContext } from "@/server/branding";
 import "./globals.css";
 
-// Voces de acento (serif y mono): next/font las descarga en BUILD y las sirve
-// self-hosted (sin CDN en runtime: soberanía). La letra de la interfaz es la
-// del sistema (Segoe UI en Windows, San Francisco en Apple, Roboto en
-// Android): no se descarga nada y se ve nativa en cada equipo.
-const instrumentSerif = Instrument_Serif({
+// Letras: next/font las descarga en BUILD y las sirve self-hosted desde la
+// propia instancia (sin CDN en runtime: soberanía). Inter es la letra de la
+// interfaz (400 contenido, 500 interfaz, 600 títulos; ver --font-ui en
+// globals.css); IBM Plex Mono queda para etiquetas y horas.
+const inter = Inter({
   subsets: ["latin"],
-  weight: "400",
-  style: ["normal", "italic"],
-  variable: "--font-serif",
+  weight: ["400", "500", "600"],
+  variable: "--font-inter",
   display: "swap",
 });
 const plexMono = IBM_Plex_Mono({
@@ -49,7 +48,7 @@ export default async function RootLayout({
   return (
     <html
       lang="es"
-      className={`${instrumentSerif.variable} ${plexMono.variable}`}
+      className={`${inter.variable} ${plexMono.variable}`}
       // La preferencia siempre es explícita: el tema viaja resuelto en el HTML
       // del servidor, así que no hay divergencia con el cliente ni parpadeo.
       data-theme={theme}

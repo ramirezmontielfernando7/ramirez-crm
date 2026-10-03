@@ -195,7 +195,9 @@ function ShellFrame({
 
   return (
     <NavModeProvider value={navCtx}>
-      <div className="flex h-dvh overflow-hidden bg-background">
+      {/* Fondo base de la página; en escritorio, la barra y el contenido son
+          dos paneles que flotan sobre él (radio + sombra), separados. */}
+      <div className="flex h-dvh overflow-hidden bg-base lg:gap-3 lg:p-3">
         {navOpen && (
           <button
             aria-label="Cerrar el menú"
@@ -222,10 +224,13 @@ function ShellFrame({
         {/* 022 — Con el menú oculto, el hamburguesa para volver va en la fila
             del título de cada pantalla (`NavRevealButton`), así que la
             columna ocupa TODO el ancho, sin franja ni botón flotante. */}
-        <div ref={content} className="flex min-w-0 flex-1 flex-col">
+        <div
+          ref={content}
+          className="flex min-w-0 flex-1 flex-col overflow-hidden bg-surface lg:rounded-panel lg:border lg:shadow-panel"
+        >
           {/* Misma pieza que la barra lateral (`nav-dark`): en el teléfono la
               franja azul marino de arriba es lo que queda del bicolor. */}
-          <header className="nav-dark flex h-14 shrink-0 items-center gap-2.5 border-b bg-subtle px-2 text-foreground lg:hidden">
+          <header className="nav-dark flex h-14 shrink-0 items-center gap-2.5 border-b bg-nav px-2 text-foreground lg:hidden">
             {/* El logo abre el cajón, como el de la barra lateral en escritorio. */}
             <button
               onClick={() => setNavOpen(true)}

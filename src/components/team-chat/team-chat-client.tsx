@@ -309,7 +309,7 @@ export function TeamChatClient() {
           </>
         ) : (
           <div className="thread-bg flex flex-1 flex-col items-center justify-center gap-2 px-6 text-center">
-            <p className="font-serif text-[24px] italic leading-tight text-text-2">Elige una conversación del equipo</p>
+            <p className="text-[24px] font-semibold leading-tight text-text-2">Elige una conversación del equipo</p>
             <p className="kicker">Chat de equipo · tiempo real</p>
           </div>
         )}

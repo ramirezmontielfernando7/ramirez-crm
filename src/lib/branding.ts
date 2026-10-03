@@ -37,15 +37,23 @@ export type BrandingFavicon = {
 
 /**
  * El color de la barra lateral (solo el Propietario lo cambia, en
- * Configuración → Marca). "teal-deep" es el default de Dashfort.
+ * Configuración → Marca). "panel" (Panel claro) es el default de Dashfort:
+ * la barra es una superficie más del tema (blanca en claro, la superficie
+ * oscura en oscuro) y el acento queda solo en el ítem activo. Las
+ * organizaciones con otro color guardado lo conservan tal cual.
  */
-export const SIDEBAR_THEMES = ["teal-deep", "teal", "teal-night", "navy"] as const;
+export const SIDEBAR_THEMES = ["panel", "teal-deep", "teal", "teal-night", "navy"] as const;
 export type SidebarTheme = (typeof SIDEBAR_THEMES)[number];
 
 export const SIDEBAR_THEME_INFO: Record<
   SidebarTheme,
   { label: string; bg: string; note?: string }
 > = {
+  panel: {
+    label: "Panel claro",
+    bg: "#ffffff",
+    note: "La barra sigue el tema claro u oscuro; el color de la marca queda solo en el elemento activo.",
+  },
   "teal-deep": { label: "Teal profundo", bg: "#0e7c80" },
   teal: {
     label: "Teal del logo",
@@ -78,7 +86,7 @@ export const DEFAULT_BRANDING: Branding = {
   accent: "#12999d",
   currency: DEFAULT_CURRENCY,
   favicon: null,
-  sidebar: "teal-deep",
+  sidebar: "panel",
 };
 
 /**
@@ -365,6 +373,43 @@ const NAVY_TOKENS: Record<string, string> = {
 };
 
 /**
+ * Panel claro: la barra deja de redeclarar sus neutros y su acento y HEREDA
+ * los del tema activo (`inherit` en una variable toma el valor ya calculado
+ * del padre), así que cambia de claro a oscuro con la página y el ítem activo
+ * usa el acento white-label calculado para ese tema. Su fondo es la
+ * superficie (`--surface`, que `.nav-dark` no redeclara): un panel blanco
+ * sobre el fondo base gris.
+ */
+const PANEL_TOKENS: Record<string, string> = {
+  "--nav-surface": "var(--surface)",
+  "--bg-subtle": "var(--surface)",
+  "--bg": "inherit",
+  "--bg-panel": "inherit",
+  "--bg-raised": "inherit",
+  "--bg-hover": "inherit",
+  "--text": "inherit",
+  "--text-2": "inherit",
+  "--text-3": "inherit",
+  "--text-4": "inherit",
+  "--border": "inherit",
+  "--border-strong": "inherit",
+  "--chip-bg": "inherit",
+  "--row-hover": "inherit",
+  "--accent": "inherit",
+  "--accent-hover": "inherit",
+  "--accent-soft": "inherit",
+  "--accent-tint": "inherit",
+  "--accent-text": "inherit",
+  "--accent-fg": "inherit",
+  "--accent-ink": "inherit",
+  "--ring": "inherit",
+  "--accent-veil": "inherit",
+  "--shadow-pop": "inherit",
+  "--house-tile": "initial",
+  "--house-tile-ring": "initial",
+};
+
+/**
  * Los tokens de `.nav-dark` para cada color de barra. Azul marino = los de
  * globals.css (y el acento calculado contra ese fondo).
  *
@@ -376,6 +421,7 @@ const NAVY_TOKENS: Record<string, string> = {
  */
 export function sidebarTokens(theme: SidebarTheme): Record<string, string> {
   if (theme === "navy") return NAVY_TOKENS;
+  if (theme === "panel") return PANEL_TOKENS;
   const bgHex = SIDEBAR_THEME_INFO[theme].bg;
   const bg = hexToRgb(bgHex);
   const w = (t: number) => rgbToHex(mix(bg, WHITE, t));
@@ -412,7 +458,9 @@ export function sidebarCssVariables(theme: SidebarTheme): string {
   // Azul marino ya es el respaldo de globals.css: no hace falta repetirlo.
   if (theme === "navy") return "";
   const t = sidebarTokens(theme);
-  return `.nav-dark{${Object.entries(t)
+  // Panel claro: los controles nativos (barras de scroll) siguen al tema.
+  const scheme = theme === "panel" ? "color-scheme:inherit;" : "";
+  return `.nav-dark{${scheme}${Object.entries(t)
     .map(([k, v]) => `${k}:${v};`)
     .join("")}}`;
 }
