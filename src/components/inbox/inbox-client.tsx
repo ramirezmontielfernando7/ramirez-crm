@@ -282,12 +282,15 @@ export function InboxClient({ channels }: { channels: readonly Channel[] }) {
   );
 
   return (
-    <div className="flex h-full">
+    // Escritorio: lista, hilo y detalles son paneles separados que flotan
+    // sobre el fondo base (ver `.shell-content` en globals.css).
+    <div data-split-panels className="flex h-full lg:gap-3">
       {/* Móvil: una columna a la vez. La lista cede la pantalla completa al
           hilo en cuanto hay conversación elegida (patrón maestro-detalle). */}
       <section
         className={cn(
           "w-full shrink-0 overflow-hidden border-r md:w-[300px] lg:w-[360px]",
+          "lg:rounded-panel lg:border lg:bg-surface lg:shadow-panel",
           selected && "max-md:hidden"
         )}
       >
@@ -303,6 +306,7 @@ export function InboxClient({ channels }: { channels: readonly Channel[] }) {
       <section
         className={cn(
           "flex min-w-0 flex-1 flex-col",
+          "lg:overflow-hidden lg:rounded-panel lg:border lg:bg-surface lg:shadow-panel",
           !selected && "max-md:hidden"
         )}
       >
@@ -390,9 +394,12 @@ export function InboxClient({ channels }: { channels: readonly Channel[] }) {
           // Debajo de xl no hay ancho para una tercera columna: el panel se
           // vuelve un cajón que entra desde la derecha, encima del hilo.
           "max-xl:fixed max-xl:inset-y-0 max-xl:right-0 max-xl:z-40 max-xl:w-auto max-xl:bg-popover max-xl:transition-transform",
+          // En xl es el tercer panel flotante; cerrado mide 0 y el margen
+          // negativo se come el hueco del `gap`.
+          "xl:rounded-panel xl:bg-surface",
           panelOpen && selected
-            ? "w-[320px] max-xl:translate-x-0 max-xl:shadow-pop"
-            : "w-0 border-l-0 max-xl:translate-x-full"
+            ? "w-[320px] max-xl:translate-x-0 max-xl:shadow-pop xl:border xl:shadow-panel"
+            : "w-0 border-l-0 max-xl:translate-x-full xl:-ml-3"
         )}
       >
         {selected && (
