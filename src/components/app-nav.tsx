@@ -214,7 +214,7 @@ export function AppNav({
         // nombre del usuario, el nombre white-label en BrandLogo) hereda el
         // color YA CALCULADO en <body> con el tema de la página, no el de
         // `.nav-dark` — y un texto oscuro sobre este fondo oscuro se pierde.
-        "group/nav nav-dark fixed inset-y-0 left-0 z-50 flex w-[17rem] shrink-0 flex-col overflow-y-auto border-r bg-nav px-3 pb-3.5 pt-3 text-foreground transition-[transform,visibility] duration-200",
+        "group/nav nav-dark fixed inset-y-0 left-0 z-50 flex w-[17rem] shrink-0 flex-col overflow-y-auto border-r bg-nav px-3 pb-3.5 pt-3 text-foreground transition-[transform,visibility] duration-nav ease-panel",
         // En escritorio el ancho cambia de golpe (animar `width` recalcula el
         // layout de toda la página en cada cuadro); lo que se mueve con
         // resorte son los textos, solo con `opacity` + `transform`.
@@ -306,7 +306,7 @@ const NavBrandText = memo(function NavBrandText({
     <div
       aria-hidden={mini || undefined}
       className={cn(
-        "min-w-0 transition-[opacity,transform] duration-nav ease-out",
+        "min-w-0 transition-[opacity,transform] duration-nav ease-panel",
         "group-data-[mini]/nav:pointer-events-none group-data-[mini]/nav:-translate-x-1.5 group-data-[mini]/nav:opacity-0"
       )}
     >
@@ -462,7 +462,7 @@ function NavLabel({ children }: { children: React.ReactNode }) {
   return (
     <span
       className={cn(
-        "flex-1 whitespace-nowrap transition-[opacity,transform] duration-nav ease-out",
+        "flex-1 whitespace-nowrap transition-[opacity,transform] duration-nav ease-panel",
         "group-data-[mini]/nav:-translate-x-1.5 group-data-[mini]/nav:opacity-0"
       )}
     >
