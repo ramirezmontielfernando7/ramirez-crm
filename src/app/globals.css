@@ -413,20 +413,6 @@
     }
   }
 
-  /* Detalles de la Bandeja (xl): el hueco de la columna cambia de ancho de
-     golpe; al ABRIR, de inmediato (la tarjeta entra deslizándose sobre él);
-     al CERRAR, espera a que la tarjeta termine de salir. Misma duración que
-     `duration-nav`. */
-  @media (min-width: 1280px) {
-    .details-slot {
-      transition-property: width, margin-left;
-      transition-duration: 0s;
-    }
-    .details-slot[data-open="false"] {
-      transition-delay: 360ms;
-    }
-  }
-
   /* Metadatos: más pequeños y en gris (horas, conteos, "hace 5 min"). */
   .text-meta {
     @apply text-[12px] font-normal text-text-3;
@@ -459,8 +445,5 @@
   *::after {
     transition-duration: 0.01ms !important;
     animation-duration: 0.01ms !important;
-  }
-  .details-slot {
-    transition-delay: 0s !important;
   }
 }

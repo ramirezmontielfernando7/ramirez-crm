@@ -171,6 +171,9 @@ export function AppNav({
   // Oculta: en escritorio la columna desaparece (el botón para volver lo pinta
   // AppShell). El cajón del teléfono no se entera: sigue abriendo completo.
   const hidden = mode === "hidden";
+  // Oculta se va deslizando desde su forma angosta (íconos): así al ocultar
+  // solo se mueve, y al volver crece mientras entra.
+  const narrow = desktop && (mini || hidden);
   const toggleLabel = mini ? "Ocultar el menú" : "Colapsar el menú";
 
   const signOutAndLeave = useCallback(async () => {
@@ -203,7 +206,7 @@ export function AppNav({
       // El estado "mini" se lee en CSS (`group-data-[mini]/nav:`), no por
       // props: así, al cambiar de estado solo se vuelve a pintar este
       // contenedor y los renglones (memoizados) no se enteran.
-      data-mini={mini || undefined}
+      data-mini={narrow || undefined}
       // Móvil: cajón que se desliza desde la izquierda (siempre montado, así
       // la transición corre en ambos sentidos). Escritorio: columna fija.
       // `visibility` va en la transición a propósito: al cerrar mantiene el
@@ -215,16 +218,22 @@ export function AppNav({
         // color YA CALCULADO en <body> con el tema de la página, no el de
         // `.nav-dark` — y un texto oscuro sobre este fondo oscuro se pierde.
         "group/nav nav-dark fixed inset-y-0 left-0 z-50 flex w-[17rem] shrink-0 flex-col overflow-y-auto border-r bg-nav px-3 pb-3.5 pt-3 text-foreground transition-[transform,visibility] duration-nav ease-panel",
-        // En escritorio el ancho cambia de golpe (animar `width` recalcula el
-        // layout de toda la página en cada cuadro); lo que se mueve con
-        // resorte son los textos, solo con `opacity` + `transform`.
-        // `relative z-10`: al reaparecer, la columna de contenido se desliza
-        // desde DEBAJO del menú, no encima.
-        "lg:relative lg:visible lg:z-10 lg:translate-x-0 lg:overflow-x-hidden",
-        // Escritorio: panel propio, separado del contenido (radio + sombra).
+        // Escritorio: panel propio que FLOTA (absoluto) sobre un separador
+        // que reserva su lugar en el flujo (AppShell). Así el panel anima su
+        // ancho (y su salida al ocultarse) con el mismo tiempo y curva que
+        // Detalles sin reacomodar la página en cada cuadro: solo se
+        // reacomoda él. La columna de contenido se desliza pegada a su borde
+        // (`NAV`, mismo tiempo y curva). `z-10`: el contenido pasa por debajo.
+        "lg:absolute lg:inset-y-3 lg:left-3 lg:z-10 lg:overflow-x-hidden",
+        "lg:transition-[width,padding,transform,visibility] lg:duration-nav lg:ease-panel",
         "lg:rounded-panel lg:border lg:shadow-panel",
-        mini ? "lg:w-14 lg:px-2" : "lg:w-56",
-        hidden && "lg:hidden",
+        narrow ? "lg:w-14 lg:px-2" : "lg:w-56",
+        // Oculto sale 68 px fijos (56 de su forma angosta + 12 del margen),
+        // no un %: el % cambiaría con el ancho a medio camino y el borde se
+        // despegaría del contenido al volver.
+        hidden
+          ? "lg:invisible lg:-translate-x-[68px]"
+          : "lg:visible lg:translate-x-0",
         open ? "visible translate-x-0 shadow-pop" : "invisible -translate-x-full"
       )}
     >
