@@ -17,8 +17,17 @@ Automatizado en `scripts/e2e-participantes-menciones.mjs`
 4. **Menciones** en un grupo A·B·C: A no puede mencionar Y (422); menciona
    X; el SSE no trae id ni nombre; C la ve sin acceso y sin rastro de X
    (mensaje, historial, lista); B (participante) la ve resuelta.
+   **Compañeros**: A no puede mencionar a la coordinadora (no está en el
+   grupo → 422); menciona a B y a X en un mensaje: la del compañero sale con
+   su nombre y en orden; a B le sube el globo de no leídos; C ve el nombre de
+   B pero no el chat X; la vista previa no lleva el id de B.
 5. **Navegador**: B ve la pastilla con el nombre y al presionarla abre el
    chat en la Bandeja; C ve «chat sin acceso» y la página no contiene el
-   nombre; a la asignada le aparece el aviso de atención humana.
+   nombre; el botón @ de C abre el selector con **Compañeros** (A y B, sin la
+   coordinadora ni C) arriba de **Chats de clientes**; elegir a A escribe
+   `@{Nombre}`, se envía y A lo ve como mención (la suya no es enlace); al
+   presionar la mención de A, C llega al **directo con A** en el chat de
+   equipo (nunca a la Bandeja); a la asignada le aparece el aviso de
+   atención humana.
 6. **Quitar** a B: 404 en X, la mención ya le sale sin acceso y la línea de
    tiempo registra la salida.

@@ -109,7 +109,11 @@ export async function GET(req: Request, ctx: Params) {
   // `templateAnalyticsDisabled`, Meta responde que no están activas.
   const fieldsParam = new URL(req.url).searchParams.get("fields") ?? "";
   if (path.length === 1 && /template_analytics|pricing_analytics/.test(fieldsParam)) {
-    const day = Math.floor(Date.now() / 86_400_000) * 86_400;
+    // El día UTC de AYER (no el de hoy): Métricas corta el periodo en la zona
+    // del negocio, que va detrás de UTC; entre las 00:00 UTC y la medianoche
+    // local, el "hoy" UTC aún no entra en el periodo y el guion fallaba según
+    // la hora. Ayer siempre cae dentro (y dentro de la ventana de resync).
+    const day = (Math.floor(Date.now() / 86_400_000) - 1) * 86_400;
     if (fieldsParam.includes("template_analytics") && getWaMockState().templateAnalyticsDisabled) {
       return Response.json(
         {

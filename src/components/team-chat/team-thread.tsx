@@ -16,7 +16,7 @@ import { cn } from "@/lib/utils";
 import { SPRING } from "@/components/motion";
 import { formatBytes } from "@/components/inbox/helpers";
 import { useRouter } from "next/navigation";
-import { encodeMentions, splitBody, MENTION_SLOT } from "@/lib/team-chat-mentions";
+import { encodeMentions, splitBody, MENTION_SLOT, userMentionRef } from "@/lib/team-chat-mentions";
 import { MentionChip } from "./mention-picker";
 
 /**
@@ -32,7 +32,7 @@ function draftFromMessage(message: TeamMessageDto): { text: string; map: Map<str
       ok = false;
       return "";
     }
-    map.set(mention.label, mention.conversationId);
+    map.set(mention.label, mention.kind === "user" ? userMentionRef(mention.userId) : mention.conversationId);
     return `@{${mention.label}}`;
   });
   return ok ? { text, map } : null;
@@ -77,6 +77,7 @@ export function TeamThread({
   canReact,
   onLoadOlder,
   onChanged,
+  onOpenDirect,
 }: {
   kind: TeamThreadKind;
   userId: string;
@@ -86,6 +87,8 @@ export function TeamThread({
   canReact: boolean;
   onLoadOlder: () => void;
   onChanged: (message: TeamMessageDto) => void;
+  /** Abre (o reutiliza) el directo con un compañero; devuelve el error, si hubo. */
+  onOpenDirect: (userId: string) => Promise<string | null>;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const atBottom = useRef(true);
@@ -157,6 +160,7 @@ export function TeamThread({
               showAuthor={kind !== "direct" && !grouped}
               canReact={canReact}
               onChanged={onChanged}
+              onOpenDirect={onOpenDirect}
             />
           </div>
         );
@@ -173,6 +177,7 @@ function Bubble({
   showAuthor,
   canReact,
   onChanged,
+  onOpenDirect,
 }: {
   message: TeamMessageDto;
   mine: boolean;
@@ -181,6 +186,7 @@ function Bubble({
   showAuthor: boolean;
   canReact: boolean;
   onChanged: (message: TeamMessageDto) => void;
+  onOpenDirect: (userId: string) => Promise<string | null>;
 }) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);
@@ -316,7 +322,13 @@ function Bubble({
                       <MentionChip
                         key={i}
                         mention={part.mention}
+                        viewerId={userId}
                         onOpen={(contactId) => router.push(`/inbox?contact=${encodeURIComponent(contactId)}`)}
+                        onOpenUser={async (mateId) => {
+                          // Un compañero: su directo en el chat de equipo, nunca un chat de cliente.
+                          const err = await onOpenDirect(mateId);
+                          if (err) setError(`No se pudo abrir el directo: ${err}`);
+                        }}
                       />
                     )
                   )}

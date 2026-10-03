@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
   encodeMentions,
   extractMentionIds,
+  extractUserMentionIds,
   mentionToken,
+  userMentionRef,
+  userMentionToken,
   previewWithoutMentions,
   renderMentions,
   splitBody,
@@ -75,5 +78,39 @@ describe("menciones", () => {
 
   it("un id raro no se toma por mención (solo el formato de nanoid)", () => {
     expect(extractMentionIds("@[chat:../../x] @[chat:CV_MAYUS] @[chat:]")).toEqual([]);
+  });
+
+  it("compañeros: se extraen aparte de los chats, sin repetir", () => {
+    const U = "AbC123xyz_-9";
+    const mixto = `Hola ${userMentionToken(U)}, mira ${mentionToken(A)} ${userMentionToken(U)}`;
+    expect(extractUserMentionIds(mixto)).toEqual([U]);
+    expect(extractMentionIds(mixto)).toEqual([A]);
+  });
+
+  it("compañeros y chats comparten la numeración de posiciones", () => {
+    const U = "user0001";
+    const mixto = `${userMentionToken(U)} revisa ${mentionToken(A)}`;
+    const r = renderMentions(mixto, new Map([[A, { contactId: "ct_a", label: "Clínica Polanco" }]]), new Map([[U, "Ana López"]]));
+    expect(r.body).toBe("@[m:0] revisa @[m:1]");
+    expect(r.mentions).toEqual([
+      { accessible: true, kind: "user", userId: U, label: "Ana López" },
+      { accessible: true, conversationId: A, contactId: "ct_a", label: "Clínica Polanco" },
+    ]);
+  });
+
+  it("un compañero que ya no es del equipo sale sin nombre", () => {
+    const r = renderMentions(`hola ${userMentionToken("ex0001")}`, new Map());
+    expect(r.mentions).toEqual([{ accessible: false }]);
+  });
+
+  it("el editor codifica compañeros (`user:<id>`) y chats en el mismo mapa", () => {
+    const text = "@{Ana López} mira @{Clínica Polanco}";
+    expect(encodeMentions(text, new Map([["Ana López", userMentionRef("u1")], ["Clínica Polanco", A]]))).toBe(
+      `${userMentionToken("u1")} mira ${mentionToken(A)}`
+    );
+  });
+
+  it("la vista previa no lleva el id del compañero", () => {
+    expect(previewWithoutMentions(`hola ${userMentionToken("u1")}`)).toBe("hola @compañero");
   });
 });
