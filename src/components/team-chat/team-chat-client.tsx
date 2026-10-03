@@ -222,9 +222,15 @@ export function TeamChatClient() {
   const selected = list?.threads.find((t) => t.id === selectedId) ?? null;
 
   return (
-    <div className="flex h-full">
+    // Escritorio: lista y conversación son paneles separados que flotan sobre
+    // el fondo base, como en la Bandeja (ver `.shell-content` en globals.css).
+    <div data-split-panels className="flex h-full lg:gap-3">
       <section
-        className={cn("w-full shrink-0 overflow-hidden border-r md:w-[300px] lg:w-[360px]", selectedId && "max-md:hidden")}
+        className={cn(
+          "w-full shrink-0 overflow-hidden border-r md:w-[300px] lg:w-[360px]",
+          "lg:rounded-panel lg:border lg:bg-surface lg:shadow-panel",
+          selectedId && "max-md:hidden"
+        )}
       >
         <ThreadList
           list={list}
@@ -239,7 +245,13 @@ export function TeamChatClient() {
         />
       </section>
 
-      <section className={cn("flex min-w-0 flex-1 flex-col", !selectedId && "max-md:hidden")}>
+      <section
+        className={cn(
+          "flex min-w-0 flex-1 flex-col",
+          "lg:overflow-hidden lg:rounded-panel lg:border lg:bg-surface lg:shadow-panel",
+          !selectedId && "max-md:hidden"
+        )}
+      >
         {selectedId ? (
           <>
             <header className="flex h-14 shrink-0 items-center gap-1 border-b bg-background px-2 md:px-4">
