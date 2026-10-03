@@ -214,13 +214,15 @@ export function AppNav({
         // nombre del usuario, el nombre white-label en BrandLogo) hereda el
         // color YA CALCULADO en <body> con el tema de la página, no el de
         // `.nav-dark` — y un texto oscuro sobre este fondo oscuro se pierde.
-        "group/nav nav-dark fixed inset-y-0 left-0 z-50 flex w-[17rem] shrink-0 flex-col overflow-y-auto border-r bg-subtle px-3 pb-3.5 pt-3 text-foreground transition-[transform,visibility] duration-200",
+        "group/nav nav-dark fixed inset-y-0 left-0 z-50 flex w-[17rem] shrink-0 flex-col overflow-y-auto border-r bg-nav px-3 pb-3.5 pt-3 text-foreground transition-[transform,visibility] duration-200",
         // En escritorio el ancho cambia de golpe (animar `width` recalcula el
         // layout de toda la página en cada cuadro); lo que se mueve con
         // resorte son los textos, solo con `opacity` + `transform`.
         // `relative z-10`: al reaparecer, la columna de contenido se desliza
         // desde DEBAJO del menú, no encima.
         "lg:relative lg:visible lg:z-10 lg:translate-x-0 lg:overflow-x-hidden",
+        // Escritorio: panel propio, separado del contenido (radio + sombra).
+        "lg:rounded-panel lg:border lg:shadow-panel",
         mini ? "lg:w-14 lg:px-2" : "lg:w-56",
         hidden && "lg:hidden",
         open ? "visible translate-x-0 shadow-pop" : "invisible -translate-x-full"
@@ -260,7 +262,7 @@ export function AppNav({
           aria-label={toggleLabel}
           title={toggleLabel}
           aria-expanded={!mini}
-          className="nav-logo-btn relative hidden h-8 w-8 shrink-0 rounded-[9px] transition-[transform,filter] duration-150 hover:brightness-110 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-subtle lg:flex"
+          className="nav-logo-btn relative hidden h-8 w-8 shrink-0 rounded-[9px] transition-[transform,filter] duration-150 hover:brightness-110 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-nav lg:flex"
         >
           <BrandTile branding={branding} className="h-8 w-8 rounded-[9px] text-[15px]" />
           {/* 025 — Menú en íconos: el globo del chat de equipo va sobre el logo. */}
