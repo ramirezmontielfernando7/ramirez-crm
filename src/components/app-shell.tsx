@@ -226,7 +226,7 @@ function ShellFrame({
             columna ocupa TODO el ancho, sin franja ni botón flotante. */}
         <div
           ref={content}
-          className="flex min-w-0 flex-1 flex-col overflow-hidden bg-surface lg:rounded-panel lg:border lg:shadow-panel"
+          className="shell-content flex min-w-0 flex-1 flex-col overflow-hidden bg-surface lg:rounded-panel lg:border lg:shadow-panel"
         >
           {/* Misma pieza que la barra lateral (`nav-dark`): en el teléfono la
               franja azul marino de arriba es lo que queda del bicolor. */}
