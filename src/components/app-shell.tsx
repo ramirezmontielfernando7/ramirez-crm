@@ -2,11 +2,11 @@
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
-import { useAnimate } from "motion/react";
 import type { Branding } from "@/lib/branding";
 import type { ThemePreference } from "@/lib/theme";
 import type { ResolvedCommit } from "@/lib/version";
 import { AppNav } from "@/components/app-nav";
+import { cn } from "@/lib/utils";
 import { BrandLogo, BrandTile } from "@/components/brand-mark";
 import { ViewerProvider } from "@/components/viewer-context";
 import { TeamUnreadLogoBadge } from "@/components/team-chat/unread-badge";
@@ -129,7 +129,8 @@ function ShellFrame({
   const pathname = usePathname();
   const [navOpen, setNavOpen] = useState(false);
   const [mode, setMode] = useState<NavMode>(navMode);
-  const [content, animate] = useAnimate<HTMLDivElement>();
+  const content = useRef<HTMLDivElement>(null);
+  const slideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Dónde empezaba el contenido antes de cambiar el menú (para deslizarlo).
   const leftBefore = useRef<number | null>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -156,14 +157,18 @@ function ShellFrame({
         body: JSON.stringify({ navMode: next }),
       }).catch(() => undefined);
     }, 300);
-  }, [content]);
+  }, []);
   const closeNav = useCallback(() => setNavOpen(false), []);
   const navCtx = useMemo(() => ({ mode, cycle: cycleNav, branding }), [mode, cycleNav, branding]);
 
-  // El menú cambia de ancho de golpe (animar `width` recalcula el layout en
-  // cada cuadro). Lo que se mueve es la columna de contenido ENTERA, como una
-  // sola pieza: antes de pintar se la deja donde estaba (el desplazamiento = cuánto se
-  // corrió su borde izquierdo) y se desliza a su lugar. Solo `transform`.
+  // El lugar del menú (el separador) cambia de golpe; el menú anima su ancho
+  // por CSS (AppNav) y la columna de contenido ENTERA se desliza pegada a su
+  // borde: antes de pintar se la deja donde estaba (el desplazamiento =
+  // cuánto se corrió su borde izquierdo) y se suelta con una transición CSS
+  // de `transform` con el MISMO tiempo y curva (`duration-nav` +
+  // `ease-panel`). Las dos transiciones arrancan en el mismo cálculo de
+  // estilos, así que van juntas cuadro a cuadro (con la animación de motion
+  // arrancaban con un cuadro de diferencia y se veía un salto inicial).
   useLayoutEffect(() => {
     const el = content.current;
     const before = leftBefore.current;
@@ -172,11 +177,19 @@ function ShellFrame({
     const delta = before - el.getBoundingClientRect().left;
     if (Math.abs(delta) < 1) return;
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    // `transform` como cadena (no `x`): motion la entrega a WAAPI y corre en el
-    // compositor. Con `x` el resorte se calcula en el hilo principal cuadro a
-    // cuadro, justo cuando React y el pintado de la barra lo tienen ocupado.
-    void animate(el, { transform: [`translateX(${delta}px)`, "translateX(0px)"] }, NAV);
-  }, [mode, animate, content]);
+    el.style.transition = "none";
+    el.style.transform = `translateX(${delta}px)`;
+    void el.offsetWidth; // fija el punto de partida antes de soltarla
+    el.style.transition = `transform ${NAV.duration * 1000}ms cubic-bezier(${NAV.ease.join(", ")})`;
+    el.style.transform = "translateX(0px)";
+    // Al terminar se quita el `transform`: si se quedara, los `fixed` de
+    // adentro (cajones, velos) se posicionarían contra la columna.
+    if (slideTimer.current) clearTimeout(slideTimer.current);
+    slideTimer.current = setTimeout(() => {
+      el.style.transition = "";
+      el.style.transform = "";
+    }, NAV.duration * 1000 + 40);
+  }, [mode]);
 
   // Navegar = cerrar el cajón. Sin esto, tocar "Pipeline" deja el velo encima
   // de la pantalla recién cargada.
@@ -197,7 +210,7 @@ function ShellFrame({
     <NavModeProvider value={navCtx}>
       {/* Fondo base de la página; en escritorio, la barra y el contenido son
           dos paneles que flotan sobre él (radio + sombra), separados. */}
-      <div className="flex h-dvh overflow-hidden bg-base lg:gap-3 lg:p-3">
+      <div className="relative flex h-dvh overflow-hidden bg-base lg:p-3">
         {navOpen && (
           <button
             aria-label="Cerrar el menú"
@@ -219,6 +232,17 @@ function ShellFrame({
           onClose={closeNav}
           mode={mode}
           onCycleMode={cycleNav}
+        />
+
+        {/* Escritorio: reserva el lugar del menú (que flota encima, ver
+            AppNav) y su hueco de 12 px. Cambia de golpe; lo que se mueve es
+            el menú y la columna de contenido. */}
+        <div
+          aria-hidden
+          className={cn(
+            "hidden shrink-0 lg:block",
+            mode === "expanded" ? "lg:mr-3 lg:w-56" : mode === "collapsed" ? "lg:mr-3 lg:w-14" : "lg:w-0"
+          )}
         />
 
         {/* 022 — Con el menú oculto, el hamburguesa para volver va en la fila
