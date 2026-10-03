@@ -143,14 +143,19 @@ const config: Config = {
         card: "var(--shadow-card)",
         panel: "var(--shadow-panel)",
       },
-      // Las tres voces de la marca (ver src/app/layout.tsx, donde next/font
-      // las descarga en build y las sirve self-hosted, sin CDN en runtime).
+      // Las voces de la marca (ver src/app/layout.tsx, donde next/font las
+      // descarga en build y las sirve self-hosted, sin CDN en runtime).
       fontFamily: {
-        // La del sistema: Segoe UI (Windows), San Francisco (Apple), Roboto
-        // (Android). Nada que descargar y se lee nativa en cada equipo.
-        sans: ["system-ui", "-apple-system", "Segoe UI", "Roboto", "Helvetica Neue", "Arial", "sans-serif"],
-        serif: ["var(--font-serif)", "Instrument Serif", "Georgia", "serif"],
+        // Inter, vía el token --font-ui (globals.css): cambiar de letra es
+        // cambiar ese token, no los componentes.
+        sans: ["var(--font-ui)"],
         mono: ["var(--font-mono)", "IBM Plex Mono", "ui-monospace", "Cascadia Code", "monospace"],
+      },
+      // Inter se sirve en 400/500/600: lo "bold" de la interfaz es el 600 de
+      // los títulos (sin negritas sintéticas del navegador).
+      fontWeight: {
+        bold: "600",
+        extrabold: "600",
       },
     },
   },

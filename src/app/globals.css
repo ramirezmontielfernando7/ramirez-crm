@@ -271,8 +271,25 @@
   body {
     @apply text-foreground antialiased;
     background-color: var(--surface-base);
+    font-size: var(--text-base);
+    font-weight: var(--weight-body);
+    line-height: 1.5;
     letter-spacing: -0.01em;
     text-rendering: optimizeLegibility;
+  }
+  /* Jerarquía por peso: títulos 600, interfaz 500, contenido 400 (body).
+     Una clase de Tailwind (font-*) en el elemento siempre gana. */
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-weight: var(--weight-title);
+    letter-spacing: -0.015em;
+  }
+  button,
+  label,
+  select {
+    font-weight: var(--weight-ui);
   }
   ::selection {
     background: var(--accent);
@@ -375,6 +392,11 @@
       color-mix(in srgb, var(--text-3) 22%, transparent) 0 1px,
       transparent 1px 7px
     );
+  }
+
+  /* Metadatos: más pequeños y en gris (horas, conteos, "hace 5 min"). */
+  .text-meta {
+    @apply text-[12px] font-normal text-text-3;
   }
 
   /* Etiqueta editorial en mono: "01 · BANDEJA", "ETAPA", "NOTAS" */

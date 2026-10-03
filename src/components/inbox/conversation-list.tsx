@@ -74,7 +74,7 @@ function EmptyState({ onSeeded }: { onSeeded: () => void }) {
 
   return (
     <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
-      <p className="font-serif text-[21px] italic leading-tight text-foreground">
+      <p className="text-[21px] font-semibold leading-tight text-foreground">
         Sin conversaciones todavía
       </p>
       <p className="text-xs text-text-3">

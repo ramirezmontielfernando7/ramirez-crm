@@ -135,7 +135,7 @@ export function TeamThread({
       )}
       {messages.length === 0 && (
         <div className="flex flex-1 flex-col items-center justify-center gap-1 text-center">
-          <p className="font-serif text-[20px] italic text-text-2">Todavía no hay mensajes</p>
+          <p className="text-[20px] font-semibold text-text-2">Todavía no hay mensajes</p>
           <p className="kicker">Escribe el primero</p>
         </div>
       )}
