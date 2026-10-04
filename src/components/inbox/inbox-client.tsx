@@ -94,6 +94,8 @@ export function InboxClient({ channels }: { channels: readonly Channel[] }) {
     void refetchConversations();
   }, [refetchConversations]);
 
+  // Estable para que `ConversationList` (memoizada) no se repinte de más.
+  const onSeeded = useCallback(() => void refetchConversations(), [refetchConversations]);
   const select = useCallback(
     (id: string) => {
       setSelectedId(id);
@@ -299,7 +301,7 @@ export function InboxClient({ channels }: { channels: readonly Channel[] }) {
           channels={channels}
           selectedId={selectedId}
           onSelect={select}
-          onSeeded={() => void refetchConversations()}
+          onSeeded={onSeeded}
         />
       </section>
 
@@ -386,14 +388,15 @@ export function InboxClient({ channels }: { channels: readonly Channel[] }) {
       )}
 
       <section
-        data-open={Boolean(panelOpen && selected)}
         className={cn(
-          // xl: la sección es solo el HUECO de la columna. Su ancho cambia de
-          // golpe (animar `width` reacomoda lista e hilo en cada cuadro); lo
-          // que se mueve es la tarjeta de adentro, entera, con `transform` +
-          // `opacity` y el mismo tiempo y curva que el menú lateral. Al
-          // cerrar, el hueco espera a que la tarjeta salga (`.details-slot`).
-          "details-slot shrink-0 overflow-hidden border-l xl:overflow-visible xl:border-0",
+          // xl: la sección es el HUECO de la columna y su ancho se anima con
+          // el mismo tiempo y curva que el menú lateral, para que el hilo se
+          // estire o encoja PEGADO al panel (sin hueco vacío). La tarjeta va
+          // anclada a la izquierda del hueco: sale empujada hacia la derecha
+          // y entra desde ahí. Solo se reacomoda el hilo (la lista tiene
+          // ancho fijo).
+          "shrink-0 overflow-hidden border-l xl:overflow-visible xl:border-0",
+          "xl:transition-[width,margin-left] xl:duration-nav xl:ease-panel",
           // Debajo de xl no hay ancho para una tercera columna: el panel se
           // vuelve un cajón que entra desde la derecha, encima del hilo.
           "max-xl:fixed max-xl:inset-y-0 max-xl:right-0 max-xl:z-40 max-xl:w-auto max-xl:bg-popover max-xl:transition-transform max-xl:duration-nav max-xl:ease-panel",
@@ -409,10 +412,8 @@ export function InboxClient({ channels }: { channels: readonly Channel[] }) {
               "h-full w-[320px] max-xl:w-[min(320px,88vw)]",
               // xl: el tercer panel flotante, que entra y sale deslizándose.
               "xl:overflow-hidden xl:rounded-panel xl:border xl:bg-surface xl:shadow-panel",
-              "xl:transition-[opacity,transform] xl:duration-nav xl:ease-panel",
-              panelOpen
-                ? "xl:translate-x-0 xl:opacity-100"
-                : "xl:pointer-events-none xl:translate-x-[calc(100%+12px)] xl:opacity-0"
+              "xl:transition-opacity xl:duration-nav xl:ease-panel",
+              panelOpen ? "xl:opacity-100" : "xl:pointer-events-none xl:opacity-0"
             )}
           >
             <ContactPanel
