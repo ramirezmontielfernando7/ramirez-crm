@@ -171,7 +171,7 @@ export function LeadDrawer({
           </section>
 
           {/* 020: quién lo atiende, reasignar y el historial. */}
-          <AssignmentCard contactId={lead.contact.id} />
+          <AssignmentCard key={lead.contact.id} contactId={lead.contact.id} />
 
           {/* Cuánto */}
           <section className="border-b p-4">

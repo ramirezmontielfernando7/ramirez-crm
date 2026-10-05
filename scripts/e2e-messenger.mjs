@@ -59,14 +59,24 @@ async function api(path, opts = {}) {
   return { res, json };
 }
 
-/** El proveedor entrega por POST sin cookies; la ruta lleva el segmento secreto. */
+/**
+ * El proveedor entrega por POST sin cookies; la ruta lleva el segmento secreto.
+ * Fase 3: un payload de Meta (`object: "page"`) va firmado con el App Secret,
+ * como lo firma Meta; sin META_APP_SECRET la app lo acepta sin firma (mocks).
+ */
+const APP_SECRET = process.env.META_APP_SECRET;
 async function webhook(payload, { token = VERIFY_TOKEN, signature } = {}) {
   const body = JSON.stringify(payload);
+  const metaSig =
+    payload?.object === "page" && APP_SECRET
+      ? { "x-hub-signature-256": `sha256=${createHmac("sha256", APP_SECRET).update(body).digest("hex")}` }
+      : {};
   return fetch(`${BASE}/api/webhooks/messenger/${token}`, {
     method: "POST",
     headers: {
       "content-type": "application/json",
       ...(signature ? { "x-zernio-signature": signature } : {}),
+      ...metaSig,
     },
     body,
   });
@@ -194,7 +204,10 @@ async function main() {
     convMeta?.contact?.name
   );
   ok("el contacto no tiene teléfono", convMeta?.contact?.phone == null);
-  ok("la ventana de 24 h abre con el entrante", convMeta?.windowOpen === true);
+  // La conversación puede listarse un instante antes de que se anote la hora
+  // del entrante; la UI se pone al día con el evento SSE que sigue.
+  const conVentana = await waitForConversation((c) => c.id === convMeta?.id && c.windowOpen === true);
+  ok("la ventana de 24 h abre con el entrante", Boolean(conVentana));
 
   console.log("\n== Idempotencia y ruido (Meta) ==");
   await webhook(

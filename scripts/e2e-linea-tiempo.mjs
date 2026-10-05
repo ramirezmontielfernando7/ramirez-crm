@@ -199,7 +199,8 @@ await asesorA.call("PUT", "/api/preferences", { navCollapsed: null });
 
 console.log("\n== 4b · Color del menú lateral: solo el propietario ==");
 const marca0 = (await owner.call("GET", "/api/settings/branding")).json?.branding;
-ok("por default el menú es teal profundo", marca0?.sidebar === "teal-deep", JSON.stringify(marca0));
+// Desde la barra «Panel claro» (tokens por función), el default es `panel`.
+ok("por default el menú es el panel claro", marca0?.sidebar === "panel", JSON.stringify(marca0));
 const cuerpo = (sidebar) => ({ name: marca0.name, accent: marca0.accent, currency: marca0.currency, sidebar });
 const aMarca = await asesorA.call("PUT", "/api/settings/branding", cuerpo("teal-night"));
 ok("el asesor no puede cambiarlo (403)", aMarca.status === 403, `status=${aMarca.status}`);
@@ -221,8 +222,10 @@ ok("el menú arranca ABIERTO para el propietario", (await ancho(op)) > 200, `w=$
 ok("y lleva a Resultados", (await op.locator('aside a[href="/results"]').count()) === 1);
 const dur = await aside.evaluate((el) => getComputedStyle(el).transitionDuration);
 ok(
-  "la animación del menú no pasa de 300 ms",
-  dur.split(",").every((d) => parseFloat(d) * (d.includes("ms") ? 1 : 1000) <= 300),
+  // Los paneles que entran y salen usan `duration-nav` (360 ms, CLAUDE.md:
+  // «nada > 300 ms salvo los paneles… NAV»); lo demás sigue ≤ 300 ms.
+  "la animación del menú no pasa de 360 ms (NAV)",
+  dur.split(",").every((d) => parseFloat(d) * (d.includes("ms") ? 1 : 1000) <= 360),
   dur
 );
 await op.getByRole("button", { name: "Colapsar el menú" }).click();
@@ -260,7 +263,9 @@ ok(
 );
 ok(
   "…y la columna de la Bandeja ocupa el ancho que dejó el menú (sin franja)",
-  !!columna && columna.x <= 1,
+  // Paneles flotantes: la columna arranca en el margen de la página (no en
+  // 0), pero nunca deja la franja del menú (> 200 px).
+  !!columna && columna.x <= 24,
   JSON.stringify(columna)
 );
 await hasta(async () => (await owner.call("GET", "/api/preferences")).json?.navMode === "hidden", 3000);

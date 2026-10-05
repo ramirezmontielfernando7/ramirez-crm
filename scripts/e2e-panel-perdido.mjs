@@ -64,7 +64,9 @@ const alert = page.getByRole("alert").filter({ hasText: "No se movió la etapa" 
 await alert.waitFor({ timeout: 5000 }).catch(() => {});
 ok("si el servidor falla, se muestra el error", await alert.isVisible(), await page.locator('[role="alert"]').allInnerTexts().then(String));
 await page.unroute("**/api/pipeline/leads/*");
-await page.getByRole("button", { name: "Cerrar aviso" }).click();
+// Dentro del aviso del panel: otros avisos (campaña pausada, handoff) usan la
+// misma etiqueta y en una base con historia pueden estar a la vista.
+await alert.getByRole("button", { name: "Cerrar aviso" }).click();
 
 // 2) Camino feliz: con motivo, se mueve y PERSISTE.
 await moveBtn.click();

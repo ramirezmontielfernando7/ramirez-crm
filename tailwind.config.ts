@@ -47,7 +47,10 @@ const config: Config = {
         ring: "var(--ring)",
         // Tokens por función (globals.css): fondo base de la página, la
         // superficie de tarjetas y paneles, y el panel de la barra lateral.
-        base: "var(--surface-base)",
+        // `canvas` y no `base`: un color «base» genera también `text-base`,
+        // que choca con el tamaño de letra y pintaba el texto del color del
+        // fondo (número de destinatarios en Campañas, editor del chat en móvil).
+        canvas: "var(--surface-base)",
         surface: "var(--surface)",
         nav: "var(--nav-surface)",
         background: "var(--bg)",

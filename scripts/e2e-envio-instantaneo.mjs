@@ -51,6 +51,9 @@ if (!su.ok()) {
   });
 }
 ok("registro o login del operador", su.ok());
+// La organización e2e la comparten varios guiones y alguno deja al agente de
+// IA encendido: aquí sus respuestas se cruzarían con los envíos medidos.
+await req.put(`${BASE}/api/agent/profile`, { data: { enabled: false } });
 
 const conn = await req.put(`${BASE}/api/settings/whatsapp`, {
   data: { wabaId: "WABA-EI", phoneNumberId: PN, token: "tok-ei" },

@@ -218,7 +218,7 @@ pagina = await paginaDe("/inbox");
 ok(
   "y la barra lateral vuelve a la inicial, sin imagen rota",
   versionEnMosaico(pagina) === null &&
-    /class="brand-tile[^"]*"[^>]*><span[^>]*>A<\/span>/.test(pagina),
+    /class="[^"]*\bbrand-tile\b[^"]*"[^>]*><span[^>]*>A<\/span>/.test(pagina),
   versionEnMosaico(pagina) ?? "sin la inicial en el mosaico"
 );
 

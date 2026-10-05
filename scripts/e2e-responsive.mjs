@@ -323,6 +323,20 @@ ok(
 await desk.screenshot({ path: `${SHOTS}/desktop-inbox.png` });
 
 console.log("\n== 7. Barra bicolor e interruptores (#53) ==");
+// El color de la barra es elegible (Ajustes → Marca) y la base de pruebas lo
+// comparte con otros guiones: se fija el tema «navy», que es el que estas
+// comprobaciones describen (el default actual es el panel claro). Al final se
+// deja como estaba, para no cambiarle el punto de partida a otros guiones.
+const marcaOriginal = (await (await req.get(`${BASE}/api/settings/branding`)).json())?.branding ?? {};
+{
+  const marca = marcaOriginal;
+  await req.put(`${BASE}/api/settings/branding`, {
+    headers: { origin: BASE },
+    data: { name: marca.name, accent: marca.accent, currency: marca.currency, sidebar: "navy" },
+  });
+  await desk.reload();
+  await desk.locator("aside").first().waitFor();
+}
 // Luminancia relativa (WCAG) de un `rgb(...)` calculado: se afirma que la
 // barra es OSCURA y la página CLARA, no un hex concreto que un ajuste de
 // tokens cambiaría.
@@ -489,5 +503,9 @@ console.log(
     ? `\n✅ Responsividad: todo verde. Capturas en ${SHOTS}/`
     : `\n❌ Responsividad: ${failures} fallo(s). Capturas en ${SHOTS}/`
 );
+await req.put(`${BASE}/api/settings/branding`, {
+  headers: { origin: BASE },
+  data: { name: marcaOriginal.name, accent: marcaOriginal.accent, currency: marcaOriginal.currency, sidebar: marcaOriginal.sidebar },
+});
 await browser.close();
 process.exit(failures === 0 ? 0 : 1);
