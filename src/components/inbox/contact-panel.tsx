@@ -404,10 +404,14 @@ export function ContactPanel({
         </section>
 
         {/* 020: quién atiende y reasignar. 022: el historial, plegado y
-            solo para quien reparte. */}
-        <AssignmentCard contactId={contactId} refreshKey={refreshKey} onChanged={bumpTimeline} />
+            solo para quien reparte. Las tarjetas que cargan datos del
+            contacto llevan `key`: al cambiar de chat se montan de nuevo, y
+            una respuesta tardía del chat anterior ya no puede pintarse (ni
+            guardarse, en etiquetas) sobre el actual. */}
+        <AssignmentCard key={`asignacion:${contactId}`} contactId={contactId} refreshKey={refreshKey} onChanged={bumpTimeline} />
         {/* 026: quienes también ven y atienden el chat (la asignación no cambia). */}
         <ParticipantsCard
+          key={`participantes:${contactId}`}
           contactId={contactId}
           assignedUserId={conversation.assignee?.id ?? null}
           refreshKey={refreshKey}
@@ -473,13 +477,13 @@ export function ContactPanel({
           </DisclosureButton>
           <Collapse open={moreOpen} id={moreId} className="border-t">
             {/* 021: consentimiento para mensajes masivos y etiquetas. */}
-            <ContactTagsCard contactId={contactId} consentFirst onChanged={bumpTimeline} />
+            <ContactTagsCard key={`etiquetas:${contactId}`} contactId={contactId} consentFirst onChanged={bumpTimeline} />
             <FichaPanel ficha={ficha} onSave={saveFicha} />
           </Collapse>
         </section>
 
         {/* 022: todo lo que le pasó a este chat, con su nota al frente. */}
-        <ChatTimeline contactId={contactId} refreshKey={refreshKey + timelineRev} />
+        <ChatTimeline key={`actividad:${contactId}`} contactId={contactId} refreshKey={refreshKey + timelineRev} />
       </div>
 
       {pendingLoss && (

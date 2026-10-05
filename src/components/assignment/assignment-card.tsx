@@ -38,7 +38,9 @@ export function AssignmentCard({
   const viewer = useViewer();
   const canAssign = viewer.can("assignment.manage");
   const assignees = useAssignees();
-  const [assignedUserId, setAssignedUserId] = useState<string | null>(null);
+  // undefined = todavía no llega (no es «sin asignar»). Quien la usa le pone
+  // `key={contactId}`: un contacto nuevo vuelve a empezar aquí.
+  const [assignedUserId, setAssignedUserId] = useState<string | null | undefined>(undefined);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -74,7 +76,7 @@ export function AssignmentCard({
 
   const last = history.at(-1)?.toUser;
   const currentName =
-    assignedUserId === null
+    assignedUserId == null
       ? null
       : assignedUserId === viewer.userId
         ? "ti"
@@ -88,13 +90,24 @@ export function AssignmentCard({
       <p className="kicker mb-2">Asignación</p>
       {canAssign ? (
         <select
-          value={assignedUserId ?? ""}
-          disabled={saving}
+          value={assignedUserId === undefined ? "__loading" : (assignedUserId ?? "")}
+          disabled={saving || assignedUserId === undefined}
           onChange={(e) => void change(e.target.value)}
           aria-label="Asignar a"
           className="h-9 w-full rounded-md border border-input bg-card px-2 text-sm"
         >
+          {assignedUserId === undefined && <option value="__loading">Cargando…</option>}
           <option value="">Sin asignar</option>
+          {/* Mientras llega (o si falla) la lista del equipo, el asignado
+              actual no tiene opción y el selector decía «Sin asignar». */}
+          {assignedUserId != null &&
+            !assignees.some((a) => a.userId === assignedUserId) && (
+              <option value={assignedUserId}>
+                {assignedUserId === viewer.userId
+                  ? `${last?.name ?? "Tú"} (tú)`
+                  : (last?.name ?? "Alguien del equipo")}
+              </option>
+            )}
           {assignees.map((a) => (
             <option key={a.userId} value={a.userId}>
               {a.userId === viewer.userId ? `${a.name} (tú)` : a.name}
@@ -104,7 +117,11 @@ export function AssignmentCard({
       ) : (
         <p className="flex items-center gap-1.5 text-[13px] text-text-2">
           <UserRound className="h-4 w-4 text-text-3" strokeWidth={1.7} />
-          {currentName ? `Asignado a ${currentName}` : "Sin asignar"}
+          {assignedUserId === undefined
+            ? "Cargando…"
+            : currentName
+              ? `Asignado a ${currentName}`
+              : "Sin asignar"}
         </p>
       )}
       {error && <p className="mt-1.5 text-[11px] text-danger-text">{error}</p>}
