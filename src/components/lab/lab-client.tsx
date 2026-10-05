@@ -56,7 +56,8 @@ const TIPO_LABELS: Record<Hallazgo["tipo"], string> = {
 };
 
 export function LabClient() {
-  const [runs, setRuns] = useState<Run[]>([]);
+  // null = el historial todavía no llega: no es «sin corridas».
+  const [runs, setRuns] = useState<Run[] | null>(null);
   const [aiConfigured, setAiConfigured] = useState(true);
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
   const [detail, setDetail] = useState<{ run: Run; cases: Case[] } | null>(null);
@@ -136,7 +137,7 @@ export function LabClient() {
     );
   }
 
-  const running = runs.some((r) => r.status === "running");
+  const running = (runs ?? []).some((r) => r.status === "running");
 
   return (
     <div className="flex h-full flex-col overflow-y-auto">
@@ -167,7 +168,8 @@ export function LabClient() {
 
       <div className="grid gap-4 p-4 sm:gap-6 sm:p-6 lg:grid-cols-[280px_1fr]">
         <HistoryList
-          runs={runs}
+          runs={runs ?? []}
+          loading={runs === null}
           selectedRunId={selectedRunId}
           onSelect={setSelectedRunId}
         />
@@ -175,7 +177,9 @@ export function LabClient() {
           <Report detail={detail} onApplied={() => void refetchDetail(detail.run.id)} />
         ) : (
           <div className="rounded-lg border border-dashed p-10 text-center text-sm text-muted-foreground">
-            {runs.length === 0
+            {runs === null
+              ? "Cargando el historial…"
+              : runs.length === 0
               ? "Corre tu primera evaluación: 6 clientes simulados conversarán con tu agente y un juez calificará cada conversación."
               : "Elige una corrida del historial."}
           </div>
@@ -219,10 +223,12 @@ function Header({
 
 function HistoryList({
   runs,
+  loading,
   selectedRunId,
   onSelect,
 }: {
   runs: Run[];
+  loading: boolean;
   selectedRunId: string | null;
   onSelect: (id: string) => void;
 }) {
@@ -232,7 +238,9 @@ function HistoryList({
         Historial
       </p>
       {runs.length === 0 && (
-        <p className="text-xs text-muted-foreground">Sin corridas todavía.</p>
+        <p className="text-xs text-muted-foreground">
+          {loading ? "Cargando…" : "Sin corridas todavía."}
+        </p>
       )}
       {runs.map((run) => (
         <button

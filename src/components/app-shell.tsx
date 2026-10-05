@@ -210,7 +210,7 @@ function ShellFrame({
     <NavModeProvider value={navCtx}>
       {/* Fondo base de la página; en escritorio, la barra y el contenido son
           dos paneles que flotan sobre él (radio + sombra), separados. */}
-      <div className="relative flex h-dvh overflow-hidden bg-base lg:p-3">
+      <div className="relative flex h-dvh overflow-hidden bg-canvas lg:p-3">
         {navOpen && (
           <button
             aria-label="Cerrar el menú"

@@ -64,6 +64,9 @@ if (!su.ok()) {
   su = await req.post(`${BASE}/api/auth/sign-in/email`, { data: { email, password } });
 }
 ok("registro o login del operador", su.ok());
+// La organización e2e la comparten varios guiones y alguno deja al agente de
+// IA encendido: aquí sus respuestas se cruzarían con los envíos medidos.
+await req.put(`${BASE}/api/agent/profile`, { data: { enabled: false } });
 const conn = await req.put(`${BASE}/api/settings/whatsapp`, {
   data: { wabaId: "WABA-CMP", phoneNumberId: PN, token: "tok-cmp" },
 });
@@ -207,6 +210,10 @@ ok(
   (await picker.locator('[frimousse-emoji][aria-label*="corazón" i]').count()) > 0
 );
 await shot(page, "04-busqueda-corazon");
+// Se espera a que el primer resultado ya sea de la búsqueda: leerlo antes
+// (lista aún sin filtrar) y hacer clic después daba emojis distintos.
+await until(async () => /corazón/i.test((await picker.locator(EMOJI).first().getAttribute("aria-label")) ?? ""), 5000);
+await sleep(200);
 const heart = picker.locator(EMOJI).first();
 const heartChar = (await heart.innerText()).trim();
 await heart.click();

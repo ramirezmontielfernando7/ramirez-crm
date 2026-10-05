@@ -13,7 +13,7 @@
 
 El proyecto está sano. Compila, pasa sus pruebas y la arquitectura es sólida
 (multi-organización con RLS, credenciales cifradas, permisos en servidor,
-módulos por organización). En el recorrido salieron dos defectos reales y
+módulos por organización). En el recorrido salieron tres defectos reales y
 quedaron corregidos en esta rama (sección 3). Lo que falta para venderlo como
 servicio y para ser Tech Provider es producto nuevo, no reparaciones
 (sección 4).
@@ -27,18 +27,59 @@ servicio y para ser Tech Provider es producto nuevo, no reparaciones
 | `pnpm test` (unitarias) | 1401 OK · 1 omitida a propósito (pide `TEST_DB`) |
 | `pnpm test:db` (Postgres real, migraciones ×2, aislamiento, RLS) | 159/159 OK |
 | `pnpm build` | OK |
-| E2E: ver el detalle en la ficha técnica publicada | Todas en verde salvo lo explicado abajo |
+| E2E (34 guiones de `scripts/e2e-*.mjs`, app viva con mocks) | 33 en verde, 1 con un fallo de diseño (abajo) |
 
-Fallos de E2E que **no** son defectos del producto:
+Detalle de E2E (última corrida de cada guion):
 
-- `e2e-selftest`: 5 comprobaciones del conector Zoom fallaron porque el `.env`
-  de la prueba no apuntaba `ZOOM_BASE_URL`/`ZOOM_OAUTH_BASE_URL` al mock y la
-  app intentó hablar con zoom.us. Con las variables del quickstart de la spec
-  015 pasan. Mejora sugerida: que el guion omita esos checks si las variables
-  no apuntan al mock, igual que ya hace cuando el mock no responde.
-- `e2e-modulos`: un `socket hang up` a mitad del guion. Es el reinicio por
-  memoria de `next dev` que el CI ya documenta (por eso el CI arranca un
-  servidor nuevo por grupo). Con servidor recién arrancado pasa.
+| Guion | Resultado | Guion | Resultado |
+|---|---|---|---|
+| selftest (base limpia) | 241/241 | multiorg | 284/284 |
+| credenciales | 23/23 | plataforma | 64/64 |
+| módulos | 62/62 | datos-meta | 62/62 |
+| campañas v2 | 100/100 | navegación | 59/59 |
+| roles | 92/92 | calendario | 54/54 |
+| resultados | 71/71 | campañas | 73/73 |
+| chat de equipo | 89/89 | participantes y menciones | 74/74 |
+| conocimientos | 43/43 | redacción | 30/30 |
+| línea de tiempo | 78/78 | compositor | 29/29 |
+| firma del webhook | 9/9 | panel perdido | 7/7 |
+| alta manual | 14/14 | anuncio de origen | 30/30 |
+| bitácora de etapas | 19/19 | envío instantáneo | 12/12 |
+| favicon | 23/23 | ficha del lead | 13/13 |
+| messenger | 42/42 | monto | 14/14 |
+| prioridad | 13/13 | búsqueda y filtros | 31/31 |
+| envío fallido | 16/16 | plantillas multivariable | 21/21 |
+| sincronización de plantillas | 13/13 | responsive | 53/54 |
+
+Lo que hubo que entender para llegar ahí (ninguno era un defecto del producto):
+
+- **Variables del entorno de prueba**: los checks de Zoom necesitan
+  `ZOOM_BASE_URL`/`ZOOM_OAUTH_BASE_URL` apuntando al mock (quickstart de la
+  spec 015); sin ellas la app intenta hablar con zoom.us.
+- **Límite de inicios de sesión** (10 cada 10 min por IP): correr muchos
+  guiones seguidos contra el mismo servidor da 429. Es la protección
+  funcionando; entre guiones hay que reiniciar el servidor.
+- **`next dev` se reinicia al acercarse a su tope de memoria** (ya documentado
+  en el CI): corta peticiones a mitad de guion.
+- **Datos acumulados**: `e2e-selftest` reutiliza el mismo teléfono y en una base
+  con corridas previas encuentra la cita de la corrida anterior. En base limpia
+  pasa 241/241.
+- **Guiones desactualizados** tras los cambios recientes (corregidos en esta
+  rama): `e2e-linea-tiempo` (barra «Panel claro» por defecto, 360 ms de los
+  paneles, paneles flotantes), `e2e-favicon` (orden de clases del mosaico),
+  `e2e-messenger` (firma de Meta obligatoria desde la Fase 3),
+  `e2e-responsive` (fija el tema «navy» que describe), `e2e-panel-perdido`
+  (otro aviso con la misma etiqueta), `e2e-compositor` y
+  `e2e-envio-instantaneo` (carreras y el agente de IA encendido por otro guion).
+- **Mock de WhatsApp**: los ids de los entrantes y ecos simulados reiniciaban su
+  numeración al reiniciar el servidor; sobre una base con historia chocaban con
+  mensajes viejos y se descartaban como duplicados (sin lead ni ventana).
+  Ahora llevan un sello por arranque, igual que ya llevaban los salientes.
+
+Único pendiente real de E2E: en `e2e-responsive`, con el tema oscuro y la
+barra «navy», la barra ya no es más oscura que la página (contraste 1.08:1;
+la guía R8 pedía ≥ 1.25:1). Viene del rediseño de paneles flotantes. Es una
+decisión de diseño: oscurecer el navy en oscuro o actualizar la guía.
 
 ## 3. Corregido en esta rama
 
@@ -55,7 +96,10 @@ Fallos de E2E que **no** son defectos del producto:
      participantes, etiquetas y consentimiento, actividad) se montan de nuevo
      por contacto, y el selector muestra «Cargando…» o el nombre del asignado
      en lugar de «Sin asignar» mientras llega la lista.
-2. **`docker-compose.yml` (Ruta B) no pasaba variables al contenedor**:
+2. **El Laboratorio decía «Corre tu primera evaluación» mientras cargaba**,
+   aunque sí hubiera corridas (`src/components/lab/lab-client.tsx`). Ahora
+   dice «Cargando el historial…» hasta que llegan.
+3. **`docker-compose.yml` (Ruta B) no pasaba variables al contenedor**:
    `CAMPAIGNS`, `CAMPAIGN_SEND_RATE`, `META_APP_ID`, `AI_DEFAULT_MONTHLY_*` y,
    lo más importante, `ENCRYPTION_KEY_VERSION`/`ENCRYPTION_KEY_OLD`/
    `ENCRYPTION_KEY_OLD_VERSION`. Sin estas últimas, la rotación de la llave de

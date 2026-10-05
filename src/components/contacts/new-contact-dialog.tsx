@@ -61,7 +61,9 @@ export function NewContactDialog({
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         name: name.trim(),
-        phone: phone.trim(),
+        // La ayuda del campo permite espacios, guiones o «+»: al servidor van
+        // solo los dígitos (exige 7–15 con código de país).
+        phone: phone.replace(/\D/g, ""),
         source,
         notes: notes.trim() || undefined,
         stageId: stageId || undefined,

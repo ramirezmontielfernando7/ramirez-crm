@@ -152,6 +152,12 @@ export function nextOutboundWamid(): string {
   return `wamid.mock.out.${boot}.${nextN()}`;
 }
 
+/** Lo mismo para entrantes y ecos: si no, un entrante tras reiniciar se
+ *  descartaba como duplicado y no creaba su lead (visto en los E2E). */
+export function nextInboundWamid(kind: "in" | "echo" = "in"): string {
+  return `wamid.mock.${kind}.${boot}.${nextN()}`;
+}
+
 /**
  * Lo mismo para los ids de plantilla: Meta jamás los repite, y `syncTemplates`
  * empareja primero por id. Con `tplmock_1` otra vez tras reiniciar, el sync
