@@ -13,7 +13,7 @@
 
 El proyecto está sano. Compila, pasa sus pruebas y la arquitectura es sólida
 (multi-organización con RLS, credenciales cifradas, permisos en servidor,
-módulos por organización). En el recorrido salieron tres defectos reales y
+módulos por organización). En el recorrido salieron cinco defectos reales y
 quedaron corregidos en esta rama (sección 3). Lo que falta para venderlo como
 servicio y para ser Tech Provider es producto nuevo, no reparaciones
 (sección 4).
@@ -99,7 +99,19 @@ decisión de diseño: oscurecer el navy en oscuro o actualizar la guía.
 2. **El Laboratorio decía «Corre tu primera evaluación» mientras cargaba**,
    aunque sí hubiera corridas (`src/components/lab/lab-client.tsx`). Ahora
    dice «Cargando el historial…» hasta que llegan.
-3. **`docker-compose.yml` (Ruta B) no pasaba variables al contenedor**:
+3. **Texto invisible por el token de color `base`** (`tailwind.config.ts`).
+   El rediseño de tokens (`9af74be`) creó un color llamado `base`; Tailwind
+   generó entonces `text-base` con tamaño **y** color del fondo de la página.
+   Resultado: en el asistente de Campañas, «Le llegará a __ contacto(s)» salía
+   sin número, y en el teléfono lo que se escribía en el Chat de equipo era
+   casi invisible. El color pasa a llamarse `canvas` y
+   `tests/unit/tailwind-tokens.test.ts` impide que un color vuelva a llamarse
+   como un tamaño de letra.
+4. **Nuevo contacto rechazaba teléfonos con espacios** (`src/components/contacts/new-contact-dialog.tsx`).
+   La ayuda del campo dice «escríbelo con espacios si quieres», pero el
+   formulario mandaba el texto tal cual y el servidor (que exige solo dígitos)
+   respondía con un error técnico. Ahora manda solo los dígitos.
+5. **`docker-compose.yml` (Ruta B) no pasaba variables al contenedor**:
    `CAMPAIGNS`, `CAMPAIGN_SEND_RATE`, `META_APP_ID`, `AI_DEFAULT_MONTHLY_*` y,
    lo más importante, `ENCRYPTION_KEY_VERSION`/`ENCRYPTION_KEY_OLD`/
    `ENCRYPTION_KEY_OLD_VERSION`. Sin estas últimas, la rotación de la llave de
