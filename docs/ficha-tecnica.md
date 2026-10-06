@@ -345,3 +345,72 @@ Docs útiles: `docs/credenciales.md`, `docs/plataforma.md`, `docs/rls.md`,
 `docs/roles-de-bd.md`, `docs/campanas-v2-meta.md`, `docs/atribucion-capi.md`,
 `docs/agenda-conectores.md`, ADR-001 (canales opcionales), ADR-002
 (conectores de agenda).
+
+---
+
+## 13. Material de marketing (capturas y videos)
+
+Capturas PNG en Full HD (1920×1080) y videos MP4 H.264 en 1920×1080 a 30 fps, sin audio. Se tomaron de una instancia de demostración con datos ficticios (Ferretería El Martillo); no aparece ningún cliente real.
+
+**Descarga con botón:** [Kit de medios Dashfort](https://claude.ai/artifact/Em1gNuEcf2WLzCnsHaohc7) (página con vista previa, botón «Descargar» en cada pieza y paquetes .zip de capturas y de videos).
+
+Los archivos también viven en este repositorio, en [`docs/marketing/`](marketing/). En GitHub, cada enlace abre el archivo y tiene botón de descarga.
+
+### Videos por función
+
+| Video | Qué muestra |
+|---|---|
+| [Bandeja en tiempo real](marketing/videos/01-bandeja-tiempo-real.mp4) | Llega un mensaje nuevo y el agente de IA lo contesta solo. |
+| [Asistente de redacción](marketing/videos/02-asistente-redaccion.mp4) | El asesor escribe rápido y la IA le ajusta el tono antes de enviar. |
+| [Pipeline de ventas](marketing/videos/03-pipeline.mp4) | Arrastrar un trato de etapa y abrir su detalle. |
+| [Contactos](marketing/videos/04-contactos.mp4) | Filtrar por etiqueta y consentimiento, y buscar. |
+| [Citas](marketing/videos/05-citas.mp4) | Cambiar entre semana, mes y lista, y abrir una cita. |
+| [Chat de equipo](marketing/videos/06-chat-equipo.mp4) | Escribir al grupo y revisar el canal de avisos. |
+| [Conocimientos](marketing/videos/07-conocimientos.mp4) | Buscar material y enviarlo desde el chat. |
+| [Campañas](marketing/videos/08-campanas.mp4) | Revisar una campaña y armar una nueva en el asistente. |
+| [Métricas de campañas](marketing/videos/09-metricas.mp4) | Entrega, lectura, respuesta y costo. |
+| [Resultados](marketing/videos/10-resultados.mp4) | Recorrido por ventas, origen, agente y alertas. |
+| [Agente de IA](marketing/videos/11-agente.mp4) | Configuración del agente y su base de conocimiento. |
+| [Laboratorio](marketing/videos/12-laboratorio.mp4) | Reporte de la evaluación y sugerencia aplicada al conocimiento. |
+| [Plataforma](marketing/videos/13-plataforma.mp4) | Organizaciones y módulos por negocio. |
+
+### Capturas
+
+| Captura | Área | Qué muestra |
+|---|---|---|
+| [Inicio de sesión](marketing/capturas/00-login.png) | Acceso | Pantalla de acceso con la marca Dashfort. |
+| [Bandeja de WhatsApp](marketing/capturas/01-bandeja.png) | Bandeja | Lista de chats, hilo con respuestas del agente de IA y panel de detalles. |
+| [Bandeja · tema oscuro](marketing/capturas/01-bandeja-oscuro.png) | Bandeja | La misma bandeja en tema oscuro. |
+| [Chat que llegó por un anuncio](marketing/capturas/02-bandeja-anuncio.png) | Bandeja | Tarjeta del anuncio Click-to-WhatsApp de origen en el panel del contacto. |
+| [Asistente de redacción](marketing/capturas/03-asistente-redaccion.png) | Bandeja | La varita reescribe el borrador del asesor: mejorar, tono, resumir, acortar o alargar. |
+| [Pipeline de ventas](marketing/capturas/04-pipeline.png) | Ventas | Tablero kanban con montos, prioridad y responsable por trato. |
+| [Pipeline · tema oscuro](marketing/capturas/04-pipeline-oscuro.png) | Ventas | El tablero en tema oscuro. |
+| [Detalle del trato](marketing/capturas/05-pipeline-trato.png) | Ventas | Monto, prioridad, etapa, responsable y ficha del lead. |
+| [Contactos](marketing/capturas/06-contactos.png) | Ventas | Etiquetas, consentimiento, etapa y filtros; importar y exportar. |
+| [Citas · semana](marketing/capturas/07-citas-semana.png) | Agenda | Calendario semanal en la zona horaria del negocio. |
+| [Citas · tema oscuro](marketing/capturas/07-citas-semana-oscuro.png) | Agenda | Vista semanal en tema oscuro. |
+| [Citas · mes](marketing/capturas/08-citas-mes.png) | Agenda | Vista mensual con todas las citas. |
+| [Chat de equipo](marketing/capturas/09-chat-equipo.png) | Equipo | Grupos, directos y canal de avisos internos. |
+| [Chat de equipo · tema oscuro](marketing/capturas/09-chat-equipo-oscuro.png) | Equipo | El chat interno en tema oscuro. |
+| [Conocimientos](marketing/capturas/10-conocimientos.png) | Equipo | Catálogo, políticas y fichas que el equipo envía con dos clics. |
+| [Campañas](marketing/capturas/11-campanas.png) | Campañas | Salud del número y campañas enviadas, programadas y en borrador. |
+| [Detalle de campaña](marketing/capturas/12-campana-detalle.png) | Campañas | Entregados, leídos, respuestas y estado por destinatario. |
+| [Nueva campaña](marketing/capturas/13-nueva-campana.png) | Campañas | Asistente en tres pasos: audiencia, mensaje y revisión. |
+| [Audiencias](marketing/capturas/14-audiencias.png) | Campañas | Bases importadas desde Excel o CSV con su consentimiento. |
+| [Métricas de campañas](marketing/capturas/15-metricas-campanas.png) | Campañas | Entrega, lectura, respuesta y costo reportado por Meta. |
+| [Plantillas de WhatsApp](marketing/capturas/16-plantillas.png) | Campañas | Crear plantillas con encabezado, pie y botones; estado de aprobación. |
+| [Ajustes de envío](marketing/capturas/17-ajustes-envio.png) | Campañas | Pausa de seguridad y tarifas para el costo estimado. |
+| [Resultados](marketing/capturas/18-resultados.png) | Resultados | Ventas, embudo, dinero ganado y tratos abiertos del periodo. |
+| [Resultados · tema oscuro](marketing/capturas/18-resultados-oscuro.png) | Resultados | El tablero de resultados en tema oscuro. |
+| [Agente de IA](marketing/capturas/19-agente.png) | IA | Comportamiento, tono, reglas de escalado y base de conocimiento. |
+| [Laboratorio](marketing/capturas/20-laboratorio.png) | IA | Seis clientes simulados evalúan al agente y un juez le da calificación. |
+| [Laboratorio · tema oscuro](marketing/capturas/20-laboratorio-oscuro.png) | IA | El reporte del Laboratorio en tema oscuro. |
+| [Conexión de WhatsApp](marketing/capturas/21-ajustes-whatsapp.png) | Ajustes | Asistente para conectar el número y el webhook. |
+| [Marca](marketing/capturas/22-ajustes-marca.png) | Ajustes | Nombre, color, logo y menú: marca blanca. |
+| [Equipo y roles](marketing/capturas/23-ajustes-equipo.png) | Ajustes | Propietario, Coordinador y Asesor. |
+| [Etiquetas](marketing/capturas/24-ajustes-etiquetas.png) | Ajustes | Etiquetas de contacto con color. |
+| [Horario de la agenda](marketing/capturas/25-ajustes-agenda.png) | Ajustes | Horario semanal, duración de citas y conector de reunión. |
+| [Conversiones de anuncios](marketing/capturas/26-ajustes-anuncios.png) | Ajustes | Reporte a Meta del lead calificado y la venta. |
+| [Menú por rol](marketing/capturas/27-ajustes-navegacion.png) | Ajustes | Reordenar u ocultar entradas del menú para cada rol. |
+| [Ajustes del chat de equipo](marketing/capturas/28-ajustes-chat-equipo.png) | Ajustes | Supervisión, grupos y permisos delegables. |
+| [Administración de plataforma](marketing/capturas/29-plataforma.png) | Plataforma | Alta de negocios, módulos por organización y bitácora. |
