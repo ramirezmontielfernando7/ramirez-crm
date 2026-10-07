@@ -76,10 +76,18 @@ export function InboxClient({ channels }: { channels: readonly Channel[] }) {
   // simultáneos pueden llegar a Meta en desorden.
   const sendQueue = useRef<Promise<unknown>>(Promise.resolve());
 
+  // Un refetch lento (disparado por un evento anterior) no debe pisar la lista
+  // de uno más nuevo: si resolviera tarde, devolvería a la vista un chat que
+  // acaba de archivarse. Solo se aplica la respuesta más reciente pedida.
+  const fetchSeq = useRef(0);
+  const appliedSeq = useRef(0);
   const refetchConversations = useCallback(async () => {
+    const seq = ++fetchSeq.current;
     const res = await fetch("/api/conversations").catch(() => null);
     if (!res?.ok) return;
     const data = (await res.json()) as { conversations: ConversationDto[] };
+    if (seq < appliedSeq.current) return;
+    appliedSeq.current = seq;
     setConversations(data.conversations);
     lastFetchRef.current = new Date().toISOString();
   }, []);
@@ -110,9 +118,18 @@ export function InboxClient({ channels }: { channels: readonly Channel[] }) {
   const onRemoved = useCallback(
     (id: string, kind: "archive" | "restore" | "delete") => {
       if (selectedIdRef.current === id) setSelectedId(null);
-      if (kind === "delete") {
-        setConversations((prev) => prev && prev.filter((c) => c.id !== id));
-      }
+      // Se refleja YA, sin esperar a la lista del servidor.
+      setConversations(
+        (prev) =>
+          prev &&
+          (kind === "delete"
+            ? prev.filter((c) => c.id !== id)
+            : prev.map((c) =>
+                c.id === id
+                  ? { ...c, archivedAt: kind === "archive" ? new Date().toISOString() : null }
+                  : c
+              ))
+      );
       void refetchConversations();
     },
     [refetchConversations]
