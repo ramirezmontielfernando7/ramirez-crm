@@ -1082,6 +1082,76 @@ export const agentProfile = pgTable(
   (t) => [uniqueIndex("agent_profile_org_uq").on(t.organizationId)]
 );
 
+/**
+ * 031 — Agentes de IA de una organización (Laboratorio como Centro de
+ * Agentes). Una fila por identidad, incluido el agente GENERAL (máx. uno no
+ * archivado por organización: `agent_general_uq`). La configuración vive en
+ * dos JSON con la forma de `agentConfigSchema` (src/server/agents/config.ts):
+ * `draft` (lo que se edita) y `published` (lo que atiende en producción).
+ * Única puerta: src/server/agents/. `agent_profile` se conserva como dueño
+ * del interruptor global y espejo del general publicado (`mirror.ts`).
+ */
+export const agent = pgTable(
+  "agent",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    internalName: text("internal_name").notNull(),
+    isGeneral: boolean("is_general").notNull().default(false),
+    draft: jsonb("draft").notNull(),
+    /** NULL = nunca publicado. El general siempre tiene uno. */
+    published: jsonb("published"),
+    publishedAt: timestamp("published_at"),
+    publishedBy: text("published_by").references(() => user.id, { onDelete: "set null" }),
+    archivedAt: timestamp("archived_at"),
+    createdBy: text("created_by").references(() => user.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => [
+    unique("agent_org_id_uq").on(t.organizationId, t.id),
+    uniqueIndex("agent_general_uq")
+      .on(t.organizationId)
+      .where(sql`${t.isGeneral} and ${t.archivedAt} is null`),
+    index("agent_org_idx").on(t.organizationId, t.createdAt),
+    check("agent_internal_name_chk", sql`char_length(${t.internalName}) between 1 and 60`),
+    check("agent_draft_chk", sql`jsonb_typeof(${t.draft}) = 'object'`),
+    check("agent_published_chk", sql`${t.published} is null or jsonb_typeof(${t.published}) = 'object'`),
+  ]
+);
+
+/**
+ * 031 — Versiones publicadas de cada agente (append-only, últimas 30 por
+ * agente). `snapshot` es la config tal como quedó; restaurar la carga al
+ * BORRADOR, nunca a producción.
+ */
+export const agentPublishLog = pgTable(
+  "agent_publish_log",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    agentId: text("agent_id").notNull(),
+    action: text("action", { enum: ["publish", "restore", "legacy_put", "make_general"] }).notNull(),
+    snapshot: jsonb("snapshot").notNull(),
+    actorUserId: text("actor_user_id").references(() => user.id, { onDelete: "set null" }),
+    at: timestamp("at").notNull().defaultNow(),
+  },
+  (t) => [
+    index("agent_publish_log_agent_at_idx").on(t.organizationId, t.agentId, t.at),
+    check("agent_publish_log_action_chk", sql`${t.action} in ('publish', 'restore', 'legacy_put', 'make_general')`),
+    check("agent_publish_log_snapshot_chk", sql`jsonb_typeof(${t.snapshot}) = 'object'`),
+    foreignKey({
+      name: "agent_publish_log_org_agent_fk",
+      columns: [t.organizationId, t.agentId],
+      foreignColumns: [agent.organizationId, agent.id],
+    }).onDelete("cascade"),
+  ]
+);
+
 export const kbEntry = pgTable(
   "kb_entry",
   {
@@ -1093,10 +1163,20 @@ export const kbEntry = pgTable(
     question: text("question"),
     answer: text("answer"),
     content: text("content"),
+    /** 031 — NULL = conocimiento compartido; si no, solo de ese agente. */
+    agentId: text("agent_id"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },
-  (t) => [index("kb_org_idx").on(t.organizationId)]
+  (t) => [
+    index("kb_org_idx").on(t.organizationId),
+    index("kb_org_agent_idx").on(t.organizationId, t.agentId),
+    foreignKey({
+      name: "kb_entry_org_agent_fk",
+      columns: [t.organizationId, t.agentId],
+      foreignColumns: [agent.organizationId, agent.id],
+    }).onDelete("cascade"),
+  ]
 );
 
 /**
@@ -1233,6 +1313,14 @@ export const agentTestRun = pgTable(
       .default("running"),
     score: integer("score"),
     error: text("error"),
+    /** 031 — Agente evaluado (NULL en corridas anteriores o si se borró). */
+    agentId: text("agent_id"),
+    /**
+     * 031 — Lo que se evaluó, tal cual: `{ source, config, kbText }`. El
+     * runner y el juez usan esto (no releen la BD a media corrida) y el
+     * historial sigue siendo reproducible aunque el agente cambie.
+     */
+    agentSnapshot: jsonb("agent_snapshot"),
     startedAt: timestamp("started_at").notNull().defaultNow(),
     finishedAt: timestamp("finished_at"),
   },
@@ -1243,6 +1331,12 @@ export const agentTestRun = pgTable(
       .where(sql`${t.status} = 'running'`),
     index("test_run_org_idx").on(t.organizationId, t.startedAt),
     unique("agent_test_run_org_id_uq").on(t.organizationId, t.id),
+    // 031. En la BD es ON DELETE SET NULL (agent_id) (0035).
+    foreignKey({
+      name: "agent_test_run_org_agent_fk",
+      columns: [t.organizationId, t.agentId],
+      foreignColumns: [agent.organizationId, agent.id],
+    }).onDelete("set null"),
   ]
 );
 

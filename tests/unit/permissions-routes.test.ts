@@ -87,6 +87,18 @@ const PROTEGIDAS: [string, Method, Permission][] = [
   ["lab/runs", "GET", "agent.manage"],
   ["lab/runs", "POST", "agent.manage"],
   ["lab/runs/[id]", "GET", "agent.manage"],
+  // 031 — Laboratorio como Centro de Agentes: solo el Propietario.
+  ["lab/agents", "GET", "agent.manage"],
+  ["lab/agents", "POST", "agent.manage"],
+  ["lab/agents/[id]", "GET", "agent.manage"],
+  ["lab/agents/[id]", "PATCH", "agent.manage"],
+  ["lab/agents/[id]", "DELETE", "agent.manage"],
+  ["lab/agents/[id]/draft", "PUT", "agent.manage"],
+  ["lab/agents/[id]/publish", "POST", "agent.manage"],
+  ["lab/agents/[id]/make-general", "POST", "agent.manage"],
+  ["lab/agents/[id]/versions", "GET", "agent.manage"],
+  ["lab/agents/[id]/versions/[logId]/restore", "POST", "agent.manage"],
+  ["lab/preview", "POST", "agent.manage"],
   ["lab/suggestions/apply", "POST", "agent.manage"],
   // Usuarios.
   ["settings/team", "GET", "users.read"],

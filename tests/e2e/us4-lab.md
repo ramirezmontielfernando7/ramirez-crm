@@ -1,5 +1,12 @@
 # Guion E2E — US4: Laboratorio (SIEMPRE contra ai-mock, determinista)
 
+> 031: el Laboratorio es ahora el Centro de Agentes. Las evaluaciones de este
+> guion corren sobre el agente GENERAL publicado (lo de siempre: `POST
+> /api/lab/runs` sin cuerpo). Evaluar otro agente o su borrador, la vista
+> previa y borrador/publicado: [us-agentes.md](us-agentes.md) (automatizado en
+> `scripts/e2e-agentes.mjs`). Desde 031 PR A2, esta pantalla vive en
+> `/lab/evaluaciones`.
+
 > Conducido con Playwright (MCP) contra `pnpm dev` con ai-mock. El KB inicial
 > NO cubre garantías/devoluciones (hueco intencional del guion).
 

@@ -6,7 +6,8 @@ la app olvide su `where organization_id = …`.
 
 ## Qué hace
 
-- Las **45 tablas de dominio** (todas las que tienen `organization_id`):
+- **Todas las tablas de dominio** (las que tienen `organization_id`: 45 en la
+  0027, 62 desde la 0035 — cada migración que agrega una le pone su política):
   `ENABLE` + `FORCE ROW LEVEL SECURITY` y una sola política,
   `aislamiento_por_organizacion`:
 

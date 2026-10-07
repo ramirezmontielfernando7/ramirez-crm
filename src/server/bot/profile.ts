@@ -2,7 +2,7 @@ import type { schema } from "@/lib/db";
 import { renderKb } from "@/server/ai/prompts";
 
 type AgentProfile = typeof schema.agentProfile.$inferSelect;
-type KbEntry = typeof schema.kbEntry.$inferSelect;
+type KbEntry = Pick<typeof schema.kbEntry.$inferSelect, "kind" | "question" | "answer" | "content">;
 
 /**
  * Payload del perfil del agente para un cerebro externo.

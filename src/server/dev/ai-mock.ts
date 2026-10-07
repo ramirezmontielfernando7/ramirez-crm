@@ -51,6 +51,19 @@ export function aiMockCompletion(messages: InMessage[]): string {
   const text = lastUser.toLowerCase();
 
   /**
+   * 031 — «¿Quién eres?»: el mock contesta con la identidad que le dio el
+   * prompt (el nombre de presentación, o que no tiene). Así el self-test sabe
+   * QUÉ agente respondió sin depender del texto exacto del prompt.
+   */
+  if (/qui[eé]n eres/.test(text)) {
+    const nombre = system.match(/^Eres "([^"]+)"/)?.[1];
+    return JSON.stringify({
+      action: "reply",
+      text: nombre ? `Soy ${nombre}.` : "Somos el equipo del negocio (sin nombre propio).",
+    });
+  }
+
+  /**
    * 015 — La agenda, ejercitando el camino REAL.
    *
    * El mock reserva copiando el `startUtc` del mapa de huecos, igual que tiene

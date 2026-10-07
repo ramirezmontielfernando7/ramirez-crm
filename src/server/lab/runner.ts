@@ -5,7 +5,8 @@ import { scoped } from "@/lib/db/tenant";
 import { newId } from "@/lib/db/ids";
 import { publish } from "@/server/events/bus";
 import { runAgentTurn } from "@/server/ai/pipeline";
-import { renderKb } from "@/server/ai/prompts";
+import { behaviorText, toPromptConfig } from "@/server/agents/config";
+import { buildRunSnapshot, type RunSnapshot, type RunSource } from "@/server/agents/snapshot";
 import { computeScore, judgeCase } from "@/server/lab/judge";
 import { PERSONAS, type Persona } from "@/server/lab/personas";
 import { logger } from "@/lib/log";
@@ -27,13 +28,28 @@ const RUN_TIMEOUT_MS = 10 * 60 * 1000;
 
 export class RunConflictError extends Error {}
 
-export async function startRun(organizationId: string): Promise<string> {
+/**
+ * 031: `agentId` (default: el general) y `source` (default: lo publicado).
+ * Lo que se evalúa se congela aquí, antes de empezar, en `agent_snapshot`.
+ * Un agente inexistente o sin publicar lanza `AgentError` (la ruta responde).
+ */
+export async function startRun(
+  organizationId: string,
+  opts: { agentId?: string; source?: RunSource } = {}
+): Promise<string> {
   const db = getDb();
+  const snapshot = await buildRunSnapshot(organizationId, opts);
   let runId: string;
   try {
     const inserted = await db
       .insert(schema.agentTestRun)
-      .values({ id: newId("testRun"), organizationId, status: "running" })
+      .values({
+        id: newId("testRun"),
+        organizationId,
+        status: "running",
+        agentId: snapshot.agentId,
+        agentSnapshot: snapshot,
+      })
       .returning();
     runId = inserted[0]!.id;
   } catch (err) {
@@ -58,7 +74,7 @@ export async function startRun(organizationId: string): Promise<string> {
   // PR 3: la corrida entera va a nombre de su organización (sin transacción
   // abierta: cada caso llama al LLM varias veces).
   void runWithOrganization(organizationId, () =>
-    executeRun(runId, organizationId).catch(async (err) => {
+    executeRun(runId, organizationId, snapshot).catch(async (err) => {
       log.error("corrida falló", { org: organizationId, corrida: runId, err });
       await failRun(runId, organizationId, String(err));
     })
@@ -69,7 +85,8 @@ export async function startRun(organizationId: string): Promise<string> {
 
 async function executeRun(
   runId: string,
-  organizationId: string
+  organizationId: string,
+  snapshot: RunSnapshot
 ): Promise<void> {
   const timeout = new Promise<never>((_, reject) =>
     setTimeout(
@@ -78,7 +95,7 @@ async function executeRun(
     )
   );
   try {
-    await Promise.race([runAllCases(runId, organizationId), timeout]);
+    await Promise.race([runAllCases(runId, organizationId, snapshot), timeout]);
   } catch (err) {
     await failRun(runId, organizationId, String(err));
   }
@@ -86,7 +103,8 @@ async function executeRun(
 
 async function runAllCases(
   runId: string,
-  organizationId: string
+  organizationId: string,
+  snapshot: RunSnapshot
 ): Promise<void> {
   const db = getDb();
   const cases = await db
@@ -95,28 +113,9 @@ async function runAllCases(
     .where(eq(schema.agentTestCase.runId, runId))
     .orderBy(asc(schema.agentTestCase.createdAt));
 
-  const kbEntries = await db
-    .select()
-    .from(schema.kbEntry)
-    .where(scoped(schema.kbEntry.organizationId, organizationId));
-  const kbText = renderKb(kbEntries);
-
-  const profileRows = await db
-    .select()
-    .from(schema.agentProfile)
-    .where(scoped(schema.agentProfile.organizationId, organizationId))
-    .limit(1);
-  const profile = profileRows[0];
-  const behaviorText = profile
-    ? [
-        `Nombre: ${profile.name}`,
-        profile.tone ? `Tono: ${profile.tone}` : null,
-        profile.instructions ? `Instrucciones: ${profile.instructions}` : null,
-        profile.escalationRules ? `Escalado: ${profile.escalationRules}` : null,
-      ]
-        .filter(Boolean)
-        .join("\n")
-    : "";
+  // 031: el juez ve exactamente lo que se congeló al empezar.
+  const kbText = snapshot.kbText;
+  const behavior = behaviorText(toPromptConfig(snapshot.config));
 
   let done = 0;
   const total = cases.length;
@@ -133,7 +132,8 @@ async function runAllCases(
 
     const { transcript, conversationId } = await runConversation(
       organizationId,
-      persona
+      persona,
+      snapshot
     );
 
     const outcome = await judgeCase({
@@ -141,7 +141,7 @@ async function runAllCases(
       personaKey: persona.key,
       transcript,
       kbText,
-      behaviorText,
+      behaviorText: behavior,
     });
 
     await db
@@ -178,7 +178,8 @@ async function runAllCases(
 /** Conversa el guion completo contra el agente real; corta al primer handoff. */
 async function runConversation(
   organizationId: string,
-  persona: Persona
+  persona: Persona,
+  snapshot: RunSnapshot
 ): Promise<{
   transcript: { role: "cliente" | "agente"; text: string }[];
   conversationId: string;
@@ -214,8 +215,11 @@ async function runConversation(
       .set({ lastInboundAt: now, lastMessageAt: now, updatedAt: now })
       .where(eq(schema.conversation.id, convId));
 
-    // Turno REAL del agente, secuencial y sin debounce (FR-030).
-    await runAgentTurn(convId);
+    // Turno REAL del agente, secuencial y sin debounce (FR-030), con la
+    // config y el conocimiento del snapshot (031).
+    await runAgentTurn(convId, {
+      agentOverride: { agentId: snapshot.agentId, config: snapshot.config, kb: snapshot.kb },
+    });
 
     const convRows = await db
       .select({ handoffAt: schema.conversation.handoffAt })

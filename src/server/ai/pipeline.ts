@@ -20,6 +20,9 @@ import {
 import { HANDOFF_BACKUP_ACK, matchesHandoffIntent } from "@/server/ai/handoff";
 import { announceHandoff } from "@/server/inbox/handoff-notice";
 import { buildAgentSystemPrompt } from "@/server/ai/prompts";
+import { toPromptConfig, type AgentPromptConfig } from "@/server/agents/config";
+import type { KbItem } from "@/server/agents/kb";
+import { kbForConfig, resolveAgentForTurn, type AgentOverride } from "@/server/agents/resolve";
 import { agendaEnabled } from "@/server/agenda/flag";
 import { bookSlot, offerSlots } from "@/server/agenda/agent";
 import { getOffers, mapaDeHuecosParaModelo } from "@/server/agenda/offers";
@@ -105,11 +108,94 @@ async function executeTurn(conversationId: string): Promise<void> {
 }
 
 /**
+ * 031 — Opciones del turno. `agentOverride`: el Laboratorio (evaluaciones)
+ * fija la config y el conocimiento a evaluar en vez de resolverlos.
+ */
+export type TurnOptions = { agentOverride?: AgentOverride };
+
+type Conversation = typeof schema.conversation.$inferSelect;
+type Stage = { id: string; name: string };
+
+/** Lo que necesita `decideTurn`: todo en memoria, nada de la BD. */
+export type DecideInput = {
+  organizationId: string;
+  /** "agent" en conversaciones reales; "lab" en el Laboratorio y la vista previa. */
+  kind: "agent" | "lab";
+  config: AgentPromptConfig;
+  kb: KbItem[];
+  stages: Stage[];
+  agenda: boolean;
+  history: { role: "user" | "assistant"; content: string }[];
+  /** System al FINAL (el mapa de huecos de la agenda), si lo hay. */
+  tail?: string | null;
+};
+
+export type DecisionMeta = {
+  ms: number;
+  model: string | null;
+  tokens: { prompt: number; completion: number } | null;
+  kbEntryIds: string[];
+};
+
+export type TurnDecision =
+  | {
+      ok: true;
+      action: AgentActionType;
+      stage: Stage | null;
+      /** Si la acción del modelo no se podía hacer y se degradó, cuál era. */
+      degradedFrom: "move_stage" | "offer_slots" | "book_slot" | null;
+      meta: DecisionMeta;
+    }
+  | {
+      ok: false;
+      error: "not_configured" | "quota_exceeded" | "provider_error" | "invalid_output";
+      detail: string;
+      meta: DecisionMeta;
+    };
+
+type TurnPlan =
+  | { kind: "silent" }
+  | { kind: "window_closed"; conversation: Conversation }
+  | { kind: "backup_handoff"; conversation: Conversation }
+  | { kind: "decide"; conversation: Conversation; input: DecideInput };
+
+/**
  * Ejecuta UN turno del agente ahora (el Laboratorio lo llama directo, con
  * debounce 0 y sin pasar por el coalesce).
+ *
+ * 031: tres piezas — `loadTurnContext` (qué conversación, qué agente, qué
+ * sabe), `decideTurn` (prompt + modelo + validación, SIN efectos en la BD;
+ * la vista previa del Laboratorio la reutiliza) y `executeAction` (enviar,
+ * mover, anotar, traspasar, agenda).
  */
-export async function runAgentTurn(conversationId: string): Promise<void> {
-  if (!isAiConfigured()) return;
+export async function runAgentTurn(conversationId: string, opts: TurnOptions = {}): Promise<void> {
+  const plan = await loadTurnContext(conversationId, opts);
+  switch (plan.kind) {
+    case "silent":
+      return;
+    case "window_closed":
+      // Ventana cerrada: el agente JAMÁS envía texto libre → handoff 'ventana'.
+      await applyHandoff(plan.conversation.id, plan.conversation.organizationId, "ventana");
+      return;
+    case "backup_handoff":
+      // Patrón de respaldo ANTES del LLM (FR-022). Avisa y traspasa, en el
+      // mismo orden que el camino del modelo (`farewell` y luego handoff):
+      // callar ante quien pide una persona se lee como que el bot dejó de
+      // contestar.
+      await acknowledgeHandoff(plan.conversation);
+      await applyHandoff(plan.conversation.id, plan.conversation.organizationId, "cliente");
+      return;
+    case "decide": {
+      const decision = await decideTurn(plan.input);
+      await executeAction(plan.conversation, plan.input, decision);
+      return;
+    }
+  }
+}
+
+/** Todo lo que el turno necesita saber, en el orden de siempre. */
+async function loadTurnContext(conversationId: string, opts: TurnOptions): Promise<TurnPlan> {
+  if (!isAiConfigured()) return { kind: "silent" };
 
   const db = getDb();
   const convRows = await db
@@ -118,27 +204,24 @@ export async function runAgentTurn(conversationId: string): Promise<void> {
     .where(eq(schema.conversation.id, conversationId))
     .limit(1);
   const conversation = convRows[0];
-  if (!conversation) return;
+  if (!conversation) return { kind: "silent" };
   const organizationId = conversation.organizationId;
 
   // Condiciones de silencio: handoff activo o IA apagada en la conversación.
-  if (conversation.handoffAt || !conversation.aiEnabled) return;
+  if (conversation.handoffAt || !conversation.aiEnabled) return { kind: "silent" };
   // Fase 3, PR 2: una organización suspendida no gasta IA ni contesta.
-  if (!(await isOrgActive(organizationId))) return;
+  if (!(await isOrgActive(organizationId))) return { kind: "silent" };
   // 030 (PR 4): con el módulo Agente apagado por la plataforma, el agente
   // incluido no existe para esta organización (el Laboratorio tampoco).
-  if (!(await orgHasModule(organizationId, conversation.isTest ? "lab" : "agent"))) return;
+  if (!(await orgHasModule(organizationId, conversation.isTest ? "lab" : "agent"))) return { kind: "silent" };
 
-  const profileRows = await db
-    .select()
-    .from(schema.agentProfile)
-    .where(scoped(schema.agentProfile.organizationId, organizationId))
-    .limit(1);
-  const profile = profileRows[0];
-  if (!profile) return;
+  // 031: el agente que atiende (hoy, el general publicado; el Laboratorio
+  // puede fijar otro). Sin `agent_profile` no hay agente, como siempre.
+  const agent = await resolveAgentForTurn(organizationId, { override: opts.agentOverride });
+  if (!agent) return { kind: "silent" };
   // El toggle global aplica a conversaciones reales; el Laboratorio evalúa el
   // comportamiento configurado aunque el agente aún no esté encendido.
-  if (!conversation.isTest && !profile.enabled) return;
+  if (!conversation.isTest && !agent.enabled) return { kind: "silent" };
 
   const history = await db
     .select()
@@ -148,28 +231,16 @@ export async function runAgentTurn(conversationId: string): Promise<void> {
     .limit(20);
   history.reverse();
   const lastInbound = [...history].reverse().find((m) => m.direction === "in");
-  if (!lastInbound) return;
+  if (!lastInbound) return { kind: "silent" };
 
-  // Ventana cerrada: el agente JAMÁS envía texto libre → handoff 'ventana'.
   if (!conversation.isTest && !isWindowOpen(conversation.lastInboundAt)) {
-    await applyHandoff(conversationId, organizationId, "ventana");
-    return;
+    return { kind: "window_closed", conversation };
   }
-
-  // Patrón de respaldo ANTES del LLM (FR-022). Avisa y traspasa, en el mismo
-  // orden que el camino del modelo (`farewell` y luego handoff): callar ante
-  // quien pide una persona se lee como que el bot dejó de contestar.
   if (lastInbound.text && matchesHandoffIntent(lastInbound.text)) {
-    await acknowledgeHandoff(conversation);
-    await applyHandoff(conversationId, organizationId, "cliente");
-    return;
+    return { kind: "backup_handoff", conversation };
   }
 
-  const kb = await db
-    .select()
-    .from(schema.kbEntry)
-    .where(scoped(schema.kbEntry.organizationId, organizationId))
-    .orderBy(asc(schema.kbEntry.createdAt));
+  const kb = agent.kb ?? (await kbForConfig(organizationId, { id: agent.agentId, isGeneral: agent.isGeneral }, agent.config));
   const stages = await db
     .select({ id: schema.pipelineStage.id, name: schema.pipelineStage.name })
     .from(schema.pipelineStage)
@@ -201,37 +272,100 @@ export async function runAgentTurn(conversationId: string): Promise<void> {
   const ofertas = agenda ? await getOffers(organizationId, conversationId) : [];
   const mapaDeHuecos = mapaDeHuecosParaModelo(ofertas);
 
+  return {
+    kind: "decide",
+    conversation,
+    input: {
+      organizationId,
+      // Fase 3: el Laboratorio cuenta aparte ("lab") pero contra el mismo tope.
+      kind: conversation.isTest ? "lab" : "agent",
+      config: toPromptConfig(agent.config),
+      kb,
+      stages,
+      agenda,
+      history: history
+        .filter((m) => m.text)
+        .map((m) => ({
+          role: m.direction === "in" ? ("user" as const) : ("assistant" as const),
+          content: m.text!,
+        })),
+      tail: mapaDeHuecos,
+    },
+  };
+}
+
+/**
+ * Arma el prompt, llama al modelo (a nombre de la organización y contra su
+ * cuota) y valida la acción contra lo que este turno permite. SIN efectos en
+ * la BD fuera de la cuota: la vista previa del Laboratorio la usa tal cual.
+ */
+export async function decideTurn(input: DecideInput): Promise<TurnDecision> {
+  const started = Date.now();
   const messages: ChatMessage[] = [
     {
       role: "system",
-      content: buildAgentSystemPrompt({ profile, kb, stages, agenda }),
+      content: buildAgentSystemPrompt({
+        config: input.config,
+        kb: input.kb,
+        stages: input.stages,
+        agenda: input.agenda,
+      }),
     },
-    ...history
-      .filter((m) => m.text)
-      .map((m) => ({
-        role: m.direction === "in" ? ("user" as const) : ("assistant" as const),
-        content: m.text!,
-      })),
+    ...input.history,
     /**
      * Va AL FINAL, después del historial: es el estado de AHORA, y ponerlo
      * antes lo dejaría enterrado bajo la conversación en cuanto esta crezca.
      */
-    ...(mapaDeHuecos
-      ? [{ role: "system" as const, content: mapaDeHuecos }]
-      : []),
+    ...(input.tail ? [{ role: "system" as const, content: input.tail }] : []),
   ];
 
-  // Fase 3: a nombre de la organización y contra su cuota mensual. El
-  // Laboratorio cuenta aparte ("lab") pero contra el mismo tope.
   const result = await chatJsonForOrg(
-    organizationId,
-    conversation.isTest ? "lab" : "agent",
-    agentActionSchema(agenda),
+    input.organizationId,
+    input.kind,
+    agentActionSchema(input.agenda),
     messages
   );
-  if (!result.ok) {
-    if (result.error === "not_configured") return;
-    if (result.error === "quota_exceeded") {
+  const meta: DecisionMeta = {
+    ms: Date.now() - started,
+    // Solo para «Por qué respondió así»: leído sin validar el entorno entero.
+    model: process.env.OPENROUTER_MODEL?.trim() || null,
+    tokens: result.usage
+      ? { prompt: result.usage.promptTokens, completion: result.usage.completionTokens }
+      : null,
+    kbEntryIds: input.kb.map((e) => e.id),
+  };
+  if (!result.ok) return { ok: false, error: result.error, detail: result.detail, meta };
+
+  let action: AgentActionType = result.data;
+  let degradedFrom: "move_stage" | "offer_slots" | "book_slot" | null = null;
+  // 015 — Sin agenda, sus acciones no existen en este turno: se degradan.
+  if ((action.action === "offer_slots" || action.action === "book_slot") && !input.agenda) {
+    degradedFrom = action.action;
+    action = degradeAction(action);
+  }
+  let stage: Stage | null = null;
+  if (action.action === "move_stage") {
+    stage = resolveStage(action.stage, input.stages);
+    if (!stage) {
+      degradedFrom = "move_stage";
+      action = degradeAction(action);
+    }
+  }
+  return { ok: true, action, stage, degradedFrom, meta };
+}
+
+/** Los efectos del turno: lo que antes hacía el final de `runAgentTurn`. */
+async function executeAction(
+  conversation: Conversation,
+  input: DecideInput,
+  decision: TurnDecision
+): Promise<void> {
+  const organizationId = conversation.organizationId;
+  const conversationId = conversation.id;
+
+  if (!decision.ok) {
+    if (decision.error === "not_configured") return;
+    if (decision.error === "quota_exceeded") {
       // Sin cuota el agente no puede contestar: pasa a una persona, con su
       // motivo en la línea de tiempo. En el Laboratorio solo se calla.
       if (!conversation.isTest) await applyHandoff(conversationId, organizationId, "cuota");
@@ -243,65 +377,56 @@ export async function runAgentTurn(conversationId: string): Promise<void> {
     log.error("fallo del proveedor de IA; se escala a una persona", {
       org: organizationId,
       conversacion: conversationId,
-      error: result.error,
-      detalleCaracteres: result.detail?.length ?? 0,
+      error: decision.error,
+      detalleCaracteres: decision.detail?.length ?? 0,
     });
     await applyHandoff(conversationId, organizationId, "error");
     return;
   }
 
-  let action: AgentActionType = result.data;
+  let action = decision.action;
 
   // 015 — Agenda. Un fallo del motor degrada el turno (el agente responde sin
   // agendar), nunca lo tumba: quedarse callado es peor que no agendar.
-  if (action.action === "offer_slots" || action.action === "book_slot") {
-    if (!agenda) {
-      action = degradeAction(action);
-    } else {
-      try {
-        const turn =
-          action.action === "offer_slots"
-            ? await offerSlots({
-                organizationId,
-                conversationId,
-                intro: action.reply,
-              })
-            : await bookSlot({
-                organizationId,
-                conversationId,
-                startUtc: action.startUtc,
-                confirmation: action.reply,
-              });
-        await deliverReply(conversation, turn.text);
-        if (turn.ok) {
-          publish(organizationId, {
-            type: "conversation.updated",
-            data: { conversation: { id: conversationId } },
-          });
-        }
-        return;
-      } catch (err) {
-        log.error("el motor de agenda falló", { org: organizationId, conversacion: conversationId, err });
-        action = degradeAction(action);
+  if ((action.action === "offer_slots" || action.action === "book_slot") && input.agenda) {
+    try {
+      const turn =
+        action.action === "offer_slots"
+          ? await offerSlots({
+              organizationId,
+              conversationId,
+              intro: action.reply,
+            })
+          : await bookSlot({
+              organizationId,
+              conversationId,
+              startUtc: action.startUtc,
+              confirmation: action.reply,
+            });
+      await deliverReply(conversation, turn.text);
+      if (turn.ok) {
+        publish(organizationId, {
+          type: "conversation.updated",
+          data: { conversation: { id: conversationId } },
+        });
       }
+      return;
+    } catch (err) {
+      log.error("el motor de agenda falló", { org: organizationId, conversacion: conversationId, err });
+      action = degradeAction(action);
     }
   }
 
-  if (action.action === "move_stage") {
-    const stage = resolveStage(action.stage, stages);
-    if (!stage) {
-      action = degradeAction(action);
-    } else {
-      await moveLeadToStage(organizationId, conversation.contactId, stage.id);
-      publish(organizationId, {
-        type: "conversation.updated",
-        data: { conversation: { id: conversationId } },
-      });
-      if (action.reply) {
-        await deliverReply(conversation, action.reply);
-      }
-      return;
+  if (action.action === "move_stage" && decision.stage) {
+    await moveLeadToStage(organizationId, conversation.contactId, decision.stage.id);
+    publish(organizationId, {
+      type: "conversation.updated",
+      data: { conversation: { id: conversationId } },
+    });
+    if (action.reply) {
+      await deliverReply(conversation, action.reply);
     }
+    return;
   }
 
   switch (action.action) {
@@ -325,7 +450,6 @@ export async function runAgentTurn(conversationId: string): Promise<void> {
   }
 }
 
-type Conversation = typeof schema.conversation.$inferSelect;
 
 /** Entrega la respuesta: envío real o persistencia sandbox (is_test). */
 async function deliverReply(

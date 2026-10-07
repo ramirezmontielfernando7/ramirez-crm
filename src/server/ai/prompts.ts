@@ -1,7 +1,9 @@
 import type { schema } from "@/lib/db";
+import { profileToPromptConfig, type AgentPromptConfig } from "@/server/agents/config";
 
 type AgentProfile = typeof schema.agentProfile.$inferSelect;
-type KbEntry = typeof schema.kbEntry.$inferSelect;
+/** Lo que el prompt necesita de cada entrada del conocimiento. */
+type KbEntry = Pick<typeof schema.kbEntry.$inferSelect, "kind" | "question" | "answer" | "content">;
 
 /** Marcador del prompt del juez: el ai-mock lo usa para despachar veredictos. */
 export const JUDGE_MARKER = "[JUEZ]";
@@ -19,11 +21,23 @@ export function renderKb(entries: KbEntry[]): string {
 }
 
 /**
+ * 031 — Primera línea del prompt. Con nombre, EXACTAMENTE la de siempre
+ * (prueba dorada); sin nombre, el agente habla como el equipo del negocio.
+ */
+function identityLine(name: string | null): string {
+  return name
+    ? `Eres "${name}", el asistente de WhatsApp de este negocio. Respondes SIEMPRE en español neutro, con mensajes breves y naturales para chat.`
+    : "Eres el asistente de WhatsApp de este negocio. No tienes nombre propio: no te presentes con uno y habla como el equipo del negocio. Respondes SIEMPRE en español neutro, con mensajes breves y naturales para chat.";
+}
+
+/**
  * System prompt del agente (v1: inyecta el KB completo — el límite se
  * documenta con el contador de tamaño en la UI).
+ *
+ * 031: recibe la config del agente que atiende (`config`); `profile` (la
+ * fila de `agent_profile`) se acepta todavía para quien la tenga a mano.
  */
 export function buildAgentSystemPrompt(input: {
-  profile: AgentProfile;
   kb: KbEntry[];
   stages: { name: string }[];
   /**
@@ -31,8 +45,13 @@ export function buildAgentSystemPrompt(input: {
    * token en hablar de horarios: la agenda no existe aquí.
    */
   agenda?: boolean;
+  /** 031 — La config del agente que atiende. */
+  config?: AgentPromptConfig;
+  /** Histórico: la fila de `agent_profile` (si no llega `config`). */
+  profile?: AgentProfile;
 }): string {
-  const { profile } = input;
+  const profile = input.config ?? (input.profile ? profileToPromptConfig(input.profile) : null);
+  if (!profile) throw new Error("buildAgentSystemPrompt: falta la config del agente");
   const stageNames = input.stages.map((s) => s.name).join(" | ");
   const agendaLines = input.agenda
     ? [
@@ -48,7 +67,7 @@ export function buildAgentSystemPrompt(input: {
       ]
     : [];
   return [
-    `Eres "${profile.name}", el asistente de WhatsApp de este negocio. Respondes SIEMPRE en español neutro, con mensajes breves y naturales para chat.`,
+    identityLine(profile.name),
     profile.tone ? `Tono: ${profile.tone}` : null,
     profile.instructions ? `Instrucciones del negocio:\n${profile.instructions}` : null,
     profile.escalationRules

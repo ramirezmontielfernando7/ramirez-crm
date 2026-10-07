@@ -2,6 +2,7 @@ import type { Db } from "@/lib/db";
 import { schema } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
 import { seedOrgModules } from "@/server/modules/store";
+import { insertGeneralFromProfile } from "@/server/agents/ensure";
 import type { ModuleProfile } from "@/lib/modules/registry";
 
 /** Etapas sembradas del pipeline (US2). */
@@ -33,9 +34,13 @@ export async function seedOrganization(
       kind: s.kind,
     }))
   );
-  await tx.insert(schema.agentProfile).values({
-    id: newId("agentProfile"),
-    organizationId,
-  });
+  // 031: el perfil (interruptor global + espejo) y su agente general
+  // publicado, con la misma hora: nacen al día.
+  const at = new Date();
+  const [profileRow] = await tx
+    .insert(schema.agentProfile)
+    .values({ id: newId("agentProfile"), organizationId, updatedAt: at })
+    .returning();
+  await insertGeneralFromProfile(tx, profileRow!);
   await seedOrgModules(tx, organizationId, profile);
 }

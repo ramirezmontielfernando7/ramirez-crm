@@ -2,9 +2,10 @@ import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { apiError, parseBody, withAuth } from "@/lib/api";
 import { getDb, schema } from "@/lib/db";
-import { newId } from "@/lib/db/ids";
 import { scoped } from "@/lib/db/tenant";
 import { moduleOff } from "@/server/modules";
+import { createKbEntry } from "@/server/agents/kb";
+import { withAgentErrors } from "@/server/agents/http";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +19,8 @@ const bodySchema = z.object({
   hallazgoIndex: z.number().int().min(0),
   pregunta: z.string().trim().min(1).max(500),
   respuesta: z.string().trim().min(1).max(4000),
+  /** 031 — A qué conocimiento va: `null`/ausente = compartido; un id = de ese agente. */
+  agentId: z.string().min(1).nullable().optional(),
 });
 
 export const POST = withAuth(async (session, req: Request) => {
@@ -40,15 +43,13 @@ export const POST = withAuth(async (session, req: Request) => {
     .limit(1);
   if (!cases[0]) return apiError(404, "not_found", "Caso no encontrado");
 
-  const inserted = await db
-    .insert(schema.kbEntry)
-    .values({
-      id: newId("kbEntry"),
-      organizationId: session.organizationId,
+  return withAgentErrors(async () => {
+    const entry = await createKbEntry(session.organizationId, {
       kind: "qa",
       question: body.data.pregunta,
       answer: body.data.respuesta,
-    })
-    .returning();
-  return Response.json({ entry: inserted[0] }, { status: 201 });
+      agentId: body.data.agentId ?? null,
+    });
+    return Response.json({ entry }, { status: 201 });
+  });
 }, { permission: "agent.manage" });
