@@ -96,6 +96,14 @@ const shot = async (p, name) => {
   if (SHOTS) await p.screenshot({ path: `${SHOTS}/${name}.png` });
 };
 
+/**
+ * La lista de Tareas ya cargó (y React ya hidrató): antes de eso, escribir o
+ * tocar se pierde. En CI `next dev` compila la página al pedirla y tarda.
+ */
+async function listaLista(p) {
+  await p.locator('section[aria-label="Tareas"][aria-busy="false"]').waitFor({ state: "attached", timeout: 90000 });
+}
+
 /** Los renglones del menú lateral (sin Ajustes ni Plataforma). */
 async function menu(p) {
   const nav = p.locator("aside nav").first();
@@ -175,6 +183,7 @@ async function main() {
   const tareas = await S.pagina("/trabajo/tareas");
   ok("la Asesora abre Tareas (200)", tareas.status === 200, String(tareas.status));
   const titulo = `Llamar al proveedor ${RUN}`;
+  await listaLista(tareas.p);
   const rapido = tareas.p.getByRole("textbox", { name: "Agregar tarea" });
   await rapido.fill(titulo);
   await rapido.press("Enter");
@@ -200,6 +209,7 @@ async function main() {
   await enlace.click();
   ok("abre el formulario de Tareas", await hasta(async () => bandeja.p.url().includes("/trabajo/tareas?nueva=1"), 60000), bandeja.p.url());
   const delChat = `Mandar cotización ${RUN}`;
+  await listaLista(bandeja.p);
   await bandeja.p.getByRole("textbox", { name: "Título" }).fill(delChat);
   ok("ya viene ligada a la clienta", await hasta(async () => (await bandeja.p.getByText(`Clienta Trabajo ${RUN}`).count()) > 0));
   await bandeja.p.getByRole("button", { name: "Guardar" }).click();
