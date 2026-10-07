@@ -23,6 +23,24 @@ function dayLabel(iso: string): string {
 export const MessageThread = memo(function MessageThread({ messages }: { messages: MessageDto[] }) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  // D2 — Solo se animan los mensajes que llegan o se envían EN VIVO: los
+  // mismos de antes más unos pocos nuevos. Abrir o cambiar de chat (otro
+  // primer mensaje, o la lista que pasa de vacía a llena) no anima nada, así
+  // un historial de cientos de mensajes se pinta de golpe.
+  const seen = useRef<{ first: string | null; ids: Set<string> }>({
+    first: null,
+    ids: new Set(),
+  });
+  const first = messages[0]?.id ?? null;
+  const fresh = new Set<string>();
+  if (seen.current.first === first && seen.current.ids.size > 0) {
+    for (const m of messages) if (!seen.current.ids.has(m.id)) fresh.add(m.id);
+    if (fresh.size > 5) fresh.clear();
+  }
+  useEffect(() => {
+    seen.current = { first, ids: new Set(messages.map((m) => m.id)) };
+  }, [messages, first]);
+
   useEffect(() => {
     const el = scrollRef.current;
     if (el) el.scrollTop = el.scrollHeight;
@@ -47,7 +65,7 @@ export const MessageThread = memo(function MessageThread({ messages }: { message
           <div key={m.id}>
             {newDay && (
               <div className="my-3 flex justify-center">
-                <span className="kicker rounded-full border border-border-strong bg-background px-3 py-1 text-text-2 shadow-sm">
+                <span className="day-pill kicker rounded-full border border-border-strong bg-background px-3 py-1 text-text-2 shadow-sm">
                   {dayLabel(m.createdAt)}
                 </span>
               </div>
@@ -56,7 +74,8 @@ export const MessageThread = memo(function MessageThread({ messages }: { message
               className={cn(
                 "flex",
                 out ? "justify-end" : "justify-start",
-                grouped ? "mt-[3px]" : "mt-2.5"
+                grouped ? "msg-grouped mt-[3px]" : "msg-first mt-2.5",
+                fresh.has(m.id) && "bubble-enter"
               )}
             >
               <MessageBubble m={m} grouped={grouped} />

@@ -461,50 +461,90 @@
 [data-font="jakarta"] {
   --font-ui: "Plus Jakarta Sans Variable", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
+[data-font="system"] {
+  --font-ui: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
 [data-font="dmsans"] {
   --font-ui: "DM Sans Variable", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 
-/* Estilo de chat «WhatsApp»: fondo verde-gris, burbujas con cola, entrada
-   suave. «Clásico» no escribe nada aquí: es el aspecto de siempre. */
+/* ── Estilos de chat (D / D2) ────────────────────────────────────────────
+   «Clásico» no escribe nada aquí: es el aspecto de siempre.
+   Los selectores `[data-chat="…"] .x` valen en <html> (toda la app) y en
+   cualquier contenedor con ese atributo (las tarjetas de Apariencia). */
+
+/* «WhatsApp»: imita el DISEÑO (medidas, colores, comportamiento), no sus
+   activos: ni logo, ni nombre como marca, ni su imagen de fondo. */
 [data-chat="whatsapp"] {
-  --wa-bg: #e6eee9;
-  --wa-in: #ffffff;
-  --wa-in-border: #e1e8e4;
-  --wa-out: #d9fdd3;
-  --wa-out-border: #c4ecbd;
+  /* ── medido de WhatsApp Web, ajustable ── (modo claro) */
+  --wa-bg: #efeae2;            /* fondo del chat (beige) */
+  --wa-out: #d9fdd3;           /* burbuja enviada */
+  --wa-in: #ffffff;            /* burbuja recibida */
+  --wa-pill: #ffffff;          /* píldora de día («Hoy») */
+  --wa-composer: #ffffff;      /* barra de escribir */
+  --wa-header: #ffffff;        /* encabezado */
+  --wa-list: #ffffff;          /* lista de chats */
+  /* Medidas aproximadas */
+  --wa-font-size: 14px;        /* letra con la tipografía del sistema */
+  --wa-line: 19px;             /* 6 + 19 + 6 = 31 px: burbuja de una línea */
+  --wa-radius: 8px;
+  --wa-time-size: 11px;
+  /* Derivados (no medidos): tinta y gris de la hora con contraste AA */
+  --wa-text: #111b21;
+  --wa-time: #54656f;
+  --wa-tick: #667781;
+  --wa-tick-read: #53bdeb;
+  --wa-pill-text: #54656f;
+  --wa-pattern: rgba(11, 20, 26, 0.045);   /* patrón PROPIO, no el de WhatsApp */
 }
 [data-theme="dark"] [data-chat="whatsapp"],
 [data-theme="dark"][data-chat="whatsapp"] {
-  --wa-bg: #0b141a;
-  --wa-in: #202c33;
-  --wa-in-border: #2a3942;
-  --wa-out: #005c4b;
-  --wa-out-border: #0a6d5a;
+  /* ── medido de WhatsApp Web, ajustable ── (modo oscuro) */
+  --wa-bg: #161717;
+  --wa-out: #144d37;
+  --wa-in: #242626;
+  --wa-pill: #1d1f1f;
+  --wa-composer: #242626;
+  --wa-header: #161717;
+  --wa-list: #161717;
+  --wa-text: #e9edef;
+  --wa-time: #b7c4cb;
+  --wa-tick: #8696a0;
+  --wa-pill-text: #aebac1;
+  --wa-pattern: rgba(255, 255, 255, 0.035);
 }
 [data-chat="whatsapp"] .thread-bg {
   background-color: var(--wa-bg);
+  background-image: radial-gradient(circle at 1px 1px, var(--wa-pattern) 1px, transparent 0);
+  background-size: 22px 22px;
 }
 [data-chat="whatsapp"] .bubble {
   position: relative;
-  border-radius: 8px;
+  border-width: 0;
+  border-radius: var(--wa-radius);
+  padding: 6px 7px 6px 9px;
+  font-size: var(--wa-font-size);
+  line-height: var(--wa-line);
+  color: var(--wa-text);
   box-shadow: 0 1px 0.5px rgba(11, 20, 26, 0.13);
 }
-[data-chat="whatsapp"] .bubble.bubble-in {
-  background-color: var(--wa-in);
-  border-color: var(--wa-in-border);
-  color: var(--text);
+[data-chat="whatsapp"] .bubble.bubble-in { background-color: var(--wa-in); }
+[data-chat="whatsapp"] .bubble.bubble-out { background-color: var(--wa-out); }
+/* Hora gris al final de la última línea, dentro de la burbuja. */
+[data-chat="whatsapp"] .bubble-meta { margin-top: 4px; margin-left: 8px; gap: 3px; }
+[data-chat="whatsapp"] .bubble-time {
+  font-family: inherit;
+  font-size: var(--wa-time-size);
+  line-height: 15px;
+  letter-spacing: 0;
+  color: var(--wa-time);
 }
-[data-chat="whatsapp"] .bubble.bubble-out {
-  background-color: var(--wa-out);
-  border-color: var(--wa-out-border);
-  color: var(--text);
-}
-[data-theme="dark"] [data-chat="whatsapp"] .bubble.bubble-out,
-[data-theme="dark"][data-chat="whatsapp"] .bubble.bubble-out {
-  color: #e9edef;
-}
-/* La cola: solo en el primer mensaje de una racha. */
+[data-chat="whatsapp"] .tick svg { width: 16px; height: 16px; }
+[data-chat="whatsapp"] .tick-pending,
+[data-chat="whatsapp"] .tick-sent,
+[data-chat="whatsapp"] .tick-delivered { color: var(--wa-tick); }
+[data-chat="whatsapp"] .tick-read { color: var(--wa-tick-read); }
+/* La cola: solo en el primer mensaje de una tanda. */
 [data-chat="whatsapp"] .bubble.bubble-first::before {
   content: "";
   position: absolute;
@@ -512,36 +552,181 @@
   width: 8px;
   height: 10px;
 }
-[data-chat="whatsapp"] .bubble.bubble-in.bubble-first {
-  border-top-left-radius: 0;
-}
+[data-chat="whatsapp"] .bubble.bubble-in.bubble-first { border-top-left-radius: 0; }
 [data-chat="whatsapp"] .bubble.bubble-in.bubble-first::before {
   left: -8px;
   background: var(--wa-in);
   clip-path: polygon(100% 0, 100% 100%, 0 0);
 }
-[data-chat="whatsapp"] .bubble.bubble-out.bubble-first {
-  border-top-right-radius: 0;
-}
+[data-chat="whatsapp"] .bubble.bubble-out.bubble-first { border-top-right-radius: 0; }
 [data-chat="whatsapp"] .bubble.bubble-out.bubble-first::before {
   right: -8px;
   background: var(--wa-out);
   clip-path: polygon(0 0, 100% 0, 0 100%);
 }
-/* Entrada suave: solo los últimos mensajes (abrir un chat largo no anima cientos). */
+/* Separador de día: píldora centrada. */
+[data-chat="whatsapp"] .day-pill {
+  border: 0;
+  background-color: var(--wa-pill);
+  color: var(--wa-pill-text);
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+  padding: 5px 12px;
+  box-shadow: 0 1px 0.5px rgba(11, 20, 26, 0.13);
+}
+
+/* «Premium» (diseño propio del producto): esquinas muy redondeadas, cola
+   curva, tonos de la marca de la organización y resortes cortos. */
+[data-chat="premium"] {
+  --pm-in: var(--bg);
+  --pm-in-border: var(--border);
+  --pm-out-a: var(--accent-tint);
+  --pm-out-b: color-mix(in srgb, var(--accent-soft) 55%, var(--accent-tint));
+  --pm-out-tail: color-mix(in srgb, var(--pm-out-a) 65%, var(--pm-out-b));
+  --pm-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+[data-chat="premium"] .thread-bg { gap: 6px; }
+[data-chat="premium"] .msg-first { margin-top: 20px; }
+[data-chat="premium"] .msg-grouped { margin-top: 5px; }
+[data-chat="premium"] .bubble {
+  position: relative;
+  border-width: 1px;
+  border-radius: 22px;
+  padding: 9px 15px 6px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text);
+  box-shadow: 0 1px 2px rgba(10, 20, 40, 0.06), 0 6px 14px -8px rgba(10, 20, 40, 0.18);
+}
+[data-chat="premium"] .bubble.bubble-in {
+  background-color: var(--pm-in);
+  border-color: var(--pm-in-border);
+}
+[data-chat="premium"] .bubble.bubble-out {
+  background-image: linear-gradient(160deg, var(--pm-out-a), var(--pm-out-b));
+  border-color: transparent;
+}
+/* Cola suave y curva (un pétalo, no el triángulo de WhatsApp): dos piezas, la
+   del color de la burbuja y otra del color del fondo que la recorta en curva. */
+[data-chat="premium"] .bubble.bubble-first { isolation: isolate; }
+[data-chat="premium"] .bubble.bubble-first::before,
+[data-chat="premium"] .bubble.bubble-first::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  top: -1px;
+  height: 22px;
+}
+[data-chat="premium"] .bubble.bubble-first::after { background: var(--chat-bg); }
+[data-chat="premium"] .bubble.bubble-in.bubble-first { border-top-left-radius: 4px; }
+[data-chat="premium"] .bubble.bubble-in.bubble-first::before {
+  left: -10px;
+  width: 24px;
+  background: var(--pm-in);
+  border-top-right-radius: 20px 16px;
+}
+[data-chat="premium"] .bubble.bubble-in.bubble-first::after {
+  left: -12px;
+  width: 12px;
+  border-top-right-radius: 12px;
+}
+[data-chat="premium"] .bubble.bubble-out.bubble-first { border-top-right-radius: 4px; }
+[data-chat="premium"] .bubble.bubble-out.bubble-first::before {
+  right: -10px;
+  width: 24px;
+  background: var(--pm-out-tail);
+  border-top-left-radius: 20px 16px;
+}
+[data-chat="premium"] .bubble.bubble-out.bubble-first::after {
+  right: -12px;
+  width: 12px;
+  border-top-left-radius: 12px;
+}
+/* La hora aparece al pasar el cursor; en pantallas táctiles siempre se ve.
+   Su lugar está reservado: la burbuja no salta. */
+[data-chat="premium"] .bubble-time {
+  font-family: inherit;
+  font-size: 11px;
+  letter-spacing: 0;
+  opacity: 0;
+  transition: opacity 150ms ease-out;
+}
+[data-chat="premium"] .bubble:hover .bubble-time,
+[data-chat="premium"] .bubble:focus-within .bubble-time { opacity: 1; }
+@media (hover: none) {
+  [data-chat="premium"] .bubble-time { opacity: 1; }
+}
+/* Checks: cambian de color (y un resorte mínimo) al pasar a «leído». Solo hay
+   transición cuando el estado cambia en vivo: al abrir un chat no se anima. */
+[data-chat="premium"] .tick {
+  transition: color 280ms ease-out, transform 280ms var(--pm-spring);
+}
+[data-chat="premium"] .tick-pending,
+[data-chat="premium"] .tick-sent,
+[data-chat="premium"] .tick-delivered { color: var(--text-3); transform: scale(0.92); }
+[data-chat="premium"] .tick-read { color: var(--accent-ink); transform: scale(1); }
+[data-chat="premium"] .day-pill {
+  border-color: transparent;
+  background-color: var(--bg-subtle);
+  box-shadow: none;
+}
+
+[data-chat="premium"] .typing-dots {
+  border-radius: 22px 22px 22px 4px;
+  border-color: var(--pm-in-border);
+  background-color: var(--pm-in);
+  padding: 12px 15px;
+}
+[data-chat="whatsapp"] .typing-dots {
+  border: 0;
+  border-radius: 0 var(--wa-radius) var(--wa-radius) var(--wa-radius);
+  background-color: var(--wa-in);
+}
+
+/* «Escribiendo…» de tres puntos (el componente existe; la Bandeja aún no
+   recibe ese dato). */
+.typing-dot {
+  display: block;
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  background: var(--text-3);
+}
+@keyframes typing-bounce {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.55; }
+  30% { transform: translateY(-4px); opacity: 1; }
+}
+[data-chat="premium"] .typing-dot { animation: typing-bounce 1.1s ease-in-out infinite; }
+[data-chat="premium"] .typing-dot:nth-child(2) { animation-delay: 0.15s; }
+[data-chat="premium"] .typing-dot:nth-child(3) { animation-delay: 0.3s; }
+
+/* Entrada de los mensajes NUEVOS (la Bandeja marca solo los que llegan o se
+   envían en vivo con `.bubble-enter`; un historial largo no anima nada). */
 @keyframes bubble-pop {
   from { opacity: 0; transform: translateY(6px) scale(0.98); }
   to { opacity: 1; transform: none; }
 }
-[data-chat="whatsapp"] .bubble-enter .bubble,
-[data-chat="whatsapp"] .thread-bg > div:nth-last-child(-n + 2) .bubble {
+@keyframes bubble-pop-premium {
+  from { opacity: 0; transform: translateY(14px) scale(0.94); }
+  to { opacity: 1; transform: none; }
+}
+[data-chat="whatsapp"] .bubble-enter .bubble {
   animation: bubble-pop 180ms ease-out both;
 }
+[data-chat="premium"] .bubble-enter .bubble {
+  animation: bubble-pop-premium 260ms var(--pm-spring) both;
+}
+[data-chat="premium"] .bubble-enter .bubble-in { transform-origin: bottom left; }
+[data-chat="premium"] .bubble-enter .bubble-out { transform-origin: bottom right; }
 @media (prefers-reduced-motion: reduce) {
   [data-chat="whatsapp"] .bubble-enter .bubble,
-  [data-chat="whatsapp"] .thread-bg > div:nth-last-child(-n + 2) .bubble {
-    animation: none;
-  }
+  [data-chat="premium"] .bubble-enter .bubble,
+  [data-chat="premium"] .typing-dot { animation: none; }
+  [data-chat="premium"] .tick,
+  [data-chat="premium"] .bubble-time { transition: none; }
 }
 
 /* Cada opción del selector de letra se dibuja en su propia letra. */
@@ -550,4 +735,5 @@
   --font-sample-geist: "Geist Variable", system-ui, sans-serif;
   --font-sample-jakarta: "Plus Jakarta Sans Variable", system-ui, sans-serif;
   --font-sample-dmsans: "DM Sans Variable", system-ui, sans-serif;
+  --font-sample-system: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }

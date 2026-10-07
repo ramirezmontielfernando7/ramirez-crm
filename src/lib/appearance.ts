@@ -12,7 +12,7 @@
  * <html>; los estilos viven en `globals.css`.
  */
 
-export const FONT_KEYS = ["inter", "geist", "jakarta", "dmsans"] as const;
+export const FONT_KEYS = ["inter", "geist", "jakarta", "dmsans", "system"] as const;
 export type FontKey = (typeof FONT_KEYS)[number];
 
 export const FONT_LABELS: Record<FontKey, string> = {
@@ -20,17 +20,30 @@ export const FONT_LABELS: Record<FontKey, string> = {
   geist: "Geist",
   jakarta: "Plus Jakarta Sans",
   dmsans: "DM Sans",
+  // D2: la letra nativa de cada dispositivo; no descarga nada.
+  system: "Sistema",
 };
 
 export const DEFAULT_FONT: FontKey = "inter";
 
-export const CHAT_STYLES = ["classic", "whatsapp"] as const;
+export const CHAT_STYLES = ["classic", "whatsapp", "premium"] as const;
 export type ChatStyle = (typeof CHAT_STYLES)[number];
 
 export const CHAT_STYLE_LABELS: Record<ChatStyle, string> = {
   classic: "Clásico",
   whatsapp: "WhatsApp",
+  premium: "Premium",
 };
+
+/**
+ * Nombre que se muestra del estilo. «Premium» lleva la marca de la
+ * organización («Dashfort Premium», o su nombre white-label).
+ */
+export function chatStyleLabel(style: ChatStyle, brandName?: string | null): string {
+  if (style !== "premium") return CHAT_STYLE_LABELS[style];
+  const brand = brandName?.trim();
+  return brand ? `${brand} Premium` : CHAT_STYLE_LABELS.premium;
+}
 
 export const DEFAULT_CHAT_STYLE: ChatStyle = "classic";
 

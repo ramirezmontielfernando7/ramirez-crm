@@ -33,6 +33,27 @@ Ajustes → **Personalización**, con tres subpestañas (rutas, compartibles):
   - El layout raíz resuelve cookie > organización > fábrica y escribe los
     atributos en el HTML del servidor: sin parpadeo.
 
+## D2 — Pulido del chat y catálogo de tipografías
+
+- Quinta letra «Sistema» (`system-ui, -apple-system, "Segoe UI", Roboto,
+  "Helvetica Neue", Arial, sans-serif`): no descarga nada. Mismas reglas de
+  guardado (organización y cookie personal).
+- Tres estilos de chat: «Clásico» (sin cambios, idéntico píxel a píxel),
+  «WhatsApp» (colores medidos de WhatsApp Web, agrupados como variables
+  `--wa-*` «medido de WhatsApp Web, ajustable»; patrón de fondo PROPIO) y
+  «Premium» (`<marca> Premium`: tonos del acento de la organización, cola
+  curva, hora al pasar el cursor —siempre visible en táctil—, resortes).
+- Las animaciones de entrada solo aplican a mensajes NUEVOS en vivo
+  (`.bubble-enter`, lo marca `MessageThread`); el historial no se anima.
+  `prefers-reduced-motion` las apaga.
+- Los checks (`.tick-<estado>`) solo dibujan los estados que el sistema guarda.
+- NO hechos (el dato no existe, y no hay migración): mensajes citados y el
+  «escribiendo…» en la Bandeja (el componente `TypingDots` existe y se ve en la
+  vista previa de Premium).
+- En Apariencia, `<html>` queda en `data-chat="classic"` mientras la pantalla
+  está abierta: cada tarjeta lleva su propio `data-chat` y así los estilos no
+  se cuelan entre sí. Capturas antes/después: `d2-capturas/`.
+
 ## Fuera de alcance (necesita migración — pendiente)
 
 - Que la preferencia PERSONAL siga a la persona entre dispositivos
