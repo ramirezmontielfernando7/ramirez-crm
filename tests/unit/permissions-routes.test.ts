@@ -191,6 +191,11 @@ const FILTRADAS: [string, Method][] = [
   ["conversations/[id]/messages/knowledge", "POST"],
   ["contacts", "GET"],
   ["contacts", "POST"],
+  // «Número no registrado»: mismo acceso que crear un contacto y que enviar una
+  // plantilla desde un chat (scopedContacts); el consentimiento lo valida el servidor.
+  ["inbox/new-number/register", "POST"],
+  ["inbox/new-number/open", "POST"],
+  ["inbox/new-number/send", "POST"],
   ["contacts/[id]", "GET"],
   ["contacts/[id]", "PATCH"],
   ["contacts/[id]/start-conversation", "POST"],

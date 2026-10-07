@@ -8,6 +8,7 @@ import { etiquetaDeOrigen, titularDeOrigen } from "@/lib/anuncios";
 import { CHANNEL_LABEL, type Channel } from "@/lib/channels";
 import { ChannelBadge } from "@/components/channel-badge";
 import { matchesQuery } from "@/lib/search";
+import { contactLabel, looksLikePhone } from "@/lib/phone-search";
 import { cn } from "@/lib/utils";
 import { ContactAvatar } from "@/components/avatar";
 import { Button } from "@/components/ui/button";
@@ -17,6 +18,7 @@ import { assignContacts, useAssignees } from "@/components/assignment/use-assign
 import { NavRevealButton } from "@/components/nav-mode";
 import { FilterMenu, type InboxFilter } from "./filter-menu";
 import { SearchPill } from "./search-pill";
+import { UnregisteredNumberCard } from "./unregistered-number";
 import { Collapse, ENTER, SPRING } from "@/components/motion";
 
 /* Puntos de etapa: los tokens del tema, no hex copiados del tema claro —
@@ -155,6 +157,12 @@ export const ConversationList = memo(function ConversationList({
         (owner === "unassigned" && !c.assignee) ||
         c.assignee?.id === owner)
   );
+  // «Número no registrado»: parece teléfono y ninguna conversación lo tiene.
+  const sinRegistrar =
+    looksLikePhone(query) &&
+    !conversations.some((c) =>
+      matchesQuery(query, { text: [c.contact.name], phone: c.contact.phone })
+    );
   // La bandeja elegida es el filtro de AFUERA: "Todas" y "No leídas" cuentan
   // dentro de ella, no sobre la suma de los dos canales.
   const inInbox =
@@ -367,6 +375,17 @@ export const ConversationList = memo(function ConversationList({
       <div className="flex-1 overflow-y-auto">
         {loading ? (
           <p className="p-6 text-center text-xs text-text-3">Cargando…</p>
+        ) : visible.length === 0 && sinRegistrar ? (
+          // Un teléfono que no existe en NINGUNA conversación (sin importar los
+          // filtros: si solo lo esconde un filtro, no está «sin registrar»).
+          // También en una bandeja vacía: ahí es justo cuando más se necesita.
+          <UnregisteredNumberCard
+            query={query}
+            onOpenChat={(id) => {
+              onSeeded();
+              onSelect(id);
+            }}
+          />
         ) : conversations.length === 0 ? (
           <EmptyState onSeeded={onSeeded} />
         ) : visible.length === 0 ? (
@@ -416,14 +435,14 @@ export const ConversationList = memo(function ConversationList({
                         readOnly
                         tabIndex={-1}
                         checked={picked.has(c.id)}
-                        aria-label={`Seleccionar a ${c.contact.name}`}
+                        aria-label={`Seleccionar a ${contactLabel(c.contact)}`}
                         className="mt-2 h-4 w-4 shrink-0 accent-[var(--accent)]"
                       />
                     )}
                     {/* mt-[3px]: el avatar (32 px) queda centrado con el
                         nombre y la vista previa (38 px juntos). */}
                     <span className="relative mt-[3px] shrink-0">
-                      <ContactAvatar name={c.contact.name} seed={c.contact.id} size="list" />
+                      <ContactAvatar name={contactLabel(c.contact)} seed={c.contact.id} size="list" />
                       {c.windowOpen && (
                         <span className="absolute -bottom-px -right-px h-[9px] w-[9px] rounded-full border-2 border-background bg-success" />
                       )}
@@ -441,7 +460,7 @@ export const ConversationList = memo(function ConversationList({
                               unread ? "font-bold" : "font-semibold"
                             )}
                           >
-                            {c.contact.name}
+                            {contactLabel(c.contact)}
                           </span>
                         </span>
                         <span

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { TemplateDto } from "@/lib/types";
-import { countVariables } from "@/lib/templates";
+import { countVariables, renderBody } from "@/lib/templates";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,9 +14,17 @@ import { Label } from "@/components/ui/label";
 export function TemplateSender({
   conversationId,
   onSent,
+  sendUrl,
+  extraBody,
+  sendLabel = "Enviar plantilla",
 }: {
-  conversationId: string;
-  onSent: () => void;
+  conversationId?: string;
+  onSent: (result?: Record<string, unknown>) => void;
+  /** Otra ruta de envío (p. ej. «Número no registrado»); por defecto, la del chat. */
+  sendUrl?: string;
+  /** Campos extra del cuerpo para esa ruta. */
+  extraBody?: Record<string, unknown>;
+  sendLabel?: string;
 }) {
   const [templates, setTemplates] = useState<TemplateDto[] | null>(null);
   const [selectedId, setSelectedId] = useState<string>("");
@@ -71,11 +79,12 @@ export function TemplateSender({
     setSending(true);
     setError(null);
     const res = await fetch(
-      `/api/conversations/${conversationId}/messages/template`,
+      sendUrl ?? `/api/conversations/${conversationId}/messages/template`,
       {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
+          ...extraBody,
           templateId: selected.id,
           variables: variableCount > 0 ? values : undefined,
         }),
@@ -89,9 +98,10 @@ export function TemplateSender({
       setError(data?.error?.message ?? "No se pudo enviar la plantilla");
       return;
     }
+    const result = (await res.json().catch(() => null)) as Record<string, unknown> | null;
     setSelectedId("");
     setVariables([]);
-    onSent();
+    onSent(result ?? undefined);
   }
 
   return (
@@ -117,7 +127,7 @@ export function TemplateSender({
       </div>
       {selected && (
         <p className="rounded-md bg-subtle p-2.5 text-xs text-muted-foreground">
-          {selected.body}
+          {renderBody(selected.body, values.map((v, i) => v.trim() || `{{${i + 1}}}`))}
         </p>
       )}
       {values.map((value, i) => (
@@ -147,7 +157,7 @@ export function TemplateSender({
         onClick={() => void send()}
         disabled={!selected || sending || missingValue}
       >
-        {sending ? "Enviando…" : "Enviar plantilla"}
+        {sending ? "Enviando…" : sendLabel}
       </Button>
     </div>
   );
