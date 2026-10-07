@@ -14,6 +14,7 @@ import { ConversationList } from "./conversation-list";
 import { MessageThread } from "./message-thread";
 import { Composer } from "./composer";
 import { ContactPanel } from "./contact-panel";
+import { contactLabel } from "@/lib/phone-search";
 
 /**
  * Texto que ya salió del compositor pero cuyo POST todavía viaja. Existe solo
@@ -336,13 +337,13 @@ export function InboxClient({ channels }: { channels: readonly Channel[] }) {
                 </button>
                 <div className="flex min-w-0 flex-1 items-center gap-3 px-1">
                   <ContactAvatar
-                    name={selected.contact.name}
+                    name={contactLabel(selected.contact)}
                     seed={selected.contact.id}
                     size="md"
                   />
                   <p className="flex min-w-0 items-center gap-1.5 text-[15px] font-semibold leading-tight tracking-tight">
                     {multiChannel && <ChannelBadge channel={selected.channel} />}
-                    <span className="truncate">{selected.contact.name}</span>
+                    <span className="truncate">{contactLabel(selected.contact)}</span>
                   </p>
                 </div>
                 {!panelOpen && (

@@ -33,6 +33,7 @@ import { useViewer } from "@/components/viewer-context";
 import { ChatTimeline } from "@/components/inbox/chat-timeline";
 import { ContactNotes } from "@/components/work/contact-notes";
 import { Collapse, DisclosureButton, useDisclosureId } from "@/components/motion";
+import { contactLabel } from "@/lib/phone-search";
 
 const HANDOFF_LABELS: Record<string, string> = {
   cliente: "El cliente pidió un humano",
@@ -281,13 +282,13 @@ export function ContactPanel({
         <section className="border-b p-4">
           <div className="flex items-center gap-3">
             <ContactAvatar
-              name={conversation.contact.name}
+              name={contactLabel(conversation.contact)}
               seed={conversation.contact.id}
               size="md"
             />
             <div className="min-w-0">
               <p className="truncate text-sm font-bold tracking-tight">
-                {conversation.contact.name}
+                {contactLabel(conversation.contact)}
               </p>
               <p className="text-xs text-text-3">
                 {formatPhone(conversation.contact.phone)}
@@ -533,7 +534,7 @@ export function ContactPanel({
 
       {pendingLoss && (
         <LossReasonDialog
-          leadName={conversation.contact.name}
+          leadName={contactLabel(conversation.contact)}
           onCancel={() => setPendingLoss(null)}
           onConfirm={(reason, note) => {
             const stageId = pendingLoss.id;

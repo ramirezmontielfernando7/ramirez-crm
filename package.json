@@ -40,6 +40,7 @@
     "test:e2e:agentes": "node --env-file=.env scripts/e2e-agentes.mjs",
     "test:e2e:apariencia": "node --env-file=.env scripts/e2e-apariencia.mjs",
     "test:e2e:trabajo": "node --env-file=.env scripts/e2e-trabajo.mjs",
+    "test:e2e:numero-nuevo": "node --env-file=.env scripts/e2e-numero-nuevo.mjs",
     "test:watch": "vitest",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",

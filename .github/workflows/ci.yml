@@ -285,6 +285,16 @@ jobs:
           echo $! > app.pid
           for i in $(seq 1 120); do curl -sf localhost:3000/api/health >/dev/null && break; sleep 1; done
           node --env-file=.env scripts/e2e-trabajo.mjs
+          kill -- -"$(cat app.pid)"; sleep 2
+      # «Número no registrado» de la Bandeja: buscar un teléfono nuevo,
+      # registrar, abrir chat y enviar plantilla (con el wa-mock).
+      - name: e2e de número no registrado
+        run: |
+          set -a; . ./.env; set +a
+          setsid node_modules/.bin/next dev -p 3000 > app7.log 2>&1 &
+          echo $! > app.pid
+          for i in $(seq 1 120); do curl -sf localhost:3000/api/health >/dev/null && break; sleep 1; done
+          node --env-file=.env scripts/e2e-numero-nuevo.mjs
       - name: logs de la app
         if: ${{ failure() }}
-        run: tail -n 200 app1.log app2.log app2b.log app3.log app4.log app5.log app6.log || true
+        run: tail -n 200 app1.log app2.log app2b.log app3.log app4.log app5.log app6.log app7.log || true
