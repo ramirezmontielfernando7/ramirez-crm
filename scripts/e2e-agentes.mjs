@@ -28,6 +28,16 @@
  *  - La vista previa NO manda nada a WhatsApp (outbox vacío); archivar desde
  *    la lista.
  *
+ * PR B (agentes por etapa — sección 7):
+ *  - Un borrador no se puede asignar (409 not_published).
+ *  - /lab/asignacion: asignar «Interesado» desde la pantalla; cambiarla pide
+ *    confirmación (y la API responde 409 stage_taken con quién la atiende).
+ *  - Un lead en «Interesado» lo contesta ese agente; la Bandeja dice
+ *    «Atiende: …»; de vuelta en la primera etapa contesta el general; la
+ *    línea de tiempo registra el relevo una vez por cambio.
+ *  - Con el módulo Laboratorio apagado contesta el general aunque la etapa
+ *    tenga agente. Archivar el agente: la etapa vuelve al general con aviso.
+ *
  * Uso: app viva con WA_MOCK_ENABLED=true y los mocks (ai-mock, wa-mock):
  *   node --env-file=.env scripts/e2e-agentes.mjs
  * Re-ejecutable (cada corrida archiva lo que crea). Sale con 1 si algo falla.
@@ -350,6 +360,142 @@ async function main() {
   ok("archivar el agente de prueba", arch.status === 200);
   const fin = (await api("/api/lab/agents")).json?.agents ?? [];
   ok("ya no aparece en la lista", !fin.some((a) => a.id === agente?.id));
+
+  await agentesPorEtapa(org, pn);
+}
+
+/** PR B — agentes por etapa, de punta a punta. */
+async function agentesPorEtapa(org, pn) {
+  console.log("\n== 7. Agentes por etapa ==");
+  const nombre = `Vendedora ${RUN}`;
+  const etapaAg = (await post("/api/lab/agents", { internalName: `Etapa E2E ${RUN}` })).json?.agent;
+  await put(`/api/lab/agents/${etapaAg?.id}/draft`, { displayName: nombre, useSharedKb: true });
+  const pubEtapa = await post(`/api/lab/agents/${etapaAg?.id}/publish`);
+  ok("crear y publicar el agente de etapa", pubEtapa.status === 200, pubEtapa.text.slice(0, 200));
+  const otro = (await post("/api/lab/agents", { internalName: `Otro E2E ${RUN}` })).json?.agent;
+  await post(`/api/lab/agents/${otro?.id}/publish`);
+  const borrador = (await post("/api/lab/agents", { internalName: `Borrador E2E ${RUN}` })).json?.agent;
+
+  const mapa = await api("/api/lab/assignments");
+  ok("GET /api/lab/assignments", mapa.status === 200 && Array.isArray(mapa.json?.stages), mapa.text.slice(0, 200));
+  const stages = mapa.json?.stages ?? [];
+  const interesado = stages.find((s) => /Interesado/i.test(s.stageName));
+  const primera = stages[0];
+  ok("el pipeline tiene «Interesado»", Boolean(interesado) && Boolean(primera) && interesado?.stageId !== primera?.stageId);
+  // Limpia lo que haya dejado una corrida anterior.
+  for (const s of stages) if (s.agent) await api(`/api/lab/assignments/${s.stageId}`, { method: "DELETE" });
+
+  const deBorrador = await put(`/api/lab/assignments/${interesado?.stageId}`, { agentId: borrador?.id });
+  ok("un borrador no se puede asignar (409 not_published)", deBorrador.status === 409 && deBorrador.json?.error?.code === "not_published", deBorrador.text.slice(0, 200));
+
+  const browser = await chromium.launch(process.env.PLAYWRIGHT_CHROMIUM ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM } : {});
+  try {
+    const page = await (await browser.newContext({ viewport: { width: 1440, height: 900 } })).newPage();
+    page.setDefaultTimeout(60000);
+    await page.goto(`${BASE}/login`);
+    await page.fill("input[type=email]", ADMIN.email);
+    await page.fill("input[type=password]", ADMIN.password);
+    await page.keyboard.press("Enter");
+    await page.waitForURL((u) => !u.pathname.startsWith("/login"));
+
+    await page.goto(`${BASE}/lab`);
+    await page.getByRole("link", { name: "Asignación por etapa" }).click();
+    await page.waitForURL(/\/lab\/asignacion/);
+    const fila = page.locator(`li[data-stage="${interesado?.stageName}"]`);
+    await fila.waitFor();
+    ok("la pestaña muestra cada etapa con el general por defecto", /General/.test(await fila.innerText()));
+    ok("el borrador no se ofrece en el selector", (await fila.locator("option", { hasText: `Borrador E2E ${RUN}` }).count()) === 0);
+    await fila.locator("select").selectOption(etapaAg?.id);
+    await fila.getByText(`Etapa E2E ${RUN}`).first().waitFor();
+    const trasAsignar = (await api("/api/lab/assignments")).json?.stages?.find((s) => s.stageId === interesado?.stageId);
+    ok("asignar desde la pantalla", trasAsignar?.agent?.id === etapaAg?.id, JSON.stringify(trasAsignar?.agent));
+
+    const ocupada = await put(`/api/lab/assignments/${interesado?.stageId}`, { agentId: otro?.id });
+    ok(
+      "la API avisa que la etapa ya tiene agente (409 stage_taken + quién)",
+      ocupada.status === 409 && ocupada.json?.error?.code === "stage_taken" && ocupada.json?.error?.current?.agentId === etapaAg?.id,
+      ocupada.text.slice(0, 200)
+    );
+    await fila.locator("select").selectOption(otro?.id);
+    const dialogo = page.getByRole("dialog");
+    await dialogo.getByText(/ya la atiende/).waitFor();
+    ok("cambiarla en la pantalla pide confirmación", true);
+    await dialogo.getByRole("button", { name: "Cancelar" }).click();
+    await sleep(500);
+    const trasCancelar = (await api("/api/lab/assignments")).json?.stages?.find((s) => s.stageId === interesado?.stageId);
+    ok("cancelar no cambia nada", trasCancelar?.agent?.id === etapaAg?.id);
+
+    // Producción: el lead en «Interesado» lo atiende el agente de la etapa.
+    const encendido = (await api("/api/agent/profile")).json?.profile?.enabled;
+    await put("/api/agent/profile", { enabled: true });
+    const general = (await api("/api/agent/profile")).json?.profile;
+    const saludoGeneral = general?.displayName ? `Soy ${general.displayName}.` : "Somos el equipo del negocio (sin nombre propio).";
+    const tel = `52155${RUN}32`;
+    let n = 0;
+    const escribe = async () => {
+      await api("/api/dev/wa-mock/outbox", { method: "DELETE" });
+      n++;
+      await post("/api/dev/wa-mock/inbound", { phoneNumberId: pn, from: tel, name: `Cliente Etapas ${RUN}`, text: "hola, ¿quién eres?", waMessageId: `wamid.etapa.${RUN}.${n}` });
+      let r = null;
+      await hasta(async () => {
+        r = ((await api("/api/dev/wa-mock/outbox")).json?.outbox ?? []).find((o) => o.to === tel) ?? null;
+        return r;
+      }, 45000);
+      return JSON.stringify(r ?? {});
+    };
+    const r1 = await escribe();
+    ok("un lead nuevo (primera etapa) lo contesta el general", r1.includes(saludoGeneral), r1.slice(0, 200));
+    const [fila1] = await sql`
+      select l.id as lead_id, c.id as contact_id, cv.id as conversation_id from contact c
+      join lead l on l.contact_id = c.id join conversation cv on cv.contact_id = c.id and not cv.is_test
+      where c.organization_id = ${org} and c.wa_identity = ${tel}`;
+    const mover = async (stageId) =>
+      api(`/api/pipeline/leads/${fila1?.lead_id}`, { method: "PATCH", body: JSON.stringify({ stageId, position: 0 }) });
+    ok("mover el lead a «Interesado»", (await mover(interesado?.stageId)).status === 200);
+    const r2 = await escribe();
+    ok("en «Interesado» contesta el agente de la etapa", r2.includes(`Soy ${nombre}.`), r2.slice(0, 200));
+    const atiende = await api(`/api/conversations/${fila1?.conversation_id}/agent`);
+    ok("la conversación dice quién atiende", atiende.json?.agent?.label === `Etapa E2E ${RUN}`, atiende.text.slice(0, 200));
+    await page.goto(`${BASE}/inbox?contact=${fila1?.contact_id}`);
+    const atiendeUi = page.getByText(/Atiende:/).first();
+    await atiendeUi.waitFor({ timeout: 30000 }).catch(() => null);
+    const textoAtiende = (await atiendeUi.textContent().catch(() => null)) ?? "";
+    ok("la Bandeja muestra «Atiende: …» en el panel", textoAtiende.includes(`Etapa E2E ${RUN}`), textoAtiende);
+
+    ok("de vuelta a la primera etapa", (await mover(primera?.stageId)).status === 200);
+    const r3 = await escribe();
+    ok("en la primera etapa contesta otra vez el general", r3.includes(saludoGeneral), r3.slice(0, 200));
+    const linea = (await api(`/api/contacts/${fila1?.contact_id}/timeline`)).json?.items ?? [];
+    const relevos = linea.filter((i) => i.kind === "agent_changed");
+    ok(
+      "la línea de tiempo registra el relevo (una vez por cambio)",
+      relevos.length === 2 && relevos.some((i) => i.detail?.toName === `Etapa E2E ${RUN}`),
+      JSON.stringify(relevos).slice(0, 300)
+    );
+
+    // Laboratorio apagado: las asignaciones se ignoran.
+    ok("de nuevo a «Interesado»", (await mover(interesado?.stageId)).status === 200);
+    await sql`update organization_module set lab = false where organization_id = ${org}`;
+    await sleep(6000); // caché de módulos: 5 s
+    const r4 = await escribe();
+    ok("con Laboratorio apagado contesta el general aunque la etapa tenga agente", r4.includes(saludoGeneral), r4.slice(0, 200));
+    await sql`update organization_module set lab = true where organization_id = ${org}`;
+    await sleep(6000);
+
+    // Archivar el agente asignado: la etapa vuelve al general, con aviso.
+    await api(`/api/lab/agents/${etapaAg?.id}`, { method: "DELETE" });
+    await page.goto(`${BASE}/lab/asignacion`);
+    await fila.waitFor();
+    ok("archivado: la pantalla avisa que la etapa vuelve al general", /fue archivado/.test(await fila.innerText()));
+    const r5 = await escribe();
+    ok("archivado: contesta el general", r5.includes(saludoGeneral), r5.slice(0, 200));
+    await api(`/api/lab/assignments/${interesado?.stageId}`, { method: "DELETE" });
+    await put("/api/agent/profile", { enabled: Boolean(encendido) });
+  } finally {
+    await browser.close();
+    await sql`update organization_module set lab = true where organization_id = ${org}`;
+    for (const a of [otro, borrador]) if (a?.id) await api(`/api/lab/agents/${a.id}`, { method: "DELETE" });
+  }
 }
 
 try {

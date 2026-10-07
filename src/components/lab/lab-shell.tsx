@@ -7,10 +7,7 @@ import { SectionTabs, type SectionTab } from "@/components/ui/section-tabs";
 /**
  * 031 (A2) — Encabezado del Laboratorio con sus subpestañas. Son rutas
  * (compartibles, Atrás funciona), igual que en Campañas.
- *
- * FASE B: aquí va la pestaña «Asignación por etapa» (ruta propia bajo el Laboratorio).
- * Todavía NO existe: no se agrega hasta que la fase B traiga su pantalla y su
- * tabla (0036), para no mostrar un enlace a la nada.
+ * PR B: «Asignación por etapa» (qué agente atiende cada etapa del pipeline).
  */
 const TABS: readonly SectionTab[] = [
   {
@@ -19,8 +16,8 @@ const TABS: readonly SectionTab[] = [
     // El editor (/lab/agents/[id]) cuenta como parte de Agentes.
     match: (p) => p === "/lab" || p.startsWith("/lab/agents"),
   },
+  { href: "/lab/asignacion", label: "Asignación por etapa" },
   { href: "/lab/evaluaciones", label: "Evaluaciones" },
-  // (fase B) { href: <ruta de asignación>, label: "Asignación por etapa" }
 ];
 
 export function LabShell({ children }: { children: React.ReactNode }) {

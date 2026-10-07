@@ -1,4 +1,9 @@
+import { eq } from "drizzle-orm";
+import { getDb, schema } from "@/lib/db";
+import { scoped } from "@/lib/db/tenant";
 import { logger } from "@/lib/log";
+import { orgHasModule } from "@/server/modules";
+import { agentLabel, stageAgentForContact } from "./assignments";
 import { type AgentConfig } from "./config";
 import { ensureGeneralAgent } from "./ensure";
 import { kbForAgent, toKbItems, type KbItem } from "./kb";
@@ -29,10 +34,14 @@ export type ResolvedAgent = {
  * 031 — Qué agente atiende un turno. UNA sola función para todo el CRM:
  *
  * 1. Un override explícito (Laboratorio/evaluaciones) → ese.
- * 2. Si no → el agente GENERAL publicado. (PR B: antes de esto, el agente
- *    asignado a la etapa del lead, solo con el módulo Laboratorio.)
- * 3. Sin general publicado (no hay `agent_profile`) → nadie: el agente calla
- *    como hoy calla sin perfil.
+ * 2. Si no → el agente GENERAL publicado. PR B: en conversaciones REALES el
+ *    turno pasa después ese resultado por `withStageAgent` (el agente de la
+ *    etapa del lead, solo con el módulo Laboratorio). Va en dos pasos para
+ *    que los turnos que callan o traspasan antes del modelo no consulten la
+ *    etapa.
+ * 3. Sin general (no hay `agent_profile`) → nadie, ni el de la etapa: el
+ *    agente calla como hoy calla sin perfil (`agent_profile` es también el
+ *    interruptor global).
  *
  * Con el override, `enabled` sale del perfil igual (el pipeline lo ignora en
  * conversaciones de prueba, que son las únicas que usan override).
@@ -66,6 +75,60 @@ export async function resolveAgentForTurn(
     kb: null,
     enabled: general.enabled,
   };
+}
+
+/**
+ * PR B — El agente de la etapa del lead de `contactId`, si el módulo
+ * Laboratorio está encendido (D7) y la etapa tiene un agente publicado y no
+ * archivado; si no, `general` tal cual. Una asignación que no opera se ignora
+ * (`log.warn`) y atiende el general. Solo para conversaciones REALES sin
+ * override (quien llama lo decide).
+ */
+export async function withStageAgent(
+  organizationId: string,
+  contactId: string,
+  general: ResolvedAgent
+): Promise<ResolvedAgent> {
+  if (!(await orgHasModule(organizationId, "lab"))) return general;
+  const staged = await stageAgentForContact(organizationId, contactId);
+  if (staged.ok) {
+    return { agentId: staged.agent.id, isGeneral: false, config: staged.config, kb: null, enabled: general.enabled };
+  }
+  if (staged.reason !== "no_assignment") {
+    log.warn("la etapa tiene un agente que no puede atender: atiende el general", {
+      org: organizationId,
+      agente: staged.agentId,
+      motivo: staged.reason,
+    });
+  }
+  return general;
+}
+
+export type ConversationAgentPeek = {
+  agentId: string;
+  label: string;
+  stageName: string;
+};
+
+/**
+ * PR B — Para la Bandeja («Atiende: …»): qué agente por etapa atendería hoy
+ * esta conversación. SOLO LEE (no garantiza ni reconcilia el general). `null`
+ * = el general (o nadie: conversación de prueba, Laboratorio apagado).
+ */
+export async function peekAgentForConversation(
+  organizationId: string,
+  conversationId: string
+): Promise<ConversationAgentPeek | null> {
+  if (!(await orgHasModule(organizationId, "lab"))) return null;
+  const [conversation] = await getDb()
+    .select({ contactId: schema.conversation.contactId, isTest: schema.conversation.isTest })
+    .from(schema.conversation)
+    .where(scoped(schema.conversation.organizationId, organizationId, eq(schema.conversation.id, conversationId)))
+    .limit(1);
+  if (!conversation || conversation.isTest) return null;
+  const staged = await stageAgentForContact(organizationId, conversation.contactId);
+  if (!staged.ok) return null;
+  return { agentId: staged.agent.id, label: agentLabel(staged.agent), stageName: staged.stageName };
 }
 
 /**

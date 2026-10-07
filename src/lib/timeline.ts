@@ -29,7 +29,9 @@ export type TimelineKind =
   | "tag_added"
   | "tag_removed"
   | "participant_added"
-  | "participant_removed";
+  | "participant_removed"
+  /** 031 (PR B): cambió el agente de IA que atiende (agente por etapa). */
+  | "agent_changed";
 
 export type TimelineItemDto = {
   id: string;
@@ -120,6 +122,12 @@ export function describeTimelineItem(item: TimelineItemDto): TimelineLine {
       return { title: `${d.user ?? "Alguien"} se sumó como participante${actor}`, body: null };
     case "participant_removed":
       return { title: `${d.user ?? "Alguien"} dejó de ser participante${actor}`, body: null };
+    // 031 (PR B) — el agente que responde cambió entre turnos (etapa del lead).
+    case "agent_changed":
+      return {
+        title: `Cambió el agente que atiende: ${d.fromName ?? "un agente borrado"} → ${d.toName ?? "un agente borrado"}`,
+        body: null,
+      };
   }
 }
 

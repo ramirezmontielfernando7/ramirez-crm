@@ -738,6 +738,12 @@ export const conversation = pgTable(
     lastInboundAt: timestamp("last_inbound_at"),
     lastMessageAt: timestamp("last_message_at"),
     unreadCount: integer("unread_count").notNull().default(0),
+    /**
+     * 031 (PR B): el agente que respondió el último turno real. NULL = aún
+     * ninguno. Solo lo escribe el turno (`src/server/agents/handover.ts`);
+     * cuando cambia se anota `agent_changed` en la línea de tiempo.
+     */
+    lastAgentId: text("last_agent_id"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },
@@ -754,6 +760,12 @@ export const conversation = pgTable(
       columns: [t.organizationId, t.contactId],
       foreignColumns: [contact.organizationId, contact.id],
     }).onDelete("cascade"),
+    // 031 (PR B). En la BD es ON DELETE SET NULL (last_agent_id) (0036).
+    foreignKey({
+      name: "conversation_org_last_agent_fk",
+      columns: [t.organizationId, t.lastAgentId],
+      foreignColumns: [agent.organizationId, agent.id],
+    }).onDelete("set null"),
   ]
 );
 
@@ -1146,6 +1158,40 @@ export const agentPublishLog = pgTable(
     check("agent_publish_log_snapshot_chk", sql`jsonb_typeof(${t.snapshot}) = 'object'`),
     foreignKey({
       name: "agent_publish_log_org_agent_fk",
+      columns: [t.organizationId, t.agentId],
+      foreignColumns: [agent.organizationId, agent.id],
+    }).onDelete("cascade"),
+  ]
+);
+
+/**
+ * 031 (PR B) — Qué agente atiende cada etapa del pipeline. La llave primaria
+ * `(organization_id, stage_id)` es la regla «un agente por etapa» (D6); un
+ * agente puede tener varias. Solo opera con el módulo Laboratorio (D7) y solo
+ * si el agente está publicado y no archivado (si no, atiende el general).
+ * Única puerta: src/server/agents/assignments.ts.
+ */
+export const agentStageAssignment = pgTable(
+  "agent_stage_assignment",
+  {
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    stageId: text("stage_id").notNull(),
+    agentId: text("agent_id").notNull(),
+    assignedBy: text("assigned_by").references(() => user.id, { onDelete: "set null" }),
+    assignedAt: timestamp("assigned_at").notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({ name: "agent_stage_assignment_pk", columns: [t.organizationId, t.stageId] }),
+    index("agent_stage_assignment_agent_idx").on(t.organizationId, t.agentId),
+    foreignKey({
+      name: "agent_stage_assignment_org_stage_fk",
+      columns: [t.organizationId, t.stageId],
+      foreignColumns: [pipelineStage.organizationId, pipelineStage.id],
+    }).onDelete("cascade"),
+    foreignKey({
+      name: "agent_stage_assignment_org_agent_fk",
       columns: [t.organizationId, t.agentId],
       foreignColumns: [agent.organizationId, agent.id],
     }).onDelete("cascade"),
@@ -1977,6 +2023,8 @@ export const contactActivityEvent = pgTable(
         "consent_changed",
         "tag_added",
         "tag_removed",
+        // 031 (PR B): cambió el agente que atiende (detail: from/to + nombres)
+        "agent_changed",
       ],
     }).notNull(),
     /** Quién; NULL = no fue una persona (agente, cerebro externo, sistema). */

@@ -16,7 +16,7 @@ type Listing = { agents: AgentSummary[]; maxAgents: number; aiConfigured: boolea
 /**
  * 031 (A2) — Pestaña «Agentes»: una sola columna. El agente general va fijo
  * arriba; cada fila abre el editor (/lab/agents/[id]).
- * FASE B: aquí arriba irá el «mapa de etapas» (qué agente atiende cada etapa).
+ * El mapa de etapas (qué agente atiende cada etapa) vive en su pestaña: «Asignación por etapa».
  */
 export function AgentsList() {
   const router = useRouter();
@@ -200,7 +200,7 @@ export function AgentsList() {
           onConfirm={() => void archive()}
           onCancel={() => setToArchive(null)}
         >
-          <p>Deja de aparecer en la lista y ya no se puede evaluar. Tus clientes no notan ningún cambio.</p>
+          <p>Deja de aparecer en la lista y ya no se puede evaluar. Si atendía alguna etapa, esa etapa vuelve al agente general (lo verás en «Asignación por etapa»).</p>
         </ConfirmDialog>
       )}
     </div>

@@ -101,6 +101,10 @@ const PROTEGIDAS: [string, Method, Permission][] = [
   ["lab/agents/[id]/versions", "GET", "agent.manage"],
   ["lab/agents/[id]/versions/[logId]/restore", "POST", "agent.manage"],
   ["lab/preview", "POST", "agent.manage"],
+  // 031 (PR B) — asignación de agentes por etapa.
+  ["lab/assignments", "GET", "agent.manage"],
+  ["lab/assignments/[stageId]", "PUT", "agent.manage"],
+  ["lab/assignments/[stageId]", "DELETE", "agent.manage"],
   ["lab/suggestions/apply", "POST", "agent.manage"],
   // Usuarios.
   ["settings/team", "GET", "users.read"],
@@ -177,6 +181,8 @@ const PROTEGIDAS: [string, Method, Permission][] = [
 const FILTRADAS: [string, Method][] = [
   ["conversations", "GET"],
   ["conversations/[id]", "PATCH"],
+  // 031 (PR B): «Atiende: …» de la conversación que se puede ver (getConversation).
+  ["conversations/[id]/agent", "GET"],
   ["conversations/[id]/messages", "GET"],
   ["conversations/[id]/messages", "POST"],
   ["conversations/[id]/messages/media", "POST"],

@@ -7,7 +7,8 @@ la app olvide su `where organization_id = …`.
 ## Qué hace
 
 - **Todas las tablas de dominio** (las que tienen `organization_id`: 45 en la
-  0027, 62 desde la 0035 — cada migración que agrega una le pone su política):
+  0027, 63 desde la 0036 — cada migración que agrega una le pone su política;
+  la más reciente, `agent_stage_assignment`):
   `ENABLE` + `FORCE ROW LEVEL SECURITY` y una sola política,
   `aislamiento_por_organizacion`:
 

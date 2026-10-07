@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { AlertTriangle, Cable, Check, ChevronRight, Sparkles, UserRound } from "lucide-react";
+import { AlertTriangle, Bot, Cable, Check, ChevronRight, Sparkles, UserRound } from "lucide-react";
 import {
   externalAnswerLabel,
   externalAnswering,
@@ -81,6 +81,8 @@ export function ContactPanel({
   const [brainError, setBrainError] = useState<string | null>(null);
   /** Etapa perdida elegida: espera el motivo antes de mover (regla del dominio). */
   const [pendingLoss, setPendingLoss] = useState<StageDto | null>(null);
+  // 031 (PR B): el agente por etapa que atiende; null = el general (no se muestra).
+  const [attending, setAttending] = useState<{ label: string; stageName: string } | null>(null);
 
   const contactId = conversation.contact.id;
   const viewer = useViewer();
@@ -166,6 +168,19 @@ export function ContactPanel({
     setAnuncio(null);
     void refetch();
   }, [refetch]);
+
+  // Depende de la etapa: se vuelve a preguntar cuando el lead se mueve.
+  useEffect(() => {
+    let alive = true;
+    void fetchJson<{ agent: { label: string; stageName: string } | null }>(
+      `/api/conversations/${conversation.id}/agent`
+    ).then((res) => {
+      if (alive) setAttending(res.ok ? res.data.agent : null);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [conversation.id, currentStageId, refreshKey]);
 
   useEffect(() => {
     if (!loaded) return; // la carga inicial ya trae el estado fresco
@@ -313,6 +328,15 @@ export function ContactPanel({
                         ? "Respondiendo"
                         : "Activada"}
                 </p>
+                {attending && (
+                  <p className="mt-0.5 flex items-center gap-1 text-[11px] text-text-3">
+                    <Bot className="h-3 w-3 shrink-0" strokeWidth={1.7} />
+                    <span className="truncate">
+                      Atiende: <span className="font-medium text-foreground">{attending.label}</span> · etapa{" "}
+                      {attending.stageName}
+                    </span>
+                  </p>
+                )}
               </div>
               <Switch
                 size="sm"
