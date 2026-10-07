@@ -1,0 +1,28 @@
+import { apiError } from "@/lib/api";
+import { KbError } from "./kb";
+import { AgentError } from "./store";
+
+/**
+ * 031 — Los errores tipados de los agentes, como respuesta HTTP. `null` si
+ * el error no es de aquí (la ruta lo relanza y `withAuth` responde 500).
+ */
+export function agentErrorResponse(err: unknown): Response | null {
+  if (err instanceof AgentError) {
+    return apiError(err.code === "not_found" ? 404 : 409, err.code, err.message);
+  }
+  if (err instanceof KbError) {
+    return apiError(404, err.code, err.code === "agent_not_found" ? "Agente no encontrado" : "Entrada no encontrada");
+  }
+  return null;
+}
+
+/** Corre `fn` y traduce los errores tipados; los demás se relanzan. */
+export async function withAgentErrors(fn: () => Promise<Response>): Promise<Response> {
+  try {
+    return await fn();
+  } catch (err) {
+    const res = agentErrorResponse(err);
+    if (res) return res;
+    throw err;
+  }
+}

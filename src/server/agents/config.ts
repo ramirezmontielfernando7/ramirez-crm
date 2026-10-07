@@ -15,9 +15,10 @@ type AgentProfile = typeof schema.agentProfile.$inferSelect;
 /** El nombre que el espejo escribe en `agent_profile` cuando no hay nombre. */
 export const MIRROR_DEFAULT_NAME = "Asistente";
 
+/** Texto opcional: ausente o vacío = `null` (no configurado). */
 const optionalText = (max: number) =>
   z.preprocess(
-    (v) => (typeof v === "string" && v.trim() === "" ? null : v),
+    (v) => (v === undefined || (typeof v === "string" && v.trim() === "") ? null : v),
     z.string().max(max).nullable()
   );
 
@@ -25,7 +26,7 @@ const optionalText = (max: number) =>
 export const agentConfigSchema = z.object({
   v: z.literal(1).default(1),
   displayName: z.preprocess(
-    (v) => (typeof v === "string" ? (v.trim() === "" ? null : v.trim()) : v),
+    (v) => (v === undefined ? null : typeof v === "string" ? (v.trim() === "" ? null : v.trim()) : v),
     z.string().max(60).nullable()
   ),
   tone: optionalText(500),

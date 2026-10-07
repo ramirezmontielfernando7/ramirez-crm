@@ -1,22 +1,22 @@
 import { z } from "zod";
 import { apiError, parseBody, withAuth } from "@/lib/api";
-import { getDb, schema } from "@/lib/db";
-import { scoped } from "@/lib/db/tenant";
 import { isAiConfigured } from "@/lib/env";
+import { getLegacyProfile, putLegacyProfile } from "@/server/agents/store";
 import { moduleOff } from "@/server/modules";
 
 export const dynamic = "force-dynamic";
 
+/**
+ * El agente GENERAL visto desde `/agent` (que existe aunque el Laboratorio
+ * esté apagado). 031: mismo contrato de siempre, solo crece — `displayName`
+ * (null = sin nombre propio; `name` sigue diciendo lo que ve el cerebro
+ * externo) y `hasUnpublishedDraft` (hay cambios del Laboratorio sin publicar,
+ * que guardar aquí reemplaza).
+ */
 export const GET = withAuth(async (session) => {
   const off = await moduleOff(session.organizationId, "agent");
   if (off) return off;
-  const db = getDb();
-  const rows = await db
-    .select()
-    .from(schema.agentProfile)
-    .where(scoped(schema.agentProfile.organizationId, session.organizationId))
-    .limit(1);
-  const p = rows[0];
+  const p = await getLegacyProfile(session.organizationId);
   if (!p) return apiError(404, "not_found", "Perfil del agente no encontrado");
   return Response.json({
     profile: {
@@ -26,6 +26,8 @@ export const GET = withAuth(async (session) => {
       instructions: p.instructions,
       escalationRules: p.escalationRules,
       greeting: p.greeting,
+      displayName: p.displayName,
+      hasUnpublishedDraft: p.hasUnpublishedDraft,
     },
     aiConfigured: isAiConfigured(),
   });
@@ -33,25 +35,21 @@ export const GET = withAuth(async (session) => {
 
 const putSchema = z.object({
   enabled: z.boolean().optional(),
-  name: z.string().trim().min(1).max(60).optional(),
+  /** 031: `null` = el agente no se presenta con un nombre propio. */
+  name: z.string().trim().min(1).max(60).nullable().optional(),
   tone: z.string().max(500).nullable().optional(),
   instructions: z.string().max(8000).nullable().optional(),
   escalationRules: z.string().max(4000).nullable().optional(),
   greeting: z.string().max(1000).nullable().optional(),
 });
 
+/** Guardar aquí = publicar el general (como siempre). */
 export const PUT = withAuth(async (session, req: Request) => {
   const off = await moduleOff(session.organizationId, "agent");
   if (off) return off;
   const body = await parseBody(req, putSchema);
   if (!body.ok) return body.response;
-
-  const db = getDb();
-  const updated = await db
-    .update(schema.agentProfile)
-    .set({ ...body.data, updatedAt: new Date() })
-    .where(scoped(schema.agentProfile.organizationId, session.organizationId))
-    .returning();
-  if (!updated[0]) return apiError(404, "not_found", "Perfil no encontrado");
+  const ok = await putLegacyProfile(session.organizationId, session.userId, body.data);
+  if (!ok) return apiError(404, "not_found", "Perfil no encontrado");
   return Response.json({ ok: true });
 }, { permission: "agent.manage" });

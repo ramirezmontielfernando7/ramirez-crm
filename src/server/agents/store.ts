@@ -81,11 +81,11 @@ function toDetail(row: AgentRow): AgentDetail {
   };
 }
 
-const activeAgent = (organizationId: string, id: string) =>
-  scoped(schema.agent.organizationId, organizationId, and(eq(schema.agent.id, id), isNull(schema.agent.archivedAt)));
+/** Un agente por id, no archivado (va dentro de `scoped`). */
+const activeId = (id: string) => and(eq(schema.agent.id, id), isNull(schema.agent.archivedAt));
 
 async function lockAgent(tx: Db, organizationId: string, id: string): Promise<AgentRow> {
-  const [row] = await tx.select().from(schema.agent).where(activeAgent(organizationId, id)).limit(1).for("update");
+  const [row] = await tx.select().from(schema.agent).where(scoped(schema.agent.organizationId, organizationId, activeId(id))).limit(1).for("update");
   if (!row) throw new AgentError("not_found", "Agente no encontrado");
   return row;
 }
@@ -139,7 +139,7 @@ export async function listAgents(organizationId: string): Promise<AgentSummary[]
 }
 
 export async function getAgent(organizationId: string, id: string): Promise<AgentDetail | null> {
-  const [row] = await getDb().select().from(schema.agent).where(activeAgent(organizationId, id)).limit(1);
+  const [row] = await getDb().select().from(schema.agent).where(scoped(schema.agent.organizationId, organizationId, activeId(id))).limit(1);
   return row ? toDetail(row) : null;
 }
 
@@ -167,7 +167,7 @@ export async function createAgent(input: {
     }
     let draft = emptyConfig();
     if (input.duplicateOf) {
-      const [src] = await tx.select().from(schema.agent).where(activeAgent(organizationId, input.duplicateOf)).limit(1);
+      const [src] = await tx.select().from(schema.agent).where(scoped(schema.agent.organizationId, organizationId, activeId(input.duplicateOf))).limit(1);
       if (!src) throw new AgentError("not_found", "El agente a duplicar no existe");
       draft = parseStoredConfig(src.draft) ?? emptyConfig();
     }
@@ -192,7 +192,7 @@ export async function renameAgent(organizationId: string, id: string, internalNa
   const [row] = await getDb()
     .update(schema.agent)
     .set({ internalName, updatedAt: new Date() })
-    .where(activeAgent(organizationId, id))
+    .where(scoped(schema.agent.organizationId, organizationId, activeId(id)))
     .returning();
   if (!row) throw new AgentError("not_found", "Agente no encontrado");
   return toDetail(row);
@@ -208,7 +208,7 @@ export async function archiveAgent(organizationId: string, id: string): Promise<
     await tx
       .update(schema.agent)
       .set({ archivedAt: new Date(), updatedAt: new Date() })
-      .where(activeAgent(organizationId, id));
+      .where(scoped(schema.agent.organizationId, organizationId, activeId(id)));
   });
 }
 
@@ -218,7 +218,7 @@ export async function saveDraft(organizationId: string, id: string, config: Agen
   const [row] = await getDb()
     .update(schema.agent)
     .set({ draft, updatedAt: new Date() })
-    .where(activeAgent(organizationId, id))
+    .where(scoped(schema.agent.organizationId, organizationId, activeId(id)))
     .returning();
   if (!row) throw new AgentError("not_found", "Agente no encontrado");
   return toDetail(row);
@@ -236,7 +236,7 @@ async function publishInTx(
   const [updated] = await tx
     .update(schema.agent)
     .set({ draft: config, published: config, publishedAt: now, publishedBy: actorUserId, updatedAt: now })
-    .where(activeAgent(organizationId, row.id))
+    .where(scoped(schema.agent.organizationId, organizationId, activeId(row.id)))
     .returning();
   await appendPublishLog(tx, { organizationId, agentId: row.id, action, snapshot: config, actorUserId, at: now });
   // El general publicado se refleja en `agent_profile`, con la misma hora.
@@ -279,7 +279,7 @@ export async function makeGeneral(organizationId: string, id: string, actorUserI
     const [promoted] = await tx
       .update(schema.agent)
       .set({ isGeneral: true, updatedAt: now })
-      .where(activeAgent(organizationId, id))
+      .where(scoped(schema.agent.organizationId, organizationId, activeId(id)))
       .returning();
     await appendPublishLog(tx, { organizationId, agentId: id, action: "make_general", snapshot: published, actorUserId, at: now });
     await syncGeneralToProfile(tx, organizationId, published, now);
@@ -344,7 +344,7 @@ export async function restoreVersion(
     const [updated] = await tx
       .update(schema.agent)
       .set({ draft: snapshot, updatedAt: new Date() })
-      .where(activeAgent(organizationId, id))
+      .where(scoped(schema.agent.organizationId, organizationId, activeId(id)))
       .returning();
     await appendPublishLog(tx, { organizationId, agentId: id, action: "restore", snapshot, actorUserId });
     return updated!;

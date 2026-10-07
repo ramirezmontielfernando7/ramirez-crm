@@ -138,7 +138,14 @@ export type DecisionMeta = {
 };
 
 export type TurnDecision =
-  | { ok: true; action: AgentActionType; stage: Stage | null; meta: DecisionMeta }
+  | {
+      ok: true;
+      action: AgentActionType;
+      stage: Stage | null;
+      /** Si la acción del modelo no se podía hacer y se degradó, cuál era. */
+      degradedFrom: "move_stage" | "offer_slots" | "book_slot" | null;
+      meta: DecisionMeta;
+    }
   | {
       ok: false;
       error: "not_configured" | "quota_exceeded" | "provider_error" | "invalid_output";
@@ -330,16 +337,21 @@ export async function decideTurn(input: DecideInput): Promise<TurnDecision> {
   if (!result.ok) return { ok: false, error: result.error, detail: result.detail, meta };
 
   let action: AgentActionType = result.data;
+  let degradedFrom: "move_stage" | "offer_slots" | "book_slot" | null = null;
   // 015 — Sin agenda, sus acciones no existen en este turno: se degradan.
   if ((action.action === "offer_slots" || action.action === "book_slot") && !input.agenda) {
+    degradedFrom = action.action;
     action = degradeAction(action);
   }
   let stage: Stage | null = null;
   if (action.action === "move_stage") {
     stage = resolveStage(action.stage, input.stages);
-    if (!stage) action = degradeAction(action);
+    if (!stage) {
+      degradedFrom = "move_stage";
+      action = degradeAction(action);
+    }
   }
-  return { ok: true, action, stage, meta };
+  return { ok: true, action, stage, degradedFrom, meta };
 }
 
 /** Los efectos del turno: lo que antes hacía el final de `runAgentTurn`. */

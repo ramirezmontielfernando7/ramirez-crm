@@ -1,8 +1,6 @@
-import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { apiError, parseBody, withAuth } from "@/lib/api";
-import { getDb, schema } from "@/lib/db";
-import { scoped } from "@/lib/db/tenant";
+import { deleteKbEntry, updateKbEntry } from "@/server/agents/kb";
 import { moduleOff } from "@/server/modules";
 
 export const dynamic = "force-dynamic";
@@ -15,44 +13,32 @@ const patchSchema = z.object({
   content: z.string().trim().min(1).max(8000).optional(),
 });
 
+/**
+ * 031 — `?agentId=` (opcional): la entrada debe ser de ese agente (vacío =
+ * del compartido). Sin él, cualquier entrada de la organización, como antes.
+ */
+function ownerParam(req: Request): string | null | undefined {
+  const params = new URL(req.url).searchParams;
+  if (!params.has("agentId")) return undefined;
+  return params.get("agentId") || null;
+}
+
 export const PATCH = withAuth(async (session, req: Request, ctx: Params) => {
   const off = await moduleOff(session.organizationId, "agent");
   if (off) return off;
   const { id } = await ctx.params;
   const body = await parseBody(req, patchSchema);
   if (!body.ok) return body.response;
-
-  const db = getDb();
-  const updated = await db
-    .update(schema.kbEntry)
-    .set({ ...body.data, updatedAt: new Date() })
-    .where(
-      scoped(
-        schema.kbEntry.organizationId,
-        session.organizationId,
-        eq(schema.kbEntry.id, id)
-      )
-    )
-    .returning();
-  if (!updated[0]) return apiError(404, "not_found", "Entrada no encontrada");
-  return Response.json({ entry: updated[0] });
+  const entry = await updateKbEntry(session.organizationId, id, body.data, ownerParam(req));
+  if (!entry) return apiError(404, "not_found", "Entrada no encontrada");
+  return Response.json({ entry });
 }, { permission: "agent.manage" });
 
-export const DELETE = withAuth(async (session, _req: Request, ctx: Params) => {
+export const DELETE = withAuth(async (session, req: Request, ctx: Params) => {
   const off = await moduleOff(session.organizationId, "agent");
   if (off) return off;
   const { id } = await ctx.params;
-  const db = getDb();
-  const deleted = await db
-    .delete(schema.kbEntry)
-    .where(
-      scoped(
-        schema.kbEntry.organizationId,
-        session.organizationId,
-        eq(schema.kbEntry.id, id)
-      )
-    )
-    .returning();
-  if (!deleted[0]) return apiError(404, "not_found", "Entrada no encontrada");
+  const deleted = await deleteKbEntry(session.organizationId, id, ownerParam(req));
+  if (!deleted) return apiError(404, "not_found", "Entrada no encontrada");
   return Response.json({ deleted: true });
 }, { permission: "agent.manage" });
