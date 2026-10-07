@@ -219,7 +219,17 @@ jobs:
           node --env-file=.env scripts/e2e-credenciales.mjs
           # Fase 3, PR 2: administrador de plataforma, alta y suspensión.
           node --env-file=.env scripts/e2e-plataforma.mjs
-          # Fase 3, PR 3: módulos por organización.
+          kill -- -"$(cat app.pid)"; sleep 2
+      # Fase 3, PR 3: módulos por organización. Con su propio `next dev`:
+      # detrás de los tres guiones de arriba, el servidor llegaba al tope de
+      # memoria y se reiniciaba a mitad del guion (ECONNRESET), como en la
+      # tercera y cuarta vuelta.
+      - name: e2e de módulos por organización
+        run: |
+          set -a; . ./.env; set +a
+          setsid node_modules/.bin/next dev -p 3000 > app2b.log 2>&1 &
+          echo $! > app.pid
+          for i in $(seq 1 120); do curl -sf localhost:3000/api/health >/dev/null && break; sleep 1; done
           node --env-file=.env scripts/e2e-modulos.mjs
           kill -- -"$(cat app.pid)"; sleep 2
       # Tercera vuelta, con un `next dev` recién arrancado: el servidor de
@@ -264,4 +274,4 @@ jobs:
           node --env-file=.env scripts/e2e-agentes.mjs
       - name: logs de la app
         if: ${{ failure() }}
-        run: tail -n 200 app1.log app2.log app3.log app4.log app5.log || true
+        run: tail -n 200 app1.log app2.log app2b.log app3.log app4.log app5.log || true
