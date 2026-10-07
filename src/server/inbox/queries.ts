@@ -7,6 +7,8 @@ import {
 } from "@/lib/db/tenant";
 import { isWindowOpen, windowRemainingMs } from "@/server/inbox/window";
 import type { ConversationDto } from "@/lib/types";
+import type { TagDto } from "@/lib/tags";
+import { botLastSeenAt, EXTERNAL_SEEN_WINDOW_MS } from "@/server/bot/status";
 
 /**
  * 018 — El anuncio de origen viaja con la conversación. La llave única
@@ -94,12 +96,36 @@ export async function listConversations(
     limit 1
   )`;
 
+  // 034: lead, etapa, etiquetas y "¿hay bot?" viajan en LA MISMA consulta (y
+  // por tanto con el mismo filtro de asignación del asesor), no en consultas
+  // aparte que habría que proteger una por una.
+  const leadSql = sql<string | null>`(
+    select l.id from lead l where l.contact_id = ${schema.contact.id} limit 1
+  )`;
+  const stageIdSql = sql<string | null>`(
+    select l.stage_id from lead l where l.contact_id = ${schema.contact.id} limit 1
+  )`;
+  const tagsSql = sql<TagDto[] | null>`(
+    select json_agg(json_build_object('id', t.id, 'name', t.name, 'color', t.color) order by t.name)
+    from contact_tag_assignment a
+    join contact_tag t on t.id = a.tag_id
+    where a.contact_id = ${schema.contact.id}
+  )`;
+  const agentOnSql = sql<boolean | null>`(
+    select ap.enabled from agent_profile ap
+    where ap.organization_id = ${schema.conversation.organizationId}
+  )`;
+
   const rows = await db
     .select({
       conversation: schema.conversation,
       contact: schema.contact,
       preview: previewSql,
       stageName: stageSql,
+      leadId: leadSql,
+      stageId: stageIdSql,
+      tags: tagsSql,
+      agentOn: agentOnSql,
       anuncio: anuncioDeLista,
       assigneeName: assigneeNameSql,
     })
@@ -121,6 +147,11 @@ export async function listConversations(
     )
     .orderBy(desc(sql`coalesce(${schema.conversation.lastMessageAt}, ${schema.conversation.createdAt})`));
 
+  // ¿Hay algo que conteste? El agente encendido, o un cerebro externo que se
+  // asomó en las últimas 24 h (en memoria; no consulta su /health).
+  const seen = botLastSeenAt(access.organizationId);
+  const externalSeen = !!seen && Date.now() - seen.getTime() < EXTERNAL_SEEN_WINDOW_MS;
+
   return rows.map((r) =>
     serializeConversation(
       r.conversation,
@@ -128,7 +159,13 @@ export async function listConversations(
       r.preview,
       r.stageName,
       aAnuncioDeLista(r.anuncio),
-      r.assigneeName
+      r.assigneeName,
+      {
+        leadId: r.leadId,
+        stageId: r.stageId,
+        tags: r.tags ?? [],
+        aiAvailable: !!r.agentOn || externalSeen,
+      }
     )
   );
 }
@@ -197,7 +234,13 @@ export function serializeConversation(
   preview: string | null = null,
   stageName: string | null = null,
   anuncio: ConversationDto["anuncio"] = null,
-  assigneeName: string | null = null
+  assigneeName: string | null = null,
+  extra: {
+    leadId?: string | null;
+    stageId?: string | null;
+    tags?: ConversationDto["tags"];
+    aiAvailable?: boolean;
+  } = {}
 ): ConversationDto {
   return {
     id: c.id,
@@ -207,6 +250,11 @@ export function serializeConversation(
       ? { id: contact.assignedUserId, name: assigneeName ?? "" }
       : null,
     stageName,
+    leadId: extra.leadId ?? null,
+    stageId: extra.stageId ?? null,
+    tags: extra.tags ?? [],
+    archivedAt: c.archivedAt?.toISOString() ?? null,
+    aiAvailable: extra.aiAvailable ?? false,
     aiEnabled: c.aiEnabled,
     handoffAt: c.handoffAt?.toISOString() ?? null,
     handoffReason: c.handoffReason,

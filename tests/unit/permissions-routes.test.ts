@@ -107,6 +107,8 @@ const PROTEGIDAS: [string, Method, Permission][] = [
   ["lab/assignments/[stageId]", "DELETE", "agent.manage"],
   ["lab/suggestions/apply", "POST", "agent.manage"],
   // Usuarios.
+  // 034: eliminar un chat para siempre; archivar (PATCH) lo ve cualquiera que vea el chat.
+  ["conversations/[id]", "DELETE", "conversation.delete"],
   ["settings/team", "GET", "users.read"],
   ["settings/team", "POST", "users.manage"],
   ["settings/team/[id]", "PATCH", "users.manage"],

@@ -744,6 +744,12 @@ export const conversation = pgTable(
      * cuando cambia se anota `agent_changed` en la línea de tiempo.
      */
     lastAgentId: text("last_agent_id"),
+    /**
+     * 034: archivada = fuera de la Bandeja principal, pero conservada. NULL =
+     * a la vista. Un mensaje entrante la desarchiva. (No confundir con
+     * `contact.archived_at`, que archiva al contacto.)
+     */
+    archivedAt: timestamp("archived_at"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },
@@ -753,6 +759,7 @@ export const conversation = pgTable(
       .on(t.organizationId, t.contactId)
       .where(sql`${t.isTest} = false`),
     index("conversation_org_last_idx").on(t.organizationId, t.lastMessageAt),
+    index("conversation_org_archived_idx").on(t.organizationId, t.archivedAt),
     unique("conversation_org_id_uq").on(t.organizationId, t.id),
     // Fase 1 (H6): el contacto es de la MISMA organización
     foreignKey({

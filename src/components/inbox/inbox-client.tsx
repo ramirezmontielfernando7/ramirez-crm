@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { ChevronLeft, PanelRight } from "lucide-react";
+import { ChevronLeft, MoreHorizontal, PanelRight } from "lucide-react";
 import { m } from "motion/react";
 import { cn } from "@/lib/utils";
 import { ContactAvatar } from "@/components/avatar";
@@ -15,6 +15,8 @@ import { MessageThread } from "./message-thread";
 import { Composer } from "./composer";
 import { ContactPanel } from "./contact-panel";
 import { contactLabel } from "@/lib/phone-search";
+import { useConversationActions } from "./conversation-actions";
+import type { PatchRow } from "./chat-capsules";
 
 /**
  * Texto que ya salió del compositor pero cuyo POST todavía viaja. Existe solo
@@ -97,6 +99,25 @@ export function InboxClient({ channels }: { channels: readonly Channel[] }) {
 
   // Estable para que `ConversationList` (memoizada) no se repinte de más.
   const onSeeded = useCallback(() => void refetchConversations(), [refetchConversations]);
+  // 034: una cápsula cambió un dato de la fila: se pinta ya, sin esperar al
+  // servidor (si falla, la fila se repone y se vuelve a pedir la lista).
+  const patchRow = useCallback<PatchRow>((id, patch) => {
+    setConversations((prev) => prev && prev.map((c) => (c.id === id ? { ...c, ...patch } : c)));
+    setDetailRev((v) => v + 1);
+  }, []);
+  // 034: archivar, recuperar o eliminar un chat. Si era el abierto, se suelta
+  // (en móvil vuelve a la lista); un eliminado sale de la lista al instante.
+  const onRemoved = useCallback(
+    (id: string, kind: "archive" | "restore" | "delete") => {
+      if (selectedIdRef.current === id) setSelectedId(null);
+      if (kind === "delete") {
+        setConversations((prev) => prev && prev.filter((c) => c.id !== id));
+      }
+      void refetchConversations();
+    },
+    [refetchConversations]
+  );
+  const headerActions = useConversationActions(onRemoved);
   const select = useCallback(
     (id: string) => {
       setSelectedId(id);
@@ -288,6 +309,7 @@ export function InboxClient({ channels }: { channels: readonly Channel[] }) {
     // Escritorio: lista, hilo y detalles son paneles separados que flotan
     // sobre el fondo base (ver `.shell-content` en globals.css).
     <div data-split-panels className="flex h-full lg:gap-3">
+      {headerActions.element}
       {/* Móvil: una columna a la vez. La lista cede la pantalla completa al
           hilo en cuanto hay conversación elegida (patrón maestro-detalle). */}
       <section
@@ -303,6 +325,8 @@ export function InboxClient({ channels }: { channels: readonly Channel[] }) {
           selectedId={selectedId}
           onSelect={select}
           onSeeded={onSeeded}
+          onPatchRow={patchRow}
+          onRemoved={onRemoved}
         />
       </section>
 
@@ -346,6 +370,23 @@ export function InboxClient({ channels }: { channels: readonly Channel[] }) {
                     <span className="truncate">{contactLabel(selected.contact)}</span>
                   </p>
                 </div>
+                {/* 034: Archivar / Eliminar del chat abierto (las mismas opciones del
+                    clic derecho de la fila; es también el camino con teclado). */}
+                <button
+                  type="button"
+                  aria-haspopup="menu"
+                  aria-label="Opciones del chat"
+                  title="Opciones del chat"
+                  onClick={(e) =>
+                    headerActions.openMenu(selected, {
+                      kind: "rect",
+                      rect: e.currentTarget.getBoundingClientRect(),
+                    })
+                  }
+                  className="shrink-0 rounded-full border border-border-strong p-1.5 text-text-3 transition-colors hover:border-text-3 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <MoreHorizontal className="h-4 w-4" strokeWidth={1.7} />
+                </button>
                 {!panelOpen && (
                   <button
                     onClick={() => togglePanel(true)}

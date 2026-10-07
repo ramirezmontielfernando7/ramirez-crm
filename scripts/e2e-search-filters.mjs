@@ -66,7 +66,7 @@ ok("las 3 personas de prueba están en la bandeja",
 
 const page = await ctx.newPage();
 // Solo la lista de chats: el panel de filtros (role=dialog) también es una lista.
-const rows = () => page.locator(":not([role=dialog]) > ul > li button").allInnerTexts();
+const rows = () => page.locator(":not([role=dialog]) > ul > li [data-conversation-row]").allInnerTexts();
 
 console.log("\n== Bandeja: la lupa abre el buscador ==");
 // El buscador es una lupa que se estira: no hay campo que teclear antes de

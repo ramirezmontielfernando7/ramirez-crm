@@ -3,6 +3,7 @@ import { apiError, parseBody, withAuth } from "@/lib/api";
 import { publish } from "@/server/events/bus";
 import { logActivitySafe } from "@/server/activity/log";
 import { serializeConversation, getConversation, updateConversation } from "@/server/inbox/queries";
+import { deleteConversation, setConversationArchived } from "@/server/inbox/lifecycle";
 
 export const dynamic = "force-dynamic";
 
@@ -10,6 +11,8 @@ const patchSchema = z.object({
   aiEnabled: z.boolean().optional(),
   reactivate: z.boolean().optional(),
   markRead: z.boolean().optional(),
+  /** 034: true archiva, false recupera. */
+  archived: z.boolean().optional(),
 });
 
 type Params = { params: Promise<{ id: string }> };
@@ -23,7 +26,12 @@ export const PATCH = withAuth(async (session, req: Request, ctx: Params) => {
   const visible = await getConversation(session.access, id);
   if (!visible) return apiError(404, "not_found", "Conversación no encontrada");
 
-  const updated = await updateConversation(session.access, id, body.data);
+  const { archived, ...patch } = body.data;
+  if (archived !== undefined) {
+    const res = await setConversationArchived(session.access, id, archived);
+    if (!res) return apiError(404, "not_found", "Conversación no encontrada");
+  }
+  const updated = await updateConversation(session.access, id, patch);
   if (!updated) return apiError(404, "not_found", "Conversación no encontrada");
 
   // 022: pausar o reactivar la IA queda en la línea de tiempo del chat, con
@@ -58,3 +66,19 @@ export const PATCH = withAuth(async (session, req: Request, ctx: Params) => {
   }
   return Response.json({ conversation: null });
 });
+
+/**
+ * 034 — Eliminar el chat y todos sus mensajes, para siempre. El permiso
+ * (`conversation.delete`: Propietario y Coordinador) se valida ANTES de tocar
+ * nada: sin él, 403. Después, igual que el resto: el chat que la sesión no ve
+ * es un 404.
+ */
+export const DELETE = withAuth(
+  async (session, _req: Request, ctx: Params) => {
+    const { id } = await ctx.params;
+    const ok = await deleteConversation(session.access, id);
+    if (!ok) return apiError(404, "not_found", "Conversación no encontrada");
+    return Response.json({ deleted: true });
+  },
+  { permission: "conversation.delete" }
+);

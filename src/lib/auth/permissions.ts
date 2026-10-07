@@ -67,6 +67,11 @@ const statements = {
    * permiso; `manage` ve y edita las tareas de TODO el equipo.
    */
   work: ["manage"],
+  /**
+   * 034 — Eliminar un chat de forma permanente (con todos sus mensajes).
+   * Archivar no lo pide: quien ve el chat puede archivarlo y recuperarlo.
+   */
+  conversation: ["delete"],
 } as const;
 
 export const ac = createAccessControl(statements);
@@ -87,6 +92,7 @@ const owner = ac.newRole({
   team_chat: ["create_groups", "announce", "oversee"],
   number_health: ["read"],
   work: ["manage"],
+  conversation: ["delete"],
 });
 
 /** Operación: reparte, ve todo, edita etapas y plantillas. No configura. */
@@ -110,6 +116,7 @@ const coordinador = ac.newRole({
   // Campañas v2: opera las campañas, así que ve la salud del número.
   number_health: ["read"],
   work: ["manage"],
+  conversation: ["delete"],
 });
 
 /** Solo lo suyo: sus chats y sus leads (que sí puede mover). Sin Resultados (022). */
@@ -151,7 +158,8 @@ export type Permission =
   | "team_chat.announce"
   | "team_chat.oversee"
   | "number_health.read"
-  | "work.manage";
+  | "work.manage"
+  | "conversation.delete";
 
 /**
  * 025 — Permisos que el Propietario puede DELEGAR por organización, desde
