@@ -14,6 +14,8 @@ const prefixes = {
   leadStageEvent: "lse",
   credentials: "cred",
   agentProfile: "agp",
+  agent: "agt",
+  agentPublishLog: "apl",
   kbEntry: "kb",
   template: "tpl",
   testRun: "run",
