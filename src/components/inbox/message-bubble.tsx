@@ -222,7 +222,11 @@ export function MessageBubble({
         // con 64% cada mensaje se parte en tres líneas.
         // Burbujas del mockup de la landing: el cliente entra en
         // verde WhatsApp, el CRM contesta con el lavado del acento.
-        "max-w-[85%] rounded-[14px] border px-3 pb-1.5 pt-2 text-[13.5px] leading-[1.45] shadow-sm",
+        // `bubble*`: ganchos de estilo para Personalización → Apariencia
+        // («WhatsApp» los pisa en globals.css; «Clásico» no los usa).
+        "bubble max-w-[85%] rounded-[14px] border px-3 pb-1.5 pt-2 text-[13.5px] leading-[1.45] shadow-sm",
+        out ? "bubble-out" : "bubble-in",
+        !grouped && "bubble-first",
         !wide && "sm:max-w-[64%]",
         out
           ? "border-bubble-out-border bg-bubble-out text-bubble-out-text"

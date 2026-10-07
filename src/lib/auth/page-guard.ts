@@ -18,7 +18,6 @@ export async function requirePagePermission(permission: Permission): Promise<Ses
 export const SETTINGS_TAB_PERMISSION = {
   whatsapp: "settings.manage",
   messenger: "settings.manage",
-  branding: "settings.manage",
   templates: "templates.manage",
   tags: "tags.manage",
   team: "users.read",
@@ -27,6 +26,11 @@ export const SETTINGS_TAB_PERMISSION = {
   // 025: grupos (Propietario, o Coordinador con la delegación); la
   // supervisión dentro de la pestaña es solo del Propietario.
   "team-chat": "team_chat.create_groups",
-  // 030 (PR 4): menú por rol; además, solo si la plataforma encendió custom_nav.
-  navigation: "settings.manage",
 } as const satisfies Record<string, Permission>;
+
+/**
+ * Fase D — Pestañas de Ajustes que NO piden permiso: cualquier persona con
+ * sesión (Personalización → Apariencia es la vista de cada quien). Marca y
+ * Navegación viven dentro de ella y piden `settings.manage` por su cuenta.
+ */
+export const SETTINGS_OPEN_TABS = ["personalization"] as const;

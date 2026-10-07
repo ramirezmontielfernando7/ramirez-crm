@@ -45,6 +45,8 @@ type Handler = (...args: unknown[]) => Promise<Response>;
 const PROTEGIDAS: [string, Method, Permission][] = [
   // Configuración: solo el Propietario.
   ["settings/branding", "PUT", "settings.manage"],
+  // Fase D: la apariencia de toda la organización (lo personal es una cookie).
+  ["settings/appearance", "PUT", "settings.manage"],
   ["settings/branding/favicon", "PUT", "settings.manage"],
   ["settings/branding/favicon", "DELETE", "settings.manage"],
   ["settings/whatsapp", "GET", "settings.manage"],

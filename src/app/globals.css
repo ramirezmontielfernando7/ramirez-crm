@@ -447,3 +447,107 @@
     animation-duration: 0.01ms !important;
   }
 }
+
+
+/* ── Fase D · Personalización → Apariencia ───────────────────────────────
+   Sin @layer a propósito: lo que no está en una capa gana a las utilidades de
+   Tailwind, y aquí hace falta para pisar los colores de la burbuja. */
+
+/* Tipografía: solo redefine el token por función (--font-ui). Inter es el de
+   fábrica y llega de next/font; las otras, de @fontsource-variable. */
+[data-font="geist"] {
+  --font-ui: "Geist Variable", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+[data-font="jakarta"] {
+  --font-ui: "Plus Jakarta Sans Variable", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+[data-font="dmsans"] {
+  --font-ui: "DM Sans Variable", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+/* Estilo de chat «WhatsApp»: fondo verde-gris, burbujas con cola, entrada
+   suave. «Clásico» no escribe nada aquí: es el aspecto de siempre. */
+[data-chat="whatsapp"] {
+  --wa-bg: #e6eee9;
+  --wa-in: #ffffff;
+  --wa-in-border: #e1e8e4;
+  --wa-out: #d9fdd3;
+  --wa-out-border: #c4ecbd;
+}
+[data-theme="dark"] [data-chat="whatsapp"],
+[data-theme="dark"][data-chat="whatsapp"] {
+  --wa-bg: #0b141a;
+  --wa-in: #202c33;
+  --wa-in-border: #2a3942;
+  --wa-out: #005c4b;
+  --wa-out-border: #0a6d5a;
+}
+[data-chat="whatsapp"] .thread-bg {
+  background-color: var(--wa-bg);
+}
+[data-chat="whatsapp"] .bubble {
+  position: relative;
+  border-radius: 8px;
+  box-shadow: 0 1px 0.5px rgba(11, 20, 26, 0.13);
+}
+[data-chat="whatsapp"] .bubble.bubble-in {
+  background-color: var(--wa-in);
+  border-color: var(--wa-in-border);
+  color: var(--text);
+}
+[data-chat="whatsapp"] .bubble.bubble-out {
+  background-color: var(--wa-out);
+  border-color: var(--wa-out-border);
+  color: var(--text);
+}
+[data-theme="dark"] [data-chat="whatsapp"] .bubble.bubble-out,
+[data-theme="dark"][data-chat="whatsapp"] .bubble.bubble-out {
+  color: #e9edef;
+}
+/* La cola: solo en el primer mensaje de una racha. */
+[data-chat="whatsapp"] .bubble.bubble-first::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  width: 8px;
+  height: 10px;
+}
+[data-chat="whatsapp"] .bubble.bubble-in.bubble-first {
+  border-top-left-radius: 0;
+}
+[data-chat="whatsapp"] .bubble.bubble-in.bubble-first::before {
+  left: -8px;
+  background: var(--wa-in);
+  clip-path: polygon(100% 0, 100% 100%, 0 0);
+}
+[data-chat="whatsapp"] .bubble.bubble-out.bubble-first {
+  border-top-right-radius: 0;
+}
+[data-chat="whatsapp"] .bubble.bubble-out.bubble-first::before {
+  right: -8px;
+  background: var(--wa-out);
+  clip-path: polygon(0 0, 100% 0, 0 100%);
+}
+/* Entrada suave: solo los últimos mensajes (abrir un chat largo no anima cientos). */
+@keyframes bubble-pop {
+  from { opacity: 0; transform: translateY(6px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+[data-chat="whatsapp"] .bubble-enter .bubble,
+[data-chat="whatsapp"] .thread-bg > div:nth-last-child(-n + 2) .bubble {
+  animation: bubble-pop 180ms ease-out both;
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-chat="whatsapp"] .bubble-enter .bubble,
+  [data-chat="whatsapp"] .thread-bg > div:nth-last-child(-n + 2) .bubble {
+    animation: none;
+  }
+}
+
+/* Cada opción del selector de letra se dibuja en su propia letra. */
+:root {
+  --font-sample-inter: var(--font-inter), system-ui, sans-serif;
+  --font-sample-geist: "Geist Variable", system-ui, sans-serif;
+  --font-sample-jakarta: "Plus Jakarta Sans Variable", system-ui, sans-serif;
+  --font-sample-dmsans: "DM Sans Variable", system-ui, sans-serif;
+}

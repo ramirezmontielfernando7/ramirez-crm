@@ -1,17 +1,6 @@
-import { notFound } from "next/navigation";
-import { NavigationSettingsClient } from "@/components/settings/navigation-settings";
-import { requirePagePermission } from "@/lib/auth/page-guard";
-import { orgHasCustomNav } from "@/server/modules";
+import { redirect } from "next/navigation";
 
-export const dynamic = "force-dynamic";
-
-/**
- * 030 (PR 4) — Ajustes → Navegación: el menú de cada rol. Solo el
- * Propietario y solo si la plataforma encendió `custom_nav` para esta
- * organización (si no, la pantalla no existe). La API valida igual.
- */
-export default async function NavigationSettingsPage() {
-  const session = await requirePagePermission("settings.manage");
-  if (!(await orgHasCustomNav(session.organizationId))) notFound();
-  return <NavigationSettingsClient />;
+/** Fase D — «Navegación» se mudó a Ajustes → Personalización → Navegación. */
+export default function NavigationSettingsRedirect() {
+  redirect("/settings/personalization/navegacion");
 }

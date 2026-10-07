@@ -8,7 +8,8 @@ type Tab = { href: string; label: string };
 
 const TABS: Tab[] = [
   { href: "/settings/whatsapp", label: "WhatsApp" },
-  { href: "/settings/branding", label: "Marca" },
+  // Fase D: Marca y Navegación son subpestañas de Personalización.
+  { href: "/settings/personalization", label: "Personalización" },
   { href: "/settings/templates", label: "Plantillas" },
   { href: "/settings/tags", label: "Etiquetas" },
   { href: "/settings/team", label: "Equipo" },
@@ -21,9 +22,6 @@ const AGENDA_TAB: Tab = { href: "/settings/calendar", label: "Agenda" };
 /** 016 — Igual con "Anuncios" y la bandera ATRIBUCION. */
 const ADS_TAB: Tab = { href: "/settings/ads", label: "Anuncios" };
 
-/** 030 (PR 4) — "Navegación" solo si la plataforma encendió custom_nav. */
-const NAVIGATION_TAB: Tab = { href: "/settings/navigation", label: "Navegación" };
-
 /** 017 — "Messenger" solo si el canal está encendido con CHANNELS. */
 const MESSENGER_TAB: Tab = { href: "/settings/messenger", label: "Messenger" };
 
@@ -31,14 +29,12 @@ export function SettingsNav({
   agenda = false,
   atribucion = false,
   messenger = false,
-  navigation = false,
   templates = true,
   allowed,
 }: {
   agenda?: boolean;
   atribucion?: boolean;
   messenger?: boolean;
-  navigation?: boolean;
   /** 030 (PR 4) — con Campañas encendido, Plantillas vive en Campañas. */
   templates?: boolean;
   /** 020 — pestañas que el rol puede abrir (`/settings/<clave>`); lo decide el servidor. */
@@ -54,7 +50,6 @@ export function SettingsNav({
     ...TABS.slice(1),
     ...(agenda ? [AGENDA_TAB] : []),
     ...(atribucion ? [ADS_TAB] : []),
-    ...(navigation ? [NAVIGATION_TAB] : []),
   ]
     .filter((t) => templates || t.href !== "/settings/templates")
     .filter((t) => !allowed || allowed.includes(t.href.replace("/settings/", "")));
