@@ -166,6 +166,24 @@ sirviendo. Revertir = redesplegar la imagen anterior. Cada PR trae su
 
 ## PR B — Agentes por etapa
 
+> **Cómo quedó implementado (decisiones del dueño al aprobar el plan, que
+> cambian el texto original de abajo):**
+>
+> - La asignación vive en su **propia pestaña** «Asignación por etapa»
+>   (`/lab/asignacion`), no en una sección Activación del editor; por eso
+>   las rutas son por etapa: `GET /api/lab/assignments`, `PUT` y `DELETE
+>   /api/lab/assignments/[stageId]` (`replace: true` tras confirmar). Publicar
+>   y asignar en el mismo paso queda fuera.
+> - `conversation.last_agent_id` **sí** lleva FK compuesta a `agent`
+>   (`ON DELETE SET NULL ("last_agent_id")`, misma forma que la 0024/0025).
+> - Archivar un agente no borra sus asignaciones: el turno las ignora, atiende
+>   el general y la pestaña muestra el aviso. Reemplazar una asignación que ya
+>   no opera no pide confirmación.
+> - La Bandeja muestra «Atiende: <nombre interno> · etapa X» solo cuando
+>   atiende un agente por etapa; con el general no se muestra nada nuevo.
+> - El cerebro externo (`/api/bot/*`) no usa asignaciones: sigue recibiendo
+>   el general (contrato sin cambios).
+
 ### Historias
 
 1. **Activación por etapa.** En el editor, sección Activación: el agente

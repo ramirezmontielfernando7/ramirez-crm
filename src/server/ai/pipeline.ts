@@ -22,7 +22,8 @@ import { announceHandoff } from "@/server/inbox/handoff-notice";
 import { buildAgentSystemPrompt } from "@/server/ai/prompts";
 import { toPromptConfig, type AgentPromptConfig } from "@/server/agents/config";
 import type { KbItem } from "@/server/agents/kb";
-import { kbForConfig, resolveAgentForTurn, type AgentOverride } from "@/server/agents/resolve";
+import { kbForConfig, resolveAgentForTurn, withStageAgent, type AgentOverride } from "@/server/agents/resolve";
+import { recordTurnAgent } from "@/server/agents/handover";
 import { agendaEnabled } from "@/server/agenda/flag";
 import { bookSlot, offerSlots } from "@/server/agenda/agent";
 import { getOffers, mapaDeHuecosParaModelo } from "@/server/agenda/offers";
@@ -157,7 +158,7 @@ type TurnPlan =
   | { kind: "silent" }
   | { kind: "window_closed"; conversation: Conversation }
   | { kind: "backup_handoff"; conversation: Conversation }
-  | { kind: "decide"; conversation: Conversation; input: DecideInput };
+  | { kind: "decide"; conversation: Conversation; input: DecideInput; agentId: string };
 
 /**
  * Ejecuta UN turno del agente ahora (el Laboratorio lo llama directo, con
@@ -188,6 +189,8 @@ export async function runAgentTurn(conversationId: string, opts: TurnOptions = {
     case "decide": {
       const decision = await decideTurn(plan.input);
       await executeAction(plan.conversation, plan.input, decision);
+      // PR B: qué agente respondió (solo turnos reales que el modelo decidió).
+      if (decision.ok && !plan.conversation.isTest) await noteTurnAgent(plan.conversation, plan.agentId);
       return;
     }
   }
@@ -215,13 +218,13 @@ async function loadTurnContext(conversationId: string, opts: TurnOptions): Promi
   // incluido no existe para esta organización (el Laboratorio tampoco).
   if (!(await orgHasModule(organizationId, conversation.isTest ? "lab" : "agent"))) return { kind: "silent" };
 
-  // 031: el agente que atiende (hoy, el general publicado; el Laboratorio
-  // puede fijar otro). Sin `agent_profile` no hay agente, como siempre.
-  const agent = await resolveAgentForTurn(organizationId, { override: opts.agentOverride });
-  if (!agent) return { kind: "silent" };
+  // 031: el agente que atiende (el general publicado; el Laboratorio puede
+  // fijar otro). Sin `agent_profile` no hay agente, como siempre.
+  const general = await resolveAgentForTurn(organizationId, { override: opts.agentOverride });
+  if (!general) return { kind: "silent" };
   // El toggle global aplica a conversaciones reales; el Laboratorio evalúa el
   // comportamiento configurado aunque el agente aún no esté encendido.
-  if (!conversation.isTest && !agent.enabled) return { kind: "silent" };
+  if (!conversation.isTest && !general.enabled) return { kind: "silent" };
 
   const history = await db
     .select()
@@ -240,6 +243,13 @@ async function loadTurnContext(conversationId: string, opts: TurnOptions): Promi
     return { kind: "backup_handoff", conversation };
   }
 
+  // PR B: en conversaciones reales, el agente de la etapa del lead (solo con
+  // el módulo Laboratorio). Después de los silencios y traspasos de arriba:
+  // esos turnos no llegan al modelo y no necesitan saberlo.
+  const agent =
+    conversation.isTest || opts.agentOverride
+      ? general
+      : await withStageAgent(organizationId, conversation.contactId, general);
   const kb = agent.kb ?? (await kbForConfig(organizationId, { id: agent.agentId, isGeneral: agent.isGeneral }, agent.config));
   const stages = await db
     .select({ id: schema.pipelineStage.id, name: schema.pipelineStage.name })
@@ -275,6 +285,7 @@ async function loadTurnContext(conversationId: string, opts: TurnOptions): Promi
   return {
     kind: "decide",
     conversation,
+    agentId: agent.agentId,
     input: {
       organizationId,
       // Fase 3: el Laboratorio cuenta aparte ("lab") pero contra el mismo tope.
@@ -352,6 +363,29 @@ export async function decideTurn(input: DecideInput): Promise<TurnDecision> {
     }
   }
   return { ok: true, action, stage, degradedFrom, meta };
+}
+
+/**
+ * Anota el agente del turno (y `agent_changed` si cambió). Al margen: si la
+ * bitácora falla, la respuesta ya salió y el turno no se da por fallido.
+ */
+async function noteTurnAgent(conversation: Conversation, agentId: string): Promise<void> {
+  try {
+    const changed = await recordTurnAgent({
+      organizationId: conversation.organizationId,
+      conversationId: conversation.id,
+      contactId: conversation.contactId,
+      agentId,
+    });
+    if (changed) {
+      publish(conversation.organizationId, {
+        type: "conversation.updated",
+        data: { conversation: { id: conversation.id } },
+      });
+    }
+  } catch (err) {
+    log.error("no se pudo anotar el agente del turno", { org: conversation.organizationId, conversacion: conversation.id, err });
+  }
 }
 
 /** Los efectos del turno: lo que antes hacía el final de `runAgentTurn`. */

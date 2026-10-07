@@ -1,4 +1,5 @@
 import { apiError } from "@/lib/api";
+import { StageNotFoundError, StageTakenError } from "./assignments";
 import { KbError } from "./kb";
 import { AgentError } from "./store";
 
@@ -10,6 +11,13 @@ export function agentErrorResponse(err: unknown): Response | null {
   if (err instanceof AgentError) {
     return apiError(err.code === "not_found" ? 404 : 409, err.code, err.message);
   }
+  if (err instanceof StageTakenError) {
+    return Response.json(
+      { error: { code: "stage_taken", message: err.message, current: err.current } },
+      { status: 409 }
+    );
+  }
+  if (err instanceof StageNotFoundError) return apiError(404, "stage_not_found", err.message);
   if (err instanceof KbError) {
     return apiError(404, err.code, err.code === "agent_not_found" ? "Agente no encontrado" : "Entrada no encontrada");
   }

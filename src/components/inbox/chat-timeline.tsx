@@ -4,6 +4,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 import { AnimatePresence, m } from "motion/react";
 import {
   ArrowRightLeft,
+  Bot,
   Kanban,
   Megaphone,
   PauseCircle,
@@ -39,6 +40,7 @@ const ICON: Record<TimelineKind, LucideIcon> = {
   tag_removed: Tag,
   participant_added: UserPlus,
   participant_removed: UserMinus,
+  agent_changed: Bot,
 };
 
 /** Cuántas líneas se ven de entrada; "Ver anteriores" suma de a tantas. */

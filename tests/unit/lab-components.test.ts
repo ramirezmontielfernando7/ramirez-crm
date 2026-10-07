@@ -160,7 +160,7 @@ describe("pantallas del Laboratorio", () => {
   });
 
   it("ningún enlace interno apunta a /lab por un camino que no existe", () => {
-    const validos = [/^\/lab$/, /^\/lab\/evaluaciones(\?.*)?$/, /^\/lab\/agents\/?[^/]*$/];
+    const validos = [/^\/lab$/, /^\/lab\/evaluaciones(\?.*)?$/, /^\/lab\/agents\/?[^/]*$/, /^\/lab\/asignacion$/];
     for (const f of archivos(SRC)) {
       const rel = path.relative(SRC, f);
       if (rel.startsWith("app/api/") || rel.startsWith("server/")) continue;

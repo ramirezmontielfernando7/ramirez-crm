@@ -56,11 +56,20 @@ Con navegador real (`scripts/e2e-agentes.mjs`, sección 5b):
 7. **Archivar** desde la lista (el general no se archiva).
 
 Sin migraciones; Bandeja y Campañas se ven igual (capturas antes/después).
-La pestaña «Asignación por etapa» queda para la fase B.
 
-## PR B (por etapa) — pendiente
+## PR B (por etapa) — `scripts/e2e-agentes.mjs`, sección 7
 
-Crear agente sin nombre → vista previa → publicar en «Interesado» → un lead
-en «Interesado» recibe respuesta de ese agente → moverlo a «Nuevo» → responde
-el general → la línea de tiempo registra el relevo → apagar `lab` desde
-`/platform` → responde el general.
+1. Un borrador no se puede asignar (409 `not_published`) ni aparece en el
+   selector.
+2. `/lab/asignacion`: asignar un agente publicado a «Interesado» desde la
+   pantalla; cambiarla pide confirmación (la API responde 409 `stage_taken`
+   con quién la atiende) y cancelar no cambia nada.
+3. Un lead nuevo (primera etapa) lo contesta el general → moverlo a
+   «Interesado» → contesta el agente de la etapa → la Bandeja muestra
+   «Atiende: …» → de vuelta a la primera etapa contesta el general → la línea
+   de tiempo registra los dos relevos (uno por cambio).
+4. Con el módulo `lab` apagado contesta el general aunque la etapa tenga
+   agente (se apaga directo en `organization_module`; `/platform` hace lo
+   mismo y lo prueba `e2e-modulos`).
+5. Archivar el agente asignado: la pantalla avisa que la etapa vuelve al
+   general y contesta el general.

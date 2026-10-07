@@ -15,6 +15,7 @@ import { ensureGeneralAgent, type AgentRow } from "./ensure";
 import { copyAgentKb } from "./kb";
 import { appendPublishLog, type PublishAction } from "./log";
 import { syncGeneralToProfile } from "./mirror";
+import { removeAgentStages } from "./assignments";
 
 /**
  * 031 — ÚNICA puerta de `agent` y `agent_publish_log` (con `ensure.ts`,
@@ -281,6 +282,8 @@ export async function makeGeneral(organizationId: string, id: string, actorUserI
       .set({ isGeneral: true, updatedAt: now })
       .where(scoped(schema.agent.organizationId, organizationId, activeId(id)))
       .returning();
+    // PR B: el general atiende todo lo que no tiene agente propio; no tiene etapas.
+    await removeAgentStages(tx, organizationId, id);
     await appendPublishLog(tx, { organizationId, agentId: id, action: "make_general", snapshot: published, actorUserId, at: now });
     await syncGeneralToProfile(tx, organizationId, published, now);
     return promoted!;
