@@ -59,6 +59,42 @@ en ninguno). El equipo quiere un solo lugar de «lo que hay que hacer».
 - Crear/editar/marcar tareas no crea mensajes ni llama a Meta.
 - La migración se aplica dos veces seguidas sin error.
 
+## Comportamiento observable (PR 2 — Notas)
+
+1. **Pestaña Notas** en «Trabajo» (mismo módulo `trabajo`): tarjetas tipo
+   Keep con título opcional, texto, color (sin color, amarillo, verde, azul,
+   rosa, morado; legibles en claro y oscuro), **fijar arriba** («Fijadas» /
+   «Otras») y **archivar** (filtro Notas / Archivadas). Al tocar una tarjeta
+   se abre su detalle a la derecha (en el celular, encima). Aquí están las
+   notas que escribió quien mira; las del equipo se ven en cada chat.
+2. **«Notas de trabajo» en el panel del contacto** (Bandeja): las notas
+   ligadas a ese contacto y **«Nueva nota»**, que la crea ya ligada al chat
+   abierto. Tocar una nota la abre en Trabajo → Notas, donde **«Abrir chat»**
+   vuelve a la conversación. Las notas de la línea de tiempo (022) no
+   cambian.
+3. **Quién la ve** (y la línea que lo dice, pedida por el dueño): junto a
+   «Nueva nota» del chat y en el editor de una nota ligada se lee «Las notas
+   ligadas a un chat las ve todo el equipo que puede ver ese contacto. Una
+   nota sin ligar es solo para quien la escribe.»; una nota sin ligar dice
+   «Solo tú ves esta nota…».
+   - Sin ligar: solo quien la escribió (ni el Propietario).
+   - Ligada: quien puede ver ese contacto (asignado, participante o
+     `scope.all`).
+   - Editar, fijar, archivar o borrar: quien la escribió o `work.manage`.
+   - Ligar solo a un chat que se puede ver; si después ya no se ve, la nota
+     sigue siendo de quien la escribió, sin decir de qué contacto era.
+4. **Interna**: una nota nunca se envía al cliente, tampoco en chats de
+   prueba (`is_test`).
+
+### Criterios de aceptación (PR 2)
+
+- Una nota sin ligar de la Asesora: la Propietaria recibe 404.
+- Una nota creada desde un chat la ve la Coordinadora en ese chat; otro
+  asesor que no ve el contacto recibe 404.
+- Sin `trabajo`: `/api/work/notes*` y `/trabajo/notas` → 404.
+- RLS y FK compuestas en `work_note`; CHECK de color y de nota no vacía.
+- Crear/editar notas no crea mensajes ni llama a Meta.
+
 ## Qué NO se hace (y por qué)
 
 - No se renombra la clave `agenda` ni se migran citas: evitar tocar datos de
@@ -67,4 +103,6 @@ en ninguno). El equipo quiere un solo lugar de «lo que hay que hacer».
   repetitivas ni subtareas: mantenerlo simple (lista tipo recordatorios).
 - Sin tiempo real (SSE) en Tareas: la lista se refresca al volver a la
   pestaña; suficiente para una lista de pendientes.
-- Notas: en el PR 2.
+- Notas: sin compartir con personas sueltas ni etiquetas/listas de
+  verificación dentro de la nota (Keep tiene más; aquí basta texto + color +
+  fijar + archivar). Sin tiempo real: se refrescan al volver a la pestaña.

@@ -7,8 +7,9 @@ la app olvide su `where organization_id = …`.
 ## Qué hace
 
 - **Todas las tablas de dominio** (las que tienen `organization_id`: 45 en la
-  0027, 64 desde la 0037 — cada migración que agrega una le pone su política;
-  la más reciente, `work_task` (033, Tareas de «Trabajo»)):
+  0027, 65 desde la 0038 — cada migración que agrega una le pone su política;
+  las más recientes, `work_task` y `work_note` (033, Tareas y Notas de
+  «Trabajo»)):
   `ENABLE` + `FORCE ROW LEVEL SECURITY` y una sola política,
   `aislamiento_por_organizacion`:
 
@@ -79,7 +80,7 @@ psql -U postgres -d <base> -c "begin; set local role vocero_app; select set_conf
 
 Toda tabla nueva con `organization_id` necesita la política en su migración
 (copia el bloque de la 0027 para esa tabla; el ejemplo más reciente es la
-0037, `work_task`, con sus FK compuestas `(organization_id, id)` hacia
+0038, `work_note`, con sus FK compuestas `(organization_id, id)` hacia
 contacto y conversación). Si no, `tests/db/rls.test.ts`
 falla en CI. Y la app solo la verá dentro de un contexto de organización
 (`withAuth`, `runWithOrganization`, `withTenant`).

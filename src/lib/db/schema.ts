@@ -2965,3 +2965,56 @@ export const workTask = pgTable(
     }).onDelete("set null"),
   ]
 );
+
+/**
+ * 033 (PR 2) — Notas del equipo, tipo Keep (módulo «Trabajo», clave
+ * `trabajo`). Título opcional, texto, color de una lista cerrada, fijar
+ * arriba y archivar. Internas: NUNCA se envían al cliente.
+ *
+ * Quién la ve: sin ligar (`contact_id` NULL), solo quien la escribió; ligada
+ * a un contacto/chat, todo el que puede ver ese contacto (020). Borrar el
+ * contacto o el chat deja la nota sin ligadura (SET NULL solo de esa columna):
+ * vuelve a ser solo de quien la escribió.
+ *
+ * La ÚNICA puerta que la lee y escribe es `src/server/work/notes.ts`.
+ */
+export const workNote = pgTable(
+  "work_note",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    title: text("title"),
+    body: text("body").notNull().default(""),
+    color: text("color").notNull().default("ninguno"),
+    pinnedAt: timestamp("pinned_at"),
+    archivedAt: timestamp("archived_at"),
+    authorUserId: text("author_user_id").references(() => user.id, { onDelete: "set null" }),
+    contactId: text("contact_id"),
+    conversationId: text("conversation_id"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => [
+    unique("work_note_org_id_uq").on(t.organizationId, t.id),
+    check("work_note_color_chk", sql`${t.color} in ('ninguno', 'amarillo', 'verde', 'azul', 'rosa', 'morado')`),
+    check("work_note_title_chk", sql`${t.title} is null or char_length(${t.title}) <= 200`),
+    check("work_note_body_chk", sql`char_length(${t.body}) <= 10000`),
+    check("work_note_not_empty_chk", sql`char_length(${t.body}) > 0 or char_length(coalesce(${t.title}, '')) > 0`),
+    index("work_note_org_author_idx").on(t.organizationId, t.authorUserId, t.archivedAt),
+    index("work_note_org_contact_idx").on(t.organizationId, t.contactId),
+    // En la BD es ON DELETE SET NULL (contact_id) (0038).
+    foreignKey({
+      name: "work_note_org_contact_fk",
+      columns: [t.organizationId, t.contactId],
+      foreignColumns: [contact.organizationId, contact.id],
+    }).onDelete("set null"),
+    // En la BD es ON DELETE SET NULL (conversation_id) (0038).
+    foreignKey({
+      name: "work_note_org_conversation_fk",
+      columns: [t.organizationId, t.conversationId],
+      foreignColumns: [conversation.organizationId, conversation.id],
+    }).onDelete("set null"),
+  ]
+);

@@ -12,4 +12,13 @@
 - [x] T10 BD real: `tests/db/trabajo.test.ts`.
 - [x] T11 E2E: `scripts/e2e-trabajo.mjs` + `tests/e2e/us-trabajo.md`.
 - [x] T12 Docs: `docs/rls.md`, `CLAUDE.md`.
-- [ ] PR 2 — Notas (spec en este mismo directorio, cuando el dueño lo autorice).
+
+## PR 2 — Notas
+
+- [x] N1 Esquema `work_note` y migración 0038 idempotente con RLS; reversa.
+- [x] N2 `server/work/notes.ts` + reglas puras en `lib/work.ts` (colores, `canEditNote`, línea de visibilidad).
+- [x] N3 Rutas `/api/work/notes` y `/api/work/notes/[id]`; guardias de permisos y módulos.
+- [x] N4 Pestaña Notas (`notes-client.tsx`), tokens `--note-*` con prueba de contraste.
+- [x] N5 «Notas de trabajo» en el panel del contacto (`contact-notes.tsx`) con la línea de quién la ve.
+- [x] N6 BD real (`tests/db/trabajo.test.ts`) y e2e (`scripts/e2e-trabajo.mjs`, sección 3b).
+- [x] N7 Docs: `docs/rls.md`, `CLAUDE.md`.

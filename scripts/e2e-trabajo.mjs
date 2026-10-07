@@ -8,6 +8,10 @@
  *     de un toque y la encuentra en «Hechas».
  *  3. Desde un chat de la Bandeja: «Nueva tarea para este chat» → la tarea
  *     queda ligada y «Abrir chat» vuelve a esa conversación.
+ *  3b. PR 2 — Notas: «Nueva nota» en el panel del chat (con la línea de
+ *     quién la ve), la nota aparece en «Notas de trabajo», se abre en Trabajo
+ *     → Notas y «Abrir chat» vuelve al chat. En Notas: una nota privada, con
+ *     color y fijada arriba.
  *  4. Permisos: la Coordinadora ve las tareas de todas; la Asesora no ve las
  *     de otros ni puede tocarlas (404).
  *  5. Interno: nada de esto generó un mensaje.
@@ -173,7 +177,12 @@ async function main() {
   await inicio.p.locator("aside nav").first().getByRole("link", { name: "Trabajo" }).click();
   ok("«Trabajo» abre Citas en la vista Lista", await hasta(async () => /\/bookings\?vista=lista/.test(inicio.p.url()), 60000), inicio.p.url());
   const tabs = inicio.p.getByRole("navigation", { name: "Secciones de Trabajo" });
-  ok("con las pestañas Citas y Tareas", (await tabs.getByRole("link", { name: "Citas" }).count()) === 1 && (await tabs.getByRole("link", { name: "Tareas" }).count()) === 1);
+  ok(
+    "con las pestañas Citas, Tareas y Notas",
+    (await tabs.getByRole("link", { name: "Citas" }).count()) === 1 &&
+      (await tabs.getByRole("link", { name: "Tareas" }).count()) === 1 &&
+      (await tabs.getByRole("link", { name: "Notas" }).count()) === 1
+  );
   ok("«Trabajo» se ve activo en el menú estando en Citas", (await inicio.p.locator('aside nav a[href="/trabajo"]').first().getAttribute("class"))?.includes("bg-brand-tint"));
   await hasta(async () => (await inicio.p.getByText("Cargando…").count()) === 0, 20000);
   await shot(inicio.p, "trabajo-1-citas-lista");
@@ -221,6 +230,51 @@ async function main() {
   ok("«Abrir chat» vuelve a esa conversación", await hasta(async () => bandeja.p.url().includes(`/inbox?contact=${chat?.contact}`), 60000), bandeja.p.url());
   await bandeja.p.close();
 
+  console.log("\n== 3b · Nota desde el chat y abrir el chat desde la nota ==");
+  const HINT = "Las notas ligadas a un chat las ve todo el equipo que puede ver ese contacto. Una nota sin ligar es solo para quien la escribe.";
+  const chatN = await S.pagina(`/inbox?contact=${chat?.contact}`);
+  const seccion = chatN.p.getByRole("region", { name: "Notas de trabajo" });
+  ok("el panel del chat tiene «Notas de trabajo» con «Nueva nota»", await hasta(async () => (await seccion.getByRole("button", { name: "Nueva nota" }).count()) > 0, 60000));
+  ok("…y la línea de quién ve las notas", (await seccion.getByText(HINT).count()) === 1);
+  await seccion.getByRole("button", { name: "Nueva nota" }).click();
+  const textoNota = `Prefiere llamada por la tarde ${RUN}`;
+  await seccion.getByRole("textbox", { name: "Nueva nota de trabajo" }).fill(textoNota);
+  await seccion.getByRole("button", { name: "Guardar nota" }).click();
+  const tarjeta = seccion.getByRole("link", { name: new RegExp(`Abrir nota: ${textoNota.slice(0, 20)}`) });
+  ok("la nota aparece en el chat", await hasta(async () => (await tarjeta.count()) === 1, 15000));
+  const [nota] = await sql`select id, contact_id, conversation_id, author_user_id from work_note where organization_id = ${orgId} and body = ${textoNota}`;
+  ok("en la base: ligada al contacto y al chat, escrita por la Asesora", nota?.contact_id === chat?.contact && nota?.conversation_id === chat?.conv && nota?.author_user_id === asesora?.id, JSON.stringify(nota));
+  await shot(chatN.p, "trabajo-7-chat-notas");
+  await tarjeta.click();
+  ok("tocar la nota la abre en Trabajo → Notas", await hasta(async () => chatN.p.url().includes(`/trabajo/notas?nota=${nota?.id}`), 60000), chatN.p.url());
+  const detalle = chatN.p.getByRole("region", { name: "Detalle de la nota" });
+  ok("el editor muestra la línea de quién la ve", await hasta(async () => (await detalle.getByText(HINT).count()) === 1, 30000));
+  await shot(chatN.p, "trabajo-8-nota-del-chat");
+  await detalle.getByRole("link", { name: "Abrir chat" }).click();
+  ok("«Abrir chat» desde la nota vuelve a esa conversación", await hasta(async () => chatN.p.url().includes(`/inbox?contact=${chat?.contact}`), 60000), chatN.p.url());
+  await chatN.p.close();
+
+  const notas = await S.pagina("/trabajo/notas");
+  await notas.p.locator('section[aria-label="Notas"][aria-busy="false"]').waitFor({ state: "attached", timeout: 90000 });
+  await notas.p.getByRole("button", { name: "Nueva nota" }).click();
+  const nueva = notas.p.getByRole("region", { name: "Detalle de la nota" });
+  ok("una nota sin ligar dice que solo la ve quien la escribe", (await nueva.getByText(/^Solo tú ves esta nota/).count()) === 1);
+  const privada = `Ideas para la promo ${RUN}`;
+  await nueva.getByRole("textbox", { name: "Título" }).fill("Promo");
+  await nueva.getByRole("textbox", { name: "Nota" }).fill(privada);
+  await nueva.getByRole("radio", { name: "Amarillo" }).click();
+  await nueva.getByRole("button", { name: "Guardar" }).click();
+  ok("se guarda", await hasta(async () => (await nueva.getByRole("status").count()) > 0, 15000));
+  await nueva.getByRole("button", { name: "Fijar arriba" }).click();
+  ok("fijada arriba, en «Fijadas»", await hasta(async () => (await notas.p.getByText("Fijadas", { exact: true }).count()) === 1, 15000));
+  const [notaPrivada] = await sql`select id, color, pinned_at, contact_id from work_note where organization_id = ${orgId} and body = ${privada}`;
+  ok("en la base: amarilla, fijada y sin ligar", notaPrivada?.color === "amarillo" && !!notaPrivada?.pinned_at && notaPrivada?.contact_id === null, JSON.stringify(notaPrivada));
+  await shot(notas.p, "trabajo-9-notas");
+  await notas.p.close();
+  ok("la Propietaria NO ve la nota privada de la Asesora (404)", (await O.call("GET", `/api/work/notes/${notaPrivada?.id}`)).status === 404);
+  const enChatCoord = (await C.call("GET", `/api/work/notes?contactId=${chat?.contact}`)).json?.notes ?? [];
+  ok("la Coordinadora sí ve la nota del chat", enChatCoord.some((n) => n.id === nota?.id));
+
   console.log("\n== 4 · Permisos ==");
   const deLaDuena = await O.call("POST", "/api/work/tasks", { title: `Pagar renta ${RUN}` });
   ok("la Propietaria crea la suya", deLaDuena.status === 201);
@@ -232,12 +286,16 @@ async function main() {
 
   console.log("\n== 5 · Interno: ningún envío ==");
   const [{ n: mensajesDespues }] = await sql`select count(*)::int as n from message where organization_id = ${orgId}`;
-  ok("las tareas no generaron mensajes", mensajesDespues === mensajesAntes, `${mensajesAntes} → ${mensajesDespues}`);
+  ok("las tareas y las notas no generaron mensajes", mensajesDespues === mensajesAntes, `${mensajesAntes} → ${mensajesDespues}`);
 
   console.log("\n== 6 · Cada pestaña con su módulo ==");
   await A.call("POST", `/api/platform/organizations/${orgId}/modules`, { trabajo: false });
   await sleep(CACHE_MS);
   ok("sin `trabajo`: API de Tareas 404", (await S.call("GET", "/api/work/tasks")).status === 404);
+  ok("sin `trabajo`: API de Notas 404", (await S.call("GET", "/api/work/notes")).status === 404);
+  const sinNotas = await S.pagina("/trabajo/notas");
+  ok("sin `trabajo`: la página de Notas es 404", sinNotas.status === 404, String(sinNotas.status));
+  await sinNotas.p.close();
   const sinTareas = await S.pagina("/trabajo/tareas");
   ok("sin `trabajo`: la página de Tareas es 404", sinTareas.status === 404, String(sinTareas.status));
   await sinTareas.p.close();
@@ -277,6 +335,9 @@ async function main() {
     await fila.click();
     await sleep(800);
     await shot(t.p, "trabajo-6-detalle-celular");
+    const n = await tel.pagina("/trabajo/notas");
+    await n.p.locator('section[aria-label="Notas"][aria-busy="false"]').waitFor({ state: "attached", timeout: 90000 });
+    await shot(n.p, "trabajo-10-notas-celular");
   }
 }
 

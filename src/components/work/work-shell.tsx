@@ -6,16 +6,17 @@ import { SectionTabs, type SectionTab } from "@/components/ui/section-tabs";
 
 /**
  * 033 — Cabecera de «Trabajo» con sus subpestañas: Citas (módulo `agenda`,
- * vive en /bookings) y Tareas (módulo `trabajo`). Cada pestaña solo aparece
+ * vive en /bookings), Tareas y Notas (las dos, módulo `trabajo`). Cada pestaña solo aparece
  * si su módulo está encendido para la organización; lo decide el servidor
  * (`workSections`) y cada pantalla responde 404 sin su módulo de todas formas.
  */
-export type WorkSections = { citas: boolean; tareas: boolean };
+export type WorkSections = { citas: boolean; tareas: boolean; notas: boolean };
 
 export function workTabs(s: WorkSections): SectionTab[] {
   const tabs: SectionTab[] = [];
   if (s.citas) tabs.push({ href: "/bookings", label: "Citas" });
   if (s.tareas) tabs.push({ href: "/trabajo/tareas", label: "Tareas" });
+  if (s.notas) tabs.push({ href: "/trabajo/notas", label: "Notas" });
   return tabs;
 }
 
