@@ -238,7 +238,8 @@ async function main() {
   const webB = (await B.call("GET", "/api/settings/webhook")).json;
   ok("B no recibe URLs de Instagram ni Messenger (no es la plataforma)", !webB?.instagramUrl && !webB?.messengerUrl);
   const navB = await B.pagina("/inbox");
-  ok("el menú de B no muestra Campañas ni Citas", (await navB.p.getByRole("link", { name: "Campañas" }).count()) === 0 && (await navB.p.getByRole("link", { name: "Citas" }).count()) === 0);
+  // 033: la entrada de Citas ahora se llama «Trabajo» (Citas + Tareas).
+  ok("el menú de B no muestra Campañas ni Trabajo (Citas)", (await navB.p.getByRole("link", { name: "Campañas" }).count()) === 0 && (await navB.p.getByRole("link", { name: "Trabajo" }).count()) === 0);
   const NUEVOS_MENU = ["Conocimientos", "Chat de equipo", "Resultados", "Agente", "Laboratorio"];
   const quedan = [];
   for (const n of NUEVOS_MENU) if ((await navB.p.getByRole("link", { name: n, exact: true }).count()) > 0) quedan.push(n);
@@ -248,7 +249,7 @@ async function main() {
   ok(
     "el menú de A sí (también Conocimientos y Resultados)",
     (await navA.p.getByRole("link", { name: "Campañas" }).count()) > 0 &&
-      (await navA.p.getByRole("link", { name: "Citas" }).count()) > 0 &&
+      (await navA.p.getByRole("link", { name: "Trabajo" }).count()) > 0 &&
       (await navA.p.getByRole("link", { name: "Conocimientos", exact: true }).count()) > 0 &&
       (await navA.p.getByRole("link", { name: "Resultados", exact: true }).count()) > 0
   );

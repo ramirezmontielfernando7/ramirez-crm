@@ -260,6 +260,13 @@
       "when": 1791354435959,
       "tag": "0036_agentes_por_etapa",
       "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1791377674194,
+      "tag": "0037_trabajo_tareas",
+      "breakpoints": true
     }
   ]
 }

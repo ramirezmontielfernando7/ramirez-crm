@@ -59,6 +59,7 @@ function fromRow(row: Row, defaults: OrgModules): OrgModules {
     teamChat: row.teamChat,
     results: row.results,
     customNav: row.customNav,
+    trabajo: row.trabajo,
   };
 }
 
@@ -129,6 +130,7 @@ function defaultsRow(organizationId: string) {
     teamChat: d.teamChat,
     results: d.results,
     customNav: d.customNav,
+    trabajo: d.trabajo,
     updatedBy: "entorno",
   };
 }
@@ -164,6 +166,7 @@ function profileRow(profile: ModuleProfile) {
     teamChat: p.team_chat,
     results: p.results,
     customNav: p.customNav,
+    trabajo: p.trabajo,
     updatedBy: `perfil:${profile}`,
   };
 }
@@ -194,6 +197,7 @@ export async function backfillOrgModules(): Promise<number> {
             teamChat: sql<boolean>`${d.teamChat}::boolean`.as("team_chat"),
             results: sql<boolean>`${d.results}::boolean`.as("results"),
             customNav: sql<boolean>`${d.customNav}::boolean`.as("custom_nav"),
+            trabajo: sql<boolean>`${d.trabajo}::boolean`.as("trabajo"),
             updatedAt: sql<Date>`now()`.as("updated_at"),
             updatedBy: sql<string>`${d.updatedBy}`.as("updated_by"),
           })
@@ -234,6 +238,7 @@ export type ModulesPatch = {
   teamChat?: boolean;
   results?: boolean;
   customNav?: boolean;
+  trabajo?: boolean;
 };
 
 /**
@@ -279,6 +284,7 @@ export async function updateOrgModules(
     teamChat: patch.teamChat ?? before.teamChat,
     results: patch.results ?? before.results,
     customNav: patch.customNav ?? before.customNav,
+    trabajo: patch.trabajo ?? before.trabajo,
     ...resolveLabAgent(before, patch),
     updatedBy: actor,
     updatedAt: new Date(),
@@ -307,6 +313,7 @@ export async function updateOrgModules(
         teamChat: values.teamChat,
         results: values.results,
         customNav: values.customNav,
+        trabajo: values.trabajo,
         updatedBy: actor,
         updatedAt: values.updatedAt,
       },

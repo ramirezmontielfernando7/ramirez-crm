@@ -258,6 +258,19 @@ const POR_MEMBRESIA: [string, Method][] = [
 ];
 
 /**
+ * 033 — Trabajo (Tareas): cualquier rol crea y atiende LO SUYO (lo que creó o
+ * tiene a su cargo); `work.manage` (Propietario y Coordinador) ve y edita lo
+ * de todo el equipo. El filtro vive en `server/work/tasks.ts`; su prueba
+ * contra BD real, en `tests/db/trabajo.test.ts`.
+ */
+const POR_AUTOR: [string, Method][] = [
+  ["work/tasks", "GET"],
+  ["work/tasks", "POST"],
+  ["work/tasks/[id]", "PATCH"],
+  ["work/tasks/[id]", "DELETE"],
+];
+
+/**
  * Fase 3, PR 2 — Solo el ADMINISTRADOR DE PLATAFORMA (`withPlatformAdmin`).
  * Cualquier otra sesión, de cualquier rol de cualquier organización, recibe
  * 404: como si la ruta no existiera.
@@ -380,9 +393,9 @@ function routeFiles(dir: string): string[] {
 }
 
 describe("020 — cobertura: ninguna ruta sin decidir su permiso", () => {
-  it("cada handler exportado está en PROTEGIDAS, FILTRADAS, DEL_NEGOCIO, POR_MEMBRESIA o es exento", () => {
+  it("cada handler exportado está en PROTEGIDAS, FILTRADAS, DEL_NEGOCIO, POR_MEMBRESIA, POR_AUTOR o es exento", () => {
     const conocidas = new Set(
-      [...PROTEGIDAS, ...FILTRADAS, ...DEL_NEGOCIO, ...POR_MEMBRESIA, ...PLATAFORMA].map(([r, m]) => `${r} ${m}`)
+      [...PROTEGIDAS, ...FILTRADAS, ...DEL_NEGOCIO, ...POR_MEMBRESIA, ...POR_AUTOR, ...PLATAFORMA].map(([r, m]) => `${r} ${m}`)
     );
     const sinDecidir: string[] = [];
     for (const file of routeFiles(API)) {

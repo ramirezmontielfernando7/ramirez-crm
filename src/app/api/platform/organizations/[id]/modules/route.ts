@@ -23,6 +23,8 @@ const schema = z
     teamChat: z.boolean().optional(),
     results: z.boolean().optional(),
     customNav: z.boolean().optional(),
+    // 033: Tareas y Notas (dentro de «Trabajo»; Citas sigue siendo `agenda`).
+    trabajo: z.boolean().optional(),
   })
   .strict();
 

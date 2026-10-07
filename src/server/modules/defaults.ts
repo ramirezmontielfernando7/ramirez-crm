@@ -64,6 +64,8 @@ export type OrgModules = {
   results: boolean;
   /** 030 (PR 4) — ¿El Propietario puede personalizar el menú? Apagado por defecto. */
   customNav: boolean;
+  /** 033 — Tareas y Notas (dentro de «Trabajo»). Apagado por defecto. */
+  trabajo: boolean;
 };
 
 export const DEFAULT_SEND_RATE = 10;
@@ -100,6 +102,8 @@ export const NEW_MODULE_DEFAULTS = {
   teamChat: true,
   results: true,
   customNav: false,
+  // 033: sin variable de entorno; lo encienden /platform o el perfil de alta.
+  trabajo: false,
 } as const;
 
 /**
@@ -116,6 +120,7 @@ export function enabledModuleKeys(m: OrgModules): Set<ModuleKey> {
   if (m.lab) on.add("lab");
   if (m.teamChat) on.add("team_chat");
   if (m.results) on.add("results");
+  if (m.trabajo) on.add("trabajo");
   if (m.channels.has("instagram")) on.add("instagram");
   if (m.channels.has("messenger")) on.add("messenger");
   return effectiveModules(on);

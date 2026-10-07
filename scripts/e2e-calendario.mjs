@@ -154,8 +154,8 @@ async function main() {
     ok("la pantalla /bookings es 404", nav?.status() === 404, `status=${nav?.status()}`);
     const inbox = await page.goto(`${BASE}/inbox`, { waitUntil: "domcontentloaded" });
     ok(
-      "la navegación no ofrece «Citas»",
-      inbox?.ok() && (await page.locator('a[href="/bookings"]').count()) === 0
+      "la navegación no ofrece «Trabajo» (Citas)",
+      inbox?.ok() && (await page.locator('a[href="/bookings"], a[href="/trabajo"]').count()) === 0
     );
     return;
   }
@@ -485,7 +485,8 @@ async function main() {
   await movil.addCookies(await ctx.cookies());
   const mp = await movil.newPage();
   await mp.goto(`${BASE}/bookings`, { waitUntil: "domcontentloaded", timeout: 60000 });
-  ok("sin preferencia, el celular abre en «Día»", await until(async () => mp.url().includes("vista=dia"), 20000), mp.url());
+  // 033: la vista por defecto es la Lista, también en el celular.
+  ok("sin preferencia, el celular abre en «Lista»", await until(async () => mp.url().includes("vista=lista"), 20000), mp.url());
   ok(
     "la página no desborda a lo ancho",
     await until(async () => mp.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), 5000)
