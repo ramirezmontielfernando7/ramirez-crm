@@ -157,10 +157,14 @@ async function main() {
   await A.call("POST", `/api/platform/organizations/${N.orgId}/modules`, { customNav: false });
   await sleep(CACHE_MS);
   ok("API 404 sin custom_nav", (await O.call("GET", "/api/settings/navigation")).status === 404);
+  // Fase D: la pantalla vive en Ajustes → Personalización → Navegación y, sin
+  // el módulo, explica por qué no está disponible (no desaparece ni da 404).
   const pagOff = await O.pagina("/settings/navigation");
-  ok("página 404 sin custom_nav", pagOff.status === 404, String(pagOff.status));
+  ok("la ruta vieja redirige a Personalización → Navegación", new URL(pagOff.p.url()).pathname === "/settings/personalization/navegacion", pagOff.p.url());
+  ok("página 200 con el aviso de por qué no está disponible", pagOff.status === 200 && (await pagOff.p.getByText("Disponible cuando el módulo «Menú personalizable» está encendido").count()) === 1, String(pagOff.status));
+  ok("sin custom_nav no hay editor de menú", (await pagOff.p.locator("li[data-nav-key]").count()) === 0);
   await pagOff.p.goto(`${BASE}/settings/whatsapp`);
-  ok("sin la pestaña «Navegación» en Ajustes", (await pagOff.p.getByRole("link", { name: "Navegación" }).count()) === 0);
+  ok("Ajustes tiene una sola pestaña «Personalización» (Marca y Navegación van dentro)", (await pagOff.p.getByRole("link", { name: "Personalización" }).count()) === 1 && (await pagOff.p.getByRole("link", { name: "Navegación" }).count()) === 0);
   await pagOff.p.close();
   await A.call("POST", `/api/platform/organizations/${N.orgId}/modules`, { customNav: true });
   await sleep(CACHE_MS);
