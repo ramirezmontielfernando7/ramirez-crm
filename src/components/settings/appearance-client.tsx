@@ -1,13 +1,14 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check } from "lucide-react";
 import { MessageBubble } from "@/components/inbox/message-bubble";
+import { TypingDots } from "@/components/inbox/typing-dots";
 import { Button } from "@/components/ui/button";
 import {
   CHAT_STYLE_COOKIE,
-  CHAT_STYLE_LABELS,
+  chatStyleLabel,
   CHAT_STYLES,
   FONT_COOKIE,
   FONT_KEYS,
@@ -24,8 +25,18 @@ import { cn } from "@/lib/utils";
 
 type Scope = "me" | "org";
 
-/** Pinta la apariencia en <html>: lo mismo que hace el layout en el servidor. */
+/**
+ * Pinta la letra en <html>: lo mismo que hace el layout en el servidor.
+ * El estilo del chat NO se pinta aquí: en esta pantalla las burbujas solo
+ * viven en las tarjetas, y cada una lleva su propio `data-chat`; si <html>
+ * tuviera otro, sus reglas se colarían en las demás tarjetas. Al salir,
+ * `restore` devuelve el estilo guardado.
+ */
 function paint(look: OrgAppearance) {
+  document.documentElement.setAttribute("data-font", look.font);
+  document.documentElement.setAttribute("data-chat", "classic");
+}
+function restore(look: OrgAppearance) {
   document.documentElement.setAttribute("data-font", look.font);
   document.documentElement.setAttribute("data-chat", look.chatStyle);
 }
@@ -52,6 +63,61 @@ const SAMPLES: { m: MessageDto; grouped: boolean }[] = [
   { m: sample("c", "out", "¿Cuál te acomoda más?", 5), grouped: true },
   { m: sample("d", "in", "A las 11, gracias 🙌", 2), grouped: false },
 ];
+
+const STYLE_HINTS: Record<ChatStyle, string> = {
+  classic: "El estilo de siempre.",
+  whatsapp: "Burbujas con cola, hora dentro y fondo beige u oscuro, como en el celular.",
+  premium: "Esquinas muy redondeadas, tonos de tu marca y movimiento suave.",
+};
+
+/**
+ * Mensajes de ejemplo de un estilo. `data-chat` va en el propio contenedor,
+ * así cada tarjeta se ve en SU estilo sin cambiar el de toda la pantalla.
+ * `live` = animar la entrada (solo la tarjeta elegida, al cambiar).
+ */
+function StylePreview({
+  style,
+  testId,
+  live,
+}: {
+  style: ChatStyle;
+  testId?: string;
+  live?: boolean;
+}) {
+  return (
+    <div data-chat={style}>
+      <div
+        data-testid={testId}
+        className="thread-bg flex flex-col gap-[3px] rounded-md border p-3"
+      >
+        <div className="my-1 flex justify-center">
+          <span className="day-pill kicker rounded-full border border-border-strong bg-background px-3 py-1 text-text-2 shadow-sm">
+            Hoy
+          </span>
+        </div>
+        {SAMPLES.map(({ m, grouped }, i) => (
+          <div
+            key={m.id}
+            className={cn(
+              live && "bubble-enter",
+              "flex",
+              m.direction === "out" ? "justify-end" : "justify-start",
+              grouped ? "msg-grouped" : "msg-first",
+              i > 0 && !grouped && "mt-2.5"
+            )}
+          >
+            <MessageBubble m={m} grouped={grouped} wide />
+          </div>
+        ))}
+        {style === "premium" && (
+          <div className="msg-first mt-2.5 flex">
+            <TypingDots />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 function Option({
   checked,
@@ -96,10 +162,13 @@ export function AppearanceClient({
   org,
   personal,
   canManageOrg,
+  brandName,
 }: {
   org: OrgAppearance;
   personal: PersonalAppearance;
   canManageOrg: boolean;
+  /** Nombre de marca de la organización: «Premium» se muestra como «<marca> Premium». */
+  brandName?: string | null;
 }) {
   const router = useRouter();
   const [scope, setScope] = useState<Scope>("me");
@@ -117,9 +186,22 @@ export function AppearanceClient({
   // Lo que debe quedar pintado al salir: lo guardado, no el borrador.
   const committed = useRef(effective);
   committed.current = effective;
-  useEffect(() => () => paint(committed.current), []);
+  useEffect(() => () => restore(committed.current), []);
   // Vista previa en vivo: el borrador se pinta en todo el CRM.
-  useEffect(() => paint({ font, chatStyle }), [font, chatStyle]);
+  useLayoutEffect(() => paint({ font, chatStyle }), [font, chatStyle]);
+
+  // Probar en claro u oscuro SIN guardar: solo cambia el atributo del <html>
+  // mientras estás aquí; al salir vuelve el tema que tenías.
+  const [tryTheme, setTryTheme] = useState<"light" | "dark" | null>(null);
+  useEffect(() => {
+    if (tryTheme === null) return;
+    const root = document.documentElement;
+    const before = root.getAttribute("data-theme");
+    root.setAttribute("data-theme", tryTheme);
+    return () => {
+      if (before) root.setAttribute("data-theme", before);
+    };
+  }, [tryTheme]);
 
   const dirty = font !== base.font || chatStyle !== base.chatStyle;
 
@@ -171,8 +253,8 @@ export function AppearanceClient({
   const hasPersonal = savedPersonal.font !== null || savedPersonal.chatStyle !== null;
 
   return (
-    <div className="grid gap-8 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)]">
-      <div className="space-y-6">
+    <div>
+      <div className="space-y-8">
         {canManageOrg && (
           <div role="tablist" aria-label="¿Para quién?" className="inline-flex rounded-full border p-0.5 text-[13px]">
             {(["me", "org"] as const).map((s) => (
@@ -193,7 +275,7 @@ export function AppearanceClient({
           </div>
         )}
 
-        <section aria-labelledby="ap-font" className="space-y-2">
+        <section aria-labelledby="ap-font" className="max-w-sm space-y-2">
           <h3 id="ap-font" className="text-[14px] font-semibold">Tipografía</h3>
           <div role="radiogroup" aria-labelledby="ap-font" className="space-y-1.5">
             {FONT_KEYS.map((k) => (
@@ -210,21 +292,62 @@ export function AppearanceClient({
           </div>
         </section>
 
-        <section aria-labelledby="ap-chat" className="space-y-2">
-          <h3 id="ap-chat" className="text-[14px] font-semibold">Estilo del chat en la Bandeja</h3>
-          <div role="radiogroup" aria-labelledby="ap-chat" className="space-y-1.5">
-            {CHAT_STYLES.map((k) => (
-              <Option key={k} checked={chatStyle === k} onSelect={() => setChatStyle(k)}>
-                {CHAT_STYLE_LABELS[k]}
-                <span className="block text-[12px] font-normal text-text-3">
-                  {k === "whatsapp"
-                    ? "Burbujas con cola, fondo verde y gris, entrada suave."
-                    : "El estilo de siempre."}
-                </span>
-              </Option>
-            ))}
+        <div className="min-w-0 space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h3 id="ap-chat" className="text-[14px] font-semibold">Estilo del chat en la Bandeja</h3>
+            <div role="group" aria-label="Probar en" className="inline-flex rounded-full border p-0.5 text-[12.5px]">
+              {([["light", "Claro"], ["dark", "Oscuro"]] as const).map(([t, label]) => (
+                <button
+                  key={t}
+                  type="button"
+                  aria-pressed={tryTheme === t}
+                  onClick={() => setTryTheme(tryTheme === t ? null : t)}
+                  className={cn(
+                    "rounded-full px-2.5 py-0.5 font-semibold transition-colors",
+                    tryTheme === t ? "bg-brand-tint text-brand-text" : "text-text-2 hover:text-foreground"
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
           </div>
-        </section>
+          <p className="text-[12.5px] text-text-3">
+            La letra ya cambió en toda la pantalla mientras eliges; cada tarjeta muestra su estilo. Si sales sin guardar, todo vuelve como estaba.
+          </p>
+          <div role="radiogroup" aria-labelledby="ap-chat" className="grid gap-3 md:grid-cols-3">
+            {CHAT_STYLES.map((k) => {
+              const checked = chatStyle === k;
+              return (
+                <button
+                  key={k}
+                  type="button"
+                  role="radio"
+                  aria-checked={checked}
+                  aria-label={chatStyleLabel(k, brandName)}
+                  onClick={() => setChatStyle(k)}
+                  className={cn(
+                    "flex min-w-0 flex-col gap-2 rounded-md border p-2.5 text-left transition-colors",
+                    checked ? "border-brand bg-brand-tint" : "border-border hover:bg-accent"
+                  )}
+                >
+                  <span className="flex items-center justify-between text-[14px] font-semibold">
+                    {chatStyleLabel(k, brandName)}
+                    {checked && <Check className="h-4 w-4 text-brand-text" strokeWidth={2} />}
+                  </span>
+                  <span className="text-[12px] font-normal text-text-3">{STYLE_HINTS[k]}</span>
+                  {/* `key`: al cambiar de estilo las burbujas de la elegida vuelven a entrar. */}
+                  <StylePreview
+                    key={checked ? `on-${k}` : k}
+                    style={k}
+                    live={checked}
+                    testId={checked ? "chat-preview" : undefined}
+                  />
+                </button>
+              );
+            })}
+          </div>
+        </div>
 
         <div className="space-y-2">
           <div className="flex flex-wrap items-center gap-2">
@@ -248,27 +371,6 @@ export function AppearanceClient({
         </div>
       </div>
 
-      <div className="min-w-0 space-y-2">
-        <h3 className="text-[14px] font-semibold">Vista previa</h3>
-        <p className="text-[12.5px] text-text-3">
-          Mira la pantalla entera: la letra ya cambió mientras eliges. Si sales sin guardar, todo vuelve como estaba.
-        </p>
-        {/* `key`: al cambiar de estilo las burbujas vuelven a entrar. */}
-        <div key={chatStyle} className="thread-bg flex flex-col gap-[3px] rounded-md border p-4" data-testid="chat-preview">
-          {SAMPLES.map(({ m, grouped }, i) => (
-            <div
-              key={m.id}
-              className={cn(
-                "bubble-enter flex",
-                m.direction === "out" ? "justify-end" : "justify-start",
-                i > 0 && !grouped && "mt-2.5"
-              )}
-            >
-              <MessageBubble m={m} grouped={grouped} wide />
-            </div>
-          ))}
-        </div>
-      </div>
     </div>
   );
 }

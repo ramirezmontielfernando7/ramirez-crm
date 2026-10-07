@@ -113,7 +113,9 @@ async function main() {
   const ap = await O.pagina("/settings/personalization");
   ok("la pantalla abre (200)", ap.status === 200, String(ap.status));
   ok("arranca con la letra de la organización (Geist)", (await html(ap.p, "data-font")) === "geist");
-  ok("las cuatro letras están en la lista", (await ap.p.getByRole("radio", { name: /^(Inter|Geist|Plus Jakarta Sans|DM Sans)$/ }).count()) === 4);
+  ok("las cinco letras están en la lista (con «Sistema»)", (await ap.p.getByRole("radio", { name: /^(Inter|Geist|Plus Jakarta Sans|DM Sans|Sistema)$/ }).count()) === 5);
+  await elegir(ap.p, "Sistema");
+  ok("al elegir Sistema el CRM usa la letra nativa del dispositivo", (await html(ap.p, "data-font")) === "system" && /system-ui/.test(await fuente(ap.p)), await fuente(ap.p));
   await elegir(ap.p, "DM Sans");
   ok("al elegir DM Sans cambia TODO el CRM antes de guardar", (await html(ap.p, "data-font")) === "dmsans" && /DM Sans/.test(await fuente(ap.p)), await fuente(ap.p));
   await elegir(ap.p, "Plus Jakarta Sans");
@@ -176,6 +178,45 @@ async function main() {
   ok("WhatsApp: la burbuja saliente es verde claro", colorOut === "rgb(217, 253, 211)", colorOut);
   ok("la vista previa tiene mensajes de ejemplo", (await ap.p.locator("[data-testid=chat-preview] .bubble").count()) === 4);
   ok("la hora va en la burbuja (abajo a la derecha)", (await ap.p.locator("[data-testid=chat-preview] .bubble .float-right").count()) === 4);
+  ok("el separador de día es una píldora centrada", (await ap.p.locator("[data-testid=chat-preview] .day-pill").count()) === 1);
+  const filaPill = await ap.p.evaluate(() => getComputedStyle(document.querySelector("[data-testid=chat-preview] .day-pill")).backgroundColor);
+  ok("WhatsApp claro: la píldora de día es blanca", filaPill === "rgb(255, 255, 255)", filaPill);
+  const fondoWaClaro = fondoWa;
+  ok("WhatsApp claro: fondo beige #efeae2", fondoWaClaro === "rgb(239, 234, 226)", fondoWaClaro);
+
+  // WhatsApp en oscuro (probar sin guardar): colores medidos de WhatsApp Web.
+  await ap.p.getByRole("button", { name: "Oscuro" }).click();
+  const oscuro = await ap.p.evaluate(() => ({
+    fondo: getComputedStyle(document.querySelector("[data-testid=chat-preview]")).backgroundColor,
+    out: getComputedStyle(document.querySelector("[data-testid=chat-preview] .bubble-out")).backgroundColor,
+    inn: getComputedStyle(document.querySelector("[data-testid=chat-preview] .bubble-in")).backgroundColor,
+    pill: getComputedStyle(document.querySelector("[data-testid=chat-preview] .day-pill")).backgroundColor,
+  }));
+  ok("WhatsApp oscuro: fondo #161717, enviada #144d37, recibida #242626, píldora #1d1f1f",
+    oscuro.fondo === "rgb(22, 23, 23)" && oscuro.out === "rgb(20, 77, 55)" && oscuro.inn === "rgb(36, 38, 38)" && oscuro.pill === "rgb(29, 31, 31)", JSON.stringify(oscuro));
+  await ap.p.getByRole("button", { name: "Oscuro" }).click();
+
+  // Premium: esquinas muy redondeadas, cola curva, hora al pasar el cursor, «escribiendo…».
+  await elegir(ap.p, /Premium$/);
+  const pm = await ap.p.evaluate(() => {
+    const b = document.querySelector("[data-testid=chat-preview] .bubble-out:not(.bubble-first)");
+    const t = b.querySelector(".bubble-time");
+    return { radio: getComputedStyle(b).borderTopLeftRadius, hora: getComputedStyle(t).opacity };
+  });
+  ok("Premium: esquinas muy redondeadas (22px)", pm.radio === "22px", pm.radio);
+  ok("Premium: la hora está oculta hasta pasar el cursor", pm.hora === "0", pm.hora);
+  await ap.p.locator("[data-testid=chat-preview] .bubble-out:not(.bubble-first)").first().hover();
+  await ap.p.waitForTimeout(400);
+  ok("Premium: al pasar el cursor aparece la hora", (await ap.p.evaluate(() => getComputedStyle(document.querySelector("[data-testid=chat-preview] .bubble-out:not(.bubble-first) .bubble-time")).opacity)) === "1");
+  ok("Premium: cola curva solo en el primer mensaje de la tanda", (await cola("[data-testid=chat-preview] .bubble-first")) === '""' && (await cola("[data-testid=chat-preview] .bubble-out:not(.bubble-first)")) === "none");
+  ok("Premium: indicador «escribiendo…» de tres puntos", (await ap.p.locator("[data-testid=chat-preview] .typing-dots .typing-dot").count()) === 3);
+  ok("las tres tarjetas muestran su vista previa", (await ap.p.locator("[data-chat=classic] .bubble, [data-chat=whatsapp] .bubble, [data-chat=premium] .bubble").count()) >= 12);
+  // Reducir movimiento: sin animaciones.
+  await ap.p.emulateMedia({ reducedMotion: "reduce" });
+  const anim = await ap.p.evaluate(() => getComputedStyle(document.querySelector("[data-testid=chat-preview] .typing-dot")).animationName);
+  ok("con «reducir movimiento» no hay animaciones", anim === "none", anim);
+  await ap.p.emulateMedia({ reducedMotion: "no-preference" });
+
   await ap.p.getByRole("tab", { name: "Toda la organización" }).click();
   await elegir(ap.p, /^Clásico/);
   await ap.p.getByRole("button", { name: "Guardar para todos" }).click();

@@ -16,20 +16,31 @@ import type { MessageDto, MessageMediaDto } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { formatBytes, mediaLabel } from "./helpers";
 
+/**
+ * El color vive en el contenedor (`tick-<estado>`) y el icono lo hereda: así el
+ * estilo «Premium» puede animar el paso a «leído» sin tocar el icono. Solo
+ * pinta los estados que el sistema guarda de verdad.
+ */
 function StatusTicks({ status }: { status: MessageDto["status"] }) {
   const cls = "h-[13px] w-[13px]";
-  if (status === "pending")
-    return <Clock3 className={cn(cls, "text-text-4")} strokeWidth={1.7} />;
-  if (status === "sent")
-    return <Check className={cn(cls, "text-text-4")} strokeWidth={1.7} />;
-  if (status === "delivered")
-    return <CheckCheck className={cn(cls, "text-text-4")} strokeWidth={1.7} />;
-  if (status === "read")
-    return (
-      <CheckCheck className={cn(cls, "text-[#53bdeb]")} strokeWidth={1.7} />
-    );
+  const Icon =
+    status === "pending"
+      ? Clock3
+      : status === "sent"
+        ? Check
+        : status === "delivered" || status === "read"
+          ? CheckCheck
+          : AlertTriangle;
+  const color =
+    status === "read"
+      ? "text-[#53bdeb]"
+      : status === "failed"
+        ? "text-destructive"
+        : "text-text-4";
   return (
-    <AlertTriangle className={cn(cls, "text-destructive")} strokeWidth={1.7} />
+    <span className={cn("tick inline-flex", `tick-${status}`, color)}>
+      <Icon className={cls} strokeWidth={1.7} />
+    </span>
   );
 }
 
@@ -252,7 +263,7 @@ export function MessageBubble({
           {m.text ? ` — ${m.text}` : ""}
         </span>
       )}
-      <span className="float-right ml-2 mt-1 flex items-center gap-1">
+      <span className="bubble-meta float-right ml-2 mt-1 flex items-center gap-1">
         {m.aiGenerated && (
           <span
             className="inline-flex items-center gap-0.5 text-[10px] font-medium text-brand-ink"
@@ -269,7 +280,7 @@ export function MessageBubble({
             <Smartphone className="h-3 w-3" strokeWidth={1.7} /> Celular
           </span>
         )}
-        <span className="font-mono text-[10px] tracking-[0.04em] text-text-3">
+        <span className="bubble-time font-mono text-[10px] tracking-[0.04em] text-text-3">
           {bubbleTime(m.createdAt)}
         </span>
         {out && <StatusTicks status={m.status} />}

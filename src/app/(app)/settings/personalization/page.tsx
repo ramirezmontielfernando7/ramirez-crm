@@ -5,6 +5,7 @@ import { CHAT_STYLE_COOKIE, FONT_COOKIE, readPersonalAppearance } from "@/lib/ap
 import { can } from "@/lib/auth/permissions";
 import { getSessionOrNull } from "@/lib/auth/session";
 import { getOrgAppearance } from "@/server/appearance";
+import { getViewerBrandingContext } from "@/server/branding";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +18,7 @@ export default async function AppearancePage() {
   const session = await getSessionOrNull();
   if (!session) redirect("/login");
   const jar = await cookies();
+  const { branding } = await getViewerBrandingContext();
   return (
     <AppearanceClient
       org={await getOrgAppearance(session.organizationId)}
@@ -25,6 +27,7 @@ export default async function AppearancePage() {
         chatStyle: jar.get(CHAT_STYLE_COOKIE)?.value,
       })}
       canManageOrg={can(session, "settings.manage")}
+      brandName={branding.name}
     />
   );
 }
