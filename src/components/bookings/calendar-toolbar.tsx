@@ -40,6 +40,7 @@ export function CalendarToolbar({
   onView,
   onListRange,
   onBlock,
+  embedded = false,
 }: {
   view: CalendarView;
   anchor: string;
@@ -53,15 +54,19 @@ export function CalendarToolbar({
   onListRange: (from: string, to: string) => void;
   /** 020: sin esto (asesor) no se pinta el botón; bloquear es de quien ve todo. */
   onBlock?: () => void;
+  /** 033 — Dentro de «Trabajo» el título y el botón del menú van en la cabecera de arriba. */
+  embedded?: boolean;
 }) {
   const picker = useRef<HTMLInputElement>(null);
 
   return (
     <header className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b px-4 py-3 sm:px-6">
-      <div className="flex items-center gap-2">
-        <NavRevealButton />
-        <h2 className="mr-1 text-[17px] font-bold tracking-tight">Citas</h2>
-      </div>
+      {!embedded && (
+        <div className="flex items-center gap-2">
+          <NavRevealButton />
+          <h2 className="mr-1 text-[17px] font-bold tracking-tight">Citas</h2>
+        </div>
+      )}
 
       <div className="flex items-center gap-1">
         <Button variant="outline" size="sm" onClick={onToday}>

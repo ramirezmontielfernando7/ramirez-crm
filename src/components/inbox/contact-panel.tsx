@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { AlertTriangle, Bot, Cable, Check, ChevronRight, Sparkles, UserRound } from "lucide-react";
+import { AlertTriangle, Bot, Cable, Check, ChevronRight, ListChecks, Sparkles, UserRound } from "lucide-react";
 import {
   externalAnswerLabel,
   externalAnswering,
@@ -481,6 +481,25 @@ export function ContactPanel({
                 );
               })}
             </ol>
+          </section>
+        )}
+
+        {/* 033: una tarea para el equipo, ya ligada a este chat (Trabajo → Tareas). */}
+        {viewer.hasModule("trabajo") && (
+          <section className="border-b">
+            <Link
+              href={`/trabajo/tareas?${new URLSearchParams({
+                nueva: "1",
+                contacto: contactId,
+                conversacion: conversation.id,
+                nombre: conversation.contact.name,
+              })}`}
+              className="flex items-center gap-2 px-4 py-3 text-[13px] font-medium text-text-2 hover:bg-accent hover:text-foreground"
+            >
+              <ListChecks className="h-4 w-4 text-brand" strokeWidth={1.8} />
+              Nueva tarea para este chat
+              <ChevronRight className="ml-auto h-4 w-4 text-text-3" strokeWidth={1.7} />
+            </Link>
           </section>
         )}
 

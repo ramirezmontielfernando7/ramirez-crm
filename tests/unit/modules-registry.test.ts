@@ -72,11 +72,18 @@ describe("registro de módulos", () => {
     }
     expect(MODULE_PROFILES.completo.modules.customNav).toBe(true);
     expect(MODULE_PROFILES.basico.modules.customNav).toBe(false);
+    // 033: las organizaciones nuevas con perfil nacen con Tareas y Notas.
+    expect(MODULE_PROFILES.completo.modules.trabajo).toBe(true);
+    expect(MODULE_PROFILES.basico.modules.trabajo).toBe(true);
   });
 
   it("las columnas de la 0034 nacen encendidas y custom_nav apagado", () => {
     const d = envModuleDefaults();
     expect(d).toMatchObject({ knowledge: true, lab: true, agent: true, teamChat: true, results: true, customNav: false });
+    // 033: Tareas y Notas nace apagado (las organizaciones existentes no ven nada nuevo).
+    expect(d.trabajo).toBe(false);
+    expect(enabledModuleKeys(d).has("trabajo")).toBe(false);
+    expect(enabledModuleKeys({ ...d, trabajo: true }).has("trabajo")).toBe(true);
     const keys = enabledModuleKeys(d);
     for (const k of ["knowledge", "lab", "agent", "team_chat", "results"] as const) expect(keys.has(k)).toBe(true);
     expect(enabledModuleKeys({ ...d, agent: false }).has("lab")).toBe(false);
@@ -90,11 +97,13 @@ describe("registro de módulos", () => {
 });
 
 describe("menú por rol", () => {
+  // 033: la entrada de Citas (clave `agenda`) ahora es «Trabajo» en /trabajo,
+  // en el mismo lugar del menú.
   it("sin personalizar, cada rol ve lo mismo que antes del PR 4", () => {
     const esperado: Record<Role, string[]> = {
-      owner: ["/inbox", "/chat", "/bookings", "/pipeline", "/contacts", "/knowledge", "/campaigns", "/results", "/lab"],
-      coordinador: ["/inbox", "/chat", "/bookings", "/pipeline", "/contacts", "/knowledge", "/campaigns", "/results"],
-      asesor: ["/inbox", "/chat", "/bookings", "/pipeline", "/contacts", "/knowledge"],
+      owner: ["/inbox", "/chat", "/trabajo", "/pipeline", "/contacts", "/knowledge", "/campaigns", "/results", "/lab"],
+      coordinador: ["/inbox", "/chat", "/trabajo", "/pipeline", "/contacts", "/knowledge", "/campaigns", "/results"],
+      asesor: ["/inbox", "/chat", "/trabajo", "/pipeline", "/contacts", "/knowledge"],
     };
     for (const role of ROLES) {
       const nav = resolveNav({ role, modules: TODOS, can: canRole(role), layout: null });
@@ -122,6 +131,28 @@ describe("menú por rol", () => {
     const oculto = resolveNav({ role: "owner", modules: TODOS, can: canRole("owner"), layout });
     expect(keys(oculto)).toContain("agent");
     expect(keys(oculto)).not.toContain("lab");
+  });
+
+  it("033: «Trabajo» aparece con Citas (agenda) o con Tareas y notas (trabajo); sin ninguno, no", () => {
+    const base = ["team_chat", "knowledge", "results", "agent", "lab"] as ModuleKey[];
+    const ruta = (mods: ModuleKey[]) =>
+      resolveNav({ role: "asesor", modules: effectiveModules(new Set<ModuleKey>([...base, ...mods])), can: canRole("asesor"), layout: null }).main.map(
+        (m) => m.route
+      );
+    expect(ruta([])).not.toContain("/trabajo");
+    expect(ruta(["agenda"])).toContain("/trabajo");
+    expect(ruta(["trabajo"])).toContain("/trabajo");
+    expect(ruta(["agenda", "trabajo"]).filter((r) => r === "/trabajo")).toHaveLength(1);
+    // Mismo lugar que tenía «Citas»: justo después del Chat de equipo.
+    expect(ruta(["trabajo"]).slice(0, 3)).toEqual(["/inbox", "/chat", "/trabajo"]);
+    // Tareas y notas no tiene entrada propia: vive dentro de «Trabajo».
+    expect(MODULES.find((m) => m.key === "trabajo")?.route).toBeNull();
+  });
+
+  it("033: un menú guardado con «Citas» oculta conserva «Trabajo» oculto (misma clave)", () => {
+    const layout = defaultLayout("owner").map((i) => (i.key === "agenda" ? { ...i, hidden: true } : i));
+    const nav = resolveNav({ role: "owner", modules: TODOS, can: canRole("owner"), layout });
+    expect(nav.main.map((m) => m.route)).not.toContain("/trabajo");
   });
 
   it("un módulo apagado no aparece aunque el menú guardado lo muestre", () => {

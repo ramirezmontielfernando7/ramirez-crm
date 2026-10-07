@@ -62,6 +62,11 @@ const statements = {
    * del día), sus alertas, y pedir a Meta una lectura nueva ("Actualizar").
    */
   number_health: ["read"],
+  /**
+   * 033 — Trabajo (Tareas y Notas). Crear y atender lo propio no pide
+   * permiso; `manage` ve y edita las tareas de TODO el equipo.
+   */
+  work: ["manage"],
 } as const;
 
 export const ac = createAccessControl(statements);
@@ -81,6 +86,7 @@ const owner = ac.newRole({
   knowledge: ["manage"],
   team_chat: ["create_groups", "announce", "oversee"],
   number_health: ["read"],
+  work: ["manage"],
 });
 
 /** Operación: reparte, ve todo, edita etapas y plantillas. No configura. */
@@ -103,6 +109,7 @@ const coordinador = ac.newRole({
   team_chat: ["announce"],
   // Campañas v2: opera las campañas, así que ve la salud del número.
   number_health: ["read"],
+  work: ["manage"],
 });
 
 /** Solo lo suyo: sus chats y sus leads (que sí puede mover). Sin Resultados (022). */
@@ -143,7 +150,8 @@ export type Permission =
   | "team_chat.create_groups"
   | "team_chat.announce"
   | "team_chat.oversee"
-  | "number_health.read";
+  | "number_health.read"
+  | "work.manage";
 
 /**
  * 025 — Permisos que el Propietario puede DELEGAR por organización, desde

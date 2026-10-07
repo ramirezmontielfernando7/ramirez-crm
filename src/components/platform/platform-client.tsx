@@ -45,6 +45,8 @@ type Modules = {
   teamChat: boolean;
   results: boolean;
   customNav: boolean;
+  /** 033 — Tareas y Notas. */
+  trabajo: boolean;
 };
 
 type ModuleKey = Exclude<keyof Modules, "campaignSendRate">;
@@ -56,7 +58,8 @@ const MODULE_LABEL: Record<ModuleKey, string> = {
   agent: "Agente",
   lab: "Laboratorio",
   campaigns: "Campañas",
-  agenda: "Agenda",
+  agenda: "Citas (Agenda)",
+  trabajo: "Tareas y notas",
   atribucion: "Atribución (Meta)",
   instagram: "Instagram",
   messenger: "Messenger",

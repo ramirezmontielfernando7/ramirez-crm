@@ -34,6 +34,8 @@ export const MODULE_KEYS = [
   "atribucion",
   "instagram",
   "messenger",
+  // 033 — Tareas y Notas: viven dentro de «Trabajo» (la entrada de `agenda`).
+  "trabajo",
 ] as const;
 export type ModuleKey = (typeof MODULE_KEYS)[number];
 
@@ -52,7 +54,9 @@ export type ModuleIcon =
   | "Settings"
   | "Target"
   | "Camera"
-  | "MessageCircle";
+  | "MessageCircle"
+  | "BriefcaseBusiness"
+  | "ListChecks";
 
 export type ModuleDef = {
   key: ModuleKey;
@@ -75,6 +79,14 @@ export type ModuleDef = {
   badge?: "inbox" | "team";
   /** Ajustes va anclado abajo: se oculta, pero no se reordena. */
   pinnedBottom?: boolean;
+  /**
+   * 033 — La entrada existe si CUALQUIERA de estos módulos está encendido (en
+   * vez de solo el suyo). «Trabajo» agrupa Citas (`agenda`) y Tareas y Notas
+   * (`trabajo`): basta uno.
+   */
+  anyOf?: readonly ModuleKey[];
+  /** 033 — Otras rutas en las que la entrada se pinta activa (Citas vive en /bookings). */
+  alsoActive?: readonly string[];
 };
 
 const ALL: readonly Role[] = ["owner", "coordinador", "asesor"];
@@ -84,7 +96,20 @@ export const MODULES: readonly ModuleDef[] = [
   // 025 — Comunicación interna: junto a la Bandeja, porque se usa atendiendo.
   { key: "team_chat", label: "Chat de equipo", route: "/chat", icon: "MessagesSquare", core: false, defaultRoles: ALL, requires: [], badge: "team" },
   // 015 — Citas va antes de Pipeline: es el paso siguiente de un trato.
-  { key: "agenda", label: "Citas", route: "/bookings", icon: "CalendarDays", core: false, defaultRoles: ALL, requires: [] },
+  // 033 — Su entrada ahora es «Trabajo» (Citas, Tareas y Notas en pestañas).
+  // Conserva la clave `agenda`: el menú que un Propietario ya reordenó en
+  // Ajustes → Navegación sigue en su sitio y ningún dato se migra.
+  {
+    key: "agenda",
+    label: "Trabajo",
+    route: "/trabajo",
+    icon: "BriefcaseBusiness",
+    core: false,
+    defaultRoles: ALL,
+    requires: [],
+    anyOf: ["agenda", "trabajo"],
+    alsoActive: ["/bookings"],
+  },
   { key: "pipeline", label: "Pipeline", route: "/pipeline", icon: "Kanban", core: true, defaultRoles: ALL, requires: [] },
   { key: "contacts", label: "Contactos", route: "/contacts", icon: "Users", core: true, defaultRoles: ALL, requires: [] },
   // 024 — Material que el equipo envía: junto a Contactos.
@@ -146,6 +171,8 @@ export const MODULES: readonly ModuleDef[] = [
   { key: "atribucion", label: "Atribución", route: null, icon: "Target", core: false, defaultRoles: ALL, requires: [] },
   { key: "instagram", label: "Instagram", route: null, icon: "Camera", core: false, defaultRoles: ALL, requires: [] },
   { key: "messenger", label: "Messenger", route: null, icon: "MessageCircle", core: false, defaultRoles: ALL, requires: [] },
+  // 033 — Tareas y Notas: sin entrada propia, son pestañas de «Trabajo».
+  { key: "trabajo", label: "Tareas y notas", route: null, icon: "ListChecks", core: false, defaultRoles: ALL, requires: [] },
 ];
 
 const BY_KEY = new Map(MODULES.map((m) => [m.key, m]));
@@ -182,11 +209,11 @@ export const TOGGLEABLE_0034 = ["knowledge", "lab", "agent", "team_chat", "resul
 export const MODULE_PROFILES = {
   basico: {
     label: "Básico",
-    modules: { team_chat: true, knowledge: true, results: true, agent: false, lab: false, campaigns: false, agenda: false, atribucion: false, customNav: false },
+    modules: { team_chat: true, knowledge: true, results: true, agent: false, lab: false, campaigns: false, agenda: false, atribucion: false, customNav: false, trabajo: true },
   },
   completo: {
     label: "Completo",
-    modules: { team_chat: true, knowledge: true, results: true, agent: true, lab: true, campaigns: true, agenda: true, atribucion: true, customNav: true },
+    modules: { team_chat: true, knowledge: true, results: true, agent: true, lab: true, campaigns: true, agenda: true, atribucion: true, customNav: true, trabajo: true },
   },
 } as const;
 export type ModuleProfile = keyof typeof MODULE_PROFILES;

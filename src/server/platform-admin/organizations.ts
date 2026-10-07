@@ -78,6 +78,8 @@ export type ModulesDto = {
   teamChat: boolean;
   results: boolean;
   customNav: boolean;
+  /** 033 — Tareas y Notas. */
+  trabajo: boolean;
 };
 
 export function modulesDto(m: OrgModules): ModulesDto {
@@ -94,6 +96,7 @@ export function modulesDto(m: OrgModules): ModulesDto {
     teamChat: m.teamChat,
     results: m.results,
     customNav: m.customNav,
+    trabajo: m.trabajo,
   };
 }
 
@@ -326,6 +329,7 @@ export async function changeOrganizationModules(
     teamChat: change.teamChat,
     results: change.results,
     customNav: change.customNav,
+    trabajo: change.trabajo,
   };
   if (change.instagram !== undefined || change.messenger !== undefined) {
     const current = modulesDto(await getOrgModules(organizationId));

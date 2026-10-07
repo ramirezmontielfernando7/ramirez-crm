@@ -59,6 +59,20 @@ async function persona() {
 }
 const html = (p, attr) => p.evaluate((a) => document.documentElement.getAttribute(a), attr);
 const fuente = (p) => p.evaluate(() => getComputedStyle(document.body).fontFamily);
+/**
+ * Elige una opción y espera a que la pantalla la marque. En CI, `next dev`
+ * compila la página al pedirla (10 s o más) y un clic antes de que React
+ * hidrate se pierde en silencio: se vuelve a tocar hasta que quede marcada.
+ */
+async function elegir(p, name) {
+  const radio = p.getByRole("radio", { name }).first();
+  for (let i = 0; i < 20; i++) {
+    await radio.click();
+    if ((await radio.getAttribute("aria-checked")) === "true") return;
+    await new Promise((r) => setTimeout(r, 500));
+  }
+  throw new Error(`no se pudo elegir ${name}`);
+}
 const cookie = async (ctx, name) => (await ctx.cookies()).find((c) => c.name === name)?.value;
 
 async function main() {
@@ -100,11 +114,11 @@ async function main() {
   ok("la pantalla abre (200)", ap.status === 200, String(ap.status));
   ok("arranca con la letra de la organización (Geist)", (await html(ap.p, "data-font")) === "geist");
   ok("las cuatro letras están en la lista", (await ap.p.getByRole("radio", { name: /^(Inter|Geist|Plus Jakarta Sans|DM Sans)$/ }).count()) === 4);
-  await ap.p.getByRole("radio", { name: "DM Sans" }).click();
+  await elegir(ap.p, "DM Sans");
   ok("al elegir DM Sans cambia TODO el CRM antes de guardar", (await html(ap.p, "data-font")) === "dmsans" && /DM Sans/.test(await fuente(ap.p)), await fuente(ap.p));
-  await ap.p.getByRole("radio", { name: "Plus Jakarta Sans" }).click();
+  await elegir(ap.p, "Plus Jakarta Sans");
   ok("…y con Plus Jakarta Sans también", /Plus Jakarta Sans/.test(await fuente(ap.p)), await fuente(ap.p));
-  await ap.p.getByRole("radio", { name: "Inter" }).click();
+  await elegir(ap.p, "Inter");
   ok("…y con Inter (la de fábrica)", /inter/i.test(await fuente(ap.p)), await fuente(ap.p));
   await ap.p.getByRole("link", { name: "WhatsApp" }).first().click();
   await ap.p.waitForURL(/settings\/whatsapp/);
@@ -119,7 +133,7 @@ async function main() {
   console.log("\n== 3 · Dos niveles ==");
   await ap.p.goto(`${BASE}/settings/personalization`);
   ok("la Propietaria ve «Para mí» y «Toda la organización»", (await ap.p.getByRole("tab").count()) >= 2);
-  await ap.p.getByRole("radio", { name: "DM Sans" }).click();
+  await elegir(ap.p, "DM Sans");
   await ap.p.getByRole("button", { name: "Guardar para mí" }).click();
   await ap.p.getByText("solo en este navegador").first().waitFor();
   ok("lo personal es una cookie de este navegador", (await cookie(O.ctx, "vocero-font")) === "dmsans");
@@ -132,7 +146,7 @@ async function main() {
   ok("el Asesor abre Apariencia (200)", sa.status === 200, String(sa.status));
   ok("el Asesor ve la de la organización (Geist)", (await html(sa.p, "data-font")) === "geist");
   ok("el Asesor NO ve el nivel «Toda la organización»", (await sa.p.getByRole("tab", { name: "Toda la organización" }).count()) === 0);
-  await sa.p.getByRole("radio", { name: "Plus Jakarta Sans" }).click();
+  await elegir(sa.p, "Plus Jakarta Sans");
   await sa.p.getByRole("button", { name: "Guardar para mí" }).click();
   await sa.p.getByText("solo en este navegador").first().waitFor();
   await sa.p.reload();
@@ -147,14 +161,14 @@ async function main() {
   console.log("\n== 4 · Estilo del chat ==");
   const antes = await ap.p.goto(`${BASE}/settings/personalization`);
   void antes;
-  await ap.p.getByRole("radio", { name: /^Clásico/ }).click();
+  await elegir(ap.p, /^Clásico/);
   const cola = (q) => ap.p.evaluate((s) => {
     const el = document.querySelector(s);
     return el ? getComputedStyle(el, "::before").content : null;
   }, q);
   ok("Clásico: las burbujas no llevan cola", (await cola("[data-testid=chat-preview] .bubble-first")) === "none");
   const fondoClasico = await ap.p.evaluate(() => getComputedStyle(document.querySelector("[data-testid=chat-preview]")).backgroundColor);
-  await ap.p.getByRole("radio", { name: /^WhatsApp/ }).click();
+  await elegir(ap.p, /^WhatsApp/);
   ok("WhatsApp: la burbuja del primer mensaje lleva cola", (await cola("[data-testid=chat-preview] .bubble-first")) === '""');
   const fondoWa = await ap.p.evaluate(() => getComputedStyle(document.querySelector("[data-testid=chat-preview]")).backgroundColor);
   ok("WhatsApp: el fondo cambia (verde/gris)", fondoWa !== fondoClasico, `${fondoClasico} → ${fondoWa}`);
@@ -163,7 +177,7 @@ async function main() {
   ok("la vista previa tiene mensajes de ejemplo", (await ap.p.locator("[data-testid=chat-preview] .bubble").count()) === 4);
   ok("la hora va en la burbuja (abajo a la derecha)", (await ap.p.locator("[data-testid=chat-preview] .bubble .float-right").count()) === 4);
   await ap.p.getByRole("tab", { name: "Toda la organización" }).click();
-  await ap.p.getByRole("radio", { name: /^Clásico/ }).click();
+  await elegir(ap.p, /^Clásico/);
   await ap.p.getByRole("button", { name: "Guardar para todos" }).click();
   await ap.p.getByText("Toda la organización lo verá así").waitFor();
   const [{ metadata: m3 }] = await sql`select metadata from organization where id = ${org}`;

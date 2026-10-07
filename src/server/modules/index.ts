@@ -20,6 +20,11 @@ export async function orgHasAgenda(organizationId: string): Promise<boolean> {
   return (await getOrgModules(organizationId)).agenda;
 }
 
+/** 033 — Tareas y Notas (Citas es `agenda`). */
+export async function orgHasTrabajo(organizationId: string): Promise<boolean> {
+  return (await getOrgModules(organizationId)).trabajo;
+}
+
 export async function orgHasAtribucion(organizationId: string): Promise<boolean> {
   return (await getOrgModules(organizationId)).atribucion;
 }

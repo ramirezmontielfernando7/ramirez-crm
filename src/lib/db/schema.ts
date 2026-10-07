@@ -2428,6 +2428,12 @@ export const organizationModule = pgTable(
   results: boolean("results").notNull().default(true),
   /** 030 (PR 4) — ¿Puede el Propietario personalizar el menú por rol? Apagado por defecto. */
   customNav: boolean("custom_nav").notNull().default(false),
+  /**
+   * 033 — Tareas y Notas (dentro de «Trabajo», junto a Citas). Nace APAGADO
+   * (DEFAULT false): a las organizaciones que ya existen no les aparece nada
+   * nuevo. Los perfiles de alta Básico y Completo lo encienden.
+   */
+  trabajo: boolean("trabajo").notNull().default(false),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
   updatedBy: text("updated_by"),
 },
@@ -2906,5 +2912,56 @@ export const waAnalyticsSync = pgTable(
     primaryKey({ name: "wa_analytics_sync_pk", columns: [t.organizationId, t.wabaId, t.kind] }),
     check("wa_analytics_sync_kind_chk", sql`${t.kind} in ('template', 'pricing')`),
     check("wa_analytics_sync_status_chk", sql`${t.status} in ('ok', 'not_enabled', 'error')`),
+  ]
+);
+
+/**
+ * 033 — Tareas del equipo (módulo «Trabajo», clave `trabajo`). Lista simple
+ * tipo recordatorios: título, descripción y fecha límite opcionales,
+ * responsable (una persona del negocio) y hecha/pendiente. Puede ligarse a un
+ * contacto o a una conversación; borrar ese contacto o chat deja la tarea sin
+ * ligadura (SET NULL solo de esa columna), no la borra.
+ *
+ * La ÚNICA puerta que la lee y escribe es `src/server/work/tasks.ts`. Nunca
+ * sale nada a Meta: es trabajo interno.
+ */
+export const workTask = pgTable(
+  "work_task",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    description: text("description"),
+    dueAt: timestamp("due_at"),
+    /** Responsable. Que sea del negocio lo valida el código (como la asignación). */
+    assigneeUserId: text("assignee_user_id").references(() => user.id, { onDelete: "set null" }),
+    createdBy: text("created_by").references(() => user.id, { onDelete: "set null" }),
+    contactId: text("contact_id"),
+    conversationId: text("conversation_id"),
+    /** NULL = pendiente. */
+    doneAt: timestamp("done_at"),
+    doneBy: text("done_by").references(() => user.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => [
+    unique("work_task_org_id_uq").on(t.organizationId, t.id),
+    check("work_task_title_chk", sql`char_length(${t.title}) between 1 and 200`),
+    index("work_task_org_assignee_idx").on(t.organizationId, t.assigneeUserId, t.doneAt),
+    index("work_task_org_contact_idx").on(t.organizationId, t.contactId),
+    // En la BD es ON DELETE SET NULL (contact_id) (0037).
+    foreignKey({
+      name: "work_task_org_contact_fk",
+      columns: [t.organizationId, t.contactId],
+      foreignColumns: [contact.organizationId, contact.id],
+    }).onDelete("set null"),
+    // En la BD es ON DELETE SET NULL (conversation_id) (0037).
+    foreignKey({
+      name: "work_task_org_conversation_fk",
+      columns: [t.organizationId, t.conversationId],
+      foreignColumns: [conversation.organizationId, conversation.id],
+    }).onDelete("set null"),
   ]
 );

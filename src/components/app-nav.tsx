@@ -8,12 +8,14 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   AlertTriangle,
   BookOpen,
+  BriefcaseBusiness,
   CalendarDays,
   Camera,
   ChartColumn,
   FlaskConical,
   Inbox,
   Kanban,
+  ListChecks,
   LogOut,
   Megaphone,
   MessageCircle,
@@ -56,6 +58,8 @@ type NavItem = {
   badge?: boolean;
   /** 025 — globo de no leídos del chat de equipo. */
   teamBadge?: boolean;
+  /** 033 — Otras rutas donde el renglón va activo (Trabajo → /bookings). */
+  alsoActive?: readonly string[];
 };
 
 /**
@@ -79,6 +83,8 @@ export const NAV_ICONS: Record<ModuleIcon, LucideIcon> = {
   Target,
   Camera,
   MessageCircle,
+  BriefcaseBusiness,
+  ListChecks,
 };
 
 function navItemOf(key: ModuleKey): NavItem {
@@ -89,6 +95,7 @@ function navItemOf(key: ModuleKey): NavItem {
     icon: NAV_ICONS[def.icon],
     badge: def.badge === "inbox",
     teamBadge: def.badge === "team",
+    alsoActive: def.alsoActive,
   };
 }
 
@@ -342,7 +349,9 @@ const NavLinks = memo(function NavLinks({
   return (
     <nav className="flex flex-col gap-0.5">
       {items.map((item) => {
-        const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+        const active = [item.href, ...(item.alsoActive ?? [])].some(
+          (href) => pathname === href || pathname.startsWith(`${href}/`)
+        );
         return (
           <Link
             key={item.href}

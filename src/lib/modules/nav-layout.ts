@@ -34,7 +34,8 @@ export function isAvailable(
   modules: ReadonlySet<ModuleKey>,
   can: (p: Permission) => boolean
 ): boolean {
-  if (!modules.has(def.key)) return false;
+  const on = def.anyOf ? def.anyOf.some((k) => modules.has(k)) : modules.has(def.key);
+  if (!on) return false;
   return !def.permissions || def.permissions.some((p) => can(p));
 }
 

@@ -81,16 +81,19 @@ export function BookingsClient({
   initialListTo,
   timezone: initialTimezone,
   weeklyHours: initialWeeklyHours,
+  embedded = false,
 }: {
   initialView: CalendarView | null;
   initialDate: string;
   initialListTo: string | null;
   timezone: string;
   weeklyHours: WeeklyHours;
+  /** 033 — Dentro de «Trabajo»: el título y el botón del menú ya van arriba, con las pestañas. */
+  embedded?: boolean;
 }) {
   const canBlock = useViewer().can("scope.all");
-  // La vista se resuelve al montar (URL › última usada › tamaño de pantalla):
-  // el servidor no sabe si esto es un celular.
+  // La vista se resuelve al montar (URL › última que eligió esta persona ›
+  // Lista). 033: la Lista es la vista por defecto, también en el celular.
   const [view, setView] = useState<CalendarView | null>(null);
   const [anchor, setAnchor] = useState(initialDate);
   const [listTo, setListTo] = useState<string | null>(initialListTo);
@@ -112,14 +115,7 @@ export function BookingsClient({
     setShowCancelled(readPref(CANCELLED_KEY) === "1");
     setShowTests(readPref(TESTS_KEY) === "1");
     const stored = readPref(VIEW_KEY);
-    setView(
-      initialView ??
-        (isCalendarView(stored)
-          ? stored
-          : window.matchMedia("(max-width: 767px)").matches
-            ? "dia"
-            : "semana")
-    );
+    setView(initialView ?? (isCalendarView(stored) ? stored : "lista"));
     // La línea de "ahora" y el resaltado de hoy se mueven solos.
     setNow(Date.now());
     const t = window.setInterval(() => setNow(Date.now()), 60_000);
@@ -314,10 +310,12 @@ export function BookingsClient({
   if (!view || !range || !today) {
     return (
       <div className="flex h-full flex-col">
-        <header className="flex items-center gap-2 border-b px-4 py-3 sm:px-6 sm:py-4">
-          <NavRevealButton />
-          <h2 className="text-[17px] font-bold tracking-tight">Citas</h2>
-        </header>
+        {!embedded && (
+          <header className="flex items-center gap-2 border-b px-4 py-3 sm:px-6 sm:py-4">
+            <NavRevealButton />
+            <h2 className="text-[17px] font-bold tracking-tight">Citas</h2>
+          </header>
+        )}
         <p className="p-6 text-sm text-text-3">Cargando…</p>
       </div>
     );
@@ -339,6 +337,7 @@ export function BookingsClient({
         onView={changeView}
         onListRange={changeListRange}
         onBlock={canBlock ? () => openBlock() : undefined}
+        embedded={embedded}
       />
 
       {/* En escritorio ancho el panel de la cita EMPUJA el calendario en vez

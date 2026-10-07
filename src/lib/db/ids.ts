@@ -63,6 +63,8 @@ const prefixes = {
   audienceImport: "aud",
   // Campañas v2 (PR 4)
   navLayoutEvent: "nle",
+  // 033 — Trabajo (Tareas)
+  workTask: "tsk",
   user: "usr",
   account: "acc",
 } as const;

@@ -274,6 +274,17 @@ jobs:
           echo $! > app.pid
           for i in $(seq 1 120); do curl -sf localhost:3000/api/health >/dev/null && break; sleep 1; done
           node --env-file=.env scripts/e2e-agentes.mjs
+          kill -- -"$(cat app.pid)"; sleep 2
+      # 033, PR 1: «Trabajo» (Citas + Tareas): menú, alta rápida, marcar
+      # hecha, tarea desde un chat, permisos y módulos. Con su propio
+      # `next dev` (memoria).
+      - name: e2e de Trabajo
+        run: |
+          set -a; . ./.env; set +a
+          setsid node_modules/.bin/next dev -p 3000 > app6.log 2>&1 &
+          echo $! > app.pid
+          for i in $(seq 1 120); do curl -sf localhost:3000/api/health >/dev/null && break; sleep 1; done
+          node --env-file=.env scripts/e2e-trabajo.mjs
       - name: logs de la app
         if: ${{ failure() }}
-        run: tail -n 200 app1.log app2.log app2b.log app3.log app4.log app5.log || true
+        run: tail -n 200 app1.log app2.log app2b.log app3.log app4.log app5.log app6.log || true

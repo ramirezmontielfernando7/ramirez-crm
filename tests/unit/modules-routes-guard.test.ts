@@ -22,6 +22,8 @@ const CARPETAS: [string, ModuleKey[]][] = [
   ["agent/profile", ["agent"]],
   ["lab", ["lab"]],
   ["analytics", ["results"]],
+  // 033 — Tareas (y en el PR 2, Notas).
+  ["work", ["trabajo"]],
 ];
 
 function routeFiles(dir: string): string[] {
@@ -68,5 +70,10 @@ describe("030 (PR 4) — rutas de módulos apagables", () => {
   ])("la página /%s responde 404 sin el módulo %s", (page, key) => {
     const code = readFileSync(path.join(APP, page, "page.tsx"), "utf8");
     expect(code).toContain(`requireModulePage("${key}")`);
+  });
+
+  it("033 — /trabajo/tareas responde 404 sin el módulo trabajo; /bookings, sin agenda", () => {
+    expect(readFileSync(path.join(APP, "trabajo", "tareas", "page.tsx"), "utf8")).toContain(`requireModulePage("trabajo")`);
+    expect(readFileSync(path.join(APP, "bookings", "page.tsx"), "utf8")).toContain("agendaEnabled(session.organizationId)");
   });
 });
