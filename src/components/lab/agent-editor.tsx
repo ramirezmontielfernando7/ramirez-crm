@@ -82,7 +82,10 @@ export function AgentEditor({ id }: { id: string }) {
       return;
     }
     setAgent(a.data.agent);
-    setCfg(a.data.agent.draft);
+    // Solo la primera carga llena el formulario: una recarga tardía (p. ej. la
+    // segunda del modo estricto de React en desarrollo) no debe borrar lo que
+    // la persona ya escribió.
+    setCfg((cur) => cur ?? a.data.agent.draft);
     if (list.ok) setSummary(list.data.agents.find((x) => x.id === id) ?? null);
   }, [id]);
 
