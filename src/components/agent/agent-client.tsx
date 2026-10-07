@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Cable, Plus, Sparkles, Trash2 } from "lucide-react";
+import { AgentConfigForm } from "@/components/agent/agent-config-form";
 import { BrainStatusCard } from "@/components/agent/brain-status-card";
 import {
   externalAnswerLabel,
@@ -13,10 +14,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import Link from "next/link";
 import { NavRevealButton } from "@/components/nav-mode";
+import { useViewer } from "@/components/viewer-context";
 
 type Profile = {
   enabled: boolean;
@@ -41,6 +43,8 @@ export function AgentClient() {
   const [entries, setEntries] = useState<KbEntry[]>([]);
   const [kbSize, setKbSize] = useState<{ chars: number; warnAt: number; warning: boolean } | null>(null);
   const [saved, setSaved] = useState(false);
+  const viewer = useViewer();
+  const labOn = viewer.hasModule("lab") && viewer.can("agent.manage");
   // «Quién responde»: se refresca solo, porque la última llamada del cerebro
   // externo y su /health cambian sin que nadie toque esta pantalla.
   const [brain, setBrain] = useState<BrainStatusDto | null>(null);
@@ -130,6 +134,15 @@ export function AgentClient() {
         </div>
       </header>
 
+      {labOn && (
+        <p className="mx-4 mt-4 text-sm text-muted-foreground sm:mx-6">
+          Esta pantalla edita el agente general.{" "}
+          <Link href="/lab" className="font-medium text-brand-ink underline-offset-2 hover:underline">
+            Gestionar todos los agentes → Laboratorio
+          </Link>
+        </p>
+      )}
+
       {brain && (
         <div className="mx-4 mt-4 sm:mx-6 sm:mt-6">
           <BrainStatusCard status={brain} />
@@ -187,52 +200,10 @@ function ProfileSection({
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="space-y-1.5">
-          <Label htmlFor="agent-name">Nombre del agente</Label>
-          <Input
-            id="agent-name"
-            value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
-          />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="agent-tone">Tono</Label>
-          <Input
-            id="agent-tone"
-            placeholder="p. ej. cercano y directo, con usted"
-            value={form.tone ?? ""}
-            onChange={(e) => setForm({ ...form, tone: e.target.value })}
-          />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="agent-instructions">Instrucciones</Label>
-          <Textarea
-            id="agent-instructions"
-            rows={5}
-            placeholder="Qué debe y no debe hacer el agente…"
-            value={form.instructions ?? ""}
-            onChange={(e) => setForm({ ...form, instructions: e.target.value })}
-          />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="agent-escalation">Reglas de escalado</Label>
-          <Textarea
-            id="agent-escalation"
-            rows={3}
-            placeholder="Cuándo pasar la conversación a un humano…"
-            value={form.escalationRules ?? ""}
-            onChange={(e) => setForm({ ...form, escalationRules: e.target.value })}
-          />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="agent-greeting">Saludo</Label>
-          <Input
-            id="agent-greeting"
-            placeholder="Saludo para conversaciones nuevas"
-            value={form.greeting ?? ""}
-            onChange={(e) => setForm({ ...form, greeting: e.target.value })}
-          />
-        </div>
+        <AgentConfigForm
+          value={form}
+          onChange={(next) => setForm({ ...form, ...next })}
+        />
         <Button onClick={() => void onSave(form)}>Guardar comportamiento</Button>
       </CardContent>
     </Card>

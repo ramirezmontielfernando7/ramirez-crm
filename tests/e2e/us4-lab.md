@@ -17,7 +17,7 @@
 
 ## Corrida 1
 
-3. En `/lab`: pulsar "Correr evaluación".
+3. En `/lab/evaluaciones`: pulsar "Correr evaluación".
    ✅ La UI muestra el subtítulo permanente "Sandbox interno — no envía
    mensajes reales", progreso en vivo (n/6) sin bloquear la navegación.
 4. Al terminar:

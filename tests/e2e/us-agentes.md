@@ -33,11 +33,30 @@
 7. **Límite** de la vista previa: la petición 31 del minuto → 429
    `preview_rate_limited`. Archivar el agente de prueba → ya no aparece.
 
-## PR A2 (pantallas) — pendiente
+## PR A2 (pantallas) — hecho
 
-Lista de agentes, editor de dos columnas con la vista previa, diálogo de
-publicar, historial, `/lab/evaluaciones` con selector y `/agent` con el
-formulario compartido.
+Con navegador real (`scripts/e2e-agentes.mjs`, sección 5b):
+
+1. **Menú.** Con Laboratorio encendido y permiso, «Agente» sale del menú
+   lateral; `/agent` sigue editando al general y trae «Gestionar todos los
+   agentes → Laboratorio». Sin Laboratorio (apagado, sin permiso u oculto por
+   el Propietario) «Agente» se queda.
+2. **Lista** (`/lab`, pestaña Agentes): el general fijo arriba con su insignia;
+   «Crear agente» pide el nombre interno y abre el editor.
+3. **Editor** (`/lab/agents/[id]`): formulario a la izquierda y vista previa
+   tipo chat a la derecha (en el teléfono, pestañas Configurar / Probar). La
+   vista previa usa lo que hay en el formulario aunque no esté guardado, muestra
+   chips y «Por qué respondió así», y no manda nada a WhatsApp.
+4. **Borrador / publicar:** guardar no publica; publicar abre un resumen;
+   renombrar; «Cargar al borrador» (D8) no toca lo publicado.
+5. **Hacer general:** el diálogo advierte que cambia lo que recibe el cerebro
+   externo (`/api/bot/profile`); cancelar no cambia nada.
+6. **Evaluaciones** (`/lab/evaluaciones`): selector de agente y de versión
+   (borrador / publicada); el historial dice qué se evaluó.
+7. **Archivar** desde la lista (el general no se archiva).
+
+Sin migraciones; Bandeja y Campañas se ven igual (capturas antes/después).
+La pestaña «Asignación por etapa» queda para la fase B.
 
 ## PR B (por etapa) — pendiente
 

@@ -1,12 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   AlertTriangle,
   CheckCircle2,
   ChevronDown,
   ChevronUp,
-  FlaskConical,
   Play,
   Sparkles,
   TrendingDown,
@@ -20,7 +20,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { NavRevealButton } from "@/components/nav-mode";
 
 type Run = {
   id: string;
@@ -30,6 +29,17 @@ type Run = {
   startedAt: string;
   finishedAt: string | null;
   delta: number | null;
+  /** 031: qué agente y qué versión se evaluó (null en corridas anteriores). */
+  agentId?: string | null;
+  agentName?: string | null;
+  source?: "draft" | "published" | null;
+};
+
+type AgentOption = {
+  id: string;
+  internalName: string;
+  isGeneral: boolean;
+  status: "published" | "draft" | "changes";
 };
 
 type Hallazgo = {
@@ -63,6 +73,25 @@ export function LabClient() {
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const [launching, setLaunching] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // 031: qué agente y qué versión se evalúa (por defecto, el general publicado).
+  const [agents, setAgents] = useState<AgentOption[]>([]);
+  const [agentId, setAgentId] = useState<string | null>(useSearchParams().get("agente"));
+  const [source, setSource] = useState<"draft" | "published">("published");
+
+  useEffect(() => {
+    void fetch("/api/lab/agents")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { agents: AgentOption[] } | null) => {
+        if (!d) return;
+        setAgents(d.agents);
+        setAgentId((cur) => (cur && d.agents.some((a) => a.id === cur) ? cur : (d.agents.find((a) => a.isGeneral)?.id ?? d.agents[0]?.id ?? null)));
+      })
+      .catch(() => null);
+  }, []);
+
+  const chosen = agents.find((a) => a.id === agentId) ?? null;
+  // Un agente que nunca se publicó solo se puede evaluar como borrador.
+  const effectiveSource: "draft" | "published" = chosen?.status === "draft" ? "draft" : source;
 
   const refetchRuns = useCallback(async () => {
     const res = await fetch("/api/lab/runs").catch(() => null);
@@ -101,7 +130,11 @@ export function LabClient() {
   async function launch() {
     setLaunching(true);
     setError(null);
-    const res = await fetch("/api/lab/runs", { method: "POST" }).catch(() => null);
+    const res = await fetch("/api/lab/runs", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(agentId ? { agentId, source: effectiveSource } : {}),
+    }).catch(() => null);
     setLaunching(false);
     if (!res) return;
     if (!res.ok) {
@@ -117,10 +150,12 @@ export function LabClient() {
     void refetchRuns();
   }
 
+  const toolbar = { agents, agentId, onAgent: setAgentId, source: effectiveSource, onSource: setSource, sourceLocked: chosen?.status === "draft" };
+
   if (!aiConfigured) {
     return (
       <div className="flex h-full flex-col">
-        <Header running={false} launching={false} onLaunch={() => {}} disabled />
+        <Toolbar {...toolbar} running={false} launching={false} onLaunch={() => {}} disabled />
         <div className="m-6 rounded-lg border border-brand-soft bg-brand-tint p-8 text-center">
           <Sparkles className="mx-auto mb-2 h-8 w-8 text-primary" />
           <p className="font-medium">
@@ -140,7 +175,8 @@ export function LabClient() {
 
   return (
     <div className="flex h-full flex-col overflow-y-auto">
-      <Header
+      <Toolbar
+        {...toolbar}
         running={running}
         launching={launching}
         onLaunch={() => void launch()}
@@ -172,7 +208,11 @@ export function LabClient() {
           onSelect={setSelectedRunId}
         />
         {detail ? (
-          <Report detail={detail} onApplied={() => void refetchDetail(detail.run.id)} />
+          <Report
+            detail={detail}
+            agent={runs.find((r) => r.id === detail.run.id) ?? null}
+            onApplied={() => void refetchDetail(detail.run.id)}
+          />
         ) : (
           <div className="rounded-lg border border-dashed p-10 text-center text-sm text-muted-foreground">
             {runs.length === 0
@@ -185,35 +225,69 @@ export function LabClient() {
   );
 }
 
-function Header({
+function Toolbar({
   running,
   launching,
   onLaunch,
   disabled,
+  agents,
+  agentId,
+  onAgent,
+  source,
+  onSource,
+  sourceLocked,
 }: {
   running: boolean;
   launching: boolean;
   onLaunch: () => void;
   disabled: boolean;
+  agents: AgentOption[];
+  agentId: string | null;
+  onAgent: (id: string) => void;
+  source: "draft" | "published";
+  onSource: (s: "draft" | "published") => void;
+  sourceLocked: boolean;
 }) {
+  const field = "h-9 min-w-[10rem] rounded-md border border-border-strong bg-background px-2.5 text-sm";
   return (
-    <header className="flex flex-wrap items-center justify-between gap-2 border-b px-4 py-3 sm:px-6 sm:py-4">
-      <div className="flex items-start gap-2">
-        <NavRevealButton />
-        <div>
-          <h2 className="flex items-center gap-2 text-[17px] font-bold tracking-tight">
-            <FlaskConical className="h-4 w-4 text-primary" /> Laboratorio
-          </h2>
-          <p className="text-xs text-muted-foreground">
-            Sandbox interno — no envía mensajes reales
-          </p>
+    <div className="flex flex-wrap items-end justify-between gap-3 border-b px-4 py-3 sm:px-6">
+      <div className="flex flex-wrap items-end gap-3">
+        <div className="space-y-1">
+          <Label htmlFor="eval-agent" className="block">Agente a evaluar</Label>
+          <select
+            id="eval-agent"
+            className={field}
+            value={agentId ?? ""}
+            disabled={disabled || agents.length === 0}
+            onChange={(e) => onAgent(e.target.value)}
+          >
+            {agents.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.internalName}
+                {a.isGeneral ? " (general)" : ""}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="space-y-1">
+          <Label htmlFor="eval-source" className="block">Versión</Label>
+          <select
+            id="eval-source"
+            className={field}
+            value={source}
+            disabled={disabled || sourceLocked}
+            onChange={(e) => onSource(e.target.value as "draft" | "published")}
+          >
+            <option value="published">Publicada (la de producción)</option>
+            <option value="draft">Borrador (sin publicar)</option>
+          </select>
         </div>
       </div>
       <Button onClick={onLaunch} disabled={disabled || running || launching}>
         <Play className="h-4 w-4" />
         {running ? "Corrida en curso…" : "Correr evaluación"}
       </Button>
-    </header>
+    </div>
   );
 }
 
@@ -260,6 +334,14 @@ function HistoryList({
               </span>
             )}
           </div>
+          {run.agentName && (
+            <p className="mt-1 truncate text-xs">
+              {run.agentName}
+              <span className="text-muted-foreground">
+                {run.source ? ` · ${run.source === "draft" ? "borrador" : "publicada"}` : ""}
+              </span>
+            </p>
+          )}
           <p className="mt-1 text-[11px] text-muted-foreground">
             {new Date(run.startedAt).toLocaleString("es-MX", {
               day: "numeric",
@@ -284,9 +366,11 @@ function ScoreBadge({ run }: { run: Run }) {
 
 function Report({
   detail,
+  agent,
   onApplied,
 }: {
   detail: { run: Run; cases: Case[] };
+  agent: Run | null;
   onApplied: () => void;
 }) {
   const { run, cases } = detail;
@@ -328,13 +412,13 @@ function Report({
       </Card>
 
       {cases.map((c) => (
-        <CaseCard key={c.id} testCase={c} onApplied={onApplied} />
+        <CaseCard key={c.id} testCase={c} agent={agent} onApplied={onApplied} />
       ))}
     </div>
   );
 }
 
-function CaseCard({ testCase, onApplied }: { testCase: Case; onApplied: () => void }) {
+function CaseCard({ testCase, agent, onApplied }: { testCase: Case; agent: Run | null; onApplied: () => void }) {
   const [open, setOpen] = useState(false);
   const c = testCase;
   const icon =
@@ -371,7 +455,7 @@ function CaseCard({ testCase, onApplied }: { testCase: Case; onApplied: () => vo
       {open && (
         <CardContent className="space-y-3">
           {c.hallazgos.map((h, i) => (
-            <HallazgoCard key={i} hallazgo={h} caseId={c.id} index={i} onApplied={onApplied} />
+            <HallazgoCard key={i} hallazgo={h} caseId={c.id} index={i} agent={agent} onApplied={onApplied} />
           ))}
           <div className="rounded-md border bg-background p-3">
             <p className="mb-2 kicker">
@@ -402,11 +486,13 @@ function HallazgoCard({
   hallazgo,
   caseId,
   index,
+  agent,
   onApplied,
 }: {
   hallazgo: Hallazgo;
   caseId: string;
   index: number;
+  agent: Run | null;
   onApplied: () => void;
 }) {
   const [editing, setEditing] = useState(false);
@@ -414,13 +500,23 @@ function HallazgoCard({
   const [respuesta, setRespuesta] = useState(hallazgo.sugerencia?.respuesta ?? "");
   const [applied, setApplied] = useState(false);
   const [saving, setSaving] = useState(false);
+  // 031: ¿al conocimiento compartido o al propio del agente evaluado? (el
+  // general siempre lee el compartido, así que para él no hay elección).
+  const ownable = !!agent?.agentId && !!agent.agentName;
+  const [destino, setDestino] = useState<"shared" | "agent">("shared");
 
   async function apply() {
     setSaving(true);
     const res = await fetch("/api/lab/suggestions/apply", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ caseId, hallazgoIndex: index, pregunta, respuesta }),
+      body: JSON.stringify({
+        caseId,
+        hallazgoIndex: index,
+        pregunta,
+        respuesta,
+        ...(ownable && destino === "agent" ? { agentId: agent!.agentId } : {}),
+      }),
     }).catch(() => null);
     setSaving(false);
     if (res?.ok) {
@@ -466,6 +562,20 @@ function HallazgoCard({
               onChange={(e) => setRespuesta(e.target.value)}
             />
           </div>
+          {ownable && (
+            <div className="space-y-1">
+              <Label htmlFor={`sug-d-${caseId}-${index}`}>¿Dónde guardarlo?</Label>
+              <select
+                id={`sug-d-${caseId}-${index}`}
+                className="h-9 w-full rounded-md border border-border-strong bg-background px-2.5 text-sm"
+                value={destino}
+                onChange={(e) => setDestino(e.target.value as "shared" | "agent")}
+              >
+                <option value="shared">Conocimiento compartido (lo leen los agentes que lo usan)</option>
+                <option value="agent">Solo de «{agent?.agentName}»</option>
+              </select>
+            </div>
+          )}
           <div className="flex gap-2">
             <Button
               size="sm"
