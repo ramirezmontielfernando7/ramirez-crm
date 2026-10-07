@@ -72,8 +72,9 @@ describe("030 (PR 4) — rutas de módulos apagables", () => {
     expect(code).toContain(`requireModulePage("${key}")`);
   });
 
-  it("033 — /trabajo/tareas responde 404 sin el módulo trabajo; /bookings, sin agenda", () => {
+  it("033 — /trabajo/tareas y /trabajo/notas responden 404 sin el módulo trabajo; /bookings, sin agenda", () => {
     expect(readFileSync(path.join(APP, "trabajo", "tareas", "page.tsx"), "utf8")).toContain(`requireModulePage("trabajo")`);
+    expect(readFileSync(path.join(APP, "trabajo", "notas", "page.tsx"), "utf8")).toContain(`requireModulePage("trabajo")`);
     expect(readFileSync(path.join(APP, "bookings", "page.tsx"), "utf8")).toContain("agendaEnabled(session.organizationId)");
   });
 });

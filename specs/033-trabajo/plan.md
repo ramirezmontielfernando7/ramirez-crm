@@ -35,3 +35,30 @@ vive en `server/work/tasks.ts` (lista `POR_AUTOR` en permissions-routes).
 - Sandbox: Tareas no tiene ningún camino a `server/inbox/send` ni a Meta. ✅
 - Módulos (029): por organización, apagado por defecto, 404 sin él. ✅
 - V/IX: unit + BD real + e2e `scripts/e2e-trabajo.mjs`.
+
+# PR 2 — Notas
+
+## Datos — `drizzle/0038_trabajo_notas.sql` (aditiva, idempotente)
+
+`work_note`: `id`, `organization_id`, `title` (≤ 200, opcional), `body`
+(≤ 10 000), `color` (CHECK en la lista), `pinned_at`, `archived_at`,
+`author_user_id` (→ user, SET NULL), `contact_id`, `conversation_id` (FKs
+compuestas con `ON DELETE SET NULL (columna)`), `created_at`, `updated_at`.
+CHECK de nota no vacía (título o texto). `UNIQUE (organization_id, id)`.
+Índices `(org, autor, archived_at)` y `(org, contact_id)`. RLS de la 0027.
+Sin columna de módulo nueva (usa `trabajo`). Reversa:
+`scripts/sql/0038-reversa.sql`.
+
+## Código
+
+- `src/server/work/notes.ts`: única puerta; visibilidad con `assignedTo()`
+  de `lib/db/tenant.ts` sobre `work_note.contact_id`.
+- Rutas `/api/work/notes` (GET mías / `?contactId=`, POST) y
+  `/api/work/notes/[id]` (GET, PATCH, DELETE), en `POR_AUTOR`.
+- UI: `notes-client.tsx`, `contact-notes.tsx`, buscador de contactos
+  compartido (`contact-search.tsx`), pestaña en `WorkShell`.
+
+## Constitution Check (PR 2)
+
+Igual que el PR 1: aislamiento (RLS + FK + `assignedTo`), sin dependencias
+nuevas, migración re-ejecutable, ningún camino a Meta, 404 sin módulo. ✅

@@ -268,6 +268,13 @@ const POR_AUTOR: [string, Method][] = [
   ["work/tasks", "POST"],
   ["work/tasks/[id]", "PATCH"],
   ["work/tasks/[id]", "DELETE"],
+  // PR 2 — Notas: sin ligar, solo de quien la escribe; ligadas a un chat,
+  // de quien ve ese contacto (scopedContacts). Editar: autor o work.manage.
+  ["work/notes", "GET"],
+  ["work/notes", "POST"],
+  ["work/notes/[id]", "GET"],
+  ["work/notes/[id]", "PATCH"],
+  ["work/notes/[id]", "DELETE"],
 ];
 
 /**

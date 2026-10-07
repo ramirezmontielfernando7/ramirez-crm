@@ -117,6 +117,12 @@
     --info-tint: #ebf1ff;
     --info-soft: #d3e2ff;
     --info-text: #0038d8;
+    /* 033 — Fondos de las notas de Trabajo (texto y secundario ≥ 4.5:1). */
+    --note-amarillo: #fff3c4;
+    --note-verde: #def3e3;
+    --note-azul: #e2ebff;
+    --note-rosa: #fde3ec;
+    --note-morado: #ece4fb;
 
     /* Superficies auxiliares */
     --overlay: rgba(4, 16, 46, 0.55);
@@ -215,6 +221,11 @@
     --info-tint: #243557;
     --info-soft: #3a568c;
     --info-text: #9dbbff;
+    --note-amarillo: #4a3d12;
+    --note-verde: #1d3b28;
+    --note-azul: #1e2f52;
+    --note-rosa: #4a2234;
+    --note-morado: #362a55;
 
     --overlay: rgba(2, 8, 24, 0.72);
     --knob: #dfe6fa;

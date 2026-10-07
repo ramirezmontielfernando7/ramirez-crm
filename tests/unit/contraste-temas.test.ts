@@ -216,6 +216,16 @@ describe("tema oscuro: acento", () => {
   });
 });
 
+describe("033 — colores de las notas de Trabajo", () => {
+  const NOTAS = ["--note-amarillo", "--note-verde", "--note-azul", "--note-rosa", "--note-morado"];
+  it.each(NOTAS)("%s: texto y secundario se leen en claro y en oscuro (≥ 4.5:1)", (nota) => {
+    for (const vars of [claro, oscuro]) {
+      piso(vars, "--text", nota, 4.5);
+      piso(vars, "--text-2", nota, 4.5);
+    }
+  });
+});
+
 describe("tema claro: no cambia", () => {
   it("lo que flota, la tinta y el anillo del acento son los de siempre", () => {
     expect(claro["--bg-raised"]).toBe(claro["--bg"]);

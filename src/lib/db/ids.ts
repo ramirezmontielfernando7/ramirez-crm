@@ -65,6 +65,7 @@ const prefixes = {
   navLayoutEvent: "nle",
   // 033 — Trabajo (Tareas)
   workTask: "tsk",
+  workNote: "nte",
   user: "usr",
   account: "acc",
 } as const;

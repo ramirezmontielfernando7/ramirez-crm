@@ -31,6 +31,7 @@ import { ContactTagsCard } from "@/components/tags/contact-tags-card";
 import { LossReasonDialog } from "@/components/pipeline/loss-reason-dialog";
 import { useViewer } from "@/components/viewer-context";
 import { ChatTimeline } from "@/components/inbox/chat-timeline";
+import { ContactNotes } from "@/components/work/contact-notes";
 import { Collapse, DisclosureButton, useDisclosureId } from "@/components/motion";
 
 const HANDOFF_LABELS: Record<string, string> = {
@@ -501,6 +502,11 @@ export function ContactPanel({
               <ChevronRight className="ml-auto h-4 w-4 text-text-3" strokeWidth={1.7} />
             </Link>
           </section>
+        )}
+
+        {/* 033 (PR 2): notas internas del equipo sobre este contacto. */}
+        {viewer.hasModule("trabajo") && (
+          <ContactNotes contactId={contactId} conversationId={conversation.id} />
         )}
 
         {/* 022: lo que se consulta de vez en cuando, plegado. Mensajes

@@ -3,7 +3,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 import { getDb, getSystemDb, schema, withTenant } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
 import { runWithOrganization } from "@/lib/request-context";
-import type { TaskDto } from "@/lib/work";
+import type { NoteDto, TaskDto } from "@/lib/work";
 import { assignContacts } from "@/server/assignment/assign";
 import { forgetOrgModules, getOrgModules, seedOrgModules, updateOrgModules } from "@/server/modules/store";
 import { borrarOrganizaciones, crearOrganizacion } from "./fixtures";
@@ -157,6 +157,12 @@ describe("033 — el módulo `trabajo`", () => {
       expect((await llamar("work/tasks", "POST", { body: { title: "x" } })).status).toBe(404);
       expect((await llamar("work/tasks/[id]", "PATCH", { id: "tsk_x", body: { done: true } })).status).toBe(404);
       expect((await llamar("work/tasks/[id]", "DELETE", { id: "tsk_x" })).status).toBe(404);
+      // PR 2: Notas comparte el módulo.
+      expect((await llamar("work/notes", "GET")).status).toBe(404);
+      expect((await llamar("work/notes", "POST", { body: { body: "x" } })).status).toBe(404);
+      expect((await llamar("work/notes/[id]", "GET", { id: "nte_x" })).status).toBe(404);
+      expect((await llamar("work/notes/[id]", "PATCH", { id: "nte_x", body: { pinned: true } })).status).toBe(404);
+      expect((await llamar("work/notes/[id]", "DELETE", { id: "nte_x" })).status).toBe(404);
       // Citas sigue funcionando igual: su módulo es `agenda`, no `trabajo`.
       expect((await llamar("bookings", "GET", { query: "?from=2026-10-01&to=2026-10-07" })).status).toBe(200);
     } finally {
@@ -343,6 +349,186 @@ describe("033 — una tarea es interna: nunca genera un envío", () => {
       expect(r.status).toBe(201);
       const id = (r.data.task as TaskDto).id;
       expect((await llamar("work/tasks/[id]", "PATCH", { id, body: { description: "con descuento", done: true } })).status).toBe(200);
+    }
+    expect(await mensajes()).toBe(antes);
+    expect(meta.llamadas).toBe(0);
+  });
+});
+
+describe("033 (PR 2) — quién ve y edita cada nota", () => {
+  let privada: NoteDto;
+  let delChat: NoteDto;
+
+  it("una nota sin ligar es solo de quien la escribe: ni la Propietaria la ve", async () => {
+    como(A.id, u.ana, "asesor");
+    const r = await llamar("work/notes", "POST", { body: { title: "Recordatorio", body: "Pedir factura", color: "amarillo" } });
+    expect(r.status).toBe(201);
+    privada = r.data.note as NoteDto;
+    expect(privada.contact).toBeNull();
+    expect(privada.color).toBe("amarillo");
+    const mias = (await llamar("work/notes", "GET")).data.notes as NoteDto[];
+    expect(mias.map((n) => n.id)).toContain(privada.id);
+    como(A.id, u.owner, "owner");
+    expect((await llamar("work/notes/[id]", "GET", { id: privada.id })).status).toBe(404);
+    expect((await llamar("work/notes/[id]", "PATCH", { id: privada.id, body: { pinned: true } })).status).toBe(404);
+    como(A.id, u.beto, "asesor");
+    expect((await llamar("work/notes/[id]", "GET", { id: privada.id })).status).toBe(404);
+  });
+
+  it("una nota desde el chat queda ligada y la ve quien puede ver ese contacto", async () => {
+    como(A.id, u.ana, "asesor");
+    const r = await llamar("work/notes", "POST", { body: { body: "Prefiere que le llamen en la tarde", conversationId: deAna.conversationId } });
+    expect(r.status).toBe(201);
+    delChat = r.data.note as NoteDto;
+    expect(delChat.contact?.id).toBe(deAna.contactId);
+    expect(delChat.conversationId).toBe(deAna.conversationId);
+    // La Coordinadora (ve todo) la encuentra en el chat y la puede abrir.
+    como(A.id, u.coord, "coordinador");
+    const enChat = (await llamar("work/notes", "GET", { query: `?contactId=${deAna.contactId}` })).data.notes as NoteDto[];
+    expect(enChat.map((n) => n.id)).toContain(delChat.id);
+    expect(enChat.map((n) => n.id)).not.toContain(privada.id);
+    expect((await llamar("work/notes/[id]", "GET", { id: delChat.id })).status).toBe(200);
+    // Beto no ve ese contacto: ni sus notas ni la nota por id.
+    como(A.id, u.beto, "asesor");
+    expect((await llamar("work/notes", "GET", { query: `?contactId=${deAna.contactId}` })).status).toBe(404);
+    expect((await llamar("work/notes/[id]", "GET", { id: delChat.id })).status).toBe(404);
+  });
+
+  it("un asesor no puede ligar una nota a un chat que no ve (422)", async () => {
+    como(A.id, u.beto, "asesor");
+    const r = await llamar("work/notes", "POST", { body: { body: "x", contactId: deAna.contactId } });
+    expect(r.status).toBe(422);
+    expect((r.data.error as { code: string }).code).toBe("invalid_link");
+  });
+
+  it("si la Asesora deja de ver el contacto, conserva SU nota sin saber de quién era", async () => {
+    await runWithOrganization(A.id, () =>
+      assignContacts({ organizationId: A.id, contactIds: [deAna.contactId], toUserId: u.beto, actorUserId: u.owner, source: "manual", reason: null })
+    );
+    try {
+      como(A.id, u.ana, "asesor");
+      const r = await llamar("work/notes/[id]", "GET", { id: delChat.id });
+      expect(r.status).toBe(200);
+      const n = r.data.note as NoteDto;
+      expect(n.contact).toBeNull();
+      expect(n.hiddenContact).toBe(true);
+      expect(JSON.stringify(n)).not.toContain(deAna.contactId);
+      // Beto, ahora a cargo, la ve en el chat pero no la puede cambiar (no es suya).
+      como(A.id, u.beto, "asesor");
+      const enChat = (await llamar("work/notes", "GET", { query: `?contactId=${deAna.contactId}` })).data.notes as NoteDto[];
+      const vista = enChat.find((x) => x.id === delChat.id);
+      expect(vista?.canEdit).toBe(false);
+      expect((await llamar("work/notes/[id]", "PATCH", { id: delChat.id, body: { body: "pisada" } })).status).toBe(403);
+      expect((await llamar("work/notes/[id]", "DELETE", { id: delChat.id })).status).toBe(403);
+    } finally {
+      await runWithOrganization(A.id, () =>
+        assignContacts({ organizationId: A.id, contactIds: [deAna.contactId], toUserId: u.ana, actorUserId: u.owner, source: "manual", reason: null })
+      );
+    }
+  });
+
+  it("work.manage edita, fija y archiva la nota de otra persona que ve; archivada sale del chat", async () => {
+    como(A.id, u.coord, "coordinador");
+    const fija = await llamar("work/notes/[id]", "PATCH", { id: delChat.id, body: { pinned: true, color: "verde" } });
+    expect(fija.status).toBe(200);
+    expect((fija.data.note as NoteDto).pinned).toBe(true);
+    expect((fija.data.note as NoteDto).color).toBe("verde");
+    expect((await llamar("work/notes/[id]", "PATCH", { id: delChat.id, body: { archived: true } })).status).toBe(200);
+    const enChat = (await llamar("work/notes", "GET", { query: `?contactId=${deAna.contactId}` })).data.notes as NoteDto[];
+    expect(enChat.map((n) => n.id)).not.toContain(delChat.id);
+    como(A.id, u.ana, "asesor");
+    const archivadas = (await llamar("work/notes", "GET", { query: "?archived=1" })).data.notes as NoteDto[];
+    expect(archivadas.map((n) => n.id)).toContain(delChat.id);
+  });
+
+  it("valida: color de la lista y nota no vacía (422)", async () => {
+    como(A.id, u.ana, "asesor");
+    expect((await llamar("work/notes", "POST", { body: { body: "x", color: "naranja" } })).status).toBe(422);
+    const vacia = await llamar("work/notes", "POST", { body: { title: "  ", body: "   " } });
+    expect(vacia.status).toBe(422);
+    expect((vacia.data.error as { code: string }).code).toBe("empty_note");
+  });
+});
+
+describe("033 (PR 2) — RLS en work_note", () => {
+  let notaB: string;
+  beforeAll(async () => {
+    notaB = newId("workNote");
+    await sys().insert(schema.workNote).values({ id: notaB, organizationId: B.id, body: "Secreto de B", authorUserId: u.ajenaB });
+  });
+
+  it("con A en el contexto no se ve, ni se cambia, ni se borra la nota de B", async () => {
+    const vistas = await runWithOrganization(A.id, () =>
+      getDb().select({ id: schema.workNote.id }).from(schema.workNote).where(eq(schema.workNote.id, notaB))
+    );
+    expect(vistas).toEqual([]);
+    const cambiadas = await withTenant(A.id, (tx) =>
+      tx.update(schema.workNote).set({ body: "pisada" }).where(eq(schema.workNote.id, notaB)).returning({ id: schema.workNote.id })
+    );
+    expect(cambiadas).toEqual([]);
+    const borradas = await withTenant(A.id, (tx) =>
+      tx.delete(schema.workNote).where(eq(schema.workNote.id, notaB)).returning({ id: schema.workNote.id })
+    );
+    expect(borradas).toEqual([]);
+    const [sigue] = await sys().select({ body: schema.workNote.body }).from(schema.workNote).where(eq(schema.workNote.id, notaB));
+    expect(sigue?.body).toBe("Secreto de B");
+  });
+
+  it("A no puede escribir una nota a nombre de B (WITH CHECK)", async () => {
+    const err = await runWithOrganization(A.id, () =>
+      getDb().insert(schema.workNote).values({ id: newId("workNote"), organizationId: B.id, body: "intrusa" })
+    ).then(
+      () => null,
+      (e: unknown) => e as Error & { cause?: { code?: string } }
+    );
+    expect(err?.cause?.code).toBe("42501");
+  });
+
+  it("la FK compuesta impide ligar una nota de A a un chat de B; el CHECK rechaza un color desconocido", async () => {
+    const deB = await chat(B.id);
+    const cruzada = await sys()
+      .insert(schema.workNote)
+      .values({ id: newId("workNote"), organizationId: A.id, body: "cruzada", conversationId: deB.conversationId })
+      .then(
+        () => null,
+        (e: unknown) => e as Error & { cause?: { code?: string } }
+      );
+    expect(cruzada?.cause?.code).toBe("23503");
+    const color = await sys()
+      .insert(schema.workNote)
+      .values({ id: newId("workNote"), organizationId: A.id, body: "x", color: "naranja" })
+      .then(
+        () => null,
+        (e: unknown) => e as Error & { cause?: { code?: string } }
+      );
+    expect(color?.cause?.code).toBe("23514");
+  });
+
+  it("borrar el chat y el contacto deja la nota sin ligadura (no la borra)", async () => {
+    const c = await chat(A.id);
+    const id = newId("workNote");
+    await sys().insert(schema.workNote).values({ id, organizationId: A.id, body: "Ligada", authorUserId: u.ana, contactId: c.contactId, conversationId: c.conversationId });
+    await sys().delete(schema.conversation).where(eq(schema.conversation.id, c.conversationId));
+    await sys().delete(schema.contact).where(eq(schema.contact.id, c.contactId));
+    const [n] = await sys().select().from(schema.workNote).where(eq(schema.workNote.id, id));
+    expect(n?.organizationId).toBe(A.id);
+    expect(n?.contactId).toBeNull();
+    expect(n?.conversationId).toBeNull();
+  });
+});
+
+describe("033 (PR 2) — una nota es interna: nunca se envía al cliente", () => {
+  it("crear y editar notas de un chat real y de uno de prueba no crea mensajes ni llama a Meta", async () => {
+    const mensajes = async () =>
+      (await sys().select({ n: sql<number>`count(*)::int` }).from(schema.message).where(eq(schema.message.organizationId, A.id)))[0]!.n;
+    const antes = await mensajes();
+    meta.llamadas = 0;
+    como(A.id, u.ana, "asesor");
+    for (const conv of [deAna.conversationId, dePrueba.conversationId]) {
+      const r = await llamar("work/notes", "POST", { body: { title: "Interna", body: "No se envía", conversationId: conv } });
+      expect(r.status).toBe(201);
+      const id = (r.data.note as NoteDto).id;
+      expect((await llamar("work/notes/[id]", "PATCH", { id, body: { body: "Sigue sin enviarse", pinned: true } })).status).toBe(200);
     }
     expect(await mensajes()).toBe(antes);
     expect(meta.llamadas).toBe(0);
