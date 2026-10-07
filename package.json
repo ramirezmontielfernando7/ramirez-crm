@@ -37,6 +37,7 @@
     "test:e2e:datos-meta": "node --env-file=.env scripts/e2e-datos-meta.mjs",
     "test:e2e:campanas-v2": "node --env-file=.env scripts/e2e-campanas-v2.mjs",
     "test:e2e:navegacion": "node --env-file=.env scripts/e2e-navegacion.mjs",
+    "test:e2e:agentes": "node --env-file=.env scripts/e2e-agentes.mjs",
     "test:watch": "vitest",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",

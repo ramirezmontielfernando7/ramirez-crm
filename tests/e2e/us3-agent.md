@@ -1,5 +1,10 @@
 # Guion E2E — US3: Agente de IA con acciones tipadas
 
+> 031: `/agent` edita al agente GENERAL (el que atiende producción). Guardar
+> aquí = publicarlo, como siempre; su nombre puede quedar vacío (el agente
+> habla como el equipo del negocio). Los demás agentes viven en el
+> Laboratorio: [us-agentes.md](us-agentes.md).
+
 > Conducido con Playwright (MCP) contra `pnpm dev` con ai-mock
 > (`OPENROUTER_BASE_URL` → `/api/dev/ai-mock`) y `AGENT_COALESCE_MS=2000`.
 

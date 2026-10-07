@@ -1,7 +1,9 @@
 # Vocero CRM — Guía para Claude
 
-Vocero es un CRM de WhatsApp open source (MIT), self-hosted, con agente de IA y
-Laboratorio de auto-evaluación. Una instancia = un negocio. Este archivo guía a
+Vocero es un CRM de WhatsApp open source (MIT), self-hosted, con agentes de IA y
+Laboratorio para crearlos, probarlos y evaluarlos. Una instancia atiende a
+VARIAS organizaciones (multi-tenant: RLS + `organization_id` en todo; ver
+«Multi-tenancy» abajo); cada organización es un negocio. Este archivo guía a
 Claude Code (u otro asistente) para operar y **modificar** este repositorio —
 el caso típico: una agencia adaptando Vocero para un cliente.
 
@@ -32,9 +34,12 @@ externas: el trabajo en segundo plano (agente, Laboratorio) es in-process.
 | Quieres cambiar… | Toca… |
 |---|---|
 | El cerebro/proveedor LLM | `src/lib/ai/` (adaptador OpenRouter-compatible, `chatJson<T>`) |
-| El comportamiento/prompt del agente | `src/server/ai/prompts.ts` |
-| Las acciones que puede tomar el agente | `src/server/ai/actions.ts` + ejecución en `src/server/ai/pipeline.ts` |
-| Las personas o el juez del Laboratorio | `src/server/lab/personas.ts` · `src/server/lab/judge.ts` |
+| El comportamiento/prompt del agente | `src/server/ai/prompts.ts` (con o sin nombre propio: `config.name` null = habla como el equipo) |
+| Las acciones que puede tomar el agente | `src/server/ai/actions.ts` + el turno en `src/server/ai/pipeline.ts`: `loadTurnContext` → `decideTurn` (prompt + modelo + validación, SIN efectos en BD) → `executeAction` |
+| Los agentes de una organización (varios; general; borrador/publicado; versiones) | `src/server/agents/` — ÚNICA puerta de `agent`/`agent_publish_log` (`store.ts`); forma única del JSON de config en `config.ts` (`agentConfigSchema`); qué agente atiende un turno: `resolve.ts`; `agent_profile` sigue siendo el interruptor global y el ESPEJO del general publicado (`mirror.ts`, misma transacción); `ensure.ts` garantiza el general y reconcilia en cada turno (una lectura; escribe solo si `agent_profile` cambió por fuera) · rutas `/api/lab/agents/*` · spec [031](specs/031-laboratorio-agentes/spec.md) |
+| El conocimiento (KB) que lee el agente | `src/server/agents/kb.ts` — ÚNICA puerta de escritura de `kb_entry` (test de vigilancia `kb-gate.test.ts`); `agent_id` NULL = compartido, si no, de ese agente; el general siempre lee el compartido |
+| La vista previa del editor de agentes (sin estado, no ejecuta nada) | `src/server/agents/preview.ts` (acciones → chips) · `POST /api/lab/preview` (30/min por persona) · guardarraíl `tests/unit/lab-preview-sandbox.test.ts` |
+| Las personas o el juez del Laboratorio | `src/server/lab/personas.ts` · `src/server/lab/judge.ts` · lo que se evalúa se congela en `agent_test_run.agent_snapshot` (`src/server/agents/snapshot.ts`) |
 | El canal WhatsApp (Graph API) | `src/lib/meta/` (cliente único) + `src/server/whatsapp/` |
 | Leer o guardar credenciales de un negocio (tokens, secretos) | `src/server/credentials/` — ÚNICA puerta: `getOrgCredentials(org, tipo)` con errores tipados y `sealForStorage`; enrutamiento de webhooks (número/WABA/página → organización) en `resolve.ts`; rotación de `ENCRYPTION_KEY` al arrancar en `maintenance.ts` (nadie más importa `lib/crypto`: test de vigilancia) · guía: [docs/credenciales.md](docs/credenciales.md) · spec [027](specs/027-credenciales-webhooks/spec.md) |
 | Eventos de webhook sin organización | `src/server/webhooks/unrouted.ts` (tabla de plataforma `webhook_unrouted`, cifrada, 7 días) |
