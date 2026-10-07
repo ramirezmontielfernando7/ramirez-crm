@@ -123,12 +123,12 @@ try {
 
   console.log("== 1. La búsqueda ==");
   await buscar("Persona inexistente");
-  await sleep(800);
+  const mensajeDeSiempre = await ver(
+    page.getByText(/Sin resultados para este filtro\.|Sin conversaciones todavía/)
+  );
   ok(
     "un texto que no es teléfono NO muestra la tarjeta (queda el mensaje de siempre)",
-    (await page.getByText("Este número no está registrado").count()) === 0 &&
-      ((await page.getByText("Sin resultados para este filtro.").count()) > 0 ||
-        (await page.getByText("Sin conversaciones todavía").count()) > 0)
+    mensajeDeSiempre && (await page.getByText("Este número no está registrado").count()) === 0
   );
   await buscar(`${LOCAL.slice(0, 2)} ${LOCAL.slice(2, 6)} ${LOCAL.slice(6)}`);
   const tarjeta = page.getByText("Este número no está registrado");
