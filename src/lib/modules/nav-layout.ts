@@ -93,8 +93,13 @@ export function resolveNav(input: {
     .filter((i) => !i.hidden)
     .map((i) => moduleDef(i.key))
     .filter((def) => isAvailable(def, input.modules, input.can));
+  // 031 (A2): con el Laboratorio a la vista —módulo encendido, permiso y no
+  // oculto por el Propietario— «Agente» sale del menú: el Laboratorio ya lo
+  // trae (Agentes → el general). La ruta /agent sigue viva. Sin Laboratorio
+  // disponible para esta persona, «Agente» se queda donde estaba.
+  const labVisible = visible.some((d) => d.key === "lab");
   return {
-    main: visible.filter((d) => !d.pinnedBottom),
+    main: visible.filter((d) => !d.pinnedBottom && !(labVisible && d.key === "agent")),
     settings: visible.some((d) => d.key === "settings"),
   };
 }

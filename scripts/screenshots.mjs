@@ -113,7 +113,7 @@ await shoot("/pipeline", "pipeline.png", async () => {
   await page.getByText("María Fernanda López").first().waitFor();
 });
 
-await shoot("/lab", "laboratorio.png", async () => {
+await shoot("/lab/evaluaciones", "laboratorio.png", async () => {
   await page.getByText(/Score 83/).first().waitFor();
   // El reporte de la corrida llega en un segundo fetch: se espera a que el
   // hueco "elige una corrida" desaparezca, no un tiempo fijo.

@@ -92,7 +92,7 @@ describe("registro de módulos", () => {
 describe("menú por rol", () => {
   it("sin personalizar, cada rol ve lo mismo que antes del PR 4", () => {
     const esperado: Record<Role, string[]> = {
-      owner: ["/inbox", "/chat", "/bookings", "/pipeline", "/contacts", "/knowledge", "/campaigns", "/results", "/agent", "/lab"],
+      owner: ["/inbox", "/chat", "/bookings", "/pipeline", "/contacts", "/knowledge", "/campaigns", "/results", "/lab"],
       coordinador: ["/inbox", "/chat", "/bookings", "/pipeline", "/contacts", "/knowledge", "/campaigns", "/results"],
       asesor: ["/inbox", "/chat", "/bookings", "/pipeline", "/contacts", "/knowledge"],
     };
@@ -101,6 +101,27 @@ describe("menú por rol", () => {
       expect(nav.main.map((m) => m.route), role).toEqual(esperado[role]);
       expect(nav.settings, role).toBe(role !== "asesor");
     }
+  });
+
+  it("031: con el Laboratorio a la vista «Agente» sale del menú; sin Laboratorio (apagado, sin permiso u oculto) se queda", () => {
+    const keys = (r: ReturnType<typeof resolveNav>) => r.main.map((m) => m.key);
+    // Con Laboratorio: solo Laboratorio.
+    const con = resolveNav({ role: "owner", modules: TODOS, can: canRole("owner"), layout: null });
+    expect(keys(con)).toContain("lab");
+    expect(keys(con)).not.toContain("agent");
+    // Laboratorio apagado (Agente encendido): se ve «Agente».
+    const sinLab = effectiveModules(new Set<ModuleKey>(["team_chat", "knowledge", "results", "agent"]));
+    const a = resolveNav({ role: "owner", modules: sinLab, can: canRole("owner"), layout: null });
+    expect(keys(a)).toContain("agent");
+    expect(keys(a)).not.toContain("lab");
+    // Sin permiso de Laboratorio (agent.manage) pero con el módulo: no hay ni uno ni otro.
+    const sinPermiso = resolveNav({ role: "asesor", modules: TODOS, can: canRole("asesor"), layout: null });
+    expect(keys(sinPermiso)).not.toContain("lab");
+    // Laboratorio oculto por el Propietario en Ajustes → Navegación: «Agente» vuelve.
+    const layout = defaultLayout("owner").map((i) => (i.key === "lab" ? { ...i, hidden: true } : { ...i, hidden: i.key === "agent" ? false : i.hidden }));
+    const oculto = resolveNav({ role: "owner", modules: TODOS, can: canRole("owner"), layout });
+    expect(keys(oculto)).toContain("agent");
+    expect(keys(oculto)).not.toContain("lab");
   });
 
   it("un módulo apagado no aparece aunque el menú guardado lo muestre", () => {
