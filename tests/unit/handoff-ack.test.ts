@@ -43,7 +43,7 @@ const updates: Record<string, unknown>[] = [];
 
 function thenableChain(rows: unknown[]) {
   const chain: Record<string, unknown> = {};
-  for (const m of ["from", "innerJoin", "where", "orderBy", "limit"]) {
+  for (const m of ["from", "innerJoin", "leftJoin", "where", "orderBy", "limit"]) {
     chain[m] = () => chain;
   }
   (chain as { then: unknown }).then = (resolve: (v: unknown) => void) =>
@@ -124,13 +124,17 @@ const perfil = {
   greeting: null,
 };
 
+/** 031: el agente general publicado, leído junto con el perfil. */
+const config = { v: 1, displayName: "Asistente", tone: null, greeting: null, instructions: null, escalationRules: null, useSharedKb: true };
+const general = { id: "agt_1", organizationId: "org_1", isGeneral: true, publishedAt: null, draft: config, published: config };
+
 function historial(text: string) {
   return [{ id: "msg_1", direction: "in", text, createdAt: new Date() }];
 }
 
 /** Un turno donde el cliente escribe `text`: conversación, perfil, historial. */
 function turno(text: string, conv = conversacion()) {
-  selectQueue.push([conv], [perfil], historial(text));
+  selectQueue.push([conv], [{ profile: perfil, agent: general }], historial(text));
 }
 
 /**
@@ -252,7 +256,7 @@ describe("acuse del patrón de respaldo antes de traspasar (FR-022)", () => {
     });
     selectQueue.push(
       [conversacion()],
-      [perfil],
+      [{ profile: perfil, agent: general }],
       historial("esto ya me cansó"),
       [], // kb
       [] // etapas

@@ -26,7 +26,7 @@ const inserts: { table: unknown; values: unknown }[] = [];
 
 function thenableChain(rows: unknown[]) {
   const chain: Record<string, unknown> = {};
-  for (const m of ["from", "innerJoin", "where", "orderBy", "limit"]) {
+  for (const m of ["from", "innerJoin", "leftJoin", "where", "orderBy", "limit"]) {
     chain[m] = () => chain;
   }
   (chain as { then: unknown }).then = (
@@ -96,7 +96,13 @@ describe("sandbox del Laboratorio en el pipeline del agente", () => {
     };
     selectQueue.push(
       [testConversation], // conversación
-      [{ id: "agp_1", organizationId: "org_1", enabled: false, name: "Asistente", tone: null, instructions: null, escalationRules: null, greeting: null }], // perfil (apagado: el Lab evalúa igual)
+      // 031: perfil + su agente general, en UNA lectura (apagado: el Lab evalúa igual)
+      [{
+        profile: { id: "agp_1", organizationId: "org_1", enabled: false, name: "Asistente", tone: null, instructions: null, escalationRules: null, greeting: null },
+        agent: { id: "agt_1", organizationId: "org_1", isGeneral: true, publishedAt: null,
+          draft: { v: 1, displayName: "Asistente", tone: null, greeting: null, instructions: null, escalationRules: null, useSharedKb: true },
+          published: { v: 1, displayName: "Asistente", tone: null, greeting: null, instructions: null, escalationRules: null, useSharedKb: true } },
+      }],
       [
         {
           id: "msg_1",

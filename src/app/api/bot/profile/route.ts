@@ -4,6 +4,7 @@ import { scoped } from "@/lib/db/tenant";
 import { apiError } from "@/lib/api";
 import { requireBotKey } from "@/server/bot/auth";
 import { serializeBotProfile } from "@/server/bot/profile";
+import { generalKbCondition } from "@/server/agents/kb";
 import { runWithOrganization } from "@/lib/request-context";
 
 export const dynamic = "force-dynamic";
@@ -34,10 +35,12 @@ export async function GET(req: Request) {
       return apiError(404, "no_profile", "La instancia no tiene perfil de agente");
     }
 
+    // 031: el del agente general (compartido + el suyo); el conocimiento
+    // privado de otros agentes no viaja. Misma forma de siempre.
     const kb = await db
       .select()
       .from(schema.kbEntry)
-      .where(scoped(schema.kbEntry.organizationId, organizationId))
+      .where(scoped(schema.kbEntry.organizationId, organizationId, generalKbCondition(organizationId)))
       .orderBy(asc(schema.kbEntry.createdAt));
 
     return Response.json(serializeBotProfile(profile, kb));

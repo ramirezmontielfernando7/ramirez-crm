@@ -59,6 +59,7 @@ function qa(question: string, answer: string): KbEntry {
     question,
     answer,
     content: null,
+    agentId: null,
     createdAt: new Date(),
     updatedAt: new Date(),
   };
