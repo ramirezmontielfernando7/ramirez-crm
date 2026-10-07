@@ -26,7 +26,7 @@ import {
   type AnuncioDeOrigen,
 } from "@/server/attribution/referral";
 import { registrarAnuncioDeOrigen } from "@/server/attribution/store";
-import { onLeadActivity } from "@/server/inbox/lead-activity";
+import { createLeadForContact, onLeadActivity } from "@/server/inbox/lead-activity";
 import { maybeRunAgentTurn } from "@/server/ai/trigger";
 import { announceHandoff } from "@/server/inbox/handoff-notice";
 import { logger } from "@/lib/log";
@@ -365,6 +365,17 @@ async function ingestManualEcho(
     ? await attachMediaAsset(organizationId, message.id, mediaInput)
     : null;
 
+  // Un chat que nace de un echo (el dueño escribió primero desde el teléfono)
+  // también es un lead: sin esto llegaba sin etapa. Misma regla que el
+  // entrante (primera etapa abierta) y no toca el lead que ya exista. Si el
+  // pipeline no tiene etapas abiertas devuelve null: jamás tumba la ingesta.
+  await createLeadForContact({
+    organizationId,
+    contactId: contact.id,
+    at: waTimestamp,
+    source: "sistema",
+  });
+
   // Solo lastMessageAt: un mensaje del negocio NUNCA abre la ventana de 24 h.
   await db
     .update(schema.conversation)
@@ -503,6 +514,8 @@ async function ingestInboundMessageInOrg(input: {
       lastInboundAt: waTimestamp,
       lastMessageAt: waTimestamp,
       unreadCount: sql`${schema.conversation.unreadCount} + 1`,
+      // 034: un mensaje entrante saca el chat del archivo.
+      archivedAt: null,
       updatedAt: new Date(),
     })
     .where(eq(schema.conversation.id, conversation.id));

@@ -162,7 +162,9 @@ try {
   };
   const desborda = (p) =>
     p.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);
-  const fila = (p, nombre) => p.getByRole("button").filter({ hasText: nombre }).first();
+  // La fila (034): botón del chat + cápsulas + chip del anuncio, hermanos.
+  const fila = (p, nombre) => p.locator("[data-conversation-row]").filter({ hasText: nombre }).first();
+  const abrirFila = (p, nombre) => fila(p, nombre).locator("button").first().click();
   const tarjeta = (p) => p.locator("[data-anuncio-origen]").first();
   const imagenCargada = (p) =>
     p.waitForFunction(() => {
@@ -196,7 +198,7 @@ try {
     );
 
     paso = `panel ${tema} 1440`;
-    await fila(page, CON_ANUNCIO).click();
+    await abrirFila(page, CON_ANUNCIO);
     await tarjeta(page).getByText("Llegó por un anuncio").waitFor();
     await tarjeta(page).getByText(TITULAR, { exact: true }).waitFor();
     await imagenCargada(page);
@@ -216,12 +218,12 @@ try {
     await captura(page, `bandeja-panel-${tema}-1440.png`);
 
     paso = `video y orgánica ${tema} 1440`;
-    await fila(page, CON_VIDEO).click();
+    await abrirFila(page, CON_VIDEO);
     await tarjeta(page).getByText(TITULAR_VIDEO, { exact: true }).waitFor();
     ok("un anuncio de video lo dice en la tarjeta", (await tarjeta(page).getByText("con video", { exact: false }).count()) === 1);
     await page.getByRole("button", { name: /^Filtrar la bandeja/ }).click();
     await page.getByRole("button", { name: /^Todas/ }).click();
-    await fila(page, ORGANICO).click();
+    await abrirFila(page, ORGANICO);
     await page.waitForResponse((res) => res.url().includes("/api/contacts/") && res.ok());
     // Hasta 5 s para que se desmonte la tarjeta del chat ANTERIOR (la primera
     // respuesta de /api/contacts/ puede ser la de ese). Una conversación
@@ -254,7 +256,7 @@ try {
     ok("a 390 px la bandeja no se desborda", !(await desborda(page)));
     await page.keyboard.press("Escape");
     await captura(page, `bandeja-${tema}-390.png`);
-    await fila(page, CON_ANUNCIO).click();
+    await abrirFila(page, CON_ANUNCIO);
     await page.getByRole("button", { name: "Mostrar detalles" }).click();
     await tarjeta(page).getByText(TITULAR, { exact: true }).waitFor();
     await imagenCargada(page);

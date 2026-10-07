@@ -15,6 +15,15 @@ export type ConversationDto = {
    */
   assignee: { id: string; name: string } | null;
   stageName: string | null;
+  /** 034: lead y etapa actuales, para cambiarla desde la fila. null = sin lead. */
+  leadId: string | null;
+  stageId: string | null;
+  /** 034: etiquetas del contacto (por nombre). */
+  tags: TagDto[];
+  /** 034: archivada = fuera de la Bandeja principal. */
+  archivedAt: string | null;
+  /** 034: ¿hay algo que conteste los chats (agente encendido o cerebro externo)? Sin bot, la fila no pinta el punto de IA. */
+  aiAvailable: boolean;
   aiEnabled: boolean;
   handoffAt: string | null;
   handoffReason: string | null;

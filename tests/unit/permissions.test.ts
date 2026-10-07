@@ -38,6 +38,8 @@ const MATRIZ: Record<Permission, Record<Role, boolean>> = {
   "team_chat.oversee": { owner: true, coordinador: false, asesor: false },
   "number_health.read": { owner: true, coordinador: true, asesor: false },
   "work.manage": { owner: true, coordinador: true, asesor: false },
+  // 034: eliminar un chat para siempre; archivar no pide permiso.
+  "conversation.delete": { owner: true, coordinador: true, asesor: false },
   "contacts.consent_override": { owner: true, coordinador: true, asesor: false },
 };
 

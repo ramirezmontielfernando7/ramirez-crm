@@ -6,12 +6,12 @@ import { Check, ChevronDown } from "lucide-react";
 import { SPRING } from "@/components/motion";
 import { cn } from "@/lib/utils";
 
-export type InboxFilter = "all" | "unread" | "anuncios" | "humano";
+export type InboxFilter = "all" | "unread" | "anuncios" | "humano" | "archived";
 
 /**
  * Los filtros de la Bandeja en UNA cápsula junto al título: dice qué se está
  * viendo ("Todas 26", "No leídas 4") y al tocarla despliega el resto —
- * qué mostrar, la etapa y quién atiende —. Antes era una fila entera de
+ * qué mostrar, la etapa, la etiqueta y quién atiende —. Antes era una fila entera de
  * cápsulas y selectores que envolvía a dos líneas en una columna de 360 px.
  *
  * En reposo la cápsula es neutra; con CUALQUIER filtro puesto se pinta del
@@ -24,6 +24,9 @@ export function FilterMenu({
   stages,
   stage,
   onStage,
+  tags,
+  tag,
+  onTag,
   owners,
   owner,
   onOwner,
@@ -36,6 +39,11 @@ export function FilterMenu({
   stages: string[];
   stage: string;
   onStage: (s: string) => void;
+  /** 034: etiquetas presentes [id, nombre]; vacío = sin selector de etiqueta. */
+  tags: [string, string][];
+  /** "all" = toda etiqueta. */
+  tag: string;
+  onTag: (t: string) => void;
   /** Personas del equipo; `null` = quien mira no ve al equipo (sin selector). */
   owners: [string, string][] | null;
   owner: string;
@@ -66,12 +74,14 @@ export function FilterMenu({
 
   const current = filtros.find((f) => f.id === filter) ?? filtros[0];
   // Filtros además del de "Mostrar": se cuentan en la cápsula.
-  const extra = (stage !== "all" ? 1 : 0) + (owners && owner !== "all" ? 1 : 0);
+  const extra =
+    (stage !== "all" ? 1 : 0) + (tag !== "all" ? 1 : 0) + (owners && owner !== "all" ? 1 : 0);
   const filtered = filter !== "all" || extra > 0;
 
   function clearAll() {
     onFilter("all");
     onStage("all");
+    onTag("all");
     onOwner("all");
   }
 
@@ -172,7 +182,7 @@ export function FilterMenu({
               })}
             </ul>
 
-            {(stages.length > 0 || owners) && (
+            {(stages.length > 0 || tags.length > 0 || owners) && (
               <div className="mt-1.5 space-y-2 border-t px-2 pb-1 pt-2.5">
                 {stages.length > 0 && (
                   <label className="block">
@@ -190,6 +200,27 @@ export function FilterMenu({
                       {stages.map((s) => (
                         <option key={s} value={s}>
                           {s}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                )}
+                {tags.length > 0 && (
+                  <label className="block">
+                    <span className="kicker mb-1 block">Etiqueta</span>
+                    <select
+                      value={tag}
+                      onChange={(e) => onTag(e.target.value)}
+                      aria-label="Filtrar por etiqueta"
+                      className={cn(
+                        "h-8 w-full rounded-md border bg-card px-2 text-[12.5px]",
+                        tag === "all" ? "border-input" : "border-brand"
+                      )}
+                    >
+                      <option value="all">Toda etiqueta</option>
+                      {tags.map(([id, name]) => (
+                        <option key={id} value={id}>
+                          {name}
                         </option>
                       ))}
                     </select>
