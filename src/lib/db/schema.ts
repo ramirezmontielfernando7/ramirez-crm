@@ -2543,6 +2543,41 @@ export const aiUsage = pgTable(
 );
 
 /**
+ * 036 (PR 1) — Consumo de IA por AGENTE: el mismo turno que ya cuenta
+ * `ai_usage`, desglosado por el agente que lo pidió (organización, mes UTC,
+ * agente, tipo). Solo reporta; los topes siguen en la fila `total` de
+ * `ai_usage`. Tipos con agente: `agent` (turno real), `lab` (Laboratorio y
+ * vista previa) y `judge` (el juez evaluando a ese agente). La escritura y los
+ * embeddings no tienen agente y no llegan aquí. Existe desde su migración: lo
+ * anterior no se reconstruye.
+ */
+export const aiUsageAgent = pgTable(
+  "ai_usage_agent",
+  {
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    /** Primer día del mes en UTC, 'YYYY-MM-01' (igual que `ai_usage`). */
+    period: text("period").notNull(),
+    agentId: text("agent_id").notNull(),
+    kind: text("kind", { enum: ["agent", "lab", "judge"] }).notNull(),
+    turns: integer("turns").notNull().default(0),
+    promptTokens: integer("prompt_tokens").notNull().default(0),
+    completionTokens: integer("completion_tokens").notNull().default(0),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.organizationId, t.period, t.agentId, t.kind] }),
+    check("ai_usage_agent_kind_chk", sql`${t.kind} in ('agent', 'lab', 'judge')`),
+    foreignKey({
+      name: "ai_usage_agent_org_agent_fk",
+      columns: [t.organizationId, t.agentId],
+      foreignColumns: [agent.organizationId, agent.id],
+    }).onDelete("cascade"),
+  ]
+);
+
+/**
  * Fase 3, PR 2 — Administradores de PLATAFORMA (no son un rol de
  * organización: ser Propietario de un negocio no da nada aquí). El primero lo
  * crea el operador con `scripts/platform-admin.mjs`; nunca desde la interfaz.

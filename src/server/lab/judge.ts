@@ -33,6 +33,8 @@ export type JudgeOutcome =
 export async function judgeCase(input: {
   /** Fase 3: el juez gasta de la cuota de IA de esta organización. */
   organizationId: string;
+  /** 036 — El agente evaluado: el juez se anota a su consumo. */
+  agentId: string;
   personaKey: string;
   transcript: { role: "cliente" | "agente"; text: string }[];
   kbText: string;
@@ -52,7 +54,7 @@ export async function judgeCase(input: {
       { role: "system", content: system },
       { role: "user", content: user },
     ],
-    { judge: true }
+    { judge: true, agentId: input.agentId }
   );
   if (!result.ok) {
     // Diagnóstico operativo: el caso queda visible como judge_failed y aquí

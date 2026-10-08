@@ -107,7 +107,8 @@ describe("vista previa: sandbox inviolable", () => {
     expect(sendText).not.toHaveBeenCalled();
     expect(offerSlots).not.toHaveBeenCalled();
     expect(bookSlot).not.toHaveBeenCalled();
-    expect(chatJsonForOrg).toHaveBeenCalledWith("org_1", "lab", expect.anything(), expect.anything());
+    // 036: la vista previa se anota al agente que se edita (ai_usage_agent, dentro de la cuota).
+    expect(chatJsonForOrg).toHaveBeenCalledWith("org_1", "lab", expect.anything(), expect.anything(), { agentId: "agt_1" });
   });
 
   it("el modelo recibe el historial del cliente y el mensaje nuevo, al final", async () => {

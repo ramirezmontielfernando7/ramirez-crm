@@ -88,6 +88,7 @@ describe("decideTurn", () => {
   const input = {
     organizationId: "org_1",
     kind: "agent" as const,
+    agentId: "agt_test",
     config,
     kb,
     stages,
@@ -104,6 +105,8 @@ describe("decideTurn", () => {
     const d = await decideTurn(input);
     expect(systemOf(chatJsonForOrg.mock.calls.at(-1)!)).toBe(buildAgentSystemPrompt(base));
     expect(d.meta.docChunkIds).toEqual([]);
+    // 036: el turno se anota al agente que decide.
+    expect(chatJsonForOrg.mock.calls.at(-1)![4]).toEqual({ agentId: "agt_test" });
   });
 
   it("con documentos los incluye, con un nonce nuevo en cada turno, y registra cuáles", async () => {

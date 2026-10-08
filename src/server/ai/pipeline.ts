@@ -124,6 +124,8 @@ export type DecideInput = {
   organizationId: string;
   /** "agent" en conversaciones reales; "lab" en el Laboratorio y la vista previa. */
   kind: "agent" | "lab";
+  /** 036 — El agente que decide (su consumo se le anota en `ai_usage_agent`). */
+  agentId: string;
   config: AgentPromptConfig;
   kb: KbItem[];
   stages: Stage[];
@@ -308,6 +310,7 @@ async function loadTurnContext(conversationId: string, opts: TurnOptions): Promi
       organizationId,
       // Fase 3: el Laboratorio cuenta aparte ("lab") pero contra el mismo tope.
       kind: conversation.isTest ? "lab" : "agent",
+      agentId: agent.agentId,
       config: toPromptConfig(agent.config),
       kb,
       stages,
@@ -352,7 +355,8 @@ export async function decideTurn(input: DecideInput): Promise<TurnDecision> {
     input.organizationId,
     input.kind,
     agentActionSchema(input.agenda),
-    messages
+    messages,
+    { agentId: input.agentId }
   );
   const meta: DecisionMeta = {
     ms: Date.now() - started,
