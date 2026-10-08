@@ -13,6 +13,7 @@ import {
   STORAGE_CATEGORY_LABEL,
   STORAGE_LABEL,
   STORAGE_NOTE,
+  turnos,
   type Meter,
   type MeterTone,
 } from "@/lib/usage";
@@ -29,11 +30,22 @@ const FILL: Record<MeterTone, string> = {
   danger: "bg-destructive",
 };
 
-export function UsageMeter({ meter, label, testId }: { meter: Meter; label: string; testId?: string }) {
+export function UsageMeter({
+  meter,
+  label,
+  testId,
+  showLabel = "mobile",
+}: {
+  meter: Meter;
+  label: string;
+  testId?: string;
+  /** La etiqueta visible: solo en el celular (la lista tiene encabezados) o nunca. */
+  showLabel?: "mobile" | "never";
+}) {
   const pct = meter.ratio === null ? null : Math.min(100, Math.round(meter.ratio * 100));
   return (
     <div className="min-w-0" title={meter.detail} data-testid={testId} data-tone={meter.tone}>
-      <span className="block text-[11px] text-text-3 sm:hidden">{label}</span>
+      {showLabel === "mobile" && <span className="block text-[11px] text-text-3 sm:hidden">{label}</span>}
       <span
         className={cn(
           "block truncate text-xs tabular-nums",
@@ -71,8 +83,7 @@ function Line({ label, value, hint }: { label: string; value: string; hint?: str
   );
 }
 
-const tokensYTurnos = (t: { tokens: number; turns: number }) =>
-  `${formatTokens(t.tokens)} tokens · ${t.turns.toLocaleString("es-MX")} turnos`;
+const tokensYTurnos = (t: { tokens: number; turns: number }) => `${formatTokens(t.tokens)} tokens · ${turnos(t.turns)}`;
 
 /** El consumo del mes de UNA organización (se pide al abrir su fila). */
 export function UsageDetail({ orgId }: { orgId: string }) {
@@ -103,7 +114,7 @@ export function UsageDetail({ orgId }: { orgId: string }) {
     <div className="grid gap-5 md:grid-cols-2" data-testid="platform-usage-detail">
       <section className="min-w-0 space-y-2">
         <h4 className="text-xs font-medium text-text-2">IA de {mesDe(detail.period)} (UTC)</h4>
-        <UsageMeter meter={cuota} label="IA del mes" testId="platform-usage-ai" />
+        <UsageMeter meter={cuota} label="IA del mes" testId="platform-usage-ai" showLabel="never" />
         <p className="text-xs text-text-3">{cuota.detail}</p>
 
         <div>

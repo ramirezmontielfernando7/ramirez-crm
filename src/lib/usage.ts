@@ -110,6 +110,11 @@ export function formatTokens(n: number): string {
     .replace(/\s/g, " ");
 }
 
+/** «1 turno», «3 turnos». */
+export function turnos(n: number): string {
+  return `${n.toLocaleString("es-MX")} ${n === 1 ? "turno" : "turnos"}`;
+}
+
 export type MeterTone = "normal" | "warning" | "danger";
 
 /** 80 % o más avisa; 100 % o más es rojo. */
@@ -141,7 +146,10 @@ export function aiMeter(
   const tokensRatio = limits.tokens ? used.tokens / limits.tokens : limits.tokens === 0 ? Infinity : null;
   const turnsRatio = limits.turns ? used.turns / limits.turns : limits.turns === 0 ? Infinity : null;
   const tokensLine = `${formatTokens(used.tokens)}${limits.tokens !== null ? ` / ${formatTokens(limits.tokens)}` : ""} tokens`;
-  const turnsLine = `${used.turns.toLocaleString("es-MX")}${limits.turns !== null ? ` / ${limits.turns.toLocaleString("es-MX")}` : ""} turnos`;
+  const turnsLine =
+    limits.turns !== null
+      ? `${used.turns.toLocaleString("es-MX")} / ${limits.turns.toLocaleString("es-MX")} turnos`
+      : turnos(used.turns);
   const detail = `${tokensLine} · ${turnsLine}${limits.tokens === null && limits.turns === null ? " · sin tope" : ""}`;
   if (tokensRatio === null && turnsRatio === null) {
     return { text: `${formatTokens(used.tokens)} tokens · sin tope`, ratio: null, tone: "normal", detail };

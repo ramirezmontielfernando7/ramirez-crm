@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { countActiveModules, PLATFORM_MODULE_LABEL, PLATFORM_MODULE_TOGGLES } from "@/lib/platform-modules";
-import { aiMeter, formatTokens, meterTone, storageMeter } from "@/lib/usage";
+import { aiMeter, formatTokens, meterTone, storageMeter, turnos } from "@/lib/usage";
 
 /** 036 (PR 4) — Medidores y «x/12» de la lista de /platform (reglas puras). */
 describe("medidores de /platform", () => {
@@ -9,6 +9,12 @@ describe("medidores de /platform", () => {
     expect(formatTokens(12_345)).toBe("12.3 k");
     expect(formatTokens(1_234_567)).toBe("1.2 M");
     expect(formatTokens(-3)).toBe("0");
+  });
+
+  it("turno en singular, turnos en plural", () => {
+    expect(turnos(1)).toBe("1 turno");
+    expect(turnos(0)).toBe("0 turnos");
+    expect(aiMeter({ turns: 1, tokens: 10 }, { turns: null, tokens: null }).detail).toContain("· 1 turno");
   });
 
   it("tono: normal < 80 % ≤ aviso < 100 % ≤ rojo; sin tope, normal", () => {

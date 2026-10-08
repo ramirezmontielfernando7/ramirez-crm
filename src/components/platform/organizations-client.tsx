@@ -512,7 +512,7 @@ export function OrganizationsClient({ adminUserId }: { adminUserId: string }) {
           <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-text-3" aria-hidden />
           <Input
             className="pl-8"
-            placeholder="Buscar por nombre o propietario"
+            placeholder="Buscar organización"
             aria-label="Buscar organizaciones"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
