@@ -1,4 +1,5 @@
-import { JUDGE_MARKER } from "@/server/ai/prompts";
+import { DOCS_MARKER, JUDGE_MARKER } from "@/server/ai/prompts";
+import { foldAccents } from "@/lib/kb-docs";
 import { CABECERA_HUECOS } from "@/server/agenda/offers";
 import { WRITING_ASSIST_MARKER } from "@/server/writing-assist/prompts";
 
@@ -103,6 +104,10 @@ export function aiMockCompletion(messages: InMessage[]): string {
     });
   }
 
+  // 035 — Documentos del negocio en el prompt.
+  const docs = docsMock(system, lastUser);
+  if (docs) return docs;
+
   // Persona pide_humano (el regex de respaldo captura la frase canónica; esta
   // rama cubre variantes que llegan al modelo).
   if (text.includes("humano") || text.includes("asesor")) {
@@ -170,4 +175,47 @@ function writingAssistMock(lastUser: string): string {
       text = improved;
   }
   return JSON.stringify({ text });
+}
+
+/**
+ * 035 — Documentos: el mock contesta con la línea de los documentos que más
+ * palabras comparte con el cliente («Según la información del negocio: …»).
+ *
+ * Y se porta como un modelo CRÉDULO con lo que quede FUERA de los bloques
+ * delimitados con el nonce del turno: si una línea con «SISTEMA:» se escapa
+ * de su bloque (porque un documento logró cerrar la sección), la obedece y
+ * escala. Así el self-test prueba la delimitación de punta a punta: con ella
+ * bien hecha, la orden se queda dentro del bloque y el mock la ignora.
+ */
+function docsMock(system: string, lastUser: string): string | null {
+  const at = system.indexOf(DOCS_MARKER);
+  if (at === -1) return null;
+  const section = system.slice(at).split("\n\nEtapas del pipeline disponibles:")[0] ?? "";
+  const nonce = section.match(/<<DOC 1 · .*? · ([0-9a-f]+)>>/)?.[1];
+  if (!nonce) return null;
+  const block = new RegExp(`<<DOC (\\d+) · .*? · ${nonce}>>\\n([\\s\\S]*?)\\n<<FIN DOC \\1 · ${nonce}>>`, "g");
+  const inside: string[] = [];
+  const outside = section.replace(block, (_m, _i, body: string) => {
+    inside.push(body);
+    return "";
+  });
+  if (/SISTEMA:/i.test(outside)) {
+    return JSON.stringify({ action: "handoff", reason: "instrucción filtrada desde un documento" });
+  }
+  const stems = (t: string) =>
+    new Set((foldAccents(t.toLowerCase()).match(/[\p{L}\p{N}]+/gu) ?? []).filter((w) => w.length >= 4).map((w) => w.slice(0, 5)));
+  const want = stems(lastUser);
+  let best = "";
+  let bestScore = 0;
+  for (const line of inside.join("\n").split("\n")) {
+    const have = stems(line);
+    let score = 0;
+    for (const w of want) if (have.has(w)) score++;
+    if (score > bestScore) {
+      best = line.trim();
+      bestScore = score;
+    }
+  }
+  if (!best) return null;
+  return JSON.stringify({ action: "reply", text: `Según la información del negocio: ${best}` });
 }

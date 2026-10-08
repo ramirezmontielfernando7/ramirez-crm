@@ -1,5 +1,6 @@
 import {
   boolean,
+  customType,
   date,
   foreignKey,
   check,
@@ -9,6 +10,7 @@ import {
   numeric,
   pgTable,
   primaryKey,
+  real,
   text,
   timestamp,
   unique,
@@ -2521,7 +2523,7 @@ export const aiUsage = pgTable(
       .references(() => organization.id, { onDelete: "cascade" }),
     /** Primer día del mes en UTC, 'YYYY-MM-01'. */
     period: text("period").notNull(),
-    /** agent | lab | judge | writing */
+    /** agent | lab | judge | writing | embed (035, aparte del total) | total */
     kind: text("kind").notNull(),
     turns: integer("turns").notNull().default(0),
     promptTokens: integer("prompt_tokens").notNull().default(0),
@@ -3025,3 +3027,99 @@ export const workNote = pgTable(
     }).onDelete("set null"),
   ]
 );
+
+/**
+ * 035 — `tsvector` de Postgres (búsqueda por texto en español). Solo se lee
+ * en SQL (`@@`, `ts_rank_cd`): la columna es generada y nadie la escribe.
+ */
+const tsvector = customType<{ data: string }>({
+  dataType() {
+    return "tsvector";
+  },
+});
+
+/**
+ * 035 — Documentos del negocio que lee el agente (RAG ligero). Solo se guarda
+ * el TEXTO extraído (para reindexar si cambia el modelo de embeddings); el
+ * archivo original no. Única puerta: `src/server/kb-docs/store.ts`.
+ * `embedding_model` NULL = sus fragmentos solo se buscan por texto.
+ */
+export const kbDocument = pgTable(
+  "kb_document",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    filename: text("filename").notNull(),
+    mime: text("mime", { enum: ["text/plain", "text/markdown", "application/pdf"] }).notNull(),
+    byteSize: integer("byte_size").notNull(),
+    charCount: integer("char_count").notNull(),
+    contentSha256: text("content_sha256").notNull(),
+    text: text("text").notNull(),
+    status: text("status", { enum: ["pending", "processing", "ready", "failed"] }).notNull().default("pending"),
+    errorCode: text("error_code"),
+    chunkCount: integer("chunk_count").notNull().default(0),
+    embeddingModel: text("embedding_model"),
+    uploadedByUserId: text("uploaded_by_user_id").references(() => user.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+    indexedAt: timestamp("indexed_at"),
+  },
+  (t) => [
+    unique("kb_document_org_id_uq").on(t.organizationId, t.id),
+    unique("kb_document_org_sha_uq").on(t.organizationId, t.contentSha256),
+    check("kb_document_mime_chk", sql`${t.mime} in ('text/plain', 'text/markdown', 'application/pdf')`),
+    check("kb_document_status_chk", sql`${t.status} in ('pending', 'processing', 'ready', 'failed')`),
+    check("kb_document_title_chk", sql`char_length(${t.title}) between 1 and 200`),
+    index("kb_document_org_status_idx").on(t.organizationId, t.status),
+  ]
+);
+
+/** 035 — Fragmentos de un documento: texto + `tsvector` + vector (`real[]`). */
+export const kbChunk = pgTable(
+  "kb_chunk",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    documentId: text("document_id").notNull(),
+    ordinal: integer("ordinal").notNull(),
+    content: text("content").notNull(),
+    // Sin acentos (la mayoría escribe «envio», no «envío»), con la ñ intacta:
+    // la consulta se normaliza igual en `src/lib/kb-docs.ts` (`foldAccents`).
+    tsv: tsvector("tsv").generatedAlwaysAs(
+      sql`to_tsvector('spanish'::regconfig, translate("content", 'ÁÉÍÓÚÜáéíóúü', 'AEIOUUaeiouu'))`
+    ),
+    embedding: real("embedding").array(),
+    embeddingModel: text("embedding_model"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    unique("kb_chunk_doc_ordinal_uq").on(t.organizationId, t.documentId, t.ordinal),
+    check("kb_chunk_content_chk", sql`char_length(${t.content}) between 1 and 2000`),
+    index("kb_chunk_tsv_idx").using("gin", t.tsv),
+    foreignKey({
+      name: "kb_chunk_org_document_fk",
+      columns: [t.organizationId, t.documentId],
+      foreignColumns: [kbDocument.organizationId, kbDocument.id],
+    }).onDelete("cascade"),
+  ]
+);
+
+/**
+ * 035 — Límites propios de una organización (NULL o sin fila = los del
+ * entorno: KB_DOCS_MAX_FILE_MB, KB_DOCS_MAX_DOCUMENTS, KB_DOCS_MAX_CHUNKS).
+ * Los fija el operador con `scripts/kb-limits.mjs`.
+ */
+export const kbDocumentLimit = pgTable("kb_document_limit", {
+  organizationId: text("organization_id")
+    .primaryKey()
+    .references(() => organization.id, { onDelete: "cascade" }),
+  maxFileBytes: integer("max_file_bytes"),
+  maxDocuments: integer("max_documents"),
+  maxChunks: integer("max_chunks"),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});

@@ -5,6 +5,7 @@ import { agendaEnabled } from "@/server/agenda/flag";
 import { HANDOFF_BACKUP_ACK, matchesHandoffIntent } from "@/server/ai/handoff";
 import { decideTurn, type TurnDecision } from "@/server/ai/pipeline";
 import { toPromptConfig, type AgentConfig } from "./config";
+import { retrieveForTurn } from "@/server/kb-docs/retrieve";
 import { kbForConfig } from "./resolve";
 import { AgentError, getAgent } from "./store";
 
@@ -38,6 +39,8 @@ export type PreviewResult =
         tokens: { prompt: number; completion: number } | null;
         ms: number;
         kbEntryIds: string[];
+        /** 035 — Fragmentos de documentos que el agente tuvo a la vista. */
+        docChunkIds: string[];
       };
     }
   | { ok: false; error: "quota_exceeded" | "not_configured" };
@@ -64,7 +67,7 @@ export async function runPreview(input: PreviewInput): Promise<PreviewResult> {
       reply: HANDOFF_BACKUP_ACK,
       chips: [{ kind: "handoff", label: "Escalaría a humano (el cliente pidió una persona)" }],
       escalated: true,
-      debug: { action: "handoff", model: null, tokens: null, ms: 0, kbEntryIds: [] },
+      debug: { action: "handoff", model: null, tokens: null, ms: 0, kbEntryIds: [], docChunkIds: [] },
     };
   }
 
@@ -75,6 +78,12 @@ export async function runPreview(input: PreviewInput): Promise<PreviewResult> {
     .where(scoped(schema.pipelineStage.organizationId, input.organizationId))
     .orderBy(asc(schema.pipelineStage.position));
   const agenda = await agendaEnabled(input.organizationId);
+  const history = [
+    ...input.history.map((m) => ({ role: m.role, content: m.text })),
+    { role: "user" as const, content: input.message },
+  ];
+  // 035 — Igual que en producción: los documentos que vienen al caso.
+  const docs = await retrieveForTurn(input.organizationId, history);
 
   const decision = await decideTurn({
     organizationId: input.organizationId,
@@ -83,11 +92,9 @@ export async function runPreview(input: PreviewInput): Promise<PreviewResult> {
     kb,
     stages,
     agenda,
-    history: [
-      ...input.history.map((m) => ({ role: m.role, content: m.text })),
-      { role: "user" as const, content: input.message },
-    ],
+    history,
     tail: null,
+    docs,
   });
   return toPreview(decision);
 }
@@ -99,6 +106,7 @@ export function toPreview(decision: TurnDecision): PreviewResult {
     tokens: decision.meta.tokens,
     ms: decision.meta.ms,
     kbEntryIds: decision.meta.kbEntryIds,
+    docChunkIds: decision.meta.docChunkIds,
   };
   if (!decision.ok) {
     if (decision.error === "quota_exceeded" || decision.error === "not_configured") {

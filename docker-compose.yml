@@ -59,6 +59,14 @@ services:
       BOT_API_KEY: ${BOT_API_KEY:-}
       PLATFORM_ORG_ID: ${PLATFORM_ORG_ID:-}
       BRAIN_HEALTH_URL: ${BRAIN_HEALTH_URL:-}
+      # 035 — Documentos del agente (docs/conocimiento-rag.md). KB_DOCS vacía =
+      # apagado. Sin EMBEDDINGS_BASE_URL los documentos se buscan solo por
+      # texto; con el servicio `embeddings` de abajo (perfil `rag`), usa
+      # http://embeddings:80.
+      KB_DOCS: ${KB_DOCS:-}
+      EMBEDDINGS_BASE_URL: ${EMBEDDINGS_BASE_URL:-}
+      EMBEDDINGS_MODEL: ${EMBEDDINGS_MODEL:-intfloat/multilingual-e5-small}
+      EMBEDDINGS_API_TOKEN: ${EMBEDDINGS_API_TOKEN:-}
     volumes:
       # Adjuntos, logo e icono (la imagen ya trae MEDIA_DIR=/data/media): sin
       # este volumen se pierden al recrear el contenedor.
@@ -82,6 +90,26 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
+
+  # 035 — Servicio de embeddings LOCAL (opcional): Hugging Face TEI en CPU
+  # con multilingual-e5-small. Solo arranca con el perfil `rag`:
+  #   docker compose --profile rag up -d
+  # Límites de memoria y CPU: si se pasa, Docker reinicia ESTE contenedor, no
+  # Postgres ni la app (y la app sigue buscando por texto mientras tanto).
+  # El modelo se descarga de huggingface.co la primera vez y queda en el
+  # volumen. Guía y medición de RAM: docs/conocimiento-rag.md.
+  embeddings:
+    image: ghcr.io/huggingface/text-embeddings-inference:cpu-1.8
+    profiles: ["rag"]
+    restart: unless-stopped
+    environment:
+      MODEL_ID: ${EMBEDDINGS_MODEL:-intfloat/multilingual-e5-small}
+      # Un fragmento demasiado largo se recorta en vez de dar error.
+      AUTO_TRUNCATE: "true"
+    volumes:
+      - vocero_embeddings:/data
+    mem_limit: ${EMBEDDINGS_MEM_LIMIT:-1g}
+    cpus: ${EMBEDDINGS_CPUS:-2}
 
   caddy:
     image: caddy:2-alpine
@@ -108,3 +136,4 @@ volumes:
   vocero_app_data:
   vocero_caddy_data:
   vocero_caddy_config:
+  vocero_embeddings:

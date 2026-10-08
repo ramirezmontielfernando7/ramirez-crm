@@ -66,6 +66,9 @@ const prefixes = {
   // 033 — Trabajo (Tareas)
   workTask: "tsk",
   workNote: "nte",
+  // 035 — Documentos del agente (RAG)
+  kbDocument: "kbd",
+  kbChunk: "kbc",
   user: "usr",
   account: "acc",
 } as const;

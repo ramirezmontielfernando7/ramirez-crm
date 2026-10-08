@@ -44,7 +44,8 @@ export class LlmInTransactionError extends Error {
   }
 }
 
-function assertNoOpenTransaction(): void {
+/** También la usa el adaptador de embeddings (035): misma regla, mismo motivo. */
+export function assertNoOpenTransaction(): void {
   if (!hasOpenTransaction()) return;
   const err = new LlmInTransactionError();
   if (process.env.NODE_ENV !== "production") throw err;
