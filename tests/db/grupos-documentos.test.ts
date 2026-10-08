@@ -5,7 +5,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 import { getDb, getSystemDb, schema } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
 import { resetEnvCacheForTests } from "@/lib/env";
-import { MAX_DOC_GROUPS } from "@/lib/kb-docs";
+import { docScopeFor, MAX_DOC_GROUPS } from "@/lib/kb-docs";
 import { runWithOrganization } from "@/lib/request-context";
 import { embeddingsMock } from "@/server/dev/embeddings-mock";
 import { forgetOrgModules } from "@/server/modules";
@@ -47,6 +47,8 @@ vi.mock("@/lib/auth/session", async (importOriginal) => {
 
 const { whenIndexerIdle } = await import("@/server/kb-docs/indexer");
 const { retrieveChunks, forgetKbVectorCache } = await import("@/server/kb-docs/retrieve");
+/** 037 — Lo de siempre: todos los documentos de la empresa (agente sin configurar). */
+const TODOS = docScopeFor(null, undefined);
 
 type Org = Awaited<ReturnType<typeof crearOrganizacion>>;
 let A: Org;
@@ -167,7 +169,7 @@ describe("General y los grupos", () => {
     como(A, ownerA);
     const g = await llamar("lab/document-groups", "GET");
     expect(g.status).toBe(200);
-    expect(g.data.groups).toEqual([{ id: null, name: "General", documents: 1 }]);
+    expect(g.data.groups).toEqual([{ id: null, name: "General", documents: 1, agents: 0 }]);
   });
 
   it("crear Ventas; repetido (sin importar mayúsculas) 409; «General» 422; vacío 422", async () => {
@@ -214,9 +216,9 @@ describe("General y los grupos", () => {
   });
 
   it("la recuperación no cambia en este PR: encuentra lo de General y lo de Ventas", async () => {
-    const enviar = await runWithOrganization(A.id, () => retrieveChunks(A.id, "¿el envio es gratis?"));
+    const enviar = await runWithOrganization(A.id, () => retrieveChunks(A.id, TODOS, "¿el envio es gratis?"));
     expect(enviar.some((x) => x.documentId === antiguo)).toBe(true);
-    const precio = await runWithOrganization(A.id, () => retrieveChunks(A.id, "¿cuánto cuesta el taladro?"));
+    const precio = await runWithOrganization(A.id, () => retrieveChunks(A.id, TODOS, "¿cuánto cuesta el taladro?"));
     expect(precio.some((x) => x.documentId === enVentas)).toBe(true);
   });
 
@@ -245,9 +247,9 @@ describe("General y los grupos", () => {
     expect((await llamar("lab/document-groups/[id]", "PATCH", { id: "kdg_noexiste", json: { name: "Otro" } })).status).toBe(404);
     const g = await llamar("lab/document-groups", "GET");
     expect(g.data.groups).toEqual([
-      { id: null, name: "General", documents: 1 },
-      { id: ventas, name: "Ventas y cobranza", documents: 1 },
-      { id: direccion, name: "Dirección", documents: 0 },
+      { id: null, name: "General", documents: 1, agents: 0 },
+      { id: ventas, name: "Ventas y cobranza", documents: 1, agents: 0 },
+      { id: direccion, name: "Dirección", documents: 0, agents: 0 },
     ]);
   });
 
@@ -255,7 +257,7 @@ describe("General y los grupos", () => {
     it("B solo ve su General; no renombra, no borra, no mueve a ni sube a un grupo de A", async () => {
       como(B, ownerB);
       const g = await llamar("lab/document-groups", "GET");
-      expect(g.data.groups).toEqual([{ id: null, name: "General", documents: 0 }]);
+      expect(g.data.groups).toEqual([{ id: null, name: "General", documents: 0, agents: 0 }]);
       expect((await llamar("lab/document-groups/[id]", "PATCH", { id: ventas, json: { name: "Mío" } })).status).toBe(404);
       expect((await llamar("lab/document-groups/[id]", "DELETE", { id: ventas })).status).toBe(404);
       expect((await llamar("lab/documents/[id]", "PATCH", { id: enVentas, json: { groupId: null } })).status).toBe(404);
@@ -348,7 +350,7 @@ describe("General y los grupos", () => {
     expect(d?.organizationId).toBe(A.id);
     const chunksDespues = await sys().select().from(schema.kbChunk).where(eq(schema.kbChunk.documentId, enVentas));
     expect(chunksDespues.length).toBe(chunksAntes.length);
-    const precio = await runWithOrganization(A.id, () => retrieveChunks(A.id, "¿cuánto cuesta el taladro?"));
+    const precio = await runWithOrganization(A.id, () => retrieveChunks(A.id, TODOS, "¿cuánto cuesta el taladro?"));
     expect(precio.some((x) => x.documentId === enVentas)).toBe(true);
     expect((await llamar("lab/document-groups/[id]", "DELETE", { id: ventas })).status).toBe(404);
   });

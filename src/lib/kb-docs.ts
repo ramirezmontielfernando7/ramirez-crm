@@ -346,3 +346,56 @@ export function groupKey(groupId: string | null): string {
 export function groupIdFromKey(key: string): string | null {
   return key === GENERAL_GROUP_KEY ? null : key;
 }
+
+/* ------------------------------------------------------------------
+ * 037 (PR 2) — De qué documentos lee cada agente
+ * ---------------------------------------------------------------- */
+
+/** Grupos que un agente puede elegir a la vez («Solo estos grupos»). */
+export const MAX_SOURCE_GROUPS = MAX_DOC_GROUPS + 1;
+
+/**
+ * Lo que guarda la config del agente (`docSources`):
+ * - `all`: todos los documentos de la empresa, de todos los grupos (por
+ *   defecto: un agente sin configurar se comporta como antes de 037);
+ * - `groups`: solo los de esos grupos (`general` = General).
+ * En los dos casos el agente lee además SUS documentos exclusivos (PR 3).
+ */
+export type DocSources = { mode: "all" } | { mode: "groups"; groupIds: string[] };
+
+export const ALL_DOC_SOURCES: DocSources = { mode: "all" };
+
+/**
+ * Lo que recibe la recuperación: las fuentes del agente que responde. Nunca
+ * se arma a mano: sale de `docScopeFor`.
+ */
+export type DocScope = { agentId: string | null } & DocSources;
+
+/** Sin repetidos y en orden (así dos selecciones iguales se comparan iguales). */
+export function normalizeDocSources(s: DocSources): DocSources {
+  if (s.mode === "all") return ALL_DOC_SOURCES;
+  return { mode: "groups", groupIds: [...new Set(s.groupIds)].sort() };
+}
+
+export function sameDocSources(a: DocSources, b: DocSources): boolean {
+  const x = normalizeDocSources(a);
+  const y = normalizeDocSources(b);
+  if (x.mode !== y.mode) return false;
+  if (x.mode === "all" || y.mode === "all") return true;
+  return x.groupIds.length === y.groupIds.length && x.groupIds.every((id, i) => id === y.groupIds[i]);
+}
+
+/** Las fuentes de un agente con esta config, listas para la recuperación. */
+export function docScopeFor(agentId: string | null, sources: DocSources | undefined): DocScope {
+  return { agentId, ...normalizeDocSources(sources ?? ALL_DOC_SOURCES) };
+}
+
+/**
+ * ¿El agente con este alcance lee este documento? La misma regla que el SQL
+ * de `store.ts` (`scopeCondition`); sirve para pruebas y para la pantalla.
+ */
+export function scopeAllows(scope: DocScope, doc: { groupId: string | null; agentId: string | null }): boolean {
+  if (doc.agentId !== null) return doc.agentId === scope.agentId;
+  if (scope.mode === "all") return true;
+  return scope.groupIds.includes(groupKey(doc.groupId));
+}

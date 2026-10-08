@@ -24,6 +24,13 @@
  *     moviendo (por defecto) y eliminando sus documentos (con la confirmación
  *     extra); sin configurar nada, el agente sigue leyendo todo; el Asesor
  *     403; B no ve ni toca los grupos de A; en 390 px, sin scroll horizontal.
+ *  9. 037 PR 2 — Fuentes por agente: en el editor, «Solo estos grupos» →
+ *     Ventas; la vista previa (con lo del formulario) y el agente publicado
+ *     leen Ventas y NO General; el general sin configurar lee los dos; un
+ *     grupo de otra organización → 422; la evaluación congela la selección
+ *     en su snapshot; un mensaje REAL por WhatsApp de un lead en la etapa del
+ *     agente responde con Ventas; al borrar el grupo, el diálogo cuenta al
+ *     agente que lo elige.
  *
  * Uso: app viva con WA_MOCK_ENABLED=true, los mocks (ai-mock, wa-mock),
  * KB_DOCS=on y EMBEDDINGS_BASE_URL=http://localhost:3000/api/dev/ai-mock:
@@ -432,6 +439,131 @@ async function main() {
     ok("y entonces borra el grupo y su documento", (await estado(A, preciosId)) === null);
     const sinDato2 = await preguntar("¿Cuánto cuesta el taladro inalámbrico?");
     ok("el agente deja de usar el documento borrado", sinDato2.status === 200 && !String(sinDato2.json?.reply ?? "").includes(DATO2), sinDato2.text.slice(0, 200));
+
+    console.log("\n== 9. 037 PR 2 — Fuentes por agente ==");
+    const V9 = `$${RUN.slice(-3)}9`;
+    const G9 = `${Number(RUN.slice(-2)) % 12 + 1}:45`;
+    const ventas9 = (await A.post("/api/lab/document-groups", { name: `Ventas 9 ${RUN}` })).json?.group?.id;
+    ok("grupo «Ventas 9»", Boolean(ventas9));
+    const subirA = async (nombre, contenido, groupId) => {
+      const form = new FormData();
+      form.append("file", new Blob([contenido], { type: "text/plain" }), nombre);
+      if (groupId) form.append("groupId", groupId);
+      const r = await A.api("/api/lab/documents", { method: "POST", body: form });
+      const id = r.json?.document?.id;
+      await hasta(async () => (await estado(A, id))?.status === "ready");
+      return id;
+    };
+    await subirA(`esmeril-${RUN}.txt`, `El esmeril angular cuesta ${V9} pesos en la sucursal.`, ventas9);
+    await subirA(`horario-centro-${RUN}.txt`, `La sucursal centro abre a las ${G9} horas de lunes a sabado.`);
+    const agente9 = (await A.post("/api/lab/agents", { internalName: `Ventas 9 E2E ${RUN}` })).json?.agent;
+    ok("agente nuevo para la prueba", Boolean(agente9?.id));
+
+    // Editor: «Documentos» → «Solo estos grupos» → Ventas 9 → Guardar → Publicar.
+    await page.goto(`${BASE}/lab/agents/${agente9.id}`);
+    await page.locator("summary", { hasText: /^Documentos$/ }).click();
+    await page.getByLabel(/Solo estos grupos/).check();
+    await page.getByTestId("agent-doc-sources-empty").waitFor();
+    ok("sin grupos elegidos, el editor avisa", true);
+    await page.getByRole("button", { name: new RegExp(`Ventas 9 ${RUN}`) }).click();
+    await page.getByRole("button", { name: "Guardar borrador" }).click();
+    await page.getByRole("status").filter({ hasText: /Borrador guardado/ }).waitFor();
+    await page.getByRole("button", { name: "Publicar" }).click();
+    await page.getByRole("dialog").getByRole("button", { name: "Publicar" }).click();
+    await page.getByRole("status").filter({ hasText: /^Publicado/ }).waitFor();
+    const pub9 = (await A.api(`/api/lab/agents/${agente9.id}`)).json?.agent;
+    ok("el editor guarda y publica la selección", JSON.stringify(pub9?.published?.docSources) === JSON.stringify({ mode: "groups", groupIds: [ventas9] }), JSON.stringify(pub9?.published?.docSources));
+
+    const pregunta9 = (message, agentId, config) => A.post("/api/lab/preview", { agentId, config, history: [], message });
+    const cfg9 = pub9?.published;
+    const precio9 = await pregunta9("¿Cuánto cuesta el esmeril angular?", agente9.id, cfg9);
+    ok("vista previa del agente de Ventas: responde con Ventas", precio9.status === 200 && String(precio9.json?.reply ?? "").includes(V9), precio9.text.slice(0, 300));
+    ok(
+      "«Por qué respondió así» dice de qué grupo vino",
+      (precio9.json?.debug?.docs ?? []).some((d) => d.from === `Ventas 9 ${RUN}`),
+      JSON.stringify(precio9.json?.debug?.docs)
+    );
+    const horario9 = await pregunta9("¿A qué hora abre la sucursal centro?", agente9.id, cfg9);
+    ok(
+      "…y NO lee General (lo que consulta viene solo de Ventas)",
+      horario9.status === 200 &&
+        !String(horario9.json?.reply ?? "").includes(G9) &&
+        (horario9.json?.debug?.docs ?? []).every((d) => d.from === `Ventas 9 ${RUN}`),
+      horario9.text.slice(0, 300)
+    );
+    const formulario9 = await pregunta9("¿A qué hora abre la sucursal centro?", agente9.id, { ...cfg9, docSources: { mode: "groups", groupIds: ["general"] } });
+    ok("la vista previa usa lo del formulario aunque no esté guardado", String(formulario9.json?.reply ?? "").includes(G9), formulario9.text.slice(0, 300));
+    const generalLee = await preguntar("¿A qué hora abre la sucursal centro?");
+    const generalLeeV = await preguntar("¿Cuánto cuesta el esmeril angular?");
+    ok(
+      "el general sin configurar sigue leyendo todo (General y Ventas)",
+      String(generalLee.json?.reply ?? "").includes(G9) && String(generalLeeV.json?.reply ?? "").includes(V9),
+      `${generalLee.text.slice(0, 150)} | ${generalLeeV.text.slice(0, 150)}`
+    );
+
+    const grupoB = (await B.post("/api/lab/document-groups", { name: `De B ${RUN}` })).json?.group?.id;
+    const ajeno = await A.api(`/api/lab/agents/${agente9.id}/draft`, {
+      method: "PUT",
+      body: JSON.stringify({ ...cfg9, docSources: { mode: "groups", groupIds: [grupoB] } }),
+    });
+    ok("elegir un grupo de otra organización → 422 unknown_group", ajeno.status === 422 && ajeno.json?.error?.code === "unknown_group", ajeno.text.slice(0, 200));
+    await B.api(`/api/lab/document-groups/${grupoB}`, { method: "DELETE" });
+
+    // La evaluación congela las fuentes en su snapshot.
+    let corrida = await A.post("/api/lab/runs", { agentId: agente9.id, source: "published" });
+    if (corrida.status === 409) {
+      await hasta(async () => !((await A.api("/api/lab/runs")).json?.runs ?? []).some((r) => r.status === "running"), 240000);
+      corrida = await A.post("/api/lab/runs", { agentId: agente9.id, source: "published" });
+    }
+    ok("evaluar al agente de Ventas → 202", corrida.status === 202, corrida.text.slice(0, 200));
+    const [snap] = await sql`select agent_snapshot from agent_test_run where id = ${corrida.json?.runId ?? ""}`;
+    ok(
+      "el snapshot de la evaluación guarda las fuentes (y sus nombres)",
+      JSON.stringify(snap?.agent_snapshot?.config?.docSources) === JSON.stringify({ mode: "groups", groupIds: [ventas9] }) &&
+        JSON.stringify(snap?.agent_snapshot?.docSourceNames) === JSON.stringify([`Ventas 9 ${RUN}`]),
+      JSON.stringify(snap?.agent_snapshot?.docSourceNames)
+    );
+    await hasta(async () => (await A.api(`/api/lab/runs/${corrida.json?.runId}`)).json?.run?.status !== "running", 240000);
+
+    // Producción: un lead nuevo entra en la primera etapa, que atiende el agente de Ventas.
+    const mapa9 = (await A.api("/api/lab/assignments")).json?.stages ?? [];
+    const primera9 = mapa9[0];
+    const previa9 = primera9?.agent?.id ?? null;
+    const asig9 = await A.put(`/api/lab/assignments/${primera9?.stageId}`, { agentId: agente9.id, replace: true });
+    ok("asignar el agente de Ventas a la primera etapa", asig9.status < 300, asig9.text.slice(0, 200));
+    const encendido9 = (await A.api("/api/agent/profile")).json?.profile?.enabled;
+    await A.put("/api/agent/profile", { enabled: true });
+    try {
+      const tel9 = `52155${RUN}39`;
+      const escribe9 = async (text, n) => {
+        await A.api("/api/dev/wa-mock/outbox", { method: "DELETE" });
+        await A.post("/api/dev/wa-mock/inbound", { phoneNumberId: pn, from: tel9, name: `Cliente Fuentes ${RUN}`, text, waMessageId: `wamid.fuentes.${RUN}.${n}` });
+        let r = null;
+        await hasta(async () => {
+          r = ((await A.api("/api/dev/wa-mock/outbox")).json?.outbox ?? []).find((o) => o.to === tel9) ?? null;
+          return r;
+        }, 45000);
+        return JSON.stringify(r ?? {});
+      };
+      const real9 = await escribe9("¿Cuánto cuesta el esmeril angular?", 1);
+      ok("un mensaje REAL de un lead en esa etapa se responde con el documento de Ventas", real9.includes(V9), real9.slice(0, 300));
+      const real9b = await escribe9("¿A qué hora abre la sucursal centro?", 2);
+      ok("…y el agente de la etapa no lee General", !real9b.includes(G9), real9b.slice(0, 300));
+    } finally {
+      await A.put("/api/agent/profile", { enabled: Boolean(encendido9) });
+      if (previa9) await A.put(`/api/lab/assignments/${primera9.stageId}`, { agentId: previa9, replace: true });
+      else await A.api(`/api/lab/assignments/${primera9?.stageId}`, { method: "DELETE" });
+    }
+
+    // Al borrar el grupo, el diálogo cuenta al agente que lo elige.
+    const lista9 = (await A.api("/api/lab/document-groups")).json?.groups ?? [];
+    ok("la lista de grupos cuenta 1 agente para «Ventas 9»", lista9.find((g) => g.id === ventas9)?.agents === 1, JSON.stringify(lista9));
+    await page.goto(`${BASE}/lab/documentos/${ventas9}`);
+    await page.getByRole("button", { name: /^Opciones del grupo / }).click();
+    await page.getByRole("menuitem", { name: "Eliminar grupo" }).click();
+    ok("el diálogo de eliminar avisa del agente afectado", /1 agente elige este grupo/.test(await page.getByTestId("kb-group-delete-agents").innerText()));
+    await page.getByRole("dialog").getByRole("button", { name: "Cancelar" }).click();
+    await A.api(`/api/lab/agents/${agente9.id}`, { method: "DELETE" });
   } finally {
     await browser.close();
   }

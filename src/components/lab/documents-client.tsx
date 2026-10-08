@@ -543,6 +543,13 @@ function DeleteGroupDialog({
           </fieldset>
         </>
       )}
+      {(group.agents ?? 0) > 0 && (
+        <p className="text-foreground" data-testid="kb-group-delete-agents">
+          {(group.agents ?? 0) === 1
+            ? "1 agente elige este grupo en «Solo estos grupos»: al eliminarlo, deja de leer sus documentos."
+            : `${group.agents} agentes eligen este grupo en «Solo estos grupos»: al eliminarlo, dejan de leer sus documentos.`}
+        </p>
+      )}
       {error && <p role="alert" className="text-destructive">{error}</p>}
     </ConfirmDialog>
   );

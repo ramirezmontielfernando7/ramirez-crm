@@ -2,7 +2,7 @@ import { and, asc, desc, eq, inArray, isNotNull, isNull, ne, or, sql, type SQL }
 import { getDb, getSystemDb, schema, withTenant, type Db } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
 import { scoped } from "@/lib/db/tenant";
-import { GENERAL_GROUP_NAME, MAX_DOC_GROUPS, type KbDocErrorCode, type KbDocMime, type KbGroupErrorCode } from "@/lib/kb-docs";
+import { GENERAL_GROUP_KEY, GENERAL_GROUP_NAME, MAX_DOC_GROUPS, type DocScope, type KbDocErrorCode, type KbDocMime, type KbGroupErrorCode } from "@/lib/kb-docs";
 import { getKbDocLimits } from "./limits";
 
 /**
@@ -193,7 +193,13 @@ export async function deleteDocument(organizationId: string, id: string): Promis
 export type KbDocumentGroup = typeof schema.kbDocumentGroup.$inferSelect;
 
 /** Un grupo con cuántos documentos tiene (`id: null` = General). */
-export type KbGroupSummary = { id: string | null; name: string; documents: number };
+export type KbGroupSummary = {
+  id: string | null;
+  name: string;
+  documents: number;
+  /** 037 (PR 2) — Agentes que eligen este grupo («Solo estos grupos»); lo llena la ruta. */
+  agents?: number;
+};
 
 async function groupExists(tx: Db, organizationId: string, id: string): Promise<boolean> {
   const [row] = await tx
@@ -305,6 +311,22 @@ export async function deleteGroup(
     await tx.delete(schema.kbDocumentGroup).where(scoped(g.organizationId, organizationId, eq(g.id, id)));
     return { documents: affected.length };
   });
+}
+
+/**
+ * 037 (PR 2) — De estos ids de grupo, cuáles existen en la organización
+ * (`general` siempre). Para validar la selección de un agente al guardarla.
+ */
+export async function existingGroupIds(organizationId: string, ids: string[], db: Db = getDb()): Promise<Set<string>> {
+  const named = [...new Set(ids)].filter((id) => id !== GENERAL_GROUP_KEY);
+  const found = new Set<string>([GENERAL_GROUP_KEY]);
+  if (named.length === 0) return found;
+  const rows = await db
+    .select({ id: schema.kbDocumentGroup.id })
+    .from(schema.kbDocumentGroup)
+    .where(scoped(schema.kbDocumentGroup.organizationId, organizationId, inArray(schema.kbDocumentGroup.id, named)));
+  for (const r of rows) found.add(r.id);
+  return found;
 }
 
 /** Mueve un documento de la empresa a otro grupo (`null` = General). `null` si el documento no existe. */
@@ -471,25 +493,62 @@ export async function documentsToResume(currentModel: string | null): Promise<{ 
  * Recuperación (src/server/kb-docs/retrieve.ts)
  * ---------------------------------------------------------------- */
 
-export type ChunkHit = { id: string; documentId: string; title: string; content: string };
+export type ChunkHit = {
+  id: string;
+  documentId: string;
+  title: string;
+  content: string;
+  /** 037 — De dónde viene (para «Por qué respondió así»). */
+  groupId: string | null;
+  agentId: string | null;
+};
 
-/** Búsqueda por texto (`tsquery` ya saneada por `lexicalQuery`). */
-export async function lexicalSearch(organizationId: string, tsquery: string, limit: number): Promise<ChunkHit[]> {
+/**
+ * 037 (PR 2) — Qué documentos puede leer el agente de `scope`, en SQL. Va
+ * SIEMPRE dentro de `scoped(organización, …)`: la organización (y RLS) es la
+ * primera barrera; esto es la segunda. La misma regla que `scopeAllows` de
+ * `src/lib/kb-docs.ts`:
+ *   (de la empresa Y (todos | su grupo está entre los elegidos)) O exclusivo de ESTE agente
+ */
+export function scopeCondition(scope: DocScope): SQL {
+  const d = schema.kbDocument;
+  const ofThisAgent = scope.agentId ? eq(d.agentId, scope.agentId) : sql`false`;
+  if (scope.mode === "all") return or(isNull(d.agentId), ofThisAgent)!;
+  const ids = scope.groupIds;
+  const general = ids.includes(GENERAL_GROUP_KEY) ? isNull(d.groupId) : undefined;
+  const named = ids.filter((id) => id !== GENERAL_GROUP_KEY);
+  const inGroups = or(general, named.length > 0 ? inArray(d.groupId, named) : undefined);
+  return or(inGroups ? and(isNull(d.agentId), inGroups) : undefined, ofThisAgent)!;
+}
+
+const hitColumns = () => ({
+  id: schema.kbChunk.id,
+  documentId: schema.kbChunk.documentId,
+  title: schema.kbDocument.title,
+  content: schema.kbChunk.content,
+  groupId: schema.kbDocument.groupId,
+  agentId: schema.kbDocument.agentId,
+});
+
+/** Búsqueda por texto (`tsquery` ya saneada por `lexicalQuery`), solo en lo que el agente puede leer. */
+export async function lexicalSearch(organizationId: string, scope: DocScope, tsquery: string, limit: number): Promise<ChunkHit[]> {
   const c = schema.kbChunk;
   const d = schema.kbDocument;
   const q = sql`to_tsquery('spanish'::regconfig, ${tsquery})`;
   return getDb()
-    .select({ id: c.id, documentId: c.documentId, title: d.title, content: c.content })
+    .select(hitColumns())
     .from(schema.kbChunk)
     .innerJoin(schema.kbDocument, and(eq(d.organizationId, c.organizationId), eq(d.id, c.documentId)))
-    .where(scoped(c.organizationId, organizationId, eq(d.status, "ready"), sql`${c.tsv} @@ ${q}`))
+    .where(scoped(c.organizationId, organizationId, eq(d.status, "ready"), scopeCondition(scope), sql`${c.tsv} @@ ${q}`))
     .orderBy(sql`ts_rank_cd(${c.tsv}, ${q}) desc`, asc(c.id))
     .limit(limit);
 }
 
 /**
  * Firma barata de lo indexado (para la caché de vectores): cambia al subir,
- * borrar o reindexar cualquier documento.
+ * borrar o reindexar cualquier documento. La caché es de TODA la
+ * organización; qué puede leer cada agente se filtra en cada turno
+ * (`allowedDocumentIds`).
  */
 export async function indexSignature(organizationId: string): Promise<string> {
   const d = schema.kbDocument;
@@ -504,35 +563,48 @@ export async function indexSignature(organizationId: string): Promise<string> {
   return `${row?.n ?? 0}:${row?.chunks ?? 0}:${row?.at ?? ""}`;
 }
 
-/** ¿La organización tiene algún documento listo? (atajo: sin documentos no se busca nada). */
-export async function hasReadyDocuments(organizationId: string): Promise<boolean> {
+/** ¿El agente tiene algún documento listo que leer? (atajo: sin documentos no se busca nada). */
+export async function hasReadyDocuments(organizationId: string, scope: DocScope): Promise<boolean> {
   const [row] = await getDb()
     .select({ id: schema.kbDocument.id })
     .from(schema.kbDocument)
-    .where(scoped(schema.kbDocument.organizationId, organizationId, eq(schema.kbDocument.status, "ready")))
+    .where(scoped(schema.kbDocument.organizationId, organizationId, eq(schema.kbDocument.status, "ready"), scopeCondition(scope)))
     .limit(1);
   return Boolean(row);
 }
 
-/** Los vectores de la organización hechos con `model` (solo documentos listos). */
-export async function loadVectors(organizationId: string, model: string): Promise<{ id: string; embedding: number[] }[]> {
+/** 037 — Los documentos listos que el agente puede leer (filtra la caché de vectores en cada turno). */
+export async function allowedDocumentIds(organizationId: string, scope: DocScope): Promise<Set<string>> {
+  const rows = await getDb()
+    .select({ id: schema.kbDocument.id })
+    .from(schema.kbDocument)
+    .where(scoped(schema.kbDocument.organizationId, organizationId, eq(schema.kbDocument.status, "ready"), scopeCondition(scope)));
+  return new Set(rows.map((r) => r.id));
+}
+
+/** Los vectores de la organización hechos con `model` (solo documentos listos), con su documento. */
+export async function loadVectors(
+  organizationId: string,
+  model: string
+): Promise<{ id: string; documentId: string; embedding: number[] }[]> {
   const c = schema.kbChunk;
   const d = schema.kbDocument;
   const rows = await getDb()
-    .select({ id: c.id, embedding: c.embedding })
+    .select({ id: c.id, documentId: c.documentId, embedding: c.embedding })
     .from(schema.kbChunk)
     .innerJoin(schema.kbDocument, and(eq(d.organizationId, c.organizationId), eq(d.id, c.documentId)))
     .where(scoped(c.organizationId, organizationId, eq(d.status, "ready"), eq(c.embeddingModel, model), isNotNull(c.embedding)));
-  return rows.filter((r): r is { id: string; embedding: number[] } => Array.isArray(r.embedding));
+  return rows.filter((r): r is { id: string; documentId: string; embedding: number[] } => Array.isArray(r.embedding));
 }
 
-export async function chunksByIds(organizationId: string, ids: string[]): Promise<ChunkHit[]> {
+/** Los fragmentos por id, solo si el agente puede leerlos (defensa en profundidad tras la caché). */
+export async function chunksByIds(organizationId: string, scope: DocScope, ids: string[]): Promise<ChunkHit[]> {
   if (ids.length === 0) return [];
   const c = schema.kbChunk;
   const d = schema.kbDocument;
   return getDb()
-    .select({ id: c.id, documentId: c.documentId, title: d.title, content: c.content })
+    .select(hitColumns())
     .from(schema.kbChunk)
     .innerJoin(schema.kbDocument, and(eq(d.organizationId, c.organizationId), eq(d.id, c.documentId)))
-    .where(scoped(c.organizationId, organizationId, inArray(c.id, ids), eq(d.status, "ready")));
+    .where(scoped(c.organizationId, organizationId, inArray(c.id, ids), eq(d.status, "ready"), scopeCondition(scope)));
 }

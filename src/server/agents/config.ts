@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { schema } from "@/lib/db";
+import { ALL_DOC_SOURCES, MAX_SOURCE_GROUPS, normalizeDocSources, sameDocSources, type DocSources } from "@/lib/kb-docs";
 
 /**
  * 031 — La forma ÚNICA de la configuración de un agente (`agent.draft` y
@@ -22,6 +23,18 @@ const optionalText = (max: number) =>
     z.string().max(max).nullable()
   );
 
+/**
+ * 037 (PR 2) — De qué documentos lee el agente. Ausente = todos los de la
+ * empresa (como antes de 037). Que los grupos existan lo valida `store.ts`
+ * al guardar; al leer, un grupo que ya no existe simplemente no aporta nada.
+ */
+const docSourcesSchema = z
+  .discriminatedUnion("mode", [
+    z.object({ mode: z.literal("all") }),
+    z.object({ mode: z.literal("groups"), groupIds: z.array(z.string().min(1).max(64)).max(MAX_SOURCE_GROUPS) }),
+  ])
+  .transform((v) => normalizeDocSources(v));
+
 /** Para ESCRIBIR (lo que llega de una persona). */
 export const agentConfigSchema = z.object({
   v: z.literal(1).default(1),
@@ -34,6 +47,7 @@ export const agentConfigSchema = z.object({
   instructions: optionalText(8000),
   escalationRules: optionalText(4000),
   useSharedKb: z.boolean().default(true),
+  docSources: docSourcesSchema.default(ALL_DOC_SOURCES),
 });
 
 export type AgentConfig = {
@@ -44,6 +58,8 @@ export type AgentConfig = {
   instructions: string | null;
   escalationRules: string | null;
   useSharedKb: boolean;
+  /** 037 — De qué documentos lee (por defecto, todos los de la empresa). */
+  docSources: DocSources;
 };
 
 /**
@@ -59,6 +75,9 @@ const storedConfigSchema = z.object({
   instructions: z.string().nullable().catch(null),
   escalationRules: z.string().nullable().catch(null),
   useSharedKb: z.boolean().catch(true),
+  // 037 — Lo guardado antes de 037 (y versiones y snapshots viejos) no lo
+  // trae: se lee como «todos los documentos de la empresa», igual que antes.
+  docSources: docSourcesSchema.catch(ALL_DOC_SOURCES),
 });
 
 export function parseStoredConfig(raw: unknown): AgentConfig | null {
@@ -76,6 +95,7 @@ export function emptyConfig(): AgentConfig {
     instructions: null,
     escalationRules: null,
     useSharedKb: true,
+    docSources: ALL_DOC_SOURCES,
   };
 }
 
@@ -119,6 +139,7 @@ export function configFromProfile(p: Pick<AgentProfile, "name" | "tone" | "instr
     instructions: p.instructions,
     escalationRules: p.escalationRules,
     useSharedKb: true,
+    docSources: ALL_DOC_SOURCES,
   };
 }
 
@@ -140,7 +161,8 @@ export function sameConfig(a: AgentConfig, b: AgentConfig): boolean {
     a.greeting === b.greeting &&
     a.instructions === b.instructions &&
     a.escalationRules === b.escalationRules &&
-    a.useSharedKb === b.useSharedKb
+    a.useSharedKb === b.useSharedKb &&
+    sameDocSources(a.docSources, b.docSources)
   );
 }
 

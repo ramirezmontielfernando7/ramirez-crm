@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, ChevronDown, Pencil } from "lucide-react";
 import { AgentConfigForm } from "@/components/agent/agent-config-form";
+import { AgentDocSources } from "@/components/lab/agent-doc-sources";
 import { AgentKbPanel } from "@/components/lab/agent-kb-panel";
 import { AgentPreview } from "@/components/lab/agent-preview";
 import { ConfirmDialog } from "@/components/lab/confirm-dialog";
@@ -32,6 +33,7 @@ const FIELD_LABEL: Record<string, string> = {
   instructions: "instrucciones",
   escalationRules: "reglas de escalado",
   useSharedKb: "uso del conocimiento compartido",
+  docSources: "documentos que consulta",
 };
 const ACTION_LABEL: Record<AgentVersion["action"], string> = {
   publish: "Publicada",
@@ -46,7 +48,7 @@ function norm(c: AgentConfig): AgentConfig {
 function changedFields(a: AgentConfig, b: AgentConfig | null): string[] {
   if (!b) return Object.keys(FIELD_LABEL).map((k) => FIELD_LABEL[k]!);
   return (Object.keys(FIELD_LABEL) as (keyof AgentConfig)[])
-    .filter((k) => (a[k] ?? null) !== (b[k] ?? null))
+    .filter((k) => JSON.stringify(a[k] ?? null) !== JSON.stringify(b[k] ?? null))
     .map((k) => FIELD_LABEL[k]!);
 }
 
@@ -56,8 +58,10 @@ type Dialog = "publish" | "general" | "archive" | null;
  * 031 (A2) — Editor de un agente: formulario a la izquierda, vista previa tipo
  * chat a la derecha (en el teléfono, pestañas Configurar / Probar). Guardar
  * borrador nunca cambia producción; solo «Publicar» lo hace.
+ * 037 (PR 2): `documents` (KB_DOCS encendido) muestra «Documentos»: de qué
+ * documentos lee el agente.
  */
-export function AgentEditor({ id }: { id: string }) {
+export function AgentEditor({ id, documents = false }: { id: string; documents?: boolean }) {
   const router = useRouter();
   const [agent, setAgent] = useState<AgentDetail | null>(null);
   const [cfg, setCfg] = useState<AgentConfig | null>(null);
@@ -314,6 +318,12 @@ export function AgentEditor({ id }: { id: string }) {
                 {!agent.isGeneral && <AgentKbPanel agentId={id} refreshKey={kbKey} />}
               </div>
             </Collapsible>
+
+            {documents && (
+              <Collapsible title="Documentos">
+                <AgentDocSources value={cfg.docSources} onChange={(docSources) => setCfg({ ...cfg, docSources })} />
+              </Collapsible>
+            )}
 
             <Collapsible title="Historial de versiones" onOpen={() => versions === null && void loadVersions()}>
               {versions === null ? (

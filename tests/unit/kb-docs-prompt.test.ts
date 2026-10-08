@@ -111,7 +111,7 @@ describe("decideTurn", () => {
 
   it("con documentos los incluye, con un nonce nuevo en cada turno, y registra cuáles", async () => {
     chatJsonForOrg.mockResolvedValue({ ok: true, data: { action: "reply", text: "hola" }, raw: "" });
-    const docs = [{ id: "kbc_1", documentId: "kbd_1", title: "Precios", content: "Envío gratis desde $1,234." }];
+    const docs = [{ id: "kbc_1", documentId: "kbd_1", title: "Precios", content: "Envío gratis desde $1,234.", groupId: null, agentId: null }];
     const d1 = await decideTurn({ ...input, docs });
     const s1 = systemOf(chatJsonForOrg.mock.calls.at(-1)!);
     await decideTurn({ ...input, docs });

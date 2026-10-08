@@ -5,6 +5,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 import { getDb, getSystemDb, schema, withTenant } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
 import { resetEnvCacheForTests } from "@/lib/env";
+import { docScopeFor } from "@/lib/kb-docs";
 import { runWithOrganization } from "@/lib/request-context";
 import { embeddingsMock, embedMockStats } from "@/server/dev/embeddings-mock";
 import { forgetOrgModules } from "@/server/modules";
@@ -63,6 +64,8 @@ vi.mock("@/lib/ai", async (importOriginal) => {
 
 const { whenIndexerIdle } = await import("@/server/kb-docs/indexer");
 const { retrieveChunks, forgetKbVectorCache } = await import("@/server/kb-docs/retrieve");
+/** 037 — Lo de siempre: todos los documentos de la empresa (agente sin configurar). */
+const TODOS = docScopeFor(null, undefined);
 const { runAgentTurn } = await import("@/server/ai/pipeline");
 const { DOCS_MARKER } = await import("@/server/ai/prompts");
 
@@ -219,7 +222,7 @@ describe("subir e indexar", () => {
   });
 
   it("A recupera su fragmento (por texto y por similitud)", async () => {
-    const hits = await runWithOrganization(A.id, () => retrieveChunks(A.id, "¿el envio es gratis?"));
+    const hits = await runWithOrganization(A.id, () => retrieveChunks(A.id, TODOS, "¿el envio es gratis?"));
     expect(hits.length).toBeGreaterThan(0);
     expect(hits[0]!.content).toContain("$1,234");
     expect(hits.every((x) => x.documentId === docA)).toBe(true);
@@ -263,7 +266,7 @@ describe("subir e indexar", () => {
     });
 
     it("B no recupera los fragmentos de A aunque pregunte exactamente lo que dicen", async () => {
-      const hits = await runWithOrganization(B.id, () => retrieveChunks(B.id, "envío gratis en compras desde $1,234 pesos"));
+      const hits = await runWithOrganization(B.id, () => retrieveChunks(B.id, TODOS, "envío gratis en compras desde $1,234 pesos"));
       expect(hits).toEqual([]);
     });
 
@@ -311,7 +314,7 @@ describe("subir e indexar", () => {
     expect(await documento(docA)).toBeUndefined();
     const quedan = await sys().select().from(schema.kbChunk).where(eq(schema.kbChunk.documentId, docA));
     expect(quedan).toEqual([]);
-    const hits = await runWithOrganization(A.id, () => retrieveChunks(A.id, "¿el envio es gratis?"));
+    const hits = await runWithOrganization(A.id, () => retrieveChunks(A.id, TODOS, "¿el envio es gratis?"));
     expect(hits.some((x) => x.documentId === docA)).toBe(false);
   });
 });
@@ -367,7 +370,7 @@ describe("sin servicio de embeddings", () => {
     como(A, ownerA);
     const view = await llamar("lab/documents/[id]", "GET", { id });
     expect((view.data.document as { statusLabel: string }).statusLabel).toBe("Listo (solo texto)");
-    const hits = await runWithOrganization(A.id, () => retrieveChunks(A.id, "¿aceptan devoluciones?"));
+    const hits = await runWithOrganization(A.id, () => retrieveChunks(A.id, TODOS, "¿aceptan devoluciones?"));
     expect(hits.map((x) => x.documentId)).toContain(id);
   });
 
@@ -450,7 +453,7 @@ describe("el turno real del agente", () => {
     try {
       como(A, ownerA);
       expect((await llamar("lab/documents", "GET")).status).toBe(404);
-      expect(await runWithOrganization(A.id, () => retrieveChunks(A.id, "¿Aceptan devoluciones?"))).toEqual([]);
+      expect(await runWithOrganization(A.id, () => retrieveChunks(A.id, TODOS, "¿Aceptan devoluciones?"))).toEqual([]);
     } finally {
       await modulos(A, { agent: true, lab: true });
     }

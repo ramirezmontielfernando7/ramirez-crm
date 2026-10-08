@@ -1,4 +1,6 @@
+import { GENERAL_GROUP_KEY } from "@/lib/kb-docs";
 import { renderKb } from "@/server/ai/prompts";
+import { listGroups } from "@/server/kb-docs/store";
 import { parseStoredConfig, type AgentConfig } from "./config";
 import { ensureGeneralAgent } from "./ensure";
 import type { KbItem } from "./kb";
@@ -21,6 +23,12 @@ export type RunSnapshot = {
   config: AgentConfig;
   kb: KbItem[];
   kbText: string;
+  /**
+   * 037 — De qué documentos leyó, en palabras y tal como estaba al empezar
+   * (`null` = todos los de la empresa). Lo que usa el turno es
+   * `config.docSources`; esto es para el historial.
+   */
+  docSourceNames?: string[] | null;
 };
 
 export async function buildRunSnapshot(
@@ -49,6 +57,11 @@ export async function buildRunSnapshot(
     throw new AgentError("not_published", "Este agente no tiene versión publicada; evalúa su borrador");
   }
   const kb = await kbForConfig(organizationId, agent, config);
+  let docSourceNames: string[] | null = null;
+  if (config.docSources.mode === "groups") {
+    const names = new Map((await listGroups(organizationId)).map((g) => [g.id ?? GENERAL_GROUP_KEY, g.name]));
+    docSourceNames = config.docSources.groupIds.flatMap((id) => names.get(id) ?? []);
+  }
   return {
     source,
     agentId: agent.id,
@@ -57,5 +70,6 @@ export async function buildRunSnapshot(
     config,
     kb,
     kbText: renderKb(kb),
+    docSourceNames,
   };
 }
