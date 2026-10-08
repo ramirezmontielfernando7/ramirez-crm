@@ -9,6 +9,7 @@ import { createAccountLink } from "./links";
 import { forgetOrgStatus, type OrgStatus } from "./org-status";
 import { seedOrganization } from "./seed";
 import {
+  getManyOrgModules,
   getOrgModules,
   OPTIONAL_CHANNELS,
   type OrgModules,
@@ -121,8 +122,9 @@ export async function listOrganizations(): Promise<OrganizationSummary[]> {
     .from(schema.metaCredentials)
     .where(inArray(schema.metaCredentials.organizationId, ids));
   const platform = platformOrgId();
-  const modules = new Map<string, ModulesDto>();
-  for (const id of ids) modules.set(id, modulesDto(await getOrgModules(id)));
+  // 036 (PR 4): una sola consulta para todas (antes, una por organización).
+  const modulos = await getManyOrgModules(ids);
+  const modules = new Map<string, ModulesDto>([...modulos].map(([id, m]) => [id, modulesDto(m)]));
   return orgs.map((o) => ({
     id: o.id,
     name: o.name,

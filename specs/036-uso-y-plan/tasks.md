@@ -15,6 +15,13 @@
 - [x] T8 Guardarraíles: `system-db-guard` (1 uso), `tenant-query-exceptions` (5), `kb-docs-gate` (lector permitido que solo lee) y vigilancia de que no depende de agente/grupo.
 - [x] T9 Pruebas: unitarias `tests/unit/usage-storage.test.ts`, BD `tests/db/almacenamiento.test.ts` (fórmula, pendientes y sin tamaño, bytes UTF-8, RLS, pool de sistema = por organización, solo lectura, cascada).
 
-## PR 3–6
+## PR 4 — Plataforma → Organizaciones
+
+- [x] T10 `src/server/platform-admin/usage.ts` (resumen agrupado + detalle con RLS), `agentNames`, `getManyOrgModules`.
+- [x] T11 Rutas: `usage` en la lista y `GET /api/platform/organizations/[id]/usage` (404 a quien no es administrador; en `permissions-routes`).
+- [x] T12 UI: pestañas, lista minimalista con fila desplegable, medidores (`src/lib/usage.ts`), «x/12» (`src/lib/platform-modules.ts`); celular y modo oscuro.
+- [x] T13 Pruebas: unitarias `platform-usage.test.ts`, BD `plataforma-consumo.test.ts`, E2E `e2e-plataforma.mjs` (consumo real, escritorio, celular oscuro sin desplazamiento horizontal) y `e2e-modulos.mjs` (interruptor dentro del detalle).
+
+## PR 3, 5 y 6
 
 Pendientes; ver spec.md.

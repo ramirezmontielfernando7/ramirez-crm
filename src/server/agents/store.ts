@@ -114,6 +114,23 @@ export async function agentsByDocGroup(organizationId: string): Promise<Map<stri
 }
 
 /** Lista de agentes activos (el general primero) con su última evaluación. */
+/**
+ * 036 (PR 4) — Solo los nombres internos de unos agentes, archivados
+ * incluidos y SIN escribir nada (no garantiza el general, a diferencia de
+ * `listAgents`). Para el consumo por agente de /platform.
+ */
+export async function agentNames(
+  organizationId: string,
+  ids: string[]
+): Promise<Map<string, { internalName: string; archived: boolean }>> {
+  if (ids.length === 0) return new Map();
+  const rows = await getDb()
+    .select({ id: schema.agent.id, internalName: schema.agent.internalName, archivedAt: schema.agent.archivedAt })
+    .from(schema.agent)
+    .where(scoped(schema.agent.organizationId, organizationId, inArray(schema.agent.id, ids)));
+  return new Map(rows.map((r) => [r.id, { internalName: r.internalName, archived: r.archivedAt !== null }]));
+}
+
 export async function listAgents(organizationId: string): Promise<AgentSummary[]> {
   await ensureGeneralAgent(organizationId);
   const db = getDb();

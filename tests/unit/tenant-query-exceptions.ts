@@ -29,9 +29,9 @@ export const TENANT_QUERY_EXCEPTIONS: Record<string, { max: number; motivo: stri
       "Campañas v2 — Sincronización diaria con Meta: lista las organizaciones ACTIVAS con número conectado y sin la lectura de hoy (salud) o sin el intento de hoy de las analíticas (PR 3); cruza organizaciones a propósito, pool de sistema. El trabajo de cada una corre después a nombre de la suya.",
   },
   "server/modules/store.ts": {
-    max: 1,
+    max: 2,
     motivo:
-      "Fase 3, PR 3 — Relleno al arrancar: a TODA organización sin fila de módulos le pone los de las variables de entorno (insert … select de organization where not exists). Pool de sistema, una vez por arranque, nunca pisa una fila existente.",
+      "Fase 3, PR 3 — Relleno al arrancar: a TODA organización sin fila de módulos le pone los de las variables de entorno (insert … select de organization where not exists). Pool de sistema, una vez por arranque, nunca pisa una fila existente. 036 PR 4 — getManyOrgModules: los módulos de las organizaciones de la lista de /platform en UNA consulta (inArray de sus ids) en vez de una por organización; solo interruptores, pool de sistema.",
   },
   "server/platform-admin/links.ts": {
     max: 1,
@@ -67,6 +67,11 @@ export const TENANT_QUERY_EXCEPTIONS: Record<string, { max: number; motivo: stri
     max: 1,
     motivo:
       "035 — Al arrancar (documentsToResume): ids de los documentos del agente por (re)indexar en TODAS las organizaciones, pool de sistema. El indexado de cada uno corre luego a nombre de la suya con scoped().",
+  },
+  "server/platform-admin/usage.ts": {
+    max: 2,
+    motivo:
+      "036 PR 4 — listOrgsUsage: el consumo de IA del mes (ai_usage, fila total) y los topes (ai_quota) de TODAS las organizaciones para la lista de /platform, una lectura agrupada de cada tabla con el pool de sistema. Solo números; detrás de withPlatformAdmin. El detalle de UNA organización va con scoped() y RLS (runWithOrganization).",
   },
   "server/usage/storage.ts": {
     max: 5,

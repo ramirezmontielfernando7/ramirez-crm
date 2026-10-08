@@ -137,6 +137,13 @@ async function main() {
   const r1 = await page.goto(`${BASE}/platform`);
   ok("ahora /platform → 200", r1?.status() === 200, String(r1?.status()));
   ok("el menú muestra «Plataforma»", (await page.getByRole("link", { name: "Plataforma" }).count()) > 0);
+  // 036 (PR 4): dos pestañas; «Mi panel» trae la bitácora.
+  const pestanas = page.getByRole("navigation", { name: "Secciones de Plataforma" });
+  ok("pestañas «Mi panel» y «Organizaciones»", (await pestanas.getByRole("link", { name: "Mi panel" }).count()) === 1 && (await pestanas.getByRole("link", { name: "Organizaciones" }).count()) === 1);
+  ok("«Mi panel» muestra la bitácora", await page.getByTestId("platform-audit").waitFor({ timeout: 20000 }).then(() => true, () => false));
+  await pestanas.getByRole("link", { name: "Organizaciones" }).click();
+  await page.waitForURL(/\/platform\/organizaciones$/);
+  await page.getByTestId("platform-create-open").click();
   await page.fill("#org-name", NAME_B);
   await page.fill("#owner-name", OWNER_B.name);
   await page.fill("#owner-email", OWNER_B.email);
@@ -183,6 +190,8 @@ async function main() {
   await pB.close();
   const listaA = (await A.call("GET", "/api/platform/organizations")).json?.organizations ?? [];
   ok("el administrador ve B en la lista, sin contenido", listaA.some((o) => o.id === orgB.id) && !JSON.stringify(listaA).includes(secretoB));
+
+  await consumoEnPlataforma(A, B, orgB.id);
 
   console.log("\n== 5 · Suspensión ==");
   const sus = await A.call("POST", `/api/platform/organizations/${orgB.id}/status`, { action: "suspend", reason: "prueba e2e" });
@@ -281,6 +290,88 @@ async function main() {
 
   console.log(`\n${checks - failures}/${checks} OK`);
   if (failures) console.log(`Fallaron:\n - ${fallas.join("\n - ")}`);
+}
+
+/**
+ * 036 (PR 4) — B gasta IA de verdad (vista previa de su agente y asistente de
+ * redacción, contra el ai-mock) y sube un archivo a Conocimientos; el
+ * administrador lo ve en Plataforma → Organizaciones: en la lista (IA del
+ * mes, almacenamiento aprox., módulos x/12) y al abrir la fila (por función,
+ * por agente y por categoría). Solo lectura y solo para él. También en el
+ * celular y en modo oscuro, sin desplazamiento horizontal.
+ */
+async function consumoEnPlataforma(A, B, orgB) {
+  console.log("\n== 4b · Consumo por organización en Plataforma ==");
+  const agentes = (await B.call("GET", "/api/lab/agents")).json?.agents ?? [];
+  const general = agentes.find((a) => a.isGeneral);
+  ok("B tiene su agente general", Boolean(general), JSON.stringify(agentes).slice(0, 200));
+  const previa = await B.call("POST", "/api/lab/preview", { agentId: general?.id, config: { displayName: "", useSharedKb: true }, history: [], message: "hola, ¿qué venden?" });
+  ok("B usa la vista previa de su agente (gasta IA)", previa.status === 200, `${previa.status} ${JSON.stringify(previa.json).slice(0, 200)}`);
+  const redaccion = await B.call("POST", "/api/writing-assist", { action: "improve", text: "hola q tal, le escribo x su pedido" });
+  ok("B usa el asistente de redacción (gasta IA, sin agente)", redaccion.status === 200, `${redaccion.status} ${JSON.stringify(redaccion.json).slice(0, 200)}`);
+  const archivo = Buffer.from(`Catálogo de prueba ${RUN}\n`.repeat(200));
+  const subida = await B.ctx.request.post(`${BASE}/api/knowledge`, {
+    multipart: { title: `Catálogo ${RUN}`, file: { name: "catalogo.txt", mimeType: "text/plain", buffer: archivo } },
+    failOnStatusCode: false,
+  });
+  ok("B sube un archivo a Conocimientos", subida.status() === 201, String(subida.status()));
+
+  const lista = (await A.call("GET", "/api/platform/organizations")).json?.organizations ?? [];
+  const filaB = lista.find((o) => o.id === orgB);
+  ok("la lista trae el consumo del mes de B (2 turnos de IA)", filaB?.usage?.ai?.turns === 2 && filaB?.usage?.ai?.tokens > 0, JSON.stringify(filaB?.usage));
+  ok("…y su almacenamiento aproximado (el archivo subido)", filaB?.usage?.storageBytes === archivo.length, `${filaB?.usage?.storageBytes} vs ${archivo.length}`);
+  const detalle = (await A.call("GET", `/api/platform/organizations/${orgB}/usage`)).json?.usage;
+  ok("el detalle separa por función (Laboratorio y redacción)", detalle?.ai?.byKind?.lab?.turns === 1 && detalle?.ai?.byKind?.writing?.turns === 1, JSON.stringify(detalle?.ai?.byKind));
+  ok("…y por agente: el general de B, con su nombre (la redacción no tiene agente)", detalle?.ai?.byAgent?.length === 1 && detalle.ai.byAgent[0].agentId === general?.id && detalle.ai.byAgent[0].name === general?.internalName, JSON.stringify(detalle?.ai?.byAgent));
+  ok("…y el almacenamiento por categoría", detalle?.storage?.byCategory?.knowledge === archivo.length);
+  ok("B (usuaria común) → 404 en el consumo de su propia organización", (await B.call("GET", `/api/platform/organizations/${orgB}/usage`)).status === 404);
+  ok("una organización que no existe → 404", (await A.call("GET", "/api/platform/organizations/org_no_existe/usage")).status === 404);
+  ok("el consumo no trae contenido del negocio", !JSON.stringify(detalle).includes("Catálogo de prueba") && !JSON.stringify(detalle).includes("hola"));
+
+  // Escritorio.
+  const page = await A.ctx.newPage();
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto(`${BASE}/platform/organizaciones`);
+  const fila = page.getByTestId(`platform-org-${orgB}`);
+  await fila.waitFor({ timeout: 30000 });
+  ok("la fila cerrada muestra IA del mes", /tokens/.test(await fila.getByTestId("platform-org-ai").first().innerText()));
+  ok("…almacenamiento aproximado («sin tope» hasta los límites)", /KB · sin tope/.test(await fila.getByTestId("platform-org-storage").first().innerText()));
+  ok("…y módulos activos «x/12»", /^\d+\/12$/.test((await fila.getByTestId("platform-org-modules-count").last().innerText()).trim()));
+  ok("cerrada no muestra los interruptores", (await fila.getByTestId("platform-modules").count()) === 0);
+  await fila.getByTestId("platform-org-toggle").click();
+  const det = fila.getByTestId("platform-usage-detail");
+  await det.waitFor({ timeout: 20000 });
+  ok("al abrirla: consumo por agente con el nombre del agente", (await det.getByTestId("platform-usage-agents").innerText()).includes(general?.internalName ?? "?"));
+  ok("…por función", /Laboratorio y vista previa/.test(await det.getByTestId("platform-usage-kinds").innerText()) && /Asistente de redacción/.test(await det.getByTestId("platform-usage-kinds").innerText()));
+  ok("…almacenamiento por categoría con su nota", /Archivos de Conocimientos/.test(await det.getByTestId("platform-usage-storage").innerText()) && (await det.getByText(/No incluye los mensajes/).count()) === 1);
+  ok("…y lo de siempre: módulos, ritmo, personas y estado", (await fila.getByTestId("platform-modules").count()) === 1 && (await fila.getByRole("button", { name: "Personas" }).count()) === 1 && (await fila.getByTestId("platform-suspend").count()) === 1 && (await fila.getByTestId("platform-delete").count()) === 1);
+  ok("el buscador filtra por nombre", await (async () => {
+    await page.getByTestId("platform-org-search").fill(`zz-no-existe-${RUN}`);
+    const vacio = await page.getByText("Ninguna organización coincide.").isVisible();
+    await page.getByTestId("platform-org-search").fill(NAME_B);
+    return vacio && (await page.getByTestId(`platform-org-${orgB}`).isVisible());
+  })());
+  await page.close();
+
+  // Celular, modo oscuro: sin desplazamiento horizontal, cerrada y abierta.
+  const movil = await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true, extraHTTPHeaders: { origin: BASE } });
+  await movil.addCookies([{ name: "vocero-theme", value: "dark", url: BASE }, ...(await A.ctx.cookies())]);
+  const cel = await movil.newPage();
+  await cel.goto(`${BASE}/platform/organizaciones`);
+  const filaCel = cel.getByTestId(`platform-org-${orgB}`);
+  await filaCel.waitFor({ timeout: 30000 });
+  const desborde = () =>
+    cel.evaluate(() => {
+      const els = [document.documentElement, ...document.querySelectorAll("main, [class*='overflow-y-auto']")];
+      return els.some((e) => e.scrollWidth > e.clientWidth + 1);
+    });
+  ok("celular: la lista no se desplaza a lo ancho", !(await desborde()));
+  ok("celular: modo oscuro", (await cel.evaluate(() => document.documentElement.getAttribute("data-theme"))) === "dark");
+  await filaCel.getByTestId("platform-org-toggle").click();
+  await filaCel.getByTestId("platform-usage-detail").waitFor({ timeout: 20000 });
+  ok("celular: la fila abierta tampoco se desplaza a lo ancho", !(await desborde()));
+  await cel.screenshot({ path: "scratch/e2e-plataforma-movil-oscuro.png", fullPage: true }).catch(() => null);
+  await movil.close();
 }
 
 try {

@@ -85,3 +85,87 @@ export function formatStorage(bytes: number): string {
   if (b < 1024 ** 3) return `${Math.round((b / 1024 ** 2) * 10) / 10} MB`;
   return `${Math.round((b / 1024 ** 3) * 10) / 10} GB`;
 }
+
+/* ───────── 036 (PR 4) — IA del mes y medidores de /platform ───────── */
+
+export const AI_KINDS = ["agent", "lab", "judge", "writing", "embed"] as const;
+export type AiUsageKind = (typeof AI_KINDS)[number];
+
+export const AI_KIND_LABEL: Record<AiUsageKind, string> = {
+  agent: "Agente (conversaciones reales)",
+  lab: "Laboratorio y vista previa",
+  judge: "Juez del Laboratorio",
+  writing: "Asistente de redacción",
+  embed: "Embeddings de documentos",
+};
+
+/** Los embeddings se cuentan aparte: no gastan el tope de turnos ni de tokens. */
+export const EMBED_NOTE = "Aparte: no cuentan en el tope de IA.";
+
+/** «950», «12.3 k», «1.2 M» (compacto, es-MX). */
+export function formatTokens(n: number): string {
+  // Intl separa con espacio duro (y no igual en todo entorno): se normaliza.
+  return new Intl.NumberFormat("es-MX", { notation: "compact", maximumFractionDigits: 1 })
+    .format(toBytes(n))
+    .replace(/\s/g, " ");
+}
+
+/** «1 turno», «3 turnos». */
+export function turnos(n: number): string {
+  return `${n.toLocaleString("es-MX")} ${n === 1 ? "turno" : "turnos"}`;
+}
+
+export type MeterTone = "normal" | "warning" | "danger";
+
+/** 80 % o más avisa; 100 % o más es rojo. */
+export function meterTone(ratio: number | null): MeterTone {
+  if (ratio === null) return "normal";
+  if (ratio >= 1) return "danger";
+  if (ratio >= 0.8) return "warning";
+  return "normal";
+}
+
+export type Meter = {
+  /** Lo que se lee en la fila: «1.2 M / 5 M tokens» o «1.2 M tokens · sin tope». */
+  text: string;
+  /** Proporción usada (0…∞) o `null` sin tope. */
+  ratio: number | null;
+  tone: MeterTone;
+  /** El detalle completo (para el título al pasar el cursor). */
+  detail: string;
+};
+
+/**
+ * La IA del mes contra su tope. Con dos topes (turnos y tokens) muestra el
+ * que vaya más alto: es el que va a frenar primero.
+ */
+export function aiMeter(
+  used: { turns: number; tokens: number },
+  limits: { turns: number | null; tokens: number | null }
+): Meter {
+  const tokensRatio = limits.tokens ? used.tokens / limits.tokens : limits.tokens === 0 ? Infinity : null;
+  const turnsRatio = limits.turns ? used.turns / limits.turns : limits.turns === 0 ? Infinity : null;
+  const tokensLine = `${formatTokens(used.tokens)}${limits.tokens !== null ? ` / ${formatTokens(limits.tokens)}` : ""} tokens`;
+  const turnsLine =
+    limits.turns !== null
+      ? `${used.turns.toLocaleString("es-MX")} / ${limits.turns.toLocaleString("es-MX")} turnos`
+      : turnos(used.turns);
+  const detail = `${tokensLine} · ${turnsLine}${limits.tokens === null && limits.turns === null ? " · sin tope" : ""}`;
+  if (tokensRatio === null && turnsRatio === null) {
+    return { text: `${formatTokens(used.tokens)} tokens · sin tope`, ratio: null, tone: "normal", detail };
+  }
+  const porTurnos = (turnsRatio ?? -1) > (tokensRatio ?? -1);
+  const ratio = porTurnos ? turnsRatio! : tokensRatio!;
+  return { text: porTurnos ? turnsLine : tokensLine, ratio, tone: meterTone(ratio), detail };
+}
+
+/** El almacenamiento contra su tope (hasta el PR 3 no hay tope: «sin tope»). */
+export function storageMeter(bytes: number, limitBytes: number | null = null): Meter {
+  if (limitBytes === null) {
+    const text = `${formatStorage(bytes)} · sin tope`;
+    return { text, ratio: null, tone: "normal", detail: `${STORAGE_LABEL}: ${text}` };
+  }
+  const ratio = limitBytes > 0 ? bytes / limitBytes : Infinity;
+  const text = `${formatStorage(bytes)} / ${formatStorage(limitBytes)}`;
+  return { text, ratio, tone: meterTone(ratio), detail: `${STORAGE_LABEL}: ${text}` };
+}

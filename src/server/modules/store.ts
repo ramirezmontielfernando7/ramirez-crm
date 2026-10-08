@@ -1,4 +1,4 @@
-import { eq, notExists, sql } from "drizzle-orm";
+import { eq, inArray, notExists, sql } from "drizzle-orm";
 import { getSystemDb, schema } from "@/lib/db";
 import { scoped } from "@/lib/db/tenant";
 import type { Db } from "@/lib/db";
@@ -76,6 +76,30 @@ export async function getOrgModules(organizationId: string): Promise<OrgModules>
   const modules = row ? fromRow(row, defaults) : defaults;
   cache().set(organizationId, { modules, at: Date.now() });
   return modules;
+}
+
+/**
+ * 036 (PR 4) — Los módulos de VARIAS organizaciones en una sola consulta (la
+ * lista de /platform): con muchas organizaciones, una consulta por cada una
+ * hacía lenta la lista. Las que no tienen fila valen los del entorno.
+ */
+export async function getManyOrgModules(organizationIds: string[]): Promise<Map<string, OrgModules>> {
+  const out = new Map<string, OrgModules>();
+  if (organizationIds.length === 0) return out;
+  const defaults = envModuleDefaults();
+  const rows = await sys()
+    .select()
+    .from(schema.organizationModule)
+    .where(inArray(schema.organizationModule.organizationId, organizationIds));
+  const porOrg = new Map(rows.map((r) => [r.organizationId, r]));
+  const now = Date.now();
+  for (const id of organizationIds) {
+    const row = porOrg.get(id);
+    const modules = row ? fromRow(row, defaults) : defaults;
+    cache().set(id, { modules, at: now });
+    out.set(id, modules);
+  }
+  return out;
 }
 
 export function forgetOrgModules(organizationId?: string): void {

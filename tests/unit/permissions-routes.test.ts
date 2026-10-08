@@ -309,6 +309,7 @@ const PLATAFORMA: [string, Method][] = [
   ["platform/organizations/[id]/members", "GET"],
   ["platform/organizations/[id]/status", "POST"],
   ["platform/organizations/[id]/modules", "POST"],
+  ["platform/organizations/[id]/usage", "GET"],
   ["platform/users/[id]/link", "POST"],
   ["platform/audit", "GET"],
 ];

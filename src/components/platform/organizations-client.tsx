@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { Copy, KeyRound, Plus, ShieldAlert } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { ChevronDown, Copy, KeyRound, Plus, Search, ShieldAlert } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,80 +9,30 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { roleLabel } from "@/lib/auth/permissions";
+import {
+  countActiveModules,
+  PLATFORM_MODULE_LABEL,
+  PLATFORM_MODULE_TOGGLES,
+  type PlatformModuleToggle,
+} from "@/lib/platform-modules";
+import { aiMeter, STORAGE_LABEL, storageMeter } from "@/lib/usage";
+import { cn } from "@/lib/utils";
+import { api, fecha, type Member, type Modules, type Org } from "./api";
+import { UsageDetail, UsageMeter } from "./usage";
 
 /**
- * Fase 3, PR 2 — Pantalla del administrador de plataforma. Solo metadatos de
- * las organizaciones (nombre, estado, personas, módulos): nunca su contenido.
+ * Fase 3, PR 2 / 036 (PR 4) — Plataforma → Organizaciones. Lista
+ * minimalista: cada fila cerrada dice nombre, IA del mes contra su tope,
+ * almacenamiento aproximado y cuántos módulos tiene; al abrirla, el consumo
+ * del mes (por función y por agente), los módulos y las personas y el estado.
+ * Solo metadatos y números: el contenido de cada negocio no se ve desde aquí.
  */
 
-type Org = {
-  id: string;
-  name: string;
-  slug: string | null;
-  status: "active" | "suspended" | "deleted";
-  statusReason: string | null;
-  purgeAfter: string | null;
-  createdAt: string;
-  isPlatform: boolean;
-  members: number;
-  owners: { userId: string; name: string; email: string }[];
-  whatsappConnected: boolean;
-  modules: Modules;
-};
-
-/** Fase 3, PR 3 — Los módulos opcionales de una organización. */
-type Modules = {
-  campaigns: boolean;
-  agenda: boolean;
-  atribucion: boolean;
-  instagram: boolean;
-  messenger: boolean;
-  campaignSendRate: number;
-  /** 030 (PR 4) — nacen encendidos; `lab` requiere `agent`. */
-  knowledge: boolean;
-  agent: boolean;
-  lab: boolean;
-  teamChat: boolean;
-  results: boolean;
-  customNav: boolean;
-  /** 033 — Tareas y Notas. */
-  trabajo: boolean;
-};
-
-type ModuleKey = Exclude<keyof Modules, "campaignSendRate">;
-
-const MODULE_LABEL: Record<ModuleKey, string> = {
-  teamChat: "Chat de equipo",
-  knowledge: "Conocimientos",
-  results: "Resultados",
-  agent: "Agente",
-  lab: "Laboratorio",
-  campaigns: "Campañas",
-  agenda: "Citas (Agenda)",
-  trabajo: "Tareas y notas",
-  atribucion: "Atribución (Meta)",
-  instagram: "Instagram",
-  messenger: "Messenger",
-  customNav: "Menú personalizable",
-};
-
 /** 030 (PR 4) — Por qué un interruptor está bloqueado (dependencias del registro). */
-function blockedBy(key: ModuleKey, m: Modules): string | null {
+function blockedBy(key: PlatformModuleToggle, m: Modules): string | null {
   if (key === "lab" && !m.agent) return "Requiere el Agente";
   return null;
 }
-
-type Member = { userId: string; name: string; email: string; role: string };
-
-type AuditEntry = {
-  id: string;
-  at: string;
-  actorEmail: string | null;
-  action: string;
-  targetOrgName: string | null;
-  targetUserEmail: string | null;
-  ip: string | null;
-};
 
 const STATUS_LABEL: Record<Org["status"], string> = {
   active: "Activa",
@@ -90,40 +40,11 @@ const STATUS_LABEL: Record<Org["status"], string> = {
   deleted: "Borrada",
 };
 
-const ACTION_LABEL: Record<string, string> = {
-  "organization.created": "creó la organización",
-  "organization.suspended": "suspendió la organización",
-  "organization.reactivated": "reactivó la organización",
-  "organization.deleted": "borró la organización (30 días de gracia)",
-  "organization.restored": "restauró la organización",
-  "organization.purged": "purgó la organización",
-  "organization.modules_changed": "cambió los módulos de la organización",
-  "link.activation_created": "generó un enlace de activación",
-  "link.reset_created": "generó un enlace de restablecimiento",
-  "link.used": "se usó un enlace de contraseña",
-  "reauth.failed": "contraseña de administrador incorrecta",
-  "reauth.locked": "bloqueo temporal por intentos fallidos",
-  "admin.added": "agregó un administrador de plataforma",
-  "admin.removed": "quitó un administrador de plataforma",
+const STATUS_DOT: Record<Org["status"], string> = {
+  active: "bg-success",
+  suspended: "bg-warning",
+  deleted: "bg-destructive",
 };
-
-async function api<T>(url: string, init?: RequestInit): Promise<{ ok: boolean; status: number; data: T | null; error: string | null }> {
-  const res = await fetch(url, {
-    ...init,
-    headers: init?.body ? { "content-type": "application/json" } : undefined,
-  });
-  const json = (await res.json().catch(() => null)) as (T & { error?: { message?: string } }) | null;
-  return {
-    ok: res.ok,
-    status: res.status,
-    data: res.ok ? json : null,
-    error: res.ok ? null : json?.error?.message ?? `Error ${res.status}`,
-  };
-}
-
-function fecha(iso: string | null): string {
-  return iso ? new Date(iso).toLocaleString("es-MX", { dateStyle: "medium", timeStyle: "short" }) : "—";
-}
 
 /**
  * Fase 3, PR 3 — Interruptores de los módulos de UNA organización. Lo que se
@@ -156,10 +77,12 @@ function ModuleToggles({ org, onChanged }: { org: Org; onChanged: () => void }) 
 
   const disabled = busy || org.status === "deleted";
   return (
-    <div className="space-y-2 rounded-md border px-3 py-2" data-testid="platform-modules">
-      <p className="text-xs font-medium text-text-2">Módulos</p>
-      <div className="flex flex-wrap gap-x-5 gap-y-2">
-        {(Object.keys(MODULE_LABEL) as ModuleKey[]).map((key) => {
+    <div className="space-y-2" data-testid="platform-modules">
+      <p className="text-xs font-medium text-text-2">
+        Módulos · {countActiveModules(modules).active} de {countActiveModules(modules).total} activos
+      </p>
+      <div className="grid gap-x-5 gap-y-2 sm:grid-cols-2 lg:grid-cols-3">
+        {PLATFORM_MODULE_TOGGLES.map((key) => {
           const blocked = blockedBy(key, modules);
           return (
             <label
@@ -172,10 +95,10 @@ function ModuleToggles({ org, onChanged }: { org: Org; onChanged: () => void }) 
                 size="sm"
                 checked={modules[key]}
                 disabled={disabled || blocked !== null}
-                label={`${MODULE_LABEL[key]} en ${org.name}`}
+                label={`${PLATFORM_MODULE_LABEL[key]} en ${org.name}`}
                 onCheckedChange={(next) => void save({ [key]: next })}
               />
-              {MODULE_LABEL[key]}
+              {PLATFORM_MODULE_LABEL[key]}
               {blocked && <span className="text-xs text-text-3">({blocked})</span>}
             </label>
           );
@@ -215,6 +138,7 @@ function ModuleToggles({ org, onChanged }: { org: Org; onChanged: () => void }) 
   );
 }
 
+
 /** Un enlace que se ve UNA vez: con botón de copiar y el aviso de qué es. */
 function OneTimeLink({ url, expiresAt, kind }: { url: string; expiresAt: string; kind: "activate" | "reset" }) {
   const [copied, setCopied] = useState(false);
@@ -246,6 +170,7 @@ function OneTimeLink({ url, expiresAt, kind }: { url: string; expiresAt: string;
     </div>
   );
 }
+
 
 function CreateOrganization({ onCreated }: { onCreated: () => void }) {
   const [name, setName] = useState("");
@@ -332,6 +257,7 @@ function CreateOrganization({ onCreated }: { onCreated: () => void }) {
   );
 }
 
+
 /** Restablecer la contraseña de una persona: pide la del administrador primero. */
 function ResetLink({ member, onDone }: { member: Member; onDone: () => void }) {
   const [password, setPassword] = useState("");
@@ -383,12 +309,34 @@ function ResetLink({ member, onDone }: { member: Member; onDone: () => void }) {
   );
 }
 
+
+/** Los 12 puntos de «x/12»: encendidos en el acento, apagados huecos. */
+function ModuleDots({ modules }: { modules: Modules }) {
+  const { active, total } = countActiveModules(modules);
+  return (
+    <span className="flex items-center gap-2" title={`${active} de ${total} módulos activos`}>
+      <span className="hidden gap-0.5 lg:flex" aria-hidden>
+        {PLATFORM_MODULE_TOGGLES.map((k) => (
+          <span key={k} className={cn("h-1.5 w-1.5 rounded-full", modules[k] ? "bg-brand" : "bg-muted")} />
+        ))}
+      </span>
+      <span className="text-xs tabular-nums text-text-2" data-testid="platform-org-modules-count">
+        {active}/{total}
+      </span>
+    </span>
+  );
+}
+
 function OrganizationRow({ org, adminUserId, onChanged }: { org: Org; adminUserId: string; onChanged: () => void }) {
   const [open, setOpen] = useState(false);
+  const [peopleOpen, setPeopleOpen] = useState(false);
   const [members, setMembers] = useState<Member[] | null>(null);
   const [resetFor, setResetFor] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  const ai = org.usage ? aiMeter(org.usage.ai, org.usage.ai.limits) : null;
+  const storage = org.usage ? storageMeter(org.usage.storageBytes) : null;
 
   async function loadMembers() {
     const r = await api<{ members: Member[] }>(`/api/platform/organizations/${org.id}/members`);
@@ -416,145 +364,193 @@ function OrganizationRow({ org, adminUserId, onChanged }: { org: Org; adminUserI
   }
 
   return (
-    <li className="space-y-2 py-3" data-testid={`platform-org-${org.id}`}>
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="font-semibold">{org.name}</span>
-        <Badge variant={org.status === "active" ? "success" : org.status === "suspended" ? "warning" : "destructive"} data-testid="platform-org-status">
-          {STATUS_LABEL[org.status]}
-        </Badge>
-        {org.isPlatform && <Badge variant="outline">Plataforma</Badge>}
-        <span className="text-xs text-text-2">
-          {org.members} persona(s) · WhatsApp {org.whatsappConnected ? "conectado" : "sin conectar"} · desde {fecha(org.createdAt)}
-        </span>
-      </div>
-      <p className="text-xs text-text-2">
-        Propietario: {org.owners.map((o) => `${o.name} <${o.email}>`).join(", ") || "—"}
-        {org.statusReason && ` · Motivo: ${org.statusReason}`}
-        {org.status === "deleted" && ` · Se puede purgar desde ${fecha(org.purgeAfter)}`}
-      </p>
-      <div className="flex flex-wrap gap-2">
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => {
-            setOpen(!open);
-            if (!members) void loadMembers();
-          }}
-        >
-          {open ? "Ocultar personas" : "Personas"}
-        </Button>
-        {!org.isPlatform && org.status === "active" && (
-          <Button size="sm" variant="outline" disabled={busy} onClick={() => void change("suspend")} data-testid="platform-suspend">
-            Suspender
-          </Button>
-        )}
-        {org.status === "suspended" && (
-          <Button size="sm" variant="outline" disabled={busy} onClick={() => void change("reactivate")} data-testid="platform-reactivate">
-            Reactivar
-          </Button>
-        )}
-        {!org.isPlatform && org.status !== "deleted" && (
-          <Button size="sm" variant="outline" disabled={busy} onClick={() => void change("delete")} data-testid="platform-delete">
-            Borrar
-          </Button>
-        )}
-        {org.status === "deleted" && (
-          <Button size="sm" variant="outline" disabled={busy} onClick={() => void change("restore")} data-testid="platform-restore">
-            Restaurar
-          </Button>
-        )}
-      </div>
-      <ModuleToggles org={org} onChanged={onChanged} />
-      {error && <p className="text-sm text-destructive">{error}</p>}
+    <li data-testid={`platform-org-${org.id}`} data-open={open ? "" : undefined}>
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        aria-expanded={open}
+        aria-controls={`org-detail-${org.id}`}
+        className="flex w-full items-center gap-3 px-3 py-3 text-left transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring sm:px-4"
+        data-testid="platform-org-toggle"
+      >
+        <div className="min-w-0 flex-1 sm:grid sm:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(4.5rem,auto)] sm:items-center sm:gap-5">
+          <div className="flex min-w-0 items-center gap-2">
+            <span className={cn("h-2 w-2 shrink-0 rounded-full", STATUS_DOT[org.status])} aria-hidden />
+            <span className="min-w-0">
+              <span className="block truncate text-sm font-semibold">{org.name}</span>
+              <span className="block truncate text-xs text-text-3">
+                <span data-testid="platform-org-status">{STATUS_LABEL[org.status]}</span>
+                {org.isPlatform && " · Plataforma"} · {org.members} persona(s)
+              </span>
+            </span>
+            <span className="ml-auto shrink-0 sm:hidden">
+              <ModuleDots modules={org.modules} />
+            </span>
+          </div>
+          <div className="mt-2 grid grid-cols-2 gap-3 sm:contents">
+            {ai ? <UsageMeter meter={ai} label="IA del mes" testId="platform-org-ai" /> : <span />}
+            {storage ? <UsageMeter meter={storage} label={STORAGE_LABEL} testId="platform-org-storage" /> : <span />}
+          </div>
+          <span className="hidden justify-end sm:flex">
+            <ModuleDots modules={org.modules} />
+          </span>
+        </div>
+        <ChevronDown
+          className={cn("h-4 w-4 shrink-0 text-text-3 transition-transform duration-200", open && "rotate-180")}
+          aria-hidden
+        />
+      </button>
+
       {open && (
-        <ul className="space-y-2 border-l-2 pl-3">
-          {members === null && <li className="text-sm text-text-2">Cargando…</li>}
-          {members?.map((m) => (
-            <li key={m.userId} className="space-y-2">
-              <div className="flex flex-wrap items-center gap-2 text-sm">
-                <span>{m.name}</span>
-                <span className="text-text-2">{m.email}</span>
-                <Badge variant="outline">{roleLabel(m.role)}</Badge>
-                {m.userId !== adminUserId && (
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => setResetFor(resetFor === m.userId ? null : m.userId)}
-                    data-testid="platform-reset-open"
-                  >
-                    <KeyRound className="h-3.5 w-3.5" /> Enlace para contraseña
-                  </Button>
-                )}
-              </div>
-              {resetFor === m.userId && <ResetLink member={m} onDone={onChanged} />}
-            </li>
-          ))}
-        </ul>
+        <div id={`org-detail-${org.id}`} className="space-y-6 border-t bg-subtle px-3 py-4 sm:px-4" data-testid="platform-org-detail">
+          <UsageDetail orgId={org.id} />
+
+          <div className="border-t pt-4">
+            <ModuleToggles org={org} onChanged={onChanged} />
+          </div>
+
+          <section className="space-y-2 border-t pt-4">
+            <p className="text-xs font-medium text-text-2">Personas y estado</p>
+            <p className="break-words text-xs text-text-2">
+              WhatsApp {org.whatsappConnected ? "conectado" : "sin conectar"} · desde {fecha(org.createdAt)}
+              <br />
+              Propietario: {org.owners.map((o) => `${o.name} <${o.email}>`).join(", ") || "—"}
+              {org.statusReason && ` · Motivo: ${org.statusReason}`}
+              {org.status === "deleted" && ` · Se puede purgar desde ${fecha(org.purgeAfter)}`}
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  setPeopleOpen(!peopleOpen);
+                  if (!members) void loadMembers();
+                }}
+              >
+                {peopleOpen ? "Ocultar personas" : "Personas"}
+              </Button>
+              {!org.isPlatform && org.status === "active" && (
+                <Button size="sm" variant="outline" disabled={busy} onClick={() => void change("suspend")} data-testid="platform-suspend">
+                  Suspender
+                </Button>
+              )}
+              {org.status === "suspended" && (
+                <Button size="sm" variant="outline" disabled={busy} onClick={() => void change("reactivate")} data-testid="platform-reactivate">
+                  Reactivar
+                </Button>
+              )}
+              {!org.isPlatform && org.status !== "deleted" && (
+                <Button size="sm" variant="outline" disabled={busy} onClick={() => void change("delete")} data-testid="platform-delete">
+                  Borrar
+                </Button>
+              )}
+              {org.status === "deleted" && (
+                <Button size="sm" variant="outline" disabled={busy} onClick={() => void change("restore")} data-testid="platform-restore">
+                  Restaurar
+                </Button>
+              )}
+            </div>
+            {error && <p className="text-sm text-destructive">{error}</p>}
+            {peopleOpen && (
+              <ul className="space-y-2 border-l-2 pl-3" data-testid="platform-members">
+                {members === null && <li className="text-sm text-text-2">Cargando…</li>}
+                {members?.map((m) => (
+                  <li key={m.userId} className="space-y-2">
+                    <div className="flex flex-wrap items-center gap-2 text-sm">
+                      <span className="break-all">{m.name}</span>
+                      <span className="break-all text-text-2">{m.email}</span>
+                      <Badge variant="outline">{roleLabel(m.role)}</Badge>
+                      {m.userId !== adminUserId && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => setResetFor(resetFor === m.userId ? null : m.userId)}
+                          data-testid="platform-reset-open"
+                        >
+                          <KeyRound className="h-3.5 w-3.5" /> Enlace para contraseña
+                        </Button>
+                      )}
+                    </div>
+                    {resetFor === m.userId && <ResetLink member={m} onDone={onChanged} />}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        </div>
       )}
     </li>
   );
 }
 
-export function PlatformClient({ adminUserId }: { adminUserId: string }) {
+export function OrganizationsClient({ adminUserId }: { adminUserId: string }) {
   const [orgs, setOrgs] = useState<Org[] | null>(null);
-  const [audit, setAudit] = useState<AuditEntry[]>([]);
+  const [query, setQuery] = useState("");
+  const [creating, setCreating] = useState(false);
 
   const refetch = useCallback(async () => {
-    const [o, a] = await Promise.all([
-      api<{ organizations: Org[] }>("/api/platform/organizations"),
-      api<{ entries: AuditEntry[] }>("/api/platform/audit"),
-    ]);
+    const o = await api<{ organizations: Org[] }>("/api/platform/organizations");
     if (o.data) setOrgs(o.data.organizations);
-    if (a.data) setAudit(a.data.entries);
   }, []);
 
   useEffect(() => {
     void refetch();
   }, [refetch]);
 
+  const visibles = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!orgs || !q) return orgs;
+    return orgs.filter(
+      (o) => o.name.toLowerCase().includes(q) || o.owners.some((w) => w.email.toLowerCase().includes(q) || w.name.toLowerCase().includes(q))
+    );
+  }, [orgs, query]);
+
   return (
-    <div className="max-w-5xl space-y-6">
-      <CreateOrganization onCreated={() => void refetch()} />
+    <div className="max-w-5xl space-y-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative min-w-0 flex-1 sm:max-w-xs">
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-text-3" aria-hidden />
+          <Input
+            className="pl-8"
+            placeholder="Buscar organización"
+            aria-label="Buscar organizaciones"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            data-testid="platform-org-search"
+          />
+        </div>
+        <Button
+          variant={creating ? "outline" : "default"}
+          onClick={() => setCreating(!creating)}
+          aria-expanded={creating}
+          data-testid="platform-create-open"
+        >
+          <Plus className="h-4 w-4" /> {creating ? "Cerrar" : "Nueva organización"}
+        </Button>
+      </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Organizaciones</CardTitle>
-          <CardDescription>Solo estado y metadatos. El contenido de cada negocio no se ve desde aquí.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {orgs === null ? (
-            <p className="text-sm text-text-2">Cargando…</p>
-          ) : (
-            <ul className="divide-y" data-testid="platform-org-list">
-              {orgs.map((org) => (
-                <OrganizationRow key={org.id} org={org} adminUserId={adminUserId} onChanged={() => void refetch()} />
-              ))}
-            </ul>
-          )}
-        </CardContent>
-      </Card>
+      {creating && <CreateOrganization onCreated={() => void refetch()} />}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Bitácora de plataforma</CardTitle>
-          <CardDescription>Quién hizo qué, sobre qué organización, cuándo y desde qué IP.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <ul className="space-y-1.5 text-sm" data-testid="platform-audit">
-            {audit.length === 0 && <li className="text-text-2">Sin registros todavía.</li>}
-            {audit.map((e) => (
-              <li key={e.id} className="flex flex-wrap gap-x-2">
-                <span className="text-text-2">{fecha(e.at)}</span>
-                <span className="font-medium">{e.actorEmail ?? "—"}</span>
-                <span>{ACTION_LABEL[e.action] ?? e.action}</span>
-                {e.targetOrgName && <span>· {e.targetOrgName}</span>}
-                {e.targetUserEmail && <span className="text-text-2">· {e.targetUserEmail}</span>}
-                {e.ip && <span className="text-text-3">· {e.ip}</span>}
-              </li>
+      <div className="overflow-hidden rounded-md border bg-card">
+        <div className="hidden grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(4.5rem,auto)] gap-5 border-b px-4 py-2 pr-11 text-[11px] font-medium text-text-3 sm:grid">
+          <span>Organización</span>
+          <span>IA del mes</span>
+          <span>{STORAGE_LABEL}</span>
+          <span className="text-right">Módulos</span>
+        </div>
+        {visibles === null ? (
+          <p className="px-4 py-3 text-sm text-text-2">Cargando…</p>
+        ) : visibles.length === 0 ? (
+          <p className="px-4 py-3 text-sm text-text-2">Ninguna organización coincide.</p>
+        ) : (
+          <ul className="divide-y" data-testid="platform-org-list">
+            {visibles.map((org) => (
+              <OrganizationRow key={org.id} org={org} adminUserId={adminUserId} onChanged={() => void refetch()} />
             ))}
           </ul>
-        </CardContent>
-      </Card>
+        )}
+      </div>
+      <p className="text-xs text-text-3">Solo estado, metadatos y consumo. El contenido de cada negocio no se ve desde aquí.</p>
     </div>
   );
 }
