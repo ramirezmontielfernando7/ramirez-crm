@@ -12,11 +12,11 @@
 
 ## PR 2 — Fuentes por agente
 
-- [ ] T8 `docSources` en la config (escritura validada, lectura tolerante, `sameConfig`, `ensure`).
-- [ ] T9 `DocScope` obligatorio en la recuperación; filtro en SQL y en la caché de vectores.
-- [ ] T10 Pipeline, vista previa, snapshot/runner con el scope del agente.
-- [ ] T11 Selector en el editor + «Por qué respondió así» con el grupo.
-- [ ] T12 Matriz de filtro en tests/db + E2E.
+- [x] T8 `docSources` en la config (escritura validada, lectura tolerante, `sameConfig`, `ensure`).
+- [x] T9 `DocScope` obligatorio en la recuperación; filtro en SQL y en la caché de vectores.
+- [x] T10 Pipeline, vista previa, snapshot/runner con el scope del agente.
+- [x] T11 Selector en el editor + «Por qué respondió así» con el grupo.
+- [x] T12 Matriz de filtro en tests/db + E2E.
 
 ## PR 3 — Exclusivos
 

@@ -31,6 +31,7 @@ import { getOffers, mapaDeHuecosParaModelo } from "@/server/agenda/offers";
 import { logger } from "@/lib/log";
 import { currentOrganizationId, runWithOrganization } from "@/lib/request-context";
 import { orgHasModule } from "@/server/modules";
+import { docScopeFor } from "@/lib/kb-docs";
 import { retrieveForTurn, type RetrievedChunk } from "@/server/kb-docs/retrieve";
 
 const log = logger("agente");
@@ -300,7 +301,9 @@ async function loadTurnContext(conversationId: string, opts: TurnOptions): Promi
       content: m.text!,
     }));
   // 035 — Los documentos del negocio que vienen al caso (nada si no hay).
-  const docs = await retrieveForTurn(organizationId, turnHistory);
+  // 037: solo de las fuentes del agente que responde (general, de etapa o el
+  // del Laboratorio, con su config congelada en el snapshot).
+  const docs = await retrieveForTurn(organizationId, docScopeFor(agent.agentId, agent.config.docSources), turnHistory);
 
   return {
     kind: "decide",

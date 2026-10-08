@@ -76,6 +76,7 @@ const config = {
   instructions: null,
   escalationRules: null,
   useSharedKb: true,
+  docSources: { mode: "all" as const },
 };
 
 async function turno(action: Record<string, unknown>) {

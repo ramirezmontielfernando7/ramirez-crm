@@ -3,6 +3,7 @@ import type { Db } from "@/lib/db";
 import { getDb, schema, withTenant } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
 import { scoped } from "@/lib/db/tenant";
+import { ALL_DOC_SOURCES } from "@/lib/kb-docs";
 import { logger } from "@/lib/log";
 import {
   configFromProfile,
@@ -132,6 +133,8 @@ async function reconcile(organizationId: string): Promise<AgentRow | null> {
       displayName:
         profile.name === MIRROR_DEFAULT_NAME && published && published.displayName === null ? null : profile.name,
       useSharedKb: published?.useSharedKb ?? true,
+      // 037 — La selección de documentos no vive en `agent_profile`: se conserva.
+      docSources: published?.docSources ?? ALL_DOC_SOURCES,
     };
     const draft = parseStoredConfig(agent.draft);
     const draftWasPublished = !draft || !published || sameConfig(draft, published);

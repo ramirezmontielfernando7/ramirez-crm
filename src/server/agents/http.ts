@@ -9,7 +9,8 @@ import { AgentError } from "./store";
  */
 export function agentErrorResponse(err: unknown): Response | null {
   if (err instanceof AgentError) {
-    return apiError(err.code === "not_found" ? 404 : 409, err.code, err.message);
+    const status = err.code === "not_found" ? 404 : err.code === "unknown_group" ? 422 : 409;
+    return apiError(status, err.code, err.message);
   }
   if (err instanceof StageTakenError) {
     return Response.json(

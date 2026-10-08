@@ -212,8 +212,23 @@ General** (por defecto) o **eliminarlos también** (pide una confirmación más;
 no se puede deshacer).
 
 Los límites de arriba siguen siendo por negocio, sumando todos los grupos.
-Hoy todos los agentes leen los documentos de todos los grupos; elegir por
-agente de qué grupos lee llega en el siguiente paso de 037.
+
+### De qué documentos lee cada agente
+
+En el editor de cada agente (Laboratorio → Agentes → el agente → «Documentos»):
+
+- **Todos los documentos de la empresa** (por defecto): los de todos los
+  grupos. Un agente que nadie configuró se comporta exactamente como antes de
+  los grupos.
+- **Solo estos grupos**: uno o varios. Sin ninguno elegido, el agente no lee
+  documentos de la empresa.
+
+Es parte del borrador: se aplica al **publicar**. La vista previa ya usa lo
+que hay en el formulario, y «Por qué respondió así» dice de qué documento y
+de qué grupo vino lo que consultó. Vale para el turno real (también el
+agente de cada etapa), la vista previa y las evaluaciones (que congelan la
+selección al empezar). Al borrar un grupo, el diálogo dice cuántos agentes lo
+eligen: dejarán de leer esos documentos.
 
 ## Seguridad: el contenido es dato, no instrucciones
 

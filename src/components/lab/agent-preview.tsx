@@ -9,7 +9,15 @@ import { call, type AgentConfig } from "@/components/lab/agents-api";
 import type { MessageDto } from "@/lib/types";
 
 type Chip = { kind: string; label: string };
-type Debug = { action: string; model: string | null; tokens: { prompt: number; completion: number } | null; ms: number; kbEntryIds: string[] };
+type Debug = {
+  action: string;
+  model: string | null;
+  tokens: { prompt: number; completion: number } | null;
+  ms: number;
+  kbEntryIds: string[];
+  /** 037 — Documentos consultados y de dónde vienen. */
+  docs?: { title: string; from: string }[];
+};
 type PreviewOk = { ok: true; reply: string | null; chips: Chip[]; escalated: boolean; debug: Debug };
 
 type Turn =
@@ -197,6 +205,20 @@ function Why({ debug }: { debug: Debug }) {
         <dd className="text-foreground">{debug.ms} ms</dd>
         <dt>Conocimiento usado</dt>
         <dd className="text-foreground">{debug.kbEntryIds.length} entradas</dd>
+        {debug.docs && debug.docs.length > 0 && (
+          <>
+            <dt>Documentos</dt>
+            <dd className="text-foreground" data-testid="preview-docs">
+              <ul className="space-y-0.5">
+                {debug.docs.map((d, i) => (
+                  <li key={i} className="break-words">
+                    {d.title} <span className="text-muted-foreground">· {d.from}</span>
+                  </li>
+                ))}
+              </ul>
+            </dd>
+          </>
+        )}
       </dl>
     </details>
   );

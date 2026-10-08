@@ -55,9 +55,19 @@
    General» → el documento queda en General. Con «Eliminar también sus
    documentos» pide una segunda confirmación y solo entonces borra grupo y
    documento; el agente deja de usarlo.
+10. **Fuentes por agente (037, PR 2).** Agente nuevo → editor → «Documentos»
+    → «Solo estos grupos» (sin grupos avisa que no leerá documentos de la
+    empresa) → Ventas → Guardar → Publicar: se guarda la selección. Vista
+    previa: con Ventas responde y «Por qué respondió así» dice «Ventas»; lo
+    de General no lo lee; con General en el formulario sin guardar, sí. El
+    general sin configurar lee los dos. Un grupo de otra organización → 422
+    `unknown_group`. La evaluación guarda `docSources` y los nombres en su
+    snapshot. Un mensaje REAL por WhatsApp de un lead en la etapa asignada
+    al agente responde con Ventas y no con General. El diálogo de eliminar
+    el grupo dice «1 agente elige este grupo».
 
 Lo que no cubre este guion y sí cubren otras pruebas:
-`tests/db/documentos.test.ts` y `tests/db/grupos-documentos.test.ts` (RLS con la app como `vocero_app`, FK compuestas,
+`tests/db/documentos.test.ts`, `tests/db/grupos-documentos.test.ts` y `tests/db/fuentes-agente.test.ts` (matriz de fuentes por texto y por vectores, RLS con la app como `vocero_app`, FK compuestas,
 límites con subidas simultáneas, `KB_DOCS` apagado, módulo Laboratorio
 apagado, Reindexar al volver el servicio, el turno real con y sin documentos)
 y `tests/unit/kb-docs-prompt.test.ts` (prompt idéntico sin documentos, nonce

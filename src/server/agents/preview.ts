@@ -5,7 +5,9 @@ import { agendaEnabled } from "@/server/agenda/flag";
 import { HANDOFF_BACKUP_ACK, matchesHandoffIntent } from "@/server/ai/handoff";
 import { decideTurn, type TurnDecision } from "@/server/ai/pipeline";
 import { toPromptConfig, type AgentConfig } from "./config";
+import { docScopeFor } from "@/lib/kb-docs";
 import { retrieveForTurn } from "@/server/kb-docs/retrieve";
+import { listGroups } from "@/server/kb-docs/store";
 import { kbForConfig } from "./resolve";
 import { AgentError, getAgent } from "./store";
 
@@ -41,6 +43,8 @@ export type PreviewResult =
         kbEntryIds: string[];
         /** 035 — Fragmentos de documentos que el agente tuvo a la vista. */
         docChunkIds: string[];
+        /** 037 — De qué documento y de dónde («Ventas», «General», «Exclusivo») vino cada uno. */
+        docs?: { title: string; from: string }[];
       };
     }
   | { ok: false; error: "quota_exceeded" | "not_configured" };
@@ -83,7 +87,8 @@ export async function runPreview(input: PreviewInput): Promise<PreviewResult> {
     { role: "user" as const, content: input.message },
   ];
   // 035 — Igual que en producción: los documentos que vienen al caso.
-  const docs = await retrieveForTurn(input.organizationId, history);
+  // 037: de las fuentes del FORMULARIO (aunque no estén guardadas).
+  const docs = await retrieveForTurn(input.organizationId, docScopeFor(agent.id, input.config.docSources), history);
 
   const decision = await decideTurn({
     organizationId: input.organizationId,
@@ -97,7 +102,24 @@ export async function runPreview(input: PreviewInput): Promise<PreviewResult> {
     tail: null,
     docs,
   });
-  return toPreview(decision);
+  const result = toPreview(decision);
+  if (result.ok && docs.length > 0) result.debug.docs = await docOrigins(input.organizationId, docs, result.debug.docChunkIds);
+  return result;
+}
+
+/** 037 — «Por qué respondió así»: título y origen de los fragmentos que vio (solo lectura). */
+async function docOrigins(
+  organizationId: string,
+  docs: { id: string; documentId: string; title: string; groupId: string | null; agentId: string | null }[],
+  seen: string[]
+): Promise<{ title: string; from: string }[]> {
+  const names = new Map((await listGroups(organizationId)).map((g) => [g.id, g.name]));
+  const out = new Map<string, { title: string; from: string }>();
+  for (const d of docs.filter((x) => seen.includes(x.id))) {
+    // Un renglón por documento aunque haya aportado varios fragmentos.
+    out.set(d.documentId, { title: d.title, from: d.agentId ? "Exclusivo de este agente" : (names.get(d.groupId) ?? "General") });
+  }
+  return [...out.values()];
 }
 
 /** Traduce la decisión a burbuja + chips. Pura: nada se ejecuta. */

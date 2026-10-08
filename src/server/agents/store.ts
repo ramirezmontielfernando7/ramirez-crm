@@ -16,6 +16,7 @@ import { copyAgentKb } from "./kb";
 import { appendPublishLog, type PublishAction } from "./log";
 import { syncGeneralToProfile } from "./mirror";
 import { removeAgentStages } from "./assignments";
+import { existingGroupIds } from "@/server/kb-docs/store";
 
 /**
  * 031 — ÚNICA puerta de `agent` y `agent_publish_log` (con `ensure.ts`,
@@ -27,7 +28,7 @@ import { removeAgentStages } from "./assignments";
 /** D6 — Agentes activos (no archivados) por organización. */
 export const MAX_ACTIVE_AGENTS = 20;
 
-export type AgentErrorCode = "agent_limit" | "agent_general" | "not_published" | "not_found";
+export type AgentErrorCode = "agent_limit" | "agent_general" | "not_published" | "not_found" | "unknown_group";
 
 export class AgentError extends Error {
   constructor(readonly code: AgentErrorCode, message: string) {
@@ -89,6 +90,27 @@ async function lockAgent(tx: Db, organizationId: string, id: string): Promise<Ag
   const [row] = await tx.select().from(schema.agent).where(scoped(schema.agent.organizationId, organizationId, activeId(id))).limit(1).for("update");
   if (!row) throw new AgentError("not_found", "Agente no encontrado");
   return row;
+}
+
+/**
+ * 037 (PR 2) — Cuántos agentes activos eligen cada grupo de documentos («Solo
+ * estos grupos», en su borrador o en lo publicado). Para avisar al borrar un
+ * grupo. Clave: el id del grupo (`general` = General).
+ */
+export async function agentsByDocGroup(organizationId: string): Promise<Map<string, number>> {
+  const rows = await getDb()
+    .select({ draft: schema.agent.draft, published: schema.agent.published })
+    .from(schema.agent)
+    .where(scoped(schema.agent.organizationId, organizationId, isNull(schema.agent.archivedAt)));
+  const counts = new Map<string, number>();
+  for (const r of rows) {
+    const ids = new Set<string>();
+    for (const c of [parseStoredConfig(r.draft), parseStoredConfig(r.published)]) {
+      if (c?.docSources.mode === "groups") for (const g of c.docSources.groupIds) ids.add(g);
+    }
+    for (const g of ids) counts.set(g, (counts.get(g) ?? 0) + 1);
+  }
+  return counts;
 }
 
 /** Lista de agentes activos (el general primero) con su última evaluación. */
@@ -213,9 +235,27 @@ export async function archiveAgent(organizationId: string, id: string): Promise<
   });
 }
 
+/**
+ * 037 (PR 2) — Quita de la selección los grupos que ya no existen (al
+ * publicar o restaurar: un grupo borrado después de elegirlo no aporta nada).
+ */
+async function pruneDocSources(organizationId: string, config: AgentConfig, db: Db): Promise<AgentConfig> {
+  if (config.docSources.mode === "all") return config;
+  const existing = await existingGroupIds(organizationId, config.docSources.groupIds, db);
+  const groupIds = config.docSources.groupIds.filter((g) => existing.has(g));
+  return groupIds.length === config.docSources.groupIds.length ? config : { ...config, docSources: { mode: "groups", groupIds } };
+}
+
 /** Guarda el BORRADOR. Nunca cambia lo que atiende en producción. */
 export async function saveDraft(organizationId: string, id: string, config: AgentConfig): Promise<AgentDetail> {
   const draft = agentConfigSchema.parse(config) as AgentConfig;
+  // 037 — Lo que elige una persona: cada grupo tiene que existir en ESTA organización.
+  if (draft.docSources.mode === "groups") {
+    const existing = await existingGroupIds(organizationId, draft.docSources.groupIds);
+    if (draft.docSources.groupIds.some((g) => !existing.has(g))) {
+      throw new AgentError("unknown_group", "Uno de los grupos de documentos elegidos ya no existe. Recarga y vuelve a elegir.");
+    }
+  }
   const [row] = await getDb()
     .update(schema.agent)
     .set({ draft, updatedAt: new Date() })
@@ -252,7 +292,7 @@ async function publishInTx(
 export async function publishAgent(organizationId: string, id: string, actorUserId: string): Promise<AgentDetail> {
   const row = await withTenant(organizationId, async (tx) => {
     const current = await lockAgent(tx, organizationId, id);
-    const draft = parseStoredConfig(current.draft) ?? emptyConfig();
+    const draft = await pruneDocSources(organizationId, parseStoredConfig(current.draft) ?? emptyConfig(), tx);
     return publishInTx(tx, organizationId, current, draft, actorUserId, "publish");
   });
   return toDetail(row);
@@ -344,9 +384,10 @@ export async function restoreVersion(
       .limit(1);
     const snapshot = parseStoredConfig(version?.snapshot);
     if (!snapshot) throw new AgentError("not_found", "Versión no encontrada");
+    const draft = await pruneDocSources(organizationId, snapshot, tx);
     const [updated] = await tx
       .update(schema.agent)
-      .set({ draft: snapshot, updatedAt: new Date() })
+      .set({ draft, updatedAt: new Date() })
       .where(scoped(schema.agent.organizationId, organizationId, activeId(id)))
       .returning();
     await appendPublishLog(tx, { organizationId, agentId: id, action: "restore", snapshot, actorUserId });

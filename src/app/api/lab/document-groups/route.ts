@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { parseBody, withAuth } from "@/lib/api";
-import { MAX_DOC_GROUPS, normalizeGroupName } from "@/lib/kb-docs";
+import { GENERAL_GROUP_KEY, MAX_DOC_GROUPS, normalizeGroupName } from "@/lib/kb-docs";
+import { agentsByDocGroup } from "@/server/agents/store";
 import { kbDocsOff } from "@/server/kb-docs/flag";
 import { kbGroupError, withKbDocErrors } from "@/server/kb-docs/http";
 import { createGroup, listGroups } from "@/server/kb-docs/store";
@@ -8,11 +9,18 @@ import { moduleOff } from "@/server/modules";
 
 export const dynamic = "force-dynamic";
 
-/** 037 — Los grupos de documentos (General primero), con cuántos documentos tiene cada uno. */
+/**
+ * 037 — Los grupos de documentos (General primero), con cuántos documentos
+ * tiene cada uno y (PR 2) cuántos agentes lo eligen.
+ */
 export const GET = withAuth(async (session) => {
   const off = (await moduleOff(session.organizationId, "lab")) ?? kbDocsOff();
   if (off) return off;
-  return Response.json({ groups: await listGroups(session.organizationId), maxGroups: MAX_DOC_GROUPS });
+  const [groups, agents] = await Promise.all([listGroups(session.organizationId), agentsByDocGroup(session.organizationId)]);
+  return Response.json({
+    groups: groups.map((g) => ({ ...g, agents: agents.get(g.id ?? GENERAL_GROUP_KEY) ?? 0 })),
+    maxGroups: MAX_DOC_GROUPS,
+  });
 }, { permission: "agent.manage" });
 
 const postSchema = z.object({ name: z.string() });
