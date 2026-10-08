@@ -8,6 +8,7 @@ import {
   type ConsentAnswer,
   type OptOutTreatment,
 } from "@/lib/import-consent";
+import type { ImportExtraTag } from "@/lib/import-tag";
 import { findOptOutConflicts, importValidated, type ImportSummary } from "@/server/contacts-io/import";
 import { readSpreadsheet } from "@/server/contacts-io/spreadsheet";
 import {
@@ -156,6 +157,8 @@ export async function importAudienceFile(input: {
   /** La ruta ya lo exige (sin respuesta no se importa). */
   consentAnswer: ConsentAnswer;
   optOutTreatment?: OptOutTreatment;
+  /** Etiqueta opcional para todos los contactos de la base (se suma a la automática). */
+  extraTag?: ImportExtraTag | null;
 }): Promise<{ audience: AudienceDto; summary: ImportSummary }> {
   const { kind, table, mapping } = await tableAndMapping(input.fileName, input.bytes, input.mapping);
   const validation = validateTable(table, mapping);
@@ -173,6 +176,7 @@ export async function importAudienceFile(input: {
     validation,
     consentAnswer: input.consentAnswer,
     optOutTreatment: input.optOutTreatment,
+    extraTag: input.extraTag,
     onMembers: async (tx, members, tag, consent) => {
       const counts: AudienceCounts = {
         totalRows: validation.totalRows,

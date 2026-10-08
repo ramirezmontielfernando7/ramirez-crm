@@ -492,6 +492,44 @@ async function main() {
   ok("…y lo demás funciona (KPIs y costo reportado)", metOff?.totals?.sent >= 10 && metOff?.cost?.reported > 0 && metOff?.sync?.pricing?.status === "ok");
 
   /* ------------------------------------------------------------ */
+  console.log("\n== 7c. Etiqueta para todos los contactos de la base ==");
+  const refName = `Referido ${RUN}`;
+  const tp = [num(74, "10074"), num(75, "10075")];
+  const tagBase = (n) => xlsx([["Persona", "Móvil", "Etiquetas"], [`Tag A ${RUN}`, n[0], "Zona"], [`Tag B ${RUN}`, n[1], ""], ["Mal", "12", ""]]);
+  const conNueva = await api("/api/campaigns/audiences", {
+    method: "POST",
+    body: fileForm(`tag-api-${RUN}.xlsx`, tagBase(tp), { mapping: { name: 0, phone: 1, tags: 2 }, consentAnswer: "yes", name: "ADMON REFERIDO", extraTagName: refName, extraTagColor: "verde" }),
+  });
+  ok("importar con etiqueta nueva → 201", conNueva.res.status === 201, conNueva.text);
+  ok("la etiqueta automática de la base sigue ahí", conNueva.json?.audience?.tag?.name === `Import: tag-api-${RUN}.xlsx`, conNueva.text);
+  ok("y la nueva viene en el resumen", conNueva.json?.summary?.extraTag?.name === refName, conNueva.text);
+  const tagsList = (await api("/api/contact-tags")).json?.tags ?? [];
+  const refTag = tagsList.find((t) => t.name === refName);
+  ok("la etiqueta nueva existe con su color", refTag?.color === "verde" && refTag?.contactCount === 2, JSON.stringify(refTag));
+  const dup = await api("/api/campaigns/audiences", {
+    method: "POST",
+    body: fileForm(`tag-dup-${RUN}.xlsx`, tagBase([num(76, "10076"), num(77, "10077")]), { mapping: { name: 0, phone: 1 }, consentAnswer: "yes", extraTagName: refName }),
+  });
+  ok("crear una etiqueta con nombre repetido → 409 y no importa", dup.res.status === 409, dup.text);
+  const badColor = await api("/api/campaigns/audiences", {
+    method: "POST",
+    body: fileForm(`tag-color-${RUN}.xlsx`, tagBase(tp), { mapping: { name: 0, phone: 1 }, consentAnswer: "yes", extraTagName: `Otra ${RUN}`, extraTagColor: "fucsia" }),
+  });
+  ok("color fuera de la paleta → 422", badColor.res.status === 422, badColor.text);
+  const sinTag = await api("/api/campaigns/audiences", {
+    method: "POST",
+    body: fileForm(`tag-ajena-${RUN}.xlsx`, tagBase(tp), { mapping: { name: 0, phone: 1 }, consentAnswer: "yes", extraTagId: "tag_no_existe" }),
+  });
+  ok("etiqueta inexistente o de otra organización → 404", sinTag.res.status === 404, sinTag.text);
+  const conExistente = await api("/api/campaigns/audiences", {
+    method: "POST",
+    body: fileForm(`tag-exist-${RUN}.xlsx`, tagBase(tp), { mapping: { name: 0, phone: 1, tags: 2 }, consentAnswer: "yes", extraTagId: refTag?.id ?? "" }),
+  });
+  ok("reimportar con la etiqueta existente → 201", conExistente.res.status === 201, conExistente.text);
+  const refDespues = ((await api("/api/contact-tags")).json?.tags ?? []).find((t) => t.name === refName);
+  ok("sin duplicar: sigue en 2 contactos", refDespues?.contactCount === 2, JSON.stringify(refDespues));
+
+  /* ------------------------------------------------------------ */
   console.log("\n== 8. Interfaz (navegador real) ==");
   const browser = await chromium.launch(process.env.PLAYWRIGHT_CHROMIUM ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM } : {});
   try {
@@ -607,6 +645,38 @@ async function main() {
     await page.getByTestId("consent-result").waitFor({ timeout: 45000 });
     const res = await page.getByTestId("consent-result").innerText();
     ok("UI Contactos: resumen 1 acepta · 1 no quiere", /1\s+acepta mensajes/i.test(res) && /1\s+no quiere mensajes/i.test(res), res);
+
+    // Etiqueta para todos los contactos de la base: elegirla/crearla en el
+    // asistente y verla en la cápsula de etiquetas de la Bandeja.
+    const uiTagPhone = num(78, "10078");
+    const uiTagName = `Tag UI ${RUN}`;
+    const uiTagLabel = `Referido UI ${RUN}`;
+    await page.goto(`${BASE}/campaigns/audiences`, { timeout: 180000 });
+    await page.getByTestId("audience-new").click();
+    await page.getByTestId("audience-file").setInputFiles({
+      name: `tagui-${RUN}.xlsx`,
+      mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      buffer: Buffer.from(xlsx([["Nombre", "Teléfono"], [uiTagName, uiTagPhone]])),
+    });
+    await page.getByTestId("consent-question").waitFor({ timeout: 45000 });
+    await page.getByTestId("consent-yes").check();
+    await page.getByTestId("audience-extra-tag").waitFor({ timeout: 45000 });
+    await page.getByTestId("audience-extra-tag").selectOption("__new__");
+    await page.getByTestId("audience-extra-tag-name").fill(uiTagLabel);
+    await page.getByRole("radio", { name: "morado" }).click();
+    await page.getByTestId("audience-import").click();
+    await page.getByTestId("audience-result").waitFor({ timeout: 45000 });
+    ok("UI: el resultado nombra la etiqueta elegida", (await page.getByTestId("audience-result").innerText()).includes(uiTagLabel));
+    await api("/api/dev/wa-mock/inbound", {
+      method: "POST",
+      body: JSON.stringify({ phoneNumberId: "PN-E2E", from: uiTagPhone, name: uiTagName, text: "Hola", waMessageId: `wamid.e2e.tagui.${RUN}` }),
+    });
+    await page.goto(`${BASE}/inbox`, { timeout: 180000, waitUntil: "domcontentloaded" });
+    const filaTag = page.locator("[data-conversation-row]", { hasText: uiTagName }).first();
+    ok("UI Bandeja: aparece el chat del contacto importado", await filaTag.waitFor({ timeout: 120000 }).then(() => true, () => false));
+    const capLabel = (await filaTag.getByRole("button", { name: /^Etiquetas:/ }).getAttribute("aria-label")) ?? "";
+    ok("UI Bandeja: lleva la etiqueta elegida", capLabel.includes(uiTagLabel), capLabel);
+    ok("UI Bandeja: y también la automática de la base", capLabel.includes(`Import: tagui-${RUN}.xlsx`), capLabel);
   } catch (err) {
     ok("interfaz sin errores", false, err?.message ?? String(err));
   } finally {
