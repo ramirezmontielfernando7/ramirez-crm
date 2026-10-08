@@ -1,5 +1,6 @@
 import { count, eq } from "drizzle-orm";
 import { z } from "zod";
+import { TAG_COLORS } from "@/lib/tags";
 import { apiError, parseBody, withAuth } from "@/lib/api";
 import { getDb, schema } from "@/lib/db";
 import { scoped } from "@/lib/db/tenant";
@@ -12,6 +13,7 @@ type Params = { params: Promise<{ id: string }> };
 const patchSchema = z.object({
   name: z.string().trim().min(1).max(60).optional(),
   position: z.number().int().min(0).optional(),
+  color: z.enum(TAG_COLORS).nullable().optional(),
 });
 
 export const PATCH = withAuth(async (session, req: Request, ctx: Params) => {
@@ -24,6 +26,7 @@ export const PATCH = withAuth(async (session, req: Request, ctx: Params) => {
     .update(schema.pipelineStage)
     .set({
       ...(body.data.name !== undefined ? { name: body.data.name } : {}),
+      ...(body.data.color !== undefined ? { color: body.data.color } : {}),
       ...(body.data.position !== undefined
         ? { position: body.data.position }
         : {}),

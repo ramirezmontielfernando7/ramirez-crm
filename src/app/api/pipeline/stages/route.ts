@@ -1,5 +1,6 @@
 import { asc, sql } from "drizzle-orm";
 import { z } from "zod";
+import { TAG_COLORS } from "@/lib/tags";
 import { parseBody, withAuth } from "@/lib/api";
 import { getDb, schema } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
@@ -19,6 +20,7 @@ export const GET = withAuth(async (session) => {
 
 const createSchema = z.object({
   name: z.string().trim().min(1).max(60),
+  color: z.enum(TAG_COLORS).nullable().optional(),
 });
 
 export const POST = withAuth(async (session, req: Request) => {
@@ -41,6 +43,7 @@ export const POST = withAuth(async (session, req: Request) => {
       name: body.data.name,
       position: (maxPos[0]?.max ?? -1) + 1,
       kind: "open",
+      color: body.data.color ?? null,
     })
     .returning();
   return Response.json({ stage: inserted[0] }, { status: 201 });

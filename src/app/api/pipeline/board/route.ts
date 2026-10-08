@@ -3,6 +3,7 @@ import { withAuth } from "@/lib/api";
 import { getDb, schema } from "@/lib/db";
 import { scoped, scopedContacts } from "@/lib/db/tenant";
 import { getBranding } from "@/server/branding";
+import { isTagColor } from "@/lib/tags";
 
 export const dynamic = "force-dynamic";
 
@@ -51,6 +52,7 @@ export const GET = withAuth(async (session) => {
       name: s.name,
       position: s.position,
       kind: s.kind,
+      color: isTagColor(s.color) ? s.color : null,
     })),
     leads: leads.map((r) => ({
       id: r.lead.id,

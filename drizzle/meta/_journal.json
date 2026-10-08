@@ -309,6 +309,13 @@
       "when": 1791467126828,
       "tag": "0043_grupos_documentos",
       "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
+      "when": 1791480267138,
+      "tag": "0044_color_etapas",
+      "breakpoints": true
     }
   ]
 }
