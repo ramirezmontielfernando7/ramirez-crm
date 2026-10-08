@@ -31,6 +31,11 @@
  *     en su snapshot; un mensaje REAL por WhatsApp de un lead en la etapa del
  *     agente responde con Ventas; al borrar el grupo, el diálogo cuenta al
  *     agente que lo elige.
+ * 10. 037 PR 3 — Exclusivos: subir desde el editor del agente (queda fuera de
+ *     las listas de la empresa y cuenta en el uso); solo ese agente lo lee;
+ *     no se mueve de grupo; archivar desde la lista ofrece «Eliminar» (por
+ *     defecto) o «Conservarlos pasándolos a General» → General y lo lee el
+ *     general; archivar por defecto los borra.
  *
  * Uso: app viva con WA_MOCK_ENABLED=true, los mocks (ai-mock, wa-mock),
  * KB_DOCS=on y EMBEDDINGS_BASE_URL=http://localhost:3000/api/dev/ai-mock:
@@ -564,6 +569,71 @@ async function main() {
     ok("el diálogo de eliminar avisa del agente afectado", /1 agente elige este grupo/.test(await page.getByTestId("kb-group-delete-agents").innerText()));
     await page.getByRole("dialog").getByRole("button", { name: "Cancelar" }).click();
     await A.api(`/api/lab/agents/${agente9.id}`, { method: "DELETE" });
+
+    console.log("\n== 10. 037 PR 3 — Documentos exclusivos de un agente ==");
+    const X10 = `ZETA-${RUN}`;
+    const agente10 = (await A.post("/api/lab/agents", { internalName: `Cierre 10 E2E ${RUN}` })).json?.agent;
+    await A.post(`/api/lab/agents/${agente10?.id}/publish`);
+    await page.goto(`${BASE}/lab/agents/${agente10.id}`);
+    await page.locator("summary", { hasText: /^Documentos$/ }).click();
+    await page.getByText(/Se aplican al momento, sin publicar/).waitFor();
+    ok("el editor avisa que los exclusivos aplican al momento", true);
+    await page
+      .getByTestId("agent-exclusive-file")
+      .setInputFiles({ name: `cierre-${RUN}.txt`, mimeType: "text/plain", buffer: Buffer.from(`Para cerrar la venta usa el guion ${X10} con descuento.`) });
+    const fila10 = page.getByTestId("agent-exclusive-list").locator("li").filter({ hasText: `cierre-${RUN}` });
+    await fila10.getByText(/^Listo$/).waitFor({ timeout: 30000 });
+    const doc10 = await fila10.getAttribute("data-doc-id");
+    const d10 = await estado(A, doc10);
+    ok("subir desde el editor lo deja exclusivo, sin grupo", d10?.groupId === null && Boolean(doc10), JSON.stringify(d10));
+    const empresa10 = await A.api("/api/lab/documents");
+    ok(
+      "no aparece en las listas de la empresa y cuenta en el uso como exclusivo",
+      !(empresa10.json?.documents ?? []).some((x) => x.id === doc10) && empresa10.json?.usage?.exclusive >= 1,
+      JSON.stringify(empresa10.json?.usage)
+    );
+    const cfg10 = (await A.api(`/api/lab/agents/${agente10.id}`)).json?.agent?.published;
+    const suyo = await A.post("/api/lab/preview", { agentId: agente10.id, config: cfg10, history: [], message: "¿Qué guion uso para cerrar la venta?" });
+    ok(
+      "su agente lo lee y «Por qué» dice que es exclusivo",
+      String(suyo.json?.reply ?? "").includes(X10) && (suyo.json?.debug?.docs ?? []).some((d) => d.from === "Exclusivo de este agente"),
+      suyo.text.slice(0, 300)
+    );
+    const ajeno10 = await preguntar("¿Qué guion uso para cerrar la venta?");
+    ok("el general (todos los documentos de la empresa) NO lo lee", !String(ajeno10.json?.reply ?? "").includes(X10), ajeno10.text.slice(0, 300));
+    const mover10 = await A.api(`/api/lab/documents/${doc10}`, { method: "PATCH", body: JSON.stringify({ groupId: "general" }) });
+    ok("un exclusivo no se mueve de grupo (404)", mover10.status === 404, mover10.text.slice(0, 200));
+    await page.goto(`${BASE}/lab/documentos`);
+    ok("Documentos cuenta los exclusivos en el uso", /exclusivo/.test(await page.getByTestId("kb-docs-exclusive").innerText()));
+
+    // Archivar desde la lista, conservándolos en General.
+    await page.goto(`${BASE}/lab`);
+    await page.locator("li").filter({ hasText: `Cierre 10 E2E ${RUN}` }).getByRole("button", { name: "Archivar" }).click();
+    const dlg10 = page.getByRole("dialog");
+    await dlg10.getByTestId("archive-exclusive-docs").waitFor();
+    ok(
+      "archivar ofrece las dos opciones, con «Eliminar» por defecto",
+      /1 documento exclusivo/.test(await dlg10.innerText()) && (await dlg10.getByLabel("Eliminar sus documentos exclusivos").isChecked())
+    );
+    await dlg10.getByLabel(/Conservarlos pasándolos a General/).check();
+    await dlg10.getByRole("button", { name: "Archivar" }).click();
+    await page.locator("li").filter({ hasText: `Cierre 10 E2E ${RUN}` }).waitFor({ state: "detached" });
+    const d10b = await estado(A, doc10);
+    ok("conservarlos los pasa a General (sin agente ni grupo)", d10b?.status === "ready" && d10b?.groupId === null, JSON.stringify(d10b));
+    const ahora10 = await preguntar("¿Qué guion uso para cerrar la venta?");
+    ok("y ahora los lee el general", String(ahora10.json?.reply ?? "").includes(X10), ahora10.text.slice(0, 300));
+    await A.api(`/api/lab/documents/${doc10}`, { method: "DELETE" });
+
+    // Archivar por defecto (sin elegir) los borra.
+    const agente10b = (await A.post("/api/lab/agents", { internalName: `Borra 10 E2E ${RUN}` })).json?.agent;
+    const form10 = new FormData();
+    form10.append("file", new Blob([`Nota temporal ${RUN} del agente que se archiva.`], { type: "text/plain" }), `temporal-${RUN}.txt`);
+    form10.append("agentId", agente10b.id);
+    const sub10 = await A.api("/api/lab/documents", { method: "POST", body: form10 });
+    const doc10b = sub10.json?.document?.id;
+    ok("subir un exclusivo por la API", sub10.status === 201, sub10.text.slice(0, 200));
+    await A.api(`/api/lab/agents/${agente10b.id}`, { method: "DELETE" });
+    ok("archivar sin elegir borra sus exclusivos", (await estado(A, doc10b)) === null);
   } finally {
     await browser.close();
   }

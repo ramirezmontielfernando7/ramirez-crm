@@ -20,6 +20,6 @@
 
 ## PR 3 — Exclusivos
 
-- [ ] T13 Subir y listar exclusivos desde el editor (aviso «aplican al momento»).
-- [ ] T14 Archivar con D3 en la misma transacción.
-- [ ] T15 Uso «N exclusivos», tests/db, E2E, `CLAUDE.md`, `docs/conocimiento-rag.md`.
+- [x] T13 Subir y listar exclusivos desde el editor (aviso «aplican al momento»).
+- [x] T14 Archivar con D3 en la misma transacción.
+- [x] T15 Uso «N exclusivos», tests/db, E2E, `CLAUDE.md`, `docs/conocimiento-rag.md`.

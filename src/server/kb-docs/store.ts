@@ -109,16 +109,24 @@ export async function getDocument(organizationId: string, id: string): Promise<K
   return row ?? null;
 }
 
-/** Cuántos documentos y fragmentos tiene la organización. */
-export async function getUsage(organizationId: string, db: Db = getDb()): Promise<{ documents: number; chunks: number }> {
+/**
+ * Cuántos documentos y fragmentos tiene la organización. 037 (PR 3): los
+ * exclusivos de un agente cuentan igual contra los límites; `exclusive` dice
+ * cuántos de ellos lo son (para la pantalla).
+ */
+export async function getUsage(
+  organizationId: string,
+  db: Db = getDb()
+): Promise<{ documents: number; chunks: number; exclusive: number }> {
   const [row] = await db
     .select({
       documents: sql<number>`count(*)::int`,
       chunks: sql<number>`coalesce(sum(${schema.kbDocument.chunkCount}), 0)::int`,
+      exclusive: sql<number>`count(${schema.kbDocument.agentId})::int`,
     })
     .from(schema.kbDocument)
     .where(scoped(schema.kbDocument.organizationId, organizationId));
-  return { documents: row?.documents ?? 0, chunks: row?.chunks ?? 0 };
+  return { documents: row?.documents ?? 0, chunks: row?.chunks ?? 0, exclusive: row?.exclusive ?? 0 };
 }
 
 export async function createDocument(
@@ -133,9 +141,16 @@ export async function createDocument(
     uploadedByUserId: string | null;
     /** 037 — `null`/ausente = General. */
     groupId?: string | null;
+    /**
+     * 037 (PR 3) — Exclusivo de este agente (entonces sin grupo). Que el
+     * agente exista y no esté archivado lo valida la ruta (`agents/store`);
+     * la FK compuesta garantiza que sea de esta organización.
+     */
+    agentId?: string | null;
   }
 ): Promise<KbDocument> {
-  const groupId = input.groupId ?? null;
+  const agentId = input.agentId ?? null;
+  const groupId = agentId ? null : (input.groupId ?? null);
   try {
     return await withTenant(organizationId, async (tx) => {
       await lockOrg(tx, organizationId);
@@ -144,7 +159,7 @@ export async function createDocument(
       const usage = await getUsage(organizationId, tx);
       if (usage.documents >= limits.maxDocuments) throw new KbDocError("document_limit");
       const [dup] = await tx
-        .select({ id: schema.kbDocument.id, groupName: schema.kbDocumentGroup.name })
+        .select({ id: schema.kbDocument.id, groupName: schema.kbDocumentGroup.name, agentId: schema.kbDocument.agentId })
         .from(schema.kbDocument)
         .leftJoin(
           schema.kbDocumentGroup,
@@ -152,7 +167,14 @@ export async function createDocument(
         )
         .where(scoped(schema.kbDocument.organizationId, organizationId, eq(schema.kbDocument.contentSha256, input.contentSha256)))
         .limit(1);
-      if (dup) throw new KbDocError("duplicate", `Ese documento ya está subido, en el grupo «${dup.groupName ?? GENERAL_GROUP_NAME}».`);
+      if (dup) {
+        throw new KbDocError(
+          "duplicate",
+          dup.agentId
+            ? "Ese documento ya está subido como exclusivo de un agente."
+            : `Ese documento ya está subido, en el grupo «${dup.groupName ?? GENERAL_GROUP_NAME}».`
+        );
+      }
       const [row] = await tx
         .insert(schema.kbDocument)
         .values({
@@ -167,6 +189,7 @@ export async function createDocument(
           text: input.text,
           uploadedByUserId: input.uploadedByUserId,
           groupId,
+          agentId,
         })
         .returning();
       return row!;
@@ -176,6 +199,41 @@ export async function createDocument(
     if (isUniqueViolation(err)) throw new KbDocError("duplicate");
     throw err;
   }
+}
+
+/** 037 (PR 3) — Los documentos exclusivos de un agente. */
+export async function listAgentDocuments(organizationId: string, agentId: string): Promise<KbDocument[]> {
+  const d = schema.kbDocument;
+  return getDb()
+    .select()
+    .from(schema.kbDocument)
+    .where(scoped(d.organizationId, organizationId, eq(d.agentId, agentId)))
+    .orderBy(desc(d.createdAt));
+}
+
+/**
+ * 037 (PR 3, D3) — Al archivar un agente, qué pasa con sus exclusivos, en la
+ * transacción de quien archiva: `delete` los borra (con sus fragmentos, por
+ * la FK); `move_to_general` los deja como documentos de la empresa en
+ * General (`agent_id` y `group_id` NULL), y entonces los lee cualquier
+ * agente con «Todos los documentos de la empresa». Devuelve cuántos eran.
+ */
+export async function settleAgentDocuments(
+  tx: Db,
+  organizationId: string,
+  agentId: string,
+  mode: "delete" | "move_to_general"
+): Promise<number> {
+  const d = schema.kbDocument;
+  const rows =
+    mode === "delete"
+      ? await tx.delete(schema.kbDocument).where(scoped(d.organizationId, organizationId, eq(d.agentId, agentId))).returning({ id: d.id })
+      : await tx
+          .update(schema.kbDocument)
+          .set({ agentId: null, groupId: null, updatedAt: new Date() })
+          .where(scoped(d.organizationId, organizationId, eq(d.agentId, agentId)))
+          .returning({ id: d.id });
+  return rows.length;
 }
 
 export async function deleteDocument(organizationId: string, id: string): Promise<boolean> {

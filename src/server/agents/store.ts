@@ -16,7 +16,7 @@ import { copyAgentKb } from "./kb";
 import { appendPublishLog, type PublishAction } from "./log";
 import { syncGeneralToProfile } from "./mirror";
 import { removeAgentStages } from "./assignments";
-import { existingGroupIds } from "@/server/kb-docs/store";
+import { existingGroupIds, settleAgentDocuments } from "@/server/kb-docs/store";
 
 /**
  * 031 — ÚNICA puerta de `agent` y `agent_publish_log` (con `ensure.ts`,
@@ -221,8 +221,16 @@ export async function renameAgent(organizationId: string, id: string, internalNa
   return toDetail(row);
 }
 
-/** Archivar (borrado suave). El general no se archiva. */
-export async function archiveAgent(organizationId: string, id: string): Promise<void> {
+/**
+ * Archivar (borrado suave). El general no se archiva.
+ * 037 (PR 3, D3): sus documentos exclusivos se borran (por defecto) o pasan
+ * a General, en la MISMA transacción. Nada más del flujo cambia.
+ */
+export async function archiveAgent(
+  organizationId: string,
+  id: string,
+  opts: { exclusiveDocs?: "delete" | "move_to_general" } = {}
+): Promise<void> {
   await withTenant(organizationId, async (tx) => {
     const row = await lockAgent(tx, organizationId, id);
     if (row.isGeneral) {
@@ -232,6 +240,7 @@ export async function archiveAgent(organizationId: string, id: string): Promise<
       .update(schema.agent)
       .set({ archivedAt: new Date(), updatedAt: new Date() })
       .where(scoped(schema.agent.organizationId, organizationId, activeId(id)));
+    await settleAgentDocuments(tx, organizationId, id, opts.exclusiveDocs ?? "delete");
   });
 }
 

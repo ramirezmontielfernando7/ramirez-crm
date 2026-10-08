@@ -8,7 +8,8 @@ import { kbDocsOff } from "@/server/kb-docs/flag";
 import { documentView, kbDocError, withKbDocErrors } from "@/server/kb-docs/http";
 import { scheduleIndex } from "@/server/kb-docs/indexer";
 import { formatBytes, getKbDocLimits } from "@/server/kb-docs/limits";
-import { createDocument, getUsage, listDocuments } from "@/server/kb-docs/store";
+import { createDocument, getUsage, listAgentDocuments, listDocuments } from "@/server/kb-docs/store";
+import { getAgent } from "@/server/agents/store";
 import { moduleOff } from "@/server/modules";
 
 export const dynamic = "force-dynamic";
@@ -20,14 +21,18 @@ const UPLOADS_PER_HOUR = 20;
  * 035 — Laboratorio → Documentos: la lista con su estado, el uso contra los
  * límites y si hay servicio de embeddings (sin él, «solo texto»).
  * 037: `?group=general|<id>` → solo los de ese grupo (sin él, todos los de
- * la empresa).
+ * la empresa). PR 3: `?agentId=` → los exclusivos de ese agente.
  */
 export const GET = withAuth(async (session, req: Request) => {
   const off = (await moduleOff(session.organizationId, "lab")) ?? kbDocsOff();
   if (off) return off;
-  const group = new URL(req.url).searchParams.get("group");
+  const params = new URL(req.url).searchParams;
+  const group = params.get("group");
+  const agentId = params.get("agentId");
   const [docs, usage, limits] = await Promise.all([
-    listDocuments(session.organizationId, group === null ? {} : { groupId: groupIdFromKey(group) }),
+    agentId
+      ? listAgentDocuments(session.organizationId, agentId)
+      : listDocuments(session.organizationId, group === null ? {} : { groupId: groupIdFromKey(group) }),
     getUsage(session.organizationId),
     getKbDocLimits(session.organizationId),
   ]);
@@ -75,6 +80,13 @@ export const POST = withAuth(async (session, req: Request) => {
   // 037 — El grupo («general» o ausente = General).
   const rawGroup = form.get("groupId");
   const groupId = typeof rawGroup === "string" && rawGroup.trim() ? groupIdFromKey(rawGroup.trim()) : null;
+  // 037 (PR 3) — O exclusivo de un agente (activo y de esta organización).
+  const rawAgent = form.get("agentId");
+  const agentId = typeof rawAgent === "string" && rawAgent.trim() ? rawAgent.trim() : null;
+  // Se mira el campo tal como llegó: «general» también es un grupo.
+  const askedGroup = typeof rawGroup === "string" && rawGroup.trim() !== "";
+  if (agentId && askedGroup) return apiError(422, "invalid", "Un documento es de un grupo o exclusivo de un agente, no las dos cosas.");
+  if (agentId && !(await getAgent(session.organizationId, agentId))) return apiError(404, "agent_not_found", "Agente no encontrado");
 
   const rawTitle = form.get("title");
   const title = (typeof rawTitle === "string" && rawTitle.trim() ? rawTitle.trim() : titleFromFilename(filename)).slice(0, 200);
@@ -89,6 +101,7 @@ export const POST = withAuth(async (session, req: Request) => {
       contentSha256: createHash("sha256").update(extracted.text).digest("hex"),
       uploadedByUserId: session.userId,
       groupId,
+      agentId,
     });
     scheduleIndex(session.organizationId, doc.id);
     return Response.json({ document: documentView(doc) }, { status: 201 });

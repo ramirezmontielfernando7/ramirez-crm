@@ -65,9 +65,17 @@
     snapshot. Un mensaje REAL por WhatsApp de un lead en la etapa asignada
     al agente responde con Ventas y no con General. El diálogo de eliminar
     el grupo dice «1 agente elige este grupo».
+11. **Exclusivos (037, PR 3).** Editor del agente → «Documentos» → «Solo de
+    este agente» avisa que aplican al momento → subir → «Listo». Queda sin
+    grupo, fuera de las listas de la empresa y contado en el uso («1
+    exclusivo de un agente»). Su agente lo lee («Por qué»: «Exclusivo de
+    este agente»); el general no. Moverlo de grupo → 404. Archivar desde
+    la lista: el diálogo dice «1 documento exclusivo» con «Eliminar» marcado;
+    «Conservarlos pasándolos a General» → queda en General y el general lo
+    lee. Archivar sin elegir (API) los borra.
 
 Lo que no cubre este guion y sí cubren otras pruebas:
-`tests/db/documentos.test.ts`, `tests/db/grupos-documentos.test.ts` y `tests/db/fuentes-agente.test.ts` (matriz de fuentes por texto y por vectores, RLS con la app como `vocero_app`, FK compuestas,
+`tests/db/documentos.test.ts`, `tests/db/grupos-documentos.test.ts`, `tests/db/fuentes-agente.test.ts` y `tests/db/exclusivos-agente.test.ts` (matriz de fuentes por texto y por vectores, RLS con la app como `vocero_app`, FK compuestas,
 límites con subidas simultáneas, `KB_DOCS` apagado, módulo Laboratorio
 apagado, Reindexar al volver el servicio, el turno real con y sin documentos)
 y `tests/unit/kb-docs-prompt.test.ts` (prompt idéntico sin documentos, nonce

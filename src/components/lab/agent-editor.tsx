@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, ChevronDown, Pencil } from "lucide-react";
 import { AgentConfigForm } from "@/components/agent/agent-config-form";
-import { AgentDocSources } from "@/components/lab/agent-doc-sources";
+import { AgentDocSources, AgentExclusiveDocs, ArchiveExclusiveDocsChoice } from "@/components/lab/agent-doc-sources";
 import { AgentKbPanel } from "@/components/lab/agent-kb-panel";
 import { AgentPreview } from "@/components/lab/agent-preview";
 import { ConfirmDialog } from "@/components/lab/confirm-dialog";
@@ -77,6 +77,8 @@ export function AgentEditor({ id, documents = false }: { id: string; documents?:
   const [note, setNote] = useState<string | null>(null);
   const [renaming, setRenaming] = useState(false);
   const [nameDraft, setNameDraft] = useState("");
+  // 037 (PR 3) — Al archivar: qué pasa con sus documentos exclusivos.
+  const [archiveDocs, setArchiveDocs] = useState<"delete" | "general">("delete");
 
   const load = useCallback(async () => {
     const [a, list] = await Promise.all([call<{ agent: AgentDetail }>(`/api/lab/agents/${id}`), call<{ agents: AgentSummary[] }>("/api/lab/agents")]);
@@ -172,7 +174,7 @@ export function AgentEditor({ id, documents = false }: { id: string; documents?:
 
   async function archive() {
     setBusy(true);
-    const r = await call(`/api/lab/agents/${id}`, { method: "DELETE" });
+    const r = await call(`/api/lab/agents/${id}?documents=${archiveDocs}`, { method: "DELETE" });
     setBusy(false);
     if (!r.ok) {
       setDialog(null);
@@ -321,7 +323,10 @@ export function AgentEditor({ id, documents = false }: { id: string; documents?:
 
             {documents && (
               <Collapsible title="Documentos">
-                <AgentDocSources value={cfg.docSources} onChange={(docSources) => setCfg({ ...cfg, docSources })} />
+                <div className="space-y-4">
+                  <AgentDocSources value={cfg.docSources} onChange={(docSources) => setCfg({ ...cfg, docSources })} />
+                  <AgentExclusiveDocs agentId={id} />
+                </div>
               </Collapsible>
             )}
 
@@ -417,6 +422,7 @@ export function AgentEditor({ id, documents = false }: { id: string; documents?:
       {dialog === "archive" && (
         <ConfirmDialog title={`¿Archivar «${agent.internalName}»?`} confirmLabel="Archivar" destructive busy={busy} onConfirm={() => void archive()} onCancel={() => setDialog(null)}>
           <p>Deja de aparecer en la lista y ya no se puede evaluar. Tus clientes no notan ningún cambio.</p>
+          {documents && <ArchiveExclusiveDocsChoice agentId={id} value={archiveDocs} onChange={setArchiveDocs} />}
         </ConfirmDialog>
       )}
       {restoring && (
