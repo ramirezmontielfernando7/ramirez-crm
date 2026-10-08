@@ -33,6 +33,20 @@ export function tagColorClass(color: string | null | undefined): string {
   return TAG_COLOR_CLASS[isTagColor(color) ? color : "gris"];
 }
 
+/** Punto de 8 px del mismo color (menús y etapas): tonos medios, legibles en ambos temas. */
+export const TAG_DOT_CLASS: Record<TagColor, string> = {
+  gris: "bg-text-3",
+  azul: "bg-brand",
+  verde: "bg-emerald-500",
+  ambar: "bg-amber-500",
+  rojo: "bg-red-500",
+  morado: "bg-violet-500",
+};
+
+export function tagDotClass(color: string | null | undefined): string {
+  return TAG_DOT_CLASS[isTagColor(color) ? color : "gris"];
+}
+
 export const TAG_NAME_MAX = 60;
 
 /** Nombre canónico: sin espacios de sobra. Vacío o muy largo → null. */

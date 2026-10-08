@@ -3,46 +3,14 @@
 import { useCallback, useEffect, useState } from "react";
 import { ChevronDown, ChevronRight, GitMerge, Pencil, Trash2 } from "lucide-react";
 import { fetchJson, jsonInit } from "@/lib/fetch-json";
-import { TAG_COLORS, TAG_NAME_MAX, tagColorClass, type TagColor, type TagDto } from "@/lib/tags";
-import { cn } from "@/lib/utils";
+import { TAG_NAME_MAX, type TagColor, type TagDto } from "@/lib/tags";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { TagChip } from "@/components/tags/tag-chip";
+import { ColorPicker } from "@/components/tags/color-picker";
 import { TagMergePanel } from "@/components/settings/tag-merge-panel";
-
-const COLOR_LABEL: Record<TagColor, string> = {
-  gris: "Gris",
-  azul: "Azul",
-  verde: "Verde",
-  ambar: "Ámbar",
-  rojo: "Rojo",
-  morado: "Morado",
-};
-
-function ColorPicker({ value, onChange }: { value: TagColor; onChange: (c: TagColor) => void }) {
-  return (
-    <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label="Color">
-      {TAG_COLORS.map((c) => (
-        <button
-          key={c}
-          type="button"
-          role="radio"
-          aria-checked={value === c}
-          aria-label={COLOR_LABEL[c]}
-          title={COLOR_LABEL[c]}
-          onClick={() => onChange(c)}
-          className={cn(
-            "h-6 w-6 rounded-full border",
-            tagColorClass(c),
-            value === c ? "ring-2 ring-ring ring-offset-2 ring-offset-background" : ""
-          )}
-        />
-      ))}
-    </div>
-  );
-}
 
 /** 021 — Configuración → Etiquetas: el catálogo de etiquetas del negocio. */
 export function TagsClient() {
