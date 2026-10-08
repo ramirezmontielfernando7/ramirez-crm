@@ -28,6 +28,14 @@ import type { LlmUsage } from "@/lib/ai";
 
 export type AiKind = "agent" | "lab" | "judge" | "writing";
 
+/** 036 — Los tipos que tienen agente (la escritura y los embeddings no). */
+export const AGENT_KINDS = ["agent", "lab", "judge"] as const;
+export type AgentAiKind = (typeof AGENT_KINDS)[number];
+
+export function isAgentKind(kind: string): kind is AgentAiKind {
+  return (AGENT_KINDS as readonly string[]).includes(kind);
+}
+
 const TOTAL = "total";
 
 export type QuotaLimits = { turns: number | null; tokens: number | null };
@@ -141,6 +149,60 @@ export async function recordUsage(
         )
       );
   }
+}
+
+/**
+ * 036 (PR 1) — El mismo turno, anotado al AGENTE que lo pidió
+ * (`ai_usage_agent`). Solo reporta: no se compara contra ningún tope (eso ya
+ * lo hizo `reserveTurn` sobre la fila `total`). Un turno y sus tokens en una
+ * sola sentencia; el turno cuenta aunque el proveedor haya fallado, igual que
+ * en `ai_usage`.
+ */
+export async function recordAgentUsage(
+  organizationId: string,
+  agentId: string,
+  kind: AgentAiKind,
+  usage: LlmUsage | null,
+  now = new Date()
+): Promise<void> {
+  const period = currentPeriod(now);
+  const prompt = Math.max(0, Math.floor(usage?.promptTokens ?? 0));
+  const completion = Math.max(0, Math.floor(usage?.completionTokens ?? 0));
+  await getDb()
+    .insert(schema.aiUsageAgent)
+    .values({ organizationId, period, agentId, kind, turns: 1, promptTokens: prompt, completionTokens: completion })
+    .onConflictDoUpdate({
+      target: [
+        schema.aiUsageAgent.organizationId,
+        schema.aiUsageAgent.period,
+        schema.aiUsageAgent.agentId,
+        schema.aiUsageAgent.kind,
+      ],
+      set: {
+        turns: sql`${schema.aiUsageAgent.turns} + 1`,
+        promptTokens: sql`${schema.aiUsageAgent.promptTokens} + ${prompt}`,
+        completionTokens: sql`${schema.aiUsageAgent.completionTokens} + ${completion}`,
+        updatedAt: new Date(),
+      },
+    });
+}
+
+export type AgentUsageRow = { agentId: string; kind: AgentAiKind; turns: number; tokens: number };
+
+/** 036 — El consumo del mes de la organización por agente y tipo. */
+export async function getAgentUsage(organizationId: string, now = new Date()): Promise<AgentUsageRow[]> {
+  const rows = await getDb()
+    .select()
+    .from(schema.aiUsageAgent)
+    .where(
+      scoped(schema.aiUsageAgent.organizationId, organizationId, eq(schema.aiUsageAgent.period, currentPeriod(now)))
+    );
+  return rows.map((r) => ({
+    agentId: r.agentId,
+    kind: r.kind,
+    turns: r.turns,
+    tokens: r.promptTokens + r.completionTokens,
+  }));
 }
 
 /**

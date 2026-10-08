@@ -88,6 +88,7 @@ export async function runPreview(input: PreviewInput): Promise<PreviewResult> {
   const decision = await decideTurn({
     organizationId: input.organizationId,
     kind: "lab",
+    agentId: input.agentId,
     config: toPromptConfig(input.config),
     kb,
     stages,

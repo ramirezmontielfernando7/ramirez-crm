@@ -19,6 +19,7 @@ describe("judgeCase (FR-032)", () => {
     });
     const outcome = await judgeCase({
       organizationId: "org_test",
+      agentId: "agt_test",
       personaKey: "comprador_decidido",
       transcript: [{ role: "cliente", text: "hola" }],
       kbText: "kb",
@@ -27,6 +28,8 @@ describe("judgeCase (FR-032)", () => {
     expect(outcome.status).toBe("done");
     // usa el modelo del juez (opts.judge)
     expect(chatJson.mock.calls[0]![2]).toMatchObject({ judge: true });
+    // 036: el agente evaluado es para la cuenta, no para el proveedor.
+    expect(chatJson.mock.calls[0]![2]).not.toHaveProperty("agentId");
   });
 
   it("salida inválida tras reintentos internos → judge_failed (no lanza)", async () => {
@@ -37,6 +40,7 @@ describe("judgeCase (FR-032)", () => {
     });
     const outcome = await judgeCase({
       organizationId: "org_test",
+      agentId: "agt_test",
       personaKey: "fuera_de_kb",
       transcript: [],
       kbText: "",

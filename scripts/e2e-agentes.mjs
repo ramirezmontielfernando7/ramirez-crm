@@ -74,6 +74,16 @@ async function hasta(cond, ms = 30000) {
 
 const sql = postgres(process.env.DATABASE_URL_SYSTEM || process.env.DATABASE_URL, { max: 2, onnotice: () => {} });
 
+/** 036 (PR 1) — Turnos de IA del mes (UTC) anotados a un agente, por tipo. */
+async function turnosDe(org, agentId, kind) {
+  const d = new Date();
+  const periodo = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-01`;
+  const [f] = await sql`
+    select turns, prompt_tokens + completion_tokens as tokens from ai_usage_agent
+    where organization_id = ${org} and period = ${periodo} and agent_id = ${agentId ?? ""} and kind = ${kind}`;
+  return { turns: f?.turns ?? 0, tokens: Number(f?.tokens ?? 0) };
+}
+
 let cookie = "";
 async function api(path, init = {}) {
   const res = await fetch(`${BASE}${path}`, {
@@ -164,6 +174,12 @@ async function main() {
            (select count(*) from lead where organization_id = ${org})::int as l,
            (select count(*) from conversation where organization_id = ${org})::int as c`;
   ok("NADA se guardó (mensajes, leads, conversaciones)", JSON.stringify(antes) === JSON.stringify(despues), `${JSON.stringify(antes)} → ${JSON.stringify(despues)}`);
+  const consumoPrevia = await turnosDe(org, agente?.id, "lab");
+  ok(
+    "036: la vista previa se anota al agente que se edita (2 turnos «lab»; escalar no gasta)",
+    consumoPrevia.turns === 2,
+    JSON.stringify(consumoPrevia)
+  );
   const sinGuardar = await api(`/api/lab/agents/${agente?.id}`);
   ok("la vista previa no guardó el formulario", sinGuardar.json?.agent?.draft?.tone === null);
 
@@ -201,6 +217,13 @@ async function main() {
   ok("la corrida termina", terminada);
   const runs = (await api("/api/lab/runs")).json?.runs ?? [];
   const mia = runs.find((r) => r.id === corrida.json?.runId);
+  const juez = await turnosDe(org, agente?.id, "judge");
+  const labTrasCorrida = await turnosDe(org, agente?.id, "lab");
+  ok(
+    "036: la evaluación se anota al agente evaluado (juez y conversaciones del Laboratorio)",
+    juez.turns >= 1 && labTrasCorrida.turns > consumoPrevia.turns,
+    `juez=${JSON.stringify(juez)} lab=${JSON.stringify(labTrasCorrida)}`
+  );
   ok("el historial dice qué se evaluó", mia?.agentId === agente?.id && mia?.source === "draft" && mia?.agentName === `Ventas E2E ${RUN}`, JSON.stringify(mia));
   const sinCuerpo = await post("/api/lab/runs");
   if (sinCuerpo.status === 202) {
@@ -222,6 +245,7 @@ async function main() {
   await put("/api/agent/profile", { enabled: true });
   const nombreGeneral = (await api("/api/agent/profile")).json?.profile;
   const tel = `52155${RUN}31`;
+  const generalAntes = await turnosDe(org, general?.id, "agent");
   await api("/api/dev/wa-mock/outbox", { method: "DELETE" });
   await post("/api/dev/wa-mock/inbound", { phoneNumberId: pn, from: tel, name: `Cliente Agentes ${RUN}`, text: "hola, ¿quién eres?", waMessageId: `wamid.agt.${RUN}` });
   let respuesta = null;
@@ -233,6 +257,12 @@ async function main() {
   const esperado = nombreGeneral?.displayName ? `Soy ${nombreGeneral.displayName}.` : "Somos el equipo del negocio (sin nombre propio).";
   const textoRespuesta = JSON.stringify(respuesta ?? {});
   ok("un mensaje real lo contesta el agente GENERAL (no el del Laboratorio)", textoRespuesta.includes(esperado), textoRespuesta.slice(0, 300));
+  const generalDespues = await turnosDe(org, general?.id, "agent");
+  ok(
+    "036: el turno real se anota al general (tipo «agent»), y nada al agente del Laboratorio",
+    generalDespues.turns > generalAntes.turns && (await turnosDe(org, agente?.id, "agent")).turns === 0,
+    `${JSON.stringify(generalAntes)} → ${JSON.stringify(generalDespues)}`
+  );
   await put("/api/agent/profile", { enabled: Boolean(encendidoAntes) });
 
   console.log("\n== 5b. Pantallas (navegador real) ==");
@@ -454,6 +484,8 @@ async function agentesPorEtapa(org, pn) {
     ok("mover el lead a «Interesado»", (await mover(interesado?.stageId)).status === 200);
     const r2 = await escribe();
     ok("en «Interesado» contesta el agente de la etapa", r2.includes(`Soy ${nombre}.`), r2.slice(0, 200));
+    const deEtapa = await turnosDe(org, etapaAg?.id, "agent");
+    ok("036: ese turno se anota al agente de la etapa", deEtapa.turns >= 1, JSON.stringify(deEtapa));
     const atiende = await api(`/api/conversations/${fila1?.conversation_id}/agent`);
     ok("la conversación dice quién atiende", atiende.json?.agent?.label === `Etapa E2E ${RUN}`, atiende.text.slice(0, 200));
     await page.goto(`${BASE}/inbox?contact=${fila1?.contact_id}`);
