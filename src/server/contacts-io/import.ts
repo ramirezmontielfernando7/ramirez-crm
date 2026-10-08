@@ -3,6 +3,8 @@ import { getDb, schema, type Db } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
 import { scoped } from "@/lib/db/tenant";
 import { normalizeTagName, type WaConsent } from "@/lib/tags";
+import { collectImportTagNames, tagIdsForMember, type ImportExtraTag } from "@/lib/import-tag";
+import { TagError } from "@/server/tags/tags";
 import {
   DECLARED_CONSENT_SOURCE,
   OPT_OUT_PREVIEW_MAX,
@@ -47,6 +49,8 @@ export type ImportSummary = {
   failed: number;
   emptyRows: number;
   tag: { id: string; name: string };
+  /** La etiqueta extra «para todos los contactos de esta base», si se eligió una. */
+  extraTag: { id: string; name: string } | null;
   /** Detalle por fila de lo que NO se importó (para el CSV descargable). */
   failures: RowFailure[];
   /** Filas importadas con una salvedad (p. ej. opt_out conservado). */
@@ -153,6 +157,12 @@ export async function importValidated(input: {
   fileName: string;
   validation: ValidationResult;
   tagName?: string | null;
+  /**
+   * Etiqueta opcional para TODOS los contactos importados (nuevos y
+   * existentes), además de la automática y las de cada fila. Una nueva exige
+   * `tags.manage`: la ruta lo valida antes de llegar aquí.
+   */
+  extraTag?: ImportExtraTag | null;
   createLeads?: boolean;
   consentAnswer?: ConsentAnswer;
   optOutTreatment?: OptOutTreatment;
@@ -189,11 +199,15 @@ export async function importValidated(input: {
   let updated = 0;
   const db = getDb();
 
-  const importTag = await db.transaction(async (tx) => {
+  const imported = await db.transaction(async (tx) => {
+    // La etiqueta extra primero: si es inválida o ya existe, nada se escribe.
+    const extra = await resolveExtraTag(tx, organizationId, input.extraTag ?? null);
+
     // Etiquetas: la del import + las que traiga cada fila, creadas si faltan.
-    const allTagNames = new Set<string>([tagName]);
-    for (const r of validation.rows) for (const t of r.tags) allTagNames.add(t);
-    const tagNames = [...allTagNames];
+    const tagNames = collectImportTagNames(
+      tagName,
+      validation.rows.map((r) => r.tags)
+    );
     for (const names of chunks(tagNames)) {
       await tx
         .insert(schema.contactTag)
@@ -296,8 +310,7 @@ export async function importValidated(input: {
         }
         updated++;
         members.push({ contactId: current.id, row, created: false });
-        assignments.push({ contactId: current.id, tagId: importTagId });
-        for (const t of row.tags) assignments.push({ contactId: current.id, tagId: tagIdByName.get(t)! });
+        pushAssignments(assignments, current.id, importTagId, row.tags, tagIdByName, extra?.id ?? null);
       }
 
       if (toInsert.length > 0) {
@@ -332,8 +345,7 @@ export async function importValidated(input: {
             createdIds.push(r.id);
             finalConsent.set(r.id, consentOf(r) ?? "desconocido");
             members.push({ contactId: r.id, row: r, created: true });
-            assignments.push({ contactId: r.id, tagId: importTagId });
-            for (const t of r.tags) assignments.push({ contactId: r.id, tagId: tagIdByName.get(t)! });
+            pushAssignments(assignments, r.id, importTagId, r.tags, tagIdByName, extra?.id ?? null);
           } else {
             warnings.push({
               line: r.line,
@@ -357,7 +369,7 @@ export async function importValidated(input: {
     await logActivities(consentEvents, tx);
     const tag = { id: importTagId, name: tagName };
     if (input.onMembers) await input.onMembers(tx, members, tag, tallyConsent());
-    return tag;
+    return { tag, extra };
   });
 
   function tallyConsent(): ImportConsentResult {
@@ -391,12 +403,56 @@ export async function importValidated(input: {
     updated,
     failed: validation.failures.length,
     emptyRows: validation.emptyRows,
-    tag: importTag,
+    tag: imported.tag,
+    extraTag: imported.extra,
     failures: validation.failures,
     warnings,
     leadsCreated,
     consent: tallyConsent(),
   };
+}
+
+function pushAssignments(
+  out: { contactId: string; tagId: string }[],
+  contactId: string,
+  importTagId: string,
+  rowTags: string[],
+  tagIdByName: Map<string, string>,
+  extraId: string | null
+) {
+  const rowIds = rowTags.map((t) => tagIdByName.get(t)!);
+  for (const tagId of tagIdsForMember(importTagId, rowIds, extraId)) out.push({ contactId, tagId });
+}
+
+/**
+ * La etiqueta extra dentro de la transacción. Existente: debe ser de ESTA
+ * organización (404 si no). Nueva: mismas reglas que `createTag`; si el nombre
+ * ya existe, 409 `duplicate` y no se importa nada.
+ */
+async function resolveExtraTag(
+  tx: Tx,
+  organizationId: string,
+  extra: ImportExtraTag | null
+): Promise<{ id: string; name: string } | null> {
+  if (!extra) return null;
+  if (extra.kind === "existing") {
+    const rows = await tx
+      .select({ id: schema.contactTag.id, name: schema.contactTag.name })
+      .from(schema.contactTag)
+      .where(scoped(schema.contactTag.organizationId, organizationId, eq(schema.contactTag.id, extra.id)))
+      .limit(1);
+    if (!rows[0]) throw new TagError("not_found", "Etiqueta no encontrada");
+    return rows[0];
+  }
+  const name = normalizeTagName(extra.name);
+  if (!name) throw new TagError("invalid", "El nombre de la etiqueta es obligatorio (máx. 60 caracteres)");
+  const inserted = await tx
+    .insert(schema.contactTag)
+    .values({ id: newId("contactTag"), organizationId, name, color: extra.color })
+    .onConflictDoNothing({ target: [schema.contactTag.organizationId, schema.contactTag.name] })
+    .returning({ id: schema.contactTag.id, name: schema.contactTag.name });
+  if (!inserted[0]) throw new TagError("duplicate", `Ya existe una etiqueta llamada "${name}"`);
+  return inserted[0];
 }
 
 function consentSource(row: ValidRow, fileName: string): string {

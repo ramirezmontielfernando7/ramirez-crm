@@ -14,6 +14,7 @@ import {
 import { fetchJson } from "@/lib/fetch-json";
 import type { ConsentAnswer, ImportConsentResult, OptOutTreatment } from "@/lib/import-consent";
 import { ConsentQuestion, ConsentResultLine, OptOutPanel } from "@/components/import-consent";
+import { ImportTagPicker, extraTagFormFields, type ExtraTagChoice } from "@/components/tags/import-tag-picker";
 import { useViewer } from "@/components/viewer-context";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -32,6 +33,7 @@ type ImportResult = {
     failed: number;
     warnings: { reason: string }[];
     consent: ImportConsentResult;
+    extraTag?: { id: string; name: string } | null;
   };
 };
 
@@ -198,7 +200,10 @@ export function UploadFlow({
   const [answer, setAnswer] = useState<ConsentAnswer | null>(null);
   const [treatment, setTreatment] = useState<OptOutTreatment | null>(null);
   const [result, setResult] = useState<ImportResult | null>(null);
-  const canOverride = useViewer().can("contacts.consent_override");
+  const [extraTag, setExtraTag] = useState<ExtraTagChoice>(null);
+  const viewer = useViewer();
+  const canOverride = viewer.can("contacts.consent_override");
+  const canCreateTag = viewer.can("tags.manage");
 
   async function runPreview(f: File, m?: Partial<Record<ImportColumn, number>>) {
     setBusy(true);
@@ -252,6 +257,7 @@ export function UploadFlow({
     preview.missing.length === 0 &&
     (preview.summary?.valid ?? 0) > 0 &&
     (!needsTreatment || !!treatment) &&
+    (extraTag?.kind !== "new" || extraTag.name.trim() !== "") &&
     !busy;
 
   async function doImport() {
@@ -264,6 +270,7 @@ export function UploadFlow({
     form.set("name", name);
     if (answer) form.set("consentAnswer", answer);
     form.set("optOutTreatment", treatment ?? "respect");
+    for (const [k, v] of Object.entries(extraTagFormFields(extraTag))) form.set(k, v);
     const res = await fetchJson<ImportResult>("/api/campaigns/audiences", { method: "POST", body: form });
     setBusy(false);
     if (!res.ok) {
@@ -281,7 +288,8 @@ export function UploadFlow({
         <CardHeader>
           <CardTitle>Base importada: {result.audience.name}</CardTitle>
           <CardDescription>
-            Quedó guardada y todos sus contactos tienen la etiqueta «{result.audience.tag?.name}».
+            Quedó guardada y todos sus contactos tienen la etiqueta «{result.audience.tag?.name}»
+            {result.summary.extraTag ? ` y «${result.summary.extraTag.name}»` : ""}.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3 text-sm">
@@ -462,6 +470,7 @@ export function UploadFlow({
                 <Label htmlFor="aud-name">Nombre de la base</Label>
                 <Input id="aud-name" value={name} maxLength={120} onChange={(e) => setName(e.target.value)} />
               </div>
+              <ImportTagPicker value={extraTag} onChange={setExtraTag} canCreate={canCreateTag} disabled={busy} />
               {preview.optOut.count > 0 && (
                 <OptOutPanel
                   preview={preview.optOut}

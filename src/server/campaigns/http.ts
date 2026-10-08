@@ -3,6 +3,7 @@ import { apiError } from "@/lib/api";
 import { SOURCE_FILTER_VALUES } from "@/server/contact-filter";
 import { CAMPAIGN_ERROR_STATUS, CampaignError } from "@/server/campaigns/service";
 import { AudienceError } from "@/server/campaigns/audiences";
+import { TAG_ERROR_STATUS, TagError } from "@/server/tags/tags";
 import { IMPORT_ERROR_STATUS, ImportError } from "@/server/contacts-io/validate";
 
 /** 021 — Piezas HTTP compartidas por las rutas de campañas. */
@@ -31,6 +32,9 @@ export function campaignErrorResponse(err: unknown): Response {
   }
   if (err instanceof AudienceError) {
     return apiError(err.code === "not_found" ? 404 : 422, err.code, err.message);
+  }
+  if (err instanceof TagError) {
+    return apiError(TAG_ERROR_STATUS[err.code], err.code, err.message);
   }
   if (err instanceof ImportError) {
     return apiError(IMPORT_ERROR_STATUS[err.code], err.code, err.message);

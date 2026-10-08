@@ -51,3 +51,14 @@ responde 131000, `00000` 131026, `31049` 131049, `42900` 130429 la primera vez.
 Fuera del guion (cubierto por `tests/db/cola-campanas.test.ts`, BD real):
 dos despachadores sobre el mismo número, reclamo atómico concurrente,
 recuperación tras un reinicio sin reenviar lo incierto, y el programador.
+
+**Etiqueta para todos los contactos de la base** (`scripts/e2e-campanas-v2.mjs`,
+secciones 7c y 8). En «Archivo nuevo», debajo de «Nombre de la base», el campo
+opcional «Etiqueta para todos los contactos de esta base»: elegir una existente
+o crear una nueva (nombre y color). Se SUMA a la etiqueta automática
+«Import: archivo» y a las de la columna «etiquetas»; vacío = como siempre.
+Contacto existente: solo gana la etiqueta (sin perder datos ni etiquetas, sin
+duplicados). Filas inválidas o duplicadas no la reciben. Nombre repetido → 409,
+color fuera de la paleta → 422, id ajeno → 404; crear una nueva exige
+`tags.manage` (403 antes de la BD). Se ve en la cápsula de etiquetas de la
+Bandeja.
