@@ -288,6 +288,13 @@
       "when": 1791416178209,
       "tag": "0040_documentos_rag",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1791433424616,
+      "tag": "0041_etiquetas_sistema",
+      "breakpoints": true
     }
   ]
 }

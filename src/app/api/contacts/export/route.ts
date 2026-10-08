@@ -91,7 +91,7 @@ export const GET = withAuth(
     const porAnuncio = new Set<string>();
     for (let i = 0; i < ids.length; i += 1000) {
       const chunk = ids.slice(i, i + 1000);
-      const tags = await tagsForContacts(session.organizationId, chunk);
+      const tags = await tagsForContacts(session.organizationId, chunk, { includeSystem: true });
       for (const [id, list] of tags) tagsByContact.set(id, list.map((t) => t.name));
       const atts = await db
         .select({ contactId: schema.adAttribution.contactId })

@@ -68,6 +68,11 @@ export function importTagName(fileName: string, chosen?: string | null): string 
   return normalizeTagName(`Import: ${base}`.slice(0, 60)) ?? "Import";
 }
 
+/** La etiqueta que eligió la persona, normalizada; null = usa la automática. */
+function normalizeChosen(chosen?: string | null): string | null {
+  return chosen ? normalizeTagName(chosen) : null;
+}
+
 const CHUNK = 500;
 
 function chunks<T>(list: T[], size = CHUNK): T[][] {
@@ -202,6 +207,17 @@ export async function importValidated(input: {
   const imported = await db.transaction(async (tx) => {
     // La etiqueta extra primero: si es inválida o ya existe, nada se escribe.
     const extra = await resolveExtraTag(tx, organizationId, input.extraTag ?? null);
+
+    // La automática «Import: archivo» es de SISTEMA (no sale en selectores,
+    // filtros ni cápsulas; Audiencias la lee por `tag_id`). Se marca solo si
+    // la crea ESTA importación: una etiqueta de una persona con ese mismo
+    // nombre, o la que se eligió a mano, queda como estaba.
+    if (!normalizeChosen(input.tagName)) {
+      await tx
+        .insert(schema.contactTag)
+        .values({ id: newId("contactTag"), organizationId, name: tagName, systemOrigin: "import" })
+        .onConflictDoNothing({ target: [schema.contactTag.organizationId, schema.contactTag.name] });
+    }
 
     // Etiquetas: la del import + las que traiga cada fila, creadas si faltan.
     const tagNames = collectImportTagNames(

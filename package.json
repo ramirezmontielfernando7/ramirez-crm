@@ -36,6 +36,7 @@
     "test:e2e:modulos": "node --env-file=.env scripts/e2e-modulos.mjs",
     "test:e2e:datos-meta": "node --env-file=.env scripts/e2e-datos-meta.mjs",
     "test:e2e:campanas-v2": "node --env-file=.env scripts/e2e-campanas-v2.mjs",
+    "test:e2e:etiquetas": "node --env-file=.env scripts/e2e-etiquetas-limpias.mjs",
     "test:e2e:navegacion": "node --env-file=.env scripts/e2e-navegacion.mjs",
     "test:e2e:agentes": "node --env-file=.env scripts/e2e-agentes.mjs",
     "test:e2e:apariencia": "node --env-file=.env scripts/e2e-apariencia.mjs",
