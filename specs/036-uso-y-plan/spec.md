@@ -1,6 +1,6 @@
 # 036 — Uso y plan (Plataforma reorganizada + panel de consumo del Propietario)
 
-Estado: PR 1 implementado (consumo por agente). PR 2–6 pendientes; cada uno
+Estado: PR 1 fusionado (consumo por agente), PR 2 implementado (medición de almacenamiento). PR 3–6 pendientes; cada uno
 arranca solo cuando el dueño lo indica, y solo hay una migración en curso a la
 vez (el número se asigna al implementar, leyendo `drizzle/` en `main`).
 
@@ -61,3 +61,27 @@ vez (el número se asigna al implementar, leyendo `drizzle/` en `main`).
   del snapshot evaluado). La redacción y los embeddings: «sin agente».
 - Sin relleno retroactivo: el desglose existe desde el despliegue.
 - Lectura: `getAgentUsage(org)` (la usarán los PR 4 y 6).
+
+## PR 2 — Medición de almacenamiento (hecho)
+
+Sin migración, solo lectura. `src/server/usage/storage.ts`:
+
+- `getOrgStorageUsage(org)`: UNA organización, pool de la app (RLS) y
+  `scoped()` en cada consulta. Para «Uso y plan» (PR 6).
+- `getAllOrgsStorageUsage()`: TODAS, una suma agrupada por tabla con el pool
+  de sistema. Solo para la plataforma (PR 4 y 5). En `system-db-guard` (1 uso)
+  y en `tenant-query-exceptions` (5 consultas), cada una con su motivo.
+
+Qué cuenta (`src/lib/usage.ts`, la pantalla dice «Almacenamiento (aprox.)»
+con su nota):
+
+| Categoría | Fuente | Regla |
+|---|---|---|
+| Multimedia de WhatsApp | `media_asset` | `sum(file_size)` de los que están en disco (`storage_path` no nulo): entrantes, salientes, imagen del anuncio, encabezado de plantilla |
+| Archivos de Conocimientos | `knowledge_entry` | `sum(file_size)` de las entradas con archivo |
+| Adjuntos del chat de equipo | `team_chat_attachment` | `sum(file_size)` |
+| Documentos del agente | `kb_document` + `kb_chunk` | `octet_length(text)` + `octet_length(content)` + 4 bytes × `cardinality(embedding)`; el original no se guarda, así que `byte_size` NO cuenta. Sin filtrar por agente ni grupo |
+
+Los archivos en disco sin tamaño registrado no suman y se reportan aparte
+(`filesWithoutSize`). No cuenta: mensajes, contactos y bitácoras en Postgres,
+logo e ícono, archivos huérfanos, multimedia pendiente o fallida.
