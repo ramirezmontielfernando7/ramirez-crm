@@ -4,7 +4,7 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import { Check, ChevronDown, Plus, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ConversationDto, StageDto } from "@/lib/types";
-import type { TagDto } from "@/lib/tags";
+import { tagColorClass, tagDotClass, type TagDto } from "@/lib/tags";
 import { FloatingMenu, type MenuAnchor } from "./floating-menu";
 
 /**
@@ -256,14 +256,15 @@ export function TagsCapsule({
       label={first ? `Etiquetas: ${c.tags.map((t) => t.name).join(", ")}. Editar` : "Sin etiquetas. Agregar"}
       className={cn(
         "min-w-[3.5rem] shrink",
-        first ? "bg-secondary text-text-2 hover:bg-accent" : "bg-transparent px-1 font-normal text-text-2 hover:bg-accent"
+        // Teñida con el color de la primera etiqueta (gris si no tiene o no es válido).
+        first ? cn(tagColorClass(first.color), "hover:brightness-95 dark:hover:brightness-110") : "bg-transparent px-1 font-normal text-text-2 hover:bg-accent"
       )}
       menuClassName="w-60"
       trigger={
         first ? (
           <>
             <span className="truncate">{first.name}</span>
-            {more > 0 && <span className="shrink-0 tabular-nums text-text-3">+{more}</span>}
+            {more > 0 && <span className="shrink-0 tabular-nums opacity-70">+{more}</span>}
           </>
         ) : (
           <span className="truncate">Sin etiquetas</span>
@@ -331,7 +332,10 @@ function TagsMenu({
       </div>
       {shown.map((t) => (
         <Option key={t.id} role="menuitemcheckbox" selected={owned.has(t.id)} onSelect={() => toggle(t)}>
-          {t.name}
+          <span className="flex min-w-0 items-center gap-2">
+            <span className={cn("h-2 w-2 shrink-0 rounded-full", tagDotClass(t.color))} aria-hidden />
+            <span className="truncate">{t.name}</span>
+          </span>
         </Option>
       ))}
       {shown.length === 0 && !(canCreate && q && !exact) && (
