@@ -68,6 +68,11 @@ export const TENANT_QUERY_EXCEPTIONS: Record<string, { max: number; motivo: stri
     motivo:
       "035 — Al arrancar (documentsToResume): ids de los documentos del agente por (re)indexar en TODAS las organizaciones, pool de sistema. El indexado de cada uno corre luego a nombre de la suya con scoped().",
   },
+  "server/usage/storage.ts": {
+    max: 5,
+    motivo:
+      "036 PR 2 — getAllOrgsStorageUsage: el administrador de plataforma ve el almacenamiento (aprox.) de TODAS las organizaciones, una suma agrupada por organization_id en cada tabla de archivos (media_asset, knowledge_entry, team_chat_attachment, kb_document, kb_chunk). Pool de sistema; solo totales, nunca contenido. La de UNA organización (getOrgStorageUsage) sí va con scoped().",
+  },
   "server/campaigns/dispatcher.ts": {
     max: 1,
     motivo:
