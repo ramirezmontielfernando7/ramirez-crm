@@ -21,8 +21,15 @@ const TABS: readonly SectionTab[] = [
   { href: "/lab/evaluaciones", label: "Evaluaciones" },
 ];
 
-/** 035 — «Documentos» solo existe con KB_DOCS (lo decide el layout en el servidor). */
-const DOCUMENTS_TAB: SectionTab = { href: "/lab/documentos", label: "Documentos" };
+/**
+ * 035 — «Documentos» solo existe con KB_DOCS (lo decide el layout en el servidor).
+ * 037: cada grupo (/lab/documentos/[grupo]) cuenta como parte de Documentos.
+ */
+const DOCUMENTS_TAB: SectionTab = {
+  href: "/lab/documentos",
+  label: "Documentos",
+  match: (p) => /^\/lab\/documentos(\/|$)/.test(p),
+};
 
 export function LabShell({ children, documents = false }: { children: React.ReactNode; documents?: boolean }) {
   const tabs = documents ? [...TABS.slice(0, 2), DOCUMENTS_TAB, ...TABS.slice(2)] : TABS;

@@ -40,11 +40,24 @@
 7. **Aislamiento.** La dueña de OTRA organización ve su lista vacía; el
    documento de A por id → 404; reindexarlo → 404; borrarlo → 404 y A lo
    sigue teniendo; el agente de B no usa los documentos de A.
-8. **Eliminar** desde la pantalla (con confirmación) → desaparece; el agente
-   deja de usarlo desde el siguiente mensaje.
+8. **Eliminar** desde la pantalla («⋯» del documento, con confirmación) →
+   desaparece; el agente deja de usarlo desde el siguiente mensaje.
+9. **Grupos (037, PR 1).** «+ Grupo» crea «Ventas» y abre su subpestaña
+   (`/lab/documentos/[id]`; «Documentos» sigue activa arriba) → «Aún no hay
+   documentos en Ventas» → subir ahí un documento con un dato único: queda en
+   el grupo y General no lo lista. Sin configurar nada, el agente lo usa
+   (todos leen todo lo de la empresa). Nombre repetido sin importar
+   mayúsculas → 409 · «General» → 422. «⋯ → Mover a General» lo saca del
+   grupo; PATCH lo regresa. «⋯ del grupo → Renombrar» cambia la pestaña. B
+   solo ve su General y no renombra ni borra el grupo de A (404); el Asesor
+   → 403. En 390 px la página no se desplaza a lo ancho. «Eliminar grupo»
+   dice cuántos documentos tiene y trae marcado «Mover sus documentos a
+   General» → el documento queda en General. Con «Eliminar también sus
+   documentos» pide una segunda confirmación y solo entonces borra grupo y
+   documento; el agente deja de usarlo.
 
 Lo que no cubre este guion y sí cubren otras pruebas:
-`tests/db/documentos.test.ts` (RLS con la app como `vocero_app`, FK compuesta,
+`tests/db/documentos.test.ts` y `tests/db/grupos-documentos.test.ts` (RLS con la app como `vocero_app`, FK compuestas,
 límites con subidas simultáneas, `KB_DOCS` apagado, módulo Laboratorio
 apagado, Reindexar al volver el servicio, el turno real con y sin documentos)
 y `tests/unit/kb-docs-prompt.test.ts` (prompt idéntico sin documentos, nonce

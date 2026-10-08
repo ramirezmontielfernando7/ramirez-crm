@@ -3083,6 +3083,29 @@ const tsvector = customType<{ data: string }>({
 });
 
 /**
+ * 037 — Grupos de documentos (General, Ventas, Dirección…). «General» NO es
+ * una fila: es `kb_document.group_id IS NULL`, así los documentos de antes de
+ * 037 ya están en General sin tocarlos. Única puerta: `src/server/kb-docs/store.ts`.
+ */
+export const kbDocumentGroup = pgTable(
+  "kb_document_group",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => [
+    unique("kb_document_group_org_id_uq").on(t.organizationId, t.id),
+    uniqueIndex("kb_document_group_org_name_uq").on(t.organizationId, sql`lower(${t.name})`),
+    check("kb_document_group_name_chk", sql`char_length(${t.name}) between 1 and 40`),
+  ]
+);
+
+/**
  * 035 — Documentos del negocio que lee el agente (RAG ligero). Solo se guarda
  * el TEXTO extraído (para reindexar si cambia el modelo de embeddings); el
  * archivo original no. Única puerta: `src/server/kb-docs/store.ts`.
@@ -3110,6 +3133,10 @@ export const kbDocument = pgTable(
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
     indexedAt: timestamp("indexed_at"),
+    /** 037 — NULL = General. */
+    groupId: text("group_id"),
+    /** 037 — NULL = de la empresa; si no, exclusivo de ese agente (sin grupo). */
+    agentId: text("agent_id"),
   },
   (t) => [
     unique("kb_document_org_id_uq").on(t.organizationId, t.id),
@@ -3118,6 +3145,20 @@ export const kbDocument = pgTable(
     check("kb_document_status_chk", sql`${t.status} in ('pending', 'processing', 'ready', 'failed')`),
     check("kb_document_title_chk", sql`char_length(${t.title}) between 1 and 200`),
     index("kb_document_org_status_idx").on(t.organizationId, t.status),
+    check("kb_document_owner_chk", sql`${t.groupId} is null or ${t.agentId} is null`),
+    index("kb_document_org_group_idx").on(t.organizationId, t.groupId),
+    index("kb_document_org_agent_idx").on(t.organizationId, t.agentId),
+    // En la BD es ON DELETE SET NULL (group_id): sin el grupo, el documento queda en General.
+    foreignKey({
+      name: "kb_document_org_group_fk",
+      columns: [t.organizationId, t.groupId],
+      foreignColumns: [kbDocumentGroup.organizationId, kbDocumentGroup.id],
+    }).onDelete("set null"),
+    foreignKey({
+      name: "kb_document_org_agent_fk",
+      columns: [t.organizationId, t.agentId],
+      foreignColumns: [agent.organizationId, agent.id],
+    }).onDelete("cascade"),
   ]
 );
 

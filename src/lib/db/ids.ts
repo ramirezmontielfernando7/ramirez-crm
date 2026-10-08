@@ -69,6 +69,8 @@ const prefixes = {
   // 035 — Documentos del agente (RAG)
   kbDocument: "kbd",
   kbChunk: "kbc",
+  // 037 — Grupos de documentos
+  kbDocumentGroup: "kdg",
   user: "usr",
   account: "acc",
 } as const;

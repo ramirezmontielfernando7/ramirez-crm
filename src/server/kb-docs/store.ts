@@ -1,8 +1,8 @@
-import { and, asc, desc, eq, inArray, isNotNull, ne, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNotNull, isNull, ne, or, sql, type SQL } from "drizzle-orm";
 import { getDb, getSystemDb, schema, withTenant, type Db } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
 import { scoped } from "@/lib/db/tenant";
-import type { KbDocErrorCode, KbDocMime } from "@/lib/kb-docs";
+import { GENERAL_GROUP_NAME, MAX_DOC_GROUPS, type KbDocErrorCode, type KbDocMime, type KbGroupErrorCode } from "@/lib/kb-docs";
 import { getKbDocLimits } from "./limits";
 
 /**
@@ -10,15 +10,29 @@ import { getKbDocLimits } from "./limits";
  * agente). Todo con `scoped()` a nombre de la organización y, lo que decide
  * un límite, bajo el candado de la organización (`pg_advisory_xact_lock`):
  * dos subidas a la vez no pasan las dos si solo cabía una.
+ * 037: también de `kb_document_group` (los grupos; «General» es
+ * `group_id IS NULL`, no una fila).
  * Guardarraíl: `tests/unit/kb-docs-gate.test.ts`.
  */
 
 export type KbDocument = typeof schema.kbDocument.$inferSelect;
 
 export class KbDocError extends Error {
-  constructor(readonly code: KbDocErrorCode) {
+  /** `detail`: el motivo con más contexto (p. ej. dónde está el duplicado). */
+  constructor(
+    readonly code: KbDocErrorCode,
+    readonly detail?: string
+  ) {
     super(code);
     this.name = "KbDocError";
+  }
+}
+
+/** 037 — Errores de los grupos (nombre, tope, no existe). */
+export class KbGroupError extends Error {
+  constructor(readonly code: KbGroupErrorCode) {
+    super(code);
+    this.name = "KbGroupError";
   }
 }
 
@@ -36,6 +50,8 @@ export type KbDocumentDto = {
   embeddingModel: string | null;
   createdAt: string;
   indexedAt: string | null;
+  /** 037 — `null` = General. */
+  groupId: string | null;
 };
 
 export function toDto(d: KbDocument): KbDocumentDto {
@@ -52,19 +68,36 @@ export function toDto(d: KbDocument): KbDocumentDto {
     embeddingModel: d.embeddingModel,
     createdAt: d.createdAt.toISOString(),
     indexedAt: d.indexedAt?.toISOString() ?? null,
+    groupId: d.groupId,
   };
+}
+
+/** Violación de UNIQUE (23505), venga directa de postgres o envuelta por drizzle en `cause`. */
+function isUniqueViolation(err: unknown): boolean {
+  const e = err as { code?: string; cause?: { code?: string } };
+  return e?.code === "23505" || e?.cause?.code === "23505";
 }
 
 async function lockOrg(tx: Db, organizationId: string): Promise<void> {
   await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`kb_docs:${organizationId}`}))`);
 }
 
-export async function listDocuments(organizationId: string): Promise<KbDocument[]> {
+/** 037 — Los documentos de la EMPRESA (no los exclusivos de un agente). */
+const ofCompany = () => isNull(schema.kbDocument.agentId);
+
+/**
+ * Los documentos de la empresa; con `groupId` (037), solo los de ese grupo
+ * (`null` = General).
+ */
+export async function listDocuments(organizationId: string, opts: { groupId?: string | null } = {}): Promise<KbDocument[]> {
+  const d = schema.kbDocument;
+  const inGroup: SQL | undefined =
+    opts.groupId === undefined ? undefined : opts.groupId === null ? isNull(d.groupId) : eq(d.groupId, opts.groupId);
   return getDb()
     .select()
     .from(schema.kbDocument)
-    .where(scoped(schema.kbDocument.organizationId, organizationId))
-    .orderBy(desc(schema.kbDocument.createdAt));
+    .where(scoped(d.organizationId, organizationId, ofCompany(), inGroup))
+    .orderBy(desc(d.createdAt));
 }
 
 export async function getDocument(organizationId: string, id: string): Promise<KbDocument | null> {
@@ -98,20 +131,28 @@ export async function createDocument(
     text: string;
     contentSha256: string;
     uploadedByUserId: string | null;
+    /** 037 — `null`/ausente = General. */
+    groupId?: string | null;
   }
 ): Promise<KbDocument> {
+  const groupId = input.groupId ?? null;
   try {
     return await withTenant(organizationId, async (tx) => {
       await lockOrg(tx, organizationId);
+      if (groupId && !(await groupExists(tx, organizationId, groupId))) throw new KbGroupError("group_not_found");
       const limits = await getKbDocLimits(organizationId, tx);
       const usage = await getUsage(organizationId, tx);
       if (usage.documents >= limits.maxDocuments) throw new KbDocError("document_limit");
       const [dup] = await tx
-        .select({ id: schema.kbDocument.id })
+        .select({ id: schema.kbDocument.id, groupName: schema.kbDocumentGroup.name })
         .from(schema.kbDocument)
+        .leftJoin(
+          schema.kbDocumentGroup,
+          and(eq(schema.kbDocumentGroup.organizationId, schema.kbDocument.organizationId), eq(schema.kbDocumentGroup.id, schema.kbDocument.groupId))
+        )
         .where(scoped(schema.kbDocument.organizationId, organizationId, eq(schema.kbDocument.contentSha256, input.contentSha256)))
         .limit(1);
-      if (dup) throw new KbDocError("duplicate");
+      if (dup) throw new KbDocError("duplicate", `Ese documento ya está subido, en el grupo «${dup.groupName ?? GENERAL_GROUP_NAME}».`);
       const [row] = await tx
         .insert(schema.kbDocument)
         .values({
@@ -125,13 +166,14 @@ export async function createDocument(
           contentSha256: input.contentSha256,
           text: input.text,
           uploadedByUserId: input.uploadedByUserId,
+          groupId,
         })
         .returning();
       return row!;
     });
   } catch (err) {
     // Dos subidas idénticas a la vez: la segunda choca con el UNIQUE.
-    if ((err as { code?: string }).code === "23505") throw new KbDocError("duplicate");
+    if (isUniqueViolation(err)) throw new KbDocError("duplicate");
     throw err;
   }
 }
@@ -142,6 +184,140 @@ export async function deleteDocument(organizationId: string, id: string): Promis
     .where(scoped(schema.kbDocument.organizationId, organizationId, eq(schema.kbDocument.id, id)))
     .returning({ id: schema.kbDocument.id });
   return rows.length > 0;
+}
+
+/* ------------------------------------------------------------------
+ * 037 — Grupos
+ * ---------------------------------------------------------------- */
+
+export type KbDocumentGroup = typeof schema.kbDocumentGroup.$inferSelect;
+
+/** Un grupo con cuántos documentos tiene (`id: null` = General). */
+export type KbGroupSummary = { id: string | null; name: string; documents: number };
+
+async function groupExists(tx: Db, organizationId: string, id: string): Promise<boolean> {
+  const [row] = await tx
+    .select({ id: schema.kbDocumentGroup.id })
+    .from(schema.kbDocumentGroup)
+    .where(scoped(schema.kbDocumentGroup.organizationId, organizationId, eq(schema.kbDocumentGroup.id, id)))
+    .limit(1);
+  return Boolean(row);
+}
+
+/** General primero (siempre existe) y luego los grupos en orden de alta, con sus documentos. */
+export async function listGroups(organizationId: string): Promise<KbGroupSummary[]> {
+  const g = schema.kbDocumentGroup;
+  const d = schema.kbDocument;
+  const [groups, counts] = await Promise.all([
+    getDb().select().from(schema.kbDocumentGroup).where(scoped(g.organizationId, organizationId)).orderBy(asc(g.createdAt), asc(g.id)),
+    getDb()
+      .select({ groupId: d.groupId, n: sql<number>`count(*)::int` })
+      .from(schema.kbDocument)
+      .where(scoped(d.organizationId, organizationId, ofCompany()))
+      .groupBy(d.groupId),
+  ]);
+  const byGroup = new Map(counts.map((c) => [c.groupId, c.n]));
+  return [
+    { id: null, name: GENERAL_GROUP_NAME, documents: byGroup.get(null) ?? 0 },
+    ...groups.map((x) => ({ id: x.id, name: x.name, documents: byGroup.get(x.id) ?? 0 })),
+  ];
+}
+
+export async function getGroup(organizationId: string, id: string): Promise<KbDocumentGroup | null> {
+  const [row] = await getDb()
+    .select()
+    .from(schema.kbDocumentGroup)
+    .where(scoped(schema.kbDocumentGroup.organizationId, organizationId, eq(schema.kbDocumentGroup.id, id)))
+    .limit(1);
+  return row ?? null;
+}
+
+/** El nombre ya viene limpio (`normalizeGroupName`). Tope bajo el candado: dos altas a la vez no lo pasan. */
+export async function createGroup(organizationId: string, name: string): Promise<KbDocumentGroup> {
+  try {
+    return await withTenant(organizationId, async (tx) => {
+      await lockOrg(tx, organizationId);
+      const [row] = await tx
+        .select({ n: sql<number>`count(*)::int` })
+        .from(schema.kbDocumentGroup)
+        .where(scoped(schema.kbDocumentGroup.organizationId, organizationId));
+      if ((row?.n ?? 0) >= MAX_DOC_GROUPS) throw new KbGroupError("group_limit");
+      const [created] = await tx
+        .insert(schema.kbDocumentGroup)
+        .values({ id: newId("kbDocumentGroup"), organizationId, name })
+        .returning();
+      return created!;
+    });
+  } catch (err) {
+    if (isUniqueViolation(err)) throw new KbGroupError("group_name_taken");
+    throw err;
+  }
+}
+
+export async function renameGroup(organizationId: string, id: string, name: string): Promise<KbDocumentGroup> {
+  try {
+    const [row] = await getDb()
+      .update(schema.kbDocumentGroup)
+      .set({ name, updatedAt: new Date() })
+      .where(scoped(schema.kbDocumentGroup.organizationId, organizationId, eq(schema.kbDocumentGroup.id, id)))
+      .returning();
+    if (!row) throw new KbGroupError("group_not_found");
+    return row;
+  } catch (err) {
+    if (isUniqueViolation(err)) throw new KbGroupError("group_name_taken");
+    throw err;
+  }
+}
+
+/**
+ * Borra el grupo. `documents: "move"` deja sus documentos en General;
+ * `"delete"` los borra (con sus fragmentos, por la FK) — eso es lo único
+ * irreversible. Todo en una transacción. Devuelve cuántos documentos tenía.
+ */
+export async function deleteGroup(
+  organizationId: string,
+  id: string,
+  documents: "move" | "delete"
+): Promise<{ documents: number }> {
+  return withTenant(organizationId, async (tx) => {
+    await lockOrg(tx, organizationId);
+    const g = schema.kbDocumentGroup;
+    const d = schema.kbDocument;
+    const [group] = await tx
+      .select({ id: g.id })
+      .from(schema.kbDocumentGroup)
+      .where(scoped(g.organizationId, organizationId, eq(g.id, id)))
+      .limit(1)
+      .for("update");
+    if (!group) throw new KbGroupError("group_not_found");
+    const affected =
+      documents === "delete"
+        ? await tx
+            .delete(schema.kbDocument)
+            .where(scoped(d.organizationId, organizationId, eq(d.groupId, id)))
+            .returning({ id: d.id })
+        : // Explícito (la FK haría lo mismo con SET NULL): así queda claro aquí.
+          await tx
+            .update(schema.kbDocument)
+            .set({ groupId: null, updatedAt: new Date() })
+            .where(scoped(d.organizationId, organizationId, eq(d.groupId, id)))
+            .returning({ id: d.id });
+    await tx.delete(schema.kbDocumentGroup).where(scoped(g.organizationId, organizationId, eq(g.id, id)));
+    return { documents: affected.length };
+  });
+}
+
+/** Mueve un documento de la empresa a otro grupo (`null` = General). `null` si el documento no existe. */
+export async function moveDocument(organizationId: string, id: string, groupId: string | null): Promise<KbDocument | null> {
+  return withTenant(organizationId, async (tx) => {
+    if (groupId && !(await groupExists(tx, organizationId, groupId))) throw new KbGroupError("group_not_found");
+    const [row] = await tx
+      .update(schema.kbDocument)
+      .set({ groupId, updatedAt: new Date() })
+      .where(scoped(schema.kbDocument.organizationId, organizationId, eq(schema.kbDocument.id, id), ofCompany()))
+      .returning();
+    return row ?? null;
+  });
 }
 
 /** Vuelve a poner en cola un documento (Reindexar). `null` si no existe. */

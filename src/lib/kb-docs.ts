@@ -302,3 +302,47 @@ export function statusLabel(d: { status: string; embeddingModel: string | null }
       return "Falló";
   }
 }
+
+/* ------------------------------------------------------------------
+ * 037 — Grupos de documentos
+ * ---------------------------------------------------------------- */
+
+/**
+ * «General» no es una fila: es `group_id IS NULL`. En la URL y en las
+ * selecciones se escribe con esta clave.
+ */
+export const GENERAL_GROUP_KEY = "general";
+export const GENERAL_GROUP_NAME = "General";
+/** Grupos por organización (General no cuenta). */
+export const MAX_DOC_GROUPS = 20;
+/** Largo de un nombre de grupo (CHECK de la 0043). */
+export const GROUP_NAME_MAX = 40;
+
+export type KbGroupErrorCode = "group_name_invalid" | "group_name_reserved" | "group_name_taken" | "group_limit" | "group_not_found";
+
+export const KB_GROUP_ERROR_LABEL: Record<KbGroupErrorCode, string> = {
+  group_name_invalid: `El nombre del grupo debe tener entre 1 y ${GROUP_NAME_MAX} caracteres.`,
+  group_name_reserved: "«General» ya existe y no se puede repetir. Elige otro nombre.",
+  group_name_taken: "Ya tienes un grupo con ese nombre.",
+  group_limit: `Llegaste al máximo de ${MAX_DOC_GROUPS} grupos. Elimina alguno para crear otro.`,
+  group_not_found: "Ese grupo ya no existe.",
+};
+
+/** El nombre de un grupo, limpio, o por qué no sirve. */
+export function normalizeGroupName(raw: unknown): { ok: true; name: string } | { ok: false; code: KbGroupErrorCode } {
+  if (typeof raw !== "string") return { ok: false, code: "group_name_invalid" };
+  const name = raw.replace(/\s+/g, " ").trim();
+  if (name.length < 1 || name.length > GROUP_NAME_MAX) return { ok: false, code: "group_name_invalid" };
+  if (foldAccents(name).toLowerCase() === GENERAL_GROUP_KEY) return { ok: false, code: "group_name_reserved" };
+  return { ok: true, name };
+}
+
+/** `group_id` → clave de la pestaña (`general` o el id). */
+export function groupKey(groupId: string | null): string {
+  return groupId ?? GENERAL_GROUP_KEY;
+}
+
+/** Clave de la pestaña → `group_id` (`null` = General). */
+export function groupIdFromKey(key: string): string | null {
+  return key === GENERAL_GROUP_KEY ? null : key;
+}

@@ -1,14 +1,14 @@
 import { createHash } from "node:crypto";
 import { apiError, withAuth } from "@/lib/api";
-import { KB_DOC_ACCEPT, KB_DOC_MAX_CHARS, titleFromFilename } from "@/lib/kb-docs";
+import { groupIdFromKey, KB_DOC_ACCEPT, KB_DOC_MAX_CHARS, titleFromFilename } from "@/lib/kb-docs";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { currentEmbeddingModel } from "@/server/ai-quota/embed";
 import { extractDocumentText } from "@/server/kb-docs/extract";
 import { kbDocsOff } from "@/server/kb-docs/flag";
-import { documentView, kbDocError } from "@/server/kb-docs/http";
+import { documentView, kbDocError, withKbDocErrors } from "@/server/kb-docs/http";
 import { scheduleIndex } from "@/server/kb-docs/indexer";
 import { formatBytes, getKbDocLimits } from "@/server/kb-docs/limits";
-import { createDocument, getUsage, KbDocError, listDocuments } from "@/server/kb-docs/store";
+import { createDocument, getUsage, listDocuments } from "@/server/kb-docs/store";
 import { moduleOff } from "@/server/modules";
 
 export const dynamic = "force-dynamic";
@@ -19,12 +19,15 @@ const UPLOADS_PER_HOUR = 20;
 /**
  * 035 — Laboratorio → Documentos: la lista con su estado, el uso contra los
  * límites y si hay servicio de embeddings (sin él, «solo texto»).
+ * 037: `?group=general|<id>` → solo los de ese grupo (sin él, todos los de
+ * la empresa).
  */
-export const GET = withAuth(async (session) => {
+export const GET = withAuth(async (session, req: Request) => {
   const off = (await moduleOff(session.organizationId, "lab")) ?? kbDocsOff();
   if (off) return off;
+  const group = new URL(req.url).searchParams.get("group");
   const [docs, usage, limits] = await Promise.all([
-    listDocuments(session.organizationId),
+    listDocuments(session.organizationId, group === null ? {} : { groupId: groupIdFromKey(group) }),
     getUsage(session.organizationId),
     getKbDocLimits(session.organizationId),
   ]);
@@ -69,10 +72,14 @@ export const POST = withAuth(async (session, req: Request) => {
   if (!extracted.ok) return kbDocError(extracted.code);
   if (extracted.text.length > KB_DOC_MAX_CHARS) return kbDocError("too_long");
 
+  // 037 — El grupo («general» o ausente = General).
+  const rawGroup = form.get("groupId");
+  const groupId = typeof rawGroup === "string" && rawGroup.trim() ? groupIdFromKey(rawGroup.trim()) : null;
+
   const rawTitle = form.get("title");
   const title = (typeof rawTitle === "string" && rawTitle.trim() ? rawTitle.trim() : titleFromFilename(filename)).slice(0, 200);
 
-  try {
+  return withKbDocErrors(async () => {
     const doc = await createDocument(session.organizationId, {
       title,
       filename,
@@ -81,11 +88,9 @@ export const POST = withAuth(async (session, req: Request) => {
       text: extracted.text,
       contentSha256: createHash("sha256").update(extracted.text).digest("hex"),
       uploadedByUserId: session.userId,
+      groupId,
     });
     scheduleIndex(session.organizationId, doc.id);
     return Response.json({ document: documentView(doc) }, { status: 201 });
-  } catch (err) {
-    if (err instanceof KbDocError) return kbDocError(err.code);
-    throw err;
-  }
+  });
 }, { permission: "agent.manage" });

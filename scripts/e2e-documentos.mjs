@@ -19,6 +19,11 @@
  *  6. Aislamiento: el dueño de OTRA organización no ve, no lee, no borra ni
  *     recupera los documentos de esta, y su agente no los usa.
  *  7. Eliminar desde la pantalla → el agente vuelve a responder como antes.
+ *  8. 037 — Grupos: crear desde la pantalla (subpestaña nueva), subir a un
+ *     grupo, mover a General, renombrar, nombre repetido/«General», eliminar
+ *     moviendo (por defecto) y eliminando sus documentos (con la confirmación
+ *     extra); sin configurar nada, el agente sigue leyendo todo; el Asesor
+ *     403; B no ve ni toca los grupos de A; en 390 px, sin scroll horizontal.
  *
  * Uso: app viva con WA_MOCK_ENABLED=true, los mocks (ai-mock, wa-mock),
  * KB_DOCS=on y EMBEDDINGS_BASE_URL=http://localhost:3000/api/dev/ai-mock:
@@ -156,6 +161,7 @@ async function main() {
   ok("su organización existe", Boolean(org));
   // Re-ejecutable: lo que dejó una corrida anterior (por SQL de sistema: es limpieza de la prueba).
   await sql`delete from kb_document where organization_id = ${org}`;
+  await sql`delete from kb_document_group where organization_id = ${org}`;
   await sql`delete from kb_document_limit where organization_id = ${org}`;
 
   const lista0 = await A.api("/api/lab/documents");
@@ -319,17 +325,119 @@ async function main() {
     console.log("\n== 7. Eliminar desde la pantalla ==");
     await page.goto(`${BASE}/lab/documentos`);
     const filaMal = page.locator('[data-testid="kb-docs-list"] li').filter({ hasText: `manual-${RUN}` });
-    await filaMal.getByRole("button", { name: "Eliminar" }).click();
+    // 037: las acciones del documento viven en su «⋯».
+    await filaMal.getByRole("button", { name: /^Opciones de / }).click();
+    await page.getByRole("menuitem", { name: "Eliminar" }).click();
     await page.getByRole("dialog").getByRole("button", { name: "Eliminar" }).click();
     await filaMal.waitFor({ state: "detached" });
     ok("el documento desaparece de la lista", (await estado(A, docId)) === null);
     const despues = await preguntar("¿El envío es gratis?");
     ok("el agente deja de usarlo en el siguiente mensaje", despues.status === 200 && !String(despues.json?.reply ?? "").includes(DATO), despues.text.slice(0, 200));
+
+    console.log("\n== 8. 037 — Grupos de documentos ==");
+    const VENTAS = `Ventas ${RUN}`;
+    const DATO2 = `$${RUN.slice(-3)}7`;
+    await page.goto(`${BASE}/lab/documentos`);
+    await page.getByRole("button", { name: "Grupo", exact: true }).click();
+    await page.getByRole("dialog").getByLabel("Nombre del grupo").fill(VENTAS);
+    await page.getByRole("dialog").getByRole("button", { name: "Crear" }).click();
+    await page.waitForURL(/\/lab\/documentos\/kdg_/);
+    const ventasId = new URL(page.url()).pathname.split("/").pop();
+    await page.getByTestId("kb-group-title").filter({ hasText: VENTAS }).waitFor();
+    ok("crear un grupo desde la pantalla abre su subpestaña", Boolean(ventasId));
+    ok(
+      "la subpestaña del grupo aparece junto a General y «Documentos» sigue activa",
+      (await page.locator(`nav[aria-label="Grupos de documentos"] a[href="/lab/documentos/${ventasId}"]`).count()) === 1 &&
+        (await page.locator('nav[aria-label="Secciones del Laboratorio"] a[href="/lab/documentos"][aria-current="page"]').count()) === 1
+    );
+    await page.getByText(new RegExp(`Aún no hay documentos en ${VENTAS}`)).waitFor();
+    const precios = `# Precios\n\nEl taladro inalámbrico cuesta ${DATO2} pesos con IVA incluido.`;
+    await page.locator('[data-testid="kb-docs-file"]').setInputFiles({ name: `precios-${RUN}.md`, mimeType: "text/markdown", buffer: Buffer.from(precios) });
+    const filaVentas = page.locator('[data-testid="kb-docs-list"] li').filter({ hasText: `precios-${RUN}` });
+    await filaVentas.getByTestId("kb-doc-status").filter({ hasText: /^Listo$/ }).waitFor({ timeout: 30000 });
+    const preciosId = await filaVentas.getAttribute("data-doc-id");
+    ok("subir dentro del grupo lo deja en ese grupo", (await estado(A, preciosId))?.groupId === ventasId);
+    const enGeneral = await A.api("/api/lab/documents?group=general");
+    ok("General no lo lista", !(enGeneral.json?.documents ?? []).some((x) => x.id === preciosId));
+    const todosLeen = await preguntar("¿Cuánto cuesta el taladro inalámbrico?");
+    ok(
+      "sin configurar nada, el agente lee también los documentos de los grupos",
+      todosLeen.status === 200 && String(todosLeen.json?.reply ?? "").includes(DATO2),
+      todosLeen.text.slice(0, 300)
+    );
+
+    const rep = await A.post("/api/lab/document-groups", { name: VENTAS.toUpperCase() });
+    ok("un nombre repetido (sin importar mayúsculas) → 409", rep.status === 409 && rep.json?.error?.code === "group_name_taken", rep.text.slice(0, 200));
+    const res = await A.post("/api/lab/document-groups", { name: "General" });
+    ok("«General» está reservado → 422", res.status === 422 && res.json?.error?.code === "group_name_reserved", res.text.slice(0, 200));
+
+    // Mover a General desde el «⋯» del documento y de vuelta por la API.
+    await filaVentas.getByRole("button", { name: /^Opciones de / }).click();
+    await page.getByRole("menuitem", { name: "General" }).click();
+    await filaVentas.waitFor({ state: "detached" });
+    ok("«Mover a → General» lo saca del grupo", (await estado(A, preciosId))?.groupId === null);
+    const vuelta = await A.api(`/api/lab/documents/${preciosId}`, { method: "PATCH", body: JSON.stringify({ groupId: ventasId }) });
+    ok("y se puede regresar al grupo (PATCH)", vuelta.status === 200 && (await estado(A, preciosId))?.groupId === ventasId, vuelta.text.slice(0, 200));
+
+    // Renombrar desde el «⋯» del grupo.
+    await page.reload();
+    await page.getByRole("button", { name: /^Opciones del grupo / }).click();
+    await page.getByRole("menuitem", { name: "Renombrar" }).click();
+    const NUEVO = `Ventas y cobranza ${RUN}`;
+    await page.getByRole("dialog").getByLabel("Nombre del grupo").fill(NUEVO);
+    await page.getByRole("dialog").getByRole("button", { name: "Guardar" }).click();
+    await page.getByTestId("kb-group-title").filter({ hasText: NUEVO }).waitFor();
+    ok("renombrar el grupo cambia su pestaña", (await page.locator(`nav[aria-label="Grupos de documentos"] a[href="/lab/documentos/${ventasId}"]`).innerText()).includes(NUEVO));
+
+    // Aislamiento y permisos de los grupos.
+    const gruposB = await B.api("/api/lab/document-groups");
+    ok("B solo ve su General", gruposB.status === 200 && (gruposB.json?.groups ?? []).length === 1 && gruposB.json.groups[0].id === null, gruposB.text.slice(0, 200));
+    const tocaB = await B.api(`/api/lab/document-groups/${ventasId}`, { method: "PATCH", body: JSON.stringify({ name: "De B" }) });
+    const borraB = await B.api(`/api/lab/document-groups/${ventasId}`, { method: "DELETE" });
+    ok("B no renombra ni borra el grupo de A (404)", tocaB.status === 404 && borraB.status === 404, `${tocaB.status} ${borraB.status}`);
+    ok("el Asesor no ve los grupos (403)", (await asesor.api("/api/lab/document-groups")).status === 403);
+
+    // En móvil: las pestañas se desplazan dentro de su fila, la página no.
+    const movil = await (await browser.newContext({ viewport: { width: 390, height: 844 }, storageState: await page.context().storageState() })).newPage();
+    await movil.goto(`${BASE}/lab/documentos/${ventasId}`);
+    await movil.getByTestId("kb-group-title").waitFor();
+    const ancho = await movil.evaluate(() => ({ doc: document.documentElement.scrollWidth, vw: window.innerWidth }));
+    ok("en 390 px no hay scroll horizontal de la página", ancho.doc <= ancho.vw, JSON.stringify(ancho));
+    await movil.close();
+
+    // Eliminar moviendo (por defecto): el documento pasa a General.
+    await page.getByRole("button", { name: /^Opciones del grupo / }).click();
+    await page.getByRole("menuitem", { name: "Eliminar grupo" }).click();
+    const dialogo = page.getByRole("dialog");
+    ok("el diálogo dice cuántos documentos tiene y ofrece mover por defecto", /Tiene 1 documento/.test(await dialogo.innerText()) && (await dialogo.getByLabel(/Mover sus documentos a General/).isChecked()));
+    await dialogo.getByRole("button", { name: "Eliminar grupo" }).click();
+    await page.waitForURL(/\/lab\/documentos$/);
+    await page.locator('[data-testid="kb-docs-list"] li').filter({ hasText: `precios-${RUN}` }).waitFor();
+    ok("eliminar moviendo deja el documento en General", (await estado(A, preciosId))?.groupId === null);
+    ok("el grupo ya no existe", !((await A.api("/api/lab/document-groups")).json?.groups ?? []).some((g) => g.id === ventasId));
+
+    // Eliminar con sus documentos: pide una confirmación más.
+    const tmp = await A.post("/api/lab/document-groups", { name: `Temporal ${RUN}` });
+    const tmpId = tmp.json?.group?.id;
+    await A.api(`/api/lab/documents/${preciosId}`, { method: "PATCH", body: JSON.stringify({ groupId: tmpId }) });
+    await page.goto(`${BASE}/lab/documentos/${tmpId}`);
+    await page.getByRole("button", { name: /^Opciones del grupo / }).click();
+    await page.getByRole("menuitem", { name: "Eliminar grupo" }).click();
+    await page.getByRole("dialog").getByLabel(/Eliminar también sus documentos/).check();
+    await page.getByRole("dialog").getByRole("button", { name: "Continuar" }).click();
+    await page.getByRole("dialog").getByText(/no se puede deshacer/i).waitFor();
+    ok("eliminar también los documentos pide una segunda confirmación", (await estado(A, preciosId))?.groupId === tmpId);
+    await page.getByRole("dialog").getByRole("button", { name: /^Sí, borrar/ }).click();
+    await page.waitForURL(/\/lab\/documentos$/);
+    ok("y entonces borra el grupo y su documento", (await estado(A, preciosId)) === null);
+    const sinDato2 = await preguntar("¿Cuánto cuesta el taladro inalámbrico?");
+    ok("el agente deja de usar el documento borrado", sinDato2.status === 200 && !String(sinDato2.json?.reply ?? "").includes(DATO2), sinDato2.text.slice(0, 200));
   } finally {
     await browser.close();
   }
 
   await sql`delete from kb_document where organization_id = ${org}`;
+  await sql`delete from kb_document_group where organization_id = ${org}`;
   console.log(`\n${checks - failures}/${checks} comprobaciones OK`);
   if (failures) console.log(`Fallaron:\n - ${fallas.join("\n - ")}`);
 }

@@ -302,6 +302,13 @@
       "when": 1791439091725,
       "tag": "0042_consumo_por_agente",
       "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1791467126828,
+      "tag": "0043_grupos_documentos",
+      "breakpoints": true
     }
   ]
 }
