@@ -33,5 +33,9 @@ export async function register(): Promise<void> {
     // organización (revisa cada hora; no frena el arranque).
     const { startDailyMetaSync } = await import("@/server/meta-sync/daily");
     startDailyMetaSync();
+    // 035: documentos del agente que quedaron en cola o sin vectores (solo
+    // con KB_DOCS; no frena el arranque).
+    const { resumeKbIndexing } = await import("@/server/kb-docs/indexer");
+    void resumeKbIndexing();
   }
 }

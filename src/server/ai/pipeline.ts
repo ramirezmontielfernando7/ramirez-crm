@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import { isOrgActive } from "@/server/platform-admin/org-status";
 import { asc, desc, eq } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
@@ -30,6 +31,7 @@ import { getOffers, mapaDeHuecosParaModelo } from "@/server/agenda/offers";
 import { logger } from "@/lib/log";
 import { currentOrganizationId, runWithOrganization } from "@/lib/request-context";
 import { orgHasModule } from "@/server/modules";
+import { retrieveForTurn, type RetrievedChunk } from "@/server/kb-docs/retrieve";
 
 const log = logger("agente");
 
@@ -129,6 +131,11 @@ export type DecideInput = {
   history: { role: "user" | "assistant"; content: string }[];
   /** System al FINAL (el mapa de huecos de la agenda), si lo hay. */
   tail?: string | null;
+  /**
+   * 035 — Fragmentos de documentos recuperados para este turno (ya buscados:
+   * `decideTurn` no toca la BD). Vacío o ausente = el prompt de siempre.
+   */
+  docs?: RetrievedChunk[];
 };
 
 export type DecisionMeta = {
@@ -136,6 +143,8 @@ export type DecisionMeta = {
   model: string | null;
   tokens: { prompt: number; completion: number } | null;
   kbEntryIds: string[];
+  /** 035 — Los fragmentos de documentos que el modelo tuvo a la vista. */
+  docChunkIds: string[];
 };
 
 export type TurnDecision =
@@ -282,6 +291,15 @@ async function loadTurnContext(conversationId: string, opts: TurnOptions): Promi
   const ofertas = agenda ? await getOffers(organizationId, conversationId) : [];
   const mapaDeHuecos = mapaDeHuecosParaModelo(ofertas);
 
+  const turnHistory = history
+    .filter((m) => m.text)
+    .map((m) => ({
+      role: m.direction === "in" ? ("user" as const) : ("assistant" as const),
+      content: m.text!,
+    }));
+  // 035 — Los documentos del negocio que vienen al caso (nada si no hay).
+  const docs = await retrieveForTurn(organizationId, turnHistory);
+
   return {
     kind: "decide",
     conversation,
@@ -294,13 +312,9 @@ async function loadTurnContext(conversationId: string, opts: TurnOptions): Promi
       kb,
       stages,
       agenda,
-      history: history
-        .filter((m) => m.text)
-        .map((m) => ({
-          role: m.direction === "in" ? ("user" as const) : ("assistant" as const),
-          content: m.text!,
-        })),
+      history: turnHistory,
       tail: mapaDeHuecos,
+      docs,
     },
   };
 }
@@ -312,6 +326,7 @@ async function loadTurnContext(conversationId: string, opts: TurnOptions): Promi
  */
 export async function decideTurn(input: DecideInput): Promise<TurnDecision> {
   const started = Date.now();
+  const docs = input.docs ?? [];
   const messages: ChatMessage[] = [
     {
       role: "system",
@@ -320,6 +335,9 @@ export async function decideTurn(input: DecideInput): Promise<TurnDecision> {
         kb: input.kb,
         stages: input.stages,
         agenda: input.agenda,
+        // 035 — Un nonce nuevo por turno: un documento no puede adivinar
+        // cómo cerrar su sección.
+        docs: docs.length > 0 ? { nonce: randomBytes(6).toString("hex"), chunks: docs } : null,
       }),
     },
     ...input.history,
@@ -344,6 +362,7 @@ export async function decideTurn(input: DecideInput): Promise<TurnDecision> {
       ? { prompt: result.usage.promptTokens, completion: result.usage.completionTokens }
       : null,
     kbEntryIds: input.kb.map((e) => e.id),
+    docChunkIds: docs.map((d) => d.id),
   };
   if (!result.ok) return { ok: false, error: result.error, detail: result.detail, meta };
 

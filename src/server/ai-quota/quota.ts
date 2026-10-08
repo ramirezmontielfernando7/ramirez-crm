@@ -143,6 +143,47 @@ export async function recordUsage(
   }
 }
 
+/**
+ * 035 — Los EMBEDDINGS (documentos del agente) se llevan en su propia fila
+ * (`kind = 'embed'`): `turns` = llamadas al servicio, `prompt_tokens` = tokens
+ * embebidos. NO suman a la fila `total`: no gastan los turnos ni los tokens
+ * del agente (con el contenedor local son gratis). Su tope, si lo hay, es
+ * `AI_DEFAULT_MONTHLY_EMBED_TOKENS` (`embedTokensUsed`).
+ */
+export const EMBED_KIND = "embed";
+
+export async function recordEmbedUsage(organizationId: string, tokens: number, now = new Date()): Promise<void> {
+  const period = currentPeriod(now);
+  await getDb()
+    .insert(schema.aiUsage)
+    .values({ organizationId, period, kind: EMBED_KIND, turns: 1, promptTokens: Math.max(0, Math.floor(tokens)) })
+    .onConflictDoUpdate({
+      target: [schema.aiUsage.organizationId, schema.aiUsage.period, schema.aiUsage.kind],
+      set: {
+        turns: sql`${schema.aiUsage.turns} + 1`,
+        promptTokens: sql`${schema.aiUsage.promptTokens} + ${Math.max(0, Math.floor(tokens))}`,
+        updatedAt: new Date(),
+      },
+    });
+}
+
+/** Tokens de embeddings del mes (para su tope). */
+export async function embedTokensUsed(organizationId: string, now = new Date()): Promise<number> {
+  const [row] = await getDb()
+    .select({ t: schema.aiUsage.promptTokens })
+    .from(schema.aiUsage)
+    .where(
+      scoped(
+        schema.aiUsage.organizationId,
+        organizationId,
+        eq(schema.aiUsage.period, currentPeriod(now)),
+        eq(schema.aiUsage.kind, EMBED_KIND)
+      )
+    )
+    .limit(1);
+  return row?.t ?? 0;
+}
+
 export type UsageSummary = {
   period: string;
   limits: QuotaLimits;

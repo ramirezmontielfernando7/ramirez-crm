@@ -63,6 +63,11 @@ export const TENANT_QUERY_EXCEPTIONS: Record<string, { max: number; motivo: stri
     motivo:
       "Arranque (cleanupOrphanRuns): marca como fallidas las corridas del Laboratorio que quedaron 'running' en TODAS las organizaciones; una réplica (H24).",
   },
+  "server/kb-docs/store.ts": {
+    max: 1,
+    motivo:
+      "035 — Al arrancar (documentsToResume): ids de los documentos del agente por (re)indexar en TODAS las organizaciones, pool de sistema. El indexado de cada uno corre luego a nombre de la suya con scoped().",
+  },
   "server/campaigns/dispatcher.ts": {
     max: 1,
     motivo:
