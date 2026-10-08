@@ -110,8 +110,14 @@ const PROTEGIDAS: [string, Method, Permission][] = [
   ["lab/documents", "GET", "agent.manage"],
   ["lab/documents", "POST", "agent.manage"],
   ["lab/documents/[id]", "GET", "agent.manage"],
+  ["lab/documents/[id]", "PATCH", "agent.manage"],
   ["lab/documents/[id]", "DELETE", "agent.manage"],
   ["lab/documents/[id]/reindex", "POST", "agent.manage"],
+  // 037 — Grupos de documentos.
+  ["lab/document-groups", "GET", "agent.manage"],
+  ["lab/document-groups", "POST", "agent.manage"],
+  ["lab/document-groups/[id]", "PATCH", "agent.manage"],
+  ["lab/document-groups/[id]", "DELETE", "agent.manage"],
   // Usuarios.
   // 034: eliminar un chat para siempre; archivar (PATCH) lo ve cualquiera que vea el chat.
   ["conversations/[id]", "DELETE", "conversation.delete"],

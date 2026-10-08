@@ -159,6 +159,8 @@ describe("pantallas del Laboratorio", () => {
       "app/(app)/lab/agents/[id]/page.tsx",
       // 035
       "app/(app)/lab/documentos/page.tsx",
+      // 037
+      "app/(app)/lab/documentos/[grupo]/page.tsx",
     ]) {
       const src = leer(p);
       expect(src, p).toContain('requirePagePermission("agent.manage")');
@@ -167,7 +169,7 @@ describe("pantallas del Laboratorio", () => {
   });
 
   it("ningún enlace interno apunta a /lab por un camino que no existe", () => {
-    const validos = [/^\/lab$/, /^\/lab\/evaluaciones(\?.*)?$/, /^\/lab\/agents\/?[^/]*$/, /^\/lab\/asignacion$/, /^\/lab\/documentos$/];
+    const validos = [/^\/lab$/, /^\/lab\/evaluaciones(\?.*)?$/, /^\/lab\/agents\/?[^/]*$/, /^\/lab\/asignacion$/, /^\/lab\/documentos$/, /^\/lab\/documentos\/[^/]+$/];
     for (const f of archivos(SRC)) {
       const rel = path.relative(SRC, f);
       if (rel.startsWith("app/api/") || rel.startsWith("server/")) continue;

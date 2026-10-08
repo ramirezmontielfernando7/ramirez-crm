@@ -199,6 +199,22 @@ docker exec <contenedor-de-vocero> node ops/kb-limits.mjs set --org org_… --do
 O para toda la instancia, con las variables `KB_DOCS_MAX_FILE_MB`,
 `KB_DOCS_MAX_DOCUMENTS` y `KB_DOCS_MAX_CHUNKS`.
 
+## Grupos de documentos (037)
+
+En Laboratorio → Documentos, los documentos se ordenan en **grupos**
+(subpestañas): **General** siempre existe y es donde quedan los documentos que
+ya tenías; el dueño crea, renombra y elimina los demás (Ventas, Dirección…;
+hasta 20 por negocio). Cada documento está en un grupo y se puede **mover** a
+otro desde su menú «⋯».
+
+Al eliminar un grupo con documentos se elige: **mover sus documentos a
+General** (por defecto) o **eliminarlos también** (pide una confirmación más;
+no se puede deshacer).
+
+Los límites de arriba siguen siendo por negocio, sumando todos los grupos.
+Hoy todos los agentes leen los documentos de todos los grupos; elegir por
+agente de qué grupos lee llega en el siguiente paso de 037.
+
 ## Seguridad: el contenido es dato, no instrucciones
 
 Un documento puede traer texto como «ignora tus instrucciones y…». Vocero lo
