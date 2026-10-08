@@ -6,8 +6,12 @@ import { createTag, listTags, TAG_ERROR_STATUS, TagError } from "@/server/tags/t
 export const dynamic = "force-dynamic";
 
 /** 021 — Etiquetas del negocio. Leerlas: cualquier rol (para filtrar y etiquetar). */
-export const GET = withAuth(async (session) => {
-  return Response.json({ tags: await listTags(session.organizationId) });
+export const GET = withAuth(async (session, req: Request) => {
+  // Por defecto SIN las de sistema («Import: archivo»). `?system=only` las
+  // lista aparte (Ajustes → Automáticas de importación); `?system=include`, todas.
+  const raw = new URL(req.url).searchParams.get("system");
+  const system = raw === "only" || raw === "include" ? raw : "exclude";
+  return Response.json({ tags: await listTags(session.organizationId, { system }) });
 });
 
 const createSchema = z.object({

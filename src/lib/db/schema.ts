@@ -336,9 +336,18 @@ export const contactTag = pgTable(
     name: text("name").notNull(),
     /** Color de la paleta de la UI (`TAG_COLORS` de lib/tags.ts). NULL = neutro. */
     color: text("color"),
+    /**
+     * De dónde viene una etiqueta de SISTEMA: `import` = la automática
+     * «Import: archivo» que crea la importación. NULL = etiqueta normal, de
+     * una persona. Las de sistema no salen en la cápsula, el menú, el filtro
+     * ni los selectores (solo en Audiencias); no se detecta por el nombre
+     * porque una persona puede crear una que empiece con «Import:».
+     */
+    systemOrigin: text("system_origin"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
   (t) => [
+    check("contact_tag_system_origin_chk", sql`${t.systemOrigin} is null or ${t.systemOrigin} in ('import')`),
     uniqueIndex("contact_tag_org_name_uq").on(t.organizationId, t.name),
     unique("contact_tag_org_id_uq").on(t.organizationId, t.id),
   ]

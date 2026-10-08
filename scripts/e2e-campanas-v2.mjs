@@ -676,7 +676,8 @@ async function main() {
     ok("UI Bandeja: aparece el chat del contacto importado", await filaTag.waitFor({ timeout: 120000 }).then(() => true, () => false));
     const capLabel = (await filaTag.getByRole("button", { name: /^Etiquetas:/ }).getAttribute("aria-label")) ?? "";
     ok("UI Bandeja: lleva la etiqueta elegida", capLabel.includes(uiTagLabel), capLabel);
-    ok("UI Bandeja: y también la automática de la base", capLabel.includes(`Import: tagui-${RUN}.xlsx`), capLabel);
+    // Etiquetas limpias: la automática «Import: archivo» es de sistema y no sale en la cápsula.
+    ok("UI Bandeja: la automática de la base NO sale (es de sistema)", !capLabel.includes("Import:"), capLabel);
   } catch (err) {
     ok("interfaz sin errores", false, err?.message ?? String(err));
   } finally {

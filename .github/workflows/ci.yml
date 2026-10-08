@@ -249,6 +249,8 @@ jobs:
           node --env-file=.env scripts/e2e-datos-meta.mjs
           # Campañas v2, PR 2: audiencias, asistente, cola por número, pausas.
           node --env-file=.env scripts/e2e-campanas-v2.mjs
+          # Etiquetas limpias: la automática de importación es de sistema; fusión.
+          node --env-file=.env scripts/e2e-etiquetas-limpias.mjs
           kill -- -"$(cat app.pid)"; sleep 2
       # Campañas v2, PR 4: módulos nuevos y navegación personalizable. Con su
       # propio `next dev`: sumado a la segunda vuelta, el servidor llegaba al

@@ -46,6 +46,8 @@ export type TagDto = {
   id: string;
   name: string;
   color: TagColor | null;
+  /** Etiqueta de sistema (la automática «Import: archivo»); ausente = normal. */
+  system?: true;
   /** Cuántos contactos la llevan (solo en el listado de Ajustes). */
   contactCount?: number;
 };

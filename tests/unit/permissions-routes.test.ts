@@ -133,6 +133,8 @@ const PROTEGIDAS: [string, Method, Permission][] = [
   ["contact-tags", "POST", "tags.manage"],
   ["contact-tags/[id]", "PATCH", "tags.manage"],
   ["contact-tags/[id]", "DELETE", "tags.manage"],
+  ["contact-tags/[id]/merge", "GET", "tags.manage"],
+  ["contact-tags/[id]/merge", "POST", "tags.manage"],
   ["contacts/import", "POST", "contacts.import"],
   ["contacts/import/preview", "POST", "contacts.import"],
   ["contacts/export", "GET", "contacts.export"],

@@ -110,6 +110,7 @@ export async function listConversations(
     from contact_tag_assignment a
     join contact_tag t on t.id = a.tag_id
     where a.contact_id = ${schema.contact.id}
+      and t.system_origin is null
   )`;
   const agentOnSql = sql<boolean | null>`(
     select ap.enabled from agent_profile ap
