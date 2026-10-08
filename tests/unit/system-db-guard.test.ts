@@ -79,6 +79,10 @@ const PERMITIDOS: Record<string, { usos: number; motivo: string }> = {
     usos: 2,
     motivo: "Campañas v2: la sincronización diaria con Meta (salud + plantillas; y, PR 3, analíticas) lista las organizaciones activas con número conectado (cruza organizaciones); el trabajo de cada una corre luego a nombre de la suya",
   },
+  "src/server/kb-docs/store.ts": {
+    usos: 1,
+    motivo: "035: al arrancar, los documentos del agente por (re)indexar de TODAS las organizaciones (solo ids); el indexado de cada uno corre luego a nombre de la suya",
+  },
   "src/app/api/health/route.ts": {
     usos: 2,
     motivo: "salud: `select 1` en los dos pools, sin organización",

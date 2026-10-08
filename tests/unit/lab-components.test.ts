@@ -152,7 +152,14 @@ describe("pantallas del Laboratorio", () => {
   });
 
   it("todas las páginas de /lab exigen permiso y módulo en el servidor", () => {
-    for (const p of ["app/(app)/lab/layout.tsx", "app/(app)/lab/page.tsx", "app/(app)/lab/evaluaciones/page.tsx", "app/(app)/lab/agents/[id]/page.tsx"]) {
+    for (const p of [
+      "app/(app)/lab/layout.tsx",
+      "app/(app)/lab/page.tsx",
+      "app/(app)/lab/evaluaciones/page.tsx",
+      "app/(app)/lab/agents/[id]/page.tsx",
+      // 035
+      "app/(app)/lab/documentos/page.tsx",
+    ]) {
       const src = leer(p);
       expect(src, p).toContain('requirePagePermission("agent.manage")');
       expect(src, p).toContain('requireModulePage("lab")');
@@ -160,7 +167,7 @@ describe("pantallas del Laboratorio", () => {
   });
 
   it("ningún enlace interno apunta a /lab por un camino que no existe", () => {
-    const validos = [/^\/lab$/, /^\/lab\/evaluaciones(\?.*)?$/, /^\/lab\/agents\/?[^/]*$/, /^\/lab\/asignacion$/];
+    const validos = [/^\/lab$/, /^\/lab\/evaluaciones(\?.*)?$/, /^\/lab\/agents\/?[^/]*$/, /^\/lab\/asignacion$/, /^\/lab\/documentos$/];
     for (const f of archivos(SRC)) {
       const rel = path.relative(SRC, f);
       if (rel.startsWith("app/api/") || rel.startsWith("server/")) continue;

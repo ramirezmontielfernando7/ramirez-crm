@@ -52,6 +52,35 @@ const envSchema = z.object({
   // tope. Turnos = llamadas al modelo; tokens = entrada + salida.
   AI_DEFAULT_MONTHLY_TURNS: z.coerce.number().int().min(0).optional(),
   AI_DEFAULT_MONTHLY_TOKENS: z.coerce.number().int().min(0).optional(),
+  // 035: tope mensual de tokens de EMBEDDINGS por organización (aparte de los
+  // turnos del agente). Vacía = sin tope (lo normal con el contenedor local).
+  AI_DEFAULT_MONTHLY_EMBED_TOKENS: z.coerce.number().int().min(0).optional().catch(undefined),
+  // 035: Documentos del agente (Laboratorio → Documentos). Interruptor de la
+  // INSTANCIA, apagado por defecto: sin él la pestaña y sus rutas no existen
+  // (404) y el agente no consulta documentos. Ej.: KB_DOCS=on. Se lee solo en
+  // src/server/kb-docs/flag.ts. Por organización manda además el módulo
+  // Laboratorio (que requiere Agente).
+  KB_DOCS: z.string().optional(),
+  // 035: servicio de embeddings OpenAI-compatible (POST {base}/v1/embeddings).
+  // Opcional: sin él los documentos se buscan solo por texto. No se valida
+  // como URL aquí a propósito (un valor mal escrito no debe tumbar el CRM):
+  // src/lib/ai/embeddings.ts lo trata como «sin servicio» y lo registra.
+  // Ej. contenedor local: http://vocero-embeddings:80 (docs/conocimiento-rag.md).
+  EMBEDDINGS_BASE_URL: z.string().optional(),
+  EMBEDDINGS_MODEL: z.string().default("intfloat/multilingual-e5-small"),
+  // Solo con un proveedor de pago; el contenedor local no la necesita.
+  EMBEDDINGS_API_TOKEN: z.string().optional(),
+  // Prefijos de los modelos e5 («query: » / «passage: »). auto = si el nombre
+  // del modelo es e5; e5 = siempre; none = nunca.
+  EMBEDDINGS_PREFIX_MODE: z.enum(["auto", "e5", "none"]).default("auto").catch("auto"),
+  // 035: límites por organización (valores por defecto; cada organización puede
+  // tener los suyos en kb_document_limit — scripts/kb-limits.mjs).
+  KB_DOCS_MAX_FILE_MB: z.coerce.number().positive().max(50).default(5).catch(5),
+  KB_DOCS_MAX_DOCUMENTS: z.coerce.number().int().min(1).max(10_000).default(50).catch(50),
+  KB_DOCS_MAX_CHUNKS: z.coerce.number().int().min(1).max(100_000).default(3000).catch(3000),
+  // Similitud coseno mínima para que un fragmento cuente como relevante. Los
+  // modelos e5 dan valores altos a casi todo: 0.80 es un corte prudente.
+  KB_DOCS_MIN_SIMILARITY: z.coerce.number().min(0).max(1).default(0.8).catch(0.8),
   // 014/017: canales encendidos, separados por coma. WhatsApp siempre esta on.
   // Ej.: CHANNELS=whatsapp,instagram,messenger. Sin ella, la instancia es solo
   // WhatsApp y las superficies de los demas canales responden 404.

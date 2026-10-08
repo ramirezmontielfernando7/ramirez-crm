@@ -8,6 +8,7 @@ import { SectionTabs, type SectionTab } from "@/components/ui/section-tabs";
  * 031 (A2) — Encabezado del Laboratorio con sus subpestañas. Son rutas
  * (compartibles, Atrás funciona), igual que en Campañas.
  * PR B: «Asignación por etapa» (qué agente atiende cada etapa del pipeline).
+ * 035: «Documentos» (lo que el agente consulta antes de responder).
  */
 const TABS: readonly SectionTab[] = [
   {
@@ -20,7 +21,11 @@ const TABS: readonly SectionTab[] = [
   { href: "/lab/evaluaciones", label: "Evaluaciones" },
 ];
 
-export function LabShell({ children }: { children: React.ReactNode }) {
+/** 035 — «Documentos» solo existe con KB_DOCS (lo decide el layout en el servidor). */
+const DOCUMENTS_TAB: SectionTab = { href: "/lab/documentos", label: "Documentos" };
+
+export function LabShell({ children, documents = false }: { children: React.ReactNode; documents?: boolean }) {
+  const tabs = documents ? [...TABS.slice(0, 2), DOCUMENTS_TAB, ...TABS.slice(2)] : TABS;
   return (
     <div className="flex h-full min-h-0 flex-col">
       <header className="border-b px-4 pt-3 sm:px-6 sm:pt-4">
@@ -33,7 +38,7 @@ export function LabShell({ children }: { children: React.ReactNode }) {
             <p className="text-xs text-muted-foreground">Sandbox interno — no envía mensajes reales</p>
           </div>
         </div>
-        <SectionTabs tabs={TABS} label="Secciones del Laboratorio" />
+        <SectionTabs tabs={tabs} label="Secciones del Laboratorio" />
       </header>
       <div className="min-h-0 flex-1">{children}</div>
     </div>
