@@ -10,6 +10,12 @@ import { describe, expect, it } from "vitest";
  */
 const SRC = path.resolve(import.meta.dirname, "..", "..", "src");
 const PUERTA = "server/kb-docs/store.ts";
+/**
+ * Lectores permitidos fuera de la puerta, que SOLO leen: los límites (035) y
+ * el almacenamiento aproximado (036 PR 2: sumas de bytes por organización,
+ * sin filtrar por agente ni grupo).
+ */
+const LECTORES = ["server/kb-docs/limits.ts", "server/usage/storage.ts"];
 
 function archivos(dir: string): string[] {
   const out: string[] = [];
@@ -22,17 +28,17 @@ function archivos(dir: string): string[] {
 }
 
 describe("035 — puerta única de los documentos del agente", () => {
-  it("solo store.ts usa kbDocument / kbChunk / kbDocumentLimit / kbDocumentGroup en consultas (y limits.ts para leer los límites)", () => {
+  it("solo store.ts usa kbDocument / kbChunk / kbDocumentLimit / kbDocumentGroup en consultas (y los lectores permitidos)", () => {
     const re = /\.(?:insert|update|delete|from|innerJoin|leftJoin)\(\s*(?:schema\.)?(kbDocument|kbChunk|kbDocumentLimit|kbDocumentGroup)\b/;
     const fuera = archivos(SRC)
       .map((f) => path.relative(SRC, f).split(path.sep).join("/"))
       .filter((rel) => re.test(readFileSync(path.join(SRC, rel), "utf8")))
-      .filter((rel) => rel !== PUERTA && rel !== "server/kb-docs/limits.ts");
+      .filter((rel) => rel !== PUERTA && !LECTORES.includes(rel));
     expect(fuera).toEqual([]);
   });
 
-  it("limits.ts solo LEE kb_document_limit", () => {
-    const src = readFileSync(path.join(SRC, "server/kb-docs/limits.ts"), "utf8");
+  it.each(LECTORES)("%s solo LEE", (rel) => {
+    const src = readFileSync(path.join(SRC, rel), "utf8");
     expect(src).not.toMatch(/\.(?:insert|update|delete)\(/);
   });
 });
