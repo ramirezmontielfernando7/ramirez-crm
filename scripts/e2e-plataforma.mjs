@@ -464,7 +464,10 @@ async function topesYAvisos(A, B, orgB) {
   ok("la Propietaria ve el aviso en la app", await banner.waitFor({ timeout: 30000 }).then(() => true, () => false));
   ok("…con texto claro", /llegó al tope de personas del equipo/.test(await banner.innerText()));
   await pB.screenshot({ path: "scratch/e2e-aviso-propietario.png", fullPage: false }).catch(() => null);
+  // El POST que lo marca visto puede tardar en `next dev` (compila la ruta): se espera su respuesta.
+  const marcado = pB.waitForResponse((r) => r.url().endsWith("/api/usage/alerts") && r.request().method() === "POST", { timeout: 90000 }).catch(() => null);
   await banner.getByTestId("usage-alert-seen").click();
+  await marcado;
   ok("«Entendido» lo oculta", await banner.waitFor({ state: "detached", timeout: 10000 }).then(() => true, () => false));
   ok("…y en el servidor queda visto (ya no sale)", await hasta(async () => ((await B.call("GET", "/api/usage/alerts")).json?.alerts ?? []).length === 0));
   await pB.close();
