@@ -7,7 +7,7 @@ import {
 } from "@/lib/db/tenant";
 import { isWindowOpen, windowRemainingMs } from "@/server/inbox/window";
 import type { ConversationDto } from "@/lib/types";
-import type { TagDto } from "@/lib/tags";
+import { isTagColor, type TagDto } from "@/lib/tags";
 import { botLastSeenAt, EXTERNAL_SEEN_WINDOW_MS } from "@/server/bot/status";
 
 /**
@@ -96,6 +96,13 @@ export async function listConversations(
     limit 1
   )`;
 
+  const stageColorSql = sql<string | null>`(
+    select s.color from lead l
+    join pipeline_stage s on s.id = l.stage_id
+    where l.contact_id = ${schema.contact.id}
+    limit 1
+  )`;
+
   // 034: lead, etapa, etiquetas y "¿hay bot?" viajan en LA MISMA consulta (y
   // por tanto con el mismo filtro de asignación del asesor), no en consultas
   // aparte que habría que proteger una por una.
@@ -123,6 +130,7 @@ export async function listConversations(
       contact: schema.contact,
       preview: previewSql,
       stageName: stageSql,
+      stageColor: stageColorSql,
       leadId: leadSql,
       stageId: stageIdSql,
       tags: tagsSql,
@@ -164,6 +172,7 @@ export async function listConversations(
       {
         leadId: r.leadId,
         stageId: r.stageId,
+        stageColor: r.stageColor,
         tags: r.tags ?? [],
         aiAvailable: !!r.agentOn || externalSeen,
       }
@@ -239,6 +248,7 @@ export function serializeConversation(
   extra: {
     leadId?: string | null;
     stageId?: string | null;
+    stageColor?: string | null;
     tags?: ConversationDto["tags"];
     aiAvailable?: boolean;
   } = {}
@@ -251,6 +261,7 @@ export function serializeConversation(
       ? { id: contact.assignedUserId, name: assigneeName ?? "" }
       : null,
     stageName,
+    stageColor: isTagColor(extra.stageColor) ? extra.stageColor : null,
     leadId: extra.leadId ?? null,
     stageId: extra.stageId ?? null,
     tags: extra.tags ?? [],

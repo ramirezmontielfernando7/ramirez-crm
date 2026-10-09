@@ -2,7 +2,7 @@ import type { TemplateComponentDto } from "@/lib/templates";
 /** DTOs que viajan por la API interna (lado cliente). */
 
 import type { Channel } from "@/lib/channels";
-import type { TagDto, WaConsent } from "@/lib/tags";
+import type { TagColor, TagDto, WaConsent } from "@/lib/tags";
 
 export type ConversationDto = {
   id: string;
@@ -15,6 +15,8 @@ export type ConversationDto = {
    */
   assignee: { id: string; name: string } | null;
   stageName: string | null;
+  /** Color configurado de la etapa actual; null = el respaldo por nombre. */
+  stageColor: TagColor | null;
   /** 034: lead y etapa actuales, para cambiarla desde la fila. null = sin lead. */
   leadId: string | null;
   stageId: string | null;
@@ -121,6 +123,8 @@ export type StageDto = {
   name: string;
   position: number;
   kind: "open" | "won" | "lost";
+  /** Color de la paleta (`TAG_COLORS`); null = el respaldo por nombre. */
+  color?: TagColor | null;
 };
 
 /** Un dato de la ficha. Escalar a propósito: ver `server/bot/ficha`. */

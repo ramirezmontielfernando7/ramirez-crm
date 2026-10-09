@@ -401,9 +401,12 @@ export const pipelineStage = pgTable(
     kind: text("kind", { enum: ["open", "won", "lost"] })
       .notNull()
       .default("open"),
+    /** Color de la paleta de la UI (`TAG_COLORS` de lib/tags.ts). NULL = el respaldo por nombre. */
+    color: text("color"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
   (t) => [
+    check("pipeline_stage_color_chk", sql`${t.color} is null or ${t.color} in ('gris', 'azul', 'verde', 'ambar', 'rojo', 'morado')`),
     index("stage_org_pos_idx").on(t.organizationId, t.position),
     unique("pipeline_stage_org_id_uq").on(t.organizationId, t.id),
   ]
