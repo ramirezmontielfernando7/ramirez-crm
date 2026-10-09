@@ -1,6 +1,6 @@
 # 036 — Uso y plan (Plataforma reorganizada + panel de consumo del Propietario)
 
-Estado: PR 1 y PR 2 fusionados; PR 4 implementado (Plataforma → Organizaciones, adelantado al PR 3 a pedido del dueño). PR 3, 5 y 6 pendientes; cada uno
+Estado: PR 1, 2 y 4 fusionados; PR 3a implementado (plan, topes, bloqueos y avisos; migración 0045). PR 3b (costos), 3c (historial), 5 y 6 pendientes; cada uno
 arranca solo cuando el dueño lo indica, y solo hay una migración en curso a la
 vez (el número se asigna al implementar, leyendo `drizzle/` en `main`).
 
@@ -111,3 +111,34 @@ muestra «sin tope».
   abrir la fila: `GET /api/platform/organizations/[id]/usage`, leído a nombre
   de la organización (RLS); los nombres de agentes con `agentNames`, que no
   escribe nada.
+
+## PR 3 — dividido en 3a, 3b y 3c (decisiones del dueño)
+
+- Avisos SOLO para el Propietario dentro de la app (no en el chat de equipo);
+  el administrador los ve en la fila de la organización.
+- En «Bloquear subidas manuales» se rechaza la subida que PASARÍA el tope.
+- Moneda configurable: precios en USD, tipo de cambio que captura el
+  administrador; la pantalla muestra moneda local y USD.
+- La migración 0045 (todas las tablas) entra solo en 3a; 3b y 3c sin
+  migración.
+
+### PR 3a — Plan, topes, bloqueos y avisos (hecho)
+
+Migración `0045_limites_avisos_costos`: `organization_plan`, `usage_alert`,
+`platform_ai_pricing` (plataforma), `ai_usage(.agent).cost_usd`,
+`org_usage_monthly`. Aditiva, idempotente, RLS en las de dominio.
+
+| Tope | Dónde vive | Dónde se aplica |
+|---|---|---|
+| IA turnos/tokens | `ai_quota` | `reserveTurn` (como siempre) |
+| Embeddings | `organization_plan.embed_token_limit` o entorno | `embedForOrg` |
+| Personas | `organization_plan.max_members` | `POST /api/settings/team` (409 `member_limit`) |
+| Almacenamiento + modo | `organization_plan.storage_limit_bytes` / `storage_mode` | `POST /api/lab/documents` (≈ 2 × texto extraído), `POST`/`PATCH /api/knowledge` (lo que crece), `POST /api/team-chat/threads/[id]/messages` con archivo (413 `storage_limit`) |
+| Módulos activos | `organization_plan.max_active_modules` | `changeOrganizationModules` (422 `module_limit`; apagar siempre se puede) |
+| Documentos | `kb_document_limit` | kb-docs (como siempre) |
+
+Avisos 80/100 %: `usage_alert` (uno por organización, mes, medida y umbral).
+Se revisan donde crece cada medida y cada 6 horas (almacenamiento que crece
+con la multimedia entrante). La Propietaria los ve en la app
+(`UsageAlertBanner`, «Entendido» los marca vistos); el administrador, en la
+fila y en «Plan y topes».

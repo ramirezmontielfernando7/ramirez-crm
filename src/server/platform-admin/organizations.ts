@@ -17,6 +17,11 @@ import {
 import { envModuleDefaults } from "@/server/modules/defaults";
 import { ModuleDependencyError, updateOrgModules, type ModulesPatch } from "@/server/modules/store";
 import type { ModuleProfile } from "@/lib/modules/registry";
+import type { EffectiveLimits, LimitsPatch } from "@/lib/limits";
+import { PLATFORM_MODULE_TOGGLES, type PlatformModuleToggle } from "@/lib/platform-modules";
+import { runWithOrganization } from "@/lib/request-context";
+import { assertModulesWithinLimit, LimitError, saveOrgLimits } from "@/server/limits";
+import { checkAllAlerts, checkModuleAlerts } from "@/server/limits/alerts";
 
 /**
  * Fase 3, PR 2 — Gestión de organizaciones por el administrador de
@@ -341,6 +346,20 @@ export async function changeOrganizationModules(
     };
     patch.channels = OPTIONAL_CHANNELS.filter((c) => want[c]);
   }
+  // 036 (PR 3a): el tope de módulos activos (encender de más se rechaza; apagar, nunca).
+  const actuales = modulesDto(await getOrgModules(organizationId));
+  const siguientes = { ...actuales } as Record<PlatformModuleToggle, boolean>;
+  for (const k of PLATFORM_MODULE_TOGGLES) {
+    const v = change[k];
+    if (v !== undefined) siguientes[k] = v;
+  }
+  if (!siguientes.agent) siguientes.lab = false;
+  try {
+    await runWithOrganization(organizationId, () => assertModulesWithinLimit(organizationId, actuales, siguientes));
+  } catch (err) {
+    if (err instanceof LimitError) throw new PlatformError(err.status, err.code, err.message);
+    throw err;
+  }
   let result: Awaited<ReturnType<typeof updateOrgModules>>;
   try {
     result = await updateOrgModules(organizationId, patch, actor?.email ?? "plataforma");
@@ -360,8 +379,44 @@ export async function changeOrganizationModules(
       detail: Object.fromEntries(cambios.map((k) => [k, { de: de[k], a: a[k] }])),
       ip,
     });
+    await runWithOrganization(organizationId, () => checkModuleAlerts(organizationId));
   }
   return a;
+}
+
+/**
+ * 036 (PR 3a) — Cambiar el plan y los topes de una organización (solo el
+ * administrador de plataforma). Bajar un tope por debajo del uso no quita
+ * nada: solo impide crecer. Queda en la bitácora con el antes y el después,
+ * y se revisan los avisos al momento.
+ */
+export async function changeOrganizationLimits(
+  organizationId: string,
+  patch: LimitsPatch,
+  actor: AuditActor,
+  ip: string | null
+): Promise<EffectiveLimits> {
+  const [org] = await sys()
+    .select({ id: schema.organization.id, name: schema.organization.name })
+    .from(schema.organization)
+    .where(eq(schema.organization.id, organizationId))
+    .limit(1);
+  if (!org) throw new PlatformError(404, "not_found", "Organización no encontrada");
+  const { before, after } = await saveOrgLimits(organizationId, patch, actor?.userId ?? null);
+  const cambios = (Object.keys(after) as (keyof EffectiveLimits)[]).filter(
+    (k) => JSON.stringify(before[k]) !== JSON.stringify(after[k])
+  );
+  if (cambios.length > 0) {
+    await recordPlatformAudit({
+      actor,
+      action: "organization.limits_changed",
+      org: { id: org.id, name: org.name },
+      detail: Object.fromEntries(cambios.map((k) => [k, { de: before[k], a: after[k] }])),
+      ip,
+    });
+  }
+  await runWithOrganization(organizationId, () => checkAllAlerts(organizationId));
+  return after;
 }
 
 function verb(a: StatusAction): string {

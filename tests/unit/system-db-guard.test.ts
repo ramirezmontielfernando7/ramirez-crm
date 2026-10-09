@@ -87,6 +87,10 @@ const PERMITIDOS: Record<string, { usos: number; motivo: string }> = {
     usos: 1,
     motivo: "036 PR 4: la lista de /platform lee el consumo de IA del mes (ai_usage total) y los topes (ai_quota) de TODAS las organizaciones en dos lecturas agrupadas, más si una organización existe; solo números, nunca contenido. El detalle de una sola va con el pool de la app (runWithOrganization)",
   },
+  "src/server/limits/daily.ts": {
+    usos: 1,
+    motivo: "036 PR 3a: la revisión periódica de avisos de consumo lista las organizaciones ACTIVAS con algún tope de almacenamiento, personas o módulos (cruza organizaciones); la revisión de cada una corre luego a nombre de la suya",
+  },
   "src/server/usage/storage.ts": {
     usos: 1,
     motivo: "036 PR 2: el administrador de plataforma ve cuánto almacenamiento (aprox.) ocupa CADA organización: sumas agrupadas por organización, nunca contenido; la de una sola organización va con el pool de la app",

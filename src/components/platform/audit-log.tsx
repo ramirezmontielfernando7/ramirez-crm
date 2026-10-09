@@ -12,6 +12,7 @@ const ACTION_LABEL: Record<string, string> = {
   "organization.restored": "restauró la organización",
   "organization.purged": "purgó la organización",
   "organization.modules_changed": "cambió los módulos de la organización",
+  "organization.limits_changed": "cambió el plan o los topes de la organización",
   "link.activation_created": "generó un enlace de activación",
   "link.reset_created": "generó un enlace de restablecimiento",
   "link.used": "se usó un enlace de contraseña",

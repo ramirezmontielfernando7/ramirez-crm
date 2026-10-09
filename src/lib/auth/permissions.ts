@@ -72,6 +72,11 @@ const statements = {
    * Archivar no lo pide: quien ve el chat puede archivarlo y recuperarlo.
    */
   conversation: ["delete"],
+  /**
+   * 036 — Ver el consumo y los topes de la organización («Uso y plan») y sus
+   * avisos al 80 % y 100 %. Solo el Propietario.
+   */
+  usage: ["read"],
 } as const;
 
 export const ac = createAccessControl(statements);
@@ -93,6 +98,7 @@ const owner = ac.newRole({
   number_health: ["read"],
   work: ["manage"],
   conversation: ["delete"],
+  usage: ["read"],
 });
 
 /** Operación: reparte, ve todo, edita etapas y plantillas. No configura. */
@@ -159,7 +165,8 @@ export type Permission =
   | "team_chat.oversee"
   | "number_health.read"
   | "work.manage"
-  | "conversation.delete";
+  | "conversation.delete"
+  | "usage.read";
 
 /**
  * 025 — Permisos que el Propietario puede DELEGAR por organización, desde

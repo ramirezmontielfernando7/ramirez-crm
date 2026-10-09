@@ -26,6 +26,16 @@ export type OrgUsageSummary = {
   period: string;
   ai: AiTotals & { limits: QuotaLimits };
   storageBytes: number;
+  /** 036 (PR 3a) — Plan y topes propios (sin fila: «Personalizado» y sin topes). */
+  plan: {
+    planKey: "custom";
+    storageLimitBytes: number | null;
+    storageMode: "warn" | "block_uploads";
+    maxModules: number | null;
+    maxMembers: number | null;
+  };
+  /** 036 (PR 3a) — Avisos del mes: el umbral más alto de cada medida. */
+  alerts: { metric: string; threshold: number }[];
 };
 
 /** Uno solo por archivo, para que el guardarraíl lo cuente una vez. */
@@ -42,13 +52,13 @@ function withEnvDefaults(row: { turns: number | null; tokens: number | null } | 
   };
 }
 
-/** El resumen de consumo de cada organización de `ids` (tres lecturas agrupadas en total). */
+/** El resumen de consumo de cada organización de `ids` (cinco lecturas agrupadas en total). */
 export async function listOrgsUsage(ids: string[], now = new Date()): Promise<Map<string, OrgUsageSummary>> {
   const out = new Map<string, OrgUsageSummary>();
   if (ids.length === 0) return out;
   const period = currentPeriod(now);
   const db = sys();
-  const [totales, topes, almacen] = await Promise.all([
+  const [totales, topes, almacen, planes, avisos] = await Promise.all([
     db
       .select({
         org: schema.aiUsage.organizationId,
@@ -66,15 +76,43 @@ export async function listOrgsUsage(ids: string[], now = new Date()): Promise<Ma
       })
       .from(schema.aiQuota),
     getAllOrgsStorageUsage(),
+    db
+      .select({
+        org: schema.organizationPlan.organizationId,
+        storageLimitBytes: schema.organizationPlan.storageLimitBytes,
+        storageMode: schema.organizationPlan.storageMode,
+        maxModules: schema.organizationPlan.maxActiveModules,
+        maxMembers: schema.organizationPlan.maxMembers,
+      })
+      .from(schema.organizationPlan),
+    db
+      .select({ org: schema.usageAlert.organizationId, metric: schema.usageAlert.metric, threshold: schema.usageAlert.threshold })
+      .from(schema.usageAlert)
+      .where(eq(schema.usageAlert.period, period)),
   ]);
   const total = new Map(totales.map((r) => [r.org, r]));
   const tope = new Map(topes.map((r) => [r.org, r]));
+  const plan = new Map(planes.map((r) => [r.org, r]));
+  const avisosPorOrg = new Map<string, Map<string, number>>();
+  for (const a of avisos) {
+    const m = avisosPorOrg.get(a.org) ?? new Map<string, number>();
+    m.set(a.metric, Math.max(m.get(a.metric) ?? 0, a.threshold));
+    avisosPorOrg.set(a.org, m);
+  }
   for (const id of ids) {
     const t = total.get(id);
     out.set(id, {
       period,
       ai: { turns: t?.turns ?? 0, tokens: (t?.prompt ?? 0) + (t?.completion ?? 0), limits: withEnvDefaults(tope.get(id)) },
       storageBytes: (almacen.get(id) ?? emptyStorageUsage()).totalBytes,
+      plan: {
+        planKey: "custom",
+        storageLimitBytes: plan.get(id)?.storageLimitBytes ?? null,
+        storageMode: plan.get(id)?.storageMode ?? "warn",
+        maxModules: plan.get(id)?.maxModules ?? null,
+        maxMembers: plan.get(id)?.maxMembers ?? null,
+      },
+      alerts: [...(avisosPorOrg.get(id) ?? new Map<string, number>())].map(([metric, threshold]) => ({ metric, threshold })),
     });
   }
   return out;

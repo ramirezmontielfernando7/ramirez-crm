@@ -22,6 +22,14 @@
 - [x] T12 UI: pestañas, lista minimalista con fila desplegable, medidores (`src/lib/usage.ts`), «x/12» (`src/lib/platform-modules.ts`); celular y modo oscuro.
 - [x] T13 Pruebas: unitarias `platform-usage.test.ts`, BD `plataforma-consumo.test.ts`, E2E `e2e-plataforma.mjs` (consumo real, escritorio, celular oscuro sin desplazamiento horizontal) y `e2e-modulos.mjs` (interruptor dentro del detalle).
 
-## PR 3, 5 y 6
+## PR 3a — Plan, topes, bloqueos y avisos
+
+- [x] T14 Migración `0045_limites_avisos_costos` + reversa `scripts/sql/0045-reversa.sql`.
+- [x] T15 `src/server/limits/` (topes vigentes, guardado, bloqueos, avisos, revisión cada 6 h) + `src/lib/limits.ts`.
+- [x] T16 Bloqueos en Documentos, Conocimientos, chat de equipo, altas de personas, módulos; tope de embeddings propio.
+- [x] T17 Permiso `usage.read`, `/api/usage/alerts`, aviso en la app; `/api/platform/organizations/[id]/limits` y «Plan y topes».
+- [x] T18 Pruebas: `tests/unit/limits.test.ts`, `tests/db/limites.test.ts`, E2E `e2e-plataforma.mjs` (sección 4c).
+
+## PR 3b, 3c, 5 y 6
 
 Pendientes; ver spec.md.

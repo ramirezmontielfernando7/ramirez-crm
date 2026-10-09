@@ -121,6 +121,9 @@ const PROTEGIDAS: [string, Method, Permission][] = [
   // Usuarios.
   // 034: eliminar un chat para siempre; archivar (PATCH) lo ve cualquiera que vea el chat.
   ["conversations/[id]", "DELETE", "conversation.delete"],
+  // 036 (PR 3a): avisos de consumo (solo el Propietario).
+  ["usage/alerts", "GET", "usage.read"],
+  ["usage/alerts", "POST", "usage.read"],
   ["settings/team", "GET", "users.read"],
   ["settings/team", "POST", "users.manage"],
   ["settings/team/[id]", "PATCH", "users.manage"],
@@ -310,6 +313,8 @@ const PLATAFORMA: [string, Method][] = [
   ["platform/organizations/[id]/status", "POST"],
   ["platform/organizations/[id]/modules", "POST"],
   ["platform/organizations/[id]/usage", "GET"],
+  ["platform/organizations/[id]/limits", "GET"],
+  ["platform/organizations/[id]/limits", "PUT"],
   ["platform/users/[id]/link", "POST"],
   ["platform/audit", "GET"],
 ];

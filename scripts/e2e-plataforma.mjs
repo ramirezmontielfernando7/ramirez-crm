@@ -192,6 +192,7 @@ async function main() {
   ok("el administrador ve B en la lista, sin contenido", listaA.some((o) => o.id === orgB.id) && !JSON.stringify(listaA).includes(secretoB));
 
   await consumoEnPlataforma(A, B, orgB.id);
+  await topesYAvisos(A, B, orgB.id);
 
   console.log("\n== 5 · Suspensión ==");
   const sus = await A.call("POST", `/api/platform/organizations/${orgB.id}/status`, { action: "suspend", reason: "prueba e2e" });
@@ -372,6 +373,116 @@ async function consumoEnPlataforma(A, B, orgB) {
   ok("celular: la fila abierta tampoco se desplaza a lo ancho", !(await desborde()));
   await cel.screenshot({ path: "scratch/e2e-plataforma-movil-oscuro.png", fullPage: true }).catch(() => null);
   await movil.close();
+}
+
+/**
+ * 036 (PR 3a) — Plan y topes: el administrador los fija desde Plataforma
+ * (personas, almacenamiento en «Bloquear subidas manuales», módulos); la
+ * Propietaria choca con cada tope con un mensaje claro, ve el aviso del 80 %
+ * y del 100 % en la app y lo marca como visto. La multimedia entrante de
+ * WhatsApp nunca se bloquea.
+ */
+async function topesYAvisos(A, B, orgB) {
+  console.log("\n== 4c · Plan y topes ==");
+  const subir = async (bytes, nombre) =>
+    (
+      await B.ctx.request.post(`${BASE}/api/knowledge`, {
+        multipart: { title: `${nombre} ${RUN}`, file: { name: `${nombre}.txt`, mimeType: "text/plain", buffer: Buffer.alloc(bytes, "a") } },
+        failOnStatusCode: false,
+      })
+    ).status();
+  const usado = (await A.call("GET", `/api/platform/organizations/${orgB}/usage`)).json?.usage?.storage?.totalBytes ?? 0;
+  const tope = usado + 10_000;
+
+  // Desde la pantalla: personas = 1 (la Propietaria) y bloqueo de subidas.
+  const page = await A.ctx.newPage();
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto(`${BASE}/platform/organizaciones`);
+  const fila = page.getByTestId(`platform-org-${orgB}`);
+  await fila.waitFor({ timeout: 30000 });
+  await fila.getByTestId("platform-org-toggle").click();
+  const form = fila.getByTestId("platform-limits");
+  await form.waitFor({ timeout: 20000 });
+  ok("el plan dice «Personalizado»", (await form.getByTestId("platform-plan").inputValue()) === "custom" && /Personalizado/.test(await form.getByTestId("platform-plan").innerText()));
+  ok("un tope sin valor propio dice de dónde hereda", /Hereda:/.test(await form.getByTestId("platform-limit-members").getAttribute("placeholder")));
+  await form.getByTestId("platform-limit-members").fill("1");
+  await form.getByTestId("platform-limit-storageMode").selectOption("block_uploads");
+  await form.getByTestId("platform-limits-save").click();
+  ok("guardar topes desde la pantalla", await form.getByTestId("platform-limits-saved").waitFor({ timeout: 15000 }).then(() => true, () => false));
+  await page.screenshot({ path: "scratch/e2e-plataforma-topes.png", fullPage: false }).catch(() => null);
+  // El almacenamiento exacto (en bytes) por la API: la pantalla lo pide en GB.
+  const put = await A.call("PUT", `/api/platform/organizations/${orgB}/limits`, { storageBytes: tope });
+  ok("la API guarda el tope de almacenamiento", put.status === 200 && put.json?.limits?.storageBytes?.value === tope && put.json?.limits?.storageMode === "block_uploads", JSON.stringify(put.json?.limits).slice(0, 200));
+  ok("B (usuaria común) → 404 en los topes", (await B.call("PUT", `/api/platform/organizations/${orgB}/limits`, { members: 50 })).status === 404);
+  ok("la bitácora registra el cambio de topes", (await sql`select 1 from platform_audit_log where target_org_id = ${orgB} and action = 'organization.limits_changed'`).length >= 1);
+
+  // Personas: ya tiene 1 (la Propietaria) y el tope es 1.
+  const alta = await B.call("POST", "/api/settings/team", { name: "Otra", email: `otra.${RUN}@plataforma.test`, password: "contraseña-larga-123", role: "asesor" });
+  ok("tope de personas: no se agrega otra (409 con mensaje claro)", alta.status === 409 && alta.json?.error?.code === "member_limit" && /tope de personas/.test(alta.json?.error?.message ?? ""), `${alta.status} ${JSON.stringify(alta.json)}`);
+
+  // Almacenamiento: cabe lo que no pasa el tope; lo que lo pasaría, no.
+  ok("una subida que cabe pasa (Conocimientos)", (await subir(2_000, "cabe")) === 201);
+  const grande = await B.ctx.request.post(`${BASE}/api/knowledge`, {
+    multipart: { title: `grande ${RUN}`, file: { name: "grande.txt", mimeType: "text/plain", buffer: Buffer.alloc(20_000, "a") } },
+    failOnStatusCode: false,
+  });
+  const cuerpo = await grande.json().catch(() => null);
+  ok("la que pasaría el tope se rechaza con mensaje claro (413)", grande.status() === 413 && cuerpo?.error?.code === "storage_limit" && /tope de almacenamiento/.test(cuerpo?.error?.message ?? ""), `${grande.status()} ${JSON.stringify(cuerpo)}`);
+  const hilos = (await B.call("GET", "/api/team-chat/threads")).json?.threads ?? [];
+  const avisosHilo = hilos.find((t) => t.kind === "announcements");
+  const adjunto = await B.ctx.request.post(`${BASE}/api/team-chat/threads/${avisosHilo?.id}/messages`, {
+    multipart: { body: "adjunto", file: { name: "pesado.txt", mimeType: "text/plain", buffer: Buffer.alloc(20_000, "b") } },
+    failOnStatusCode: false,
+  });
+  ok("…también un adjunto del chat de equipo", adjunto.status() === 413, String(adjunto.status()));
+  ok("subir sin archivo sigue funcionando", (await B.call("POST", "/api/knowledge", { title: `texto ${RUN}`, body: "solo texto" })).status === 201);
+  ok("cruza el 80 % con otra subida que cabe", (await subir(6_500, "ochenta")) === 201);
+
+  // Módulos: el tope igual a los activos; encender otro se rechaza.
+  const activos = Object.entries((await A.call("GET", "/api/platform/organizations")).json?.organizations?.find((o) => o.id === orgB)?.modules ?? {})
+    .filter(([k, v]) => k !== "campaignSendRate" && v === true).length;
+  await A.call("PUT", `/api/platform/organizations/${orgB}/limits`, { modules: activos });
+  const apagado = Object.entries((await A.call("GET", "/api/platform/organizations")).json?.organizations?.find((o) => o.id === orgB)?.modules ?? {}).find(([k, v]) => k !== "campaignSendRate" && v === false)?.[0];
+  const encender = await A.call("POST", `/api/platform/organizations/${orgB}/modules`, { [apagado]: true });
+  ok("tope de módulos: encender otro se rechaza (422)", encender.status === 422 && encender.json?.error?.code === "module_limit", `${apagado} ${encender.status} ${JSON.stringify(encender.json)}`);
+
+  // Avisos: la Propietaria los ve en la app y los marca como vistos.
+  // El aviso de almacenamiento se revisa al terminar la subida (en segundo plano).
+  let avisos = [];
+  await hasta(async () => {
+    avisos = (await B.call("GET", "/api/usage/alerts")).json?.alerts ?? [];
+    return avisos.some((a) => a.metric === "storage");
+  });
+  const de = (m) => avisos.find((a) => a.metric === m);
+  ok("aviso del 100 % de personas", de("members")?.threshold === 100, JSON.stringify(avisos));
+  ok("aviso del 80 % de almacenamiento", de("storage")?.threshold === 80, JSON.stringify(avisos));
+  ok("aviso del 100 % de módulos (tope = activos)", de("modules")?.threshold === 100, JSON.stringify(avisos));
+  const pB = await B.ctx.newPage();
+  await pB.goto(`${BASE}/inbox`);
+  const banner = pB.getByTestId("usage-alert-banner");
+  ok("la Propietaria ve el aviso en la app", await banner.waitFor({ timeout: 30000 }).then(() => true, () => false));
+  ok("…con texto claro", /llegó al tope de personas del equipo/.test(await banner.innerText()));
+  await pB.screenshot({ path: "scratch/e2e-aviso-propietario.png", fullPage: false }).catch(() => null);
+  await banner.getByTestId("usage-alert-seen").click();
+  ok("«Entendido» lo oculta", await banner.waitFor({ state: "detached", timeout: 10000 }).then(() => true, () => false));
+  ok("…y en el servidor queda visto (ya no sale)", await hasta(async () => ((await B.call("GET", "/api/usage/alerts")).json?.alerts ?? []).length === 0));
+  await pB.close();
+  await page.reload();
+  const filaR = page.getByTestId(`platform-org-${orgB}`);
+  await filaR.waitFor({ timeout: 30000 });
+  ok("el administrador ve el aviso en la fila", /100 %/.test((await filaR.getByTestId("platform-org-alert").innerText().catch(() => "")) ?? ""));
+  await page.close();
+
+  // La multimedia entrante de WhatsApp se guarda siempre (nunca se bloquea).
+  ok(
+    "WhatsApp entrante sigue entrando con el tope pasado",
+    (await A.call("POST", "/api/dev/wa-mock/inbound", { phoneNumberId: PN_B, from: "5215577001199", name: "Cliente con tope", text: `tras el tope ${RUN}`, waMessageId: `wamid.plat.tope.${RUN}` })).status === 200 &&
+      (await hasta(async () => (await sql`select 1 from message where organization_id = ${orgB} and text = ${`tras el tope ${RUN}`}`).length > 0))
+  );
+
+  // Deja a B sin topes propios para el resto del guion.
+  const reset = await A.call("PUT", `/api/platform/organizations/${orgB}/limits`, { members: null, storageBytes: null, storageMode: "warn", modules: null });
+  ok("volver a heredar (sin topes propios)", reset.json?.limits?.members?.source === "none" && reset.json?.limits?.storageMode === "warn");
 }
 
 try {

@@ -1,4 +1,5 @@
 import {
+  bigint,
   boolean,
   customType,
   date,
@@ -2540,6 +2541,12 @@ export const aiUsage = pgTable(
     turns: integer("turns").notNull().default(0),
     promptTokens: integer("prompt_tokens").notNull().default(0),
     completionTokens: integer("completion_tokens").notNull().default(0),
+    /**
+     * 036 (PR 3) — Costo REAL que reportó el proveedor (OpenRouter `usage.cost`,
+     * en USD), sumado. 0 si el proveedor no lo reporta: el panel de costos
+     * usa entonces el estimado con los precios de `platform_ai_pricing`.
+     */
+    costUsd: numeric("cost_usd", { precision: 14, scale: 6 }).notNull().default("0"),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },
   (t) => [primaryKey({ columns: [t.organizationId, t.period, t.kind] })]
@@ -2567,6 +2574,8 @@ export const aiUsageAgent = pgTable(
     turns: integer("turns").notNull().default(0),
     promptTokens: integer("prompt_tokens").notNull().default(0),
     completionTokens: integer("completion_tokens").notNull().default(0),
+    /** 036 (PR 3) — Costo real del proveedor (USD), como en `ai_usage`. */
+    costUsd: numeric("cost_usd", { precision: 14, scale: 6 }).notNull().default("0"),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },
   (t) => [
@@ -2578,6 +2587,138 @@ export const aiUsageAgent = pgTable(
       foreignColumns: [agent.organizationId, agent.id],
     }).onDelete("cascade"),
   ]
+);
+
+/**
+ * 036 (PR 3) — Plan y topes propios de una organización que no viven en otra
+ * tabla. Los turnos y tokens de IA siguen en `ai_quota` y los límites de
+ * documentos en `kb_document_limit` (los scripts del operador siguen
+ * funcionando). Sin fila, o NULL: el del entorno o sin tope. Única puerta:
+ * `src/server/limits/`. La edita solo el administrador de plataforma.
+ *
+ * `plan_key`: hoy solo 'custom' («Personalizado»). Cuando haya planes base,
+ * el CHECK se amplía y los topes de aquí quedan como ajustes encima.
+ * `storage_mode`: 'warn' solo avisa; 'block_uploads' rechaza las subidas
+ * hechas desde el CRM que pasarían el tope. La multimedia ENTRANTE de
+ * WhatsApp se guarda siempre.
+ */
+export const organizationPlan = pgTable(
+  "organization_plan",
+  {
+    organizationId: text("organization_id")
+      .primaryKey()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    planKey: text("plan_key").notNull().default("custom"),
+    maxMembers: integer("max_members"),
+    storageLimitBytes: bigint("storage_limit_bytes", { mode: "number" }),
+    storageMode: text("storage_mode", { enum: ["warn", "block_uploads"] }).notNull().default("warn"),
+    maxActiveModules: integer("max_active_modules"),
+    embedTokenLimit: bigint("embed_token_limit", { mode: "number" }),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+    updatedBy: text("updated_by").references(() => user.id, { onDelete: "set null" }),
+  },
+  (t) => [
+    check("organization_plan_key_chk", sql`${t.planKey} in ('custom')`),
+    check("organization_plan_storage_mode_chk", sql`${t.storageMode} in ('warn', 'block_uploads')`),
+    check("organization_plan_max_members_chk", sql`${t.maxMembers} is null or ${t.maxMembers} >= 0`),
+    check("organization_plan_storage_chk", sql`${t.storageLimitBytes} is null or ${t.storageLimitBytes} >= 0`),
+    check(
+      "organization_plan_modules_chk",
+      sql`${t.maxActiveModules} is null or ${t.maxActiveModules} between 0 and 12`
+    ),
+    check("organization_plan_embed_chk", sql`${t.embedTokenLimit} is null or ${t.embedTokenLimit} >= 0`),
+  ]
+);
+
+/**
+ * 036 (PR 3) — Avisos de consumo al 80 % y al 100 % de cada tope, uno por
+ * (organización, mes UTC, medida, umbral): no se repite en el mes. Los ve el
+ * Propietario dentro de la app (`seen_at` = lo marcó como visto) y el
+ * administrador de plataforma en la fila de la organización.
+ */
+export const usageAlert = pgTable(
+  "usage_alert",
+  {
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    period: text("period").notNull(),
+    metric: text("metric", {
+      enum: ["ai_tokens", "ai_turns", "embed_tokens", "storage", "members", "modules"],
+    }).notNull(),
+    threshold: integer("threshold").notNull(),
+    used: bigint("used", { mode: "number" }).notNull(),
+    limitValue: bigint("limit_value", { mode: "number" }).notNull(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    seenAt: timestamp("seen_at"),
+    seenBy: text("seen_by").references(() => user.id, { onDelete: "set null" }),
+  },
+  (t) => [
+    primaryKey({ columns: [t.organizationId, t.period, t.metric, t.threshold] }),
+    check(
+      "usage_alert_metric_chk",
+      sql`${t.metric} in ('ai_tokens', 'ai_turns', 'embed_tokens', 'storage', 'members', 'modules')`
+    ),
+    check("usage_alert_threshold_chk", sql`${t.threshold} in (80, 100)`),
+  ]
+);
+
+/**
+ * 036 (PR 3) — Precios de IA que captura el administrador de plataforma
+ * (USD por millón de tokens) y el tipo de cambio a la moneda local. Tabla de
+ * PLATAFORMA (sin organización), con historial: cada cambio es una fila
+ * nueva con su `valid_from`, para que un mes pasado se estime con el precio
+ * de entonces. Solo el pool de sistema.
+ */
+export const platformAiPricing = pgTable(
+  "platform_ai_pricing",
+  {
+    id: text("id").primaryKey(),
+    validFrom: timestamp("valid_from").notNull().defaultNow(),
+    chatInputUsdPerMtok: numeric("chat_input_usd_per_mtok", { precision: 12, scale: 6 }).notNull(),
+    chatOutputUsdPerMtok: numeric("chat_output_usd_per_mtok", { precision: 12, scale: 6 }).notNull(),
+    /** NULL = el juez usa los precios del modelo principal. */
+    judgeInputUsdPerMtok: numeric("judge_input_usd_per_mtok", { precision: 12, scale: 6 }),
+    judgeOutputUsdPerMtok: numeric("judge_output_usd_per_mtok", { precision: 12, scale: 6 }),
+    embedUsdPerMtok: numeric("embed_usd_per_mtok", { precision: 12, scale: 6 }).notNull().default("0"),
+    /** Unidades de la moneda local por 1 USD. */
+    usdToLocal: numeric("usd_to_local", { precision: 14, scale: 6 }).notNull(),
+    localCurrency: text("local_currency").notNull().default("MXN"),
+    createdBy: text("created_by").references(() => user.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    index("platform_ai_pricing_valid_from_idx").on(t.validFrom),
+    check("platform_ai_pricing_currency_chk", sql`${t.localCurrency} ~ '^[A-Z]{3}$'`),
+    check(
+      "platform_ai_pricing_positive_chk",
+      sql`${t.chatInputUsdPerMtok} >= 0 and ${t.chatOutputUsdPerMtok} >= 0 and ${t.embedUsdPerMtok} >= 0 and ${t.usdToLocal} > 0`
+    ),
+  ]
+);
+
+/**
+ * 036 (PR 3) — Cierre mensual de lo que NO se acumula por mes (almacenamiento
+ * aprox., personas, módulos activos): un trabajo diario lo actualiza y el
+ * último valor del mes queda como su cierre. La IA ya tiene su historial
+ * mensual en `ai_usage`/`ai_usage_agent`. Empieza el día que se despliega.
+ */
+export const orgUsageMonthly = pgTable(
+  "org_usage_monthly",
+  {
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    period: text("period").notNull(),
+    storageBytes: bigint("storage_bytes", { mode: "number" }).notNull().default(0),
+    /** { whatsapp, knowledge, teamChat, documents } en bytes. */
+    storageByCategory: jsonb("storage_by_category").$type<Record<string, number>>().notNull().default({}),
+    filesWithoutSize: integer("files_without_size").notNull().default(0),
+    members: integer("members").notNull().default(0),
+    activeModules: integer("active_modules").notNull().default(0),
+    capturedAt: timestamp("captured_at").notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.organizationId, t.period] })]
 );
 
 /**
