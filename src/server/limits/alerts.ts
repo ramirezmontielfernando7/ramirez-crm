@@ -69,21 +69,21 @@ async function seguro(nombre: string, organizationId: string, fn: () => Promise<
 /** IA del mes (tokens y turnos), contra la fila `total` de `ai_usage`. */
 export async function checkAiAlerts(organizationId: string, now = new Date()): Promise<void> {
   await seguro("IA", organizationId, async () => {
-    const [limits, [row]] = await Promise.all([
-      getEffectiveLimits(organizationId),
-      getDb()
-        .select({ turns: schema.aiUsage.turns, p: schema.aiUsage.promptTokens, c: schema.aiUsage.completionTokens })
-        .from(schema.aiUsage)
-        .where(
-          scoped(
-            schema.aiUsage.organizationId,
-            organizationId,
-            eq(schema.aiUsage.period, currentPeriod(now)),
-            eq(schema.aiUsage.kind, "total")
-          )
+    // Una tras otra (no en Promise.all): si la segunda falla al armarse, la
+    // primera no queda como un rechazo sin manejar.
+    const limits = await getEffectiveLimits(organizationId);
+    const [row] = await getDb()
+      .select({ turns: schema.aiUsage.turns, p: schema.aiUsage.promptTokens, c: schema.aiUsage.completionTokens })
+      .from(schema.aiUsage)
+      .where(
+        scoped(
+          schema.aiUsage.organizationId,
+          organizationId,
+          eq(schema.aiUsage.period, currentPeriod(now)),
+          eq(schema.aiUsage.kind, "total")
         )
-        .limit(1),
-    ]);
+      )
+      .limit(1);
     if (!row) return;
     await recordCrossings(organizationId, "ai_tokens", row.p + row.c, limits.aiTokens.value, now);
     await recordCrossings(organizationId, "ai_turns", row.turns, limits.aiTurns.value, now);
@@ -93,21 +93,19 @@ export async function checkAiAlerts(organizationId: string, now = new Date()): P
 /** Tokens de embeddings del mes. */
 export async function checkEmbedAlerts(organizationId: string, now = new Date()): Promise<void> {
   await seguro("embeddings", organizationId, async () => {
-    const [limits, [row]] = await Promise.all([
-      getEffectiveLimits(organizationId),
-      getDb()
-        .select({ t: schema.aiUsage.promptTokens })
-        .from(schema.aiUsage)
-        .where(
-          scoped(
-            schema.aiUsage.organizationId,
-            organizationId,
-            eq(schema.aiUsage.period, currentPeriod(now)),
-            eq(schema.aiUsage.kind, "embed")
-          )
+    const limits = await getEffectiveLimits(organizationId);
+    const [row] = await getDb()
+      .select({ t: schema.aiUsage.promptTokens })
+      .from(schema.aiUsage)
+      .where(
+        scoped(
+          schema.aiUsage.organizationId,
+          organizationId,
+          eq(schema.aiUsage.period, currentPeriod(now)),
+          eq(schema.aiUsage.kind, "embed")
         )
-        .limit(1),
-    ]);
+      )
+      .limit(1);
     if (!row) return;
     await recordCrossings(organizationId, "embed_tokens", row.t, limits.embedTokens.value, now);
   });
