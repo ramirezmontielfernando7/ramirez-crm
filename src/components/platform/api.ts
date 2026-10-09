@@ -19,6 +19,16 @@ export type OrgUsage = {
   period: string;
   ai: { turns: number; tokens: number; limits: Limits };
   storageBytes: number;
+  /** 036 (PR 3a) — Plan y topes propios. */
+  plan: {
+    planKey: "custom";
+    storageLimitBytes: number | null;
+    storageMode: "warn" | "block_uploads";
+    maxModules: number | null;
+    maxMembers: number | null;
+  };
+  /** 036 (PR 3a) — Avisos del mes (el umbral más alto de cada medida). */
+  alerts: { metric: string; threshold: number }[];
 };
 
 export type Org = {

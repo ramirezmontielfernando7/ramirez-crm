@@ -13,6 +13,7 @@ import { TeamUnreadLogoBadge } from "@/components/team-chat/unread-badge";
 import { HandoffNotices } from "@/components/handoff-notices";
 import { NumberHealthBanner } from "@/components/number-health";
 import { CampaignPauseBanner } from "@/components/campaigns/campaign-pause-banner";
+import { UsageAlertBanner } from "@/components/usage-alert-banner";
 import { MotionProvider, NAV } from "@/components/motion";
 import { NavModeProvider } from "@/components/nav-mode";
 import { nextNavMode, type NavMode } from "@/lib/preferences";
@@ -273,6 +274,8 @@ function ShellFrame({
           <NumberHealthBanner campaigns={campaigns} />
           {/* Campañas v2: pausa de seguridad automática (Propietario y Coordinador). */}
           <CampaignPauseBanner campaigns={campaigns} />
+          {/* 036 (PR 3a): avisos de consumo al 80 % y 100 % de los topes (solo el Propietario). */}
+          <UsageAlertBanner />
           <main className="min-h-0 min-w-0 flex-1 overflow-hidden">{children}</main>
         </div>
       </div>

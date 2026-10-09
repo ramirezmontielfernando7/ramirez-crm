@@ -7,6 +7,9 @@ import {
 } from "@/server/knowledge/store";
 import { readKnowledgeInput } from "@/server/knowledge/input";
 import { MediaValidationError } from "@/server/whatsapp/media";
+import { assertCanUpload } from "@/server/limits";
+import { checkStorageAlerts } from "@/server/limits/alerts";
+import { limitBlocked } from "@/server/limits/http";
 import { moduleOff } from "@/server/modules";
 
 export const dynamic = "force-dynamic";
@@ -38,9 +41,17 @@ export const PATCH = withAuth(async (session, req: Request, ctx: Params) => {
     return apiError(422, "invalid_body", "La entrada quedaría vacía: deja texto o un archivo");
   }
 
+  // 036 (PR 3a): un archivo nuevo cuenta lo que crece (el nuevo menos el que reemplaza).
+  const nuevo = input.data.file;
+  if (nuevo) {
+    const crece = nuevo.data.byteLength - (current.fileSize ?? 0);
+    const blocked = await limitBlocked(() => assertCanUpload(session.organizationId, crece));
+    if (blocked) return blocked;
+  }
   try {
     const row = await updateKnowledge(session.organizationId, id, input.data);
     if (!row) return apiError(404, "not_found", "Entrada no encontrada");
+    if (nuevo) void checkStorageAlerts(session.organizationId);
     return Response.json({ entry: serializeKnowledge(row) });
   } catch (err) {
     if (err instanceof MediaValidationError) {

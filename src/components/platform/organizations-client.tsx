@@ -18,6 +18,7 @@ import {
 import { aiMeter, STORAGE_LABEL, storageMeter } from "@/lib/usage";
 import { cn } from "@/lib/utils";
 import { api, fecha, type Member, type Modules, type Org } from "./api";
+import { LimitsForm } from "./limits-form";
 import { UsageDetail, UsageMeter } from "./usage";
 
 /**
@@ -311,10 +312,14 @@ function ResetLink({ member, onDone }: { member: Member; onDone: () => void }) {
 
 
 /** Los 12 puntos de «x/12»: encendidos en el acento, apagados huecos. */
-function ModuleDots({ modules }: { modules: Modules }) {
+function ModuleDots({ modules, max }: { modules: Modules; max?: number | null }) {
   const { active, total } = countActiveModules(modules);
+  const tope = max ?? null;
   return (
-    <span className="flex items-center gap-2" title={`${active} de ${total} módulos activos`}>
+    <span
+      className={cn("flex items-center gap-2", tope !== null && active > tope && "text-warning-text")}
+      title={`${active} de ${total} módulos activos${tope !== null ? ` · tope ${tope}` : ""}`}
+    >
       <span className="hidden gap-0.5 lg:flex" aria-hidden>
         {PLATFORM_MODULE_TOGGLES.map((k) => (
           <span key={k} className={cn("h-1.5 w-1.5 rounded-full", modules[k] ? "bg-brand" : "bg-muted")} />
@@ -323,6 +328,7 @@ function ModuleDots({ modules }: { modules: Modules }) {
       <span className="text-xs tabular-nums text-text-2" data-testid="platform-org-modules-count">
         {active}/{total}
       </span>
+      {tope !== null && <span className="text-[11px] text-text-3">tope {tope}</span>}
     </span>
   );
 }
@@ -336,7 +342,8 @@ function OrganizationRow({ org, adminUserId, onChanged }: { org: Org; adminUserI
   const [busy, setBusy] = useState(false);
 
   const ai = org.usage ? aiMeter(org.usage.ai, org.usage.ai.limits) : null;
-  const storage = org.usage ? storageMeter(org.usage.storageBytes) : null;
+  const storage = org.usage ? storageMeter(org.usage.storageBytes, org.usage.plan.storageLimitBytes) : null;
+  const avisoMax = Math.max(0, ...(org.usage?.alerts ?? []).map((a) => a.threshold));
 
   async function loadMembers() {
     const r = await api<{ members: Member[] }>(`/api/platform/organizations/${org.id}/members`);
@@ -376,15 +383,28 @@ function OrganizationRow({ org, adminUserId, onChanged }: { org: Org; adminUserI
         <div className="min-w-0 flex-1 sm:grid sm:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(4.5rem,auto)] sm:items-center sm:gap-5">
           <div className="flex min-w-0 items-center gap-2">
             <span className={cn("h-2 w-2 shrink-0 rounded-full", STATUS_DOT[org.status])} aria-hidden />
+            {avisoMax > 0 && (
+              <span
+                className={cn(
+                  "shrink-0 rounded-full px-1.5 text-[10px] font-semibold leading-4",
+                  avisoMax >= 100 ? "bg-danger-tint text-danger-text" : "bg-warning-tint text-warning-text"
+                )}
+                title="Tiene avisos de consumo este mes"
+                data-testid="platform-org-alert"
+              >
+                {avisoMax} %
+              </span>
+            )}
             <span className="min-w-0">
               <span className="block truncate text-sm font-semibold">{org.name}</span>
               <span className="block truncate text-xs text-text-3">
                 <span data-testid="platform-org-status">{STATUS_LABEL[org.status]}</span>
                 {org.isPlatform && " · Plataforma"} · {org.members} persona(s)
+                {org.usage?.plan.maxMembers != null && ` de ${org.usage.plan.maxMembers}`}
               </span>
             </span>
             <span className="ml-auto shrink-0 sm:hidden">
-              <ModuleDots modules={org.modules} />
+              <ModuleDots modules={org.modules} max={org.usage?.plan.maxModules} />
             </span>
           </div>
           <div className="mt-2 grid grid-cols-2 gap-3 sm:contents">
@@ -392,7 +412,7 @@ function OrganizationRow({ org, adminUserId, onChanged }: { org: Org; adminUserI
             {storage ? <UsageMeter meter={storage} label={STORAGE_LABEL} testId="platform-org-storage" /> : <span />}
           </div>
           <span className="hidden justify-end sm:flex">
-            <ModuleDots modules={org.modules} />
+            <ModuleDots modules={org.modules} max={org.usage?.plan.maxModules} />
           </span>
         </div>
         <ChevronDown
@@ -403,7 +423,11 @@ function OrganizationRow({ org, adminUserId, onChanged }: { org: Org; adminUserI
 
       {open && (
         <div id={`org-detail-${org.id}`} className="space-y-6 border-t bg-subtle px-3 py-4 sm:px-4" data-testid="platform-org-detail">
-          <UsageDetail orgId={org.id} />
+          <UsageDetail orgId={org.id} storageLimitBytes={org.usage?.plan.storageLimitBytes ?? null} />
+
+          <div className="border-t pt-4">
+            <LimitsForm orgId={org.id} onSaved={onChanged} />
+          </div>
 
           <div className="border-t pt-4">
             <ModuleToggles org={org} onChanged={onChanged} />

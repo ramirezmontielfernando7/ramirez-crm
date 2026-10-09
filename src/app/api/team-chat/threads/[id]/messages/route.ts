@@ -3,6 +3,9 @@ import { apiError, withAuth } from "@/lib/api";
 import { TEAM_MESSAGE_MAX, TEAM_PAGE_MAX } from "@/lib/team-chat";
 import { listMessages, postMessage, type TeamFileInput } from "@/server/team-chat/messages";
 import { teamChatErrorResponse } from "@/server/team-chat/errors";
+import { assertCanUpload } from "@/server/limits";
+import { checkStorageAlerts } from "@/server/limits/alerts";
+import { limitBlocked } from "@/server/limits/http";
 import { moduleOff } from "@/server/modules";
 
 export const dynamic = "force-dynamic";
@@ -85,8 +88,15 @@ export const POST = withAuth(async (session, req: Request, ctx: Params) => {
     if (!parsed.success) return apiError(422, "invalid_body", "Falta el texto del mensaje");
     body = parsed.data.body;
   }
+  // 036 (PR 3a): con «Bloquear subidas manuales», un adjunto no pasa el tope de almacenamiento.
+  if (file) {
+    const adjunto = file;
+    const blocked = await limitBlocked(() => assertCanUpload(session.organizationId, adjunto.data.byteLength));
+    if (blocked) return blocked;
+  }
   try {
     const { message } = await postMessage(session, id, { body, file });
+    if (file) void checkStorageAlerts(session.organizationId);
     return Response.json({ message }, { status: 201 });
   } catch (err) {
     return teamChatErrorResponse(err, "publicar mensaje");

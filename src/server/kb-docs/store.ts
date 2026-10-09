@@ -608,3 +608,32 @@ export async function chunksByIds(organizationId: string, scope: DocScope, ids: 
     .innerJoin(schema.kbDocument, and(eq(d.organizationId, c.organizationId), eq(d.id, c.documentId)))
     .where(scoped(c.organizationId, organizationId, inArray(c.id, ids), eq(d.status, "ready"), scopeCondition(scope)));
 }
+
+/**
+ * 036 (PR 3a) — Los límites propios de documentos de una organización
+ * (Plataforma → Organizaciones). `undefined` = no tocar; `null` = volver al
+ * del entorno. Misma fila que escribe `scripts/kb-limits.mjs`. Dentro de la
+ * transacción de `setOrgLimits` (a nombre de la organización, RLS).
+ */
+export async function saveKbDocLimits(
+  tx: Db,
+  organizationId: string,
+  patch: { maxFileBytes?: number | null; maxDocuments?: number | null; maxChunks?: number | null }
+): Promise<void> {
+  if (patch.maxFileBytes === undefined && patch.maxDocuments === undefined && patch.maxChunks === undefined) return;
+  const [actual] = await tx
+    .select()
+    .from(schema.kbDocumentLimit)
+    .where(scoped(schema.kbDocumentLimit.organizationId, organizationId))
+    .limit(1);
+  const values = {
+    maxFileBytes: patch.maxFileBytes === undefined ? (actual?.maxFileBytes ?? null) : patch.maxFileBytes,
+    maxDocuments: patch.maxDocuments === undefined ? (actual?.maxDocuments ?? null) : patch.maxDocuments,
+    maxChunks: patch.maxChunks === undefined ? (actual?.maxChunks ?? null) : patch.maxChunks,
+    updatedAt: new Date(),
+  };
+  await tx
+    .insert(schema.kbDocumentLimit)
+    .values({ organizationId, ...values })
+    .onConflictDoUpdate({ target: schema.kbDocumentLimit.organizationId, set: values });
+}

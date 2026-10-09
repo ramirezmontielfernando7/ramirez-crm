@@ -13,6 +13,7 @@ import {
   STORAGE_CATEGORY_LABEL,
   STORAGE_LABEL,
   STORAGE_NOTE,
+  storageMeter,
   turnos,
   type Meter,
   type MeterTone,
@@ -86,7 +87,7 @@ function Line({ label, value, hint }: { label: string; value: string; hint?: str
 const tokensYTurnos = (t: { tokens: number; turns: number }) => `${formatTokens(t.tokens)} tokens · ${turnos(t.turns)}`;
 
 /** El consumo del mes de UNA organización (se pide al abrir su fila). */
-export function UsageDetail({ orgId }: { orgId: string }) {
+export function UsageDetail({ orgId, storageLimitBytes = null }: { orgId: string; storageLimitBytes?: number | null }) {
   const [detail, setDetail] = useState<OrgUsageDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -157,9 +158,12 @@ export function UsageDetail({ orgId }: { orgId: string }) {
 
       <section className="min-w-0 space-y-2">
         <h4 className="text-xs font-medium text-text-2">{STORAGE_LABEL}</h4>
-        <p className="text-sm tabular-nums" data-testid="platform-usage-storage-total">
-          {formatStorage(storage.totalBytes)} <span className="text-text-3">· sin tope</span>
-        </p>
+        <UsageMeter
+          meter={storageMeter(storage.totalBytes, storageLimitBytes)}
+          label={STORAGE_LABEL}
+          testId="platform-usage-storage-total"
+          showLabel="never"
+        />
         <ul className="divide-y" data-testid="platform-usage-storage">
           {STORAGE_CATEGORIES.map((c) => (
             <Line key={c} label={STORAGE_CATEGORY_LABEL[c]} value={formatStorage(storage.byCategory[c])} />
