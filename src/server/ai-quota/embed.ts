@@ -59,7 +59,7 @@ export async function embedForOrg(
   const result = await embedTexts(texts, purpose, { timeoutMs: opts.timeoutMs, config });
   if (result.ok) {
     try {
-      await recordEmbedUsage(organizationId, result.tokens);
+      await recordEmbedUsage(organizationId, result.tokens, new Date(), result.costUsd);
     } catch (err) {
       log.error("no se pudo sumar el uso de embeddings", { org: organizationId, err });
     }

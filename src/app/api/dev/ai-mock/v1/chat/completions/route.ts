@@ -1,5 +1,5 @@
 import { mockGuard } from "@/lib/dev-guard";
-import { aiMockCompletion } from "@/server/dev/ai-mock";
+import { aiMockCompletion, aiMockCost } from "@/server/dev/ai-mock";
 
 export const dynamic = "force-dynamic";
 
@@ -15,13 +15,18 @@ export async function POST(req: Request) {
   // Fase 3: `usage` con la forma de OpenRouter (~4 caracteres por token), para
   // que la cuota por organización se pruebe de punta a punta.
   const promptChars = messages.reduce((n, m) => n + (m.content?.length ?? 0), 0);
+  const prompt = Math.ceil(promptChars / 4);
+  const completion = Math.ceil(content.length / 4);
   return Response.json({
-    id: "aimock",
+    id: `gen-aimock-${Date.now()}`,
     choices: [{ index: 0, message: { role: "assistant", content } }],
     usage: {
-      prompt_tokens: Math.ceil(promptChars / 4),
-      completion_tokens: Math.ceil(content.length / 4),
-      total_tokens: Math.ceil(promptChars / 4) + Math.ceil(content.length / 4),
+      prompt_tokens: prompt,
+      completion_tokens: completion,
+      total_tokens: prompt + completion,
+      // 036 (PR 3b): el costo real como lo manda OpenRouter (créditos = USD),
+      // a precio fijo de prueba ($3 / $15 por millón de tokens).
+      cost: aiMockCost(prompt, completion),
     },
   });
 }

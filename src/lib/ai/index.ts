@@ -15,8 +15,13 @@ export type ChatMessage = {
   content: string;
 };
 
-/** Tokens que reportó el proveedor (`usage`), sumados entre reintentos. */
-export type LlmUsage = { promptTokens: number; completionTokens: number };
+/**
+ * Tokens que reportó el proveedor (`usage`), sumados entre reintentos.
+ * 036 (PR 3b): `costUsd` es el costo REAL que reporta OpenRouter
+ * (`usage.cost`, en créditos = USD), sumado entre reintentos; ausente si el
+ * proveedor no lo manda (otro proveedor compatible, el contenedor local…).
+ */
+export type LlmUsage = { promptTokens: number; completionTokens: number; costUsd?: number };
 
 export type ChatJsonResult<T> =
   | { ok: true; data: T; raw: string; usage?: LlmUsage }
@@ -100,6 +105,7 @@ export async function chatJson<T>(
       const reply = await callProvider(model, attemptMessages, opts?.timeoutMs);
       usage.promptTokens += reply.usage.promptTokens;
       usage.completionTokens += reply.usage.completionTokens;
+      if (reply.usage.costUsd !== undefined) usage.costUsd = (usage.costUsd ?? 0) + reply.usage.costUsd;
       const raw = reply.content;
       const extracted = extractJson(raw);
       if (extracted === null) {
@@ -156,14 +162,28 @@ async function callProvider(
       throw new Error(`proveedor respondió ${res.status}: ${truncate(text)}`);
     }
     const json = (await res.json()) as {
+      id?: unknown;
       choices?: { message?: { content?: string } }[];
-      usage?: { prompt_tokens?: unknown; completion_tokens?: unknown };
+      usage?: { prompt_tokens?: unknown; completion_tokens?: unknown; cost?: unknown };
     };
+    const cost = providerCost(json.usage?.cost);
+    // 036 (PR 3b): el id de la generación y su costo, para cotejarlo contra
+    // la actividad de OpenRouter. Nunca contenido ni el token.
+    if (cost !== undefined) {
+      logger("ai").info("costo reportado por el proveedor", { generacion: typeof json.id === "string" ? json.id : null, modelo: model, costo_usd: cost });
+    }
     const content = json.choices?.[0]?.message?.content;
     if (typeof content !== "string" || content.length === 0) {
       throw new Error("respuesta del proveedor sin contenido");
     }
-    return { content, usage: { promptTokens: tokens(json.usage?.prompt_tokens), completionTokens: tokens(json.usage?.completion_tokens) } };
+    return {
+      content,
+      usage: {
+        promptTokens: tokens(json.usage?.prompt_tokens),
+        completionTokens: tokens(json.usage?.completion_tokens),
+        ...(cost !== undefined ? { costUsd: cost } : {}),
+      },
+    };
   } finally {
     clearTimeout(timer);
   }
@@ -192,6 +212,16 @@ export function extractJson(raw: string): unknown | null {
     }
   }
   return null;
+}
+
+/**
+ * 036 (PR 3b) — El costo que reportó el proveedor (`usage.cost` de OpenRouter,
+ * en créditos = USD), o `undefined` si no vino o vino raro. Un 0 sí cuenta
+ * (modelo gratis): es un costo real reportado.
+ */
+export function providerCost(v: unknown): number | undefined {
+  const n = typeof v === "string" && v.trim() !== "" ? Number(v) : v;
+  return typeof n === "number" && Number.isFinite(n) && n >= 0 ? n : undefined;
 }
 
 /** Un conteo de tokens del proveedor, o 0 si no vino o vino raro. */

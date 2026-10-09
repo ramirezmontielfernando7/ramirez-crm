@@ -18,6 +18,7 @@ export type AuditAction =
   | "organization.purged"
   | "organization.modules_changed"
   | "organization.limits_changed"
+  | "pricing.changed"
   | "link.activation_created"
   | "link.reset_created"
   | "link.used"

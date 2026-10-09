@@ -1,6 +1,6 @@
 # 036 — Uso y plan (Plataforma reorganizada + panel de consumo del Propietario)
 
-Estado: PR 1, 2 y 4 fusionados; PR 3a implementado (plan, topes, bloqueos y avisos; migración 0045). PR 3b (costos), 3c (historial), 5 y 6 pendientes; cada uno
+Estado: PR 1, 2, 3a y 4 fusionados; PR 3b implementado (panel de costos, sin migración). PR 3c (historial), 5 y 6 pendientes; cada uno
 arranca solo cuando el dueño lo indica, y solo hay una migración en curso a la
 vez (el número se asigna al implementar, leyendo `drizzle/` en `main`).
 
@@ -142,3 +142,41 @@ Se revisan donde crece cada medida y cada 6 horas (almacenamiento que crece
 con la multimedia entrante). La Propietaria los ve en la app
 (`UsageAlertBanner`, «Entendido» los marca vistos); el administrador, en la
 fila y en «Plan y topes».
+
+### PR 3b — Panel de costos (hecho, sin migración)
+
+Solo el administrador de plataforma: Plataforma → **Costos** (`/platform/costos`).
+
+- **Costo real**: el adaptador lee `usage.cost` de OpenRouter (créditos = USD)
+  en cada llamada, lo suma entre reintentos (`LlmUsage.costUsd`) y
+  `chatJsonForOrg` lo guarda en `ai_usage.cost_usd` (total y función) y
+  `ai_usage_agent.cost_usd`; los embeddings igual si el servicio lo manda. Sin
+  `usage.cost` (otro proveedor, TEI local) no se anota nada: el real queda
+  «—», nunca un 0 inventado. No se pide nada extra al proveedor. El log `ai`
+  registra el id de la generación y su costo para cotejarlo contra
+  openrouter.ai/activity.
+- **Precios**: `platform_ai_pricing`, USD por millón de tokens (entrada y
+  salida del modelo principal y del juez —vacío = el del principal—, y
+  embeddings) + tipo de cambio y moneda local. Cada cambio es una fila nueva
+  con «vigente desde» (UTC); nunca se reescribe. Rige la de `valid_from` más
+  reciente que no sea futura; un mes cerrado usa la vigente al cierre.
+  Bitácora `pricing.changed`.
+- **Estimado**: tokens del mes por función × precios vigentes (el juez con
+  los suyos). **Proyección**: el MAYOR entre estimado y real ÷ la fracción
+  del mes transcurrida (UTC, al menos un día): el real puede cubrir solo
+  parte del mes (llamadas de antes del despliegue) y el estimado depende de
+  precios capturados a mano.
+- Montos en USD y, debajo, en la moneda local. Por organización con
+  desglose por función; solo las que consumieron IA este mes; nunca
+  contenido.
+
+Código: reglas puras `src/lib/costs.ts`; `src/server/costs/pricing.ts`
+(historial) y `report.ts` (una lectura agrupada de `ai_usage`, pool de
+sistema); rutas `GET/POST /api/platform/pricing`, `GET /api/platform/costs`;
+UI `src/components/platform/costs-client.tsx`.
+
+**Cómo comprobar el costo real con una llamada de producción**: tras el
+despliegue, una vista previa en Laboratorio → Agentes (una llamada); en
+Plataforma → Costos, la organización muestra «Real (OpenRouter)»; el log
+`ai` trae «costo reportado por el proveedor generacion=gen-… costo_usd=…»;
+ese `gen-…` en openrouter.ai/activity debe marcar el mismo monto.

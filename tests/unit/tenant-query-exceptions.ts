@@ -73,6 +73,11 @@ export const TENANT_QUERY_EXCEPTIONS: Record<string, { max: number; motivo: stri
     motivo:
       "036 PR 4 — listOrgsUsage: el consumo de IA del mes (ai_usage, fila total) y los topes (ai_quota) de TODAS las organizaciones para la lista de /platform, una lectura agrupada de cada tabla con el pool de sistema. 036 PR 3a: también el plan y topes propios (organization_plan) y los avisos del mes (usage_alert), igual: solo números. Solo números; detrás de withPlatformAdmin. El detalle de UNA organización va con scoped() y RLS (runWithOrganization).",
   },
+  "server/costs/report.ts": {
+    max: 1,
+    motivo:
+      "036 PR 3b — getCostReport: tokens y costo reportado del mes (ai_usage, todas las filas del periodo) de TODAS las organizaciones en una lectura agrupada. Pool de sistema; solo números; detrás de withPlatformAdmin.",
+  },
   "server/limits/daily.ts": {
     max: 1,
     motivo:

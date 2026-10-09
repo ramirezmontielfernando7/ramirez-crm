@@ -124,14 +124,24 @@ export async function reserveTurn(
   return { ok: true };
 }
 
-/** Suma los tokens que reportó el proveedor (al total y al tipo). */
+/** 036 (PR 3b) — Un costo reportado utilizable (USD ≥ 0), o 0. */
+function costOf(usage: { costUsd?: number } | null | undefined): number {
+  const c = usage?.costUsd;
+  return typeof c === "number" && Number.isFinite(c) && c > 0 ? c : 0;
+}
+
+/**
+ * Suma los tokens que reportó el proveedor (al total y al tipo) y, desde
+ * 036 (PR 3b), su costo real (`cost_usd`) cuando el proveedor lo manda.
+ */
 export async function recordUsage(
   organizationId: string,
   kind: AiKind,
   usage: LlmUsage,
   now = new Date()
 ): Promise<void> {
-  if (usage.promptTokens === 0 && usage.completionTokens === 0) return;
+  const cost = costOf(usage);
+  if (usage.promptTokens === 0 && usage.completionTokens === 0 && cost === 0) return;
   const period = currentPeriod(now);
   for (const k of [TOTAL, kind]) {
     await getDb()
@@ -139,6 +149,7 @@ export async function recordUsage(
       .set({
         promptTokens: sql`${schema.aiUsage.promptTokens} + ${usage.promptTokens}`,
         completionTokens: sql`${schema.aiUsage.completionTokens} + ${usage.completionTokens}`,
+        costUsd: sql`${schema.aiUsage.costUsd} + ${cost}`,
         updatedAt: new Date(),
       })
       .where(
@@ -168,9 +179,10 @@ export async function recordAgentUsage(
   const period = currentPeriod(now);
   const prompt = Math.max(0, Math.floor(usage?.promptTokens ?? 0));
   const completion = Math.max(0, Math.floor(usage?.completionTokens ?? 0));
+  const cost = costOf(usage);
   await getDb()
     .insert(schema.aiUsageAgent)
-    .values({ organizationId, period, agentId, kind, turns: 1, promptTokens: prompt, completionTokens: completion })
+    .values({ organizationId, period, agentId, kind, turns: 1, promptTokens: prompt, completionTokens: completion, costUsd: String(cost) })
     .onConflictDoUpdate({
       target: [
         schema.aiUsageAgent.organizationId,
@@ -182,6 +194,7 @@ export async function recordAgentUsage(
         turns: sql`${schema.aiUsageAgent.turns} + 1`,
         promptTokens: sql`${schema.aiUsageAgent.promptTokens} + ${prompt}`,
         completionTokens: sql`${schema.aiUsageAgent.completionTokens} + ${completion}`,
+        costUsd: sql`${schema.aiUsageAgent.costUsd} + ${cost}`,
         updatedAt: new Date(),
       },
     });
@@ -214,16 +227,23 @@ export async function getAgentUsage(organizationId: string, now = new Date()): P
  */
 export const EMBED_KIND = "embed";
 
-export async function recordEmbedUsage(organizationId: string, tokens: number, now = new Date()): Promise<void> {
+export async function recordEmbedUsage(
+  organizationId: string,
+  tokens: number,
+  now = new Date(),
+  costUsd?: number
+): Promise<void> {
   const period = currentPeriod(now);
+  const cost = costOf({ costUsd });
   await getDb()
     .insert(schema.aiUsage)
-    .values({ organizationId, period, kind: EMBED_KIND, turns: 1, promptTokens: Math.max(0, Math.floor(tokens)) })
+    .values({ organizationId, period, kind: EMBED_KIND, turns: 1, promptTokens: Math.max(0, Math.floor(tokens)), costUsd: String(cost) })
     .onConflictDoUpdate({
       target: [schema.aiUsage.organizationId, schema.aiUsage.period, schema.aiUsage.kind],
       set: {
         turns: sql`${schema.aiUsage.turns} + 1`,
         promptTokens: sql`${schema.aiUsage.promptTokens} + ${Math.max(0, Math.floor(tokens))}`,
+        costUsd: sql`${schema.aiUsage.costUsd} + ${cost}`,
         updatedAt: new Date(),
       },
     });

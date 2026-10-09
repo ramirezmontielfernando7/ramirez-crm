@@ -193,6 +193,7 @@ async function main() {
 
   await consumoEnPlataforma(A, B, orgB.id);
   await topesYAvisos(A, B, orgB.id);
+  await costosEnPlataforma(A, B, orgB.id);
 
   console.log("\n== 5 · Suspensión ==");
   const sus = await A.call("POST", `/api/platform/organizations/${orgB.id}/status`, { action: "suspend", reason: "prueba e2e" });
@@ -483,6 +484,88 @@ async function topesYAvisos(A, B, orgB) {
   // Deja a B sin topes propios para el resto del guion.
   const reset = await A.call("PUT", `/api/platform/organizations/${orgB}/limits`, { members: null, storageBytes: null, storageMode: "warn", modules: null });
   ok("volver a heredar (sin topes propios)", reset.json?.limits?.members?.source === "none" && reset.json?.limits?.storageMode === "warn");
+}
+
+/**
+ * 036 (PR 3b) — Costos: el administrador captura precios (USD por millón de
+ * tokens) y el tipo de cambio con «vigente desde»; el panel muestra por
+ * organización el costo estimado, el real que reportó el proveedor
+ * (`usage.cost` del ai-mock, a $3/$15 como OpenRouter) y la proyección del
+ * mes, en USD y MXN. Solo él lo ve; nunca contenido.
+ */
+async function costosEnPlataforma(A, B, orgB) {
+  console.log("\n== 4d · Costos de IA en Plataforma ==");
+  const [real] = await sql`
+    select coalesce(sum(cost_usd), 0)::float8 as usd, coalesce(sum(prompt_tokens + completion_tokens), 0)::int as tokens
+    from ai_usage where organization_id = ${orgB} and period = to_char(date_trunc('month', now() at time zone 'utc'), 'YYYY-MM-DD') and kind <> 'total'`;
+  ok("el costo real que reportó el proveedor quedó en cost_usd", real.usd > 0 && real.tokens > 0, JSON.stringify(real));
+
+  const page = await A.ctx.newPage();
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto(`${BASE}/platform`);
+  await page.getByRole("navigation", { name: "Secciones de Plataforma" }).getByRole("link", { name: "Costos" }).click();
+  await page.waitForURL(/\/platform\/costos$/);
+  const form = page.getByTestId("platform-pricing");
+  await form.waitFor({ timeout: 30000 });
+  const hoy = new Date().toISOString().slice(0, 10);
+  await form.getByTestId("platform-price-chatIn").fill("3");
+  await form.getByTestId("platform-price-chatOut").fill("15");
+  await form.getByTestId("platform-price-judgeIn").fill("");
+  await form.getByTestId("platform-price-judgeOut").fill("");
+  await form.getByTestId("platform-price-embed").fill("0.02");
+  await form.getByTestId("platform-price-rate").fill("18.5");
+  await form.getByTestId("platform-price-currency").fill("MXN");
+  await form.getByTestId("platform-price-validFrom").fill(hoy);
+  await form.getByTestId("platform-pricing-save").click();
+  await form.getByTestId("platform-pricing-saved").waitFor({ timeout: 20000 });
+  ok("captura precios y tipo de cambio desde la pantalla", true);
+  ok("…y el historial marca el vigente desde hoy", /vigente/.test(await form.getByTestId("platform-pricing-history").innerText()));
+  await form.screenshot({ path: "scratch/e2e-plataforma-precios.png" }).catch(() => null);
+
+  const rep = (await A.call("GET", "/api/platform/costs")).json?.report;
+  const filaB = rep?.rows?.find((r) => r.organizationId === orgB);
+  ok("el panel usa el precio recién capturado", rep?.pricing?.chatInputUsdPerMtok === 3 && rep?.pricing?.usdToLocal === 18.5 && rep?.pricing?.localCurrency === "MXN", JSON.stringify(rep?.pricing));
+  ok("Real de B = lo que reportó el proveedor", Math.abs((filaB?.realUsd ?? -1) - real.usd) < 1e-6, `${filaB?.realUsd} vs ${real.usd}`);
+  ok("Estimado de B ≈ Real (mismos precios que el mock)", Math.abs((filaB?.estimatedUsd ?? -1) - (filaB?.realUsd ?? 0)) < 1e-4, `${filaB?.estimatedUsd} vs ${filaB?.realUsd}`);
+  ok("proyección del mes ≥ lo gastado (el mayor de estimado y real)", (filaB?.projectedUsd ?? 0) >= Math.max(filaB?.realUsd ?? 1, filaB?.estimatedUsd ?? 1) - 1e-9, JSON.stringify(filaB));
+  ok("desglose por función (Laboratorio y redacción)", ["lab", "writing"].every((k) => filaB?.byKind?.some((x) => x.kind === k)), JSON.stringify(filaB?.byKind));
+  ok("el panel no trae contenido del negocio", !JSON.stringify(rep).includes("hola") && !JSON.stringify(rep).includes("pedido"));
+
+  await page.reload();
+  const filaUi = page.getByTestId(`platform-cost-org-${orgB}`);
+  await filaUi.waitFor({ timeout: 30000 });
+  const textoFila = await filaUi.innerText();
+  ok("la fila muestra USD y MXN", /USD/.test(textoFila) && /MXN/.test(textoFila), textoFila.slice(0, 200));
+  ok("los totales del mes: estimado, real y proyección", (await page.getByTestId("platform-cost-total-real").innerText()).includes("USD") && (await page.getByTestId("platform-cost-total-projected").innerText()).includes("MXN"));
+  await filaUi.getByRole("button").first().click();
+  ok("al abrirla, el desglose por función", /Asistente de redacción/.test(await filaUi.getByTestId("platform-cost-kinds").innerText()));
+  await page.screenshot({ path: "scratch/e2e-plataforma-costos.png", fullPage: true }).catch(() => null);
+  await page.close();
+
+  // Validación y acceso.
+  ok("precio negativo → 422", (await A.call("POST", "/api/platform/pricing", { chatInputUsdPerMtok: -1, chatOutputUsdPerMtok: 1, judgeInputUsdPerMtok: null, judgeOutputUsdPerMtok: null, embedUsdPerMtok: 0, usdToLocal: 18, localCurrency: "MXN" })).status === 422);
+  ok("moneda que no es de 3 letras → 422", (await A.call("POST", "/api/platform/pricing", { chatInputUsdPerMtok: 1, chatOutputUsdPerMtok: 1, judgeInputUsdPerMtok: null, judgeOutputUsdPerMtok: null, embedUsdPerMtok: 0, usdToLocal: 18, localCurrency: "pesos" })).status === 422);
+  ok("B (usuaria común) → 404 en costos y precios", (await B.call("GET", "/api/platform/costs")).status === 404 && (await B.call("GET", "/api/platform/pricing")).status === 404);
+  const pB = await B.ctx.newPage();
+  const resp = await pB.goto(`${BASE}/platform/costos`);
+  ok("B → la página de costos no existe (404)", resp?.status() === 404);
+  await pB.close();
+  const bit = (await A.call("GET", "/api/platform/audit")).json?.entries ?? [];
+  ok("el cambio de precios queda en la bitácora", bit.some((e) => e.action === "pricing.changed"));
+
+  // Celular, modo oscuro.
+  const movil = await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true, extraHTTPHeaders: { origin: BASE } });
+  await movil.addCookies([{ name: "vocero-theme", value: "dark", url: BASE }, ...(await A.ctx.cookies())]);
+  const cel = await movil.newPage();
+  await cel.goto(`${BASE}/platform/costos`);
+  await cel.getByTestId(`platform-cost-org-${orgB}`).waitFor({ timeout: 30000 });
+  const desborde = await cel.evaluate(() => {
+    const els = [document.documentElement, ...document.querySelectorAll("main, [class*='overflow-y-auto']")];
+    return els.some((e) => e.scrollWidth > e.clientWidth + 1);
+  });
+  ok("celular: costos sin desplazamiento horizontal", !desborde);
+  await cel.screenshot({ path: "scratch/e2e-plataforma-costos-movil.png", fullPage: true }).catch(() => null);
+  await movil.close();
 }
 
 try {

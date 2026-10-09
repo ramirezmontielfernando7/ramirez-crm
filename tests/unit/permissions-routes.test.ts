@@ -315,6 +315,9 @@ const PLATAFORMA: [string, Method][] = [
   ["platform/organizations/[id]/usage", "GET"],
   ["platform/organizations/[id]/limits", "GET"],
   ["platform/organizations/[id]/limits", "PUT"],
+  ["platform/pricing", "GET"],
+  ["platform/pricing", "POST"],
+  ["platform/costs", "GET"],
   ["platform/users/[id]/link", "POST"],
   ["platform/audit", "GET"],
 ];

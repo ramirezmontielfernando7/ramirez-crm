@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
-import { chatJson, extractJson } from "@/lib/ai";
+import { chatJson, extractJson, providerCost } from "@/lib/ai";
 
 describe("extractJson (extracción robusta)", () => {
   it("JSON limpio", () => {
@@ -46,6 +46,35 @@ describe("chatJson (reintentos y errores tipados)", () => {
       { status: 200, headers: { "content-type": "application/json" } }
     );
   }
+
+  function withUsage(content: string, usage: Record<string, unknown>) {
+    return new Response(JSON.stringify({ id: "gen-123", choices: [{ message: { content } }], usage }), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    });
+  }
+
+  it("036 PR 3b: lee el costo real (usage.cost) y lo suma entre reintentos", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(withUsage("no soy json", { prompt_tokens: 10, completion_tokens: 2, cost: 0.0012 }))
+      .mockResolvedValueOnce(withUsage('{"action":"reply","text":"ok"}', { prompt_tokens: 12, completion_tokens: 3, cost: 0.0015 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const result = await chatJson(schema, [{ role: "user", content: "hola" }]);
+    expect(result.ok).toBe(true);
+    expect(result.usage?.promptTokens).toBe(22);
+    expect(result.usage?.costUsd).toBeCloseTo(0.0027, 10);
+    // No pide nada extra al proveedor: el cuerpo es el de siempre.
+    const body = JSON.parse(fetchMock.mock.calls[0]![1]!.body as string);
+    expect(Object.keys(body).sort()).toEqual(["messages", "model"]);
+  });
+
+  it("036 PR 3b: sin usage.cost (otro proveedor) el costo queda ausente, no en 0", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValueOnce(withUsage('{"action":"reply","text":"ok"}', { prompt_tokens: 5, completion_tokens: 1 })));
+    const result = await chatJson(schema, [{ role: "user", content: "hola" }]);
+    expect(result.ok).toBe(true);
+    expect(result.usage).toEqual({ promptTokens: 5, completionTokens: 1 });
+  });
 
   it("salida inválida al primer intento → reintenta con STRICT y triunfa", async () => {
     const fetchMock = vi
@@ -99,5 +128,18 @@ describe("chatJson (reintentos y errores tipados)", () => {
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error).toBe("not_configured");
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("providerCost (036 PR 3b)", () => {
+  it("acepta números y cadenas numéricas ≥ 0; lo demás es «no vino»", () => {
+    expect(providerCost(0.5)).toBe(0.5);
+    expect(providerCost("0.25")).toBe(0.25);
+    expect(providerCost(0)).toBe(0);
+    expect(providerCost(-1)).toBeUndefined();
+    expect(providerCost("abc")).toBeUndefined();
+    expect(providerCost(null)).toBeUndefined();
+    expect(providerCost(undefined)).toBeUndefined();
+    expect(providerCost(Number.NaN)).toBeUndefined();
   });
 });
