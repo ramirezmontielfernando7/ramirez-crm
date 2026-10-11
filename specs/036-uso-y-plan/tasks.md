@@ -30,6 +30,14 @@
 - [x] T17 Permiso `usage.read`, `/api/usage/alerts`, aviso en la app; `/api/platform/organizations/[id]/limits` y «Plan y topes».
 - [x] T18 Pruebas: `tests/unit/limits.test.ts`, `tests/db/limites.test.ts`, E2E `e2e-plataforma.mjs` (sección 4c).
 
-## PR 3b, 3c, 5 y 6
+## PR 3b — Panel de costos (sin migración)
+
+- [x] T19 Adaptador: `usage.cost` → `LlmUsage.costUsd` (chat y embeddings) y log con el id de la generación; ai-mock lo manda a $3/$15.
+- [x] T20 `cost_usd` en `recordUsage`, `recordAgentUsage`, `recordEmbedUsage`.
+- [x] T21 `src/lib/costs.ts` (estimado, historial «vigente desde», proyección, USD/moneda local) + `src/server/costs/` (precios, reporte).
+- [x] T22 `GET/POST /api/platform/pricing`, `GET /api/platform/costs`, pestaña Plataforma → Costos.
+- [x] T23 Pruebas: `tests/unit/costs.test.ts`, adaptadores, `tests/db/costos.test.ts`, E2E `e2e-plataforma.mjs` (sección 4d).
+
+## PR 3c, 5 y 6
 
 Pendientes; ver spec.md.

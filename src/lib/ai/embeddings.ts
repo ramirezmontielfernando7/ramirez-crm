@@ -1,6 +1,6 @@
 import { getEnv } from "@/lib/env";
 import { logger } from "@/lib/log";
-import { assertNoOpenTransaction } from "@/lib/ai";
+import { assertNoOpenTransaction, providerCost } from "@/lib/ai";
 
 /**
  * 035 — Adaptador de embeddings OpenAI-compatible (`POST {base}/v1/embeddings`).
@@ -21,7 +21,14 @@ import { assertNoOpenTransaction } from "@/lib/ai";
 export type EmbedPurpose = "query" | "passage";
 
 export type EmbedResult =
-  | { ok: true; vectors: Float32Array[]; model: string; tokens: number }
+  | {
+      ok: true;
+      vectors: Float32Array[];
+      model: string;
+      tokens: number;
+      /** 036 (PR 3b): costo real que reportó el servicio (`usage.cost`), si lo mandó. */
+      costUsd?: number;
+    }
   | {
       ok: false;
       // `quota_exceeded` lo produce `embedForOrg`, nunca este archivo.
@@ -118,6 +125,7 @@ export async function embedTexts(
 
   const vectors: Float32Array[] = [];
   let tokens = 0;
+  let costUsd: number | undefined;
   let dims = 0;
   for (let i = 0; i < texts.length; i += EMBED_BATCH) {
     const batch = texts.slice(i, i + EMBED_BATCH).map((t) => withE5Prefix(t, purpose, config.e5));
@@ -129,15 +137,16 @@ export async function embedTexts(
       vectors.push(v);
     }
     tokens += r.tokens;
+    if (r.costUsd !== undefined) costUsd = (costUsd ?? 0) + r.costUsd;
   }
-  return { ok: true, vectors, model: config.model, tokens };
+  return { ok: true, vectors, model: config.model, tokens, ...(costUsd !== undefined ? { costUsd } : {}) };
 }
 
 async function callBatch(
   config: EmbeddingsConfig,
   input: string[],
   timeoutMs: number
-): Promise<{ ok: true; vectors: Float32Array[]; tokens: number } | Extract<EmbedResult, { ok: false }>> {
+): Promise<{ ok: true; vectors: Float32Array[]; tokens: number; costUsd?: number } | Extract<EmbedResult, { ok: false }>> {
   let lastDetail = "";
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     const controller = new AbortController();
@@ -162,7 +171,7 @@ async function callBatch(
       }
       const json = (await res.json().catch(() => null)) as {
         data?: { embedding?: unknown; index?: unknown }[];
-        usage?: { prompt_tokens?: unknown; total_tokens?: unknown };
+        usage?: { prompt_tokens?: unknown; total_tokens?: unknown; cost?: unknown };
       } | null;
       const data = json?.data;
       if (!Array.isArray(data) || data.length !== input.length) {
@@ -181,7 +190,8 @@ async function callBatch(
         Number.isFinite(reported) && reported > 0
           ? Math.floor(reported)
           : Math.ceil(input.reduce((n, t) => n + t.length, 0) / 4);
-      return { ok: true, vectors, tokens };
+      const costUsd = providerCost(json?.usage?.cost);
+      return { ok: true, vectors, tokens, ...(costUsd !== undefined ? { costUsd } : {}) };
     } catch (err) {
       lastDetail = err instanceof Error ? (err.name === "AbortError" ? "tiempo de espera agotado" : err.message) : String(err);
     } finally {

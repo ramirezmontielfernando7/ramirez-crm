@@ -6,6 +6,7 @@ import { SectionTabs } from "@/components/ui/section-tabs";
 const TABS = [
   { href: "/platform", label: "Mi panel" },
   { href: "/platform/organizaciones", label: "Organizaciones" },
+  { href: "/platform/costos", label: "Costos" },
 ] as const;
 
 export function PlatformTabs() {
