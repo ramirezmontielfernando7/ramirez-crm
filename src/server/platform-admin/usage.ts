@@ -2,10 +2,10 @@ import { and, eq } from "drizzle-orm";
 import { getSystemDb, schema, type Db } from "@/lib/db";
 import { getEnv } from "@/lib/env";
 import { runWithOrganization } from "@/lib/request-context";
-import { AI_KINDS, emptyStorageUsage, type AiUsageKind, type StorageUsage } from "@/lib/usage";
-import { agentNames } from "@/server/agents/store";
-import { currentPeriod, getAgentUsage, getUsageSummary, type QuotaLimits } from "@/server/ai-quota/quota";
-import { getAllOrgsStorageUsage, getOrgStorageUsage } from "@/server/usage/storage";
+import { emptyStorageUsage } from "@/lib/usage";
+import { currentPeriod, type QuotaLimits } from "@/server/ai-quota/quota";
+import { readOrgUsageDetail, type OrgUsageDetail } from "@/server/usage/detail";
+import { getAllOrgsStorageUsage } from "@/server/usage/storage";
 
 /**
  * 036 (PR 4) — Consumo de cada organización para /platform: IA del mes (UTC)
@@ -118,68 +118,11 @@ export async function listOrgsUsage(ids: string[], now = new Date()): Promise<Ma
   return out;
 }
 
-export type AgentUsageLine = {
-  agentId: string;
-  /** Nombre interno del agente; `null` si ya no existe. */
-  name: string | null;
-  archived: boolean;
-  turns: number;
-  tokens: number;
-  byKind: Partial<Record<"agent" | "lab" | "judge", AiTotals>>;
-};
-
-export type OrgUsageDetail = {
-  period: string;
-  ai: AiTotals & {
-    limits: QuotaLimits;
-    /** Por función (agent, lab, judge, writing y, aparte, embed). */
-    byKind: Partial<Record<AiUsageKind, AiTotals>>;
-    /** Por agente, de mayor a menor consumo. La escritura y los embeddings no tienen agente. */
-    byAgent: AgentUsageLine[];
-  };
-  storage: StorageUsage;
-};
+export type { AgentUsageLine, OrgUsageDetail } from "@/server/usage/detail";
 
 /** El detalle de UNA organización, leído a nombre de ella (RLS). */
 export async function getOrgUsageDetail(organizationId: string, now = new Date()): Promise<OrgUsageDetail> {
-  return runWithOrganization(organizationId, async () => {
-    const [resumen, porAgente, storage] = await Promise.all([
-      getUsageSummary(organizationId, now),
-      getAgentUsage(organizationId, now),
-      getOrgStorageUsage(organizationId),
-    ]);
-    const nombres = await agentNames(organizationId, [...new Set(porAgente.map((r) => r.agentId))]);
-
-    const byKind: OrgUsageDetail["ai"]["byKind"] = {};
-    for (const k of AI_KINDS) {
-      const v = resumen.byKind[k];
-      if (v) byKind[k] = v;
-    }
-
-    const lineas = new Map<string, AgentUsageLine>();
-    for (const r of porAgente) {
-      const n = nombres.get(r.agentId);
-      const linea =
-        lineas.get(r.agentId) ??
-        ({ agentId: r.agentId, name: n?.internalName ?? null, archived: n?.archived ?? true, turns: 0, tokens: 0, byKind: {} } satisfies AgentUsageLine);
-      linea.turns += r.turns;
-      linea.tokens += r.tokens;
-      linea.byKind[r.kind] = { turns: r.turns, tokens: r.tokens };
-      lineas.set(r.agentId, linea);
-    }
-
-    return {
-      period: resumen.period,
-      ai: {
-        turns: resumen.turns,
-        tokens: resumen.tokens,
-        limits: resumen.limits,
-        byKind,
-        byAgent: [...lineas.values()].sort((a, b) => b.tokens - a.tokens || b.turns - a.turns),
-      },
-      storage,
-    };
-  });
+  return runWithOrganization(organizationId, () => readOrgUsageDetail(organizationId, now));
 }
 
 /** ¿Existe la organización? (para responder 404 a un id que no existe). */

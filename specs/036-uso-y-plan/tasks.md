@@ -38,6 +38,12 @@
 - [x] T22 `GET/POST /api/platform/pricing`, `GET /api/platform/costs`, pestaña Plataforma → Costos.
 - [x] T23 Pruebas: `tests/unit/costs.test.ts`, adaptadores, `tests/db/costos.test.ts`, E2E `e2e-plataforma.mjs` (sección 4d).
 
-## PR 3c, 5 y 6
+## PR 6 — «Uso y plan» del Propietario (sin migración)
+
+- [x] T24 `src/server/usage/detail.ts` (detalle compartido con Plataforma) + `src/server/usage/owner.ts` + `GET /api/usage`.
+- [x] T25 Página `/uso`, entrada en el menú de la cuenta (solo `usage.read`), enlace desde el aviso de consumo.
+- [x] T26 Pruebas: `countMeter` en `tests/unit/platform-usage.test.ts`, `tests/db/uso-propietario.test.ts`, E2E `e2e-plataforma.mjs` (sección 4e).
+
+## PR 3c y 5
 
 Pendientes; ver spec.md.
