@@ -55,6 +55,10 @@ const envSchema = z.object({
   // 035: tope mensual de tokens de EMBEDDINGS por organización (aparte de los
   // turnos del agente). Vacía = sin tope (lo normal con el contenedor local).
   AI_DEFAULT_MONTHLY_EMBED_TOKENS: z.coerce.number().int().min(0).optional().catch(undefined),
+  // 038: tope mensual de tokens del ASISTENTE INTERNO para las organizaciones
+  // que no tienen uno propio (Plataforma → topes). Vacía y sin tope propio =
+  // el asistente no responde: nunca corre sin tope. Cuenta además en el total.
+  AI_DEFAULT_MONTHLY_ASSISTANT_TOKENS: z.coerce.number().int().min(0).optional().catch(undefined),
   // 035: Documentos del agente (Laboratorio → Documentos). Interruptor de la
   // INSTANCIA, apagado por defecto: sin él la pestaña y sus rutas no existen
   // (404) y el agente no consulta documentos. Ej.: KB_DOCS=on. Se lee solo en

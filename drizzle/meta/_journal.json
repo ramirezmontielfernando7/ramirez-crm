@@ -330,6 +330,13 @@
       "when": 1791774764638,
       "tag": "0046_marketing_frecuencia",
       "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1791784969923,
+      "tag": "0047_asistente_base",
+      "breakpoints": true
     }
   ]
 }

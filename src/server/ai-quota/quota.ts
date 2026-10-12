@@ -3,6 +3,7 @@ import { getDb, schema } from "@/lib/db";
 import { scoped } from "@/lib/db/tenant";
 import { getEnv } from "@/lib/env";
 import type { LlmUsage } from "@/lib/ai";
+import { getAssistantTokenLimit } from "@/server/limits";
 
 /**
  * Fase 3, PR 1 — Cuota mensual de IA por organización.
@@ -24,9 +25,18 @@ import type { LlmUsage } from "@/lib/ai";
  *
  * Todo con el pool de la APP a nombre de la organización (RLS) y FUERA de
  * transacción: el LLM nunca se llama con una abierta.
+ *
+ * 038 (PR 1): el asistente interno (`assistant`) tiene además su PROPIO tope
+ * de tokens (`ai_quota.assistant_monthly_token_limit` o
+ * `AI_DEFAULT_MONTHLY_ASSISTANT_TOKENS`), que se revisa ANTES del total; y
+ * sin ningún tope el asistente no se llama (nunca corre sin tope). Sus turnos
+ * y tokens cuentan también en el total, como todo lo demás.
  */
 
-export type AiKind = "agent" | "lab" | "judge" | "writing";
+export type AiKind = "agent" | "lab" | "judge" | "writing" | "assistant";
+
+/** 038 — El asistente interno (con tope propio, además del total). */
+export const ASSISTANT_KIND = "assistant";
 
 /** 036 — Los tipos que tienen agente (la escritura y los embeddings no). */
 export const AGENT_KINDS = ["agent", "lab", "judge"] as const;
@@ -40,7 +50,13 @@ const TOTAL = "total";
 
 export type QuotaLimits = { turns: number | null; tokens: number | null };
 
-export type Reservation = { ok: true } | { ok: false; limit: "turns" | "tokens" };
+/**
+ * Por qué no se reservó: el total de turnos o de tokens, el tope propio del
+ * asistente (`assistant_tokens`) o que el asistente no tiene tope asignado
+ * (`assistant_unset`).
+ */
+export type ReservationLimit = "turns" | "tokens" | "assistant_tokens" | "assistant_unset";
+export type Reservation = { ok: true } | { ok: false; limit: ReservationLimit };
 
 /** Primer día del mes en UTC, 'YYYY-MM-01'. */
 export function currentPeriod(now = new Date()): string {
@@ -72,6 +88,13 @@ export async function reserveTurn(
   now = new Date()
 ): Promise<Reservation> {
   const period = currentPeriod(now);
+  // 038: el asistente, primero contra su propio tope (no gasta un turno del
+  // total si ya no le toca).
+  if (kind === ASSISTANT_KIND) {
+    const own = await getAssistantTokenLimit(organizationId);
+    if (own === null) return { ok: false, limit: "assistant_unset" };
+    if ((await assistantTokensUsed(organizationId, now)) >= own) return { ok: false, limit: "assistant_tokens" };
+  }
   const limits = await getQuotaLimits(organizationId);
   const db = getDb();
 
@@ -247,6 +270,23 @@ export async function recordEmbedUsage(
         updatedAt: new Date(),
       },
     });
+}
+
+/** 038 — Tokens (entrada + salida) del asistente interno este mes, para su tope propio. */
+export async function assistantTokensUsed(organizationId: string, now = new Date()): Promise<number> {
+  const [row] = await getDb()
+    .select({ p: schema.aiUsage.promptTokens, c: schema.aiUsage.completionTokens })
+    .from(schema.aiUsage)
+    .where(
+      scoped(
+        schema.aiUsage.organizationId,
+        organizationId,
+        eq(schema.aiUsage.period, currentPeriod(now)),
+        eq(schema.aiUsage.kind, ASSISTANT_KIND)
+      )
+    )
+    .limit(1);
+  return (row?.p ?? 0) + (row?.c ?? 0);
 }
 
 /** Tokens de embeddings del mes (para su tope). */

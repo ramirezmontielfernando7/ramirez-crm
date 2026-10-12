@@ -60,6 +60,7 @@ function fromRow(row: Row, defaults: OrgModules): OrgModules {
     results: row.results,
     customNav: row.customNav,
     trabajo: row.trabajo,
+    asistente: row.asistente,
   };
 }
 
@@ -155,6 +156,7 @@ function defaultsRow(organizationId: string) {
     results: d.results,
     customNav: d.customNav,
     trabajo: d.trabajo,
+    asistente: d.asistente,
     updatedBy: "entorno",
   };
 }
@@ -222,6 +224,7 @@ export async function backfillOrgModules(): Promise<number> {
             results: sql<boolean>`${d.results}::boolean`.as("results"),
             customNav: sql<boolean>`${d.customNav}::boolean`.as("custom_nav"),
             trabajo: sql<boolean>`${d.trabajo}::boolean`.as("trabajo"),
+            asistente: sql<boolean>`${d.asistente}::boolean`.as("asistente"),
             updatedAt: sql<Date>`now()`.as("updated_at"),
             updatedBy: sql<string>`${d.updatedBy}`.as("updated_by"),
           })
@@ -263,6 +266,7 @@ export type ModulesPatch = {
   results?: boolean;
   customNav?: boolean;
   trabajo?: boolean;
+  asistente?: boolean;
 };
 
 /**
@@ -309,6 +313,7 @@ export async function updateOrgModules(
     results: patch.results ?? before.results,
     customNav: patch.customNav ?? before.customNav,
     trabajo: patch.trabajo ?? before.trabajo,
+    asistente: patch.asistente ?? before.asistente,
     ...resolveLabAgent(before, patch),
     updatedBy: actor,
     updatedAt: new Date(),
@@ -338,6 +343,7 @@ export async function updateOrgModules(
         results: values.results,
         customNav: values.customNav,
         trabajo: values.trabajo,
+        asistente: values.asistente,
         updatedBy: actor,
         updatedAt: values.updatedAt,
       },

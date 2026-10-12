@@ -25,6 +25,8 @@ const schema = z
     customNav: z.boolean().optional(),
     // 033: Tareas y Notas (dentro de «Trabajo»; Citas sigue siendo `agenda`).
     trabajo: z.boolean().optional(),
+    // 038: Asistente interno (premium; apagado por defecto).
+    asistente: z.boolean().optional(),
   })
   .strict();
 

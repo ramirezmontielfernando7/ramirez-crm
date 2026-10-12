@@ -2,8 +2,16 @@ import type { z } from "zod";
 import { chatJson, type ChatJsonResult, type ChatMessage } from "@/lib/ai";
 import { isAiConfigured } from "@/lib/env";
 import { logger } from "@/lib/log";
-import { isAgentKind, recordAgentUsage, recordUsage, reserveTurn, type AiKind } from "@/server/ai-quota/quota";
-import { checkAiAlerts } from "@/server/limits/alerts";
+import {
+  ASSISTANT_KIND,
+  isAgentKind,
+  recordAgentUsage,
+  recordUsage,
+  reserveTurn,
+  type AiKind,
+  type ReservationLimit,
+} from "@/server/ai-quota/quota";
+import { checkAiAlerts, checkAssistantAlerts } from "@/server/limits/alerts";
 
 /**
  * Fase 3, PR 1 — La única forma de llamar al modelo desde el servidor: a
@@ -16,12 +24,25 @@ import { checkAiAlerts } from "@/server/limits/alerts";
  * pidió (`ai_usage_agent`): el turno real, el Laboratorio, la vista previa y
  * el juez lo pasan; la escritura no tiene agente.
  *
+ * 038 (PR 1): `assistant` (el asistente interno) choca primero con su propio
+ * tope; sin tope asignado (o sin poder revisarlo) no se llama al modelo. El
+ * `detail` lo dice.
+ *
  * Guardarraíl: `tests/unit/ai-quota-gate.test.ts` (nadie más importa
  * `chatJson`). Un fallo al contar NUNCA tumba el turno: se registra y la
  * llamada sigue (la cuota protege la llave, no es un cobro).
  */
 
 const log = logger("ai");
+
+/** El motivo del rechazo, para registros y para quien llama. */
+export const QUOTA_DETAIL: Record<ReservationLimit | "assistant_check_failed", string> = {
+  turns: "tope mensual de turnos de IA alcanzado",
+  tokens: "tope mensual de tokens de IA alcanzado",
+  assistant_tokens: "tope mensual del asistente interno alcanzado",
+  assistant_unset: "el asistente interno no tiene tope asignado",
+  assistant_check_failed: "no se pudo revisar el tope del asistente interno",
+};
 
 export async function chatJsonForOrg<T>(
   organizationId: string,
@@ -39,13 +60,15 @@ export async function chatJsonForOrg<T>(
     const r = await reserveTurn(organizationId, kind);
     if (!r.ok) {
       log.warn("cuota mensual de IA agotada: no se llama al modelo", { org: organizationId, tipo: kind, tope: r.limit });
-      return {
-        ok: false,
-        error: "quota_exceeded",
-        detail: r.limit === "turns" ? "tope mensual de turnos de IA alcanzado" : "tope mensual de tokens de IA alcanzado",
-      };
+      return { ok: false, error: "quota_exceeded", detail: QUOTA_DETAIL[r.limit] };
     }
   } catch (err) {
+    // 038: el asistente es premium y caro; sin poder revisar su tope, NO se
+    // llama (falla cerrado). Los demás usos siguen sin contarse, como siempre.
+    if (kind === ASSISTANT_KIND) {
+      log.error("no se pudo revisar el tope del asistente interno; no se llama al modelo", { org: organizationId, err });
+      return { ok: false, error: "quota_exceeded", detail: QUOTA_DETAIL.assistant_check_failed };
+    }
     reservado = false;
     log.error("no se pudo reservar el turno de IA; la llamada sigue sin contarse", { org: organizationId, tipo: kind, err });
   }
@@ -70,5 +93,6 @@ export async function chatJsonForOrg<T>(
   }
   // 036 (PR 3a): avisos al 80 % y 100 % del tope (nunca tumba el turno).
   if (reservado) await checkAiAlerts(organizationId);
+  if (reservado && kind === ASSISTANT_KIND) await checkAssistantAlerts(organizationId);
   return result;
 }

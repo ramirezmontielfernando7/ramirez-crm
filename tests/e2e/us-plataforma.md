@@ -16,6 +16,21 @@ la app viva, los mocks y `PLATFORM_ORG_ID` = la organización de
 4. Aislamiento: cada una ve solo sus conversaciones; B (usuaria común) → 404
    en /platform y no ve «Plataforma» en el menú; el administrador ve B en la
    lista sin su contenido.
+4f. **Asistente interno (038 PR 1).** Apagado por defecto: su API y
+   `/asistente` → 404 y no está en el menú; el interruptor existe en
+   /platform y cuenta en «x/13». Visibilidad por defecto (porcentaje): «Uso
+   y plan» de B dice «% del tope», sin tokens, turnos ni dólares en el JSON
+   ni en la pantalla. El administrador lo enciende: sin tope propio no
+   responde y lo dice; tope 0 → «agotó su crédito de este mes y se detuvo»;
+   con 200 k tokens → disponible, en porcentaje. Con «Disponible / Agotado»,
+   ningún número (ni desglose en «Uso y plan»); con «Tokens» habilitado, las
+   cifras; el administrador ve siempre el tope real. La Propietaria entra
+   desde el menú: confirmación antes de usarlo (consume bastante crédito y se
+   puede agotar rápido; solo lee, no envía ni toca campañas), «Entendido,
+   continuar» la cierra y no vuelve a pedirse; el banner fijo se queda;
+   agotado, la pantalla lo dice. Celular sin desplazamiento horizontal. Un
+   asesor: 403 en la API, la página lo regresa a la Bandeja, sin entrada en
+   el menú. Al apagarlo, 404 otra vez.
 5. Suspender B: su sesión → 401; su login → 403 con «Tu negocio está
    suspendido» (también en la pantalla); su webhook → 200 pero el evento va a
    `webhook_unrouted` (`org_suspended`) y no entra; A sigue normal. Reactivar

@@ -3,7 +3,7 @@ import { getDb, schema } from "@/lib/db";
 import { scoped } from "@/lib/db/tenant";
 import { logger } from "@/lib/log";
 import { crossedThresholds, type AlertMetric, type AlertThreshold } from "@/lib/limits";
-import { currentPeriod } from "@/server/ai-quota/quota";
+import { assistantTokensUsed, currentPeriod } from "@/server/ai-quota/quota";
 import { countActiveModules } from "@/lib/platform-modules";
 import { getOrgModules } from "@/server/modules";
 import { getOrgStorageUsage } from "@/server/usage/storage";
@@ -111,6 +111,16 @@ export async function checkEmbedAlerts(organizationId: string, now = new Date())
   });
 }
 
+/** 038 — Tokens del asistente interno contra su tope propio. */
+export async function checkAssistantAlerts(organizationId: string, now = new Date()): Promise<void> {
+  await seguro("asistente", organizationId, async () => {
+    const limits = await getEffectiveLimits(organizationId);
+    if (limits.assistantTokens.value === null) return;
+    const used = await assistantTokensUsed(organizationId, now);
+    await recordCrossings(organizationId, "assistant_tokens", used, limits.assistantTokens.value, now);
+  });
+}
+
 /** Almacenamiento aproximado. */
 export async function checkStorageAlerts(organizationId: string, now = new Date()): Promise<void> {
   await seguro("almacenamiento", organizationId, async () => {
@@ -130,7 +140,7 @@ export async function checkMemberAlerts(organizationId: string, now = new Date()
   });
 }
 
-/** Módulos activos (de los 12 de /platform). */
+/** Módulos activos (de los 13 de /platform). */
 export async function checkModuleAlerts(organizationId: string, now = new Date()): Promise<void> {
   await seguro("módulos", organizationId, async () => {
     const limits = await getEffectiveLimits(organizationId);
@@ -144,6 +154,7 @@ export async function checkModuleAlerts(organizationId: string, now = new Date()
 export async function checkAllAlerts(organizationId: string, now = new Date()): Promise<void> {
   await checkAiAlerts(organizationId, now);
   await checkEmbedAlerts(organizationId, now);
+  await checkAssistantAlerts(organizationId, now);
   await checkStorageAlerts(organizationId, now);
   await checkMemberAlerts(organizationId, now);
   await checkModuleAlerts(organizationId, now);

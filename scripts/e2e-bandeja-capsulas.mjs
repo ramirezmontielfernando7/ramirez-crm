@@ -276,9 +276,13 @@ try {
   ok("el clic derecho NO abrió el chat de Beto", (await page.getByText(`hola soy ${N.b}`).count()) <= 1);
   await shot(page, "archivar-menu-contextual");
   await ctxMenu.getByRole("menuitem", { name: "Archivar" }).click();
+  // En `next dev`, abrir el chat de Ana (sección 3) compila al vuelo las rutas
+  // de Detalles y el servidor puede tardar decenas de segundos en atender el
+  // PATCH: se espera a que el servidor lo tenga archivado antes de mirar la lista.
+  let B = null;
+  const archivadoEnBd = await hasta(async () => Boolean((B = await conv(N.b))?.archivedAt), 60000);
   ok("archivar saca el chat de la Bandeja principal", await oculto(row(N.b)));
-  const B = await conv(N.b);
-  ok("…pero se conserva en la base de datos (con archivedAt)", Boolean(B?.archivedAt));
+  ok("…pero se conserva en la base de datos (con archivedAt)", archivadoEnBd);
   const msgsB = await call("GET", `/api/conversations/${B.id}/messages`);
   ok("…con sus mensajes", (msgsB.json?.messages ?? []).length >= 1);
   await page.getByRole("button", { name: /^Filtrar la bandeja/ }).click();

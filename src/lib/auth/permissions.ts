@@ -77,6 +77,11 @@ const statements = {
    * avisos al 80 % y 100 %. Solo el Propietario.
    */
   usage: ["read"],
+  /**
+   * 038 — Usar el asistente interno (preguntas sobre los datos propios; solo
+   * lectura). Solo el Propietario, y solo si la plataforma encendió el módulo.
+   */
+  assistant: ["use"],
 } as const;
 
 export const ac = createAccessControl(statements);
@@ -99,6 +104,7 @@ const owner = ac.newRole({
   work: ["manage"],
   conversation: ["delete"],
   usage: ["read"],
+  assistant: ["use"],
 });
 
 /** Operación: reparte, ve todo, edita etapas y plantillas. No configura. */
@@ -166,7 +172,8 @@ export type Permission =
   | "number_health.read"
   | "work.manage"
   | "conversation.delete"
-  | "usage.read";
+  | "usage.read"
+  | "assistant.use";
 
 /**
  * 025 — Permisos que el Propietario puede DELEGAR por organización, desde

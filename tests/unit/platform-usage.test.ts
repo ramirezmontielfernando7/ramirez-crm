@@ -56,13 +56,14 @@ describe("medidores de /platform", () => {
     expect(storageMeter(900, 1000)).toMatchObject({ ratio: 0.9, tone: "warning" });
   });
 
-  it("«x/12»: los 12 interruptores de /platform, Menú personalizable incluido", () => {
-    expect(PLATFORM_MODULE_TOGGLES).toHaveLength(12);
+  it("«x/13»: los 13 interruptores de /platform, Menú personalizable y Asistente interno (038) incluidos", () => {
+    expect(PLATFORM_MODULE_TOGGLES).toHaveLength(13);
     expect(PLATFORM_MODULE_TOGGLES).toContain("customNav");
+    expect(PLATFORM_MODULE_TOGGLES.at(-1)).toBe("asistente");
     for (const k of PLATFORM_MODULE_TOGGLES) expect(PLATFORM_MODULE_LABEL[k].length).toBeGreaterThan(3);
     const todo = Object.fromEntries(PLATFORM_MODULE_TOGGLES.map((k) => [k, true])) as Record<(typeof PLATFORM_MODULE_TOGGLES)[number], boolean>;
-    expect(countActiveModules(todo)).toEqual({ active: 12, total: 12 });
-    expect(countActiveModules({ ...todo, campaigns: false, customNav: false, instagram: false })).toEqual({ active: 9, total: 12 });
+    expect(countActiveModules(todo)).toEqual({ active: 13, total: 13 });
+    expect(countActiveModules({ ...todo, campaigns: false, customNav: false, instagram: false })).toEqual({ active: 10, total: 13 });
   });
 });
 

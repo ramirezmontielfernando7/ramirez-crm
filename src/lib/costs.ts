@@ -44,7 +44,8 @@ export type PricingInput = {
 };
 
 /** Las funciones que gastan IA (la fila `total` NO entra: es la suma de las de chat). */
-export const COST_KINDS = ["agent", "lab", "judge", "writing", "embed"] as const;
+// 038: el asistente interno (premium) se cobra con el precio del modelo principal.
+export const COST_KINDS = ["agent", "lab", "judge", "writing", "assistant", "embed"] as const;
 export type CostKind = (typeof COST_KINDS)[number];
 
 export type KindUsage = { kind: string; promptTokens: number; completionTokens: number; costUsd: number };
@@ -191,6 +192,7 @@ export const COST_KIND_LABEL: Record<CostKind, string> = {
   lab: "Laboratorio",
   judge: "Juez del Laboratorio",
   writing: "Asistente de redacción",
+  assistant: "Asistente interno",
   embed: "Embeddings (documentos)",
 };
 

@@ -42,6 +42,8 @@ const MATRIZ: Record<Permission, Record<Role, boolean>> = {
   "conversation.delete": { owner: true, coordinador: true, asesor: false },
   // 036: «Uso y plan» y avisos de consumo, solo el Propietario.
   "usage.read": { owner: true, coordinador: false, asesor: false },
+  // 038: asistente interno, solo el Propietario (y no se delega).
+  "assistant.use": { owner: true, coordinador: false, asesor: false },
   "contacts.consent_override": { owner: true, coordinador: true, asesor: false },
 };
 

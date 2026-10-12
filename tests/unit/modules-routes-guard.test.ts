@@ -24,6 +24,8 @@ const CARPETAS: [string, ModuleKey[]][] = [
   ["analytics", ["results"]],
   // 033 — Tareas (y en el PR 2, Notas).
   ["work", ["trabajo"]],
+  // 038 — Asistente interno (premium).
+  ["assistant", ["asistente"]],
 ];
 
 function routeFiles(dir: string): string[] {
@@ -70,6 +72,12 @@ describe("030 (PR 4) — rutas de módulos apagables", () => {
   ])("la página /%s responde 404 sin el módulo %s", (page, key) => {
     const code = readFileSync(path.join(APP, page, "page.tsx"), "utf8");
     expect(code).toContain(`requireModulePage("${key}")`);
+  });
+
+  it("038 — /asistente responde 404 sin el módulo asistente y regresa a la Bandeja sin el permiso", () => {
+    const code = readFileSync(path.join(APP, "asistente", "page.tsx"), "utf8");
+    expect(code).toContain(`requireModulePage("asistente")`);
+    expect(code).toContain(`can(session, "assistant.use")`);
   });
 
   it("033 — /trabajo/tareas y /trabajo/notas responden 404 sin el módulo trabajo; /bookings, sin agenda", () => {

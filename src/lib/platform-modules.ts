@@ -1,7 +1,8 @@
 /**
  * 036 (PR 4) — Los interruptores de módulos que ve y edita /platform, en su
- * orden. Son la base del «x/12» de cada organización: los módulos núcleo
+ * orden. Son la base del «x/13» de cada organización: los módulos núcleo
  * (Bandeja, Pipeline, Contactos, Ajustes) no se apagan y no cuentan. Puro.
+ * 038 (PR 1): el 13.º, Asistente interno (premium, apagado por defecto).
  */
 export const PLATFORM_MODULE_TOGGLES = [
   "teamChat",
@@ -16,6 +17,7 @@ export const PLATFORM_MODULE_TOGGLES = [
   "instagram",
   "messenger",
   "customNav",
+  "asistente",
 ] as const;
 export type PlatformModuleToggle = (typeof PLATFORM_MODULE_TOGGLES)[number];
 
@@ -32,9 +34,10 @@ export const PLATFORM_MODULE_LABEL: Record<PlatformModuleToggle, string> = {
   instagram: "Instagram",
   messenger: "Messenger",
   customNav: "Menú personalizable",
+  asistente: "Asistente interno",
 };
 
-/** Cuántos de los 12 están encendidos. */
+/** Cuántos de los 13 están encendidos. */
 export function countActiveModules(modules: Record<PlatformModuleToggle, boolean>): { active: number; total: number } {
   return {
     active: PLATFORM_MODULE_TOGGLES.filter((k) => modules[k]).length,

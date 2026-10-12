@@ -41,6 +41,7 @@ const TODO = {
   instagram: false,
   messenger: false,
   customNav: false,
+  asistente: false,
 };
 
 async function archivo(org: string, bytes: number) {

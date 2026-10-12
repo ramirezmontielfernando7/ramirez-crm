@@ -88,7 +88,7 @@ export function formatStorage(bytes: number): string {
 
 /* ───────── 036 (PR 4) — IA del mes y medidores de /platform ───────── */
 
-export const AI_KINDS = ["agent", "lab", "judge", "writing", "embed"] as const;
+export const AI_KINDS = ["agent", "lab", "judge", "writing", "assistant", "embed"] as const;
 export type AiUsageKind = (typeof AI_KINDS)[number];
 
 export const AI_KIND_LABEL: Record<AiUsageKind, string> = {
@@ -96,6 +96,7 @@ export const AI_KIND_LABEL: Record<AiUsageKind, string> = {
   lab: "Laboratorio y vista previa",
   judge: "Juez del Laboratorio",
   writing: "Asistente de redacción",
+  assistant: "Asistente interno",
   embed: "Embeddings de documentos",
 };
 

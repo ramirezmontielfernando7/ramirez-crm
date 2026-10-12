@@ -36,6 +36,8 @@ export const MODULE_KEYS = [
   "messenger",
   // 033 — Tareas y Notas: viven dentro de «Trabajo» (la entrada de `agenda`).
   "trabajo",
+  // 038 — Asistente interno (premium, solo el Propietario).
+  "asistente",
 ] as const;
 export type ModuleKey = (typeof MODULE_KEYS)[number];
 
@@ -56,7 +58,8 @@ export type ModuleIcon =
   | "Camera"
   | "MessageCircle"
   | "BriefcaseBusiness"
-  | "ListChecks";
+  | "ListChecks"
+  | "BotMessageSquare";
 
 export type ModuleDef = {
   key: ModuleKey;
@@ -155,6 +158,18 @@ export const MODULES: readonly ModuleDef[] = [
     defaultRoles: ["owner"],
     // El Laboratorio evalúa al agente: sin agente no hay nada que evaluar.
     requires: ["agent"],
+  },
+  // 038 — Asistente interno: preguntas sobre los datos propios. Premium (lo
+  // enciende solo la plataforma) y solo del Propietario.
+  {
+    key: "asistente",
+    label: "Asistente",
+    route: "/asistente",
+    icon: "BotMessageSquare",
+    core: false,
+    permissions: ["assistant.use"],
+    defaultRoles: ["owner"],
+    requires: [],
   },
   {
     key: "settings",
