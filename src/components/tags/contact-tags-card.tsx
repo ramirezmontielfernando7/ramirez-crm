@@ -51,6 +51,7 @@ export function ContactTagsCard({
   const [consent, setConsent] = useState<WaConsent>("desconocido");
   const [consentSource, setConsentSource] = useState("");
   const [consentAt, setConsentAt] = useState<string | null>(null);
+  const [marketingOptOutAt, setMarketingOptOutAt] = useState<string | null>(null);
   const [draftSource, setDraftSource] = useState("");
   const [loaded, setLoaded] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -74,6 +75,7 @@ export function ContactTagsCard({
     setConsent(detail.data.contact.waConsent ?? "desconocido");
     setConsentSource(detail.data.contact.waConsentSource ?? "");
     setConsentAt(detail.data.contact.waConsentAt ?? null);
+    setMarketingOptOutAt(detail.data.contact.waMarketingOptOutAt ?? null);
     setLoaded(true);
   }, [contactId]);
 
@@ -125,6 +127,22 @@ export function ContactTagsCard({
     setConsentSource(res.data.contact.waConsentSource ?? "");
     setConsentAt(res.data.contact.waConsentAt ?? null);
     setDraftSource("");
+    onChanged?.();
+  }
+
+  async function clearMarketingOptOut() {
+    setBusy(true);
+    setError(null);
+    const res = await fetchJson<{ contact: ContactDto }>(
+      `/api/contacts/${contactId}`,
+      jsonInit("PATCH", { clearMarketingOptOut: true })
+    );
+    setBusy(false);
+    if (!res.ok) {
+      setError(`No se quitó la marca: ${res.error}`);
+      return;
+    }
+    setMarketingOptOutAt(res.data.contact.waMarketingOptOutAt ?? null);
     onChanged?.();
   }
 
@@ -194,6 +212,20 @@ export function ContactTagsCard({
       <p className="mt-2 text-[11px] leading-relaxed text-text-3">
         Solo los contactos que aceptan mensajes reciben campañas.
       </p>
+      {marketingOptOutAt && (
+        <div className="mt-2 rounded-md border border-warning-soft bg-warning-tint px-2.5 py-2 text-[11px] leading-relaxed text-warning-text">
+          <p>
+            Dejó de recibir promociones de tu negocio desde WhatsApp (Meta, 131050) el{" "}
+            {new Date(marketingOptOutAt).toLocaleDateString("es-MX", { dateStyle: "medium" })}. Las campañas de
+            marketing lo omiten; las de utilidad le siguen llegando.
+          </p>
+          {loaded && (
+            <Button size="sm" variant="outline" className="mt-1.5 h-7 text-[11px]" disabled={busy} onClick={() => void clearMarketingOptOut()}>
+              Volvió a aceptar promociones
+            </Button>
+          )}
+        </div>
+      )}
       {loaded && (
         <div className="mt-2 space-y-2">
           <Input

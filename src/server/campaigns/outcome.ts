@@ -43,7 +43,15 @@ export function classifySendError(err: unknown): SendDecision {
       return { kind: "pause", reason: "La plantilla ya no existe", code: null };
     }
     if (err.code === "invalid" && /aprobadas/i.test(err.message)) {
-      return { kind: "pause", reason: "La plantilla dejó de estar aprobada o activa en Meta", code: null };
+      // 038 (PR 6): con el motivo concreto («Meta la pausó por calidad…»).
+      const detail = /no se puede enviar: (.+?)\. Solo se envían/i.exec(err.message)?.[1] ?? null;
+      return {
+        kind: "pause",
+        reason: detail
+          ? `La plantilla dejó de estar activa en Meta: ${detail}. Reanuda la campaña cuando Meta la reactive.`
+          : "La plantilla dejó de estar aprobada o activa en Meta",
+        code: null,
+      };
     }
     return { kind: "fail", reason: err.message, code: null, countsForHealth: false };
   }

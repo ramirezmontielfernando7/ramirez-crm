@@ -36,6 +36,7 @@ export function serializeContact(
     waConsent: c.waConsent,
     waConsentSource: c.waConsentSource,
     waConsentAt: c.waConsentAt?.toISOString() ?? null,
+    waMarketingOptOutAt: c.waMarketingOptOutAt?.toISOString() ?? null,
     ...(tags ? { tags } : {}),
   };
 }

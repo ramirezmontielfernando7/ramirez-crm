@@ -2,7 +2,9 @@
  * Self-test E2E de Campañas v2, PR 2 — audiencias .xlsx/.csv, asistente de 3
  * pasos, cola por número, pausa/reanudación/cancelación, programación,
  * prueba a un número propio, pausa de seguridad automática con su aviso, y
- * el Asesor sin acceso (tests/e2e/us-campanas-v2.md).
+ * el Asesor sin acceso (tests/e2e/us-campanas-v2.md). 038 (PR 6): baja de
+ * marketing de Meta (131050, síncrona y por webhook), tope de frecuencia y
+ * plantilla pausada por Meta (sección 7d).
  *
  * Conduce la app REAL contra la BD de verdad y el wa-mock: lo que Meta
  * recibe se comprueba en el outbox del mock, no se supone.
@@ -147,6 +149,9 @@ async function main() {
       rates: {},
       currency: null,
       replyWindowHours: 72,
+      // 038 (PR 6): las secciones 1–7c mandan varias campañas de marketing a
+      // las mismas personas a propósito; el tope de frecuencia se prueba en 7d.
+      marketingMinDays: 0,
     }),
   });
   const tplName = `cupon_${RUN}`;
@@ -530,6 +535,158 @@ async function main() {
   ok("sin duplicar: sigue en 2 contactos", refDespues?.contactCount === 2, JSON.stringify(refDespues));
 
   /* ------------------------------------------------------------ */
+  console.log("\n== 7d. Marketing (038 PR 6): baja 131050 de Meta, frecuencia y plantilla pausada ==");
+  const settingsMk = (extra) =>
+    api("/api/campaigns/settings", {
+      method: "PUT",
+      body: JSON.stringify({
+        failRatePercent: 20,
+        failRateWindow: 50,
+        pauseOnQualityRed: true,
+        usagePausePercent: 95,
+        rates: { marketing: 0.5 },
+        currency: "MXN",
+        replyWindowHours: 72,
+        ...extra,
+      }),
+    });
+  const s7 = await settingsMk({ marketingMinDays: 7 });
+  ok("frecuencia de marketing: 7 días guardados", s7.json?.settings?.marketingMinDays === 7, s7.text);
+  const s91 = await settingsMk({ marketingMinDays: 91 });
+  ok("más de 90 días → 422", s91.res.status === 422, s91.text);
+  const sKeep = await settingsMk({});
+  ok("guardar sin el campo conserva los 7 días", sKeep.json?.settings?.marketingMinDays === 7, sKeep.text);
+
+  // mk[2] termina en 31050: el wa-mock responde 131050 al enviarle (síncrono).
+  const mk = [num(80, "10080"), num(81, "10081"), num(82, "31050")];
+  const mkImp = await api("/api/campaigns/audiences", {
+    method: "POST",
+    body: fileForm(`marketing-${RUN}.csv`, strToU8(["nombre,numero", ...mk.map((n, i) => `Mk ${i} ${RUN},${n}`)].join("\n")), {
+      consentAnswer: "yes",
+    }),
+  });
+  const mkAud = mkImp.json?.audience;
+  ok("base de marketing importada (3)", mkAud?.counts?.members === 3, mkImp.text);
+  const mkContacts = (await api(`/api/contacts?tag=${mkAud?.tag?.id}`)).json?.contacts ?? [];
+  const mkId = (phone) => mkContacts.find((c) => c.phone === phone)?.id;
+  const mkVars = [{ kind: "contact_name" }, { kind: "fixed", value: "MK" }];
+  await api("/api/dev/wa-mock/outbox", { method: "DELETE" });
+  const c5 = await api("/api/campaigns", {
+    method: "POST",
+    body: JSON.stringify({ name: `Marketing ${RUN}`, templateId: tplId, variables: mkVars, audience: { importId: mkAud?.id } }),
+  });
+  const id5 = c5.json?.campaign?.id;
+  await api(`/api/campaigns/${id5}/send`, { method: "POST" });
+  let final5;
+  await hasta(async () => {
+    final5 = await campaign(api, id5);
+    return final5?.status === "completed";
+  });
+  ok("campaña de marketing: 2 enviados, 1 fallido (131050)", final5?.counts?.sent === 2 && final5?.counts?.failed === 1, JSON.stringify(final5?.counts));
+  const sync131050 = (await api(`/api/contacts/${mkId(mk[2])}`)).json?.contact;
+  ok("131050 en la respuesta del envío: el contacto queda marcado", !!sync131050?.waMarketingOptOutAt, JSON.stringify(sync131050));
+  ok("…sin tocar su consentimiento (sigue opt_in)", sync131050?.waConsent === "opt_in", sync131050?.waConsent);
+
+  // El mismo aviso por el webhook (asíncrono): el mensaje de mk[0] llega `failed` con 131050.
+  const out5 = (await api("/api/dev/wa-mock/outbox")).json?.outbox ?? [];
+  const wamid0 = out5.find((m) => m.to === mk[0] && m.body?.template?.name === tplName)?.waMessageId;
+  const st = await api("/api/dev/wa-mock/status", {
+    method: "POST",
+    body: JSON.stringify({ waMessageId: wamid0, status: "failed", errorCode: 131050, errorMessage: "User has stopped marketing messages" }),
+  });
+  ok("estado failed 131050 entregado al webhook", st.res.ok, st.text);
+  const asyncOk = await hasta(async () => !!(await api(`/api/contacts/${mkId(mk[0])}`)).json?.contact?.waMarketingOptOutAt, 15000);
+  ok("131050 por el webhook: el contacto queda marcado", asyncOk);
+  const linea0 = (await api(`/api/contacts/${mkId(mk[0])}/timeline`)).json?.items ?? [];
+  ok("la línea de tiempo lo dice", linea0.some((i) => i.kind === "marketing_opt_out" && i.detail?.action === "set"), JSON.stringify(linea0.slice(0, 5)));
+
+  const prevMk = async () =>
+    (
+      await api("/api/campaigns/preview", {
+        method: "POST",
+        body: JSON.stringify({ audience: { importId: mkAud?.id }, templateId: tplId, variables: mkVars }),
+      })
+    ).json?.preview;
+  const pm = await prevMk();
+  ok(
+    "otra de marketing: nadie; 2 bajas 131050 y 1 con marketing reciente",
+    pm?.eligible === 0 && pm?.excluded?.marketingOptOut === 2 && pm?.excluded?.recentMarketing === 1,
+    JSON.stringify(pm)
+  );
+  const c6 = await api("/api/campaigns", {
+    method: "POST",
+    body: JSON.stringify({ name: `Marketing otra ${RUN}`, templateId: tplId, variables: mkVars, audience: { importId: mkAud?.id } }),
+  });
+  const send6 = await api(`/api/campaigns/${c6.json?.campaign?.id}/send`, { method: "POST" });
+  ok("lanzarla → 422 con el motivo de marketing", send6.res.status === 422 && /campaña de marketing/.test(send6.text ?? ""), send6.text);
+  await api(`/api/campaigns/${c6.json?.campaign?.id}`, { method: "DELETE" });
+
+  const utilName = `aviso_${RUN}`;
+  const util = await api("/api/templates", {
+    method: "POST",
+    body: JSON.stringify({ name: utilName, language: "es_MX", category: "UTILITY", body: "Hola {{1}}, tu aviso es {{2}}." }),
+  });
+  await api("/api/dev/wa-mock/template-status", {
+    method: "POST",
+    body: JSON.stringify({ wabaId: "WABA-E2E", name: utilName, language: "es_MX", event: "APPROVED", notify: false }),
+  });
+  await api("/api/templates/sync", { method: "POST" });
+  const pu = (
+    await api("/api/campaigns/preview", {
+      method: "POST",
+      body: JSON.stringify({ audience: { importId: mkAud?.id }, templateId: util.json?.template?.id, variables: mkVars }),
+    })
+  ).json?.preview;
+  ok("utilidad a la misma base: les llega a los 3 (ni frecuencia ni 131050 aplican)", pu?.eligible === 3 && pu?.excluded?.marketingOptOut === 0, JSON.stringify(pu));
+
+  await settingsMk({ marketingMinDays: 0 });
+  const pm0 = await prevMk();
+  ok("tope en 0: el reciente entra; las bajas 131050 siguen fuera", pm0?.eligible === 1 && pm0?.excluded?.marketingOptOut === 2, JSON.stringify(pm0));
+  const clr = await api(`/api/contacts/${mkId(mk[0])}`, { method: "PATCH", body: JSON.stringify({ clearMarketingOptOut: true }) });
+  ok("una persona quita la marca", clr.res.ok && clr.json?.contact?.waMarketingOptOutAt === null, clr.text);
+  ok("…y vuelve a entrar a marketing", (await prevMk())?.eligible === 2);
+
+  // Meta pausa la plantilla por calidad: la campaña programada se pausa sola, con el motivo.
+  const c7 = await api("/api/campaigns", {
+    method: "POST",
+    body: JSON.stringify({ name: `Marketing programada ${RUN}`, templateId: tplId, variables: mkVars, audience: { importId: mkAud?.id } }),
+  });
+  const id7 = c7.json?.campaign?.id;
+  const sch7 = await api(`/api/campaigns/${id7}/send`, { method: "POST", body: JSON.stringify({ scheduledLocal: { date: tomorrow, time: "08:45" } }) });
+  ok("programada para mañana", sch7.json?.campaign?.status === "scheduled", sch7.text);
+  const paus = await api("/api/dev/wa-mock/template-status", {
+    method: "POST",
+    body: JSON.stringify({ wabaId: "WABA-E2E", name: tplName, language: "es_MX", event: "PAUSED", reason: "LOW_QUALITY" }),
+  });
+  ok("webhook: Meta pausó la plantilla", paus.res.ok, paus.text);
+  let final7;
+  const paused7 = await hasta(async () => {
+    final7 = await campaign(api, id7);
+    return final7?.status === "paused";
+  }, 15000);
+  ok("la campaña programada quedó en pausa automática", paused7 && final7?.autoPaused === true, JSON.stringify(final7));
+  ok(
+    "con el motivo: plantilla y calidad",
+    (final7?.pauseReason ?? "").includes(`«${tplName}»`) && /pausó por calidad \(LOW_QUALITY\)/.test(final7?.pauseReason ?? ""),
+    final7?.pauseReason
+  );
+  ok("aparece en los avisos de la app", ((await api("/api/campaigns/alerts")).json?.paused ?? []).some((p) => p.id === id7));
+  const nueva = await api("/api/campaigns", {
+    method: "POST",
+    body: JSON.stringify({ name: `Con pausada ${RUN}`, templateId: tplId, variables: mkVars, audience: { importId: mkAud?.id } }),
+  });
+  ok("con la plantilla pausada no se crea otra campaña → 422", nueva.res.status === 422 && /pausó por calidad/.test(nueva.text ?? ""), nueva.text);
+  await api("/api/dev/wa-mock/template-status", {
+    method: "POST",
+    body: JSON.stringify({ wabaId: "WABA-E2E", name: tplName, language: "es_MX", event: "APPROVED" }),
+  });
+  await hasta(async () => ((await api("/api/templates")).json?.templates ?? []).some((t) => t.id === tplId && t.sendable !== false), 15000);
+  ok("Meta la reactiva: la campaña NO se reanuda sola", (await campaign(api, id7))?.status === "paused");
+  const x7 = await api(`/api/campaigns/${id7}/state`, { method: "POST", body: JSON.stringify({ action: "cancel" }) });
+  ok("se cancela a mano", x7.json?.campaign?.status === "cancelled", x7.text);
+  await settingsMk({ marketingMinDays: 7 });
+
+  /* ------------------------------------------------------------ */
   console.log("\n== 8. Interfaz (navegador real) ==");
   const browser = await chromium.launch(process.env.PLAYWRIGHT_CHROMIUM ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM } : {});
   try {
@@ -559,6 +716,21 @@ async function main() {
     const [descarga] = await Promise.all([page.waitForEvent("download"), page.getByTestId("metrics-export").click()]);
     ok("UI Métricas: descarga el CSV", /^metricas-campanas-.*\.csv$/.test(descarga.suggestedFilename()), descarga.suggestedFilename());
     await api("/api/dev/wa-mock/analytics", { method: "POST", body: JSON.stringify({ templateAnalyticsDisabled: false }) });
+
+    // 038 (PR 6): el tope de frecuencia en Ajustes de envío.
+    await page.goto(`${BASE}/campaigns/settings`, { timeout: 180000 });
+    const dias = page.getByLabel("Días entre campañas de marketing");
+    await dias.waitFor({ timeout: 45000 });
+    ok("UI Ajustes: «Frecuencia de marketing» con 7 días", (await dias.inputValue()) === "7");
+    // 038 (PR 6): el aviso 131050 en el panel del contacto, y quitarlo.
+    await page.goto(`${BASE}/inbox?contact=${mkId(mk[2])}`, { timeout: 180000, waitUntil: "domcontentloaded" });
+    const mas = page.getByRole("button", { name: "Más detalles" });
+    if (await mas.first().waitFor({ timeout: 45000 }).then(() => true, () => false)) await mas.first().click();
+    const aviso = page.getByText(/Dejó de recibir promociones de tu negocio desde WhatsApp/).first();
+    ok("UI contacto: aviso de la baja de marketing (131050)", await aviso.waitFor({ timeout: 45000 }).then(() => true, () => false));
+    await page.getByRole("button", { name: "Volvió a aceptar promociones" }).first().click();
+    ok("UI contacto: «Volvió a aceptar promociones» quita el aviso", await aviso.waitFor({ state: "detached", timeout: 30000 }).then(() => true, () => false));
+    ok("…y la marca en la BD", (await api(`/api/contacts/${mkId(mk[2])}`)).json?.contact?.waMarketingOptOutAt === null);
 
     // Audiencias: subir con columnas desconocidas, asignarlas, revisar e importar.
     await page.goto(`${BASE}/campaigns/audiences`, { timeout: 180000 });

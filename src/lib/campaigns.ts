@@ -54,7 +54,17 @@ export type CampaignAudience = {
 };
 
 /** Por qué alguien del público NO recibirá la campaña. */
-export type ExclusionReason = "noConsent" | "optOut" | "invalid" | "duplicate" | "archived" | "missingVariable";
+export type ExclusionReason =
+  | "noConsent"
+  | "optOut"
+  | "invalid"
+  | "duplicate"
+  | "archived"
+  | "missingVariable"
+  /** 038 (PR 6): Meta respondió 131050 (dejó de recibir marketing). Solo campañas de marketing. */
+  | "marketingOptOut"
+  /** 038 (PR 6): recibió otra campaña de marketing hace menos de `marketingMinDays`. */
+  | "recentMarketing";
 
 export const EXCLUSION_LABEL: Record<ExclusionReason, string> = {
   noConsent: "Sin consentimiento (opt_in)",
@@ -63,7 +73,32 @@ export const EXCLUSION_LABEL: Record<ExclusionReason, string> = {
   duplicate: "Duplicados",
   archived: "Archivados",
   missingVariable: "Sin valor para una variable",
+  marketingOptOut: "Dejaron de recibir promociones en WhatsApp (131050)",
+  recentMarketing: "Recibieron otra campaña de marketing hace poco",
 };
+
+/**
+ * 038 (PR 6) — ¿La plantilla es de MARKETING? Las reglas de frecuencia y la
+ * baja de marketing de Meta (131050) solo aplican a esa categoría: utilidad y
+ * autenticación quedan fuera (Meta las trata aparte y el negocio las usa para
+ * avisos que el cliente espera).
+ */
+export function isMarketingCategory(category: string | null | undefined): boolean {
+  return (category ?? "").trim().toLowerCase() === "marketing";
+}
+
+/** Tope de frecuencia por defecto: una campaña de marketing por contacto cada 7 días. */
+export const DEFAULT_MARKETING_MIN_DAYS = 7;
+export const MAX_MARKETING_MIN_DAYS = 90;
+
+/**
+ * Desde cuándo una campaña de marketing previa bloquea a este contacto; null
+ * si el tope está apagado (0 días).
+ */
+export function marketingCutoff(minDays: number, now = new Date()): Date | null {
+  if (!Number.isFinite(minDays) || minDays <= 0) return null;
+  return new Date(now.getTime() - Math.floor(minDays) * 86_400_000);
+}
 
 export type CampaignPreview = {
   eligible: number;
@@ -198,6 +233,8 @@ export type CampaignSettingsDto = {
   currency: string | null;
   /** Horas tras el envío en que un mensaje del contacto cuenta como respuesta (Métricas). */
   replyWindowHours: number;
+  /** 038 (PR 6): días mínimos entre dos campañas de marketing al mismo contacto (0 = sin tope). */
+  marketingMinDays: number;
 };
 
 export const RATE_CATEGORY_LABEL: Record<string, string> = {
