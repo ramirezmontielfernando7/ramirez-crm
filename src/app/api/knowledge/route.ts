@@ -2,6 +2,9 @@ import { apiError, withAuth } from "@/lib/api";
 import { createKnowledge, knowledgeTags, listKnowledge, serializeKnowledge } from "@/server/knowledge/store";
 import { readKnowledgeInput } from "@/server/knowledge/input";
 import { MediaValidationError } from "@/server/whatsapp/media";
+import { assertCanUpload } from "@/server/limits";
+import { checkStorageAlerts } from "@/server/limits/alerts";
+import { limitBlocked } from "@/server/limits/http";
 import { moduleOff } from "@/server/modules";
 
 export const dynamic = "force-dynamic";
@@ -36,6 +39,11 @@ export const POST = withAuth(async (session, req: Request) => {
   if (!body && !file) {
     return apiError(422, "invalid_body", "Agrega un contenido de texto o un archivo");
   }
+  // 036 (PR 3a): con «Bloquear subidas manuales», no pasar el tope de almacenamiento.
+  if (file) {
+    const blocked = await limitBlocked(() => assertCanUpload(session.organizationId, file.data.byteLength));
+    if (blocked) return blocked;
+  }
   try {
     const row = await createKnowledge({
       organizationId: session.organizationId,
@@ -45,6 +53,7 @@ export const POST = withAuth(async (session, req: Request) => {
       tags,
       file: file ?? null,
     });
+    if (file) void checkStorageAlerts(session.organizationId);
     return Response.json({ entry: serializeKnowledge(row) }, { status: 201 });
   } catch (err) {
     if (err instanceof MediaValidationError) {

@@ -32,6 +32,27 @@ export async function getKbDocLimits(organizationId: string, db: Db = getDb()): 
   };
 }
 
+/**
+ * 036 (PR 3a) — Solo los límites PROPIOS de la organización (sin mezclar con
+ * el entorno): para que Plataforma muestre de dónde sale cada uno. NULL =
+ * hereda del entorno.
+ */
+export async function getOwnKbDocLimits(
+  organizationId: string,
+  db: Db = getDb()
+): Promise<{ maxFileBytes: number | null; maxDocuments: number | null; maxChunks: number | null }> {
+  const [row] = await db
+    .select()
+    .from(schema.kbDocumentLimit)
+    .where(scoped(schema.kbDocumentLimit.organizationId, organizationId))
+    .limit(1);
+  return {
+    maxFileBytes: row?.maxFileBytes ?? null,
+    maxDocuments: row?.maxDocuments ?? null,
+    maxChunks: row?.maxChunks ?? null,
+  };
+}
+
 /** «5 MB», «512 KB»: el límite en palabras para el mensaje de error. */
 export function formatBytes(n: number): string {
   if (n >= 1024 * 1024) return `${Math.round((n / (1024 * 1024)) * 10) / 10} MB`;

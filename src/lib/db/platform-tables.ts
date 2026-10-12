@@ -14,6 +14,8 @@ export const PLATFORM_TABLES: Readonly<Record<string, string>> = {
   platform_admin: "Fase 3: administradores de la plataforma, por encima de las organizaciones (solo pool de sistema)",
   platform_audit_log: "Fase 3: bitácora del administrador de plataforma; sobrevive al borrado de la organización (solo pool de sistema)",
   account_link_token: "Fase 3: enlaces de un solo uso para poner contraseña, antes de tener sesión (solo pool de sistema)",
+  platform_ai_pricing:
+    "036 PR 3: precios de IA y tipo de cambio que captura el administrador de plataforma, para estimar el costo de TODAS las organizaciones (solo pool de sistema)",
   webhook_unrouted:
     "eventos de Meta que no se pudieron enrutar: justo no se sabe de qué organización son (solo pool de sistema, cifrados, 7 días)",
 };

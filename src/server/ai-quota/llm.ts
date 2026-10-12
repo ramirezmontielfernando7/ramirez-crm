@@ -3,6 +3,7 @@ import { chatJson, type ChatJsonResult, type ChatMessage } from "@/lib/ai";
 import { isAiConfigured } from "@/lib/env";
 import { logger } from "@/lib/log";
 import { isAgentKind, recordAgentUsage, recordUsage, reserveTurn, type AiKind } from "@/server/ai-quota/quota";
+import { checkAiAlerts } from "@/server/limits/alerts";
 
 /**
  * Fase 3, PR 1 — La única forma de llamar al modelo desde el servidor: a
@@ -67,5 +68,7 @@ export async function chatJsonForOrg<T>(
       log.error("no se pudo anotar el turno de IA a su agente", { org: organizationId, tipo: kind, agente: agentId, err });
     }
   }
+  // 036 (PR 3a): avisos al 80 % y 100 % del tope (nunca tumba el turno).
+  if (reservado) await checkAiAlerts(organizationId);
   return result;
 }

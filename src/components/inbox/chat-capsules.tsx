@@ -4,7 +4,7 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import { Check, ChevronDown, Plus, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ConversationDto, StageDto } from "@/lib/types";
-import { tagColorClass, tagDotClass, type TagDto } from "@/lib/tags";
+import { stageDot, tagColorClass, tagDotClass, type TagDto } from "@/lib/tags";
 import { FloatingMenu, type MenuAnchor } from "./floating-menu";
 
 /**
@@ -19,16 +19,11 @@ import { FloatingMenu, type MenuAnchor } from "./floating-menu";
  * (`onRefetch`) y lo dicen (`onError`).
  */
 
-/* Puntos de etapa: los tokens del tema, no hex copiados del tema claro —
-   así siguen al acento white-label y se recalculan en oscuro. */
-const STAGE_DOT: Record<string, string> = {
-  Nuevo: "var(--text-3)",
-  "En conversación": "var(--accent)",
-  Interesado: "var(--warning)",
-  Cliente: "var(--success)",
-  Perdido: "var(--danger)",
-};
-const STAGE_DOT_FALLBACK = "var(--text-3)";
+/** El punto de una etapa: su color elegido, o el respaldo por nombre (ver `stageDot`). */
+function StageDotMark({ color, name, className }: { color: string | null | undefined; name: string | null | undefined; className?: string }) {
+  const d = stageDot(color, name);
+  return <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", d.className, className)} style={d.style} aria-hidden />;
+}
 
 /** UNA medida para las cápsulas: 20 px de alto, relleno suave en vez de borde. */
 const CAPSULE =
@@ -170,8 +165,8 @@ export function StageCapsule({ conversation: c, stages, onPatch, onRefetch, onEr
   async function pick(stage: StageDto, close: () => void) {
     close();
     if (stage.id === c.stageId) return;
-    const before = { stageId: c.stageId, stageName: c.stageName };
-    onPatch(c.id, { stageId: stage.id, stageName: stage.name });
+    const before = { stageId: c.stageId, stageName: c.stageName, stageColor: c.stageColor };
+    onPatch(c.id, { stageId: stage.id, stageName: stage.name, stageColor: stage.color ?? null });
     const { error } = await request(`/api/pipeline/leads/${c.leadId}`, "PATCH", { stageId: stage.id });
     if (error) {
       onPatch(c.id, before);
@@ -187,10 +182,7 @@ export function StageCapsule({ conversation: c, stages, onPatch, onRefetch, onEr
       className="shrink-0 bg-secondary text-text-2 hover:bg-accent"
       trigger={
         <>
-          <span
-            className="h-1.5 w-1.5 shrink-0 rounded-full"
-            style={{ background: STAGE_DOT[name] ?? STAGE_DOT_FALLBACK }}
-          />
+          <StageDotMark color={c.stageColor} name={name} />
           <span className="truncate">{name}</span>
         </>
       }
@@ -210,7 +202,10 @@ export function StageCapsule({ conversation: c, stages, onPatch, onRefetch, onEr
                 title={lost ? "Para marcarla como perdida indica el motivo en Detalles" : undefined}
                 onSelect={() => void pick(s, close)}
               >
-                {s.name}
+                <span className="flex min-w-0 items-center gap-2">
+                  <StageDotMark color={s.color} name={s.name} className="h-2 w-2" />
+                  <span className="truncate">{s.name}</span>
+                </span>
               </Option>
             );
           })}

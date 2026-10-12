@@ -47,6 +47,26 @@ export function tagDotClass(color: string | null | undefined): string {
   return TAG_DOT_CLASS[isTagColor(color) ? color : "gris"];
 }
 
+/**
+ * Punto de color de una ETAPA del pipeline. El color elegido manda; sin él, el
+ * respaldo por NOMBRE de las etapas de fábrica (tokens del tema, siguen al
+ * acento white-label); y si tampoco, gris.
+ */
+const STAGE_TOKEN_BY_NAME: Record<string, string> = {
+  Nuevo: "var(--text-3)",
+  "En conversación": "var(--accent)",
+  Interesado: "var(--warning)",
+  Cliente: "var(--success)",
+  Perdido: "var(--danger)",
+};
+
+export type StageDot = { className: string; style?: { background: string } };
+
+export function stageDot(color: string | null | undefined, name: string | null | undefined): StageDot {
+  if (isTagColor(color)) return { className: TAG_DOT_CLASS[color] };
+  return { className: "", style: { background: STAGE_TOKEN_BY_NAME[name ?? ""] ?? "var(--text-3)" } };
+}
+
 export const TAG_NAME_MAX = 60;
 
 /** Nombre canónico: sin espacios de sobra. Vacío o muy largo → null. */

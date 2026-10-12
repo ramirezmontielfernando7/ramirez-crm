@@ -8,8 +8,11 @@ import { kbDocsOff } from "@/server/kb-docs/flag";
 import { documentView, kbDocError, withKbDocErrors } from "@/server/kb-docs/http";
 import { scheduleIndex } from "@/server/kb-docs/indexer";
 import { formatBytes, getKbDocLimits } from "@/server/kb-docs/limits";
-import { createDocument, getUsage, listAgentDocuments, listDocuments } from "@/server/kb-docs/store";
 import { getAgent } from "@/server/agents/store";
+import { createDocument, getUsage, listAgentDocuments, listDocuments } from "@/server/kb-docs/store";
+import { assertCanUpload } from "@/server/limits";
+import { checkStorageAlerts } from "@/server/limits/alerts";
+import { limitBlocked } from "@/server/limits/http";
 import { moduleOff } from "@/server/modules";
 
 export const dynamic = "force-dynamic";
@@ -76,6 +79,10 @@ export const POST = withAuth(async (session, req: Request) => {
   const extracted = await extractDocumentText(filename, bytes);
   if (!extracted.ok) return kbDocError(extracted.code);
   if (extracted.text.length > KB_DOC_MAX_CHARS) return kbDocError("too_long");
+  // 036 (PR 3a): con «Bloquear subidas manuales», no pasar el tope de
+  // almacenamiento. Lo que ocupa: su texto y el de sus fragmentos (≈ 2 × texto).
+  const blocked = await limitBlocked(() => assertCanUpload(session.organizationId, Buffer.byteLength(extracted.text) * 2));
+  if (blocked) return blocked;
 
   // 037 — El grupo («general» o ausente = General).
   const rawGroup = form.get("groupId");
@@ -104,6 +111,7 @@ export const POST = withAuth(async (session, req: Request) => {
       agentId,
     });
     scheduleIndex(session.organizationId, doc.id);
+    void checkStorageAlerts(session.organizationId);
     return Response.json({ document: documentView(doc) }, { status: 201 });
   });
 }, { permission: "agent.manage" });

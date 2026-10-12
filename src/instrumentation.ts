@@ -33,6 +33,10 @@ export async function register(): Promise<void> {
     // organización (revisa cada hora; no frena el arranque).
     const { startDailyMetaSync } = await import("@/server/meta-sync/daily");
     startDailyMetaSync();
+    // 036 (PR 3a): avisos de consumo que crecen solos (almacenamiento por la
+    // multimedia entrante), cada 6 horas; no frena el arranque.
+    const { startLimitsCheck } = await import("@/server/limits/daily");
+    startLimitsCheck();
     // 035: documentos del agente que quedaron en cola o sin vectores (solo
     // con KB_DOCS; no frena el arranque).
     const { resumeKbIndexing } = await import("@/server/kb-docs/indexer");

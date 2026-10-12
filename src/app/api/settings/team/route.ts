@@ -7,6 +7,9 @@ import { newId } from "@/lib/db/ids";
 import { scoped } from "@/lib/db/tenant";
 import { ASSIGNABLE_ROLES, type Role } from "@/lib/auth/permissions";
 import { countAssignedByUser } from "@/server/assignment/assign";
+import { assertCanAddMember } from "@/server/limits";
+import { checkMemberAlerts } from "@/server/limits/alerts";
+import { limitBlocked } from "@/server/limits/http";
 import { checkRateLimit } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
@@ -83,6 +86,10 @@ export const POST = withAuth(async (session, req: Request) => {
     return apiError(429, "rate_limited", "Demasiadas altas seguidas; espera unos minutos");
   }
 
+  // 036 (PR 3a): el tope de personas de la organización.
+  const blocked = await limitBlocked(() => assertCanAddMember(session.organizationId));
+  if (blocked) return blocked;
+
   const auth = getAuth();
   let newUserId: string;
   try {
@@ -125,6 +132,7 @@ export const POST = withAuth(async (session, req: Request) => {
       role: body.data.role,
     })
     .onConflictDoNothing();
+  await checkMemberAlerts(session.organizationId);
 
   return Response.json({ ok: true }, { status: 201 });
 }, { permission: "users.manage" });

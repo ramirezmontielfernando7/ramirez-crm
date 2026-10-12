@@ -219,3 +219,14 @@ function docsMock(system: string, lastUser: string): string | null {
   if (!best) return null;
   return JSON.stringify({ action: "reply", text: `Según la información del negocio: ${best}` });
 }
+
+/**
+ * 036 (PR 3b) — El `usage.cost` del mock, como lo manda OpenRouter (créditos =
+ * USD): precio fijo de prueba de $3 por millón de tokens de entrada y $15 de
+ * salida. El E2E compara el «Real» del panel contra esta misma cuenta.
+ */
+export const AI_MOCK_PRICE = { inputPerMtok: 3, outputPerMtok: 15 } as const;
+
+export function aiMockCost(promptTokens: number, completionTokens: number): number {
+  return (promptTokens * AI_MOCK_PRICE.inputPerMtok + completionTokens * AI_MOCK_PRICE.outputPerMtok) / 1_000_000;
+}

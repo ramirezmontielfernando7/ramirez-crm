@@ -71,6 +71,8 @@ const prefixes = {
   kbChunk: "kbc",
   // 037 — Grupos de documentos
   kbDocumentGroup: "kdg",
+  // 036 PR 3b — precios de IA de la plataforma
+  aiPricing: "aip",
   user: "usr",
   account: "acc",
 } as const;

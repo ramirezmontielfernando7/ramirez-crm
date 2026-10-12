@@ -137,6 +137,13 @@ async function main() {
   const r1 = await page.goto(`${BASE}/platform`);
   ok("ahora /platform → 200", r1?.status() === 200, String(r1?.status()));
   ok("el menú muestra «Plataforma»", (await page.getByRole("link", { name: "Plataforma" }).count()) > 0);
+  // 036 (PR 4): dos pestañas; «Mi panel» trae la bitácora.
+  const pestanas = page.getByRole("navigation", { name: "Secciones de Plataforma" });
+  ok("pestañas «Mi panel» y «Organizaciones»", (await pestanas.getByRole("link", { name: "Mi panel" }).count()) === 1 && (await pestanas.getByRole("link", { name: "Organizaciones" }).count()) === 1);
+  ok("«Mi panel» muestra la bitácora", await page.getByTestId("platform-audit").waitFor({ timeout: 20000 }).then(() => true, () => false));
+  await pestanas.getByRole("link", { name: "Organizaciones" }).click();
+  await page.waitForURL(/\/platform\/organizaciones$/);
+  await page.getByTestId("platform-create-open").click();
   await page.fill("#org-name", NAME_B);
   await page.fill("#owner-name", OWNER_B.name);
   await page.fill("#owner-email", OWNER_B.email);
@@ -183,6 +190,11 @@ async function main() {
   await pB.close();
   const listaA = (await A.call("GET", "/api/platform/organizations")).json?.organizations ?? [];
   ok("el administrador ve B en la lista, sin contenido", listaA.some((o) => o.id === orgB.id) && !JSON.stringify(listaA).includes(secretoB));
+
+  await consumoEnPlataforma(A, B, orgB.id);
+  await topesYAvisos(A, B, orgB.id);
+  await costosEnPlataforma(A, B, orgB.id);
+  await usoYPlan(A, B, orgB.id);
 
   console.log("\n== 5 · Suspensión ==");
   const sus = await A.call("POST", `/api/platform/organizations/${orgB.id}/status`, { action: "suspend", reason: "prueba e2e" });
@@ -281,6 +293,355 @@ async function main() {
 
   console.log(`\n${checks - failures}/${checks} OK`);
   if (failures) console.log(`Fallaron:\n - ${fallas.join("\n - ")}`);
+}
+
+/**
+ * 036 (PR 4) — B gasta IA de verdad (vista previa de su agente y asistente de
+ * redacción, contra el ai-mock) y sube un archivo a Conocimientos; el
+ * administrador lo ve en Plataforma → Organizaciones: en la lista (IA del
+ * mes, almacenamiento aprox., módulos x/12) y al abrir la fila (por función,
+ * por agente y por categoría). Solo lectura y solo para él. También en el
+ * celular y en modo oscuro, sin desplazamiento horizontal.
+ */
+async function consumoEnPlataforma(A, B, orgB) {
+  console.log("\n== 4b · Consumo por organización en Plataforma ==");
+  const agentes = (await B.call("GET", "/api/lab/agents")).json?.agents ?? [];
+  const general = agentes.find((a) => a.isGeneral);
+  ok("B tiene su agente general", Boolean(general), JSON.stringify(agentes).slice(0, 200));
+  const previa = await B.call("POST", "/api/lab/preview", { agentId: general?.id, config: { displayName: "", useSharedKb: true }, history: [], message: "hola, ¿qué venden?" });
+  ok("B usa la vista previa de su agente (gasta IA)", previa.status === 200, `${previa.status} ${JSON.stringify(previa.json).slice(0, 200)}`);
+  const redaccion = await B.call("POST", "/api/writing-assist", { action: "improve", text: "hola q tal, le escribo x su pedido" });
+  ok("B usa el asistente de redacción (gasta IA, sin agente)", redaccion.status === 200, `${redaccion.status} ${JSON.stringify(redaccion.json).slice(0, 200)}`);
+  const archivo = Buffer.from(`Catálogo de prueba ${RUN}\n`.repeat(200));
+  const subida = await B.ctx.request.post(`${BASE}/api/knowledge`, {
+    multipart: { title: `Catálogo ${RUN}`, file: { name: "catalogo.txt", mimeType: "text/plain", buffer: archivo } },
+    failOnStatusCode: false,
+  });
+  ok("B sube un archivo a Conocimientos", subida.status() === 201, String(subida.status()));
+
+  const lista = (await A.call("GET", "/api/platform/organizations")).json?.organizations ?? [];
+  const filaB = lista.find((o) => o.id === orgB);
+  ok("la lista trae el consumo del mes de B (2 turnos de IA)", filaB?.usage?.ai?.turns === 2 && filaB?.usage?.ai?.tokens > 0, JSON.stringify(filaB?.usage));
+  ok("…y su almacenamiento aproximado (el archivo subido)", filaB?.usage?.storageBytes === archivo.length, `${filaB?.usage?.storageBytes} vs ${archivo.length}`);
+  const detalle = (await A.call("GET", `/api/platform/organizations/${orgB}/usage`)).json?.usage;
+  ok("el detalle separa por función (Laboratorio y redacción)", detalle?.ai?.byKind?.lab?.turns === 1 && detalle?.ai?.byKind?.writing?.turns === 1, JSON.stringify(detalle?.ai?.byKind));
+  ok("…y por agente: el general de B, con su nombre (la redacción no tiene agente)", detalle?.ai?.byAgent?.length === 1 && detalle.ai.byAgent[0].agentId === general?.id && detalle.ai.byAgent[0].name === general?.internalName, JSON.stringify(detalle?.ai?.byAgent));
+  ok("…y el almacenamiento por categoría", detalle?.storage?.byCategory?.knowledge === archivo.length);
+  ok("B (usuaria común) → 404 en el consumo de su propia organización", (await B.call("GET", `/api/platform/organizations/${orgB}/usage`)).status === 404);
+  ok("una organización que no existe → 404", (await A.call("GET", "/api/platform/organizations/org_no_existe/usage")).status === 404);
+  ok("el consumo no trae contenido del negocio", !JSON.stringify(detalle).includes("Catálogo de prueba") && !JSON.stringify(detalle).includes("hola"));
+
+  // Escritorio.
+  const page = await A.ctx.newPage();
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto(`${BASE}/platform/organizaciones`);
+  const fila = page.getByTestId(`platform-org-${orgB}`);
+  await fila.waitFor({ timeout: 30000 });
+  ok("la fila cerrada muestra IA del mes", /tokens/.test(await fila.getByTestId("platform-org-ai").first().innerText()));
+  ok("…almacenamiento aproximado («sin tope» hasta los límites)", /KB · sin tope/.test(await fila.getByTestId("platform-org-storage").first().innerText()));
+  ok("…y módulos activos «x/12»", /^\d+\/12$/.test((await fila.getByTestId("platform-org-modules-count").last().innerText()).trim()));
+  ok("cerrada no muestra los interruptores", (await fila.getByTestId("platform-modules").count()) === 0);
+  await fila.getByTestId("platform-org-toggle").click();
+  const det = fila.getByTestId("platform-usage-detail");
+  await det.waitFor({ timeout: 20000 });
+  ok("al abrirla: consumo por agente con el nombre del agente", (await det.getByTestId("platform-usage-agents").innerText()).includes(general?.internalName ?? "?"));
+  ok("…por función", /Laboratorio y vista previa/.test(await det.getByTestId("platform-usage-kinds").innerText()) && /Asistente de redacción/.test(await det.getByTestId("platform-usage-kinds").innerText()));
+  ok("…almacenamiento por categoría con su nota", /Archivos de Conocimientos/.test(await det.getByTestId("platform-usage-storage").innerText()) && (await det.getByText(/No incluye los mensajes/).count()) === 1);
+  ok("…y lo de siempre: módulos, ritmo, personas y estado", (await fila.getByTestId("platform-modules").count()) === 1 && (await fila.getByRole("button", { name: "Personas" }).count()) === 1 && (await fila.getByTestId("platform-suspend").count()) === 1 && (await fila.getByTestId("platform-delete").count()) === 1);
+  ok("el buscador filtra por nombre", await (async () => {
+    await page.getByTestId("platform-org-search").fill(`zz-no-existe-${RUN}`);
+    const vacio = await page.getByText("Ninguna organización coincide.").isVisible();
+    await page.getByTestId("platform-org-search").fill(NAME_B);
+    return vacio && (await page.getByTestId(`platform-org-${orgB}`).isVisible());
+  })());
+  await page.close();
+
+  // Celular, modo oscuro: sin desplazamiento horizontal, cerrada y abierta.
+  const movil = await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true, extraHTTPHeaders: { origin: BASE } });
+  await movil.addCookies([{ name: "vocero-theme", value: "dark", url: BASE }, ...(await A.ctx.cookies())]);
+  const cel = await movil.newPage();
+  await cel.goto(`${BASE}/platform/organizaciones`);
+  const filaCel = cel.getByTestId(`platform-org-${orgB}`);
+  await filaCel.waitFor({ timeout: 30000 });
+  const desborde = () =>
+    cel.evaluate(() => {
+      const els = [document.documentElement, ...document.querySelectorAll("main, [class*='overflow-y-auto']")];
+      return els.some((e) => e.scrollWidth > e.clientWidth + 1);
+    });
+  ok("celular: la lista no se desplaza a lo ancho", !(await desborde()));
+  ok("celular: modo oscuro", (await cel.evaluate(() => document.documentElement.getAttribute("data-theme"))) === "dark");
+  await filaCel.getByTestId("platform-org-toggle").click();
+  await filaCel.getByTestId("platform-usage-detail").waitFor({ timeout: 20000 });
+  ok("celular: la fila abierta tampoco se desplaza a lo ancho", !(await desborde()));
+  await cel.screenshot({ path: "scratch/e2e-plataforma-movil-oscuro.png", fullPage: true }).catch(() => null);
+  await movil.close();
+}
+
+/**
+ * 036 (PR 3a) — Plan y topes: el administrador los fija desde Plataforma
+ * (personas, almacenamiento en «Bloquear subidas manuales», módulos); la
+ * Propietaria choca con cada tope con un mensaje claro, ve el aviso del 80 %
+ * y del 100 % en la app y lo marca como visto. La multimedia entrante de
+ * WhatsApp nunca se bloquea.
+ */
+async function topesYAvisos(A, B, orgB) {
+  console.log("\n== 4c · Plan y topes ==");
+  const subir = async (bytes, nombre) =>
+    (
+      await B.ctx.request.post(`${BASE}/api/knowledge`, {
+        multipart: { title: `${nombre} ${RUN}`, file: { name: `${nombre}.txt`, mimeType: "text/plain", buffer: Buffer.alloc(bytes, "a") } },
+        failOnStatusCode: false,
+      })
+    ).status();
+  const usado = (await A.call("GET", `/api/platform/organizations/${orgB}/usage`)).json?.usage?.storage?.totalBytes ?? 0;
+  const tope = usado + 10_000;
+
+  // Desde la pantalla: personas = 1 (la Propietaria) y bloqueo de subidas.
+  const page = await A.ctx.newPage();
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto(`${BASE}/platform/organizaciones`);
+  const fila = page.getByTestId(`platform-org-${orgB}`);
+  await fila.waitFor({ timeout: 30000 });
+  await fila.getByTestId("platform-org-toggle").click();
+  const form = fila.getByTestId("platform-limits");
+  await form.waitFor({ timeout: 20000 });
+  ok("el plan dice «Personalizado»", (await form.getByTestId("platform-plan").inputValue()) === "custom" && /Personalizado/.test(await form.getByTestId("platform-plan").innerText()));
+  ok("un tope sin valor propio dice de dónde hereda", /Hereda:/.test(await form.getByTestId("platform-limit-members").getAttribute("placeholder")));
+  await form.getByTestId("platform-limit-members").fill("1");
+  await form.getByTestId("platform-limit-storageMode").selectOption("block_uploads");
+  await form.getByTestId("platform-limits-save").click();
+  ok("guardar topes desde la pantalla", await form.getByTestId("platform-limits-saved").waitFor({ timeout: 15000 }).then(() => true, () => false));
+  await page.screenshot({ path: "scratch/e2e-plataforma-topes.png", fullPage: false }).catch(() => null);
+  // El almacenamiento exacto (en bytes) por la API: la pantalla lo pide en GB.
+  const put = await A.call("PUT", `/api/platform/organizations/${orgB}/limits`, { storageBytes: tope });
+  ok("la API guarda el tope de almacenamiento", put.status === 200 && put.json?.limits?.storageBytes?.value === tope && put.json?.limits?.storageMode === "block_uploads", JSON.stringify(put.json?.limits).slice(0, 200));
+  ok("B (usuaria común) → 404 en los topes", (await B.call("PUT", `/api/platform/organizations/${orgB}/limits`, { members: 50 })).status === 404);
+  ok("la bitácora registra el cambio de topes", (await sql`select 1 from platform_audit_log where target_org_id = ${orgB} and action = 'organization.limits_changed'`).length >= 1);
+
+  // Personas: ya tiene 1 (la Propietaria) y el tope es 1.
+  const alta = await B.call("POST", "/api/settings/team", { name: "Otra", email: `otra.${RUN}@plataforma.test`, password: "contraseña-larga-123", role: "asesor" });
+  ok("tope de personas: no se agrega otra (409 con mensaje claro)", alta.status === 409 && alta.json?.error?.code === "member_limit" && /tope de personas/.test(alta.json?.error?.message ?? ""), `${alta.status} ${JSON.stringify(alta.json)}`);
+
+  // Almacenamiento: cabe lo que no pasa el tope; lo que lo pasaría, no.
+  ok("una subida que cabe pasa (Conocimientos)", (await subir(2_000, "cabe")) === 201);
+  const grande = await B.ctx.request.post(`${BASE}/api/knowledge`, {
+    multipart: { title: `grande ${RUN}`, file: { name: "grande.txt", mimeType: "text/plain", buffer: Buffer.alloc(20_000, "a") } },
+    failOnStatusCode: false,
+  });
+  const cuerpo = await grande.json().catch(() => null);
+  ok("la que pasaría el tope se rechaza con mensaje claro (413)", grande.status() === 413 && cuerpo?.error?.code === "storage_limit" && /tope de almacenamiento/.test(cuerpo?.error?.message ?? ""), `${grande.status()} ${JSON.stringify(cuerpo)}`);
+  const hilos = (await B.call("GET", "/api/team-chat/threads")).json?.threads ?? [];
+  const avisosHilo = hilos.find((t) => t.kind === "announcements");
+  const adjunto = await B.ctx.request.post(`${BASE}/api/team-chat/threads/${avisosHilo?.id}/messages`, {
+    multipart: { body: "adjunto", file: { name: "pesado.txt", mimeType: "text/plain", buffer: Buffer.alloc(20_000, "b") } },
+    failOnStatusCode: false,
+  });
+  ok("…también un adjunto del chat de equipo", adjunto.status() === 413, String(adjunto.status()));
+  ok("subir sin archivo sigue funcionando", (await B.call("POST", "/api/knowledge", { title: `texto ${RUN}`, body: "solo texto" })).status === 201);
+  ok("cruza el 80 % con otra subida que cabe", (await subir(6_500, "ochenta")) === 201);
+
+  // Módulos: el tope igual a los activos; encender otro se rechaza.
+  const activos = Object.entries((await A.call("GET", "/api/platform/organizations")).json?.organizations?.find((o) => o.id === orgB)?.modules ?? {})
+    .filter(([k, v]) => k !== "campaignSendRate" && v === true).length;
+  await A.call("PUT", `/api/platform/organizations/${orgB}/limits`, { modules: activos });
+  const apagado = Object.entries((await A.call("GET", "/api/platform/organizations")).json?.organizations?.find((o) => o.id === orgB)?.modules ?? {}).find(([k, v]) => k !== "campaignSendRate" && v === false)?.[0];
+  const encender = await A.call("POST", `/api/platform/organizations/${orgB}/modules`, { [apagado]: true });
+  ok("tope de módulos: encender otro se rechaza (422)", encender.status === 422 && encender.json?.error?.code === "module_limit", `${apagado} ${encender.status} ${JSON.stringify(encender.json)}`);
+
+  // Avisos: la Propietaria los ve en la app y los marca como vistos.
+  // El aviso de almacenamiento se revisa al terminar la subida (en segundo plano).
+  let avisos = [];
+  await hasta(async () => {
+    avisos = (await B.call("GET", "/api/usage/alerts")).json?.alerts ?? [];
+    return avisos.some((a) => a.metric === "storage");
+  });
+  const de = (m) => avisos.find((a) => a.metric === m);
+  ok("aviso del 100 % de personas", de("members")?.threshold === 100, JSON.stringify(avisos));
+  ok("aviso del 80 % de almacenamiento", de("storage")?.threshold === 80, JSON.stringify(avisos));
+  ok("aviso del 100 % de módulos (tope = activos)", de("modules")?.threshold === 100, JSON.stringify(avisos));
+  const pB = await B.ctx.newPage();
+  await pB.goto(`${BASE}/inbox`);
+  const banner = pB.getByTestId("usage-alert-banner");
+  ok("la Propietaria ve el aviso en la app", await banner.waitFor({ timeout: 30000 }).then(() => true, () => false));
+  ok("…con texto claro", /llegó al tope de personas del equipo/.test(await banner.innerText()));
+  await pB.screenshot({ path: "scratch/e2e-aviso-propietario.png", fullPage: false }).catch(() => null);
+  // El POST que lo marca visto puede tardar en `next dev` (compila la ruta): se espera su respuesta.
+  const marcado = pB.waitForResponse((r) => r.url().endsWith("/api/usage/alerts") && r.request().method() === "POST", { timeout: 90000 }).catch(() => null);
+  await banner.getByTestId("usage-alert-seen").click();
+  await marcado;
+  ok("«Entendido» lo oculta", await banner.waitFor({ state: "detached", timeout: 10000 }).then(() => true, () => false));
+  ok("…y en el servidor queda visto (ya no sale)", await hasta(async () => ((await B.call("GET", "/api/usage/alerts")).json?.alerts ?? []).length === 0));
+  await pB.close();
+  await page.reload();
+  const filaR = page.getByTestId(`platform-org-${orgB}`);
+  await filaR.waitFor({ timeout: 30000 });
+  ok("el administrador ve el aviso en la fila", /100 %/.test((await filaR.getByTestId("platform-org-alert").innerText().catch(() => "")) ?? ""));
+  await page.close();
+
+  // La multimedia entrante de WhatsApp se guarda siempre (nunca se bloquea).
+  ok(
+    "WhatsApp entrante sigue entrando con el tope pasado",
+    (await A.call("POST", "/api/dev/wa-mock/inbound", { phoneNumberId: PN_B, from: "5215577001199", name: "Cliente con tope", text: `tras el tope ${RUN}`, waMessageId: `wamid.plat.tope.${RUN}` })).status === 200 &&
+      (await hasta(async () => (await sql`select 1 from message where organization_id = ${orgB} and text = ${`tras el tope ${RUN}`}`).length > 0))
+  );
+
+  // Deja a B sin topes propios para el resto del guion.
+  const reset = await A.call("PUT", `/api/platform/organizations/${orgB}/limits`, { members: null, storageBytes: null, storageMode: "warn", modules: null });
+  ok("volver a heredar (sin topes propios)", reset.json?.limits?.members?.source === "none" && reset.json?.limits?.storageMode === "warn");
+}
+
+/**
+ * 036 (PR 3b) — Costos: el administrador captura precios (USD por millón de
+ * tokens) y el tipo de cambio con «vigente desde»; el panel muestra por
+ * organización el costo estimado, el real que reportó el proveedor
+ * (`usage.cost` del ai-mock, a $3/$15 como OpenRouter) y la proyección del
+ * mes, en USD y MXN. Solo él lo ve; nunca contenido.
+ */
+async function costosEnPlataforma(A, B, orgB) {
+  console.log("\n== 4d · Costos de IA en Plataforma ==");
+  const [real] = await sql`
+    select coalesce(sum(cost_usd), 0)::float8 as usd, coalesce(sum(prompt_tokens + completion_tokens), 0)::int as tokens
+    from ai_usage where organization_id = ${orgB} and period = to_char(date_trunc('month', now() at time zone 'utc'), 'YYYY-MM-DD') and kind <> 'total'`;
+  ok("el costo real que reportó el proveedor quedó en cost_usd", real.usd > 0 && real.tokens > 0, JSON.stringify(real));
+
+  const page = await A.ctx.newPage();
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto(`${BASE}/platform`);
+  await page.getByRole("navigation", { name: "Secciones de Plataforma" }).getByRole("link", { name: "Costos" }).click();
+  await page.waitForURL(/\/platform\/costos$/);
+  const form = page.getByTestId("platform-pricing");
+  await form.waitFor({ timeout: 30000 });
+  const hoy = new Date().toISOString().slice(0, 10);
+  await form.getByTestId("platform-price-chatIn").fill("3");
+  await form.getByTestId("platform-price-chatOut").fill("15");
+  await form.getByTestId("platform-price-judgeIn").fill("");
+  await form.getByTestId("platform-price-judgeOut").fill("");
+  await form.getByTestId("platform-price-embed").fill("0.02");
+  await form.getByTestId("platform-price-rate").fill("18.5");
+  await form.getByTestId("platform-price-currency").fill("MXN");
+  await form.getByTestId("platform-price-validFrom").fill(hoy);
+  await form.getByTestId("platform-pricing-save").click();
+  await form.getByTestId("platform-pricing-saved").waitFor({ timeout: 20000 });
+  ok("captura precios y tipo de cambio desde la pantalla", true);
+  ok("…y el historial marca el vigente desde hoy", /vigente/.test(await form.getByTestId("platform-pricing-history").innerText()));
+  await form.screenshot({ path: "scratch/e2e-plataforma-precios.png" }).catch(() => null);
+
+  const rep = (await A.call("GET", "/api/platform/costs")).json?.report;
+  const filaB = rep?.rows?.find((r) => r.organizationId === orgB);
+  ok("el panel usa el precio recién capturado", rep?.pricing?.chatInputUsdPerMtok === 3 && rep?.pricing?.usdToLocal === 18.5 && rep?.pricing?.localCurrency === "MXN", JSON.stringify(rep?.pricing));
+  ok("Real de B = lo que reportó el proveedor", Math.abs((filaB?.realUsd ?? -1) - real.usd) < 1e-6, `${filaB?.realUsd} vs ${real.usd}`);
+  ok("Estimado de B ≈ Real (mismos precios que el mock)", Math.abs((filaB?.estimatedUsd ?? -1) - (filaB?.realUsd ?? 0)) < 1e-4, `${filaB?.estimatedUsd} vs ${filaB?.realUsd}`);
+  ok("proyección del mes ≥ lo gastado (el mayor de estimado y real)", (filaB?.projectedUsd ?? 0) >= Math.max(filaB?.realUsd ?? 1, filaB?.estimatedUsd ?? 1) - 1e-9, JSON.stringify(filaB));
+  ok("desglose por función (Laboratorio y redacción)", ["lab", "writing"].every((k) => filaB?.byKind?.some((x) => x.kind === k)), JSON.stringify(filaB?.byKind));
+  ok("el panel no trae contenido del negocio", !JSON.stringify(rep).includes("hola") && !JSON.stringify(rep).includes("pedido"));
+
+  await page.reload();
+  const filaUi = page.getByTestId(`platform-cost-org-${orgB}`);
+  await filaUi.waitFor({ timeout: 30000 });
+  const textoFila = await filaUi.innerText();
+  ok("la fila muestra USD y MXN", /USD/.test(textoFila) && /MXN/.test(textoFila), textoFila.slice(0, 200));
+  ok("los totales del mes: estimado, real y proyección", (await page.getByTestId("platform-cost-total-real").innerText()).includes("USD") && (await page.getByTestId("platform-cost-total-projected").innerText()).includes("MXN"));
+  await filaUi.getByRole("button").first().click();
+  ok("al abrirla, el desglose por función", /Asistente de redacción/.test(await filaUi.getByTestId("platform-cost-kinds").innerText()));
+  await page.screenshot({ path: "scratch/e2e-plataforma-costos.png", fullPage: true }).catch(() => null);
+  await page.close();
+
+  // Validación y acceso.
+  ok("precio negativo → 422", (await A.call("POST", "/api/platform/pricing", { chatInputUsdPerMtok: -1, chatOutputUsdPerMtok: 1, judgeInputUsdPerMtok: null, judgeOutputUsdPerMtok: null, embedUsdPerMtok: 0, usdToLocal: 18, localCurrency: "MXN" })).status === 422);
+  ok("moneda que no es de 3 letras → 422", (await A.call("POST", "/api/platform/pricing", { chatInputUsdPerMtok: 1, chatOutputUsdPerMtok: 1, judgeInputUsdPerMtok: null, judgeOutputUsdPerMtok: null, embedUsdPerMtok: 0, usdToLocal: 18, localCurrency: "pesos" })).status === 422);
+  ok("B (usuaria común) → 404 en costos y precios", (await B.call("GET", "/api/platform/costs")).status === 404 && (await B.call("GET", "/api/platform/pricing")).status === 404);
+  const pB = await B.ctx.newPage();
+  const resp = await pB.goto(`${BASE}/platform/costos`);
+  ok("B → la página de costos no existe (404)", resp?.status() === 404);
+  await pB.close();
+  const bit = (await A.call("GET", "/api/platform/audit")).json?.entries ?? [];
+  ok("el cambio de precios queda en la bitácora", bit.some((e) => e.action === "pricing.changed"));
+
+  // Celular, modo oscuro.
+  const movil = await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true, extraHTTPHeaders: { origin: BASE } });
+  await movil.addCookies([{ name: "vocero-theme", value: "dark", url: BASE }, ...(await A.ctx.cookies())]);
+  const cel = await movil.newPage();
+  await cel.goto(`${BASE}/platform/costos`);
+  await cel.getByTestId(`platform-cost-org-${orgB}`).waitFor({ timeout: 30000 });
+  const desborde = await cel.evaluate(() => {
+    const els = [document.documentElement, ...document.querySelectorAll("main, [class*='overflow-y-auto']")];
+    return els.some((e) => e.scrollWidth > e.clientWidth + 1);
+  });
+  ok("celular: costos sin desplazamiento horizontal", !desborde);
+  await cel.screenshot({ path: "scratch/e2e-plataforma-costos-movil.png", fullPage: true }).catch(() => null);
+  await movil.close();
+}
+
+/**
+ * 036 (PR 6) — «Uso y plan» del Propietario: entra desde el menú de su
+ * cuenta y ve su consumo del mes contra sus topes, por función y por agente.
+ * Un asesor de la misma organización no tiene la entrada, la página lo
+ * regresa a la Bandeja y la API responde 403.
+ */
+async function usoYPlan(A, B, orgB) {
+  console.log("\n== 4e · «Uso y plan» del Propietario ==");
+  const topes = await A.call("PUT", `/api/platform/organizations/${orgB}/limits`, { members: 3, aiTokens: 1_000_000, storageBytes: 50 * 1024 * 1024 });
+  ok("el administrador fija topes a B", topes.status === 200);
+
+  const api = await B.call("GET", "/api/usage");
+  const u = api.json?.usage;
+  ok("la Propietaria lee su uso (200)", api.status === 200 && Boolean(u), String(api.status));
+  ok("…contra sus topes (IA, personas, almacenamiento)", u?.limits?.aiTokens?.value === 1_000_000 && u?.limits?.members?.value === 3 && u?.limits?.storageBytes?.value === 50 * 1024 * 1024, JSON.stringify(u?.limits).slice(0, 300));
+  ok("…plan «Personalizado»", u?.limits?.planKey === "custom");
+  ok("…por función (Laboratorio y redacción) y por agente", Boolean(u?.ai?.byKind?.lab && u?.ai?.byKind?.writing) && (u?.ai?.byAgent?.length ?? 0) >= 1, JSON.stringify(u?.ai?.byKind));
+  ok("…sin costos ni precios (son de la plataforma)", !JSON.stringify(u).includes("costUsd") && !JSON.stringify(u).includes("Mtok"));
+
+  const page = await B.ctx.newPage();
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto(`${BASE}/inbox`);
+  const entrada = page.getByTestId("nav-usage");
+  ok("la Propietaria tiene «Uso y plan» en el menú de su cuenta", await entrada.waitFor({ timeout: 30000 }).then(() => true, () => false));
+  await entrada.click();
+  await page.waitForURL(/\/uso$/, { timeout: 30000 });
+  const pantalla = page.getByTestId("usage-plan");
+  await pantalla.waitFor({ timeout: 30000 });
+  ok("la pantalla dice el plan", /Personalizado/.test(await page.getByTestId("usage-plan-name").innerText()));
+  ok("IA del mes contra su tope", /\/ 1 M tokens/.test(await page.getByTestId("usage-plan-ai-meter").innerText()));
+  ok("personas contra su tope", /\/ 3 personas/.test(await page.getByTestId("usage-plan-members-meter").innerText()));
+  ok("«Almacenamiento (aprox.)» contra su tope, por categoría", /\/ 50 MB/.test(await page.getByTestId("usage-plan-storage-meter").innerText()) && /Archivos de Conocimientos/.test(await page.getByTestId("usage-plan-storage-categories").innerText()));
+  ok("qué función consume más", /Asistente de redacción/.test(await page.getByTestId("usage-plan-kinds").innerText()));
+  const agentes = (await B.call("GET", "/api/lab/agents")).json?.agents ?? [];
+  const general = agentes.find((a) => a.isGeneral);
+  ok("qué agente consume más (con su nombre)", (await page.getByTestId("usage-plan-agents").innerText()).includes(general?.internalName ?? "¿?"));
+  await page.screenshot({ path: "scratch/e2e-uso-y-plan.png", fullPage: true }).catch(() => null);
+  await page.close();
+
+  // Celular, modo oscuro.
+  const movil = await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true, extraHTTPHeaders: { origin: BASE } });
+  await movil.addCookies([{ name: "vocero-theme", value: "dark", url: BASE }, ...(await B.ctx.cookies())]);
+  const cel = await movil.newPage();
+  await cel.goto(`${BASE}/uso`);
+  await cel.getByTestId("usage-plan").waitFor({ timeout: 30000 });
+  const desborde = await cel.evaluate(() => {
+    const els = [document.documentElement, ...document.querySelectorAll("main, [class*='overflow-y-auto']")];
+    return els.some((e) => e.scrollWidth > e.clientWidth + 1);
+  });
+  ok("celular: «Uso y plan» sin desplazamiento horizontal", !desborde);
+  await cel.screenshot({ path: "scratch/e2e-uso-y-plan-movil.png", fullPage: true }).catch(() => null);
+  await movil.close();
+
+  // Un asesor de la misma organización: ni entrada, ni página, ni API.
+  const email = `asesor.uso.${RUN}@plataforma.test`;
+  const pass = "contraseña-del-asesor-123";
+  const alta = await B.call("POST", "/api/settings/team", { name: "Asesor Uso", email, password: pass, role: "asesor" });
+  ok("B agrega un asesor (cabe en el tope de 3)", alta.status === 201 || alta.status === 200, `${alta.status} ${JSON.stringify(alta.json)}`);
+  const C = await persona();
+  ok("el asesor inicia sesión", (await C.entrar(email, pass)).status === 200);
+  ok("asesor → 403 en /api/usage", (await C.call("GET", "/api/usage")).status === 403);
+  const pC = await C.ctx.newPage();
+  await pC.goto(`${BASE}/uso`);
+  await pC.waitForURL(/\/inbox/, { timeout: 30000 }).catch(() => null);
+  ok("asesor → /uso lo regresa a la Bandeja", /\/inbox/.test(pC.url()), pC.url());
+  ok("asesor: sin «Uso y plan» en su menú", (await pC.getByTestId("nav-usage").count()) === 0);
+  await pC.close();
+
+  const reset = await A.call("PUT", `/api/platform/organizations/${orgB}/limits`, { members: null, aiTokens: null, storageBytes: null });
+  ok("B vuelve a heredar sus topes", reset.status === 200);
 }
 
 try {

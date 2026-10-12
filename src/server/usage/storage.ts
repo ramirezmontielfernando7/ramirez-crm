@@ -20,23 +20,31 @@ import { buildStorageUsage, type StorageUsage } from "@/lib/usage";
  * la organización ocupa lo mismo, sea compartido o exclusivo.
  */
 
-// Las sumas: `coalesce` para que una organización sin filas dé 0, no NULL.
-const MEDIA_BYTES = sql<string>`coalesce(sum(${schema.mediaAsset.fileSize}), 0)`;
-const MEDIA_SIN_TAMANO = sql<string>`count(*) filter (where ${schema.mediaAsset.fileSize} is null)`;
-const KNOWLEDGE_BYTES = sql<string>`coalesce(sum(${schema.knowledgeEntry.fileSize}), 0)`;
-const KNOWLEDGE_SIN_TAMANO = sql<string>`count(*) filter (where ${schema.knowledgeEntry.fileSize} is null)`;
-const TEAM_CHAT_BYTES = sql<string>`coalesce(sum(${schema.teamChatAttachment.fileSize}), 0)`;
-const DOC_TEXT_BYTES = sql<string>`coalesce(sum(octet_length(${schema.kbDocument.text})), 0)`;
-const CHUNK_TEXT_BYTES = sql<string>`coalesce(sum(octet_length(${schema.kbChunk.content})), 0)`;
-const CHUNK_VECTOR_VALUES = sql<string>`coalesce(sum(coalesce(cardinality(${schema.kbChunk.embedding}), 0)), 0)`;
-
-// Solo cuenta un archivo de WhatsApp que sí está en disco (descargado);
-// uno pendiente o fallido no ocupa nada todavía.
-const MEDIA_EN_DISCO = isNotNull(schema.mediaAsset.storagePath);
-const KNOWLEDGE_CON_ARCHIVO = isNotNull(schema.knowledgeEntry.filePath);
+/**
+ * Las sumas (`coalesce`: una organización sin filas da 0, no NULL). Se arman
+ * al usarse y no al importar el módulo: así importarlo no toca el esquema
+ * (las pruebas que sustituyen la BD por uno parcial no se rompen).
+ */
+function sums() {
+  return {
+    MEDIA_BYTES: sql<string>`coalesce(sum(${schema.mediaAsset.fileSize}), 0)`,
+    MEDIA_SIN_TAMANO: sql<string>`count(*) filter (where ${schema.mediaAsset.fileSize} is null)`,
+    KNOWLEDGE_BYTES: sql<string>`coalesce(sum(${schema.knowledgeEntry.fileSize}), 0)`,
+    KNOWLEDGE_SIN_TAMANO: sql<string>`count(*) filter (where ${schema.knowledgeEntry.fileSize} is null)`,
+    TEAM_CHAT_BYTES: sql<string>`coalesce(sum(${schema.teamChatAttachment.fileSize}), 0)`,
+    DOC_TEXT_BYTES: sql<string>`coalesce(sum(octet_length(${schema.kbDocument.text})), 0)`,
+    CHUNK_TEXT_BYTES: sql<string>`coalesce(sum(octet_length(${schema.kbChunk.content})), 0)`,
+    CHUNK_VECTOR_VALUES: sql<string>`coalesce(sum(coalesce(cardinality(${schema.kbChunk.embedding}), 0)), 0)`,
+    // Solo cuenta un archivo de WhatsApp que sí está en disco (descargado);
+    // uno pendiente o fallido no ocupa nada todavía.
+    MEDIA_EN_DISCO: isNotNull(schema.mediaAsset.storagePath),
+    KNOWLEDGE_CON_ARCHIVO: isNotNull(schema.knowledgeEntry.filePath),
+  };
+}
 
 /** El almacenamiento de UNA organización (pool de la app, RLS). */
 export async function getOrgStorageUsage(organizationId: string, db: Db = getDb()): Promise<StorageUsage> {
+  const { MEDIA_BYTES, MEDIA_SIN_TAMANO, KNOWLEDGE_BYTES, KNOWLEDGE_SIN_TAMANO, TEAM_CHAT_BYTES, DOC_TEXT_BYTES, CHUNK_TEXT_BYTES, CHUNK_VECTOR_VALUES, MEDIA_EN_DISCO, KNOWLEDGE_CON_ARCHIVO } = sums();
   const [media, knowledge, teamChat, docs, chunks] = await Promise.all([
     db
       .select({ bytes: MEDIA_BYTES, sinTamano: MEDIA_SIN_TAMANO })
@@ -83,6 +91,7 @@ function sys(): Db {
  * `emptyStorageUsage()` para ellas.
  */
 export async function getAllOrgsStorageUsage(): Promise<Map<string, StorageUsage>> {
+  const { MEDIA_BYTES, MEDIA_SIN_TAMANO, KNOWLEDGE_BYTES, KNOWLEDGE_SIN_TAMANO, TEAM_CHAT_BYTES, DOC_TEXT_BYTES, CHUNK_TEXT_BYTES, CHUNK_VECTOR_VALUES, MEDIA_EN_DISCO, KNOWLEDGE_CON_ARCHIVO } = sums();
   const db = sys();
   const [media, knowledge, teamChat, docs, chunks] = await Promise.all([
     db

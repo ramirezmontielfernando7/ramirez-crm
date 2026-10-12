@@ -1,6 +1,6 @@
 # 036 — Uso y plan (Plataforma reorganizada + panel de consumo del Propietario)
 
-Estado: PR 1 fusionado (consumo por agente), PR 2 implementado (medición de almacenamiento). PR 3–6 pendientes; cada uno
+Estado: PR 1, 2, 3a, 3b y 4 fusionados; PR 6 implementado («Uso y plan» del Propietario, sin migración). PR 3c (historial) y 5 pendientes; cada uno
 arranca solo cuando el dueño lo indica, y solo hay una migración en curso a la
 vez (el número se asigna al implementar, leyendo `drizzle/` en `main`).
 
@@ -85,3 +85,124 @@ con su nota):
 Los archivos en disco sin tamaño registrado no suman y se reportan aparte
 (`filesWithoutSize`). No cuenta: mensajes, contactos y bitácoras en Postgres,
 logo e ícono, archivos huérfanos, multimedia pendiente o fallida.
+
+## PR 4 — Plataforma → Organizaciones (hecho, antes que el PR 3)
+
+Sin migración. Lo que depende de límites nuevos (campo Plan, editar topes,
+tope de almacenamiento y de módulos) queda para el PR 3: el almacenamiento se
+muestra «sin tope».
+
+- Pestañas: «Mi panel» (`/platform`, por ahora la bitácora; el resumen es el
+  PR 5) y «Organizaciones» (`/platform/organizaciones`). El layout da 404 a
+  quien no es administrador de plataforma; cada página y cada ruta lo vuelven
+  a comprobar.
+- Fila cerrada: punto de estado + nombre, IA del mes contra su tope
+  (`ai_quota` o el del entorno; con dos topes, el que va más alto), «Almacenamiento
+  (aprox.)» y módulos «x/12» (12 interruptores, `src/lib/platform-modules.ts`).
+  Aviso desde 80 %, rojo al 100 %.
+- Fila abierta: IA por función (embeddings aparte) y por agente (nombre
+  interno; archivados marcados), almacenamiento por categoría con su nota, y
+  lo de siempre: módulos, ritmo de campañas, Personas (enlaces de contraseña),
+  Suspender/Reactivar, Borrar/Restaurar. «Nueva organización» y buscador
+  arriba.
+- Solo lectura. `GET /api/platform/organizations` suma `usage` en lecturas
+  agrupadas (y los módulos en una sola consulta, `getManyOrgModules`): la
+  lista no se hace más lenta con más organizaciones. El detalle se pide al
+  abrir la fila: `GET /api/platform/organizations/[id]/usage`, leído a nombre
+  de la organización (RLS); los nombres de agentes con `agentNames`, que no
+  escribe nada.
+
+## PR 3 — dividido en 3a, 3b y 3c (decisiones del dueño)
+
+- Avisos SOLO para el Propietario dentro de la app (no en el chat de equipo);
+  el administrador los ve en la fila de la organización.
+- En «Bloquear subidas manuales» se rechaza la subida que PASARÍA el tope.
+- Moneda configurable: precios en USD, tipo de cambio que captura el
+  administrador; la pantalla muestra moneda local y USD.
+- La migración 0045 (todas las tablas) entra solo en 3a; 3b y 3c sin
+  migración.
+
+### PR 3a — Plan, topes, bloqueos y avisos (hecho)
+
+Migración `0045_limites_avisos_costos`: `organization_plan`, `usage_alert`,
+`platform_ai_pricing` (plataforma), `ai_usage(.agent).cost_usd`,
+`org_usage_monthly`. Aditiva, idempotente, RLS en las de dominio.
+
+| Tope | Dónde vive | Dónde se aplica |
+|---|---|---|
+| IA turnos/tokens | `ai_quota` | `reserveTurn` (como siempre) |
+| Embeddings | `organization_plan.embed_token_limit` o entorno | `embedForOrg` |
+| Personas | `organization_plan.max_members` | `POST /api/settings/team` (409 `member_limit`) |
+| Almacenamiento + modo | `organization_plan.storage_limit_bytes` / `storage_mode` | `POST /api/lab/documents` (≈ 2 × texto extraído), `POST`/`PATCH /api/knowledge` (lo que crece), `POST /api/team-chat/threads/[id]/messages` con archivo (413 `storage_limit`) |
+| Módulos activos | `organization_plan.max_active_modules` | `changeOrganizationModules` (422 `module_limit`; apagar siempre se puede) |
+| Documentos | `kb_document_limit` | kb-docs (como siempre) |
+
+Avisos 80/100 %: `usage_alert` (uno por organización, mes, medida y umbral).
+Se revisan donde crece cada medida y cada 6 horas (almacenamiento que crece
+con la multimedia entrante). La Propietaria los ve en la app
+(`UsageAlertBanner`, «Entendido» los marca vistos); el administrador, en la
+fila y en «Plan y topes».
+
+### PR 3b — Panel de costos (hecho, sin migración)
+
+Solo el administrador de plataforma: Plataforma → **Costos** (`/platform/costos`).
+
+- **Costo real**: el adaptador lee `usage.cost` de OpenRouter (créditos = USD)
+  en cada llamada, lo suma entre reintentos (`LlmUsage.costUsd`) y
+  `chatJsonForOrg` lo guarda en `ai_usage.cost_usd` (total y función) y
+  `ai_usage_agent.cost_usd`; los embeddings igual si el servicio lo manda. Sin
+  `usage.cost` (otro proveedor, TEI local) no se anota nada: el real queda
+  «—», nunca un 0 inventado. No se pide nada extra al proveedor. El log `ai`
+  registra el id de la generación y su costo para cotejarlo contra
+  openrouter.ai/activity.
+- **Precios**: `platform_ai_pricing`, USD por millón de tokens (entrada y
+  salida del modelo principal y del juez —vacío = el del principal—, y
+  embeddings) + tipo de cambio y moneda local. Cada cambio es una fila nueva
+  con «vigente desde» (UTC); nunca se reescribe. Rige la de `valid_from` más
+  reciente que no sea futura; un mes cerrado usa la vigente al cierre.
+  Bitácora `pricing.changed`.
+- **Estimado**: tokens del mes por función × precios vigentes (el juez con
+  los suyos). **Proyección**: el MAYOR entre estimado y real ÷ la fracción
+  del mes transcurrida (UTC, al menos un día): el real puede cubrir solo
+  parte del mes (llamadas de antes del despliegue) y el estimado depende de
+  precios capturados a mano.
+- Montos en USD y, debajo, en la moneda local. Por organización con
+  desglose por función; solo las que consumieron IA este mes; nunca
+  contenido.
+
+Código: reglas puras `src/lib/costs.ts`; `src/server/costs/pricing.ts`
+(historial) y `report.ts` (una lectura agrupada de `ai_usage`, pool de
+sistema); rutas `GET/POST /api/platform/pricing`, `GET /api/platform/costs`;
+UI `src/components/platform/costs-client.tsx`.
+
+**Cómo comprobar el costo real con una llamada de producción**: tras el
+despliegue, una vista previa en Laboratorio → Agentes (una llamada); en
+Plataforma → Costos, la organización muestra «Real (OpenRouter)»; el log
+`ai` trae «costo reportado por el proveedor generacion=gen-… costo_usd=…»;
+ese `gen-…` en openrouter.ai/activity debe marcar el mismo monto.
+
+## PR 6 — «Uso y plan» del Propietario (hecho, sin migración)
+
+No depende del 3c: muestra el mes en curso contra los topes; el historial
+mensual podrá sumarse después como otra sección.
+
+- Entrada: el ícono de medidor en la tarjeta de la cuenta, abajo en la barra
+  lateral (y «Uso y plan» en el menú del avatar con la barra en íconos); solo
+  con `usage.read` (Propietario). El aviso de consumo (3a) enlaza aquí.
+- Página `/uso` (`requirePagePermission("usage.read")`: los demás vuelven a la
+  Bandeja) y `GET /api/usage` (`usage.read`, siempre la organización de la
+  sesión).
+- Qué muestra: plan («Personalizado»); IA del mes contra su tope (la medida
+  que va más alta, con la otra debajo); embeddings aparte; «Almacenamiento
+  (aprox.)» contra su tope, su modo y por categoría con su nota; personas y
+  módulos activos (de 12) contra sus topes; documentos y fragmentos del
+  agente contra sus topes (solo si la organización usa documentos); qué
+  función y qué agente consumen más; los avisos del mes. Sin costos ni
+  precios (son de la plataforma). Solo lectura: los topes los cambia el
+  administrador de plataforma.
+- Código: `src/server/usage/owner.ts` (`getOwnerUsage`, pool de la app, RLS,
+  `scoped()`), el detalle compartido con Plataforma en
+  `src/server/usage/detail.ts` (`readOrgUsageDetail`), `countMeter` en
+  `src/lib/usage.ts`, UI `src/components/usage/` (`usage-plan-client.tsx`,
+  `usage-meter.tsx` compartido con Plataforma).
+

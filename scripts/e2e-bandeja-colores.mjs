@@ -7,7 +7,11 @@
  *     (cambia con el tema y no es el gris de las cápsulas de Etapa/Asignado).
  *  3. El menú de etiquetas muestra cada una con su punto de color.
  *  4. Recolorear la etiqueta en Ajustes se refleja en la Bandeja.
- *  5. Móvil (390 px): la cápsula sigue teñida y no desborda la fila.
+ *  5. Etapas: sin color elegido el punto es el de siempre (respaldo por
+ *     nombre); el color se elige en «Gestionar etapas», se guarda y se ve en
+ *     el punto de la cápsula y del menú de etapas; «Auto» lo quita; un color
+ *     fuera de la paleta se rechaza (422).
+ *  6. Móvil (390 px): cápsulas teñidas, punto de etapa con color y sin desbordar.
  *
  * Uso: app viva con WA_MOCK_ENABLED=true y los mocks.
  *   node --env-file=.env scripts/e2e-bandeja-colores.mjs
@@ -69,6 +73,10 @@ function canales(css) {
 const esRojizo = (css) => {
   const [r, g, b, a] = canales(css);
   return a > 0 && r > g + 20 && r > b + 20;
+};
+const esMorado = (css) => {
+  const [r, g, b, a] = canales(css);
+  return a > 0 && b > g + 60 && r > g + 20;
 };
 const esVerdoso = (css) => {
   const [r, g, b, a] = canales(css);
@@ -165,14 +173,71 @@ try {
   ok("la cápsula de Ana ahora es verdosa", await hasta(async () => esVerdoso(await bg(tagCap(N.a))), 15000), await bg(tagCap(N.a)));
   void tVerde;
 
-  console.log("== 5. Móvil ==");
+  console.log("== 5. Etapas ==");
+  const dotEtapa = (name) => stageCap(name).locator("span.rounded-full").first();
+  const stages = (await call("GET", "/api/pipeline/stages")).json?.stages ?? [];
+  const stageNameA = (await convs()).find((c) => c.contact.name === N.a)?.stageName;
+  const stageA = stages.find((x) => x.name === stageNameA);
+  ok("Ana tiene etapa", Boolean(stageA), JSON.stringify(stageA));
+  ok("el API de etapas trae `color` (nulo al inicio)", stageA && "color" in stageA && stageA.color === null, JSON.stringify(stageA));
+  const dotInicial = await bg(dotEtapa(N.a));
+  ok("sin color elegido, el punto es el de siempre (respaldo)", !esMorado(dotInicial) && !esRojizo(dotInicial), dotInicial);
+
+  const malo = await call("PATCH", `/api/pipeline/stages/${stageA.id}`, { color: "fucsia" });
+  ok("un color fuera de la paleta se rechaza", malo.status === 422 || malo.status === 400, String(malo.status));
+
+  // Por la pantalla: Pipeline → Gestionar etapas → círculo «Morado» de la etapa de Ana.
+  await page.goto(`${BASE}/pipeline`, { timeout: 180000, waitUntil: "domcontentloaded" });
+  const gestionar = page.getByRole("button", { name: /Gestionar etapas/ });
+  ok("Pipeline carga", await ver(gestionar, 120000));
+  await page.waitForLoadState("networkidle").catch(() => {});
+  await gestionar.click();
+  const grupo = page.getByRole("radiogroup", { name: `Color de ${stageA.name}` });
+  ok("el gestor ofrece el selector de color por etapa", await ver(grupo));
+  await grupo.getByRole("radio", { name: "Morado" }).click();
+  ok("el color de la etapa se guarda", await hasta(async () => (await call("GET", "/api/pipeline/stages")).json?.stages?.find((x) => x.id === stageA.id)?.color === "morado"));
+  await shot(page, "etapas-gestor");
+
+  await page.goto(`${BASE}/inbox`, { timeout: 180000, waitUntil: "domcontentloaded" });
+  ok("la Bandeja carga", await ver(row(N.a), 120000));
+  await page.waitForLoadState("networkidle").catch(() => {});
+  ok("el punto de la cápsula de etapa es morado", await hasta(async () => esMorado(await bg(dotEtapa(N.a))), 15000), await bg(dotEtapa(N.a)));
+  ok("la cápsula de etapa sigue neutra (solo el punto se tiñe)", !esMorado(await bg(stageCap(N.a))));
+  await stageCap(N.a).click();
+  const menuE = page.getByRole("menu");
+  ok("el menú de etapas abre", await ver(menuE.getByRole("menuitemradio").first()));
+  const opcion = menuE.getByRole("menuitemradio", { name: new RegExp(`^${stageA.name}`) });
+  ok("…y la opción de esa etapa lleva el punto morado", esMorado(await bg(opcion.locator("span.rounded-full").first())));
+  await shot(page, "etapas-menu-claro");
+  await page.keyboard.press("Escape");
+  await page.mouse.click(5, 5);
+
+  await page.emulateMedia({ colorScheme: "dark" });
+  await page.evaluate(() => document.documentElement.setAttribute("data-theme", "dark"));
+  await sleep(500);
+  ok("en oscuro el punto sigue morado", esMorado(await bg(dotEtapa(N.a))), await bg(dotEtapa(N.a)));
+  await shot(page, "etapas-oscuro");
+  await page.evaluate(() => document.documentElement.setAttribute("data-theme", "light"));
+  await page.emulateMedia({ colorScheme: "light" });
+
+  console.log("== 6. Móvil ==");
   await page.setViewportSize({ width: 390, height: 844 });
   await sleep(600);
   ok("la fila de Ana se ve en móvil", await ver(row(N.a)));
-  ok("la cápsula sigue teñida", esVerdoso(await bg(tagCap(N.a))));
+  ok("la cápsula de etiquetas sigue teñida", esVerdoso(await bg(tagCap(N.a))));
+  ok("el punto de etapa sigue morado", esMorado(await bg(dotEtapa(N.a))));
   const desborda = await row(N.a).evaluate((el) => el.scrollWidth > el.clientWidth + 1);
   ok("la fila no desborda en horizontal", !desborda);
   await shot(page, "colores-movil");
+
+  // «Auto» (quitar el color) vuelve al respaldo.
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const quita = await call("PATCH", `/api/pipeline/stages/${stageA.id}`, { color: null });
+  ok("quitar el color (null) se acepta", quita.status < 400, JSON.stringify(quita.json));
+  await page.reload({ waitUntil: "domcontentloaded" });
+  ok("la lista recarga", await ver(row(N.a), 120000));
+  await page.waitForLoadState("networkidle").catch(() => {});
+  ok("sin color, el punto vuelve al respaldo", await hasta(async () => !esMorado(await bg(dotEtapa(N.a))), 15000));
 } catch (e) {
   failures++;
   console.log("  FAIL excepción:", e);

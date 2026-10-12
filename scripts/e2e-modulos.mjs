@@ -288,9 +288,11 @@ async function main() {
 
   console.log("\n== 5 · Encender desde /platform ==");
   const page = await A.ctx.newPage();
-  await page.goto(`${BASE}/platform`, { timeout: 180000 });
+  await page.goto(`${BASE}/platform/organizaciones`, { timeout: 180000 });
   const filaB = page.getByTestId(`platform-org-${orgB}`);
   await filaB.waitFor({ timeout: 30000 });
+  // 036 (PR 4): los interruptores viven en el detalle de la fila.
+  await filaB.getByTestId("platform-org-toggle").click();
   const sw = filaB.getByTestId("platform-module-campaigns").getByRole("switch");
   ok("el interruptor de Campañas de B está apagado", (await sw.getAttribute("aria-checked")) === "false");
   await sw.click();

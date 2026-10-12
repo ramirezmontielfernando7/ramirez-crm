@@ -191,3 +191,25 @@ describe("adaptador", () => {
     expect(normalize("x")).toBeNull();
   });
 });
+
+describe("costo real del servicio (036 PR 3b)", () => {
+  it("suma usage.cost de cada lote; sin él (TEI local) queda ausente", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_url: string, init: RequestInit) => {
+        const body = JSON.parse(String(init.body)) as { input: string[] };
+        return Response.json({
+          data: body.input.map((_t, index) => ({ index, embedding: [1, 2, 3] })),
+          usage: { prompt_tokens: body.input.length, cost: 0.0001 },
+        });
+      })
+    );
+    const textos = Array.from({ length: EMBED_BATCH + 1 }, (_, i) => `texto ${i}`);
+    const r = await embedTexts(textos, "passage", { config: E5 });
+    expect(r.ok && r.costUsd).toBeCloseTo(0.0002, 10); // dos lotes
+
+    fakeService();
+    const sin = await embedTexts(["hola"], "query", { config: E5 });
+    expect(sin.ok && "costUsd" in sin).toBe(false);
+  });
+});

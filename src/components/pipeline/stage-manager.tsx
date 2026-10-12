@@ -6,6 +6,8 @@ import type { StageDto } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ColorPicker } from "@/components/tags/color-picker";
+import type { TagColor } from "@/lib/tags";
 
 /** Gestión de etapas: renombrar, reordenar, agregar, eliminar (con reasignación). */
 export function StageManager({
@@ -28,6 +30,15 @@ export function StageManager({
       method: "PATCH",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ name: name.trim() }),
+    }).catch(() => null);
+    onChanged();
+  }
+
+  async function recolor(stage: StageDto, color: TagColor | null) {
+    await fetch(`/api/pipeline/stages/${stage.id}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ color }),
     }).catch(() => null);
     onChanged();
   }
@@ -100,7 +111,7 @@ export function StageManager({
         <h3 className="mb-4 font-semibold">Etapas del pipeline</h3>
         <ul className="space-y-2">
           {sorted.map((s, i) => (
-            <li key={s.id} className="flex items-center gap-2">
+            <li key={s.id} className="flex flex-wrap items-center gap-2">
               <Input
                 defaultValue={s.name}
                 onBlur={(e) => void rename(s, e.target.value)}
@@ -138,6 +149,14 @@ export function StageManager({
               >
                 <ArrowDown className="h-4 w-4" />
               </Button>
+              <ColorPicker
+                small
+                className="w-full"
+                label={`Color de ${s.name}`}
+                value={s.color ?? null}
+                onChange={(c) => void recolor(s, c)}
+                onClear={() => void recolor(s, null)}
+              />
             </li>
           ))}
         </ul>

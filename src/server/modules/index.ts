@@ -8,7 +8,7 @@ import { getOrgModules } from "./store";
  * organización. Todo camino que antes leía una bandera de despliegue
  * pregunta ahora por la organización a nombre de la cual actúa.
  */
-export { anyOrgHasChannel, getOrgModules, forgetOrgModules } from "./store";
+export { anyOrgHasChannel, getOrgModules, getManyOrgModules, forgetOrgModules } from "./store";
 export type { OrgModules, OptionalChannel } from "./defaults";
 export { OPTIONAL_CHANNELS, enabledModuleKeys } from "./defaults";
 
