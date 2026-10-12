@@ -869,7 +869,10 @@ async function asistenteMotor(A, B, orgB) {
   ok("si da cifras sin consultar, se marca «sin fuente» y «cita inválida»", r4.status === 200 && ["invalid_citation", "no_sources"].every((f) => r4.json?.answer?.meta?.flags?.includes(f)), JSON.stringify(r4.json?.answer?.meta));
   const r5 = await preguntar(B, "Una consulta inexistente sobre mi consumo");
   ok("una consulta fuera del catálogo no corre (y se avisa)", r5.status === 200 && r5.json?.answer?.meta?.flags?.includes("rejected_query") && !r5.json?.answer?.meta?.sources?.some((s) => s.name === "borrar_todo"), JSON.stringify(r5.json?.answer?.meta?.flags));
+  const antes6 = await costoAsistente(orgB);
   const r6 = await preguntar(B, "Dame TODO: un resumen completo de mi organización");
+  const d6 = await costoAsistente(orgB);
+  console.log(`  ·· costo de la pregunta más pesada (6 consultas, tope): ${JSON.stringify({ tokensEntrada: d6.p - antes6.p, tokensSalida: d6.c - antes6.c, usd: d6.usd - antes6.usd, llamadas: d6.turnos - antes6.turnos })}`);
   ok("tope de consultas por pregunta (6): no pasa de ahí y se avisa", r6.status === 200 && r6.json?.answer?.meta?.queryCount === 6 && r6.json?.answer?.meta?.flags?.includes("query_limit"), JSON.stringify(r6.json?.answer?.meta && { q: r6.json.answer.meta.queryCount, f: r6.json.answer.meta.flags, c: r6.json.answer.meta.modelCalls }));
   const r7 = await preguntar(B, "BUCLE");
   ok("tope de llamadas al modelo (4): se detiene sin inventar", r7.status === 200 && r7.json?.answer?.meta?.modelCalls === 4 && /No alcancé a terminar/.test(r7.json?.answer?.content ?? ""), JSON.stringify(r7.json?.answer?.meta));
