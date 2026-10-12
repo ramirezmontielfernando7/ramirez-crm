@@ -110,9 +110,23 @@ encenderlo:
    porcentaje del tope (por defecto), solo «Disponible / Agotado», o tokens.
    El cliente nunca ve dólares; tú ves las cifras reales aquí y en Costos.
 
-Las preguntas llegan con el PR 2 del 038: hasta entonces la pantalla del
-cliente solo muestra el aviso de consumo y el estado de su crédito, así que
-conviene encenderlo cuando el motor esté desplegado.
+Desde el PR 2 del 038 el Propietario le hace preguntas en `/asistente`. Lo
+que conviene saber antes de encenderlo:
+
+- **Solo lectura y catálogo cerrado.** El modelo no escribe SQL: pide
+  consultas de una lista fija (consumo de IA, almacenamiento, plan y topes,
+  avisos, módulos, equipo, etiquetas, leads por etapa y conversaciones
+  recientes), todas a nombre de la organización (RLS).
+- **Datos personales enmascarados.** Nombres de contactos y del equipo,
+  teléfonos y correos viajan al proveedor de IA como fichas («[CONTACTO 1]»);
+  el Propietario ve los datos reales en la respuesta.
+- **Cada respuesta dice de dónde salen sus datos** («Datos de: …») y deja ver
+  lo que devolvió cada consulta.
+- **Topes por pregunta:** hasta 6 consultas y 4 llamadas al modelo, una
+  pregunta a la vez por persona y 6 por minuto. Cada llamada cuenta contra su
+  tope propio y el total.
+- Las conversaciones son de quien las abre y se borran a los **90 días** sin
+  actividad. Tú (plataforma) no las ves.
 
 ### Pasos de Coolify (PR 3)
 

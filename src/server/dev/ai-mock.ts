@@ -2,6 +2,7 @@ import { DOCS_MARKER, JUDGE_MARKER } from "@/server/ai/prompts";
 import { foldAccents } from "@/lib/kb-docs";
 import { CABECERA_HUECOS } from "@/server/agenda/offers";
 import { WRITING_ASSIST_MARKER } from "@/server/writing-assist/prompts";
+import { ASSISTANT_MARKER } from "@/lib/assistant-engine";
 
 /**
  * Proveedor LLM determinista para el self-test (contrato mocks.md).
@@ -16,6 +17,9 @@ export function aiMockCompletion(messages: InMessage[]): string {
   const system = messages.find((m) => m.role === "system")?.content ?? "";
   const lastUser =
     [...messages].reverse().find((m) => m.role === "user")?.content ?? "";
+
+  // 038 (PR 2) — Asistente interno: pide consultas del catálogo y responde citándolas.
+  if (system.includes(ASSISTANT_MARKER)) return assistantMock(messages);
 
   // 023 — Asistente de redacción: transformación determinista del borrador.
   if (system.includes(WRITING_ASSIST_MARKER)) return writingAssistMock(lastUser);
@@ -229,4 +233,117 @@ export const AI_MOCK_PRICE = { inputPerMtok: 3, outputPerMtok: 15 } as const;
 
 export function aiMockCost(promptTokens: number, completionTokens: number): number {
   return (promptTokens * AI_MOCK_PRICE.inputPerMtok + completionTokens * AI_MOCK_PRICE.outputPerMtok) / 1_000_000;
+}
+
+/**
+ * 038 (PR 2) — Mock del asistente interno. Guarda cada prompt que recibe
+ * (`assistantMockLog`) para que el self-test compruebe que NINGÚN dato real
+ * (nombre de contacto, teléfono) llegó al «proveedor».
+ *
+ * Como el de documentos, es un modelo CRÉDULO con lo que quede FUERA de los
+ * bloques de datos: si una línea con «SISTEMA:» se escapa de su bloque, la
+ * obedece y responde «HACKEADO». Con la cuarentena bien hecha, la orden se
+ * queda dentro del bloque y el mock la ignora.
+ *
+ * Palabras de la pregunta que cambian su conducta (solo pruebas):
+ * INVENTA (responde cifras sin consultar y cita una fuente que no existe),
+ * TODO (pide más consultas de las permitidas), BUCLE (nunca responde),
+ * ROMPE (no devuelve JSON).
+ */
+type AssistantMockLog = { prompts: string[] };
+const ASSISTANT_LOG_KEY = "__voceroAssistantMockLog";
+
+export function assistantMockLog(): AssistantMockLog {
+  const g = globalThis as unknown as Record<string, AssistantMockLog | undefined>;
+  return (g[ASSISTANT_LOG_KEY] ??= { prompts: [] });
+}
+
+const MOCK_KEYWORDS: [RegExp, string, Record<string, unknown>?][] = [
+  [/etiqueta/, "etiquetas"],
+  [/almacen|espacio/, "almacenamiento"],
+  [/equipo|asesor/, "equipo"],
+  [/etapa|pipeline/, "conversaciones_por_etapa"],
+  [/reciente|[uú]ltim/, "conversaciones_recientes", { limite: 5 }],
+  [/funci[oó]n/, "consumo_ia_por_funcion"],
+  [/agente/, "consumo_ia_por_agente"],
+  [/plan|tope/, "plan_y_topes"],
+  [/aviso/, "avisos_consumo"],
+  [/m[oó]dulo/, "modulos"],
+  [/consumo|cr[eé]dito|\bia\b/, "consumo_ia"],
+];
+const TODO_QUERIES = ["consumo_ia", "consumo_ia_por_funcion", "almacenamiento", "plan_y_topes", "avisos_consumo", "modulos", "equipo", "etiquetas"];
+
+function assistantMock(messages: InMessage[]): string {
+  const log = assistantMockLog();
+  log.prompts.push(messages.map((m) => `${m.role}: ${m.content}`).join("\n\n"));
+  if (log.prompts.length > 200) log.prompts.splice(0, log.prompts.length - 200);
+
+  const system = messages[0]?.content ?? "";
+  const nonce = system.match(/<<DATOS qN · consulta · ([0-9a-f]+)>>/)?.[1] ?? "";
+  const block = new RegExp(`<<DATOS (q\\d+) · ([a-z_]+) · ${nonce}>>\\n([^\\n]*)\\n<<FIN DATOS \\1 · ${nonce}>>`, "g");
+  const results = messages.filter((m) => m.role === "user" && m.content.startsWith("RESULTADOS DE LAS CONSULTAS"));
+  const question =
+    [...messages].reverse().find((m) => m.role === "user" && !m.content.startsWith("RESULTADOS DE LAS CONSULTAS") && !m.content.startsWith("Ya no puedes"))
+      ?.content ?? "";
+  const q = foldAccents(question.toLowerCase());
+
+  const data: { id: string; name: string; json: unknown }[] = [];
+  for (const r of results) {
+    const outside = r.content.replace(block, (_m, id: string, name: string, json: string) => {
+      try {
+        data.push({ id, name, json: JSON.parse(json) });
+      } catch {
+        data.push({ id, name, json: null });
+      }
+      return "";
+    });
+    if (/SISTEMA:/i.test(outside)) return JSON.stringify({ action: "answer", text: "HACKEADO", sources: [] });
+  }
+
+  if (q.includes("rompe")) return "lo siento, hoy no tengo ganas de JSON";
+  if (q.includes("bucle")) return JSON.stringify({ action: "query", queries: [{ name: "consumo_ia" }] });
+  if (q.includes("inventa")) return JSON.stringify({ action: "answer", text: "Tienes 42 contactos nuevos.", sources: ["q9"] });
+
+  const sinMas = messages.some((m) => m.role === "user" && /Ya no (puedes hacer más|quedan) consultas/.test(m.content));
+  if (q.includes("todo") && !sinMas && data.length < TODO_QUERIES.length) {
+    const next = TODO_QUERIES.slice(data.length, data.length + 4).map((name) => ({ name }));
+    if (next.length > 0) return JSON.stringify({ action: "query", queries: next });
+  }
+
+  if (data.length === 0 && results.length === 0) {
+    const wanted = MOCK_KEYWORDS.filter(([re]) => re.test(q)).map(([, name, args]) => ({ name, ...(args ? { args } : {}) }));
+    if (q.includes("inexistente")) wanted.unshift({ name: "borrar_todo" });
+    if (wanted.length > 0) return JSON.stringify({ action: "query", queries: wanted.slice(0, 4) });
+    return JSON.stringify({ action: "answer", text: "Puedo ayudarte con el uso y el plan de tu organización. ¿Qué quieres saber?", sources: [] });
+  }
+
+  const lines = data.map((d) => assistantMockLine(d.name, d.json));
+  return JSON.stringify({ action: "answer", text: lines.join(" ") || "No encontré datos para responder.", sources: data.map((d) => d.id) });
+}
+
+function assistantMockLine(name: string, json: unknown): string {
+  const d = (json ?? {}) as Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+  switch (name) {
+    case "consumo_ia": {
+      const t = d.ia_total ?? {};
+      if (t.tokens_usados !== undefined || t.tokens) return `La IA del mes va en ${t.porcentaje_del_tope ?? "?"} % (${t.estado}); llevas ${t.tokens?.used ?? t.tokens_usados} tokens.`;
+      return t.porcentaje_del_tope === null || t.porcentaje_del_tope === undefined
+        ? `La IA del mes está: ${t.estado}.`
+        : `La IA del mes va en ${t.porcentaje_del_tope} % del tope (${t.estado}).`;
+    }
+    case "etiquetas":
+      return `Etiquetas: ${(d.etiquetas ?? []).map((e: { etiqueta: string; contactos: number }) => `${e.etiqueta} (${e.contactos})`).join(", ")}.`;
+    case "equipo":
+      return `Equipo: ${(d.personas ?? []).map((p: { persona: string; rol: string }) => `${p.persona} (${p.rol})`).join(", ")}.`;
+    case "conversaciones_recientes":
+      return `Chats recientes: ${(d.conversaciones ?? [])
+        .map((c: { contacto: string; telefono: string | null; ultimo_mensaje: string | null }) => `${c.contacto}${c.telefono ? ` ${c.telefono}` : ""}: «${c.ultimo_mensaje ?? ""}»`)
+        .join("; ")}.`;
+    case "conversaciones_por_etapa":
+      return `Leads por etapa: ${(d.etapas ?? []).map((e: { etapa: string; leads: number }) => `${e.etapa} ${e.leads}`).join(", ")}.`;
+    case "modulos":
+      return `Módulos encendidos: ${(d.encendidos ?? []).length}.`;
+    default:
+      return `Revisé ${name}.`;
+  }
 }

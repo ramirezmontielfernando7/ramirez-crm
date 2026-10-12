@@ -73,6 +73,8 @@ const ALCANCE = [
   path.join("server", "contacts.ts"),
   path.join("server", "agenda", "queries.ts"),
   path.join("server", "events", "visibility.ts"),
+  // 038 (PR 2): el catálogo del asistente responde al Propietario.
+  path.join("server", "assistant"),
 ];
 /** Superficies sin sesión de usuario: su propia autenticación. */
 const FUERA = ["bot", "webhooks", "dev"].map((d) => path.join("app", "api", d) + path.sep);
