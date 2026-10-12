@@ -60,6 +60,14 @@ describe("038 — enmascarado", () => {
     expect(k.unmask("[CONTACTO 7]")).toBe("[CONTACTO 7]"); // una ficha desconocida se queda como está
   });
 
+  it("las partes de un nombre solo se enmascaran sueltas si parecen nombre (mayúscula)", () => {
+    const k = new Masker();
+    k.name("contact", "Cliente con tope");
+    expect(k.text("llegué al tope, Cliente pidió más")).toBe("llegué al tope, [CONTACTO 1] pidió más");
+    k.name("contact", "María de la Luz");
+    expect(k.text("vive de la ciudad; María llamó")).toBe("vive de la ciudad; [CONTACTO 2] llamó");
+  });
+
   it("los números cortos no son teléfonos", () => {
     const k = new Masker();
     expect(k.text("Tengo 3 etiquetas y 1234 contactos")).toBe("Tengo 3 etiquetas y 1234 contactos");

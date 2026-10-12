@@ -846,12 +846,14 @@ async function asistenteMotor(A, B, orgB) {
   const a2 = r2.json?.answer?.content ?? "";
   ok("chats recientes: la Propietaria ve el nombre real", r2.status === 200 && a2.includes(nombre), a2.slice(0, 300));
   ok("…y el teléfono real", a2.includes(tel), a2.slice(0, 300));
-  ok("…la orden escondida en el mensaje NO se obedeció", !/HACKEADO/.test(a2), a2.slice(0, 300));
+  // El mock obedece una orden que se escape de su bloque respondiendo SOLO «HACKEADO»
+  // (citar el mensaje del cliente, que la trae como texto, no es obedecerla).
+  ok("…la orden escondida en el mensaje NO se obedeció", a2.trim() !== "HACKEADO" && /Chats recientes/.test(a2), a2.slice(0, 300));
   ok("…mismo hilo", r2.json?.threadId === threadId);
   const r3 = await preguntar(B, "¿Qué etiquetas tengo?", threadId);
   const a3 = r3.json?.answer?.content ?? "";
   ok("etiquetas: responde con la etiqueta real", r3.status === 200 && a3.includes(etiqueta), a3.slice(0, 300));
-  ok("…sin obedecer la orden escondida en su nombre", !/HACKEADO/.test(a3), a3);
+  ok("…sin obedecer la orden escondida en su nombre", a3.trim() !== "HACKEADO" && /^Etiquetas:/.test(a3.trim()), a3);
 
   const log = (await B.call("GET", "/api/dev/ai-mock/assistant-log")).json?.prompts ?? [];
   const todo = log.join("\n");

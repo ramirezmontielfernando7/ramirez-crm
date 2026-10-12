@@ -121,6 +121,23 @@ const KIND_LABEL: Record<MaskKind | "phone" | "email", string> = {
   email: "CORREO",
 };
 
+/**
+ * Partes de un nombre que NO se buscan sueltas en el texto libre: conectores
+ * («María de la Luz») que harían enmascarar medio mensaje.
+ */
+const NAME_STOPWORDS = new Set(["de", "del", "la", "las", "los", "el", "con", "san", "santa", "y", "e", "van", "von", "da", "dos"]);
+
+/**
+ * Dentro del texto libre, una parte de nombre solo se enmascara si ahí parece
+ * nombre: con mayúscula inicial (o es un número). Así «Rosa» se enmascara y
+ * la palabra «tope» de un mensaje no, aunque un contacto se llame «Cliente
+ * con tope». El nombre completo y los campos de nombre se enmascaran siempre.
+ */
+function looksLikeName(word: string): boolean {
+  const first = word.charAt(0);
+  return /\p{N}/u.test(first) || (first !== first.toLowerCase() && first === first.toUpperCase());
+}
+
 /** Teléfonos: 8 o más dígitos, con espacios, guiones, puntos, paréntesis o «+». */
 const PHONE_RE = /\+?\d(?:[\s().-]*\d){7,}/g;
 const EMAIL_RE = /[\p{L}\p{N}._%+-]+@[\p{L}\p{N}.-]+\.[\p{L}]{2,}/gu;
@@ -159,14 +176,15 @@ export class Masker {
     if (!v) return null;
     const token = this.token(kind, v);
     for (const part of fold(v).split(/[^\p{L}\p{N}]+/u)) {
-      if (part.length >= 3 && !this.nameParts.has(part)) this.nameParts.set(part, token);
+      if (part.length >= 3 && !NAME_STOPWORDS.has(part) && !this.nameParts.has(part)) this.nameParts.set(part, token);
     }
     return token;
   }
 
   /**
    * Texto libre (un mensaje, una nota, la pregunta): teléfonos y correos por
-   * fichas, y cualquier nombre ya conocido (completo o por partes) también.
+   * fichas, y cualquier nombre ya conocido (por partes con mayúscula inicial)
+   * también.
    * Quita los corchetes del original para que nadie pueda fabricar una ficha.
    */
   text(value: string | null | undefined): string {
@@ -177,7 +195,7 @@ export class Masker {
     // Palabra por palabra, sin acentos ni mayúsculas, sin tocar las fichas ya puestas.
     return t
       .split(/(\[(?:CONTACTO|PERSONA DEL EQUIPO|TELÉFONO|CORREO) \d+\])/)
-      .map((seg, i) => (i % 2 === 1 ? seg : seg.replace(/[\p{L}\p{N}]+/gu, (w) => this.nameParts.get(fold(w)) ?? w)))
+      .map((seg, i) => (i % 2 === 1 ? seg : seg.replace(/[\p{L}\p{N}]+/gu, (w) => (looksLikeName(w) ? this.nameParts.get(fold(w)) : undefined) ?? w)))
       .join("");
   }
 
