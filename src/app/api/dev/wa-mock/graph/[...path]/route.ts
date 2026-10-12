@@ -462,6 +462,20 @@ export async function POST(req: Request, ctx: Params) {
         { status: 400 }
       );
     }
+    // 038 (PR 6) — termina en 31050 → 131050: la persona dejó de recibir
+    // marketing de este negocio desde WhatsApp (respuesta síncrona del envío).
+    if (destino && destino.endsWith("31050")) {
+      return Response.json(
+        {
+          error: {
+            message: "(#131050) Unable to deliver message. User has stopped marketing messages from this business.",
+            code: 131050,
+            type: "OAuthException",
+          },
+        },
+        { status: 400 }
+      );
+    }
     // Campañas v2 (PR 2) — termina en 13100 → 131000: fallo genérico de Meta
     // que SÍ habla de la salud del número (dispara la pausa por tasa de fallos).
     if (destino && destino.endsWith("13100")) {

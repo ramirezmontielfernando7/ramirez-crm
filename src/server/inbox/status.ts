@@ -3,6 +3,7 @@ import { getDb, schema } from "@/lib/db";
 import { scoped } from "@/lib/db/tenant";
 import { describeSendError } from "@/lib/meta/send-errors";
 import { publish } from "@/server/events/bus";
+import { MARKETING_OPT_OUT_CODE, markMarketingOptOutForConversation } from "@/server/inbox/marketing-opt-out";
 import type { WebhookStatus } from "@/server/inbox/webhook";
 import { logger } from "@/lib/log";
 
@@ -123,6 +124,12 @@ export async function applyStatusUpdate(
       });
     }
     return;
+  }
+
+  // 038 (PR 6): Meta avisa que la persona dejó de recibir marketing de este
+  // negocio (131050): las campañas de marketing la omiten desde ahora.
+  if (next === "failed" && errorCode === MARKETING_OPT_OUT_CODE) {
+    await markMarketingOptOutForConversation({ organizationId, conversationId: msg.conversationId, at });
   }
 
   publish(organizationId, {

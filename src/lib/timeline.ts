@@ -31,7 +31,9 @@ export type TimelineKind =
   | "participant_added"
   | "participant_removed"
   /** 031 (PR B): cambió el agente de IA que atiende (agente por etapa). */
-  | "agent_changed";
+  | "agent_changed"
+  /** 038 (PR 6): Meta avisó 131050 (dejó de recibir marketing) o una persona quitó la marca. */
+  | "marketing_opt_out";
 
 export type TimelineItemDto = {
   id: string;
@@ -128,6 +130,13 @@ export function describeTimelineItem(item: TimelineItemDto): TimelineLine {
         title: `Cambió el agente que atiende: ${d.fromName ?? "un agente borrado"} → ${d.toName ?? "un agente borrado"}`,
         body: null,
       };
+    case "marketing_opt_out":
+      return d.action === "cleared"
+        ? { title: `Volvió a aceptar promociones (campañas de marketing)${actor}`, body: null }
+        : {
+            title: "WhatsApp: dejó de recibir promociones de este negocio",
+            body: "Meta respondió 131050. Las campañas de marketing lo omiten; utilidad y autenticación le siguen llegando.",
+          };
   }
 }
 

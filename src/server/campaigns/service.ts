@@ -22,7 +22,7 @@ import { getHealthSummary } from "@/server/whatsapp/health";
 import { getOrCreateContact, getOrCreateConversation } from "@/server/inbox/ingest";
 import { SendError } from "@/server/inbox/send";
 import { parseImportPhone } from "@/server/contacts-io/validate";
-import { audienceBreakdown, audienceContacts } from "@/server/campaigns/audience";
+import { audienceBreakdown, audienceContacts, marketingRulesFor } from "@/server/campaigns/audience";
 import { estimateCost, getCampaignSettings } from "@/server/campaigns/settings";
 import { ensureDispatcher } from "@/server/campaigns/dispatcher";
 import { cancelCampaign, pauseCampaign, resumeCampaign } from "@/server/campaigns/lifecycle";
@@ -404,9 +404,6 @@ export async function previewCampaign(
   organizationId: string,
   input: { audience: CampaignAudience; templateId?: string | null; variables?: CampaignVariable[] }
 ): Promise<CampaignPreview> {
-  const breakdown = await audienceBreakdown(organizationId, input.audience);
-  const excluded = { ...breakdown.excluded };
-  let eligible = breakdown.eligible;
   let category: string | null = null;
   if (input.templateId) {
     const t = await getDb()
@@ -416,17 +413,22 @@ export async function previewCampaign(
       .limit(1);
     category = t[0]?.category ?? null;
   }
-  if (input.audience.importId && input.variables?.some((v) => v.kind === "column")) {
-    const contacts = await audienceContacts(organizationId, input.audience);
-    const missing = contacts.filter((c) => !variablesFor(input.variables!, c.name, c.fields)).length;
-    excluded.missingVariable += missing;
-    eligible -= missing;
-  }
   const [settings, health, timezone] = await Promise.all([
     getCampaignSettings(organizationId),
     getHealthSummary(organizationId),
     businessTimezone(organizationId),
   ]);
+  // 038 (PR 6): con una plantilla de marketing, bajas 131050 y frecuencia.
+  const marketing = marketingRulesFor(category, settings);
+  const breakdown = await audienceBreakdown(organizationId, input.audience, marketing);
+  const excluded = { ...breakdown.excluded };
+  let eligible = breakdown.eligible;
+  if (input.audience.importId && input.variables?.some((v) => v.kind === "column")) {
+    const contacts = await audienceContacts(organizationId, input.audience, marketing);
+    const missing = contacts.filter((c) => !variablesFor(input.variables!, c.name, c.fields)).length;
+    excluded.missingVariable += missing;
+    eligible -= missing;
+  }
   const limit = health.today?.messagingLimitValue ?? parseMessagingLimit(health.today?.messagingLimit ?? null);
   return {
     eligible,
@@ -479,9 +481,13 @@ export async function launchCampaign(
     throw new CampaignError("not_connected", "El token de WhatsApp expiró: reconecta el número antes de enviar");
   }
 
-  const breakdown = await audienceBreakdown(organizationId, current.audience);
+  const settings = await getCampaignSettings(organizationId);
+  // 038 (PR 6): con plantilla de marketing quedan fuera las bajas 131050 y
+  // quien recibió otra campaña de marketing hace menos del tope de días.
+  const marketing = marketingRulesFor(template.category, settings, { campaignId });
+  const breakdown = await audienceBreakdown(organizationId, current.audience, marketing);
   const excluded = { ...breakdown.excluded };
-  const contacts = await audienceContacts(organizationId, current.audience);
+  const contacts = await audienceContacts(organizationId, current.audience, marketing);
   const recipients: { id: string; name: string; phone: string | null; variables: string[] }[] = [];
   for (const c of contacts) {
     const values = variablesFor(current.variables, c.name, c.fields);
@@ -492,14 +498,16 @@ export async function launchCampaign(
     recipients.push({ id: c.id, name: c.name, phone: c.phone, variables: values });
   }
   if (recipients.length === 0) {
+    const marketingOut = excluded.marketingOptOut + excluded.recentMarketing;
     throw new CampaignError(
       "no_recipients",
-      contacts.length === 0
-        ? "Ningún contacto del público tiene consentimiento (opt_in): no hay a quién enviar"
-        : "A ningún contacto del público se le pueden llenar las variables: revisa las columnas elegidas"
+      contacts.length > 0
+        ? "A ningún contacto del público se le pueden llenar las variables: revisa las columnas elegidas"
+        : marketingOut > 0
+          ? "Nadie del público puede recibir esta campaña de marketing: o dejaron de recibir promociones en WhatsApp o recibieron otra campaña de marketing hace poco (ver Ajustes de envío → Frecuencia de marketing)"
+          : "Ningún contacto del público tiene consentimiento (opt_in): no hay a quién enviar"
     );
   }
-  const settings = await getCampaignSettings(organizationId);
   const estimate = estimateCost(settings, template.category, recipients.length);
 
   const db = getDb();

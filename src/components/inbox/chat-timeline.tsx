@@ -41,6 +41,7 @@ const ICON: Record<TimelineKind, LucideIcon> = {
   participant_added: UserPlus,
   participant_removed: UserMinus,
   agent_changed: Bot,
+  marketing_opt_out: Megaphone,
 };
 
 /** Cuántas líneas se ven de entrada; "Ver anteriores" suma de a tantas. */

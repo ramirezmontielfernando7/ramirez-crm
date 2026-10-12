@@ -1,7 +1,13 @@
 import { and, eq, isNotNull, isNull, or, sql, type SQL } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { scoped } from "@/lib/db/tenant";
-import type { CampaignAudience, ExclusionReason } from "@/lib/campaigns";
+import {
+  isMarketingCategory,
+  marketingCutoff,
+  type CampaignAudience,
+  type CampaignSettingsDto,
+  type ExclusionReason,
+} from "@/lib/campaigns";
 import { contactFilterConditions, type SourceFilter } from "@/server/contact-filter";
 import { notLabContact } from "@/server/analytics/shared";
 
@@ -20,13 +26,64 @@ import { notLabContact } from "@/server/analytics/shared";
  *
  * Campañas v2 (PR 2): el público puede ser una base guardada de Audiencias
  * (`importId`): sus miembros, con las mismas reglas.
+ *
+ * 038 (PR 6): con una plantilla de MARKETING (`marketing` no nulo) quedan
+ * fuera además quien dejó de recibir promociones desde WhatsApp (Meta
+ * respondió 131050) y quien recibió otra campaña de marketing hace menos de
+ * `marketing_min_days`. Utilidad y autenticación no cambian.
  */
-export function audienceConditions(audience: CampaignAudience): SQL[] {
+export function audienceConditions(audience: CampaignAudience, marketing: MarketingRules | null = null): SQL[] {
   return [
     eq(schema.contact.waConsent, "opt_in"),
     ...eligibleBase(),
+    ...marketingConditions(marketing),
     ...filterConditions(audience),
   ];
+}
+
+/**
+ * 038 (PR 6) — Las reglas de marketing de una campaña. null = la plantilla
+ * no es de marketing (no aplica nada). `cutoff` null = tope de frecuencia
+ * apagado (0 días); la baja 131050 aplica igual. `campaignId` = la campaña
+ * que se revisa, que no se cuenta a sí misma.
+ */
+export type MarketingRules = { cutoff: Date | null; campaignId?: string | null };
+
+export function marketingRulesFor(
+  category: string | null | undefined,
+  settings: Pick<CampaignSettingsDto, "marketingMinDays">,
+  opts: { campaignId?: string | null; now?: Date } = {}
+): MarketingRules | null {
+  if (!isMarketingCategory(category)) return null;
+  return { cutoff: marketingCutoff(settings.marketingMinDays, opts.now), campaignId: opts.campaignId ?? null };
+}
+
+function marketingConditions(marketing: MarketingRules | null): SQL[] {
+  if (!marketing) return [];
+  const out: SQL[] = [isNull(schema.contact.waMarketingOptOutAt)];
+  if (marketing.cutoff) out.push(sql`not ${recentMarketingExists(marketing)}`);
+  return out;
+}
+
+/**
+ * ¿Este contacto recibió otra campaña de MARKETING desde `cutoff`? Cuenta lo
+ * que salió (`sent`) y Meta no rechazó después (un `failed` del webhook no
+ * llegó a nadie). La categoría es la ACTUAL de la plantilla de esa campaña.
+ */
+function recentMarketingExists(marketing: MarketingRules): SQL {
+  const cutoff = (marketing.cutoff ?? new Date(0)).toISOString();
+  const self = marketing.campaignId ? sql`and c.id <> ${marketing.campaignId}` : sql``;
+  return sql`exists (select 1 from ${schema.campaignRecipient} cr
+    join ${schema.campaign} c on c.organization_id = cr.organization_id and c.id = cr.campaign_id
+    join ${schema.template} t on t.organization_id = c.organization_id and t.id = c.template_id
+    where cr.organization_id = ${schema.contact.organizationId}
+      and cr.contact_id = ${schema.contact.id}
+      and cr.status = 'sent'
+      and cr.sent_at >= ${cutoff}::timestamp
+      and lower(t.category) = 'marketing'
+      ${self}
+      and not exists (select 1 from ${schema.message} m
+        where m.organization_id = cr.organization_id and m.id = cr.message_id and m.status = 'failed'))`;
 }
 
 /** Lo que exige el envío además del consentimiento. */
@@ -56,7 +113,16 @@ function filterConditions(audience: CampaignAudience): SQL[] {
 }
 
 export function emptyExclusions(): Record<ExclusionReason, number> {
-  return { noConsent: 0, optOut: 0, invalid: 0, duplicate: 0, archived: 0, missingVariable: 0 };
+  return {
+    noConsent: 0,
+    optOut: 0,
+    invalid: 0,
+    duplicate: 0,
+    archived: 0,
+    missingVariable: 0,
+    marketingOptOut: 0,
+    recentMarketing: 0,
+  };
 }
 
 /**
@@ -65,8 +131,13 @@ export function emptyExclusions(): Record<ExclusionReason, number> {
  */
 export async function audienceBreakdown(
   organizationId: string,
-  audience: CampaignAudience
+  audience: CampaignAudience,
+  marketing: MarketingRules | null = null
 ): Promise<{ eligible: number; excluded: Record<ExclusionReason, number> }> {
+  const marketingCases = marketing
+    ? sql`when ${schema.contact.waMarketingOptOutAt} is not null then 'marketingOptOut'
+        ${marketing.cutoff ? sql`when ${recentMarketingExists(marketing)} then 'recentMarketing'` : sql``}`
+    : sql``;
   // scoped-ok: campañas son de quien ve todo (permiso campaigns.manage).
   const rows = await getDb()
     .select({
@@ -75,6 +146,7 @@ export async function audienceBreakdown(
         when ${schema.contact.phone} is null and ${schema.contact.waUserId} is null then 'invalid'
         when ${schema.contact.waConsent} = 'opt_out' then 'optOut'
         when ${schema.contact.waConsent} <> 'opt_in' then 'noConsent'
+        ${marketingCases}
         else 'eligible' end`,
       n: sql<number>`count(*)::int`,
     })
@@ -119,6 +191,8 @@ export type AudiencePreview = {
 
 /** 021 — Resumen corto (sigue sirviendo a `/api/campaigns/preview`). */
 export async function previewAudience(organizationId: string, audience: CampaignAudience): Promise<AudiencePreview> {
+  // Sin plantilla todavía: solo consentimiento (las reglas de marketing las
+  // aplica el paso con plantilla, `previewCampaign`).
   const b = await audienceBreakdown(organizationId, audience);
   return {
     eligible: b.eligible,
@@ -133,13 +207,14 @@ export async function previewAudience(organizationId: string, audience: Campaign
  */
 export async function audienceContacts(
   organizationId: string,
-  audience: CampaignAudience
+  audience: CampaignAudience,
+  marketing: MarketingRules | null = null
 ): Promise<{ id: string; name: string; phone: string | null; fields: Record<string, string> }[]> {
   // scoped-ok: campañas son de quien ve todo (permiso campaigns.manage).
   const contacts = await getDb()
     .select({ id: schema.contact.id, name: schema.contact.name, phone: schema.contact.phone })
     .from(schema.contact)
-    .where(scoped(schema.contact.organizationId, organizationId, ...audienceConditions(audience)));
+    .where(scoped(schema.contact.organizationId, organizationId, ...audienceConditions(audience, marketing)));
   if (!audience.importId || contacts.length === 0) return contacts.map((c) => ({ ...c, fields: {} }));
   const members = await getDb()
     .select({ contactId: schema.audienceMember.contactId, fields: schema.audienceMember.fields })
@@ -153,4 +228,48 @@ export async function audienceContacts(
     );
   const byContact = new Map(members.map((m) => [m.contactId, m.fields]));
   return contacts.map((c) => ({ ...c, fields: byContact.get(c.id) ?? {} }));
+}
+
+/**
+ * 038 (PR 6) — Re-verificación de ÚLTIMA HORA para un destinatario de una
+ * campaña de marketing (el público se congeló al lanzar; desde entonces Meta
+ * pudo avisar 131050 u otra campaña de marketing pudo llegarle antes). Devuelve
+ * el motivo para omitirlo, o null si se le puede enviar.
+ */
+export async function marketingSkipReason(
+  organizationId: string,
+  input: {
+    campaignId: string;
+    templateId: string;
+    contact: { id: string; waMarketingOptOutAt: Date | null };
+    settings: Pick<CampaignSettingsDto, "marketingMinDays">;
+  }
+): Promise<string | null> {
+  const db = getDb();
+  const t = await db
+    .select({ category: schema.template.category })
+    .from(schema.template)
+    .where(scoped(schema.template.organizationId, organizationId, eq(schema.template.id, input.templateId)))
+    .limit(1);
+  const rules = marketingRulesFor(t[0]?.category, input.settings, { campaignId: input.campaignId });
+  if (!rules) return null;
+  if (input.contact.waMarketingOptOutAt) {
+    return "Dejó de recibir promociones de este negocio en WhatsApp (131050): no se le envió";
+  }
+  if (!rules.cutoff) return null;
+  const recent = await db
+    .select({ id: schema.contact.id })
+    .from(schema.contact)
+    .where(
+      scoped(
+        schema.contact.organizationId,
+        organizationId,
+        eq(schema.contact.id, input.contact.id),
+        recentMarketingExists(rules)
+      )
+    )
+    .limit(1);
+  return recent.length > 0
+    ? `Recibió otra campaña de marketing hace menos de ${input.settings.marketingMinDays} días: no se le envió`
+    : null;
 }

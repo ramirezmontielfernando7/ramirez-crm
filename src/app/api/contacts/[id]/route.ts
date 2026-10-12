@@ -3,6 +3,7 @@ import { z } from "zod";
 import { apiError, parseBody, withAuth } from "@/lib/api";
 import { getDb, schema } from "@/lib/db";
 import { logActivitySafe } from "@/server/activity/log";
+import { clearMarketingOptOut } from "@/server/inbox/marketing-opt-out";
 import { scopedContacts } from "@/lib/db/tenant";
 import {
   getContactById,
@@ -74,6 +75,11 @@ const patchSchema = z.object({
    */
   waConsent: z.enum(WA_CONSENT_VALUES).optional(),
   waConsentSource: z.string().trim().max(200).nullable().optional(),
+  /**
+   * 038 (PR 6) — La persona confirmó que volvió a aceptar promociones: quita
+   * la marca 131050 de Meta. Si Meta sigue respondiendo 131050, vuelve sola.
+   */
+  clearMarketingOptOut: z.literal(true).optional(),
 });
 
 export const PATCH = withAuth(async (session, req: Request, ctx: Params) => {
@@ -98,6 +104,11 @@ export const PATCH = withAuth(async (session, req: Request, ctx: Params) => {
       ficha: body.data.ficha,
     });
     if (!res) return apiError(404, "not_found", "Contacto no encontrado");
+  }
+
+  // Antes del UPDATE de abajo: así su `returning` ya trae la marca quitada.
+  if (body.data.clearMarketingOptOut) {
+    await clearMarketingOptOut({ organizationId: session.organizationId, contactId: id, actorUserId: session.userId });
   }
 
   const set: Record<string, unknown> = { updatedAt: new Date() };

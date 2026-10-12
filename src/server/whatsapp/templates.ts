@@ -482,6 +482,7 @@ export async function syncTemplates(organizationId: string): Promise<number> {
       .where(scoped(schema.template.organizationId, organizationId, eq(schema.template.id, match.id)));
     if (!same) changed++;
   }
+  if (changed > 0) await pauseBlockedCampaigns(organizationId);
   return changed;
 }
 
@@ -540,6 +541,21 @@ export async function applyTemplateStatusEvent(
         eq(schema.template.language, language)
       )
     ));
+  await pauseBlockedCampaigns(organizationId);
+}
+
+/**
+ * 038 (PR 6): si la plantilla quedó pausada, desactivada o retirada, sus
+ * campañas activas o programadas se pausan ya. Import dinámico: campañas ya
+ * importa este módulo. Nunca tumba el webhook ni la sincronización.
+ */
+async function pauseBlockedCampaigns(organizationId: string): Promise<void> {
+  try {
+    const { pauseCampaignsWithBlockedTemplates } = await import("@/server/campaigns/template-guard");
+    await runWithOrganization(organizationId, () => pauseCampaignsWithBlockedTemplates(organizationId));
+  } catch (err) {
+    log.error("no se pudieron pausar las campañas de una plantilla bloqueada", { org: organizationId, err });
+  }
 }
 
 /**

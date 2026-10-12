@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import { RATE_CATEGORY_LABEL, type CampaignSettingsDto } from "@/lib/campaigns";
+import { MAX_MARKETING_MIN_DAYS, RATE_CATEGORY_LABEL, type CampaignSettingsDto } from "@/lib/campaigns";
 import { fetchJson, jsonInit } from "@/lib/fetch-json";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -121,6 +121,36 @@ export function CampaignSettingsForm({ brandName }: { brandName: string }) {
                     <Input aria-label="Porcentaje del límite" type="number" min={1} max={100} className="w-20" value={s.usagePausePercent} onChange={num("usagePausePercent")} />
                     <span>% del límite de 24 h que reporta Meta (se reintenta sola).</span>
                   </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Frecuencia de marketing</CardTitle>
+                  <CardDescription>
+                    Cuántos días deben pasar antes de que un mismo contacto reciba otra campaña de marketing. Protege la
+                    calidad de tu número: quien recibe promociones muy seguido bloquea o reporta. Las campañas de
+                    utilidad y autenticación no cuentan.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-2 text-sm">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span>Una campaña de marketing por contacto cada</span>
+                    <Input
+                      aria-label="Días entre campañas de marketing"
+                      type="number"
+                      min={0}
+                      max={MAX_MARKETING_MIN_DAYS}
+                      className="w-20"
+                      value={s.marketingMinDays}
+                      onChange={num("marketingMinDays")}
+                    />
+                    <span>días.</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    0 = sin tope. Quien dejó de recibir promociones desde WhatsApp (Meta responde 131050) queda fuera de
+                    toda campaña de marketing, sin importar este número.
+                  </p>
                 </CardContent>
               </Card>
 

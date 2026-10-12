@@ -29,6 +29,7 @@ oficial.
 | `GET {waba}?fields=template_analytics…` | enviados, entregados, leídos y clics de botón por plantilla y día; **retención 90 días** (detalle en "PR 3", abajo) | management | Puede requerir activar las analíticas de plantillas en la WABA | 3 |
 | `GET {waba}?fields=pricing_analytics…` | volumen y costo por día, país, categoría y tipo; **retención 1 año** (desde el 1-dic-2025; antes 10 años) | management | — | 3 |
 | `conversation_analytics` | Sigue existiendo, pero describe el cobro por conversación, reemplazado por el cobro por mensaje el 1-jul-2025 | — | — | **No se usa** |
+| Error **131050** | La persona dejó de recibir MARKETING de este negocio desde WhatsApp. **NO VERIFICADO** si llega síncrono (respuesta del envío) o asíncrono (estado `failed` del webhook): Vocero maneja ambos. No es un `opt_out`: utilidad y autenticación le siguen llegando | — | — | 038 PR 6 (`contact.wa_marketing_opt_out_at`; las campañas de marketing la omiten) |
 | Error **131049** | Meta no entregó un mensaje de marketing para "cuidar el ecosistema" (límite de marketing por usuario, sumando a todas las empresas). Reintentar antes de 24 h no sirve | — | aprox. 2 plantillas de marketing por usuario al día; utility y authentication exentas (las cifras NO se usan en el código) | 1 (traducción), 2 (no reintentar), 3 (motivo) |
 
 ## Decisiones que salen de esta tabla
@@ -87,6 +88,10 @@ ajusto antes de fusionar:
    recibe como `type: "button"` y lo trata como texto).
 10. **Error 131049**: texto y si llega síncrono (respuesta del envío) o
     asíncrono (estado `failed` en el webhook). Vocero maneja ambos.
+10b. **Error 131050** (038 PR 6): texto, si llega síncrono o asíncrono
+    (Vocero maneja ambos), y si Meta lo vuelve a responder después de que la
+    persona reactiva las promociones (Vocero vuelve a marcarla; una persona
+    quita la marca a mano en el panel del contacto).
 11. **Permisos**: que todo lo anterior funcione con
     `whatsapp_business_management` + `whatsapp_business_messaging` sobre el
     token del sistema que ya usa tu instancia.

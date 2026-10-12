@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { parseBody, withAuth } from "@/lib/api";
 import { campaignsDisabledResponse, campaignsEnabled } from "@/server/campaigns/flag";
+import { MAX_MARKETING_MIN_DAYS } from "@/lib/campaigns";
 import { getCampaignSettings, saveCampaignSettings } from "@/server/campaigns/settings";
 
 export const dynamic = "force-dynamic";
@@ -23,6 +24,8 @@ const bodySchema = z.object({
   rates: z.object({ marketing: rate, utility: rate, authentication: rate }).strict(),
   currency: z.string().regex(/^[A-Za-z]{3}$/, "Moneda de 3 letras (MXN, USD…)").nullable(),
   replyWindowHours: z.number().int().min(1).max(720),
+  /** 038 (PR 6): opcional; sin él se conserva el valor guardado. */
+  marketingMinDays: z.number().int().min(0).max(MAX_MARKETING_MIN_DAYS).optional(),
 });
 
 export const PUT = withAuth(
@@ -33,7 +36,13 @@ export const PUT = withAuth(
     const rates = Object.fromEntries(
       Object.entries(body.data.rates).filter((e): e is [string, number] => typeof e[1] === "number")
     );
-    const settings = await saveCampaignSettings(session.organizationId, session.userId, { ...body.data, rates });
+    const marketingMinDays =
+      body.data.marketingMinDays ?? (await getCampaignSettings(session.organizationId)).marketingMinDays;
+    const settings = await saveCampaignSettings(session.organizationId, session.userId, {
+      ...body.data,
+      rates,
+      marketingMinDays,
+    });
     return Response.json({ settings });
   },
   { permission: "campaigns.manage" }

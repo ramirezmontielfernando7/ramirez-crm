@@ -281,6 +281,14 @@ export const contact = pgTable(
     /** 021: cuándo cambió por última vez (auditoría). NULL = nunca se tocó. */
     waConsentAt: timestamp("wa_consent_at"),
     /**
+     * 038 (PR 6): Meta respondió 131050 a un envío: la persona dejó de
+     * recibir MARKETING de este negocio desde WhatsApp. No toca `wa_consent`
+     * (utilidad y autenticación le siguen llegando); las campañas de
+     * marketing la omiten. NULL = sin aviso de Meta. Solo una persona lo
+     * quita a mano (`PATCH /api/contacts/[id]`).
+     */
+    waMarketingOptOutAt: timestamp("wa_marketing_opt_out_at"),
+    /**
      * 020: quién del equipo atiende a este contacto (su lead, su conversación
      * y sus citas). NULL = sin asignar, que es como nace todo lead.
      *
@@ -2003,6 +2011,8 @@ export const campaignRecipient = pgTable(
       foreignColumns: [campaign.organizationId, campaign.id],
     }).onDelete("cascade"),
     index("campaign_recipient_org_message_idx").on(t.organizationId, t.messageId),
+    // 038 (PR 6): «¿recibió marketing hace menos de N días?», por contacto.
+    index("campaign_recipient_org_contact_sent_idx").on(t.organizationId, t.contactId, t.sentAt),
     // Campañas v2 (PR 1): el mensaje es de la MISMA organización. El estado
     // de entrega se deriva de él (no se duplica). En la BD es
     // ON DELETE SET NULL (message_id) (0031).
@@ -2047,6 +2057,9 @@ export const contactActivityEvent = pgTable(
         "tag_removed",
         // 031 (PR B): cambió el agente que atiende (detail: from/to + nombres)
         "agent_changed",
+        // 038 (PR 6): Meta avisó 131050 (detail.action = "set") o una persona
+        // quitó esa marca (detail.action = "cleared").
+        "marketing_opt_out",
       ],
     }).notNull(),
     /** Quién; NULL = no fue una persona (agente, cerebro externo, sistema). */
@@ -2980,6 +2993,11 @@ export const campaignSettings = pgTable(
     rates: jsonb("rates").$type<Record<string, number>>().notNull().default({}),
     currency: text("currency"),
     replyWindowHours: integer("reply_window_hours").notNull().default(72),
+    /**
+     * 038 (PR 6): días mínimos entre dos campañas de MARKETING al mismo
+     * contacto (0 = sin tope). Utilidad y autenticación no cuentan.
+     */
+    marketingMinDays: integer("marketing_min_days").notNull().default(7),
     updatedBy: text("updated_by").references(() => user.id, { onDelete: "set null" }),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },
@@ -2988,6 +3006,7 @@ export const campaignSettings = pgTable(
     check("campaign_settings_fail_window_chk", sql`${t.failRateWindow} between 10 and 1000`),
     check("campaign_settings_usage_pause_chk", sql`${t.usagePausePercent} between 1 and 100`),
     check("campaign_settings_reply_window_chk", sql`${t.replyWindowHours} between 1 and 720`),
+    check("campaign_settings_marketing_min_days_chk", sql`${t.marketingMinDays} between 0 and 90`),
   ]
 );
 

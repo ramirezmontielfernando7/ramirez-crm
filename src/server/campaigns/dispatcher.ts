@@ -12,6 +12,8 @@ import { getHealthSummary } from "@/server/whatsapp/health";
 import { getCredentialsByOrg } from "@/server/whatsapp/credentials";
 import { campaignSendRate, campaignsEnabled } from "@/server/campaigns/flag";
 import { getCampaignSettings } from "@/server/campaigns/settings";
+import { marketingSkipReason } from "@/server/campaigns/audience";
+import { MARKETING_OPT_OUT_CODE, markMarketingOptOut } from "@/server/inbox/marketing-opt-out";
 import { classifySendError, MAX_ATTEMPTS, backoffScale, retryDelayMs } from "@/server/campaigns/outcome";
 import { safetyCheck, type SafetyPause } from "@/server/campaigns/safety";
 import {
@@ -113,6 +115,17 @@ export const sendRecipient: SendFn = async (organizationId, campaign, recipient,
     await finishClaim(organizationId, recipient, { status: "skipped", error: "El contacto se archivó antes del envío" }, owner);
     return { kind: "skipped" };
   }
+  // 038 (PR 6): marketing — baja 131050 y tope de frecuencia, al enviar.
+  const marketingSkip = await marketingSkipReason(organizationId, {
+    campaignId: campaign.id,
+    templateId: campaign.templateId,
+    contact,
+    settings: await getCampaignSettings(organizationId),
+  });
+  if (marketingSkip) {
+    await finishClaim(organizationId, recipient, { status: "skipped", error: marketingSkip }, owner);
+    return { kind: "skipped" };
+  }
 
   const variables =
     recipient.variables ?? resolveVariables(campaign.variables as CampaignVariable[], contact.name);
@@ -129,6 +142,8 @@ export const sendRecipient: SendFn = async (organizationId, campaign, recipient,
     return { kind: "sent" };
   } catch (err) {
     const d = classifySendError(err);
+    // 038 (PR 6): la respuesta síncrona de Meta también puede traer el 131050.
+    if (d.code === MARKETING_OPT_OUT_CODE) await markMarketingOptOut({ organizationId, contactId: contact.id });
     if (d.kind === "pause") {
       await finishClaim(organizationId, recipient, { status: "release" }, owner);
       return { kind: "pause", reason: d.reason };

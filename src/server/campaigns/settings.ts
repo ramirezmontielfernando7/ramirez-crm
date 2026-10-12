@@ -1,6 +1,6 @@
 import { getDb, schema } from "@/lib/db";
 import { scoped } from "@/lib/db/tenant";
-import type { CampaignSettingsDto } from "@/lib/campaigns";
+import { DEFAULT_MARKETING_MIN_DAYS, type CampaignSettingsDto } from "@/lib/campaigns";
 
 /**
  * Campañas v2 (PR 2) — Ajustes de envío por organización (`campaign_settings`).
@@ -16,6 +16,7 @@ export const DEFAULT_CAMPAIGN_SETTINGS: CampaignSettingsDto = {
   rates: {},
   currency: null,
   replyWindowHours: 72,
+  marketingMinDays: DEFAULT_MARKETING_MIN_DAYS,
 };
 
 export const RATE_CATEGORIES = ["marketing", "utility", "authentication"] as const;
@@ -36,6 +37,7 @@ export async function getCampaignSettings(organizationId: string): Promise<Campa
     rates: cleanRates(r.rates),
     currency: r.currency,
     replyWindowHours: r.replyWindowHours,
+    marketingMinDays: r.marketingMinDays,
   };
 }
 
@@ -63,6 +65,7 @@ export async function saveCampaignSettings(
     rates: cleanRates(input.rates),
     currency: input.currency?.trim().toUpperCase().slice(0, 3) || null,
     replyWindowHours: input.replyWindowHours,
+    marketingMinDays: input.marketingMinDays,
     updatedBy: userId,
     updatedAt: new Date(),
   };

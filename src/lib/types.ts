@@ -156,6 +156,8 @@ export type ContactDto = {
   waConsent?: WaConsent;
   waConsentSource?: string | null;
   waConsentAt?: string | null;
+  /** 038 (PR 6) — Meta avisó 131050: dejó de recibir promociones (campañas de marketing lo omiten). */
+  waMarketingOptOutAt?: string | null;
   /** 021 — etiquetas del contacto. */
   tags?: TagDto[];
 };
