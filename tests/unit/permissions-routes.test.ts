@@ -125,6 +125,9 @@ const PROTEGIDAS: [string, Method, Permission][] = [
   ["usage", "GET", "usage.read"],
   ["usage/alerts", "GET", "usage.read"],
   ["usage/alerts", "POST", "usage.read"],
+  // 038 (PR 1): asistente interno (solo el Propietario; 404 sin el módulo).
+  ["assistant/status", "GET", "assistant.use"],
+  ["assistant/notice", "POST", "assistant.use"],
   ["settings/team", "GET", "users.read"],
   ["settings/team", "POST", "users.manage"],
   ["settings/team/[id]", "PATCH", "users.manage"],

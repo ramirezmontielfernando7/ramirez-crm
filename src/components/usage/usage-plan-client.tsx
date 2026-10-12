@@ -21,6 +21,7 @@ import {
   turnos,
   type Meter,
 } from "@/lib/usage";
+import { gaugeMeter, type Gauge } from "@/lib/usage-visibility";
 import { cn } from "@/lib/utils";
 import type { OwnerUsage } from "@/server/usage/owner";
 
@@ -28,6 +29,10 @@ import type { OwnerUsage } from "@/server/usage/owner";
  * 036 (PR 6) — «Uso y plan» del Propietario: su plan, cada medida del mes
  * contra su tope y qué función y qué agente consumen más. Solo lectura; los
  * topes los cambia el administrador de plataforma.
+ *
+ * 038 (PR 1): la IA llega ya recortada por el servidor a la visibilidad de la
+ * organización: cifras solo con `tokens`; con `percent`, porcentajes; con
+ * `status`, «Disponible» / «Agotado» y sin desglose.
  */
 
 function mesDe(period: string): string {
@@ -76,6 +81,15 @@ function Share({ label, hint, value, share }: { label: string; hint?: string; va
 
 const tokensYTurnos = (t: { tokens: number; turns: number }) => `${formatTokens(t.tokens)} tokens · ${turnos(t.turns)}`;
 
+/** Lo que dice una fila de «quién consume más»: cifras con `tokens`, si no su parte del total. */
+const shareValue = (l: { share: number; tokens?: number; turns?: number }) =>
+  l.tokens !== undefined && l.turns !== undefined ? tokensYTurnos({ tokens: l.tokens, turns: l.turns }) : `${Math.round(l.share * 100)} %`;
+
+/** El medidor de una medida de IA: con cifras (`tokens`) o con porcentaje/estado. */
+function gaugeOrCount(g: Gauge, unit: string): Meter {
+  return g.used !== undefined ? countMeter(g.used, g.limit ?? null, unit, formatTokens) : gaugeMeter(g);
+}
+
 export function UsagePlanClient() {
   const [usage, setUsage] = useState<OwnerUsage | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -114,16 +128,21 @@ export function UsagePlanClient() {
   }
 
   const { ai, limits, storage } = usage;
-  const iaMes = aiMeter(ai, { turns: limits.aiTurns.value, tokens: limits.aiTokens.value });
-  // El medidor muestra la medida que va más alta; la nota, la otra (sin repetir).
-  const iaNota = iaMes.text.includes("turno")
-    ? `${formatTokens(ai.tokens)}${limits.aiTokens.value !== null ? ` / ${formatTokens(limits.aiTokens.value)}` : ""} tokens`
-    : limits.aiTurns.value !== null
-      ? `${ai.turns.toLocaleString("es-MX")} / ${limits.aiTurns.value.toLocaleString("es-MX")} turnos`
-      : turnos(ai.turns);
-  const funciones = AI_KINDS.filter((k) => k !== "embed" && ai.byKind[k]);
-  const maxFuncion = Math.max(1, ...funciones.map((k) => ai.byKind[k]!.tokens));
-  const maxAgente = Math.max(1, ...ai.byAgent.map((a) => a.tokens));
+  const { tokens: tk, turns: tu } = ai.total;
+  const cifras = tk !== undefined && tu !== undefined;
+  const iaMes = cifras ? aiMeter({ tokens: tk.used, turns: tu.used }, { tokens: tk.limit, turns: tu.limit }) : gaugeMeter(ai.total);
+  // Con cifras, el medidor muestra la medida que va más alta; la nota, la otra (sin repetir).
+  const iaNota = !cifras
+    ? undefined
+    : iaMes.text.includes("turno")
+      ? `${formatTokens(tk.used)}${tk.limit !== null ? ` / ${formatTokens(tk.limit)}` : ""} tokens`
+      : tu.limit !== null
+        ? `${tu.used.toLocaleString("es-MX")} / ${tu.limit.toLocaleString("es-MX")} turnos`
+        : turnos(tu.used);
+  const orden = (k: string) => AI_KINDS.indexOf(k as (typeof AI_KINDS)[number]);
+  const funciones = ai.byKind ? [...ai.byKind].sort((a, b) => orden(a.key) - orden(b.key)) : null;
+  const maxFuncion = Math.max(0.0001, ...(funciones ?? []).map((l) => l.share));
+  const maxAgente = Math.max(0.0001, ...(ai.byAgent ?? []).map((a) => a.share));
 
   return (
     <div className="flex h-full flex-col">
@@ -154,10 +173,18 @@ export function UsagePlanClient() {
               <Measure label="IA del mes" meter={iaMes} testId="usage-plan-ai-meter" note={iaNota} />
               <Measure
                 label="Embeddings (documentos del agente)"
-                meter={countMeter(usage.embedTokens, limits.embedTokens.value, "tokens", formatTokens)}
+                meter={gaugeOrCount(ai.embed, "tokens")}
                 note={EMBED_NOTE}
                 testId="usage-plan-embed-meter"
               />
+              {ai.assistant && (
+                <Measure
+                  label="Asistente interno"
+                  meter={gaugeOrCount(ai.assistant, "tokens")}
+                  note="Tiene su propio tope y cuenta también en la IA del mes."
+                  testId="usage-plan-assistant-meter"
+                />
+              )}
             </Card>
 
             <Card title={STORAGE_LABEL} testId="usage-plan-storage">
@@ -198,22 +225,19 @@ export function UsagePlanClient() {
             )}
           </div>
 
+          {funciones && ai.byAgent && (
           <div className="grid gap-4 md:grid-cols-2">
             <Card title="¿Qué función consume más?" testId="usage-plan-kinds">
               {funciones.length === 0 ? (
                 <p className="text-sm text-text-3">Sin consumo de IA este mes.</p>
               ) : (
                 <ul className="divide-y">
-                  {funciones.map((k) => (
-                    <Share key={k} label={AI_KIND_LABEL[k]} value={tokensYTurnos(ai.byKind[k]!)} share={ai.byKind[k]!.tokens / maxFuncion} />
+                  {funciones.map((l) => (
+                    <Share key={l.key} label={AI_KIND_LABEL[l.key]} value={shareValue(l)} share={l.share / maxFuncion} />
                   ))}
                 </ul>
               )}
-              {ai.byKind.embed && (
-                <p className="text-xs text-text-3">
-                  {AI_KIND_LABEL.embed}: {formatTokens(ai.byKind.embed.tokens)} tokens. {EMBED_NOTE}
-                </p>
-              )}
+              {!cifras && <p className="text-xs text-text-3">Porcentaje de la IA usada este mes (sin embeddings).</p>}
             </Card>
 
             <Card title="¿Qué agente consume más?" testId="usage-plan-agents">
@@ -223,18 +247,19 @@ export function UsagePlanClient() {
                 <ul className="divide-y">
                   {ai.byAgent.map((a) => (
                     <Share
-                      key={a.agentId}
+                      key={a.key}
                       label={a.name ?? "Agente que ya no existe"}
                       hint={a.archived && a.name ? "Archivado" : undefined}
-                      value={tokensYTurnos(a)}
-                      share={a.tokens / maxAgente}
+                      value={shareValue(a)}
+                      share={a.share / maxAgente}
                     />
                   ))}
                 </ul>
               )}
-              <p className="text-xs text-text-3">La redacción y los embeddings no tienen agente.</p>
+              <p className="text-xs text-text-3">La redacción, el asistente interno y los embeddings no tienen agente.</p>
             </Card>
           </div>
+          )}
         </div>
       </div>
     </div>

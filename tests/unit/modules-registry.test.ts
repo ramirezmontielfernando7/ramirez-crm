@@ -101,7 +101,8 @@ describe("menú por rol", () => {
   // en el mismo lugar del menú.
   it("sin personalizar, cada rol ve lo mismo que antes del PR 4", () => {
     const esperado: Record<Role, string[]> = {
-      owner: ["/inbox", "/chat", "/trabajo", "/pipeline", "/contacts", "/knowledge", "/campaigns", "/results", "/lab"],
+      // 038: con el módulo encendido, el Propietario ve además «Asistente».
+      owner: ["/inbox", "/chat", "/trabajo", "/pipeline", "/contacts", "/knowledge", "/campaigns", "/results", "/lab", "/asistente"],
       coordinador: ["/inbox", "/chat", "/trabajo", "/pipeline", "/contacts", "/knowledge", "/campaigns", "/results"],
       asesor: ["/inbox", "/chat", "/trabajo", "/pipeline", "/contacts", "/knowledge"],
     };
@@ -196,6 +197,7 @@ describe("menú por rol", () => {
       "results",
       "agent",
       "lab",
+      "asistente",
       "settings",
     ]);
     expect(items[0]).toEqual({ key: "inbox", hidden: true });

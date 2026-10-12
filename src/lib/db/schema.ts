@@ -2103,6 +2103,8 @@ export const userPreference = pgTable(
     /** 022 — "expanded" | "collapsed" | "hidden" (ver `NAV_MODES`). Aditiva:
      *  `nav_collapsed` se conserva y se escribe en paralelo. */
     navMode: text("nav_mode"),
+    /** 038 (PR 1) — Cuándo aceptó el aviso de consumo del asistente interno (NULL = aún no). */
+    assistantNoticeAcceptedAt: timestamp("assistant_notice_accepted_at"),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },
   (t) => [primaryKey({ columns: [t.organizationId, t.userId] })]
@@ -2425,8 +2427,19 @@ export const aiQuota = pgTable("ai_quota", {
     .references(() => organization.id, { onDelete: "cascade" }),
   monthlyTurnLimit: integer("monthly_turn_limit"),
   monthlyTokenLimit: integer("monthly_token_limit"),
+  /**
+   * 038 (PR 1) — Tope PROPIO del asistente interno (tokens al mes). Cuenta
+   * además en el total. NULL = el de `AI_DEFAULT_MONTHLY_ASSISTANT_TOKENS`;
+   * sin ninguno, el asistente no responde (nunca corre sin tope).
+   */
+  assistantMonthlyTokenLimit: integer("assistant_monthly_token_limit"),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
-});
+}, (t) => [
+  check(
+    "ai_quota_assistant_tokens_chk",
+    sql`${t.assistantMonthlyTokenLimit} is null or ${t.assistantMonthlyTokenLimit} >= 0`
+  ),
+]);
 
 /**
  * Fase 3, PR 3 — Qué módulos opcionales tiene ESTA organización (antes, las
@@ -2469,6 +2482,12 @@ export const organizationModule = pgTable(
    * nuevo. Los perfiles de alta Básico y Completo lo encienden.
    */
   trabajo: boolean("trabajo").notNull().default(false),
+  /**
+   * 038 (PR 1) — Asistente interno (premium): DEFAULT false y sin variable
+   * de entorno ni perfil de alta que lo encienda. Solo el administrador de
+   * plataforma lo enciende, organización por organización.
+   */
+  asistente: boolean("asistente").notNull().default(false),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
   updatedBy: text("updated_by"),
 },
@@ -2627,6 +2646,13 @@ export const organizationPlan = pgTable(
     storageMode: text("storage_mode", { enum: ["warn", "block_uploads"] }).notNull().default("warn"),
     maxActiveModules: integer("max_active_modules"),
     embedTokenLimit: bigint("embed_token_limit", { mode: "number" }),
+    /**
+     * 038 (PR 1) — Cómo ve el CLIENTE su consumo de IA (en «Uso y plan», los
+     * avisos y el asistente): `percent` (porcentaje del tope, por defecto),
+     * `status` (solo «Disponible» / «Agotado») o `tokens` (solo si el
+     * administrador lo habilita). Nunca ve dólares. La plataforma ve todo.
+     */
+    usageVisibility: text("usage_visibility", { enum: ["status", "percent", "tokens"] }).notNull().default("percent"),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
     updatedBy: text("updated_by").references(() => user.id, { onDelete: "set null" }),
   },
@@ -2637,9 +2663,10 @@ export const organizationPlan = pgTable(
     check("organization_plan_storage_chk", sql`${t.storageLimitBytes} is null or ${t.storageLimitBytes} >= 0`),
     check(
       "organization_plan_modules_chk",
-      sql`${t.maxActiveModules} is null or ${t.maxActiveModules} between 0 and 12`
+      sql`${t.maxActiveModules} is null or ${t.maxActiveModules} between 0 and 13`
     ),
     check("organization_plan_embed_chk", sql`${t.embedTokenLimit} is null or ${t.embedTokenLimit} >= 0`),
+    check("organization_plan_usage_visibility_chk", sql`${t.usageVisibility} in ('status', 'percent', 'tokens')`),
   ]
 );
 
@@ -2657,7 +2684,7 @@ export const usageAlert = pgTable(
       .references(() => organization.id, { onDelete: "cascade" }),
     period: text("period").notNull(),
     metric: text("metric", {
-      enum: ["ai_tokens", "ai_turns", "embed_tokens", "storage", "members", "modules"],
+      enum: ["ai_tokens", "ai_turns", "embed_tokens", "storage", "members", "modules", "assistant_tokens"],
     }).notNull(),
     threshold: integer("threshold").notNull(),
     used: bigint("used", { mode: "number" }).notNull(),
@@ -2670,7 +2697,7 @@ export const usageAlert = pgTable(
     primaryKey({ columns: [t.organizationId, t.period, t.metric, t.threshold] }),
     check(
       "usage_alert_metric_chk",
-      sql`${t.metric} in ('ai_tokens', 'ai_turns', 'embed_tokens', 'storage', 'members', 'modules')`
+      sql`${t.metric} in ('ai_tokens', 'ai_turns', 'embed_tokens', 'storage', 'members', 'modules', 'assistant_tokens')`
     ),
     check("usage_alert_threshold_chk", sql`${t.threshold} in (80, 100)`),
   ]
@@ -3371,3 +3398,58 @@ export const kbDocumentLimit = pgTable("kb_document_limit", {
   maxChunks: integer("max_chunks"),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
+
+/**
+ * 038 (PR 1) — Conversaciones del asistente interno: de UNA persona (su
+ * autor; otro Propietario no las lee) en una organización. Retención de 90
+ * días (la limpieza llega con el motor, PR 2). Solo lectura de datos del
+ * negocio: el asistente nunca envía ni cambia nada.
+ */
+export const assistantThread = pgTable(
+  "assistant_thread",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    title: text("title"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => [
+    unique("assistant_thread_org_id_uq").on(t.organizationId, t.id),
+    index("assistant_thread_org_user_idx").on(t.organizationId, t.userId, t.updatedAt),
+    check("assistant_thread_title_chk", sql`${t.title} is null or char_length(${t.title}) <= 200`),
+  ]
+);
+
+/** 038 (PR 1) — Cada mensaje de una conversación del asistente, con lo que costó (tokens). */
+export const assistantMessage = pgTable(
+  "assistant_message",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    threadId: text("thread_id").notNull(),
+    role: text("role", { enum: ["user", "assistant"] }).notNull(),
+    content: text("content").notNull(),
+    promptTokens: integer("prompt_tokens").notNull().default(0),
+    completionTokens: integer("completion_tokens").notNull().default(0),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    index("assistant_message_org_thread_idx").on(t.organizationId, t.threadId, t.createdAt),
+    check("assistant_message_role_chk", sql`${t.role} in ('user', 'assistant')`),
+    check("assistant_message_content_chk", sql`char_length(${t.content}) <= 20000`),
+    // De la MISMA organización (patrón H6).
+    foreignKey({
+      name: "assistant_message_org_thread_fk",
+      columns: [t.organizationId, t.threadId],
+      foreignColumns: [assistantThread.organizationId, assistantThread.id],
+    }).onDelete("cascade"),
+  ]
+);

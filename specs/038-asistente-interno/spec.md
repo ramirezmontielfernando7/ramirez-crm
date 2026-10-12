@@ -35,17 +35,57 @@ asistente.
 
 | PR | Contenido | Migración | Estado |
 |---|---|---|---|
-| 1 | Interruptor 13, permiso `assistant.use`, `AiKind` + tope propio + avisos, visibilidad del consumo | siguiente libre | pendiente |
+| **1** | **Interruptor 13, permiso `assistant.use`, `AiKind` + tope propio + avisos, visibilidad del consumo, aviso antes de usarlo** | **0047** | **en curso** |
 | 2 | Motor mínimo, funciones de uso y plan, pantalla /asistente | — | pendiente |
 | 3 | Análisis por conversación, trabajos en segundo plano, enmascarado, primera pasada | siguiente libre | pendiente |
 | 4 | Bucle de herramientas, preguntas agregadas, muestras, asesores, reportes pesados | siguiente libre | pendiente |
 | 5 | Diagnóstico de la base, validar y corregir casos | — | pendiente |
-| **6** | **Campañas: baja de marketing 131050, frecuencia por contacto, plantilla pausada** | **0046** | **en curso** |
+| 6 | Campañas: baja de marketing 131050, frecuencia por contacto, plantilla pausada | 0046 | fusionado (#64) |
 | 7 | Segmentos de reciclaje (sin envío) y paso a Audiencias | siguiente libre | pendiente |
 
 En el PR 3 se mide y reporta el **costo real por conversación analizada** y
 se evalúa si el análisis puede usar un modelo más barato que el del
 asistente.
+
+## PR 1 — Base del asistente interno
+
+### Comportamiento observable
+
+1. **Módulo premium.** `organization_module.asistente`, apagado en toda
+   organización (sin variable de entorno ni perfil de alta). Solo el
+   administrador de plataforma lo enciende (13.º interruptor, «x/13»). Sin él,
+   `/asistente` y `/api/assistant/*` → 404 y no hay entrada en el menú.
+2. **Solo el Propietario** (`assistant.use`): Coordinador y Asesor → 403 en la
+   API; la página los regresa a la Bandeja; sin entrada en su menú.
+3. **Solo lectura y una puerta.** El asistente nunca envía mensajes ni toca
+   campañas; el modelo, solo por `chatJsonForOrg(org, "assistant", …)`.
+   Guardarraíl `tests/unit/assistant-gate.test.ts`.
+4. **Tope propio.** `ai_quota.assistant_monthly_token_limit` (o
+   `AI_DEFAULT_MONTHLY_ASSISTANT_TOKENS`). Se revisa ANTES del total; sus
+   turnos y tokens cuentan también en el total (decisión del dueño); su tope
+   no frena los demás usos. **Sin tope, el asistente no responde** (nunca
+   corre sin tope). Agotado (o el total agotado): se detiene y lo dice, con
+   la fecha en que vuelve. Avisos 80/100 % (`assistant_tokens`).
+5. **Visibilidad del consumo** (`organization_plan.usage_visibility`, la fija
+   el administrador): `percent` por defecto (porcentaje del tope), `status`
+   (solo «Disponible» / «Agotado», sin desglose) o `tokens` (las cifras). El
+   cliente nunca ve dólares. Aplica a «Uso y plan», los avisos (texto y
+   cifras) y el asistente; se recorta en el servidor. La plataforma ve todo,
+   dólares incluidos (Costos suma la función «Asistente interno»).
+6. **Aviso antes de usarlo.** Banner fijo en `/asistente` («Cada pregunta
+   consume bastante crédito de IA… se puede agotar rápido…») y una
+   confirmación la primera vez (por persona, `user_preference.assistant_notice_accepted_at`).
+   Las preguntas llegan con el motor (PR 2); mientras, la pantalla muestra el
+   aviso y el estado del crédito.
+
+### Migración 0047 (aditiva, idempotente)
+
+Columnas `organization_module.asistente`, `ai_quota.assistant_monthly_token_limit`
+(CHECK ≥ 0), `organization_plan.usage_visibility` (CHECK), 
+`user_preference.assistant_notice_accepted_at`; tablas `assistant_thread` y
+`assistant_message` con RLS forzado; amplía `organization_plan_modules_chk`
+(0–13) y `usage_alert_metric_chk` (+ `assistant_tokens`). Reversa opcional:
+`scripts/sql/0047-reversa.sql`.
 
 ## PR 6 — Campañas listas para reciclar leads
 

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { apiError, parseBody } from "@/lib/api";
-import { PLAN_KEYS, STORAGE_MODES } from "@/lib/limits";
+import { PLAN_KEYS, STORAGE_MODES, USAGE_VISIBILITIES } from "@/lib/limits";
+import { PLATFORM_MODULE_TOGGLES } from "@/lib/platform-modules";
 import { runWithOrganization } from "@/lib/request-context";
 import { getEffectiveLimits } from "@/server/limits";
 import { listAlerts } from "@/server/limits/alerts";
@@ -36,10 +37,13 @@ const schema = z
     aiTurns: tope(INT),
     aiTokens: tope(INT),
     embedTokens: tope(Number.MAX_SAFE_INTEGER),
+    // 038: tope propio del asistente interno y cómo ve el cliente su consumo.
+    assistantTokens: tope(INT),
+    usageVisibility: z.enum(USAGE_VISIBILITIES).optional(),
     members: tope(100_000),
     storageBytes: tope(Number.MAX_SAFE_INTEGER),
     storageMode: z.enum(STORAGE_MODES).optional(),
-    modules: tope(12),
+    modules: tope(PLATFORM_MODULE_TOGGLES.length),
     kbMaxDocuments: z.number().int().min(1).max(10_000).nullable().optional(),
     kbMaxChunks: z.number().int().min(1).max(100_000).nullable().optional(),
     kbMaxFileBytes: z.number().int().min(1024).max(50 * 1024 * 1024).nullable().optional(),

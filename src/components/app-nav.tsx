@@ -17,6 +17,7 @@ import {
   Inbox,
   Kanban,
   ListChecks,
+  BotMessageSquare,
   LogOut,
   Megaphone,
   MessageCircle,
@@ -86,6 +87,7 @@ export const NAV_ICONS: Record<ModuleIcon, LucideIcon> = {
   MessageCircle,
   BriefcaseBusiness,
   ListChecks,
+  BotMessageSquare,
 };
 
 function navItemOf(key: ModuleKey): NavItem {

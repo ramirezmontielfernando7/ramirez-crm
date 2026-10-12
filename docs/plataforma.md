@@ -97,6 +97,23 @@ valor con el que nace una organización nueva.
 - **`parent_id`** (organización madre) existe en la base pero nada lo usa
   todavía.
 
+### Asistente interno (038, premium)
+
+El 13.º interruptor. Nace **apagado** en toda organización (no hay variable
+ni perfil de alta que lo encienda) y solo lo usa el **Propietario**. Antes de
+encenderlo:
+
+1. Fija su **tope propio** en «Plan y topes» → «Asistente interno: tokens al
+   mes» (o define `AI_DEFAULT_MONTHLY_ASSISTANT_TOKENS` para todas). **Sin tope,
+   el asistente no responde.** Su consumo cuenta también en el tope total de IA.
+2. Elige **qué ve el cliente de su consumo de IA** («Qué ve el cliente…»):
+   porcentaje del tope (por defecto), solo «Disponible / Agotado», o tokens.
+   El cliente nunca ve dólares; tú ves las cifras reales aquí y en Costos.
+
+Las preguntas llegan con el PR 2 del 038: hasta entonces la pantalla del
+cliente solo muestra el aviso de consumo y el estado de su crédito, así que
+conviene encenderlo cuando el motor esté desplegado.
+
 ### Pasos de Coolify (PR 3)
 
 1. **Backup de la base.** Recurso de PostgreSQL → **Backups** → **Backup Now**.

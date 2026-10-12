@@ -3,11 +3,14 @@ import { getDb, schema, withTenant, type Db } from "@/lib/db";
 import { scoped } from "@/lib/db/tenant";
 import { getEnv } from "@/lib/env";
 import {
+  DEFAULT_USAGE_VISIBILITY,
+  isUsageVisibility,
   LIMIT_MESSAGES,
   resolveLimit,
   type EffectiveLimits,
   type LimitsPatch,
   type StorageMode,
+  type UsageVisibility,
 } from "@/lib/limits";
 import { countActiveModules, type PlatformModuleToggle } from "@/lib/platform-modules";
 import { envKbDocLimits, getOwnKbDocLimits } from "@/server/kb-docs/limits";
@@ -21,6 +24,8 @@ import { getOrgStorageUsage } from "@/server/usage/storage";
  * crecer. Cada tope vive donde ya vivía:
  *
  * - IA (turnos y tokens): `ai_quota` (lo sigue leyendo `reserveTurn`).
+ * - 038: tope propio del asistente interno: `ai_quota` también.
+ * - 038: cómo ve el cliente su consumo de IA: `organization_plan`.
  * - Documentos del agente: `kb_document_limit` (lo sigue leyendo kb-docs).
  * - Personas, almacenamiento (y su modo), módulos activos y embeddings:
  *   `organization_plan` (nuevo).
@@ -59,7 +64,11 @@ export async function getEffectiveLimits(organizationId: string, db: Db = getDb(
   const [plan, [quota], kb] = await Promise.all([
     planRow(organizationId, db),
     db
-      .select({ turns: schema.aiQuota.monthlyTurnLimit, tokens: schema.aiQuota.monthlyTokenLimit })
+      .select({
+        turns: schema.aiQuota.monthlyTurnLimit,
+        tokens: schema.aiQuota.monthlyTokenLimit,
+        assistant: schema.aiQuota.assistantMonthlyTokenLimit,
+      })
       .from(schema.aiQuota)
       .where(scoped(schema.aiQuota.organizationId, organizationId))
       .limit(1),
@@ -70,6 +79,8 @@ export async function getEffectiveLimits(organizationId: string, db: Db = getDb(
     aiTurns: resolveLimit(quota?.turns, env.AI_DEFAULT_MONTHLY_TURNS),
     aiTokens: resolveLimit(quota?.tokens, env.AI_DEFAULT_MONTHLY_TOKENS),
     embedTokens: resolveLimit(plan?.embedTokenLimit, env.AI_DEFAULT_MONTHLY_EMBED_TOKENS),
+    assistantTokens: resolveLimit(quota?.assistant, env.AI_DEFAULT_MONTHLY_ASSISTANT_TOKENS),
+    usageVisibility: visibilityOf(plan),
     // Personas, almacenamiento y módulos no tienen valor de entorno: sin tope propio, sin tope.
     members: resolveLimit(plan?.maxMembers, null),
     storageBytes: resolveLimit(plan?.storageLimitBytes, null),
@@ -79,6 +90,28 @@ export async function getEffectiveLimits(organizationId: string, db: Db = getDb(
     kbMaxChunks: resolveLimit(kb.maxChunks, kbEnv.maxChunks),
     kbMaxFileBytes: resolveLimit(kb.maxFileBytes, kbEnv.maxFileBytes),
   };
+}
+
+function visibilityOf(plan: PlanRow | null): UsageVisibility {
+  return isUsageVisibility(plan?.usageVisibility) ? plan.usageVisibility : DEFAULT_USAGE_VISIBILITY;
+}
+
+/** 038 — Cómo ve el cliente su consumo de IA (sin fila: el valor por defecto, `percent`). */
+export async function getUsageVisibility(organizationId: string, db: Db = getDb()): Promise<UsageVisibility> {
+  return visibilityOf(await planRow(organizationId, db));
+}
+
+/**
+ * 038 — El tope de tokens del asistente interno del mes (propio o del
+ * entorno), o `null` si no hay ninguno: entonces el asistente NO responde.
+ */
+export async function getAssistantTokenLimit(organizationId: string): Promise<number | null> {
+  const [q] = await getDb()
+    .select({ assistant: schema.aiQuota.assistantMonthlyTokenLimit })
+    .from(schema.aiQuota)
+    .where(scoped(schema.aiQuota.organizationId, organizationId))
+    .limit(1);
+  return q?.assistant ?? getEnv().AI_DEFAULT_MONTHLY_ASSISTANT_TOKENS ?? null;
 }
 
 /** El tope de tokens de embeddings del mes (propio o del entorno), o `null` sin tope. */
@@ -99,7 +132,7 @@ export async function saveOrgLimits(
 ): Promise<{ before: EffectiveLimits; after: EffectiveLimits }> {
   const before = await withTenant(organizationId, (tx) => getEffectiveLimits(organizationId, tx));
   await withTenant(organizationId, async (tx) => {
-    if (patch.aiTurns !== undefined || patch.aiTokens !== undefined) {
+    if (patch.aiTurns !== undefined || patch.aiTokens !== undefined || patch.assistantTokens !== undefined) {
       const [q] = await tx
         .select()
         .from(schema.aiQuota)
@@ -108,6 +141,8 @@ export async function saveOrgLimits(
       const values = {
         monthlyTurnLimit: patch.aiTurns === undefined ? (q?.monthlyTurnLimit ?? null) : patch.aiTurns,
         monthlyTokenLimit: patch.aiTokens === undefined ? (q?.monthlyTokenLimit ?? null) : patch.aiTokens,
+        assistantMonthlyTokenLimit:
+          patch.assistantTokens === undefined ? (q?.assistantMonthlyTokenLimit ?? null) : patch.assistantTokens,
         updatedAt: new Date(),
       };
       await tx
@@ -116,7 +151,7 @@ export async function saveOrgLimits(
         .onConflictDoUpdate({ target: schema.aiQuota.organizationId, set: values });
     }
 
-    const tocaPlan = (["planKey", "members", "storageBytes", "storageMode", "modules", "embedTokens"] as const).some(
+    const tocaPlan = (["planKey", "members", "storageBytes", "storageMode", "modules", "embedTokens", "usageVisibility"] as const).some(
       (k) => patch[k] !== undefined
     );
     if (tocaPlan) {
@@ -128,6 +163,7 @@ export async function saveOrgLimits(
         storageMode: patch.storageMode ?? actual?.storageMode ?? "warn",
         maxActiveModules: patch.modules === undefined ? (actual?.maxActiveModules ?? null) : patch.modules,
         embedTokenLimit: patch.embedTokens === undefined ? (actual?.embedTokenLimit ?? null) : patch.embedTokens,
+        usageVisibility: patch.usageVisibility ?? visibilityOf(actual),
         updatedAt: new Date(),
         updatedBy: actorUserId,
       };
@@ -182,7 +218,7 @@ export async function assertCanAddMember(organizationId: string): Promise<void> 
   }
 }
 
-/** Los 12 interruptores de /platform a partir de los módulos de la organización. */
+/** Los 13 interruptores de /platform a partir de los módulos de la organización. */
 export function moduleToggles(m: OrgModules): Record<PlatformModuleToggle, boolean> {
   return {
     teamChat: m.teamChat,
@@ -197,6 +233,7 @@ export function moduleToggles(m: OrgModules): Record<PlatformModuleToggle, boole
     instagram: m.channels.has("instagram"),
     messenger: m.channels.has("messenger"),
     customNav: m.customNav,
+    asistente: m.asistente,
   };
 }
 

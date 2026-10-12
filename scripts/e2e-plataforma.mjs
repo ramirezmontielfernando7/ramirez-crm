@@ -16,6 +16,8 @@
  *     → bloqueo.
  *  7. Borrado suave (30 días) y restauración.
  *  8. Cabeceras de seguridad.
+ *  (4b–4f: consumo, topes y avisos, costos, «Uso y plan» y, 038 PR 1, la
+ *  base del asistente interno: módulo, tope propio y visibilidad.)
  *
  * Uso: app viva con WA_MOCK_ENABLED=true y los mocks, PLATFORM_ORG_ID = la
  * organización de e2e@vocero.test (corre antes pnpm test:e2e).
@@ -195,6 +197,7 @@ async function main() {
   await topesYAvisos(A, B, orgB.id);
   await costosEnPlataforma(A, B, orgB.id);
   await usoYPlan(A, B, orgB.id);
+  await asistenteBase(A, B, orgB.id);
 
   console.log("\n== 5 · Suspensión ==");
   const sus = await A.call("POST", `/api/platform/organizations/${orgB.id}/status`, { action: "suspend", reason: "prueba e2e" });
@@ -339,7 +342,7 @@ async function consumoEnPlataforma(A, B, orgB) {
   await fila.waitFor({ timeout: 30000 });
   ok("la fila cerrada muestra IA del mes", /tokens/.test(await fila.getByTestId("platform-org-ai").first().innerText()));
   ok("…almacenamiento aproximado («sin tope» hasta los límites)", /KB · sin tope/.test(await fila.getByTestId("platform-org-storage").first().innerText()));
-  ok("…y módulos activos «x/12»", /^\d+\/12$/.test((await fila.getByTestId("platform-org-modules-count").last().innerText()).trim()));
+  ok("…y módulos activos «x/13»", /^\d+\/13$/.test((await fila.getByTestId("platform-org-modules-count").last().innerText()).trim()));
   ok("cerrada no muestra los interruptores", (await fila.getByTestId("platform-modules").count()) === 0);
   await fila.getByTestId("platform-org-toggle").click();
   const det = fila.getByTestId("platform-usage-detail");
@@ -580,15 +583,16 @@ async function costosEnPlataforma(A, B, orgB) {
  */
 async function usoYPlan(A, B, orgB) {
   console.log("\n== 4e · «Uso y plan» del Propietario ==");
-  const topes = await A.call("PUT", `/api/platform/organizations/${orgB}/limits`, { members: 3, aiTokens: 1_000_000, storageBytes: 50 * 1024 * 1024 });
+  // 038: con cifras («tokens»), habilitadas por el administrador; la visibilidad por defecto se prueba en 4f.
+  const topes = await A.call("PUT", `/api/platform/organizations/${orgB}/limits`, { members: 3, aiTokens: 1_000_000, storageBytes: 50 * 1024 * 1024, usageVisibility: "tokens" });
   ok("el administrador fija topes a B", topes.status === 200);
 
   const api = await B.call("GET", "/api/usage");
   const u = api.json?.usage;
   ok("la Propietaria lee su uso (200)", api.status === 200 && Boolean(u), String(api.status));
-  ok("…contra sus topes (IA, personas, almacenamiento)", u?.limits?.aiTokens?.value === 1_000_000 && u?.limits?.members?.value === 3 && u?.limits?.storageBytes?.value === 50 * 1024 * 1024, JSON.stringify(u?.limits).slice(0, 300));
+  ok("…contra sus topes (IA, personas, almacenamiento)", u?.ai?.total?.tokens?.limit === 1_000_000 && u?.limits?.members?.value === 3 && u?.limits?.storageBytes?.value === 50 * 1024 * 1024, JSON.stringify(u?.limits).slice(0, 300));
   ok("…plan «Personalizado»", u?.limits?.planKey === "custom");
-  ok("…por función (Laboratorio y redacción) y por agente", Boolean(u?.ai?.byKind?.lab && u?.ai?.byKind?.writing) && (u?.ai?.byAgent?.length ?? 0) >= 1, JSON.stringify(u?.ai?.byKind));
+  ok("…por función (Laboratorio y redacción) y por agente", ["lab", "writing"].every((k) => (u?.ai?.byKind ?? []).some((l) => l.key === k && l.tokens > 0)) && (u?.ai?.byAgent?.length ?? 0) >= 1, JSON.stringify(u?.ai?.byKind));
   ok("…sin costos ni precios (son de la plataforma)", !JSON.stringify(u).includes("costUsd") && !JSON.stringify(u).includes("Mtok"));
 
   const page = await B.ctx.newPage();
@@ -640,7 +644,142 @@ async function usoYPlan(A, B, orgB) {
   ok("asesor: sin «Uso y plan» en su menú", (await pC.getByTestId("nav-usage").count()) === 0);
   await pC.close();
 
-  const reset = await A.call("PUT", `/api/platform/organizations/${orgB}/limits`, { members: null, aiTokens: null, storageBytes: null });
+  const reset = await A.call("PUT", `/api/platform/organizations/${orgB}/limits`, { members: null, aiTokens: null, storageBytes: null, usageVisibility: "percent" });
+  ok("B vuelve a heredar sus topes", reset.status === 200);
+}
+
+/**
+ * 038 (PR 1) — Base del asistente interno: módulo premium apagado por defecto
+ * (404), lo enciende solo el administrador («x/13»); solo el Propietario lo
+ * usa; tope propio (sin tope no responde; agotado se detiene y lo dice); qué
+ * ve el cliente de su consumo según la visibilidad que fija la plataforma
+ * (nunca dólares; tokens solo si se habilita); y el aviso de consumo antes de
+ * usarlo (banner fijo + confirmación una vez).
+ */
+async function asistenteBase(A, B, orgB) {
+  console.log("\n== 4f · Asistente interno (038 PR 1) ==");
+  ok("apagado por defecto: la API → 404", (await B.call("GET", "/api/assistant/status")).status === 404);
+  const p0 = await B.ctx.newPage();
+  const r0 = await p0.goto(`${BASE}/asistente`);
+  ok("…y la pantalla → 404", r0?.status() === 404, String(r0?.status()));
+  await p0.goto(`${BASE}/inbox`);
+  await p0.waitForLoadState("networkidle").catch(() => null);
+  ok("…y sin «Asistente» en el menú", (await p0.locator('a[href="/asistente"]').count()) === 0);
+  await p0.close();
+  const fila0 = ((await A.call("GET", "/api/platform/organizations")).json?.organizations ?? []).find((o) => o.id === orgB);
+  ok("el interruptor existe y está apagado", fila0?.modules?.asistente === false, JSON.stringify(fila0?.modules));
+
+  // Visibilidad por defecto (`percent`): ni tokens ni dólares en lo que ve la Propietaria.
+  await A.call("PUT", `/api/platform/organizations/${orgB}/limits`, { aiTokens: 1_000_000 });
+  const u0 = (await B.call("GET", "/api/usage")).json?.usage;
+  ok("«Uso y plan» por defecto: porcentaje del tope", u0?.visibility === "percent" && typeof u0?.ai?.total?.percent === "number", JSON.stringify(u0?.ai?.total));
+  ok("…sin tokens, turnos ni dólares en el JSON", !/"(used|limit|tokens|turns|costUsd)"/.test(JSON.stringify(u0?.ai)) && !/USD|\$/.test(JSON.stringify(u0)), JSON.stringify(u0?.ai).slice(0, 300));
+  const pUso = await B.ctx.newPage();
+  await pUso.goto(`${BASE}/uso`);
+  await pUso.getByTestId("usage-plan-ai-meter").waitFor({ timeout: 30000 });
+  const textoIa = await pUso.getByTestId("usage-plan-ai-meter").innerText();
+  ok("la pantalla dice «% del tope» y no «tokens»", /% del tope/.test(textoIa) && !/token/i.test(textoIa), textoIa);
+  await pUso.close();
+
+  // El administrador lo enciende.
+  const on = await A.call("POST", `/api/platform/organizations/${orgB}/modules`, { asistente: true });
+  ok("el administrador enciende el asistente", on.status === 200 && on.json?.modules?.asistente === true, `${on.status} ${JSON.stringify(on.json)}`);
+  const st1 = (await B.call("GET", "/api/assistant/status")).json?.status;
+  ok("sin tope propio: no responde y lo dice", st1?.state === "unset" && st1?.canAsk === false && /aún no tiene un crédito asignado/.test(st1?.message ?? ""), JSON.stringify(st1));
+  await A.call("PUT", `/api/platform/organizations/${orgB}/limits`, { assistantTokens: 0 });
+  const st2 = (await B.call("GET", "/api/assistant/status")).json?.status;
+  ok("tope agotado: se detiene y avisa con claridad", st2?.state === "exhausted" && /agotó su crédito de este mes y se detuvo/.test(st2?.message ?? ""), JSON.stringify(st2));
+  const lim = await A.call("PUT", `/api/platform/organizations/${orgB}/limits`, { assistantTokens: 200_000 });
+  ok("el administrador fija su tope propio (200 k tokens)", lim.status === 200 && lim.json?.limits?.assistantTokens?.value === 200_000, JSON.stringify(lim.json?.limits?.assistantTokens));
+  const st3 = (await B.call("GET", "/api/assistant/status")).json?.status;
+  ok("disponible, con su crédito en porcentaje (sin tokens)", st3?.state === "available" && st3?.canAsk === true && st3?.gauge?.percent === 0 && st3?.gauge?.used === undefined, JSON.stringify(st3));
+
+  await A.call("PUT", `/api/platform/organizations/${orgB}/limits`, { usageVisibility: "status" });
+  const st4 = (await B.call("GET", "/api/assistant/status")).json?.status;
+  ok("visibilidad «Disponible / Agotado»: sin ningún número", st4?.gauge?.state === "available" && st4?.gauge?.percent === null, JSON.stringify(st4?.gauge));
+  const u4 = (await B.call("GET", "/api/usage")).json?.usage;
+  ok("…tampoco en «Uso y plan» (ni desglose)", u4?.ai?.total?.percent === null && u4?.ai?.byKind === null && u4?.ai?.assistant?.state === "available", JSON.stringify(u4?.ai));
+  await A.call("PUT", `/api/platform/organizations/${orgB}/limits`, { usageVisibility: "tokens" });
+  const st5 = (await B.call("GET", "/api/assistant/status")).json?.status;
+  ok("con tokens habilitados por el administrador: las cifras", st5?.gauge?.used === 0 && st5?.gauge?.limit === 200_000, JSON.stringify(st5?.gauge));
+  await A.call("PUT", `/api/platform/organizations/${orgB}/limits`, { usageVisibility: "percent" });
+  const adm = (await A.call("GET", `/api/platform/organizations/${orgB}/limits`)).json?.limits;
+  ok("el administrador ve el tope real y la visibilidad", adm?.assistantTokens?.value === 200_000 && adm?.usageVisibility === "percent", JSON.stringify(adm));
+
+  // Pantalla: banner fijo + confirmación una vez.
+  const page = await B.ctx.newPage();
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto(`${BASE}/inbox`);
+  const entrada = page.locator('a[href="/asistente"]').first();
+  ok("la Propietaria tiene «Asistente» en el menú", await entrada.waitFor({ timeout: 30000 }).then(() => true, () => false));
+  await entrada.click();
+  await page.waitForURL(/\/asistente$/, { timeout: 30000 });
+  const aviso = page.getByTestId("assistant-notice");
+  ok("antes de usarlo, la confirmación", await aviso.waitFor({ timeout: 30000 }).then(() => true, () => false));
+  ok("…dice que consume bastante crédito y se puede agotar rápido", /consume bastante crédito de IA/.test(await aviso.innerText()) && /agotar rápido/.test(await aviso.innerText()));
+  ok("…y que solo lee (no envía ni toca campañas)", /no envía mensajes/.test(await aviso.innerText()) && /no toca campañas/.test(await aviso.innerText()));
+  const guardado = page.waitForResponse((r) => r.url().endsWith("/api/assistant/notice") && r.request().method() === "POST", { timeout: 90000 }).catch(() => null);
+  await page.getByTestId("assistant-notice-accept").click();
+  await guardado;
+  ok("«Entendido, continuar» la cierra", await aviso.waitFor({ state: "detached", timeout: 10000 }).then(() => true, () => false));
+  ok("el banner fijo sigue a la vista", /consume bastante crédito de IA/.test(await page.getByTestId("assistant-cost-banner").innerText()));
+  ok("el estado: disponible", (await page.getByTestId("assistant-status").getAttribute("data-state")) === "available");
+  await page.screenshot({ path: "scratch/e2e-asistente.png", fullPage: true }).catch(() => null);
+  await page.reload();
+  await page.getByTestId("assistant-status").waitFor({ timeout: 30000 });
+  ok("al volver, ya no pide confirmar (una vez por persona)", (await page.getByTestId("assistant-notice").count()) === 0);
+  ok("…pero el banner sigue", await page.getByTestId("assistant-cost-banner").isVisible());
+  await A.call("PUT", `/api/platform/organizations/${orgB}/limits`, { assistantTokens: 0 });
+  await page.reload();
+  await page.getByTestId("assistant-status-message").waitFor({ timeout: 30000 });
+  ok("agotado: la pantalla lo dice con claridad", (await page.getByTestId("assistant-status").getAttribute("data-state")) === "exhausted" && /se detuvo/.test(await page.getByTestId("assistant-status-message").innerText()));
+  await page.close();
+
+  // Celular, modo oscuro.
+  const movil = await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true, extraHTTPHeaders: { origin: BASE } });
+  await movil.addCookies([{ name: "vocero-theme", value: "dark", url: BASE }, ...(await B.ctx.cookies())]);
+  const cel = await movil.newPage();
+  await cel.goto(`${BASE}/asistente`);
+  await cel.getByTestId("assistant-status").waitFor({ timeout: 30000 });
+  const desborde = await cel.evaluate(() => {
+    const els = [document.documentElement, ...document.querySelectorAll("main, [class*='overflow-y-auto']")];
+    return els.some((e) => e.scrollWidth > e.clientWidth + 1);
+  });
+  ok("celular: el asistente sin desplazamiento horizontal", !desborde);
+  await cel.screenshot({ path: "scratch/e2e-asistente-movil.png", fullPage: true }).catch(() => null);
+  await movil.close();
+
+  // Un asesor de la misma organización: ni entrada, ni página, ni API.
+  const email = `asesor.asistente.${RUN}@plataforma.test`;
+  const pass = "contraseña-del-asesor-456";
+  const alta = await B.call("POST", "/api/settings/team", { name: "Asesor Asistente", email, password: pass, role: "asesor" });
+  ok("B agrega un asesor", alta.status === 201 || alta.status === 200, `${alta.status} ${JSON.stringify(alta.json)}`);
+  const C = await persona();
+  ok("el asesor inicia sesión", (await C.entrar(email, pass)).status === 200);
+  ok("asesor → 403 en la API del asistente", (await C.call("GET", "/api/assistant/status")).status === 403 && (await C.call("POST", "/api/assistant/notice", {})).status === 403);
+  const pC = await C.ctx.newPage();
+  await pC.goto(`${BASE}/asistente`);
+  await pC.waitForURL(/\/inbox/, { timeout: 30000 }).catch(() => null);
+  ok("asesor → /asistente lo regresa a la Bandeja", /\/inbox/.test(pC.url()), pC.url());
+  ok("asesor: sin «Asistente» en su menú", (await pC.locator('a[href="/asistente"]').count()) === 0);
+  await pC.close();
+
+  // Panel de plataforma: interruptor, tope y visibilidad a la vista.
+  const pa = await A.ctx.newPage();
+  await pa.setViewportSize({ width: 1440, height: 900 });
+  await pa.goto(`${BASE}/platform/organizaciones`);
+  const fila = pa.getByTestId(`platform-org-${orgB}`);
+  await fila.waitFor({ timeout: 30000 });
+  ok("la fila cuenta «x/13»", /^\d+\/13$/.test((await fila.getByTestId("platform-org-modules-count").last().innerText()).trim()));
+  await fila.getByTestId("platform-org-toggle").click();
+  await fila.getByTestId("platform-limits").waitFor({ timeout: 30000 });
+  ok("el administrador ve el interruptor «Asistente interno»", /Asistente interno/.test(await fila.getByTestId("platform-module-asistente").innerText()));
+  ok("…el tope del asistente y la visibilidad del consumo", (await fila.getByTestId("platform-limit-assistantTokens").count()) === 1 && (await fila.getByTestId("platform-limit-usageVisibility").inputValue()) === "percent");
+  await pa.close();
+
+  const off = await A.call("POST", `/api/platform/organizations/${orgB}/modules`, { asistente: false });
+  ok("al apagarlo, la API vuelve a 404", off.status === 200 && (await B.call("GET", "/api/assistant/status")).status === 404);
+  const reset = await A.call("PUT", `/api/platform/organizations/${orgB}/limits`, { assistantTokens: null, aiTokens: null });
   ok("B vuelve a heredar sus topes", reset.status === 200);
 }
 

@@ -86,6 +86,8 @@ export type ModulesDto = {
   customNav: boolean;
   /** 033 — Tareas y Notas. */
   trabajo: boolean;
+  /** 038 — Asistente interno (premium). */
+  asistente: boolean;
 };
 
 export function modulesDto(m: OrgModules): ModulesDto {
@@ -103,6 +105,7 @@ export function modulesDto(m: OrgModules): ModulesDto {
     results: m.results,
     customNav: m.customNav,
     trabajo: m.trabajo,
+    asistente: m.asistente,
   };
 }
 
@@ -337,6 +340,7 @@ export async function changeOrganizationModules(
     results: change.results,
     customNav: change.customNav,
     trabajo: change.trabajo,
+    asistente: change.asistente,
   };
   if (change.instagram !== undefined || change.messenger !== undefined) {
     const current = modulesDto(await getOrgModules(organizationId));

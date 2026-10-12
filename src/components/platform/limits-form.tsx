@@ -9,12 +9,16 @@ import {
   PLAN_LABEL,
   STORAGE_MODE_LABEL,
   STORAGE_MODES,
+  USAGE_VISIBILITIES,
+  USAGE_VISIBILITY_LABEL,
   type AlertMetric,
   type EffectiveLimits,
   type Limit,
   type LimitsPatch,
   type StorageMode,
+  type UsageVisibility,
 } from "@/lib/limits";
+import { PLATFORM_MODULE_TOGGLES } from "@/lib/platform-modules";
 import { formatStorage, formatTokens } from "@/lib/usage";
 import { api } from "./api";
 
@@ -26,7 +30,7 @@ import { api } from "./api";
  */
 
 type Alert = { metric: AlertMetric; threshold: number; used: number; limit: number; seenAt: string | null };
-type Field = keyof Omit<LimitsPatch, "planKey" | "storageMode">;
+type Field = keyof Omit<LimitsPatch, "planKey" | "storageMode" | "usageVisibility">;
 
 const GB = 1024 ** 3;
 const MB = 1024 ** 2;
@@ -36,16 +40,20 @@ const FIELDS: { key: Field; label: string; unit: string; toValue: (n: number) =>
   { key: "aiTokens", label: "IA: tokens al mes", unit: "tokens", toValue: (n) => n, fromValue: (v) => v, fmt: formatTokens },
   { key: "aiTurns", label: "IA: turnos al mes", unit: "turnos", toValue: (n) => n, fromValue: (v) => v, fmt: (v) => v.toLocaleString("es-MX") },
   { key: "embedTokens", label: "Embeddings: tokens al mes", unit: "tokens", toValue: (n) => n, fromValue: (v) => v, fmt: formatTokens },
+  // 038: tope propio del asistente interno (cuenta también en el total de IA).
+  { key: "assistantTokens", label: "Asistente interno: tokens al mes", unit: "tokens", toValue: (n) => n, fromValue: (v) => v, fmt: formatTokens },
   { key: "storageBytes", label: "Almacenamiento (aprox.)", unit: "GB", toValue: (n) => Math.round(n * GB), fromValue: (v) => Math.round((v / GB) * 100) / 100, fmt: formatStorage },
   { key: "members", label: "Personas", unit: "personas", toValue: (n) => n, fromValue: (v) => v, fmt: (v) => String(v) },
-  { key: "modules", label: "Módulos activos (de 12)", unit: "módulos", toValue: (n) => n, fromValue: (v) => v, fmt: (v) => String(v) },
+  { key: "modules", label: `Módulos activos (de ${PLATFORM_MODULE_TOGGLES.length})`, unit: "módulos", toValue: (n) => n, fromValue: (v) => v, fmt: (v) => String(v) },
   { key: "kbMaxDocuments", label: "Documentos del agente", unit: "documentos", toValue: (n) => n, fromValue: (v) => v, fmt: (v) => String(v) },
   { key: "kbMaxChunks", label: "Fragmentos de documentos", unit: "fragmentos", toValue: (n) => n, fromValue: (v) => v, fmt: (v) => String(v) },
   { key: "kbMaxFileBytes", label: "Tamaño máx. por documento", unit: "MB", toValue: (n) => Math.round(n * MB), fromValue: (v) => Math.round((v / MB) * 10) / 10, fmt: formatStorage },
 ];
 
-function hint(limit: Limit, fmt: (v: number) => string): string {
+function hint(limit: Limit, fmt: (v: number) => string, key?: Field): string {
   if (limit.source === "org") return "Propio de esta organización";
+  // 038: sin tope, el asistente no responde (nunca corre sin tope).
+  if (key === "assistantTokens" && limit.source === "none") return "Sin tope: el asistente no responde";
   if (limit.source === "env") return `Hereda: ${fmt(limit.value!)} (entorno)`;
   return "Hereda: sin tope";
 }
@@ -55,6 +63,7 @@ export function LimitsForm({ orgId, onSaved }: { orgId: string; onSaved: () => v
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [draft, setDraft] = useState<Record<Field, string>>({} as Record<Field, string>);
   const [mode, setMode] = useState<StorageMode>("warn");
+  const [visibility, setVisibility] = useState<UsageVisibility>("percent");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
@@ -63,6 +72,7 @@ export function LimitsForm({ orgId, onSaved }: { orgId: string; onSaved: () => v
     setLimits(l);
     setAlerts(a);
     setMode(l.storageMode);
+    setVisibility(l.usageVisibility);
     const d = {} as Record<Field, string>;
     for (const f of FIELDS) {
       const lim = l[f.key];
@@ -100,6 +110,7 @@ export function LimitsForm({ orgId, onSaved }: { orgId: string; onSaved: () => v
       patch[f.key] = f.toValue(n);
     }
     if (mode !== limits.storageMode) patch.storageMode = mode;
+    if (visibility !== limits.usageVisibility) patch.usageVisibility = visibility;
     if (Object.keys(patch).length === 0) return;
     setBusy(true);
     setError(null);
@@ -141,12 +152,12 @@ export function LimitsForm({ orgId, onSaved }: { orgId: string; onSaved: () => v
               id={`${f.key}-${orgId}`}
               inputMode="decimal"
               className="h-8"
-              placeholder={limits[f.key].source === "org" ? "" : hint(limits[f.key], f.fmt)}
+              placeholder={limits[f.key].source === "org" ? "" : hint(limits[f.key], f.fmt, f.key)}
               value={draft[f.key] ?? ""}
               onChange={(e) => setDraft({ ...draft, [f.key]: e.target.value })}
               data-testid={`platform-limit-${f.key}`}
             />
-            <p className="truncate text-[11px] text-text-3">{hint(limits[f.key], f.fmt)}</p>
+            <p className="truncate text-[11px] text-text-3">{hint(limits[f.key], f.fmt, f.key)}</p>
           </div>
         ))}
         <div className="min-w-0 space-y-1">
@@ -168,6 +179,27 @@ export function LimitsForm({ orgId, onSaved }: { orgId: string; onSaved: () => v
           </select>
           <p className="text-[11px] text-text-3">
             Bloquear afecta documentos, Conocimientos y adjuntos del chat de equipo. WhatsApp siempre se recibe.
+          </p>
+        </div>
+        <div className="min-w-0 space-y-1">
+          <Label htmlFor={`visibility-${orgId}`} className="text-xs">
+            Qué ve el cliente de su consumo de IA
+          </Label>
+          <select
+            id={`visibility-${orgId}`}
+            className="h-8 w-full rounded-sm border bg-background px-2 text-sm"
+            value={visibility}
+            onChange={(e) => setVisibility(e.target.value as UsageVisibility)}
+            data-testid="platform-limit-usageVisibility"
+          >
+            {USAGE_VISIBILITIES.map((v) => (
+              <option key={v} value={v}>
+                {USAGE_VISIBILITY_LABEL[v]}
+              </option>
+            ))}
+          </select>
+          <p className="text-[11px] text-text-3">
+            En «Uso y plan», los avisos y el asistente. Nunca ve dólares; tú ves siempre las cifras reales.
           </p>
         </div>
       </div>
