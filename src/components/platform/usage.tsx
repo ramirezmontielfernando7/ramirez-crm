@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { cn } from "@/lib/utils";
 import {
   AI_KIND_LABEL,
   AI_KINDS,
@@ -15,61 +14,17 @@ import {
   STORAGE_NOTE,
   storageMeter,
   turnos,
-  type Meter,
-  type MeterTone,
 } from "@/lib/usage";
+import { UsageMeter } from "@/components/usage/usage-meter";
 import { api, mesDe, type OrgUsageDetail } from "./api";
 
 /**
  * 036 (PR 4) — Cómo se ve el consumo en /platform: un medidor fino (texto +
- * barra) y, al abrir la fila, el detalle del mes. Solo lectura.
+ * barra, `UsageMeter`, compartido con «Uso y plan») y, al abrir la fila, el
+ * detalle del mes. Solo lectura.
  */
 
-const FILL: Record<MeterTone, string> = {
-  normal: "bg-brand",
-  warning: "bg-warning",
-  danger: "bg-destructive",
-};
-
-export function UsageMeter({
-  meter,
-  label,
-  testId,
-  showLabel = "mobile",
-}: {
-  meter: Meter;
-  label: string;
-  testId?: string;
-  /** La etiqueta visible: solo en el celular (la lista tiene encabezados) o nunca. */
-  showLabel?: "mobile" | "never";
-}) {
-  const pct = meter.ratio === null ? null : Math.min(100, Math.round(meter.ratio * 100));
-  return (
-    <div className="min-w-0" title={meter.detail} data-testid={testId} data-tone={meter.tone}>
-      {showLabel === "mobile" && <span className="block text-[11px] text-text-3 sm:hidden">{label}</span>}
-      <span
-        className={cn(
-          "block truncate text-xs tabular-nums",
-          meter.tone === "danger" ? "text-danger-text" : meter.tone === "warning" ? "text-warning-text" : "text-text-2"
-        )}
-      >
-        {meter.text}
-      </span>
-      {pct !== null && (
-        <div
-          className="mt-1 h-1 w-full overflow-hidden rounded-full bg-muted"
-          role="progressbar"
-          aria-label={label}
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-valuenow={pct}
-        >
-          <div className={cn("h-full rounded-full", FILL[meter.tone])} style={{ width: `${pct}%` }} />
-        </div>
-      )}
-    </div>
-  );
-}
+export { UsageMeter };
 
 /** Una fila «etiqueta ……… valor» del detalle. */
 function Line({ label, value, hint }: { label: string; value: string; hint?: string }) {

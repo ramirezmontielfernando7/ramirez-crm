@@ -169,3 +169,22 @@ export function storageMeter(bytes: number, limitBytes: number | null = null): M
   const text = `${formatStorage(bytes)} / ${formatStorage(limitBytes)}`;
   return { text, ratio, tone: meterTone(ratio), detail: `${STORAGE_LABEL}: ${text}` };
 }
+
+/**
+ * 036 (PR 6) — Un conteo contra su tope («3 / 5 personas», «12 documentos ·
+ * sin tope»). `format` da el número (tokens compactos, enteros…).
+ */
+export function countMeter(
+  used: number,
+  limit: number | null,
+  unit: string,
+  format: (n: number) => string = (n) => n.toLocaleString("es-MX")
+): Meter {
+  if (limit === null) {
+    const text = `${format(used)} ${unit} · sin tope`;
+    return { text, ratio: null, tone: "normal", detail: text };
+  }
+  const ratio = limit > 0 ? used / limit : used > 0 ? Infinity : 0;
+  const text = `${format(used)} / ${format(limit)} ${unit}`;
+  return { text, ratio, tone: meterTone(ratio), detail: text };
+}

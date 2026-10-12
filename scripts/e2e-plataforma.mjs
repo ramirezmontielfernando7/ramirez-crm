@@ -194,6 +194,7 @@ async function main() {
   await consumoEnPlataforma(A, B, orgB.id);
   await topesYAvisos(A, B, orgB.id);
   await costosEnPlataforma(A, B, orgB.id);
+  await usoYPlan(A, B, orgB.id);
 
   console.log("\n== 5 · Suspensión ==");
   const sus = await A.call("POST", `/api/platform/organizations/${orgB.id}/status`, { action: "suspend", reason: "prueba e2e" });
@@ -569,6 +570,78 @@ async function costosEnPlataforma(A, B, orgB) {
   ok("celular: costos sin desplazamiento horizontal", !desborde);
   await cel.screenshot({ path: "scratch/e2e-plataforma-costos-movil.png", fullPage: true }).catch(() => null);
   await movil.close();
+}
+
+/**
+ * 036 (PR 6) — «Uso y plan» del Propietario: entra desde el menú de su
+ * cuenta y ve su consumo del mes contra sus topes, por función y por agente.
+ * Un asesor de la misma organización no tiene la entrada, la página lo
+ * regresa a la Bandeja y la API responde 403.
+ */
+async function usoYPlan(A, B, orgB) {
+  console.log("\n== 4e · «Uso y plan» del Propietario ==");
+  const topes = await A.call("PUT", `/api/platform/organizations/${orgB}/limits`, { members: 3, aiTokens: 1_000_000, storageBytes: 50 * 1024 * 1024 });
+  ok("el administrador fija topes a B", topes.status === 200);
+
+  const api = await B.call("GET", "/api/usage");
+  const u = api.json?.usage;
+  ok("la Propietaria lee su uso (200)", api.status === 200 && Boolean(u), String(api.status));
+  ok("…contra sus topes (IA, personas, almacenamiento)", u?.limits?.aiTokens?.value === 1_000_000 && u?.limits?.members?.value === 3 && u?.limits?.storageBytes?.value === 50 * 1024 * 1024, JSON.stringify(u?.limits).slice(0, 300));
+  ok("…plan «Personalizado»", u?.limits?.planKey === "custom");
+  ok("…por función (Laboratorio y redacción) y por agente", Boolean(u?.ai?.byKind?.lab && u?.ai?.byKind?.writing) && (u?.ai?.byAgent?.length ?? 0) >= 1, JSON.stringify(u?.ai?.byKind));
+  ok("…sin costos ni precios (son de la plataforma)", !JSON.stringify(u).includes("costUsd") && !JSON.stringify(u).includes("Mtok"));
+
+  const page = await B.ctx.newPage();
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto(`${BASE}/inbox`);
+  const entrada = page.getByTestId("nav-usage");
+  ok("la Propietaria tiene «Uso y plan» en el menú de su cuenta", await entrada.waitFor({ timeout: 30000 }).then(() => true, () => false));
+  await entrada.click();
+  await page.waitForURL(/\/uso$/, { timeout: 30000 });
+  const pantalla = page.getByTestId("usage-plan");
+  await pantalla.waitFor({ timeout: 30000 });
+  ok("la pantalla dice el plan", /Personalizado/.test(await page.getByTestId("usage-plan-name").innerText()));
+  ok("IA del mes contra su tope", /\/ 1 M tokens/.test(await page.getByTestId("usage-plan-ai-meter").innerText()));
+  ok("personas contra su tope", /\/ 3 personas/.test(await page.getByTestId("usage-plan-members-meter").innerText()));
+  ok("«Almacenamiento (aprox.)» contra su tope, por categoría", /\/ 50 MB/.test(await page.getByTestId("usage-plan-storage-meter").innerText()) && /Archivos de Conocimientos/.test(await page.getByTestId("usage-plan-storage-categories").innerText()));
+  ok("qué función consume más", /Asistente de redacción/.test(await page.getByTestId("usage-plan-kinds").innerText()));
+  const agentes = (await B.call("GET", "/api/lab/agents")).json?.agents ?? [];
+  const general = agentes.find((a) => a.isGeneral);
+  ok("qué agente consume más (con su nombre)", (await page.getByTestId("usage-plan-agents").innerText()).includes(general?.internalName ?? "¿?"));
+  await page.screenshot({ path: "scratch/e2e-uso-y-plan.png", fullPage: true }).catch(() => null);
+  await page.close();
+
+  // Celular, modo oscuro.
+  const movil = await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true, extraHTTPHeaders: { origin: BASE } });
+  await movil.addCookies([{ name: "vocero-theme", value: "dark", url: BASE }, ...(await B.ctx.cookies())]);
+  const cel = await movil.newPage();
+  await cel.goto(`${BASE}/uso`);
+  await cel.getByTestId("usage-plan").waitFor({ timeout: 30000 });
+  const desborde = await cel.evaluate(() => {
+    const els = [document.documentElement, ...document.querySelectorAll("main, [class*='overflow-y-auto']")];
+    return els.some((e) => e.scrollWidth > e.clientWidth + 1);
+  });
+  ok("celular: «Uso y plan» sin desplazamiento horizontal", !desborde);
+  await cel.screenshot({ path: "scratch/e2e-uso-y-plan-movil.png", fullPage: true }).catch(() => null);
+  await movil.close();
+
+  // Un asesor de la misma organización: ni entrada, ni página, ni API.
+  const email = `asesor.uso.${RUN}@plataforma.test`;
+  const pass = "contraseña-del-asesor-123";
+  const alta = await B.call("POST", "/api/settings/team", { name: "Asesor Uso", email, password: pass, role: "asesor" });
+  ok("B agrega un asesor (cabe en el tope de 3)", alta.status === 201 || alta.status === 200, `${alta.status} ${JSON.stringify(alta.json)}`);
+  const C = await persona();
+  ok("el asesor inicia sesión", (await C.entrar(email, pass)).status === 200);
+  ok("asesor → 403 en /api/usage", (await C.call("GET", "/api/usage")).status === 403);
+  const pC = await C.ctx.newPage();
+  await pC.goto(`${BASE}/uso`);
+  await pC.waitForURL(/\/inbox/, { timeout: 30000 }).catch(() => null);
+  ok("asesor → /uso lo regresa a la Bandeja", /\/inbox/.test(pC.url()), pC.url());
+  ok("asesor: sin «Uso y plan» en su menú", (await pC.getByTestId("nav-usage").count()) === 0);
+  await pC.close();
+
+  const reset = await A.call("PUT", `/api/platform/organizations/${orgB}/limits`, { members: null, aiTokens: null, storageBytes: null });
+  ok("B vuelve a heredar sus topes", reset.status === 200);
 }
 
 try {

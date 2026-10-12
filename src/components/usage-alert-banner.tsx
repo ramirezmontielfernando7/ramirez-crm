@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Gauge } from "lucide-react";
+import Link from "next/link";
 import { fetchJson } from "@/lib/fetch-json";
 import { cn } from "@/lib/utils";
 import { useViewer } from "@/components/viewer-context";
@@ -52,6 +53,13 @@ export function UsageAlertBanner() {
           </li>
         ))}
       </ul>
+      <Link
+        href="/uso"
+        className="shrink-0 rounded px-2 py-0.5 text-xs font-medium underline underline-offset-2"
+        data-testid="usage-alert-details"
+      >
+        Ver uso y plan
+      </Link>
       <button
         type="button"
         className="shrink-0 rounded px-2 py-0.5 text-xs font-medium underline-offset-2 hover:underline"

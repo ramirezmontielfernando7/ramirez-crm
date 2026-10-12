@@ -122,6 +122,7 @@ const PROTEGIDAS: [string, Method, Permission][] = [
   // 034: eliminar un chat para siempre; archivar (PATCH) lo ve cualquiera que vea el chat.
   ["conversations/[id]", "DELETE", "conversation.delete"],
   // 036 (PR 3a): avisos de consumo (solo el Propietario).
+  ["usage", "GET", "usage.read"],
   ["usage/alerts", "GET", "usage.read"],
   ["usage/alerts", "POST", "usage.read"],
   ["settings/team", "GET", "users.read"],

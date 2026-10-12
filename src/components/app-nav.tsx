@@ -13,6 +13,7 @@ import {
   Camera,
   ChartColumn,
   FlaskConical,
+  Gauge,
   Inbox,
   Kanban,
   ListChecks,
@@ -298,6 +299,8 @@ export function AppNav({
         roleText={viewer.roleLabel || roleLabel(role)}
         theme={theme}
         onSignOut={signOutAndLeave}
+        showUsage={viewer.can("usage.read")}
+        usageActive={pathname === "/uso"}
       />
 
       <NavVersion branding={branding} version={version} />
@@ -395,16 +398,21 @@ const NavFooter = memo(function NavFooter({
   roleText,
   theme,
   onSignOut,
+  showUsage,
+  usageActive,
 }: {
   userName: string;
   roleText: string;
   theme: ThemePreference;
   onSignOut: () => Promise<void>;
+  /** 036 (PR 6): «Uso y plan», solo el Propietario (`usage.read`). */
+  showUsage: boolean;
+  usageActive: boolean;
 }) {
   return (
     <>
       <div className="hidden flex-col group-data-[mini]/nav:flex">
-        <ProfileMenu userName={userName} roleText={roleText} theme={theme} onSignOut={onSignOut} />
+        <ProfileMenu userName={userName} roleText={roleText} theme={theme} onSignOut={onSignOut} showUsage={showUsage} />
       </div>
       <div className="mt-1 flex items-center gap-2.5 rounded-sm px-2.5 py-2 hover:bg-accent group-data-[mini]/nav:hidden">
         <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-soft text-xs font-bold text-brand-text">
@@ -414,6 +422,18 @@ const NavFooter = memo(function NavFooter({
           <span className="block truncate text-[13px] font-semibold">{userName}</span>
           <span className="block truncate text-[11px] text-text-3">{roleText} · En línea</span>
         </span>
+        {showUsage && (
+          <Link
+            href="/uso"
+            aria-label="Uso y plan"
+            title="Uso y plan"
+            aria-current={usageActive ? "page" : undefined}
+            data-testid="nav-usage"
+            className={cn("rounded p-1 hover:text-foreground", usageActive ? "text-brand" : "text-text-3")}
+          >
+            <Gauge className="h-4 w-4" strokeWidth={1.7} />
+          </Link>
+        )}
         <ThemeToggle initial={theme} />
         <button
           aria-label="Cerrar sesión"
@@ -555,11 +575,13 @@ function ProfileMenu({
   roleText,
   theme,
   onSignOut,
+  showUsage,
 }: {
   userName: string;
   roleText: string;
   theme: ThemePreference;
   onSignOut: () => Promise<void>;
+  showUsage: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<{ left: number; bottom: number } | null>(null);
@@ -638,6 +660,17 @@ function ProfileMenu({
                     <LogOut className="h-4 w-4" strokeWidth={1.7} />
                   </button>
                 </div>
+                {showUsage && (
+                  <Link
+                    href="/uso"
+                    onClick={() => setOpen(false)}
+                    data-testid="nav-usage-menu"
+                    className="mt-1 flex items-center gap-2 rounded-sm px-2 py-1.5 text-[13px] hover:bg-accent"
+                  >
+                    <Gauge className="h-4 w-4 text-text-3" strokeWidth={1.7} />
+                    Uso y plan
+                  </Link>
+                )}
               </m.div>
             )}
           </AnimatePresence>,

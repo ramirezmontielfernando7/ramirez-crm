@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { countActiveModules, PLATFORM_MODULE_LABEL, PLATFORM_MODULE_TOGGLES } from "@/lib/platform-modules";
-import { aiMeter, formatTokens, meterTone, storageMeter, turnos } from "@/lib/usage";
+import { aiMeter, countMeter, formatTokens, meterTone, storageMeter, turnos } from "@/lib/usage";
 
 /** 036 (PR 4) — Medidores y «x/12» de la lista de /platform (reglas puras). */
 describe("medidores de /platform", () => {
@@ -63,5 +63,21 @@ describe("medidores de /platform", () => {
     const todo = Object.fromEntries(PLATFORM_MODULE_TOGGLES.map((k) => [k, true])) as Record<(typeof PLATFORM_MODULE_TOGGLES)[number], boolean>;
     expect(countActiveModules(todo)).toEqual({ active: 12, total: 12 });
     expect(countActiveModules({ ...todo, campaigns: false, customNav: false, instagram: false })).toEqual({ active: 9, total: 12 });
+  });
+});
+
+describe("036 PR 6 — conteo contra su tope («Uso y plan»)", () => {
+  it("con tope: «usado / tope unidad» y su color; sin tope: «· sin tope»", () => {
+    expect(countMeter(3, 5, "personas")).toMatchObject({ text: "3 / 5 personas", tone: "normal" });
+    expect(countMeter(4, 5, "personas").tone).toBe("warning");
+    expect(countMeter(5, 5, "personas").tone).toBe("danger");
+    expect(countMeter(12, null, "documentos")).toEqual({ text: "12 documentos · sin tope", ratio: null, tone: "normal", detail: "12 documentos · sin tope" });
+  });
+  it("tope 0: nada usado no es rojo; algo usado sí", () => {
+    expect(countMeter(0, 0, "módulos").tone).toBe("normal");
+    expect(countMeter(1, 0, "módulos").tone).toBe("danger");
+  });
+  it("formato propio (tokens compactos)", () => {
+    expect(countMeter(1500, 1_000_000, "tokens", formatTokens).text).toBe("1.5 k / 1 M tokens");
   });
 });

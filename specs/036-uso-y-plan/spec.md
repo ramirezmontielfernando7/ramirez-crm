@@ -1,6 +1,6 @@
 # 036 — Uso y plan (Plataforma reorganizada + panel de consumo del Propietario)
 
-Estado: PR 1, 2, 3a y 4 fusionados; PR 3b implementado (panel de costos, sin migración). PR 3c (historial), 5 y 6 pendientes; cada uno
+Estado: PR 1, 2, 3a, 3b y 4 fusionados; PR 6 implementado («Uso y plan» del Propietario, sin migración). PR 3c (historial) y 5 pendientes; cada uno
 arranca solo cuando el dueño lo indica, y solo hay una migración en curso a la
 vez (el número se asigna al implementar, leyendo `drizzle/` en `main`).
 
@@ -180,3 +180,29 @@ despliegue, una vista previa en Laboratorio → Agentes (una llamada); en
 Plataforma → Costos, la organización muestra «Real (OpenRouter)»; el log
 `ai` trae «costo reportado por el proveedor generacion=gen-… costo_usd=…»;
 ese `gen-…` en openrouter.ai/activity debe marcar el mismo monto.
+
+## PR 6 — «Uso y plan» del Propietario (hecho, sin migración)
+
+No depende del 3c: muestra el mes en curso contra los topes; el historial
+mensual podrá sumarse después como otra sección.
+
+- Entrada: el ícono de medidor en la tarjeta de la cuenta, abajo en la barra
+  lateral (y «Uso y plan» en el menú del avatar con la barra en íconos); solo
+  con `usage.read` (Propietario). El aviso de consumo (3a) enlaza aquí.
+- Página `/uso` (`requirePagePermission("usage.read")`: los demás vuelven a la
+  Bandeja) y `GET /api/usage` (`usage.read`, siempre la organización de la
+  sesión).
+- Qué muestra: plan («Personalizado»); IA del mes contra su tope (la medida
+  que va más alta, con la otra debajo); embeddings aparte; «Almacenamiento
+  (aprox.)» contra su tope, su modo y por categoría con su nota; personas y
+  módulos activos (de 12) contra sus topes; documentos y fragmentos del
+  agente contra sus topes (solo si la organización usa documentos); qué
+  función y qué agente consumen más; los avisos del mes. Sin costos ni
+  precios (son de la plataforma). Solo lectura: los topes los cambia el
+  administrador de plataforma.
+- Código: `src/server/usage/owner.ts` (`getOwnerUsage`, pool de la app, RLS,
+  `scoped()`), el detalle compartido con Plataforma en
+  `src/server/usage/detail.ts` (`readOrgUsageDetail`), `countMeter` en
+  `src/lib/usage.ts`, UI `src/components/usage/` (`usage-plan-client.tsx`,
+  `usage-meter.tsx` compartido con Plataforma).
+
