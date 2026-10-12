@@ -16,7 +16,7 @@ import type { KbGroupSummary } from "@/server/kb-docs/store";
 
 type Listing = {
   documents: KbDocumentView[];
-  usage: { documents: number; chunks: number };
+  usage: { documents: number; chunks: number; exclusive: number };
   limits: { maxFileBytes: number; maxDocuments: number; maxChunks: number; maxChars: number };
   embeddings: { enabled: boolean; model: string | null };
   accept: string;
@@ -211,6 +211,9 @@ export function DocumentsClient({ groupKey: activeKey = GENERAL_GROUP_KEY }: { g
                 <span className="text-muted-foreground">
                   {" "}
                   · {data.usage.chunks.toLocaleString("es-MX")} de {data.limits.maxChunks.toLocaleString("es-MX")} fragmentos
+                  {data.usage.exclusive > 0 && (
+                    <span data-testid="kb-docs-exclusive"> · {plural(data.usage.exclusive, "exclusivo de un agente", "exclusivos de agentes")}</span>
+                  )}
                 </span>
                 <p className="mt-0.5 text-xs text-muted-foreground">
                   {data.embeddings.enabled

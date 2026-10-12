@@ -32,13 +32,18 @@ export const PATCH = withAuth(async (session, req: Request, ctx: Params) => {
   );
 }, { permission: "agent.manage" });
 
-/** Archivar. El general no se archiva (409 `agent_general`). */
-export const DELETE = withAuth(async (session, _req: Request, ctx: Params) => {
+/**
+ * Archivar. El general no se archiva (409 `agent_general`).
+ * 037 (PR 3): `?documents=general` pasa sus documentos exclusivos a General;
+ * sin el parámetro (o `delete`) se borran. En la misma transacción.
+ */
+export const DELETE = withAuth(async (session, req: Request, ctx: Params) => {
   const off = (await moduleOff(session.organizationId, "lab")) ?? (await moduleOff(session.organizationId, "agent"));
   if (off) return off;
   const { id } = await ctx.params;
+  const exclusiveDocs = new URL(req.url).searchParams.get("documents") === "general" ? "move_to_general" : "delete";
   return withAgentErrors(async () => {
-    await archiveAgent(session.organizationId, id);
+    await archiveAgent(session.organizationId, id, { exclusiveDocs });
     return Response.json({ archived: true });
   });
 }, { permission: "agent.manage" });

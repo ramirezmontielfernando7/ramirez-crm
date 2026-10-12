@@ -230,6 +230,19 @@ agente de cada etapa), la vista previa y las evaluaciones (que congelan la
 selección al empezar). Al borrar un grupo, el diálogo dice cuántos agentes lo
 eligen: dejarán de leer esos documentos.
 
+### Documentos exclusivos de un agente
+
+En la misma sección «Documentos» del editor, **Solo de este agente**: lo que
+subas ahí lo lee únicamente ese agente, sin importar los grupos que eligió.
+No aparecen en Laboratorio → Documentos (que muestra cuántos hay) y **cuentan
+igual** contra los límites del negocio. Aplican **al momento**, sin publicar
+(como el conocimiento propio del agente). No se mueven a un grupo.
+
+Al **archivar** un agente con exclusivos, el diálogo pregunta qué hacer con
+ellos: **eliminarlos** (por defecto) o **conservarlos pasándolos a General**
+(entonces los lee cualquier agente que use «Todos los documentos de la
+empresa»). Pasa en el mismo momento en que se archiva.
+
 ## Seguridad: el contenido es dato, no instrucciones
 
 Un documento puede traer texto como «ignora tus instrucciones y…». Vocero lo

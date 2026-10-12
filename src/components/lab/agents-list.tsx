@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ArchiveExclusiveDocsChoice } from "@/components/lab/agent-doc-sources";
 import { ConfirmDialog } from "@/components/lab/confirm-dialog";
 import { call, formatDate, NO_NAME_LABEL, STATUS_LABEL, type AgentSummary } from "@/components/lab/agents-api";
 
@@ -27,6 +28,8 @@ export function AgentsList() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [toArchive, setToArchive] = useState<AgentSummary | null>(null);
+  // 037 (PR 3) — Al archivar: qué pasa con sus documentos exclusivos (por defecto, se borran).
+  const [archiveDocs, setArchiveDocs] = useState<"delete" | "general">("delete");
 
   const load = useCallback(async () => {
     const r = await call<Listing>("/api/lab/agents");
@@ -64,9 +67,10 @@ export function AgentsList() {
   async function archive() {
     if (!toArchive) return;
     setBusy(true);
-    const r = await call(`/api/lab/agents/${toArchive.id}`, { method: "DELETE" });
+    const r = await call(`/api/lab/agents/${toArchive.id}?documents=${archiveDocs}`, { method: "DELETE" });
     setBusy(false);
     setToArchive(null);
+    setArchiveDocs("delete");
     if (!r.ok) setError(r.message);
     else setError(null);
     void load();
@@ -198,9 +202,13 @@ export function AgentsList() {
           destructive
           busy={busy}
           onConfirm={() => void archive()}
-          onCancel={() => setToArchive(null)}
+          onCancel={() => {
+            setToArchive(null);
+            setArchiveDocs("delete");
+          }}
         >
           <p>Deja de aparecer en la lista y ya no se puede evaluar. Si atendía alguna etapa, esa etapa vuelve al agente general (lo verás en «Asignación por etapa»).</p>
+          <ArchiveExclusiveDocsChoice agentId={toArchive.id} value={archiveDocs} onChange={setArchiveDocs} />
         </ConfirmDialog>
       )}
     </div>

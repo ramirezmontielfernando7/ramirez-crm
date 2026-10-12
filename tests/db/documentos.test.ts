@@ -254,7 +254,7 @@ describe("subir e indexar", () => {
       const r = await llamar("lab/documents", "GET");
       expect(r.status).toBe(200);
       expect((r.data.documents as { id: string }[]).map((d) => d.id)).not.toContain(docA);
-      expect(r.data.usage).toEqual({ documents: 0, chunks: 0 });
+      expect(r.data.usage).toEqual({ documents: 0, chunks: 0, exclusive: 0 });
     });
 
     it("B no lo lee por id, no lo reindexa ni lo borra (404) y A lo sigue teniendo", async () => {

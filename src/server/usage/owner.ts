@@ -34,7 +34,9 @@ export async function getOwnerUsage(organizationId: string, now = new Date()): P
   const detail = await readOrgUsageDetail(organizationId, now);
   const limits = await getEffectiveLimits(organizationId);
   const embedTokens = await embedTokensUsed(organizationId, now);
-  const documents = (await orgHasKbDocs(organizationId)) ? await getKbDocUsage(organizationId) : null;
+  // Solo los dos números de este contrato (037 PR 3 agregó `exclusive` al uso de Documentos).
+  const kb = (await orgHasKbDocs(organizationId)) ? await getKbDocUsage(organizationId) : null;
+  const documents = kb ? { documents: kb.documents, chunks: kb.chunks } : null;
   const members = await countMembers(organizationId);
   const modules = countActiveModules(moduleToggles(await getOrgModules(organizationId)));
   const alerts = (await listAlerts(organizationId, { now })).map((a) => ({ ...a, text: alertText(a.metric, a.threshold) }));
