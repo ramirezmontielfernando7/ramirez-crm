@@ -127,6 +127,16 @@ que conviene saber antes de encenderlo:
   tope propio y el total.
 - Las conversaciones son de quien las abre y se borran a los **90 días** sin
   actividad. Tú (plataforma) no las ves.
+- **Análisis de conversaciones (PR 3).** Para preguntas como «¿por qué pierdo
+  ventas?», el asistente analiza cada conversación UNA vez y guarda el
+  resultado (resultado, motivo de pérdida, objeción, desempeño del asesor);
+  sin mensajes nuevos lo reutiliza sin volver a pagar. Hasta 20 conversaciones
+  nuevas por pregunta (de a 5 por llamada, de la más reciente a la más
+  vieja); si faltan, lo dice. Las vacías, muy cortas, solo con audios o
+  imágenes, o solo con mensajes automáticos se marcan «sin información
+  suficiente» sin gastar IA. Para que cueste menos, define
+  `OPENROUTER_ANALYSIS_MODEL` (p. ej. `anthropic/claude-haiku-4.5`); sin ella
+  usa `OPENROUTER_MODEL`.
 
 ### Pasos de Coolify (PR 3)
 

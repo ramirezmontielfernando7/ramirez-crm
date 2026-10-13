@@ -36,8 +36,8 @@ asistente.
 | PR | Contenido | Migración | Estado |
 |---|---|---|---|
 | 1 | Interruptor 13, permiso `assistant.use`, `AiKind` + tope propio + avisos, visibilidad del consumo, aviso antes de usarlo | 0047 | fusionado (#65) |
-| **2** | **Motor mínimo, catálogo cerrado (uso y plan + panorama), enmascarado, cuarentena, fuentes, pantalla /asistente** | **0048** | **en curso** |
-| 3 | Análisis por conversación, trabajos en segundo plano, enmascarado, primera pasada | siguiente libre | pendiente |
+| 2 | Motor mínimo, catálogo cerrado (uso y plan + panorama), enmascarado, cuarentena, fuentes, pantalla /asistente | 0048 | fusionado (#66) |
+| **3** | **Análisis guardado por conversación (`conversation_insight`), por lotes con tope por pregunta, «sin información suficiente», modelo propio del análisis** | **0049** | **en curso** |
 | 4 | Bucle de herramientas, preguntas agregadas, muestras, asesores, reportes pesados | siguiente libre | pendiente |
 | 5 | Diagnóstico de la base, validar y corregir casos | — | pendiente |
 | 6 | Campañas: baja de marketing 131050, frecuencia por contacto, plantilla pausada | 0046 | fusionado (#64) |
@@ -46,6 +46,60 @@ asistente.
 En el PR 3 se mide y reporta el **costo real por conversación analizada** y
 se evalúa si el análisis puede usar un modelo más barato que el del
 asistente.
+
+## PR 3 — Análisis guardado por conversación
+
+### Comportamiento observable
+
+1. **Una vez por conversación.** La consulta `analisis_conversaciones`
+   (periodo de 1 a 90 días, 30 por defecto) analiza cada conversación del
+   periodo y guarda el resultado en `conversation_insight`. Mientras la
+   conversación no tenga mensajes nuevos (`message_count`), se REUTILIZA lo
+   guardado y no se vuelve a llamar al modelo; con mensajes nuevos se vuelve a
+   analizar solo esa.
+2. **Categorías cerradas.** Resultado (venta, perdida, en curso, dejó de
+   responder, no se sabe), motivo de pérdida, objeción principal, desempeño
+   del asesor (o «sin asesor» si solo contestó la IA) y confianza, más un
+   resumen de una frase. Lo que el modelo no reconozca queda «no se sabe»
+   (CHECK en la BD). Si la etapa del lead es ganada o perdida, manda la etapa
+   («etiquetado»); si no, lo inferido por el análisis.
+3. **Bases desordenadas.** Vacías, muy cortas, solo audios o imágenes, solo
+   mensajes automáticos o sin mensajes del cliente se marcan «sin información
+   suficiente» SIN llamar al modelo.
+4. **Por lotes y con tope.** De la más reciente a la más vieja, 5
+   conversaciones por llamada al modelo y como mucho 20 nuevas por pregunta
+   (las reutilizadas no cuentan). La respuesta trae la cobertura («revisadas X
+   de Y; faltan Z») y el aviso de análisis parcial; si el crédito se acaba a
+   media pregunta, el asistente dice cuántas alcanzó a revisar y cuántas
+   faltan sin inventar el resto. Lo revisado queda guardado.
+5. **Mismas reglas de seguridad del PR 2.** Solo lectura sobre el negocio (la
+   única escritura es el análisis), RLS de la organización, transcript
+   enmascarado (nombres, teléfonos, correos) y en cuarentena (bloques con
+   nonce), todo por `chatJsonForOrg` con el tipo del asistente (tope propio,
+   total y visibilidad del consumo).
+6. **Modelo del análisis configurable.** `OPENROUTER_ANALYSIS_MODEL` (p. ej.
+   uno más barato que el del chat); vacía = `OPENROUTER_MODEL`. Cada fila
+   guarda qué modelo la analizó.
+
+### Migración 0049 (aditiva, idempotente)
+
+Tabla `conversation_insight` (una fila por conversación, FK compuesta a su
+conversación con borrado en cascada, CHECK de categorías, RLS forzado).
+Reversa opcional: `scripts/sql/0049-reversa.sql`.
+
+### Pruebas
+
+`tests/unit/asistente-analisis.test.ts` (sin información suficiente,
+categorías cerradas, transcript), `tests/unit/asistente-motor.test.ts`
+(cobertura y crédito agotado a media pregunta), `tests/db/asistente-analisis.test.ts`
+(una vez, reutilizar sin modelo, reanalizar, lotes y tope, fallas, RLS) y la
+sección 4h de `scripts/e2e-plataforma.mjs`.
+
+### Fuera de alcance
+
+La pasada completa en segundo plano con costo estimado y confirmación, los
+reportes pesados y las preguntas agregadas por asesor (PR 4); validar y
+corregir casos y el diagnóstico de la base (PR 5).
 
 ## PR 2 — Motor mínimo
 

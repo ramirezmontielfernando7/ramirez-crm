@@ -48,6 +48,19 @@ la app viva, los mocks y `PLATFORM_ORG_ID` = la organización de
    «Datos de: …» y su resultado; abrir un hilo anterior; celular oscuro sin
    desplazamiento. Asesor → 403; tope propio agotado → 409 sin llamar al
    modelo; borrar un hilo; módulo apagado → 404.
+4h. **Asistente: análisis por conversación (038 PR 3).** B tiene chats con
+   objeción de precio (uno con una orden escondida y un delimitador falso),
+   una venta, uno solo de audios, uno solo de plantilla y uno vacío.
+   «¿Por qué pierdo ventas?» → cita «Análisis de conversaciones», cobertura
+   completa («Revisé N de N»), objeción «Precio»; cada conversación queda
+   guardada, las sin información sin modelo; al proveedor no llegan nombres
+   ni teléfonos y cada conversación va delimitada. Otra pregunta sin mensajes
+   nuevos → CERO llamadas de análisis («reutilizadas»). Un mensaje nuevo →
+   una llamada (solo esa). 25 chats nuevos → 4 lotes de 5, «faltan 5» y aviso
+   de análisis parcial. En pantalla, «Conversaciones revisadas: X de Y».
+   Crédito agotado a media pregunta → «Alcancé a revisar X de Y…; faltan Z»
+   sin inventar; la siguiente → 409. Imprime el costo de la primera pasada y
+   de una pregunta con el tope.
 5. Suspender B: su sesión → 401; su login → 403 con «Tu negocio está
    suspendido» (también en la pantalla); su webhook → 200 pero el evento va a
    `webhook_unrouted` (`org_suspended`) y no entra; A sigue normal. Reactivar
