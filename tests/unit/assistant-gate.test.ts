@@ -14,6 +14,10 @@ import { describe, expect, it } from "vitest";
  * - use el pool de sistema (el asistente siempre va a nombre de UNA organización);
  * - escriba en una tabla que no sea suya (conversaciones del asistente y el
  *   aviso aceptado en `user_preference`).
+ *
+ * 038 (PR 2): y que el catálogo siga CERRADO: el modelo solo pide consultas
+ * por nombre; ninguna arma SQL con texto que venga de él (`sql.raw`), y la
+ * lista de consultas no cambia sin que alguien actualice este test.
  */
 
 const ROOT = path.resolve(import.meta.dirname, "..", "..");
@@ -23,6 +27,7 @@ const LUGARES = [
   "src/components/assistant",
   "src/app/(app)/asistente",
   "src/lib/assistant.ts",
+  "src/lib/assistant-engine.ts",
 ];
 
 function archivos(rel: string): string[] {
@@ -66,9 +71,36 @@ describe("038 — el asistente interno es solo lectura y tiene una sola puerta a
     for (const m of code.matchAll(/\.(insert|update|delete)\(\s*schema\.(\w+)/g)) {
       expect(TABLAS_PROPIAS.has(m[2]!), `${m[1]} en ${m[2]}`).toBe(true);
     }
+    // Ningún SQL armado con texto de afuera.
+    expect(code, "sql.raw").not.toMatch(/sql\.raw\(/);
     // El modelo: siempre a nombre de la organización y con el tipo del asistente.
     for (const m of code.matchAll(/chatJsonForOrg\(\s*[^,]+,\s*([^,]+),/g)) {
       expect(m[1]!.trim(), "tipo de IA").toBe('"assistant"');
     }
+  });
+});
+
+describe("038 (PR 2) — el catálogo de consultas es cerrado", () => {
+  it("son exactamente estas consultas (agregar una pide revisar que sea de solo lectura)", async () => {
+    const { ASSISTANT_QUERY_NAMES } = await import("@/server/assistant/catalog");
+    expect(ASSISTANT_QUERY_NAMES).toEqual([
+      "consumo_ia",
+      "consumo_ia_por_funcion",
+      "consumo_ia_por_agente",
+      "almacenamiento",
+      "plan_y_topes",
+      "avisos_consumo",
+      "modulos",
+      "equipo",
+      "etiquetas",
+      "conversaciones_por_etapa",
+      "conversaciones_recientes",
+    ]);
+  });
+
+  it("el catálogo solo lee: ni insert, ni update, ni delete", () => {
+    const code = readFileSync(path.join(ROOT, "src/server/assistant/catalog.ts"), "utf8");
+    expect(code).not.toMatch(/\.(insert|update|delete)\(/);
+    expect(code).not.toMatch(/\.transaction\(/);
   });
 });

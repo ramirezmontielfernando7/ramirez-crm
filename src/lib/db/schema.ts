@@ -3437,6 +3437,19 @@ export const assistantMessage = pgTable(
     threadId: text("thread_id").notNull(),
     role: text("role", { enum: ["user", "assistant"] }).notNull(),
     content: text("content").notNull(),
+    /**
+     * 038 (PR 2) — El mismo texto como lo vio el modelo: nombres, teléfonos y
+     * correos ENMASCARADOS. Es lo que se le recuerda en las preguntas
+     * siguientes del hilo, para que el historial no reabra los datos reales.
+     */
+    maskedContent: text("masked_content"),
+    /**
+     * 038 (PR 2) — De dónde salen los datos de la respuesta: las consultas del
+     * catálogo que corrieron (con sus parámetros y su resultado), cuáles citó
+     * el modelo, los avisos de verificación y cuántas consultas y llamadas al
+     * modelo costó (`AssistantMessageMeta`). NULL en las preguntas.
+     */
+    sources: jsonb("sources"),
     promptTokens: integer("prompt_tokens").notNull().default(0),
     completionTokens: integer("completion_tokens").notNull().default(0),
     createdAt: timestamp("created_at").notNull().defaultNow(),
@@ -3445,6 +3458,7 @@ export const assistantMessage = pgTable(
     index("assistant_message_org_thread_idx").on(t.organizationId, t.threadId, t.createdAt),
     check("assistant_message_role_chk", sql`${t.role} in ('user', 'assistant')`),
     check("assistant_message_content_chk", sql`char_length(${t.content}) <= 20000`),
+    check("assistant_message_masked_chk", sql`char_length(${t.maskedContent}) <= 20000`),
     // De la MISMA organización (patrón H6).
     foreignKey({
       name: "assistant_message_org_thread_fk",

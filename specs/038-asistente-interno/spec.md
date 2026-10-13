@@ -35,8 +35,8 @@ asistente.
 
 | PR | Contenido | Migración | Estado |
 |---|---|---|---|
-| **1** | **Interruptor 13, permiso `assistant.use`, `AiKind` + tope propio + avisos, visibilidad del consumo, aviso antes de usarlo** | **0047** | **en curso** |
-| 2 | Motor mínimo, funciones de uso y plan, pantalla /asistente | — | pendiente |
+| 1 | Interruptor 13, permiso `assistant.use`, `AiKind` + tope propio + avisos, visibilidad del consumo, aviso antes de usarlo | 0047 | fusionado (#65) |
+| **2** | **Motor mínimo, catálogo cerrado (uso y plan + panorama), enmascarado, cuarentena, fuentes, pantalla /asistente** | **0048** | **en curso** |
 | 3 | Análisis por conversación, trabajos en segundo plano, enmascarado, primera pasada | siguiente libre | pendiente |
 | 4 | Bucle de herramientas, preguntas agregadas, muestras, asesores, reportes pesados | siguiente libre | pendiente |
 | 5 | Diagnóstico de la base, validar y corregir casos | — | pendiente |
@@ -46,6 +46,67 @@ asistente.
 En el PR 3 se mide y reporta el **costo real por conversación analizada** y
 se evalúa si el análisis puede usar un modelo más barato que el del
 asistente.
+
+## PR 2 — Motor mínimo
+
+### Comportamiento observable
+
+1. **Preguntas.** En `/asistente` el Propietario pregunta y el asistente
+   contesta en un hilo (`POST /api/assistant/ask`). Las conversaciones son de
+   quien las abre (ni otro Propietario las ve), se pueden borrar y se borran
+   solas a los 90 días sin actividad.
+2. **Catálogo cerrado, solo lectura.** El modelo nunca escribe SQL: pide
+   consultas por nombre de una lista fija (`src/server/assistant/catalog.ts`)
+   con parámetros validados por Zod. Once consultas: `consumo_ia`,
+   `consumo_ia_por_funcion`, `consumo_ia_por_agente`, `almacenamiento`,
+   `plan_y_topes`, `avisos_consumo`, `modulos`, `equipo`, `etiquetas`,
+   `conversaciones_por_etapa`, `conversaciones_recientes`. Todas a nombre de
+   la organización (pool de la app → RLS) con `scoped()`/`scopedContacts()`.
+   Una consulta que no existe o con parámetros inválidos no corre.
+3. **Enmascarado.** Antes de ir al proveedor, los nombres de contactos y del
+   equipo, teléfonos y correos se cambian por fichas («[CONTACTO 1]»,
+   «[PERSONA DEL EQUIPO 1]», «[TELÉFONO 1]», «[CORREO 1]»), también dentro
+   del texto libre (un mensaje que dice «soy Lucía») y en la pregunta
+   (teléfonos y correos). El Propietario recibe la respuesta con los datos
+   reales. El historial que se le recuerda al modelo es la versión
+   enmascarada (`assistant_message.masked_content`).
+4. **Cuarentena.** Cada resultado viaja como `<<DATOS qN · consulta · nonce>>`
+   … `<<FIN DATOS qN · nonce>>` (nonce por pregunta), en JSON de una línea y
+   con los delimitadores neutralizados: mensajes, notas, nombres de etiquetas
+   o etapas son DATOS, nunca instrucciones.
+5. **Fuentes.** Cada respuesta guarda las consultas que corrieron, sus
+   parámetros y su resultado (con los datos reales) y cuáles citó el modelo
+   (`assistant_message.sources`); la pantalla muestra «Datos de: …» y deja
+   ver lo que devolvió cada una. Avisos de verificación: cifras sin consultar
+   («sin fuente»), cita de una consulta que no corrió, consulta rechazada y
+   tope alcanzado.
+6. **Topes por pregunta.** Hasta 6 consultas (4 por vuelta) y 4 llamadas al
+   modelo; si el modelo no responde dentro del tope, no se le inventa
+   respuesta. Una pregunta a la vez por persona y 6 por minuto. Cada llamada
+   pasa por `chatJsonForOrg(org, "assistant", …)`: tope propio y total (PR 1).
+   Agotado → 409 sin llamar al modelo; proveedor roto → 502 con mensaje.
+7. **Visibilidad.** El consumo sale de `getOwnerUsage`, ya recortado (PR 1):
+   con `percent` el modelo no tiene tokens que decir; nunca dólares.
+
+### Migración 0048 (aditiva, idempotente)
+
+`assistant_message.masked_content` (texto, CHECK ≤ 20000) y
+`assistant_message.sources` (jsonb), ambas NULL. Las tablas ya tienen RLS
+forzado (0047). Reversa opcional: `scripts/sql/0048-reversa.sql`.
+
+### Pruebas
+
+`tests/unit/asistente-motor.test.ts` (enmascarado, cuarentena, bucle y
+topes, fuentes), `tests/db/asistente-motor.test.ts` (catálogo con RLS sin
+fugas entre organizaciones, enmascarado, visibilidad, hilos y retención),
+`tests/unit/assistant-gate.test.ts` (catálogo cerrado y solo lectura) y la
+sección 4g de `scripts/e2e-plataforma.mjs` (`tests/e2e/us-plataforma.md`).
+
+### Fuera de alcance
+
+Preguntas agregadas sobre conversaciones, muestras y desempeño de asesores
+(PR 4); análisis por conversación (PR 3); que el asistente envíe o cambie
+algo (nunca).
 
 ## PR 1 — Base del asistente interno
 
