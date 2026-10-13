@@ -18,6 +18,10 @@ import { describe, expect, it } from "vitest";
  * 038 (PR 2): y que el catálogo siga CERRADO: el modelo solo pide consultas
  * por nombre; ninguna arma SQL con texto que venga de él (`sql.raw`), y la
  * lista de consultas no cambia sin que alguien actualice este test.
+ *
+ * 038 (PR 3): el análisis guardado (`conversation_insight`) es su única
+ * escritura sobre algo derivado del negocio, y también va por el tipo del
+ * asistente (con o sin genérico explícito en la llamada).
  */
 
 const ROOT = path.resolve(import.meta.dirname, "..", "..");
@@ -28,6 +32,7 @@ const LUGARES = [
   "src/app/(app)/asistente",
   "src/lib/assistant.ts",
   "src/lib/assistant-engine.ts",
+  "src/lib/conversation-insight.ts",
 ];
 
 function archivos(rel: string): string[] {
@@ -51,7 +56,7 @@ const PROHIBIDOS = [
 ];
 
 /** Las únicas tablas en las que el asistente puede escribir. */
-const TABLAS_PROPIAS = new Set(["assistantThread", "assistantMessage", "userPreference"]);
+const TABLAS_PROPIAS = new Set(["assistantThread", "assistantMessage", "userPreference", "conversationInsight"]);
 
 const todos = LUGARES.flatMap(archivos).filter((f) => /\.(ts|tsx)$/.test(f));
 
@@ -74,7 +79,7 @@ describe("038 — el asistente interno es solo lectura y tiene una sola puerta a
     // Ningún SQL armado con texto de afuera.
     expect(code, "sql.raw").not.toMatch(/sql\.raw\(/);
     // El modelo: siempre a nombre de la organización y con el tipo del asistente.
-    for (const m of code.matchAll(/chatJsonForOrg\(\s*[^,]+,\s*([^,]+),/g)) {
+    for (const m of code.matchAll(/chatJsonForOrg(?:<[^>(]*>)?\(\s*[^,]+,\s*([^,]+),/g)) {
       expect(m[1]!.trim(), "tipo de IA").toBe('"assistant"');
     }
   });
@@ -95,7 +100,14 @@ describe("038 (PR 2) — el catálogo de consultas es cerrado", () => {
       "etiquetas",
       "conversaciones_por_etapa",
       "conversaciones_recientes",
+      "analisis_conversaciones",
     ]);
+  });
+
+  it("el análisis llama al modelo con el tipo del asistente (el detector ve el genérico)", () => {
+    const code = readFileSync(path.join(ROOT, "src/server/assistant/insights.ts"), "utf8");
+    const calls = [...code.matchAll(/chatJsonForOrg(?:<[^>(]*>)?\(\s*[^,]+,\s*([^,]+),/g)].map((m) => m[1]!.trim());
+    expect(calls).toEqual(['"assistant"']);
   });
 
   it("el catálogo solo lee: ni insert, ni update, ni delete", () => {

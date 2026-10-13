@@ -10,12 +10,14 @@ import {
   MAX_QUERIES_PER_STEP,
   renderDataBlock,
   sourceResult,
+  type AssistantCoverage,
   type AssistantFlag,
   type AssistantMessageMeta,
   type AssistantSource,
 } from "@/lib/assistant-engine";
 import type { Access } from "@/lib/db/tenant";
 import { logger } from "@/lib/log";
+import { INSIGHT_MAX_NEW_PER_QUESTION } from "@/lib/conversation-insight";
 import { chatJsonForOrg } from "@/server/ai-quota/llm";
 import { renderCatalog, runQuery, type QueryContext } from "./catalog";
 
@@ -67,6 +69,19 @@ export type AskResult =
     }
   | { ok: false; error: "quota_exceeded" | "provider_error" | "not_configured"; detail: string; usage: LlmUsage };
 
+/** La cobertura que trae el resultado de `analisis_conversaciones`. */
+function coverageOf(name: string, forOwner: unknown): AssistantCoverage | null {
+  if (name !== "analisis_conversaciones") return null;
+  const c = (forOwner as { cobertura?: Record<string, number> } | null)?.cobertura;
+  if (!c) return null;
+  return {
+    total: c.conversaciones_en_periodo ?? 0,
+    revisadas: c.revisadas ?? 0,
+    sinInformacion: c.sin_informacion_suficiente ?? 0,
+    faltan: c.faltan ?? 0,
+  };
+}
+
 export function buildSystemPrompt(nonce: string): string {
   return [
     `${ASSISTANT_MARKER}. Ayudas al Propietario de un negocio a entender el uso y el plan de su organización en el CRM y un panorama general de su operación.`,
@@ -78,6 +93,7 @@ export function buildSystemPrompt(nonce: string): string {
     "- Si la pregunta es sobre datos, consulta primero. Pide solo las consultas necesarias.",
     "- Nunca hables de dinero, precios ni dólares: no tienes esos datos.",
     "- Respeta lo que muestran los datos: si el consumo llega solo como estado o porcentaje, no hables de tokens.",
+    "- Si un análisis de conversaciones dice que faltan conversaciones por revisar, di cuántas revisaste y cuántas faltan, y no supongas nada de las que faltan.",
     "",
     "DATOS PERSONALES ENMASCARADOS:",
     "- Los nombres de contactos y personas del equipo, teléfonos y correos llegan como fichas: [CONTACTO 1], [PERSONA DEL EQUIPO 2], [TELÉFONO 1], [CORREO 1].",
@@ -107,7 +123,14 @@ export async function askAssistant(input: AskInput): Promise<AskResult> {
   const now = input.now ?? new Date();
   const masker = new Masker();
   const nonce = randomBytes(6).toString("hex");
-  const ctx: QueryContext = { organizationId: input.organizationId, access: input.access, masker, now };
+  const ctx: QueryContext = {
+    organizationId: input.organizationId,
+    access: input.access,
+    masker,
+    now,
+    insightBudget: { remaining: INSIGHT_MAX_NEW_PER_QUESTION },
+    usage: { promptTokens: 0, completionTokens: 0 },
+  };
   const usage: LlmUsage = { promptTokens: 0, completionTokens: 0 };
 
   const maskedQuestion = masker.text(input.question);
@@ -120,6 +143,26 @@ export async function askAssistant(input: AskInput): Promise<AskResult> {
   const sources: AssistantSource[] = [];
   const flags = new Set<AssistantFlag>();
   let modelCalls = 0;
+  /** 038 (PR 3): la cobertura del último análisis de conversaciones de esta pregunta. */
+  let coverage: AssistantCoverage | undefined;
+
+  /** Los tokens de la pregunta: los del chat más los del análisis. */
+  const totalUsage = (): LlmUsage => {
+    const t = { ...usage };
+    addUsage(t, ctx.usage);
+    return t;
+  };
+  const done = (answer: string, maskedAnswer: string): AskResult => {
+    if (coverage && coverage.faltan > 0) flags.add("analysis_partial");
+    return {
+      ok: true,
+      answer,
+      maskedQuestion,
+      maskedAnswer,
+      meta: { sources, flags: [...flags], queryCount: sources.length, modelCalls, ...(coverage ? { coverage } : {}) },
+      usage: totalUsage(),
+    };
+  };
 
   while (modelCalls < MAX_MODEL_CALLS) {
     modelCalls++;
@@ -127,9 +170,16 @@ export async function askAssistant(input: AskInput): Promise<AskResult> {
     const r = await chatJsonForOrg(input.organizationId, "assistant", assistantStepSchema, messages);
     addUsage(usage, r.usage);
     if (!r.ok) {
-      if (r.error === "quota_exceeded" || r.error === "not_configured") return { ok: false, error: r.error, detail: r.detail, usage };
+      // 038 (PR 3): si el crédito se acabó DESPUÉS de analizar, se dice cuántas se
+      // alcanzaron a revisar (lo revisado ya quedó guardado) sin inventar el resto.
+      if (r.error === "quota_exceeded" && coverage) {
+        flags.add("query_limit");
+        const text = coverageStoppedText(coverage);
+        return done(text, text);
+      }
+      if (r.error === "quota_exceeded" || r.error === "not_configured") return { ok: false, error: r.error, detail: r.detail, usage: totalUsage() };
       log.warn("el modelo no devolvió una vuelta válida", { org: input.organizationId, error: r.error, detail: r.detail });
-      return { ok: false, error: "provider_error", detail: r.detail, usage };
+      return { ok: false, error: "provider_error", detail: r.detail, usage: totalUsage() };
     }
     const step = r.data;
 
@@ -139,14 +189,7 @@ export async function askAssistant(input: AskInput): Promise<AskResult> {
       if ((step.sources ?? []).some((id) => !executed.has(id))) flags.add("invalid_citation");
       for (const s of sources) s.cited = cited.includes(s.id);
       if (sources.length === 0 && hasFigures(step.text)) flags.add("no_sources");
-      return {
-        ok: true,
-        answer: masker.unmask(step.text),
-        maskedQuestion,
-        maskedAnswer: step.text,
-        meta: { sources, flags: [...flags], queryCount: sources.length, modelCalls },
-        usage,
-      };
+      return done(masker.unmask(step.text), step.text);
     }
 
     // Pidió consultas. Si ya no le quedan vueltas, se le pide responder ya.
@@ -169,6 +212,8 @@ export async function askAssistant(input: AskInput): Promise<AskResult> {
         blocks.push(`(No se corrió: ${res.reason}.)`);
         continue;
       }
+      const cob = coverageOf(q.name, res.output.forOwner);
+      if (cob) coverage = cob;
       const id = `q${sources.length + 1}`;
       sources.push({ id, name: q.name, label: res.label, args: res.args, cited: false, ...sourceResult(res.output.forOwner) });
       blocks.push(renderDataBlock(id, q.name, res.output.forModel, nonce));
@@ -189,13 +234,14 @@ export async function askAssistant(input: AskInput): Promise<AskResult> {
 
   // El modelo siguió pidiendo consultas hasta el final: no se le inventa respuesta.
   flags.add("query_limit");
-  const text = "No alcancé a terminar la respuesta dentro del límite de consultas por pregunta. Intenta con una pregunta más concreta.";
-  return {
-    ok: true,
-    answer: text,
-    maskedQuestion,
-    maskedAnswer: text,
-    meta: { sources, flags: [...flags], queryCount: sources.length, modelCalls },
-    usage,
-  };
+  const text = coverage
+    ? coverageStoppedText(coverage)
+    : "No alcancé a terminar la respuesta dentro del límite de consultas por pregunta. Intenta con una pregunta más concreta.";
+  return done(text, text);
+}
+
+/** Cuando no hay respuesta del modelo pero sí un análisis: lo que se alcanzó, sin inventar. */
+export function coverageStoppedText(c: AssistantCoverage): string {
+  const vistas = c.revisadas + c.sinInformacion;
+  return `Alcancé a revisar ${vistas} de ${c.total} conversaciones${c.sinInformacion > 0 ? ` (${c.sinInformacion} sin información suficiente)` : ""}; faltan ${c.faltan}. No pude terminar la respuesta dentro del límite de esta pregunta. Lo revisado quedó guardado y no se vuelve a pagar: pregunta de nuevo para seguir con las que faltan.`;
 }

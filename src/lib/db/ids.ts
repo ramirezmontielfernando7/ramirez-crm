@@ -69,6 +69,7 @@ const prefixes = {
   // 038 — asistente interno
   assistantThread: "ath",
   assistantMessage: "amsg",
+  conversationInsight: "cins",
   // 035 — Documentos del agente (RAG)
   kbDocument: "kbd",
   kbChunk: "kbc",

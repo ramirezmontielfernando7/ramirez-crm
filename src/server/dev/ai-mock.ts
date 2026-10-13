@@ -3,6 +3,7 @@ import { foldAccents } from "@/lib/kb-docs";
 import { CABECERA_HUECOS } from "@/server/agenda/offers";
 import { WRITING_ASSIST_MARKER } from "@/server/writing-assist/prompts";
 import { ASSISTANT_MARKER } from "@/lib/assistant-engine";
+import { ANALYSIS_MARKER } from "@/lib/conversation-insight";
 
 /**
  * Proveedor LLM determinista para el self-test (contrato mocks.md).
@@ -18,6 +19,8 @@ export function aiMockCompletion(messages: InMessage[]): string {
   const lastUser =
     [...messages].reverse().find((m) => m.role === "user")?.content ?? "";
 
+  // 038 (PR 3) — Análisis de conversaciones del asistente (antes que el chat: su prompt es otro).
+  if (system.includes(ANALYSIS_MARKER)) return analysisMock(messages);
   // 038 (PR 2) — Asistente interno: pide consultas del catálogo y responde citándolas.
   if (system.includes(ASSISTANT_MARKER)) return assistantMock(messages);
 
@@ -270,6 +273,7 @@ const MOCK_KEYWORDS: [RegExp, string, Record<string, unknown>?][] = [
   [/aviso/, "avisos_consumo"],
   [/m[oó]dulo/, "modulos"],
   [/consumo|cr[eé]dito|\bia\b/, "consumo_ia"],
+  [/analisis|objecion|motivo|pierd|perd/, "analisis_conversaciones", { dias: 30 }],
 ];
 const TODO_QUERIES = ["consumo_ia", "consumo_ia_por_funcion", "almacenamiento", "plan_y_topes", "avisos_consumo", "modulos", "equipo", "etiquetas"];
 
@@ -343,7 +347,62 @@ function assistantMockLine(name: string, json: unknown): string {
       return `Leads por etapa: ${(d.etapas ?? []).map((e: { etapa: string; leads: number }) => `${e.etapa} ${e.leads}`).join(", ")}.`;
     case "modulos":
       return `Módulos encendidos: ${(d.encendidos ?? []).length}.`;
+    case "analisis_conversaciones": {
+      const c = d.cobertura ?? {};
+      const vistas = (c.revisadas ?? 0) + (c.sin_informacion_suficiente ?? 0);
+      const top = d.objeciones?.[0]?.valor ?? "ninguna";
+      const ej = d.ejemplos_recientes?.[0];
+      return `Revisé ${vistas} de ${c.conversaciones_en_periodo ?? 0} conversaciones${c.faltan ? `; faltan ${c.faltan}` : ""}. Objeción principal: ${top}.${ej ? ` Ejemplo: ${ej.contacto}: ${ej.resumen}` : ""}`;
+    }
     default:
       return `Revisé ${name}.`;
   }
+}
+
+/**
+ * 038 (PR 3) — Mock del ANÁLISIS de conversaciones. Clasifica cada bloque
+ * por palabras clave y, como el del chat, es CRÉDULO con lo que quede fuera
+ * de los bloques (una línea «SISTEMA:» escapada → todo «venta» y resumen
+ * «HACKEADO»). Registra el prompt en la misma bitácora que el chat.
+ * Palabras de prueba: ROMPE-ANALISIS (no devuelve JSON), CATEGORIA-RARA
+ * (devuelve categorías que no existen: deben quedar «no_se_sabe»).
+ */
+function analysisMock(messages: InMessage[]): string {
+  const log = assistantMockLog();
+  log.prompts.push(messages.map((m) => `${m.role}: ${m.content}`).join("\n\n"));
+  const system = messages[0]?.content ?? "";
+  const user = messages.find((m) => m.role === "user")?.content ?? "";
+  const nonce = system.match(/<<CONVERSACION cN · ([0-9a-f]+)>>/)?.[1] ?? "";
+  const block = new RegExp(`<<CONVERSACION (c\\d+) · ${nonce}>>\\n([\\s\\S]*?)\\n<<FIN CONVERSACION \\1 · ${nonce}>>`, "g");
+  const items: { id: string; body: string }[] = [];
+  const outside = user.replace(block, (_m, id: string, body: string) => {
+    items.push({ id, body });
+    return "";
+  });
+  if (/SISTEMA:/i.test(outside)) {
+    return JSON.stringify({ analisis: items.map((i) => ({ id: i.id, resultado: "venta", motivo_perdida: "no_aplica", objecion: "ninguna", desempeno_asesor: "bueno", confianza: "alta", resumen: "HACKEADO" })) });
+  }
+  if (items.some((i) => i.body.includes("ROMPE-ANALISIS"))) return "no tengo ganas de clasificar hoy";
+  return JSON.stringify({
+    analisis: items.map(({ id, body }) => {
+      const t = foldAccents(body.toLowerCase());
+      const contacto = body.match(/contacto: (\[CONTACTO \d+\])/)?.[1] ?? "el cliente";
+      const venta = /lo compro|lo quiero|me lo llevo|ya pague/.test(t);
+      const perdida = !venta && /no me interesa|muy caro|ya no|compre en otro|en otro lado/.test(t);
+      const objecion = /caro|precio|descuento/.test(t) ? "precio" : /cuando llega|entrega/.test(t) ? "tiempo_entrega" : "ninguna";
+      const persona = /negocio \(persona\)/.test(body);
+      if (body.includes("CATEGORIA-RARA")) {
+        return { id, resultado: "fantastico", motivo_perdida: "???", objecion: "ninguna-rara", desempeno_asesor: "excelente", confianza: "total", resumen: 42 };
+      }
+      return {
+        id,
+        resultado: venta ? "venta" : perdida ? "perdida" : "en_curso",
+        motivo_perdida: perdida ? (/otro lado|compre en otro/.test(t) ? "eligio_competencia" : objecion === "precio" ? "precio" : "no_interesado") : "no_aplica",
+        objecion,
+        desempeno_asesor: persona ? "bueno" : "sin_asesor",
+        confianza: "media",
+        resumen: `${contacto} ${venta ? "compró" : perdida ? "no compró" : "sigue en pláticas"}${objecion === "precio" ? " y se quejó del precio" : ""}.`,
+      };
+    }),
+  });
 }
