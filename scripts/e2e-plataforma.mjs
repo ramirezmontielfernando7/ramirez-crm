@@ -936,9 +936,11 @@ async function asistenteMotor(A, B, orgB) {
 }
 
 /** 038 (PR 3) — Una conversación sembrada directo en la BD de B (mensajes en orden). */
+let semillaChat = 0;
 async function sembrarChat(orgB, nombre, mensajes, minutosAtras = 5) {
-  const n = `${RUN}${Math.random().toString(36).slice(2, 7)}`;
-  const tel = `5215${n.replace(/\D/g, "").slice(0, 8).padEnd(8, "0")}`;
+  semillaChat++;
+  const n = `${RUN}${String(semillaChat).padStart(3, "0")}`;
+  const tel = `5216${n}`;
   const ct = `ct_e2eana${n}`;
   const cv = `cv_e2eana${n}`;
   const at = new Date(Date.now() - minutosAtras * 60_000);
