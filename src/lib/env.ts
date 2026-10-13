@@ -47,6 +47,13 @@ const envSchema = z.object({
   OPENROUTER_BASE_URL: z.string().url().default("https://openrouter.ai/api"),
   OPENROUTER_MODEL: z.string().optional(),
   OPENROUTER_JUDGE_MODEL: z.string().optional(),
+  // 038 (PR 3): modelo del ANÁLISIS de conversaciones del asistente interno
+  // (uno más barato que el del chat, p. ej. anthropic/claude-haiku-4.5).
+  // Vacía = el de siempre (OPENROUTER_MODEL).
+  OPENROUTER_ANALYSIS_MODEL: z
+    .string()
+    .optional()
+    .transform((v) => v?.trim() || undefined),
   // Fase 3, PR 1: tope mensual (mes calendario UTC) de IA por organización
   // cuando la organización no tiene uno propio (tabla ai_quota). Vacías = sin
   // tope. Turnos = llamadas al modelo; tokens = entrada + salida.

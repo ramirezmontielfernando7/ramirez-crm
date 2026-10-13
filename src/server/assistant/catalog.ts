@@ -12,6 +12,8 @@ import { notLabContact } from "@/server/analytics/shared";
 import { moduleToggles } from "@/server/limits";
 import { getOrgModules } from "@/server/modules";
 import { getOwnerUsage, type OwnerUsage } from "@/server/usage/owner";
+import { INSIGHT_DEFAULT_DAYS, INSIGHT_MAX_DAYS, INSIGHT_MAX_NEW_PER_QUESTION } from "@/lib/conversation-insight";
+import { analyzeConversations } from "./insights";
 
 /**
  * 038 (PR 2) — El CATÁLOGO CERRADO del asistente interno. El modelo nunca
@@ -32,7 +34,16 @@ import { getOwnerUsage, type OwnerUsage } from "@/server/usage/owner";
  * con `status` ni porcentajes. Nunca dólares.
  */
 
-export type QueryContext = { organizationId: string; access: Access; masker: Masker; now: Date };
+export type QueryContext = {
+  organizationId: string;
+  access: Access;
+  masker: Masker;
+  now: Date;
+  /** 038 (PR 3): conversaciones que todavía se pueden analizar en esta pregunta. */
+  insightBudget: { remaining: number };
+  /** 038 (PR 3): tokens (y costo) de las llamadas del análisis, para sumarlos a la pregunta. */
+  usage: { promptTokens: number; completionTokens: number; costUsd?: number };
+};
 export type QueryOutput = { forModel: unknown; forOwner: unknown };
 
 type QueryDef<A extends z.ZodTypeAny> = {
@@ -374,6 +385,17 @@ const QUERIES = [
         ultimo_mensaje: o.ultimo_mensaje ? quarantineString(ctx.masker.text(o.ultimo_mensaje), 200) : null,
       }));
       return { forModel: { conversaciones: model }, forOwner: { conversaciones: owner } };
+    },
+  },
+  {
+    name: "analisis_conversaciones",
+    label: "Análisis de conversaciones",
+    description: `Panorama de las conversaciones con clientes del periodo: resultados (venta, perdida, en curso…), motivos de pérdida, objeciones principales, desempeño por asesor y ejemplos recientes. Cada conversación se analiza UNA vez y se guarda; las nuevas se analizan de la más reciente a la más vieja, hasta ${INSIGHT_MAX_NEW_PER_QUESTION} por pregunta. Trae la COBERTURA: cuántas se revisaron y cuántas faltan (si faltan, hay que decirlo). Contactos y personas llegan enmascarados.`,
+    args: z.object({ dias: z.coerce.number().int().min(1).max(INSIGHT_MAX_DAYS).default(INSIGHT_DEFAULT_DAYS) }).strict(),
+    argsHelp: `{"dias": 1-${INSIGHT_MAX_DAYS}, opcional, ${INSIGHT_DEFAULT_DAYS} por defecto}`,
+    run: async (ctx, args) => {
+      const r = await analyzeConversations(ctx, args.dias);
+      return { forModel: r.forModel, forOwner: r.forOwner };
     },
   },
 ] satisfies QueryDef<z.ZodTypeAny>[];

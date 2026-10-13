@@ -198,4 +198,27 @@ describe("038 — el bucle del motor", () => {
       usage: { promptTokens: 200, completionTokens: 40 },
     });
   });
+
+  it("038 (PR 3): con análisis parcial, la respuesta lleva la cobertura y el aviso", async () => {
+    const cobertura = { conversaciones_en_periodo: 30, revisadas: 12, sin_informacion_suficiente: 3, faltan: 15 };
+    m.runQuery.mockResolvedValueOnce({ ok: true, label: "Análisis de conversaciones", args: { dias: 30 }, output: { forModel: { cobertura }, forOwner: { cobertura } } });
+    m.chat
+      .mockResolvedValueOnce(ok({ action: "query", queries: [{ name: "analisis_conversaciones" }] }))
+      .mockResolvedValueOnce(ok({ action: "answer", text: "Revisé 15 de 30; faltan 15.", sources: ["q1"] }));
+    const r = await askAssistant({ organizationId: "org_a", access, question: "¿por qué pierdo ventas?", history: [] });
+    expect(r.ok && r.meta.coverage).toEqual({ total: 30, revisadas: 12, sinInformacion: 3, faltan: 15 });
+    expect(r.ok && r.meta.flags).toContain("analysis_partial");
+  });
+
+  it("038 (PR 3): si el crédito se acaba después de analizar, dice cuántas alcanzó (sin inventar)", async () => {
+    const cobertura = { conversaciones_en_periodo: 40, revisadas: 8, sin_informacion_suficiente: 2, faltan: 30 };
+    m.runQuery.mockResolvedValueOnce({ ok: true, label: "Análisis de conversaciones", args: { dias: 30 }, output: { forModel: { cobertura }, forOwner: { cobertura } } });
+    m.chat
+      .mockResolvedValueOnce(ok({ action: "query", queries: [{ name: "analisis_conversaciones" }] }))
+      .mockResolvedValueOnce({ ok: false, error: "quota_exceeded", detail: "tope mensual del asistente interno alcanzado" });
+    const r = await askAssistant({ organizationId: "org_a", access, question: "analiza", history: [] });
+    expect(r.ok).toBe(true);
+    expect(r.ok && r.answer).toMatch(/^Alcancé a revisar 10 de 40 conversaciones \(2 sin información suficiente\); faltan 30\./);
+    expect(r.ok && r.meta.flags).toEqual(expect.arrayContaining(["analysis_partial", "query_limit"]));
+  });
 });

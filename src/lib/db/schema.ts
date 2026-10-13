@@ -3467,3 +3467,77 @@ export const assistantMessage = pgTable(
     }).onDelete("cascade"),
   ]
 );
+
+/**
+ * 038 (PR 3) — Análisis guardado por conversación (lo usa el asistente
+ * interno). Se analiza UNA vez y se reutiliza mientras la conversación no
+ * tenga mensajes nuevos (`message_count`). Categorías CERRADAS (CHECK); lo
+ * que el modelo no sabe queda «no_se_sabe». `status = 'insufficient'`: sin
+ * información suficiente (vacía, corta, solo multimedia, solo automáticos):
+ * se marca sin llamar al modelo. El resultado «etiquetado» (la etapa del
+ * lead ganada o perdida) se aplica al leer, no se guarda aquí.
+ * ÚNICA puerta: `src/server/assistant/insights.ts`.
+ */
+export const conversationInsight = pgTable(
+  "conversation_insight",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    conversationId: text("conversation_id").notNull(),
+    status: text("status", { enum: ["analyzed", "insufficient"] }).notNull(),
+    insufficientReason: text("insufficient_reason"),
+    /** Mensajes que tenía la conversación al analizarla: con más, se vuelve a analizar. */
+    messageCount: integer("message_count").notNull(),
+    outcome: text("outcome"),
+    lossReason: text("loss_reason"),
+    objection: text("objection"),
+    advisorPerformance: text("advisor_performance"),
+    confidence: text("confidence"),
+    /** Resumen con los datos reales (lo ve el Propietario como fuente). */
+    summary: text("summary"),
+    /** El mismo resumen con fichas en vez de datos personales (lo que se le vuelve a dar al modelo). */
+    summaryMasked: text("summary_masked"),
+    /** Modelo que hizo el análisis (NULL si no hizo falta: sin información suficiente). */
+    model: text("model"),
+    promptTokens: integer("prompt_tokens").notNull().default(0),
+    completionTokens: integer("completion_tokens").notNull().default(0),
+    analyzedAt: timestamp("analyzed_at").notNull().defaultNow(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    unique("conversation_insight_org_conversation_uq").on(t.organizationId, t.conversationId),
+    index("conversation_insight_org_analyzed_idx").on(t.organizationId, t.analyzedAt),
+    check("conversation_insight_status_chk", sql`${t.status} in ('analyzed', 'insufficient')`),
+    check(
+      "conversation_insight_reason_chk",
+      sql`${t.insufficientReason} is null or ${t.insufficientReason} in ('vacia', 'muy_corta', 'solo_multimedia', 'solo_automaticos', 'sin_mensajes_del_cliente')`
+    ),
+    check(
+      "conversation_insight_outcome_chk",
+      sql`${t.outcome} is null or ${t.outcome} in ('venta', 'perdida', 'en_curso', 'sin_respuesta', 'no_se_sabe')`
+    ),
+    check(
+      "conversation_insight_loss_chk",
+      sql`${t.lossReason} is null or ${t.lossReason} in ('precio', 'no_interesado', 'eligio_competencia', 'sin_respuesta', 'fuera_de_zona', 'sin_disponibilidad', 'otro', 'no_aplica', 'no_se_sabe')`
+    ),
+    check(
+      "conversation_insight_objection_chk",
+      sql`${t.objection} is null or ${t.objection} in ('precio', 'tiempo_entrega', 'confianza', 'forma_pago', 'caracteristicas', 'ninguna', 'otro', 'no_se_sabe')`
+    ),
+    check(
+      "conversation_insight_advisor_chk",
+      sql`${t.advisorPerformance} is null or ${t.advisorPerformance} in ('bueno', 'regular', 'malo', 'sin_asesor', 'no_se_sabe')`
+    ),
+    check("conversation_insight_confidence_chk", sql`${t.confidence} is null or ${t.confidence} in ('alta', 'media', 'baja')`),
+    check("conversation_insight_count_chk", sql`${t.messageCount} >= 0`),
+    check("conversation_insight_summary_chk", sql`char_length(${t.summary}) <= 500 and char_length(${t.summaryMasked}) <= 500`),
+    // De la MISMA organización (patrón H6); se borra con su conversación.
+    foreignKey({
+      name: "conversation_insight_org_conversation_fk",
+      columns: [t.organizationId, t.conversationId],
+      foreignColumns: [conversation.organizationId, conversation.id],
+    }).onDelete("cascade"),
+  ]
+);

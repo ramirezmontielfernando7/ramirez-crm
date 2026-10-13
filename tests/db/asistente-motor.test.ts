@@ -85,6 +85,8 @@ describe("038 (PR 2) — motor del asistente interno", () => {
     access: { organizationId: orgId, userId, seesAll: true },
     masker: new Masker(),
     now: new Date(),
+    insightBudget: { remaining: 20 },
+    usage: { promptTokens: 0, completionTokens: 0 },
   });
 
   it("todas las consultas del catálogo corren a nombre de A y nunca traen nada de B", async () => {

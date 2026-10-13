@@ -211,7 +211,7 @@ export function AssistantClient() {
               <section className="space-y-3" data-testid="assistant-messages" aria-live="polite">
                 {messages.length === 0 && !asking && (
                   <p className="text-sm text-text-3" data-testid="assistant-empty">
-                    Pregúntale sobre el uso y el plan de tu organización: cuánto llevas de IA, qué función o agente consume más, tu almacenamiento, tus topes, tu equipo, tus etiquetas o tus chats recientes.
+                    Pregúntale sobre el uso y el plan de tu organización (cuánto llevas de IA, tu almacenamiento, tus topes, tu equipo, tus etiquetas, tus chats recientes) o sobre tus conversaciones: por qué se pierden ventas, qué objeciones ponen tus clientes o cómo atiende cada asesor.
                   </p>
                 )}
                 {messages.map((m) =>
@@ -323,6 +323,13 @@ function AnswerBubble({ message }: { message: AssistantMessageDto }) {
         <p className="whitespace-pre-wrap break-words text-sm" data-testid="assistant-answer-text">
           {message.content}
         </p>
+        {meta?.coverage && (
+          <p className="mt-2 text-xs text-text-2" data-testid="assistant-coverage" data-faltan={meta.coverage.faltan}>
+            Conversaciones revisadas: {meta.coverage.revisadas + meta.coverage.sinInformacion} de {meta.coverage.total}
+            {meta.coverage.sinInformacion > 0 ? ` (${meta.coverage.sinInformacion} sin información suficiente)` : ""}
+            {meta.coverage.faltan > 0 ? `; faltan ${meta.coverage.faltan}.` : "."}
+          </p>
+        )}
         {meta?.flags.map((f) => (
           <p key={f} className="mt-2 flex items-start gap-1 text-xs text-warning-text" data-testid="assistant-flag" data-flag={f}>
             <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />

@@ -78,15 +78,20 @@ export type AssistantSource = {
  * - `invalid_citation`: citó una consulta que no corrió.
  * - `query_limit`: se llegó al tope de consultas de la pregunta.
  * - `rejected_query`: pidió una consulta que no existe o con parámetros inválidos.
+ * - `analysis_partial` (PR 3): el análisis no alcanzó a revisar todas las conversaciones del periodo.
  */
-export type AssistantFlag = "no_sources" | "invalid_citation" | "query_limit" | "rejected_query";
+export type AssistantFlag = "no_sources" | "invalid_citation" | "query_limit" | "rejected_query" | "analysis_partial";
 
 export const ASSISTANT_FLAG_TEXT: Record<AssistantFlag, string> = {
   no_sources: "Ojo: esta respuesta trae cifras pero no se basó en ninguna consulta. Tómala con cuidado.",
   invalid_citation: "El asistente citó una consulta que no hizo; se muestran solo las que sí corrieron.",
   query_limit: `Se llegó al tope de ${MAX_QUERIES_PER_QUESTION} consultas por pregunta; la respuesta usa lo que alcanzó a revisar.`,
   rejected_query: "El asistente pidió una consulta que no existe o con datos inválidos; se ignoró.",
+  analysis_partial: "El análisis no alcanzó a revisar todas las conversaciones del periodo: la respuesta habla solo de las revisadas. Pregunta de nuevo para seguir; lo ya revisado no se vuelve a pagar.",
 };
+
+/** 038 (PR 3) — Cuántas conversaciones del periodo cubrió el análisis de una respuesta. */
+export type AssistantCoverage = { total: number; revisadas: number; sinInformacion: number; faltan: number };
 
 /** Lo que se guarda junto a cada respuesta (`assistant_message.sources`). */
 export type AssistantMessageMeta = {
@@ -95,6 +100,8 @@ export type AssistantMessageMeta = {
   /** Consultas que corrieron y llamadas al modelo de esta pregunta. */
   queryCount: number;
   modelCalls: number;
+  /** 038 (PR 3): si la respuesta usó el análisis de conversaciones, cuántas cubrió. */
+  coverage?: AssistantCoverage;
 };
 
 /** Mensaje de un hilo tal como lo ve la pantalla. */

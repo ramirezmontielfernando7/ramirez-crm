@@ -82,10 +82,17 @@ export function LimitsForm({ orgId, onSaved }: { orgId: string; onSaved: () => v
   }
 
   useEffect(() => {
+    // Una respuesta vieja (otra organización, o el doble montaje de desarrollo)
+    // no debe pisar lo que la persona ya escribió en el formulario.
+    let vivo = true;
     void api<{ limits: EffectiveLimits; alerts: Alert[] }>(`/api/platform/organizations/${orgId}/limits`).then((r) => {
+      if (!vivo) return;
       if (r.data) fill(r.data.limits, r.data.alerts);
       else setError(r.error);
     });
+    return () => {
+      vivo = false;
+    };
   }, [orgId]);
 
   if (!limits) return <p className="text-sm text-text-2">{error ?? "Cargando topes…"}</p>;
