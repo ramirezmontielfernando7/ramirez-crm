@@ -70,7 +70,8 @@ async function persona() {
   ips++;
   const ctx = await browser.newContext({ extraHTTPHeaders: { "x-forwarded-for": `10.88.${Number(RUN.slice(-3)) % 256}.${ips}`, origin: BASE } });
   const call = async (method, path, body) => {
-    const res = await ctx.request.fetch(`${BASE}${path}`, { method, data: body, failOnStatusCode: false, maxRedirects: 0 });
+    // 120 s: una pregunta al asistente hace varias llamadas al modelo (y en `next dev` compila la ruta).
+    const res = await ctx.request.fetch(`${BASE}${path}`, { method, data: body, failOnStatusCode: false, maxRedirects: 0, timeout: 120_000 });
     let json = null;
     try {
       json = await res.json();
