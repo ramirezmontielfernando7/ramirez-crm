@@ -16,6 +16,8 @@ import { matchesQuery } from "@/lib/search";
 import { cn } from "@/lib/utils";
 import { ContactAvatar } from "@/components/avatar";
 import { ENTER, SPRING } from "@/components/motion";
+import { NavRevealButton } from "@/components/nav-mode";
+import { InboxModeSwitch } from "@/components/inbox/inbox-mode-switch";
 import { useEvents } from "@/components/use-events";
 import { useViewer } from "@/components/viewer-context";
 import { formatTime } from "@/components/inbox/helpers";
@@ -374,8 +376,9 @@ function ThreadList({
   return (
     <div className="flex h-full flex-col">
       <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4">
-        {/* 039: el título de la pantalla (Bandeja → Equipo) va en `PageShell`. */}
-        <h2 className="text-[13.5px] font-semibold text-text-2">Conversaciones internas</h2>
+        <NavRevealButton />
+        {/* 039: «Chat de equipo ▾» vuelve a la Bandeja de clientes. */}
+        <InboxModeSwitch current="chat" />
         <div className="relative ml-auto">
           <button
             type="button"

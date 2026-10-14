@@ -199,7 +199,8 @@ try {
   // Cierra al clicar fuera.
   await stageCap.click();
   await ver(menu.getByRole("menuitemradio"));
-  await page.getByRole("heading", { name: "Bandeja" }).click();
+  // 039: el título es el selector «Bandeja ▾»; «fuera» = el margen del encabezado de la lista.
+  await page.locator("main header").first().click({ position: { x: 4, y: 4 } });
   ok("el menú de Etapa se cierra al clicar fuera", await oculto(menu));
   // Una etapa perdida no se elige desde la cápsula (pide motivo).
   await stageCap.click();
@@ -227,7 +228,8 @@ try {
   await buscador.fill(`Nueva${RUN}`);
   await menu.getByRole("menuitem", { name: new RegExp(`Crear «Nueva${RUN}»`) }).click();
   ok("crear una etiqueta desde el buscador la asigna", await hasta(async () => ((await conv(N.a))?.tags ?? []).some((t) => t.name === `Nueva${RUN}`)));
-  await page.getByRole("heading", { name: "Bandeja" }).click();
+  // 039: el título es el selector «Bandeja ▾»; «fuera» = el margen del encabezado de la lista.
+  await page.locator("main header").first().click({ position: { x: 4, y: 4 } });
   ok("el menú de Etiquetas se cierra al clicar fuera", await oculto(menu));
   ok("…sin abrir el chat", (await abierto().count()) === 0);
 
@@ -278,7 +280,8 @@ try {
   ok("«Quitar filtros» los devuelve", await ver(row(N.b)));
 
   console.log("== 5. Archivar ==");
-  await page.getByRole("heading", { name: "Bandeja" }).click();
+  // 039: el título es el selector «Bandeja ▾»; «fuera» = el margen del encabezado de la lista.
+  await page.locator("main header").first().click({ position: { x: 4, y: 4 } });
   await row(N.b).click({ button: "right" });
   const ctxMenu = page.getByRole("menu", { name: "Opciones del chat" });
   ok("el clic derecho abre el menú contextual", await ver(ctxMenu));

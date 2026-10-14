@@ -1,6 +1,5 @@
 import { Suspense } from "react";
 import { TeamChatClient } from "@/components/team-chat/team-chat-client";
-import { PageShell } from "@/components/ui/page-shell";
 import { requireModulePage } from "@/server/modules/page";
 
 export const dynamic = "force-dynamic";
@@ -10,10 +9,8 @@ export default async function TeamChatPage() {
   // 030 (PR 4): sin el módulo, la pantalla no existe para esta organización.
   await requireModulePage("team_chat");
   return (
-    <PageShell pillar="inbox" variant="fluid">
-      <Suspense>
-        <TeamChatClient />
-      </Suspense>
-    </PageShell>
+    <Suspense>
+      <TeamChatClient />
+    </Suspense>
   );
 }

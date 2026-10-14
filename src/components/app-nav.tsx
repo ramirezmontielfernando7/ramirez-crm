@@ -18,7 +18,6 @@ import type { Branding } from "@/lib/branding";
 import type { ThemePreference } from "@/lib/theme";
 import { cn, initials } from "@/lib/utils";
 import { signOut } from "@/lib/auth/client";
-import { useEvents } from "@/components/use-events";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { BrandLogo, BrandTile } from "@/components/brand-mark";
 import { SPRING } from "@/components/motion";
@@ -29,6 +28,7 @@ import { TeamUnreadLogoBadge, TeamUnreadRowBadge } from "@/components/team-chat/
 import { roleLabel } from "@/lib/auth/permissions";
 import { moduleDef, type ModuleKey } from "@/lib/modules/registry";
 import { NAV_ICONS } from "@/components/nav-icons";
+import { useInboxUnread } from "@/components/inbox/unread-store";
 import type { NavEntries } from "@/lib/modules/nav-layout";
 import {
   BUILD_COMMIT,
@@ -483,25 +483,8 @@ function NavLabel({ children }: { children: React.ReactNode }) {
  * vivía en `AppNav` y cada `message.new` lo re-renderizaba completo).
  */
 function InboxUnreadBadge() {
-  const [unread, setUnread] = useState(0);
-
-  async function refetchUnread() {
-    const res = await fetch("/api/conversations").catch(() => null);
-    if (!res?.ok) return;
-    const data = (await res.json()) as {
-      conversations: { unreadCount: number }[];
-    };
-    setUnread(data.conversations.reduce((a, c) => a + c.unreadCount, 0));
-  }
-
-  useEffect(() => {
-    void refetchUnread();
-  }, []);
-
-  useEvents({
-    onMessageNew: () => void refetchUnread(),
-    onConversationUpdated: () => void refetchUnread(),
-  });
+  // 039: el mismo almacén que el selector «Bandeja ▾» (una sola consulta).
+  const unread = useInboxUnread();
 
   if (unread <= 0) return null;
   return (

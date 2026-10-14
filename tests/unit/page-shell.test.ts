@@ -31,14 +31,20 @@ const dibujar = (props: Record<string, unknown> = {}) =>
   renderToStaticMarkup(createElement(PageShell, { children: createElement("p", null, "contenido"), ...props } as never));
 
 describe("PageShell", () => {
-  it("encabezado de 56 px (h-14) con el título del pilar, y pestañas de 40 px (h-10)", () => {
+  it("UNA sola barra de 56 px (sm:h-14): título del pilar, divisor y pestañas en píldora DENTRO del encabezado", () => {
     pathname = "/contacts";
     modulos = null;
     const html = dibujar({ variant: "fluid" });
-    expect(html).toMatch(/<header[^>]*class="[^"]*\bh-14\b[^"]*"/);
+    expect(html).toMatch(/<header[^>]*class="[^"]*\bsm:h-14\b[^"]*"/);
     expect(html).toContain(">CRM Comercial</h1>");
-    expect(html).toMatch(/<nav[^>]*aria-label="Secciones de CRM Comercial"[^>]*class="[^"]*\bh-10\b/);
-    expect(html).toMatch(/href="\/contacts"[^>]*aria-current="page"|aria-current="page"[^>]*href="\/contacts"/);
+    // Las pestañas viven dentro del <header> (no hay segunda barra debajo).
+    const header = html.slice(html.indexOf("<header"), html.indexOf("</header>"));
+    expect(header).toContain('aria-label="Secciones de CRM Comercial"');
+    expect(html.slice(html.indexOf("</header>"))).not.toContain("<nav");
+    // La activa, como el renglón del menú lateral.
+    expect(header).toMatch(/href="\/contacts"[^>]*class="[^"]*bg-brand-tint/);
+    expect(header).toMatch(/<span aria-hidden="true" class="[^"]*h-4 w-px[^"]*bg-border/);
+    expect(html).not.toContain("h-10");
   });
 
   it("las pestañas del pilar siguen a los módulos de la organización", () => {
@@ -93,7 +99,15 @@ describe("039 — todas las pantallas usan PageShell", () => {
 
   it("nadie fuera del cascarón pinta su propio título de pantalla con el botón del menú", () => {
     // El botón que reabre el menú solo vive en PageShell (y en el menú mismo).
-    const permitidos = new Set(["components/ui/page-shell.tsx", "components/nav-mode.tsx", "components/app-nav.tsx"]);
+    const permitidos = new Set([
+      "components/ui/page-shell.tsx",
+      "components/nav-mode.tsx",
+      "components/app-nav.tsx",
+      // La Bandeja y el Chat de equipo conservan sus columnas a altura completa
+      // y su encabezado compacto con el selector «Bandeja ▾».
+      "components/inbox/conversation-list.tsx",
+      "components/team-chat/team-chat-client.tsx",
+    ]);
     // Citas sin incrustar (nadie lo usa así hoy) conserva su título propio.
     const legado = new Set(["components/bookings/bookings-client.tsx", "components/bookings/calendar-toolbar.tsx"]);
     const fuera = archivos(SRC)

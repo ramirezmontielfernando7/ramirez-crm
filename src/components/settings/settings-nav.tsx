@@ -101,8 +101,11 @@ export function SettingsShell({
   return (
     <PageShell title="Ajustes" icon={Settings} pillar={false} tabs={tabs} tabsLabel="Secciones de Ajustes">
       {current && current.pages.length > 1 && (
-        <div className="-mt-2 mb-5 border-b">
+        // 039: sub-secciones como control segmentado dentro del contenido (nunca
+        // una segunda barra bajo el encabezado de 56 px).
+        <div className="mb-5">
           <SectionTabs
+            variant="segmented"
             tabs={current.pages.map((page) => ({
               href: href(page.slug),
               label: page.label,

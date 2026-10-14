@@ -197,7 +197,7 @@ const fila = phone.getByText(NAME).first();
 await fila.waitFor({ timeout: 20000 });
 ok("la lista de conversaciones ocupa la pantalla", await fila.isVisible());
 const anchoLista = await phone.evaluate(() => {
-  const sec = document.querySelector("main [data-page-header] ~ div > div > section");
+  const sec = document.querySelector("main > div > section");
   return sec ? Math.round(sec.getBoundingClientRect().width) : 0;
 });
 ok(
@@ -239,7 +239,7 @@ ok("el panel de detalles arranca cerrado en el teléfono", await abrirDetalles.i
 await abrirDetalles.click();
 await sleep(500);
 const cajonDetalles = await phone.evaluate(() => {
-  const secs = [...document.querySelectorAll("main [data-page-header] ~ div > div > section")];
+  const secs = [...document.querySelectorAll("main > div > section")];
   const panel = secs[secs.length - 1];
   if (!panel) return null;
   const r = panel.getBoundingClientRect();
@@ -278,7 +278,7 @@ await tablet.goto(`${BASE}/inbox`);
 await tablet.getByText(NAME).first().click();
 await tablet.getByPlaceholder("Escribe una respuesta").waitFor({ timeout: 20000 });
 const dosColumnas = await tablet.evaluate(() => {
-  const secs = [...document.querySelectorAll("main [data-page-header] ~ div > div > section")];
+  const secs = [...document.querySelectorAll("main > div > section")];
   return secs.slice(0, 2).map((s) => Math.round(s.getBoundingClientRect().width));
 });
 ok(
@@ -303,7 +303,7 @@ ok(
 const medirColumnas = () =>
   desk.evaluate(() => {
     const aside = document.querySelector("aside");
-    const secs = [...document.querySelectorAll("main [data-page-header] ~ div > div > section")];
+    const secs = [...document.querySelectorAll("main > div > section")];
     return {
       aside: aside ? Math.round(aside.getBoundingClientRect().width) : 0,
       secs: secs.map((s) => Math.round(s.getBoundingClientRect().width)),
@@ -469,19 +469,17 @@ await desk.keyboard.press("Escape");
 await desk.setViewportSize(PHONE);
 await desk.goto(`${BASE}/inbox`, { waitUntil: "domcontentloaded" });
 await desk.getByRole("button", { name: "Abrir el menú" }).waitFor({ timeout: 20000 });
-// 039: sin franja propia arriba; el botón del menú (el logo) va en el
-// encabezado de 56 px de cada pantalla (`PageShell`), junto a su título.
 const franja = await desk.evaluate(() => {
-  const h = document.querySelector("header[data-page-header]");
+  const aside = document.querySelector("aside");
+  const barra = document.querySelector("main")?.previousElementSibling;
   return {
-    alto: h ? Math.round(h.getBoundingClientRect().height) : 0,
-    boton: !!h?.querySelector('button[aria-label="Abrir el menú"]'),
-    titulo: h?.querySelector("h1")?.textContent ?? "",
+    barra: barra ? getComputedStyle(barra).backgroundColor : "",
+    lateral: aside ? getComputedStyle(aside).backgroundColor : "",
   };
 });
 ok(
-  "en el teléfono, el botón del menú va en el encabezado de 56 px de la pantalla",
-  franja.alto === 56 && franja.boton && franja.titulo === "Bandeja",
+  "en el teléfono, la franja de arriba es la misma pieza que la barra",
+  franja.barra !== "" && franja.barra === franja.lateral,
   JSON.stringify(franja)
 );
 await desk.screenshot({ path: `${SHOTS}/phone-inbox-oscuro.png` });

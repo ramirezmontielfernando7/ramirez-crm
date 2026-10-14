@@ -294,13 +294,12 @@ ok(
   !!cajaLupa && !!cajaSel && cajaLupa.x > cajaSel.x && Math.abs(centro(cajaLupa) - centro(cajaSel)) <= 1,
   JSON.stringify({ cajaLupa, cajaSel })
 );
-// 039: el título «Bandeja» va en el encabezado de 56 px (`PageShell`); los
-// filtros, en la fila de 56 px de la lista, debajo de las pestañas.
 ok(
-  "filtros: la cápsula y «Seleccionar varios» van en la misma fila, bajo el encabezado de la pantalla",
+  "filtros: la cápsula y «Seleccionar varios» van en la fila del título",
   !!tituloB && !!cajaCap && !!cajaSel &&
-    Math.abs(centro(cajaSel) - centro(cajaCap)) <= 2 &&
-    cajaCap.y > tituloB.y && cajaSel.x > cajaCap.x,
+    Math.abs(centro(cajaCap) - centro(tituloB)) <= 2 &&
+    Math.abs(centro(cajaSel) - centro(tituloB)) <= 2 &&
+    cajaCap.x > tituloB.x && cajaSel.x > cajaCap.x,
   JSON.stringify({ tituloB, cajaCap, cajaSel })
 );
 ok("…y la fila de cápsulas ya no está", (await op.getByRole("button", { name: /^No leídas/ }).count()) === 0);

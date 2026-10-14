@@ -38,18 +38,31 @@ vende Demfort.
      valiendo: los pilares conservan la clave de un módulo que ya existía
      (`inbox`, `pipeline`, `lab`, `campaigns`, `results`); las claves que ya
      no tienen renglón se descartan al normalizar.
-2. **`PageShell`** (`src/components/ui/page-shell.tsx`) en TODAS las
-   pantallas: encabezado de 56 px exactos (`h-14`) con el botón del menú
-   (cajón en el teléfono, el que reabre el menú oculto en escritorio), ícono
-   del pilar y título (`text-[16px] font-semibold`); acciones a la derecha
-   (botones `h-9`); pestañas en una fila de 40 px exactos (`h-10`) con su
-   borde. Variantes: `fluid` (Bandeja, Kanban, editores) y `contained`
-   (`max-w-6xl`, Ajustes y Plataforma). Los filtros de cada pantalla bajan a
-   su propia fila bajo las pestañas. En el teléfono desaparece la barra
-   superior propia del cascarón: el botón del menú vive en el encabezado de
-   cada pantalla.
-3. **Ajustes en 5 pestañas**; cuando una tiene varias páginas, van en una
-   segunda fila dentro del contenido. «Uso y plan» pasa a `/settings/uso`
+2. **`PageShell`** (`src/components/ui/page-shell.tsx`) en CRM Comercial,
+   Estudio de IA, Marketing, Inteligencia, Ajustes y Plataforma: **UNA sola
+   barra de 56 px** (`h-14`, alineada con la fila del logo del menú). A la
+   izquierda, el botón que reabre el menú oculto, el ícono y el título del
+   pilar (`text-[15px] font-semibold`); tras un divisor vertical
+   (`h-4 w-px bg-border`), las pestañas del pilar en píldora
+   (`rounded-md px-2.5 py-1.5 text-[13px]`, la activa `bg-brand-tint
+   text-brand-text` como el renglón del menú); a la derecha, las acciones
+   (`h-8`). Nunca una segunda barra de pestañas en escritorio; en el teléfono,
+   si no caben, las pestañas bajan a una tira compacta con scroll horizontal.
+   Variantes `fluid` y `contained` (`max-w-6xl`). Los filtros de cada
+   pantalla van en su fila dentro del contenido. El área principal conserva
+   el panel flotante de `AppShell` (radio, borde, sombra y separación del
+   menú); `PageShell` no pinta fondo propio. En el teléfono sigue la franja
+   superior de `AppShell` con el botón del cajón.
+   - **La Bandeja (`/inbox`) y el Chat de equipo (`/chat`) NO usan
+     `PageShell`**: conservan sus columnas a altura completa con su
+     encabezado compacto. Su título es un selector (`InboxModeSwitch`):
+     «Bandeja ▾» / «Chat de equipo ▾» abre un menú con «Bandeja de clientes»
+     y «Chat de equipo», cada una con sus no leídos; un punto junto al título
+     avisa de actividad en el OTRO modo. Sin el módulo `team_chat`, el
+     título es texto fijo. Los no leídos de clientes salen de un almacén
+     compartido con el globo del menú (`components/inbox/unread-store.ts`).
+3. **Ajustes en 5 pestañas**; cuando una tiene varias páginas, van como
+   control segmentado dentro del contenido (igual Tareas / Notas). «Uso y plan» pasa a `/settings/uso`
    (`/uso` redirige).
 4. **Planes comerciales** (plantillas de los 13 interruptores al crear la
    organización en /platform; no se guardan):

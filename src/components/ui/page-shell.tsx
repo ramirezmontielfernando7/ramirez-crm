@@ -4,7 +4,7 @@ import { useMemo } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, type LucideIcon } from "lucide-react";
-import { NavMenuButton, NavRevealButton } from "@/components/nav-mode";
+import { NavRevealButton } from "@/components/nav-mode";
 import { NAV_ICONS } from "@/components/nav-icons";
 import { SectionTabs, type SectionTab } from "@/components/ui/section-tabs";
 import { useViewer } from "@/components/viewer-context";
@@ -13,19 +13,24 @@ import { moduleDef, type ModuleKey } from "@/lib/modules/registry";
 import { cn } from "@/lib/utils";
 
 /**
- * 039 — El cascarón de TODAS las pantallas de la app: misma geometría en
- * Bandeja, CRM Comercial, Estudio de IA, Marketing, Inteligencia y Ajustes.
+ * 039 — El cascarón de las pantallas de los pilares (CRM Comercial, Estudio
+ * de IA, Marketing, Inteligencia), Ajustes y Plataforma. La Bandeja y el Chat
+ * de equipo NO lo usan: conservan sus columnas a altura completa y cambian
+ * entre sí con «Bandeja ▾» (`InboxModeSwitch`).
  *
- * - Encabezado de 56 px exactos (h-14), la misma altura que la fila del logo
- *   del menú: a la izquierda el botón del menú (cajón en el teléfono; el que
- *   reabre el menú oculto en escritorio), el ícono del pilar y el título; a la
- *   derecha, las acciones primarias (botones de 36 px, h-9).
- * - Debajo, si hay pestañas, una fila de 40 px exactos (h-10) con su borde.
- *   Con `pillar`, son las pestañas del pilar que esta persona puede abrir
- *   (módulo encendido + permiso; el servidor valida igual en cada ruta).
+ * UNA sola barra de 56 px (h-14), alineada con la fila del logo del menú:
+ * - izquierda: el botón que reabre el menú oculto, ícono y título del pilar;
+ * - tras un divisor vertical, las pestañas del pilar en píldora (la activa
+ *   como el renglón del menú lateral), a la misma altura;
+ * - derecha: las acciones primarias (botones h-8/h-9).
+ * En el teléfono, si no caben, las pestañas bajan a una tira compacta con
+ * scroll horizontal; en escritorio nunca hay una segunda barra.
+ *
+ * El contenedor es el panel flotante de `AppShell` (radio, borde y sombra):
+ * aquí no se pinta fondo propio para no taparlo.
  * - `fluid`: el contenido ocupa todo lo que queda y maneja su propio scroll
- *   (Bandeja, Kanban, editor dividido). `contained`: columna centrada de
- *   `max-w-6xl` con scroll (tablas, formularios, métricas).
+ *   (Kanban, editores). `contained`: columna centrada de `max-w-6xl` con
+ *   scroll (tablas, formularios, métricas).
  */
 export type PageShellVariant = "fluid" | "contained";
 
@@ -95,39 +100,55 @@ export function PageShell({
   const Icon = icon === null ? null : (icon ?? (def ? NAV_ICONS[def.icon] : null));
   const heading = title ?? def?.label ?? "";
 
+  const tabsNav =
+    shownTabs && shownTabs.length > 0 ? (
+      <SectionTabs
+        tabs={shownTabs}
+        label={tabsLabel ?? `Secciones de ${typeof heading === "string" ? heading : "la pantalla"}`}
+        variant="pill"
+      />
+    ) : null;
+
   return (
-    <div className="flex h-full min-h-0 flex-col bg-background">
+    <div className="flex h-full min-h-0 flex-col">
       <header
         data-page-header
-        className="flex h-14 shrink-0 items-center justify-between gap-3 border-b bg-background px-4 sm:px-6"
+        className="flex shrink-0 flex-wrap items-center border-b px-4 sm:h-14 sm:flex-nowrap sm:px-6"
       >
-        <div className="flex min-w-0 items-center gap-2">
-          <NavMenuButton />
+        <div className="flex h-14 min-w-0 flex-auto items-center gap-2 sm:h-auto sm:flex-none">
           <NavRevealButton />
           {back && (
             <Link
               href={back.href}
               aria-label={back.label}
               title={back.label}
-              className="-ml-1 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-text-2 transition-colors hover:bg-accent hover:text-foreground"
+              className="-ml-1.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-text-2 transition-colors hover:bg-accent hover:text-foreground"
             >
               <ArrowLeft className="h-4 w-4" />
             </Link>
           )}
-          {!back && Icon && <Icon aria-hidden className="h-[18px] w-[18px] shrink-0 text-brand" strokeWidth={1.8} />}
-          <h1 className="truncate text-[16px] font-semibold tracking-tight text-foreground">{heading}</h1>
+          {!back && Icon && <Icon aria-hidden className="h-[17px] w-[17px] shrink-0 text-brand" strokeWidth={1.8} />}
+          <h1 className="truncate text-[15px] font-semibold tracking-tight text-foreground">{heading}</h1>
           {badge}
           {subtitle && (
-            <p className="hidden min-w-0 truncate text-xs text-text-3 md:block" data-page-subtitle>
+            <p className="hidden min-w-0 truncate text-xs text-text-3 xl:block" data-page-subtitle>
               {subtitle}
             </p>
           )}
         </div>
-        {actions && <div className="flex shrink-0 items-center gap-2 [&>a>button]:h-9 [&>button]:h-9">{actions}</div>}
+        {tabsNav && (
+          <>
+            <span aria-hidden className="mx-3 hidden h-4 w-px shrink-0 bg-border sm:block" />
+            {/* Teléfono: tira compacta debajo (scroll horizontal). Desde sm: en la misma fila. */}
+            <div className="order-last -mx-4 flex h-11 shrink-0 min-w-0 grow basis-[calc(100%+2rem)] items-center border-t px-3 sm:order-none sm:mx-0 sm:h-auto sm:shrink sm:basis-0 sm:border-t-0 sm:px-0">
+              {tabsNav}
+            </div>
+          </>
+        )}
+        {actions && (
+          <div className="ml-auto flex shrink-0 items-center gap-2 pl-3 [&>a>button]:h-8 [&>button]:h-8">{actions}</div>
+        )}
       </header>
-      {shownTabs && shownTabs.length > 0 && (
-        <SectionTabs tabs={shownTabs} label={tabsLabel ?? `Secciones de ${typeof heading === "string" ? heading : "la pantalla"}`} variant="bar" />
-      )}
       {variant === "fluid" ? (
         <div className={cn("flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden", className)}>{children}</div>
       ) : (

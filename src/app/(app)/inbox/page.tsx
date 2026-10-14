@@ -1,5 +1,4 @@
 import { InboxClient } from "@/components/inbox/inbox-client";
-import { PageShell } from "@/components/ui/page-shell";
 import { CHANNEL_ORDER } from "@/lib/channels";
 import { redirect } from "next/navigation";
 import { getSessionOrNull } from "@/lib/auth/session";
@@ -20,10 +19,5 @@ export default async function InboxPage() {
   const enabled = await enabledChannels(session.organizationId);
   const channels = CHANNEL_ORDER.filter((c) => enabled.has(c));
 
-  // 039: pilar Bandeja (Clientes · Equipo), a pantalla completa.
-  return (
-    <PageShell pillar="inbox" variant="fluid">
-      <InboxClient channels={channels} />
-    </PageShell>
-  );
+  return <InboxClient channels={channels} />;
 }

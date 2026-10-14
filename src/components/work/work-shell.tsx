@@ -24,8 +24,8 @@ export function WorkShell({ sections, children }: { sections: WorkSections; chil
     <PageShell pillar="pipeline" variant="fluid">
       {/* Con una sola pestaña no hay nada que elegir. */}
       {tabs.length > 1 && (
-        <div className="shrink-0 border-b px-4 sm:px-6">
-          <SectionTabs tabs={tabs} label="Secciones de Tareas y notas" />
+        <div className="shrink-0 px-4 pt-3 sm:px-6">
+          <SectionTabs tabs={tabs} label="Secciones de Tareas y notas" variant="segmented" />
         </div>
       )}
       <div className="min-h-0 flex-1">{children}</div>
