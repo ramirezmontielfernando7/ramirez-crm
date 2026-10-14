@@ -92,7 +92,11 @@ externas: el trabajo en segundo plano (agente, Laboratorio) es in-process.
 
 Los mocks del entorno de pruebas viven en `src/app/api/dev/` (wa-mock +
 ai-mock) tras un gate único (`src/lib/dev-guard.ts`): 404 incondicional en
-producción.
+producción. Única excepción: la app COMPILADA del job e2e de CI (`next start`)
+los abre con `WA_MOCK_ENABLED=true` + `ALLOW_CI_MOCKS=true` + `APP_BASE_URL`
+en `localhost`/`127.0.0.1`, los tres a la vez (`isMockEnabled` en
+`src/lib/env.ts`; `tests/unit/dev-guard.test.ts`). Con mocks, el freno propio
+de Better Auth se apaga como en `next dev` (el FR-062 por IP sigue).
 
 **Identidad de contacto**: Meta está migrando de teléfono a Business-Scoped
 User IDs, así que `from` puede no venir. La llave estable es

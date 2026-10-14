@@ -238,6 +238,10 @@ async function main() {
 
   /* ------------------------------------------------------------ */
   console.log("\n== 3. Salud del número ==");
+  // La sincronización diaria de arranque pudo dejar una lectura de esta
+  // organización hace menos de un minuto (freno de «Actualizar»): se envejece
+  // en la BD en vez de esperar 65 s. El freno se sigue probando abajo (429).
+  await sql`update wa_phone_health set fetched_at = now() - interval '2 minutes' where organization_id = ${c1?.organization_id}`;
   const h0 = await api("/api/number-health");
   ok("GET salud 200", h0.res.ok, JSON.stringify(h0.json));
   ok("sin lectura de hoy para el número nuevo", h0.json?.connected === true && h0.json?.today === null, JSON.stringify(h0.json?.today));

@@ -59,7 +59,8 @@ const browser = await chromium.launch(
 const ctx = await browser.newContext({
   viewport: { width: 1440, height: 900 },
   locale: "es-MX",
-  extraHTTPHeaders: { origin: BASE },
+  // Su propia IP: el límite de login es por IP (FR-062).
+  extraHTTPHeaders: { "x-forwarded-for": `10.96.${Number(RUN.slice(-3)) % 256}.1`, origin: BASE },
 });
 const call = async (method, path, body) => {
   const res = await ctx.request.fetch(`${BASE}${path}`, {

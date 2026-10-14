@@ -30,6 +30,7 @@ vi.mock("@/lib/env", () => ({
     APP_BASE_URL: "http://localhost:3000",
     BETTER_AUTH_SECRET: "secreto-de-prueba-de-al-menos-32-caracteres",
   }),
+  isMockEnabled: () => false,
 }));
 
 // Una BD a la que no se puede llegar: postgres-js conecta perezosamente, así

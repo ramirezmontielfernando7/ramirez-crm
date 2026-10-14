@@ -28,6 +28,10 @@ OPENROUTER_BASE_URL=http://localhost:3000/api/dev/ai-mock
 OPENROUTER_API_TOKEN=test-token
 ```
 
+Con `next build && next start` (NODE_ENV=production) los mocks responden 404
+salvo que además pongas `ALLOW_CI_MOCKS=true` y `APP_BASE_URL` apunte a
+`localhost`/`127.0.0.1` (así corre el job e2e de CI). Nunca en un despliegue.
+
 Conectar el número en Settings → WhatsApp con IDs de prueba (cualquier token SIN el
 sufijo `-invalid`). Simular un entrante:
 

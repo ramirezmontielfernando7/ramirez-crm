@@ -75,7 +75,7 @@ async function persona(viewport = { width: 1440, height: 900 }) {
   const ctx = await browser.newContext({
     viewport,
     locale: "es-MX",
-    extraHTTPHeaders: { "x-forwarded-for": `10.93.${Number(RUN.slice(-3)) % 256}.${ips}`, origin: BASE },
+    extraHTTPHeaders: { "x-forwarded-for": `10.94.${Number(RUN.slice(-3)) % 256}.${ips}`, origin: BASE },
   });
   const call = async (method, path, body) => {
     const res = await ctx.request.fetch(`${BASE}${path}`, { method, data: body, failOnStatusCode: false, maxRedirects: 0, timeout: 180000 });

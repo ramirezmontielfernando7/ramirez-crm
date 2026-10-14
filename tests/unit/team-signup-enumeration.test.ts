@@ -6,7 +6,7 @@ import { resetRateLimit } from "@/lib/rate-limit";
  * organizaciones: el correo es único en toda la instancia, así que "ya
  * existe" solo se dice si la persona es de este mismo equipo.
  */
-const estado = vi.hoisted(() => ({ existe: false, miembroDeEsteEquipo: false, altas: 0 }));
+const estado = vi.hoisted(() => ({ existe: false, miembroDeEsteEquipo: false, altas: 0, ip: null as string | null }));
 
 vi.mock("@/lib/auth/session", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/auth/session")>();
@@ -16,8 +16,9 @@ vi.mock("@/lib/auth", () => ({
   runInternalSignup: <T>(fn: () => Promise<T>) => fn(),
   getAuth: () => ({
     api: {
-      signUpEmail: async () => {
+      signUpEmail: async (args: { headers?: Headers }) => {
         estado.altas++;
+        estado.ip = args.headers?.get("x-forwarded-for") ?? null;
         if (estado.existe) throw new Error("User already exists. Use another email.");
         return { user: { id: "usr_nuevo" } };
       },
@@ -37,11 +38,11 @@ vi.mock("@/lib/db", async (importOriginal) => {
 
 import { POST } from "@/app/api/settings/team/route";
 
-function alta(email: string) {
+function alta(email: string, ip?: string) {
   return POST(
     new Request("http://x/api/settings/team", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...(ip ? { "x-forwarded-for": ip } : {}) },
       body: JSON.stringify({ name: "Nueva", email, password: "password-123", role: "asesor" }),
     })
   );
@@ -52,6 +53,7 @@ describe("alta de miembros sin enumeración de correos", () => {
     estado.existe = false;
     estado.miembroDeEsteEquipo = false;
     estado.altas = 0;
+    estado.ip = null;
     resetRateLimit();
   });
 
@@ -83,5 +85,12 @@ describe("alta de miembros sin enumeración de correos", () => {
     expect(vistos.slice(0, 30).every((s) => s === 422)).toBe(true);
     expect(vistos.slice(30).every((s) => s === 429)).toBe(true);
     expect(estado.altas).toBe(30);
+  });
+
+  it("el límite por IP del registro (FR-062) cuenta a quien da el alta, no un cubo «local» de toda la instancia", async () => {
+    expect((await alta("con-ip@x.test", "203.0.113.7, 10.0.0.1")).status).toBe(201);
+    expect(estado.ip).toBe("203.0.113.7");
+    expect((await alta("sin-ip@x.test")).status).toBe(201);
+    expect(estado.ip).toBe("local");
   });
 });

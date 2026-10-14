@@ -5,7 +5,7 @@ import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { organization } from "better-auth/plugins";
 import { ac, roles } from "@/lib/auth/permissions";
 import { getSystemDb, schema } from "@/lib/db";
-import { getEnv } from "@/lib/env";
+import { getEnv, isMockEnabled } from "@/lib/env";
 import { AUTH_RATE_LIMIT, checkRateLimit, clientIp } from "@/lib/rate-limit";
 import {
   onUserCreated,
@@ -83,6 +83,11 @@ function createAuth() {
         invitation: schema.invitation,
       },
     }),
+    // Better Auth trae su propio freno de peticiones, encendido SOLO con
+    // NODE_ENV=production. Con los mocks (la app compilada del job e2e de CI)
+    // se apaga, igual que en `next dev`, que es como siempre corrieron los
+    // guiones. El freno propio por IP (FR-062, abajo) sigue en todos los casos.
+    ...(isMockEnabled() ? { rateLimit: { enabled: false } } : {}),
     emailAndPassword: {
       enabled: true,
       requireEmailVerification: false,
