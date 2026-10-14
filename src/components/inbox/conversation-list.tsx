@@ -18,6 +18,7 @@ import { formatTime, previewText } from "./helpers";
 import { useViewer } from "@/components/viewer-context";
 import { assignContacts, useAssignees } from "@/components/assignment/use-assignees";
 import { NavRevealButton } from "@/components/nav-mode";
+import { InboxModeSwitch } from "./inbox-mode-switch";
 import { FilterMenu, type InboxFilter } from "./filter-menu";
 import { ALL_TAGS, inArchiveView, isArchived, matchesTag } from "@/lib/inbox-filters";
 import { AssigneeCapsule, StageCapsule, TagsCapsule, type PatchRow } from "./chat-capsules";
@@ -297,9 +298,10 @@ export const ConversationList = memo(function ConversationList({
       <header className="flex h-14 shrink-0 flex-col justify-center border-b px-4">
         {/* `relative`: el panel de filtros y el buscador abierto se anclan a
             esta fila, no a su botón, para no salirse nunca de la columna. */}
-        <div ref={rowRef} className="relative flex items-center gap-2">
+        <div ref={rowRef} className="relative flex items-center gap-1.5">
           <NavRevealButton />
-          <h2 className={cn("text-[17px] font-bold tracking-tight", bajoBuscador)}>Bandeja</h2>
+          {/* 039: «Bandeja ▾» cambia al Chat de equipo (si la organización lo tiene). */}
+          <InboxModeSwitch current="inbox" className={bajoBuscador} />
           {/* Una cápsula con el filtro en uso; al tocarla despliega el resto.
               La selección múltiple viaja pegada a ella. */}
           <div className="flex items-center gap-1">
@@ -356,7 +358,7 @@ export const ConversationList = memo(function ConversationList({
                         : `Ver solo ${CHANNEL_LABEL[ch]}`
                     }
                     className={cn(
-                      "flex items-center gap-1 rounded-full border py-[3px] pl-[5px] pr-2 text-[11.5px] font-medium transition-colors",
+                      "flex items-center gap-0.5 rounded-full border py-[3px] pl-[5px] pr-1.5 text-[11.5px] font-medium transition-colors",
                       FOCO_SEPARADO,
                       on
                         ? "border-brand bg-brand-veil text-foreground"

@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { CampaignsTabs } from "@/components/campaigns/campaigns-tabs";
+import { CampaignsShell } from "@/components/campaigns/campaigns-tabs";
 import { MetricsClient } from "@/components/campaigns/metrics-client";
 import { requirePagePermission } from "@/lib/auth/page-guard";
 import { runWithOrganization } from "@/lib/request-context";
@@ -19,9 +19,8 @@ export default async function MetricsPage() {
   if (!(await campaignsEnabled(session.organizationId))) notFound();
   const timezone = await runWithOrganization(session.organizationId, () => businessTimezone(session.organizationId));
   return (
-    <div className="flex h-full flex-col">
-      <CampaignsTabs />
+    <CampaignsShell>
       <MetricsClient today={todayInTz(new Date(), timezone)} timezone={timezone} />
-    </div>
+    </CampaignsShell>
   );
 }

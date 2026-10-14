@@ -9,10 +9,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { roleLabel } from "@/lib/auth/permissions";
+import { PLAN_LABEL, PLAN_OPTIONS, type PlanOption } from "@/lib/modules/registry";
 import {
   countActiveModules,
   PLATFORM_MODULE_LABEL,
+  PLATFORM_MODULE_PILLAR,
   PLATFORM_MODULE_TOGGLES,
+  planOfModules,
   type PlatformModuleToggle,
 } from "@/lib/platform-modules";
 import { aiMeter, STORAGE_LABEL, storageMeter } from "@/lib/usage";
@@ -80,7 +83,8 @@ function ModuleToggles({ org, onChanged }: { org: Org; onChanged: () => void }) 
   return (
     <div className="space-y-2" data-testid="platform-modules">
       <p className="text-xs font-medium text-text-2">
-        Módulos · {countActiveModules(modules).active} de {countActiveModules(modules).total} activos
+        Módulos · {countActiveModules(modules).active} de {countActiveModules(modules).total} activos ·{" "}
+        <span data-testid="platform-org-plan">Plan {PLAN_LABEL[planOfModules(modules)]}</span>
       </p>
       <div className="grid gap-x-5 gap-y-2 sm:grid-cols-2 lg:grid-cols-3">
         {PLATFORM_MODULE_TOGGLES.map((key) => {
@@ -100,6 +104,7 @@ function ModuleToggles({ org, onChanged }: { org: Org; onChanged: () => void }) 
                 onCheckedChange={(next) => void save({ [key]: next })}
               />
               {PLATFORM_MODULE_LABEL[key]}
+              <span className="text-[11px] text-text-3">· {PLATFORM_MODULE_PILLAR[key]}</span>
               {blocked && <span className="text-xs text-text-3">({blocked})</span>}
             </label>
           );
@@ -173,12 +178,20 @@ function OneTimeLink({ url, expiresAt, kind }: { url: string; expiresAt: string;
 }
 
 
+/** 039 — Qué trae cada plan, en una línea (la fuente es `MODULE_PROFILES`). */
+const PLAN_HINT: Record<PlanOption, string> = {
+  esencial: "Bandeja, CRM, Tareas, Notas, Biblioteca y Resultados; sin IA",
+  pro: "+ Agentes y Laboratorio, Agenda, Atribución CAPI, Instagram y Messenger",
+  ultra: "+ Campañas masivas y Asistente interno",
+  personalizado: "los 13 interruptores a mano",
+};
+
 function CreateOrganization({ onCreated }: { onCreated: () => void }) {
   const [name, setName] = useState("");
   const [ownerName, setOwnerName] = useState("");
   const [ownerEmail, setOwnerEmail] = useState("");
-  // 030 (PR 4): plantilla de módulos; vacío = los de las variables de entorno.
-  const [profile, setProfile] = useState<"" | "basico" | "completo">("");
+  // 039: plan comercial (plantilla de los 13); vacío = los de las variables de entorno.
+  const [profile, setProfile] = useState<"" | PlanOption>("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [link, setLink] = useState<{ url: string; expiresAt: string } | null>(null);
@@ -230,7 +243,7 @@ function CreateOrganization({ onCreated }: { onCreated: () => void }) {
           </div>
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="org-profile">Módulos al crear</Label>
+          <Label htmlFor="org-profile">Plan al crear</Label>
           <select
             id="org-profile"
             value={profile}
@@ -239,10 +252,15 @@ function CreateOrganization({ onCreated }: { onCreated: () => void }) {
             data-testid="platform-create-profile"
           >
             <option value="">Los de las variables de entorno</option>
-            <option value="basico">Básico (sin Agente, Laboratorio ni Campañas)</option>
-            <option value="completo">Completo (todo, con menú personalizable)</option>
+            {PLAN_OPTIONS.map((p) => (
+              <option key={p} value={p}>
+                {PLAN_LABEL[p]} — {PLAN_HINT[p]}
+              </option>
+            ))}
           </select>
-          <p className="text-xs text-text-3">Solo es la plantilla inicial: después cada módulo se enciende o apaga aparte.</p>
+          <p className="text-xs text-text-3">
+            Solo es la plantilla inicial: después cada uno de los 13 módulos se enciende o apaga aparte en el detalle de la organización.
+          </p>
         </div>
         {error && <p className="text-sm text-destructive">{error}</p>}
         <Button

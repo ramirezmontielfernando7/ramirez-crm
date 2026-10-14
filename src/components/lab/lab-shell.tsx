@@ -1,53 +1,28 @@
 "use client";
 
-import { FlaskConical } from "lucide-react";
-import { NavRevealButton } from "@/components/nav-mode";
-import { SectionTabs, type SectionTab } from "@/components/ui/section-tabs";
+import { PageShell } from "@/components/ui/page-shell";
 
 /**
- * 031 (A2) — Encabezado del Laboratorio con sus subpestañas. Son rutas
- * (compartibles, Atrás funciona), igual que en Campañas.
- * PR B: «Asignación por etapa» (qué agente atiende cada etapa del pipeline).
- * 035: «Documentos» (lo que el agente consulta antes de responder).
+ * 031 (A2) — Encabezado del Laboratorio con sus subpestañas. 039: es el pilar
+ * «Estudio de IA» (`PageShell` con las pestañas del registro: Mis agentes,
+ * Conocimiento y documentos, Asignación por etapa y Evaluaciones). Son rutas
+ * (compartibles, Atrás funciona).
+ *
+ * 035 — «Conocimiento y documentos» solo existe con KB_DOCS (lo decide el
+ * layout en el servidor); 037: cada grupo (/lab/documentos/[grupo]) cuenta
+ * como parte de esa pestaña.
  */
-const TABS: readonly SectionTab[] = [
-  {
-    href: "/lab",
-    label: "Agentes",
-    // El editor (/lab/agents/[id]) cuenta como parte de Agentes.
-    match: (p) => p === "/lab" || p.startsWith("/lab/agents"),
-  },
-  { href: "/lab/asignacion", label: "Asignación por etapa" },
-  { href: "/lab/evaluaciones", label: "Evaluaciones" },
-];
-
-/**
- * 035 — «Documentos» solo existe con KB_DOCS (lo decide el layout en el servidor).
- * 037: cada grupo (/lab/documentos/[grupo]) cuenta como parte de Documentos.
- */
-const DOCUMENTS_TAB: SectionTab = {
-  href: "/lab/documentos",
-  label: "Documentos",
-  match: (p) => /^\/lab\/documentos(\/|$)/.test(p),
-};
+const SIN_DOCUMENTOS = ["/lab/documentos"] as const;
 
 export function LabShell({ children, documents = false }: { children: React.ReactNode; documents?: boolean }) {
-  const tabs = documents ? [...TABS.slice(0, 2), DOCUMENTS_TAB, ...TABS.slice(2)] : TABS;
   return (
-    <div className="flex h-full min-h-0 flex-col">
-      <header className="border-b px-4 pt-3 sm:px-6 sm:pt-4">
-        <div className="flex items-start gap-2">
-          <NavRevealButton />
-          <div>
-            <h2 className="flex items-center gap-2 text-[17px] font-bold tracking-tight">
-              <FlaskConical className="h-4 w-4 text-primary" /> Laboratorio
-            </h2>
-            <p className="text-xs text-muted-foreground">Sandbox interno — no envía mensajes reales</p>
-          </div>
-        </div>
-        <SectionTabs tabs={tabs} label="Secciones del Laboratorio" />
-      </header>
+    <PageShell
+      pillar="lab"
+      variant="fluid"
+      subtitle="Sandbox interno — no envía mensajes reales"
+      hideSections={documents ? undefined : SIN_DOCUMENTOS}
+    >
       <div className="min-h-0 flex-1">{children}</div>
-    </div>
+    </PageShell>
   );
 }

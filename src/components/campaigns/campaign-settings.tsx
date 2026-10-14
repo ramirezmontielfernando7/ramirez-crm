@@ -1,15 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
 import { MAX_MARKETING_MIN_DAYS, RATE_CATEGORY_LABEL, type CampaignSettingsDto } from "@/lib/campaigns";
 import { fetchJson, jsonInit } from "@/lib/fetch-json";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { NavRevealButton } from "@/components/nav-mode";
+import { PageShell } from "@/components/ui/page-shell";
 
 const CATEGORIES = ["marketing", "utility", "authentication"] as const;
 
@@ -71,16 +69,7 @@ export function CampaignSettingsForm({ brandName }: { brandName: string }) {
     s && setS({ ...s, [k]: Number(e.target.value) });
 
   return (
-    <div className="flex h-full flex-col">
-      <header className="flex items-center gap-3 border-b px-4 py-3 sm:px-6 sm:py-4">
-        <NavRevealButton />
-        <Link href="/campaigns" aria-label="Volver a Campañas">
-          <Button variant="ghost" size="icon">
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-        </Link>
-        <h2 className="text-[17px] font-bold tracking-tight">Ajustes de envío</h2>
-      </header>
+    <PageShell pillar="campaigns" variant="fluid" title="Ajustes de envío" back={{ href: "/campaigns", label: "Volver a Campañas" }}>
       <div className="flex-1 overflow-y-auto p-4 sm:p-6">
         <div className="max-w-2xl space-y-4" data-testid="campaign-settings">
           {error && (
@@ -215,6 +204,6 @@ export function CampaignSettingsForm({ brandName }: { brandName: string }) {
           )}
         </div>
       </div>
-    </div>
+    </PageShell>
   );
 }

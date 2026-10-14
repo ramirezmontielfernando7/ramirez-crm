@@ -360,7 +360,7 @@ async function main() {
     ok(
       "la subpestaña del grupo aparece junto a General y «Documentos» sigue activa",
       (await page.locator(`nav[aria-label="Grupos de documentos"] a[href="/lab/documentos/${ventasId}"]`).count()) === 1 &&
-        (await page.locator('nav[aria-label="Secciones del Laboratorio"] a[href="/lab/documentos"][aria-current="page"]').count()) === 1
+        (await page.locator('nav[aria-label="Secciones de Estudio de IA"] a[href="/lab/documentos"][aria-current="page"]').count()) === 1
     );
     await page.getByText(new RegExp(`Aún no hay documentos en ${VENTAS}`)).waitFor();
     const precios = `# Precios\n\nEl taladro inalámbrico cuesta ${DATO2} pesos con IVA incluido.`;

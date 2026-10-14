@@ -370,7 +370,9 @@ async function navegador({ A, B, D }) {
     await pb.goto(`${BASE}/inbox`);
     await pa.getByLabel("Mensaje para el equipo").waitFor({ timeout: 20000 });
     await pb.waitForTimeout(1500);
-    const antes = await pb.getByRole("link", { name: /Chat de equipo/ }).innerText();
+    // 039: el chat de equipo es parte de la Bandeja; su globo va en el renglón «Bandeja».
+    const renglon = pb.locator("aside nav").first().getByRole("link", { name: /^Bandeja/ });
+    const antes = await renglon.innerText();
 
     const texto = `En vivo ${S}`;
     await pa.getByLabel("Mensaje para el equipo").fill(texto);
@@ -379,9 +381,13 @@ async function navegador({ A, B, D }) {
     ok(
       "a B (en la Bandeja) se le enciende el globo del chat en el menú",
       await hasta(async () => {
-        const t = await pb.getByRole("link", { name: /Chat de equipo/ }).innerText();
+        const t = await renglon.innerText();
         return /\d/.test(t) && t !== antes;
       })
+    );
+    ok(
+      "…y el punto junto a «Bandeja ▾» avisa de actividad en el Chat de equipo",
+      await aparece(pb.getByTestId("inbox-mode-dot"), 8000)
     );
 
     await pb.goto(`${BASE}/chat?t=${D}`);

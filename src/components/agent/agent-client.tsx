@@ -17,7 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import Link from "next/link";
-import { NavRevealButton } from "@/components/nav-mode";
+import { PageShell } from "@/components/ui/page-shell";
 import { useViewer } from "@/components/viewer-context";
 
 type Profile = {
@@ -111,15 +111,14 @@ export function AgentClient() {
         : "configurar";
 
   return (
-    <div className="h-full overflow-y-auto">
-      <header className="flex flex-wrap items-center justify-between gap-2 border-b px-4 py-3 sm:px-6 sm:py-4">
-        <div className="flex items-center gap-2">
-          <NavRevealButton />
-          <h2 className="text-[17px] font-bold tracking-tight">Agente de IA</h2>
-        </div>
+    <PageShell
+      pillar="lab"
+      variant="fluid"
+      title="Agente de IA"
+      actions={
         <div className="flex items-center gap-3">
           {saved && <span className="text-xs text-primary">Guardado ✓</span>}
-          <span className="text-sm text-muted-foreground">
+          <span className="hidden text-sm text-muted-foreground sm:inline">
             {profile.enabled ? "Encendido" : "Apagado"}
           </span>
           {/* El interruptor compartido (#53): el pomo propio de aquí era
@@ -132,7 +131,9 @@ export function AgentClient() {
             onCheckedChange={(enabled) => void saveProfile({ enabled })}
           />
         </div>
-      </header>
+      }
+    >
+      <div className="min-h-0 flex-1 overflow-y-auto">
 
       {labOn && (
         <p className="mx-4 mt-4 text-sm text-muted-foreground sm:mx-6">
@@ -178,6 +179,7 @@ export function AgentClient() {
         <KbSection entries={entries} kbSize={kbSize} onChanged={() => void refetch()} />
       </div>
     </div>
+    </PageShell>
   );
 }
 

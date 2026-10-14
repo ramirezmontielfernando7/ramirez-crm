@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, ArrowLeft, CalendarClock, Download, Pause, Play, Send, Trash2, XCircle } from "lucide-react";
+import { AlertTriangle, CalendarClock, Download, Pause, Play, Send, Trash2, XCircle } from "lucide-react";
 import {
   DELIVERY_STATUS_LABEL,
   EXCLUSION_LABEL,
@@ -23,7 +23,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useEvents } from "@/components/use-events";
 import { CampaignProgress, CampaignStatusBadge } from "./status-badge";
-import { NavRevealButton } from "@/components/nav-mode";
+import { PageShell } from "@/components/ui/page-shell";
 
 const TABS: { key: RecipientStatus | "all"; label: string }[] = [
   { key: "all", label: "Todos" },
@@ -167,7 +167,13 @@ export function CampaignDetail({ campaignId }: { campaignId: string }) {
       </div>
     );
   }
-  if (!campaign) return <p className="p-6 text-sm text-muted-foreground">Cargando…</p>;
+  if (!campaign) {
+    return (
+      <PageShell pillar="campaigns" variant="fluid" title="Campaña" back={{ href: "/campaigns", label: "Volver a Campañas" }}>
+        <p className="p-6 text-sm text-muted-foreground">Cargando…</p>
+      </PageShell>
+    );
+  }
 
   const { counts, total } = campaign;
   const sample = campaign.template
@@ -185,37 +191,34 @@ export function CampaignDetail({ campaignId }: { campaignId: string }) {
   const excluded = (Object.entries(campaign.excluded ?? {}) as [ExclusionReason, number][]).filter(([, n]) => n > 0);
 
   return (
-    <div className="flex h-full flex-col">
-      <header className="flex flex-wrap items-center gap-3 border-b px-4 py-3 sm:px-6 sm:py-4">
-        <NavRevealButton />
-        <Link href="/campaigns" aria-label="Volver a Campañas">
-          <Button variant="ghost" size="icon">
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-        </Link>
-        <h2 className="min-w-0 truncate text-[17px] font-bold tracking-tight">{campaign.name}</h2>
-        <CampaignStatusBadge status={campaign.status} />
-        {(canPause || canResume || canCancel) && (
-          <div className="ml-auto flex flex-wrap gap-2" data-testid="campaign-actions">
-            {canPause && (
-              <Button size="sm" variant="outline" disabled={busy} onClick={() => void setState("pause")} data-testid="campaign-pause">
-                <Pause className="mr-1 h-4 w-4" /> Pausar
-              </Button>
-            )}
-            {canResume && (
-              <Button size="sm" disabled={busy} onClick={() => void setState("resume")} data-testid="campaign-resume">
-                <Play className="mr-1 h-4 w-4" /> Reanudar
-              </Button>
-            )}
-            {canCancel && (
-              <Button size="sm" variant="ghost" disabled={busy} onClick={() => void setState("cancel")} data-testid="campaign-cancel">
-                <XCircle className="mr-1 h-4 w-4" /> Cancelar
-              </Button>
-            )}
-          </div>
-        )}
-      </header>
-
+    <PageShell
+      pillar="campaigns"
+      variant="fluid"
+      title={campaign.name}
+      back={{ href: "/campaigns", label: "Volver a Campañas" }}
+      badge={<CampaignStatusBadge status={campaign.status} />}
+      actions={
+          (canPause || canResume || canCancel) && (
+            <div className="flex gap-2" data-testid="campaign-actions">
+              {canPause && (
+                <Button size="sm" variant="outline" disabled={busy} onClick={() => void setState("pause")} data-testid="campaign-pause">
+                  <Pause className="mr-1 h-4 w-4" /> Pausar
+                </Button>
+              )}
+              {canResume && (
+                <Button size="sm" disabled={busy} onClick={() => void setState("resume")} data-testid="campaign-resume">
+                  <Play className="mr-1 h-4 w-4" /> Reanudar
+                </Button>
+              )}
+              {canCancel && (
+                <Button size="sm" variant="ghost" disabled={busy} onClick={() => void setState("cancel")} data-testid="campaign-cancel">
+                  <XCircle className="mr-1 h-4 w-4" /> Cancelar
+                </Button>
+              )}
+            </div>
+          )
+      }
+    >
       <div className="flex-1 overflow-y-auto p-4 sm:p-6">
         <div className="max-w-4xl space-y-6">
           {error && (
@@ -422,7 +425,7 @@ export function CampaignDetail({ campaignId }: { campaignId: string }) {
           )}
         </div>
       </div>
-    </div>
+    </PageShell>
   );
 }
 

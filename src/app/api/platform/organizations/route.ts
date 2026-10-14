@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { PLAN_OPTIONS } from "@/lib/modules/registry";
 import { parseBody } from "@/lib/api";
 import { actorOf, withPlatformAdmin } from "@/server/platform-admin/http";
 import { createOrganization, listOrganizations } from "@/server/platform-admin/organizations";
@@ -22,8 +23,9 @@ const createSchema = z.object({
   name: z.string().trim().min(2).max(120),
   ownerName: z.string().trim().min(1).max(120),
   ownerEmail: z.string().trim().email().max(200),
-  // 030 (PR 4): plantilla de módulos del alta; sin ella, los del entorno.
-  profile: z.enum(["basico", "completo"]).optional(),
+  // 039: plan comercial del alta (plantilla de los 13 interruptores);
+  // «personalizado» o sin él, los del entorno y los 13 a mano.
+  profile: z.enum(PLAN_OPTIONS).optional(),
 });
 
 /**

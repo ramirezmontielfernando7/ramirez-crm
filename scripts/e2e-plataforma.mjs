@@ -604,7 +604,9 @@ async function usoYPlan(A, B, orgB) {
   const entrada = page.getByTestId("nav-usage");
   ok("la Propietaria tiene «Uso y plan» en el menú de su cuenta", await entrada.waitFor({ timeout: 30000 }).then(() => true, () => false));
   await entrada.click();
-  await page.waitForURL(/\/uso$/, { timeout: 30000 });
+  // 039: «Uso y plan» es la 5.ª pestaña de Ajustes.
+  await page.waitForURL(/\/settings\/uso$/, { timeout: 30000 });
+  ok("…en la pestaña «Uso y plan» de Ajustes", (await page.getByRole("navigation", { name: "Secciones de Ajustes" }).getByRole("link", { name: "Uso y plan" }).getAttribute("aria-current").catch(() => null)) === "page");
   const pantalla = page.getByTestId("usage-plan");
   await pantalla.waitFor({ timeout: 30000 });
   ok("la pantalla dice el plan", /Personalizado/.test(await page.getByTestId("usage-plan-name").innerText()));
@@ -622,7 +624,9 @@ async function usoYPlan(A, B, orgB) {
   const movil = await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true, extraHTTPHeaders: { origin: BASE } });
   await movil.addCookies([{ name: "vocero-theme", value: "dark", url: BASE }, ...(await B.ctx.cookies())]);
   const cel = await movil.newPage();
+  // La dirección vieja sigue funcionando (redirige a Ajustes → Uso y plan).
   await cel.goto(`${BASE}/uso`);
+  await cel.waitForURL(/\/settings\/uso$/, { timeout: 30000 });
   await cel.getByTestId("usage-plan").waitFor({ timeout: 30000 });
   const desborde = await cel.evaluate(() => {
     const els = [document.documentElement, ...document.querySelectorAll("main, [class*='overflow-y-auto']")];
@@ -665,9 +669,10 @@ async function asistenteBase(A, B, orgB) {
   const p0 = await B.ctx.newPage();
   const r0 = await p0.goto(`${BASE}/asistente`);
   ok("…y la pantalla → 404", r0?.status() === 404, String(r0?.status()));
-  await p0.goto(`${BASE}/inbox`);
+  // 039: el Asistente es una pestaña del pilar Inteligencia (/results).
+  await p0.goto(`${BASE}/results`);
   await p0.waitForLoadState("networkidle").catch(() => null);
-  ok("…y sin «Asistente» en el menú", (await p0.locator('a[href="/asistente"]').count()) === 0);
+  ok("…y sin la pestaña «Asistente de negocio» en Inteligencia", (await p0.locator('a[href="/asistente"]').count()) === 0);
   await p0.close();
   const fila0 = ((await A.call("GET", "/api/platform/organizations")).json?.organizations ?? []).find((o) => o.id === orgB);
   ok("el interruptor existe y está apagado", fila0?.modules?.asistente === false, JSON.stringify(fila0?.modules));
@@ -713,8 +718,9 @@ async function asistenteBase(A, B, orgB) {
   const page = await B.ctx.newPage();
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(`${BASE}/inbox`);
-  const entrada = page.locator('a[href="/asistente"]').first();
-  ok("la Propietaria tiene «Asistente» en el menú", await entrada.waitFor({ timeout: 30000 }).then(() => true, () => false));
+  await page.locator("aside nav").first().getByRole("link", { name: "Inteligencia" }).click();
+  const entrada = page.getByRole("navigation", { name: "Secciones de Inteligencia" }).locator('a[href="/asistente"]');
+  ok("la Propietaria tiene «Asistente de negocio» en Inteligencia", await entrada.waitFor({ timeout: 30000 }).then(() => true, () => false));
   await entrada.click();
   await page.waitForURL(/\/asistente$/, { timeout: 30000 });
   const aviso = page.getByTestId("assistant-notice");

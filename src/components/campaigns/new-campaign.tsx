@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, CalendarClock, Check, FileSpreadsheet, Send, ShieldCheck, Smartphone, Tag, Users } from "lucide-react";
+import { CalendarClock, Check, FileSpreadsheet, Send, ShieldCheck, Smartphone, Tag, Users } from "lucide-react";
 import {
   EXCLUSION_LABEL,
   resolveVariables,
@@ -24,7 +24,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { TagChip } from "@/components/tags/tag-chip";
-import { NavRevealButton } from "@/components/nav-mode";
+import { PageShell } from "@/components/ui/page-shell";
 import { UploadFlow } from "./audiences-client";
 import { cn } from "@/lib/utils";
 
@@ -209,17 +209,7 @@ export function NewCampaign({ initialAudienceId }: { initialAudienceId: string |
   }
 
   return (
-    <div className="flex h-full flex-col">
-      <header className="flex items-center gap-3 border-b px-4 py-3 sm:px-6 sm:py-4">
-        <NavRevealButton />
-        <Link href="/campaigns" aria-label="Volver a Campañas">
-          <Button variant="ghost" size="icon">
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-        </Link>
-        <h2 className="text-[17px] font-bold tracking-tight">Nueva campaña</h2>
-      </header>
-
+    <PageShell pillar="campaigns" variant="fluid" title="Nueva campaña" back={{ href: "/campaigns", label: "Volver a Campañas" }}>
       <div className="flex-1 overflow-y-auto p-4 sm:p-6">
         <div className="max-w-3xl space-y-5">
           <ol className="flex flex-wrap gap-2" aria-label="Pasos" data-testid="wizard-steps">
@@ -622,7 +612,7 @@ export function NewCampaign({ initialAudienceId }: { initialAudienceId: string |
           )}
         </div>
       </div>
-    </div>
+    </PageShell>
   );
 }
 

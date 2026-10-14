@@ -7,26 +7,10 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   AlertTriangle,
-  BookOpen,
-  BriefcaseBusiness,
-  CalendarDays,
-  Camera,
-  ChartColumn,
-  FlaskConical,
   Gauge,
-  Inbox,
-  Kanban,
-  ListChecks,
-  BotMessageSquare,
   LogOut,
-  Megaphone,
-  MessageCircle,
-  MessagesSquare,
   Settings,
   ShieldCheck,
-  Sparkles,
-  Target,
-  Users,
   X,
   type LucideIcon,
 } from "lucide-react";
@@ -34,7 +18,6 @@ import type { Branding } from "@/lib/branding";
 import type { ThemePreference } from "@/lib/theme";
 import { cn, initials } from "@/lib/utils";
 import { signOut } from "@/lib/auth/client";
-import { useEvents } from "@/components/use-events";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { BrandLogo, BrandTile } from "@/components/brand-mark";
 import { SPRING } from "@/components/motion";
@@ -43,7 +26,9 @@ import { isHouseName } from "@/lib/brand";
 import { useViewer } from "@/components/viewer-context";
 import { TeamUnreadLogoBadge, TeamUnreadRowBadge } from "@/components/team-chat/unread-badge";
 import { roleLabel } from "@/lib/auth/permissions";
-import { moduleDef, type ModuleIcon, type ModuleKey } from "@/lib/modules/registry";
+import { moduleDef, type ModuleKey } from "@/lib/modules/registry";
+import { NAV_ICONS } from "@/components/nav-icons";
+import { useInboxUnread } from "@/components/inbox/unread-store";
 import type { NavEntries } from "@/lib/modules/nav-layout";
 import {
   BUILD_COMMIT,
@@ -60,50 +45,31 @@ type NavItem = {
   badge?: boolean;
   /** 025 — globo de no leídos del chat de equipo. */
   teamBadge?: boolean;
-  /** 033 — Otras rutas donde el renglón va activo (Trabajo → /bookings). */
+  /** 039 — Las rutas de las pestañas del pilar: en todas el renglón va activo. */
   alsoActive?: readonly string[];
 };
 
-/**
- * 030 (PR 4) — Los íconos del registro de módulos (`src/lib/modules/registry.ts`
- * los nombra; aquí se pintan). Qué entradas se ven y en qué orden lo decide el
- * SERVIDOR (`navForSession`: módulos de la organización, permisos del rol y el
- * menú que el Propietario guardó en Ajustes → Navegación).
- */
-export const NAV_ICONS: Record<ModuleIcon, LucideIcon> = {
-  Inbox,
-  MessagesSquare,
-  CalendarDays,
-  Kanban,
-  Users,
-  BookOpen,
-  Megaphone,
-  ChartColumn,
-  Sparkles,
-  FlaskConical,
-  Settings,
-  Target,
-  Camera,
-  MessageCircle,
-  BriefcaseBusiness,
-  ListChecks,
-  BotMessageSquare,
-};
+export { NAV_ICONS } from "@/components/nav-icons";
 
-function navItemOf(key: ModuleKey): NavItem {
+function navItemOf(key: ModuleKey, href?: string): NavItem {
   const def = moduleDef(key);
   return {
-    href: def.route ?? "/",
+    // 039: el pilar lleva a su primera pestaña que se puede abrir (la
+    // resuelve el servidor); sin ella, a su ruta de casa.
+    href: href ?? def.route ?? "/",
     label: def.label,
     icon: NAV_ICONS[def.icon],
-    badge: def.badge === "inbox",
-    teamBadge: def.badge === "team",
-    alsoActive: def.alsoActive,
+    badge: def.badges?.includes("inbox"),
+    teamBadge: def.badges?.includes("team"),
+    alsoActive: [
+      ...(def.route ? [def.route] : []),
+      ...(def.sections ?? []).flatMap((s) => [s.route, ...(s.also ?? [])]),
+    ],
   };
 }
 
 /** Lo de fábrica, para quien pinte el menú sin servidor (vista previa). */
-const DEFAULT_ENTRIES: NavEntries = { keys: ["inbox", "pipeline", "contacts"], settings: false };
+const DEFAULT_ENTRIES: NavEntries = { keys: ["inbox", "pipeline"], settings: false };
 
 /** Fase 3 — Administración de la plataforma (organizaciones). */
 const PLATFORM_ITEM: NavItem = {
@@ -203,7 +169,7 @@ export function AppNav({
   const items = useMemo(
     () =>
       nav.keys
-        .map(navItemOf)
+        .map((k) => navItemOf(k, nav.hrefs?.[k]))
         // Fase 3: solo el administrador de plataforma (lo decide el servidor;
         // /platform responde 404 a cualquier otra persona de todos modos).
         .concat(platform ? [PLATFORM_ITEM] : []),
@@ -302,7 +268,7 @@ export function AppNav({
         theme={theme}
         onSignOut={signOutAndLeave}
         showUsage={viewer.can("usage.read")}
-        usageActive={pathname === "/uso"}
+        usageActive={pathname === "/settings/uso"}
       />
 
       <NavVersion branding={branding} version={version} />
@@ -426,7 +392,7 @@ const NavFooter = memo(function NavFooter({
         </span>
         {showUsage && (
           <Link
-            href="/uso"
+            href="/settings/uso"
             aria-label="Uso y plan"
             title="Uso y plan"
             aria-current={usageActive ? "page" : undefined}
@@ -517,25 +483,8 @@ function NavLabel({ children }: { children: React.ReactNode }) {
  * vivía en `AppNav` y cada `message.new` lo re-renderizaba completo).
  */
 function InboxUnreadBadge() {
-  const [unread, setUnread] = useState(0);
-
-  async function refetchUnread() {
-    const res = await fetch("/api/conversations").catch(() => null);
-    if (!res?.ok) return;
-    const data = (await res.json()) as {
-      conversations: { unreadCount: number }[];
-    };
-    setUnread(data.conversations.reduce((a, c) => a + c.unreadCount, 0));
-  }
-
-  useEffect(() => {
-    void refetchUnread();
-  }, []);
-
-  useEvents({
-    onMessageNew: () => void refetchUnread(),
-    onConversationUpdated: () => void refetchUnread(),
-  });
+  // 039: el mismo almacén que el selector «Bandeja ▾» (una sola consulta).
+  const unread = useInboxUnread();
 
   if (unread <= 0) return null;
   return (
@@ -664,7 +613,7 @@ function ProfileMenu({
                 </div>
                 {showUsage && (
                   <Link
-                    href="/uso"
+                    href="/settings/uso"
                     onClick={() => setOpen(false)}
                     data-testid="nav-usage-menu"
                     className="mt-1 flex items-center gap-2 rounded-sm px-2 py-1.5 text-[13px] hover:bg-accent"

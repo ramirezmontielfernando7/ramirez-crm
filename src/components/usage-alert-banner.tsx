@@ -54,7 +54,7 @@ export function UsageAlertBanner() {
         ))}
       </ul>
       <Link
-        href="/uso"
+        href="/settings/uso"
         className="shrink-0 rounded px-2 py-0.5 text-xs font-medium underline underline-offset-2"
         data-testid="usage-alert-details"
       >

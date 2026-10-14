@@ -1,6 +1,5 @@
 import { notFound } from "next/navigation";
-import { NavRevealButton } from "@/components/nav-mode";
-import { PlatformTabs } from "@/components/platform/platform-tabs";
+import { PlatformShell } from "@/components/platform/platform-tabs";
 import { currentPlatformAdmin } from "@/server/platform-admin/admins";
 
 export const dynamic = "force-dynamic";
@@ -13,16 +12,6 @@ export const dynamic = "force-dynamic";
  */
 export default async function PlatformLayout({ children }: { children: React.ReactNode }) {
   if (!(await currentPlatformAdmin())) notFound();
-  return (
-    <div className="flex h-full flex-col">
-      <header className="border-b px-4 pt-3 sm:px-6 sm:pt-4">
-        <div className="flex items-center gap-2">
-          <NavRevealButton />
-          <h2 className="text-[17px] font-bold tracking-tight">Plataforma</h2>
-        </div>
-        <PlatformTabs />
-      </header>
-      <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-6">{children}</div>
-    </div>
-  );
+  // 039: el mismo encabezado de 56 px y fila de pestañas que el resto de la app.
+  return <PlatformShell>{children}</PlatformShell>;
 }

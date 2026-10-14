@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils";
 import { ContactAvatar } from "@/components/avatar";
 import { ENTER, SPRING } from "@/components/motion";
 import { NavRevealButton } from "@/components/nav-mode";
+import { InboxModeSwitch } from "@/components/inbox/inbox-mode-switch";
 import { useEvents } from "@/components/use-events";
 import { useViewer } from "@/components/viewer-context";
 import { formatTime } from "@/components/inbox/helpers";
@@ -376,7 +377,8 @@ function ThreadList({
     <div className="flex h-full flex-col">
       <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4">
         <NavRevealButton />
-        <h2 className="text-[17px] font-bold tracking-tight">Chat de equipo</h2>
+        {/* 039: «Chat de equipo ▾» vuelve a la Bandeja de clientes. */}
+        <InboxModeSwitch current="chat" />
         <div className="relative ml-auto">
           <button
             type="button"

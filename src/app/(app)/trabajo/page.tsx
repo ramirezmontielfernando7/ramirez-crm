@@ -13,7 +13,8 @@ export default async function TrabajoPage() {
   const session = await getSessionOrNull();
   if (!session) redirect("/login");
   const s = await workSections(session.organizationId);
-  if (s.citas) redirect("/bookings");
+  // 039: Tareas y notas es su propia pestaña del CRM Comercial; Citas es «Agenda».
   if (s.tareas) redirect("/trabajo/tareas");
+  if (s.citas) redirect("/bookings");
   notFound();
 }

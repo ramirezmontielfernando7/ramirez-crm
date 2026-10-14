@@ -1,14 +1,6 @@
-import { UsagePlanClient } from "@/components/usage/usage-plan-client";
-import { requirePagePermission } from "@/lib/auth/page-guard";
+import { redirect } from "next/navigation";
 
-export const dynamic = "force-dynamic";
-
-/**
- * 036 (PR 6) — «Uso y plan»: el consumo del mes de la organización contra sus
- * topes. Solo el Propietario (`usage.read`); los demás vuelven a la Bandeja
- * (la API ya responde 403). Sin módulo: se entra desde el menú de la cuenta.
- */
-export default async function UsagePlanPage() {
-  await requirePagePermission("usage.read");
-  return <UsagePlanClient />;
+/** 039 — «Uso y plan» vive en Ajustes; la dirección vieja sigue funcionando. */
+export default function UsoRedirect() {
+  redirect("/settings/uso");
 }

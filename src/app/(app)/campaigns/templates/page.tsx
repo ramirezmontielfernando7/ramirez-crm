@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { CampaignsTabs } from "@/components/campaigns/campaigns-tabs";
+import { CampaignsShell } from "@/components/campaigns/campaigns-tabs";
 import { TemplatesClient } from "@/components/settings/templates-client";
 import { requirePagePermission } from "@/lib/auth/page-guard";
 import { campaignsEnabled } from "@/server/campaigns/flag";
@@ -16,11 +16,10 @@ export default async function CampaignTemplatesPage() {
   const session = await requirePagePermission("templates.manage");
   if (!(await campaignsEnabled(session.organizationId))) notFound();
   return (
-    <div className="flex h-full flex-col">
-      <CampaignsTabs />
+    <CampaignsShell>
       <div className="flex-1 overflow-y-auto p-4 sm:p-6">
         <TemplatesClient />
       </div>
-    </div>
+    </CampaignsShell>
   );
 }

@@ -1,5 +1,5 @@
 import type { Permission, Role } from "@/lib/auth/permissions";
-import { NAV_MODULES, isModuleKey, moduleDef, type ModuleDef, type ModuleKey } from "./registry";
+import { NAV_MODULES, isModuleKey, moduleDef, type ModuleDef, type ModuleKey, type NavSection } from "./registry";
 
 /**
  * 030 (PR 4) — El menú de un rol: qué entradas ve y en qué orden. Puro: lo
@@ -28,15 +28,78 @@ export function isLocked(role: Role, key: ModuleKey): boolean {
   return (LOCKED_VISIBLE[role] ?? []).includes(key);
 }
 
-/** ¿Puede el rol abrir esta entrada? (módulo encendido + permiso). */
+/** Lo mínimo para decidir qué existe: ¿está el módulo? ¿tiene el permiso? */
+type Has = { has: (key: ModuleKey) => boolean };
+
+/** 039 — ¿Se puede abrir esta pestaña de un pilar? (módulo + permiso, y no cedida). */
+export function isSectionAvailable(
+  section: NavSection,
+  modules: Has,
+  can: (p: Permission) => boolean
+): boolean {
+  if (!modules.has(section.module)) return false;
+  if (section.unless && modules.has(section.unless)) return false;
+  return !section.permissions || section.permissions.some((p) => can(p));
+}
+
+/** 039 — Las pestañas de un pilar que esta persona puede abrir, en orden. */
+export function availableSections(
+  def: ModuleDef,
+  modules: Has,
+  can: (p: Permission) => boolean
+): NavSection[] {
+  return (def.sections ?? []).filter((s) => isSectionAvailable(s, modules, can));
+}
+
+/** ¿`pathname` es `route` o una de sus hijas? */
+export function pathWithin(route: string, pathname: string): boolean {
+  return pathname === route || pathname.startsWith(`${route}/`);
+}
+
+/**
+ * 039 — La pestaña activa: la de la ruta MÁS LARGA que contiene a `pathname`
+ * (así /campaigns/audiences enciende «Audiencias» y /campaigns/c_1, «Campañas»).
+ */
+export function activeSection(sections: readonly NavSection[], pathname: string): NavSection | undefined {
+  let best: NavSection | undefined;
+  let bestLen = -1;
+  for (const s of sections) {
+    for (const r of [s.route, ...(s.also ?? [])]) {
+      if (pathWithin(r, pathname) && r.length > bestLen) {
+        best = s;
+        bestLen = r.length;
+      }
+    }
+  }
+  return best;
+}
+
+/** 039 — El pilar al que pertenece una ruta (por cualquiera de sus pestañas). */
+export function pillarOfPath(pathname: string): ModuleDef | undefined {
+  return NAV_MODULES.find((m) => m.sections && activeSection(m.sections, pathname));
+}
+
+/**
+ * ¿Puede el rol abrir esta entrada? Un pilar, si puede abrir alguna de sus
+ * pestañas; una entrada suelta, si su módulo está encendido y tiene el permiso.
+ */
 export function isAvailable(
   def: ModuleDef,
   modules: ReadonlySet<ModuleKey>,
   can: (p: Permission) => boolean
 ): boolean {
-  const on = def.anyOf ? def.anyOf.some((k) => modules.has(k)) : modules.has(def.key);
-  if (!on) return false;
+  if (def.sections) return availableSections(def, modules, can).length > 0;
+  if (!modules.has(def.key)) return false;
   return !def.permissions || def.permissions.some((p) => can(p));
+}
+
+/** 039 — A dónde lleva el renglón: la primera pestaña que se puede abrir. */
+export function entryHref(
+  def: ModuleDef,
+  modules: ReadonlySet<ModuleKey>,
+  can: (p: Permission) => boolean
+): string {
+  return availableSections(def, modules, can)[0]?.route ?? def.route ?? "/";
 }
 
 /** El menú de fábrica de un rol: todas las entradas, ocultas las que no son suyas. */
@@ -66,11 +129,14 @@ export function normalizeLayout(saved: readonly unknown[] | null | undefined, ro
   return [...fixed.filter((i) => !moduleDef(i.key).pinnedBottom), ...fixed.filter((i) => moduleDef(i.key).pinnedBottom)];
 }
 
-/** Lo que el servidor le baja al menú (cliente): claves en orden y Ajustes. */
-export type NavEntries = { keys: ModuleKey[]; settings: boolean };
+/**
+ * Lo que el servidor le baja al menú (cliente): claves en orden, Ajustes y
+ * (039) a dónde lleva cada renglón (la primera pestaña que se puede abrir).
+ */
+export type NavEntries = { keys: ModuleKey[]; settings: boolean; hrefs?: Partial<Record<ModuleKey, string>> };
 
 export function toNavEntries(nav: ResolvedNav): NavEntries {
-  return { keys: nav.main.map((m) => m.key), settings: nav.settings };
+  return { keys: nav.main.map((m) => m.key), settings: nav.settings, hrefs: nav.hrefs };
 }
 
 export type ResolvedNav = {
@@ -78,6 +144,8 @@ export type ResolvedNav = {
   main: ModuleDef[];
   /** ¿Se pinta Ajustes abajo? */
   settings: boolean;
+  /** 039 — A dónde lleva cada renglón. */
+  hrefs: Partial<Record<ModuleKey, string>>;
 };
 
 /**
@@ -94,14 +162,13 @@ export function resolveNav(input: {
     .filter((i) => !i.hidden)
     .map((i) => moduleDef(i.key))
     .filter((def) => isAvailable(def, input.modules, input.can));
-  // 031 (A2): con el Laboratorio a la vista —módulo encendido, permiso y no
-  // oculto por el Propietario— «Agente» sale del menú: el Laboratorio ya lo
-  // trae (Agentes → el general). La ruta /agent sigue viva. Sin Laboratorio
-  // disponible para esta persona, «Agente» se queda donde estaba.
-  const labVisible = visible.some((d) => d.key === "lab");
+  // 039: «Agente» ya no tiene renglón propio — es una pestaña del Estudio de
+  // IA (sin Laboratorio, la única). /agent sigue vivo.
+  const main = visible.filter((d) => !d.pinnedBottom);
   return {
-    main: visible.filter((d) => !d.pinnedBottom && !(labVisible && d.key === "agent")),
+    main,
     settings: visible.some((d) => d.key === "settings"),
+    hrefs: Object.fromEntries(main.map((d) => [d.key, entryHref(d, input.modules, input.can)])),
   };
 }
 

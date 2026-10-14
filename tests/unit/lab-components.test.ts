@@ -112,9 +112,11 @@ describe("SectionTabs", () => {
     expect(dibujar()).toContain("Secreta");
   });
 
-  it("Campañas usa este componente (una sola implementación de pestañas)", () => {
-    expect(leer("components/campaigns/campaigns-tabs.tsx")).toContain("SectionTabs");
-    expect(leer("components/lab/lab-shell.tsx")).toContain("SectionTabs");
+  it("Campañas y el Laboratorio usan este componente vía PageShell (una sola implementación de pestañas)", () => {
+    // 039: las pestañas de cada pilar las pinta `PageShell` con `SectionTabs`.
+    expect(leer("components/ui/page-shell.tsx")).toContain("SectionTabs");
+    expect(leer("components/campaigns/campaigns-tabs.tsx")).toContain("PageShell");
+    expect(leer("components/lab/lab-shell.tsx")).toContain("PageShell");
   });
 });
 
