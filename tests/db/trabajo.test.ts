@@ -128,10 +128,10 @@ afterAll(async () => {
 beforeEach(() => forgetOrgModules());
 
 describe("033 — el módulo `trabajo`", () => {
-  it("nace apagado (columna DEFAULT false); los perfiles Básico y Completo lo encienden", async () => {
+  it("nace apagado (columna DEFAULT false); los planes Esencial, Pro y Ultra (039) lo encienden", async () => {
     const creadas: string[] = [];
     try {
-      for (const perfil of [undefined, "basico", "completo"] as const) {
+      for (const perfil of [undefined, "esencial", "pro", "ultra"] as const) {
         const org = await crearOrganizacion(`Perfil ${perfil ?? "ninguno"}`);
         creadas.push(org.id);
         await sys().delete(schema.organizationModule).where(eq(schema.organizationModule.organizationId, org.id));

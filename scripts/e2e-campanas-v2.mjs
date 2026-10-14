@@ -702,7 +702,7 @@ async function main() {
     page.on("dialog", (d) => void d.accept());
 
     await page.goto(`${BASE}/campaigns`, { timeout: 180000 });
-    ok("pestañas Campañas / Audiencias / Métricas", await page.getByRole("navigation", { name: "Secciones de Campañas" }).isVisible());
+    ok("pestañas Campañas / Audiencias / Métricas", await page.getByRole("navigation", { name: "Secciones de Marketing" }).isVisible());
     const banner = page.getByTestId("campaign-pause-banner");
     ok("aviso de pausa de seguridad visible", await banner.waitFor({ timeout: 45000 }).then(() => true, () => false));
 

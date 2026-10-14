@@ -237,24 +237,30 @@ async function main() {
   }
   const webB = (await B.call("GET", "/api/settings/webhook")).json;
   ok("B no recibe URLs de Instagram ni Messenger (no es la plataforma)", !webB?.instagramUrl && !webB?.messengerUrl);
-  const navB = await B.pagina("/inbox");
-  // 033: la entrada de Citas ahora se llama «Trabajo» (Citas + Tareas).
-  ok("el menú de B no muestra Campañas ni Trabajo (Citas)", (await navB.p.getByRole("link", { name: "Campañas" }).count()) === 0 && (await navB.p.getByRole("link", { name: "Trabajo" }).count()) === 0);
-  const NUEVOS_MENU = ["Conocimientos", "Chat de equipo", "Resultados", "Agente", "Laboratorio"];
-  const quedan = [];
-  for (const n of NUEVOS_MENU) if ((await navB.p.getByRole("link", { name: n, exact: true }).count()) > 0) quedan.push(n);
-  ok("…ni Conocimientos, Chat de equipo, Resultados, Agente ni Laboratorio (030 PR 4)", quedan.length === 0, quedan.join());
+  // 039: el menú son 5 pilares; los módulos apagados se notan en sus pestañas.
+  const menuDe = async (p) => {
+    const nav = p.locator("aside nav").first();
+    await nav.waitFor({ state: "attached", timeout: 60000 });
+    return nav.locator("a").evaluateAll((as) => as.map((x) => x.getAttribute("title") ?? "").filter(Boolean));
+  };
+  const navB = await B.pagina("/pipeline");
+  const menuB = await menuDe(navB.p);
+  ok("el menú de B solo tiene Bandeja y CRM Comercial (sin Marketing, Estudio de IA ni Inteligencia)", menuB.join() === "Bandeja,CRM Comercial", menuB.join());
+  const tabsB = await navB.p.getByRole("navigation", { name: "Secciones de CRM Comercial" }).getByRole("link").allInnerTexts();
+  ok("…y su CRM Comercial no trae Agenda, Tareas y notas ni Biblioteca", tabsB.join() === "Pipeline,Contactos", tabsB.join());
   await navB.p.close();
-  const navA = await A.pagina("/inbox");
+  const navA = await A.pagina("/pipeline");
+  const menuA = await menuDe(navA.p);
   ok(
-    "el menú de A sí (también Conocimientos y Resultados)",
-    (await navA.p.getByRole("link", { name: "Campañas" }).count()) > 0 &&
-      (await navA.p.getByRole("link", { name: "Trabajo" }).count()) > 0 &&
-      (await navA.p.getByRole("link", { name: "Conocimientos", exact: true }).count()) > 0 &&
-      (await navA.p.getByRole("link", { name: "Resultados", exact: true }).count()) > 0
+    "el menú de A sí (Marketing, Estudio de IA e Inteligencia)",
+    ["Bandeja", "CRM Comercial", "Estudio de IA", "Marketing", "Inteligencia"].every((n) => menuA.includes(n)),
+    menuA.join()
   );
+  const tabsA = await navA.p.getByRole("navigation", { name: "Secciones de CRM Comercial" }).getByRole("link").allInnerTexts();
+  ok("…y su CRM Comercial trae Agenda y Biblioteca", tabsA.includes("Agenda") && tabsA.includes("Biblioteca"), tabsA.join());
   await navA.p.close();
   const ajustesB = await B.pagina("/settings/whatsapp");
+  await ajustesB.p.getByRole("navigation", { name: "Secciones de Ajustes" }).waitFor({ timeout: 30000 });
   ok("Ajustes de B no muestra Messenger ni Anuncios", (await ajustesB.p.getByRole("link", { name: "Messenger" }).count()) === 0 && (await ajustesB.p.getByRole("link", { name: /Anuncios/ }).count()) === 0);
   await ajustesB.p.close();
 

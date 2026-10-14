@@ -201,10 +201,11 @@ ok("el texto llegó al hilo", msgs1.some((m) => m.direction === "out" && m.text?
 console.log("\n== 5 · Navegador ==");
 const op = owner.page;
 await op.goto(`${BASE}/knowledge`);
-await op.getByRole("heading", { name: "Conocimientos" }).waitFor({ timeout: 15000 });
-const textosNav = await op.locator("aside a").allInnerTexts();
+// 039: Conocimientos es la pestaña «Biblioteca» del CRM Comercial.
+await op.getByRole("navigation", { name: "Secciones de CRM Comercial" }).getByRole("link", { name: "Biblioteca" }).waitFor({ timeout: 15000 });
+const textosNav = await op.getByRole("navigation", { name: "Secciones de CRM Comercial" }).getByRole("link").allInnerTexts();
 const iC = textosNav.findIndex((t) => t.trim() === "Contactos");
-ok("el menú tiene Conocimientos justo después de Contactos", iC >= 0 && textosNav[iC + 1]?.trim() === "Conocimientos", textosNav.join("|"));
+ok("el CRM Comercial tiene «Biblioteca» (Conocimientos) después de Contactos", iC >= 0 && textosNav.at(-1)?.trim() === "Biblioteca", textosNav.join("|"));
 await op.getByText(`Catálogo ${RUN}`).waitFor({ timeout: 10000 });
 ok("la página lista las entradas", (await op.getByText(`Política de envíos ${RUN}`).count()) === 1);
 await shot(op, "f2-01-lista");

@@ -17,7 +17,6 @@ import { Button } from "@/components/ui/button";
 import { formatTime, previewText } from "./helpers";
 import { useViewer } from "@/components/viewer-context";
 import { assignContacts, useAssignees } from "@/components/assignment/use-assignees";
-import { NavRevealButton } from "@/components/nav-mode";
 import { FilterMenu, type InboxFilter } from "./filter-menu";
 import { ALL_TAGS, inArchiveView, isArchived, matchesTag } from "@/lib/inbox-filters";
 import { AssigneeCapsule, StageCapsule, TagsCapsule, type PatchRow } from "./chat-capsules";
@@ -298,8 +297,7 @@ export const ConversationList = memo(function ConversationList({
         {/* `relative`: el panel de filtros y el buscador abierto se anclan a
             esta fila, no a su botón, para no salirse nunca de la columna. */}
         <div ref={rowRef} className="relative flex items-center gap-2">
-          <NavRevealButton />
-          <h2 className={cn("text-[17px] font-bold tracking-tight", bajoBuscador)}>Bandeja</h2>
+          {/* 039: el título «Bandeja» y el botón del menú van en `PageShell`. */}
           {/* Una cápsula con el filtro en uso; al tocarla despliega el resto.
               La selección múltiple viaja pegada a ella. */}
           <div className="flex items-center gap-1">

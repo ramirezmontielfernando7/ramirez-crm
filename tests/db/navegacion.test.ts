@@ -80,11 +80,11 @@ async function usuario(organizationId: string): Promise<string> {
   return id;
 }
 
+// 039: el menú son pilares; el Asesor ve Bandeja y CRM Comercial. Este lo
+// deja solo con la Bandeja (y el CRM, oculto, va primero: reordenar también).
 const asesorSoloBandeja = (): NavLayoutItem[] => [
-  { key: "contacts", hidden: false },
+  { key: "pipeline", hidden: true },
   { key: "inbox", hidden: false },
-  { key: "team_chat", hidden: true },
-  { key: "knowledge", hidden: true },
 ];
 
 describe("módulos de la 0034", () => {
@@ -117,20 +117,27 @@ describe("módulos de la 0034", () => {
     ).rejects.toThrow();
   });
 
-  it("los perfiles Básico y Completo son solo la plantilla del alta", async () => {
-    for (const profile of ["basico", "completo"] as const) {
+  it("039: los planes Esencial, Pro y Ultra son solo la plantilla del alta; «Personalizado», los del entorno", async () => {
+    for (const profile of ["esencial", "pro", "ultra", "personalizado"] as const) {
       const email = `dueno-${profile}@nav.test`;
-      const r = await createOrganization({ name: `Perfil ${profile}`, ownerName: "Dueño", ownerEmail: email, profile }, ACTOR, null);
+      const r = await createOrganization({ name: `Plan ${profile}`, ownerName: "Dueño", ownerEmail: email, profile }, ACTOR, null);
       creadas.push(r.organizationId);
       const m = await getOrgModules(r.organizationId);
-      if (profile === "basico") {
-        expect(m).toMatchObject({ agent: false, lab: false, campaigns: false, knowledge: true, teamChat: true, customNav: false });
+      if (profile === "esencial") {
+        expect(m).toMatchObject({ agent: false, lab: false, campaigns: false, agenda: false, asistente: false, knowledge: true, teamChat: true, trabajo: true, customNav: false });
+        expect([...m.channels]).toEqual(["whatsapp"]);
+      } else if (profile === "pro") {
+        expect(m).toMatchObject({ agent: true, lab: true, agenda: true, atribucion: true, campaigns: false, asistente: false, customNav: true });
+        expect([...m.channels].sort()).toEqual(["instagram", "messenger", "whatsapp"]);
+      } else if (profile === "ultra") {
+        expect(m).toMatchObject({ agent: true, lab: true, campaigns: true, asistente: true, agenda: true });
       } else {
-        expect(m).toMatchObject({ agent: true, lab: true, campaigns: true, agenda: true, customNav: true });
+        // Sin plantilla: lo que dicen las variables de entorno.
+        expect(m).toMatchObject({ customNav: false, trabajo: false, asistente: false });
       }
       // Después, cada interruptor es independiente.
-      await changeOrganizationModules(r.organizationId, { customNav: profile === "basico" }, ACTOR, null);
-      expect((await getOrgModules(r.organizationId)).customNav).toBe(profile === "basico");
+      await changeOrganizationModules(r.organizationId, { customNav: profile === "esencial" }, ACTOR, null);
+      expect((await getOrgModules(r.organizationId)).customNav).toBe(profile === "esencial");
       await getSystemDb().delete(schema.user).where(eq(schema.user.email, email));
     }
   });
@@ -152,9 +159,9 @@ describe("menú por rol: guardar, restaurar y bitácora", () => {
 
   it("guarda el del Asesor, lo deja en la bitácora y restaurar vuelve al de fábrica", async () => {
     const items = await saveNavLayout({ organizationId: A.id, role: "asesor", items: asesorSoloBandeja(), actorUserId: dueña });
-    expect(items.slice(0, 3).map((i) => i.key)).toEqual(["contacts", "inbox", "team_chat"]);
+    expect(items.slice(0, 3).map((i) => i.key)).toEqual(["pipeline", "inbox", "lab"]);
     const guardado = await runWithOrganization(A.id, () => getNavLayouts(A.id));
-    expect(guardado.asesor?.find((i) => i.key === "team_chat")?.hidden).toBe(true);
+    expect(guardado.asesor?.find((i) => i.key === "pipeline")?.hidden).toBe(true);
     expect(guardado.coordinador).toBeNull();
 
     // Guardar lo mismo otra vez no escribe nada.
@@ -172,7 +179,7 @@ describe("menú por rol: guardar, restaurar y bitácora", () => {
       tx.select().from(schema.navLayoutEvent).where(eq(schema.navLayoutEvent.id, eventos[1]!.id))
     );
     expect(fila).toMatchObject({ before: null });
-    expect((fila?.after as NavLayoutItem[])[0]).toEqual({ key: "contacts", hidden: false });
+    expect((fila?.after as NavLayoutItem[])[0]).toEqual({ key: "pipeline", hidden: true });
   });
 
   it("guardar el de fábrica no deja fila", async () => {
@@ -264,9 +271,8 @@ describe("API de Ajustes → Navegación y lo que cada rol ve", () => {
     const res = await llamar("PUT", "settings/navigation", { role: "asesor", items: asesorSoloBandeja() });
     expect(res.status).toBe(200);
     const asesor = await navForSession(como(A.id, "asesor"));
-    expect(asesor.main.map((m) => m.key)).not.toContain("knowledge");
-    expect(asesor.main.map((m) => m.key).slice(0, 2)).toEqual(["contacts", "inbox"]);
-    // Oculto ≠ prohibido: Conocimientos sigue respondiendo al Asesor.
+    expect(asesor.main.map((m) => m.key)).toEqual(["inbox"]);
+    // Oculto ≠ prohibido: lo del CRM Comercial (Biblioteca) sigue respondiendo al Asesor.
     expect((await llamar("GET", "knowledge")).status).toBe(200);
     // Y mostrar algo sin permiso no lo abre: Resultados sigue en 403.
     como(A.id, "owner", dueñaA);
@@ -284,7 +290,7 @@ describe("API de Ajustes → Navegación y lo que cada rol ve", () => {
     expect((await llamar("GET", "analytics/sales?from=2026-01-01&to=2026-01-31")).status).toBe(403);
     // Los otros roles no cambian.
     const coord = await navForSession(como(A.id, "coordinador"));
-    expect(coord.main.map((m) => m.key)).toContain("knowledge");
+    expect(coord.main.map((m) => m.key)).toContain("pipeline");
   });
 
   it("reglas en la API: 422 si el Propietario se oculta Ajustes o un rol queda sin nada", async () => {
@@ -304,7 +310,7 @@ describe("API de Ajustes → Navegación y lo que cada rol ve", () => {
     como(A.id, "owner", dueñaA);
     expect((await llamar("DELETE", "settings/navigation?role=asesor")).status).toBe(200);
     const asesor = await navForSession(como(A.id, "asesor"));
-    expect(asesor.main.map((m) => m.key)).toContain("knowledge");
+    expect(asesor.main.map((m) => m.key)).toContain("pipeline");
     como(A.id, "owner", dueñaA);
     const body = (await (await llamar("GET", "settings/navigation")).json()) as { events: { action: string; role: string }[] };
     expect(body.events[0]).toMatchObject({ role: "asesor", action: "reset" });
@@ -313,7 +319,10 @@ describe("API de Ajustes → Navegación y lo que cada rol ve", () => {
   it("un módulo apagado no aparece ni responde, aunque el menú lo muestre (403 primero si falta permiso)", async () => {
     await changeOrganizationModules(A.id, { knowledge: false, results: false }, ACTOR, null);
     const owner = await navForSession(como(A.id, "owner", dueñaA));
-    expect(owner.main.map((m) => m.key)).not.toContain("knowledge");
+    // 039: Biblioteca es una pestaña del CRM Comercial (que sigue); Inteligencia
+    // desaparece (sin Resultados ni Asistente).
+    expect(owner.main.map((m) => m.key)).toContain("pipeline");
+    expect(owner.modules).not.toContain("knowledge");
     expect(owner.main.map((m) => m.key)).not.toContain("results");
     expect((await llamar("GET", "knowledge")).status).toBe(404);
     expect((await llamar("GET", "analytics/sales?from=2026-01-01&to=2026-01-31")).status).toBe(404);
@@ -323,7 +332,7 @@ describe("API de Ajustes → Navegación y lo que cada rol ve", () => {
     // El editor tampoco lo ofrece como disponible.
     como(A.id, "owner", dueñaA);
     const body = (await (await llamar("GET", "settings/navigation")).json()) as { roles: Record<string, { available: string[] }> };
-    expect(body.roles.owner?.available).not.toContain("knowledge");
+    expect(body.roles.owner?.available).not.toContain("results");
     await changeOrganizationModules(A.id, { knowledge: true, results: true }, ACTOR, null);
   });
 
@@ -340,7 +349,7 @@ describe("API de Ajustes → Navegación y lo que cada rol ve", () => {
     expect(deB.events).toEqual([]);
     await llamar("DELETE", "settings/navigation?role=asesor");
     const asesorA = await navForSession(como(A.id, "asesor"));
-    expect(asesorA.main.map((m) => m.key).slice(0, 2)).toEqual(["contacts", "inbox"]);
+    expect(asesorA.main.map((m) => m.key)).toEqual(["inbox"]);
     const asesorB = await navForSession(como(B.id, "asesor"));
     expect(asesorB.main.map((m) => m.key)[0]).toBe("inbox");
   });

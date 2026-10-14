@@ -9,7 +9,7 @@ import { fetchJson } from "@/lib/fetch-json";
 import { Button } from "@/components/ui/button";
 import { useEvents } from "@/components/use-events";
 import { CampaignProgress, CampaignStatusBadge } from "./status-badge";
-import { CampaignsTabs } from "./campaigns-tabs";
+import { CampaignsShell } from "./campaigns-tabs";
 
 /** 021 — Campañas: el historial de envíos masivos del negocio. */
 export function CampaignsClient() {
@@ -44,18 +44,16 @@ export function CampaignsClient() {
   });
 
   return (
-    <div className="flex h-full flex-col">
-      <CampaignsTabs
-        actions={
-          <Link href="/campaigns/new">
-            <Button size="sm">
-              <Plus className="mr-1.5 h-4 w-4" strokeWidth={1.8} />
-              Nueva campaña
-            </Button>
-          </Link>
-        }
-      />
-
+    <CampaignsShell
+      actions={
+        <Link href="/campaigns/new">
+          <Button size="sm">
+            <Plus className="mr-1.5 h-4 w-4" strokeWidth={1.8} />
+            Nueva campaña
+          </Button>
+        </Link>
+      }
+    >
       <div className="flex-1 overflow-y-auto p-4 sm:p-6">
         {/* Campañas v2: antes de mandar, cómo está el número. */}
         <div className="mb-4">
@@ -123,6 +121,6 @@ export function CampaignsClient() {
           </ul>
         )}
       </div>
-    </div>
+    </CampaignsShell>
   );
 }

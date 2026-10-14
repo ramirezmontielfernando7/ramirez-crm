@@ -31,7 +31,7 @@ import { ContactTagsCard } from "@/components/tags/contact-tags-card";
 import { ImportDialog } from "./import-dialog";
 import { NewContactDialog } from "./new-contact-dialog";
 import { StartConversation } from "./start-conversation";
-import { NavRevealButton } from "@/components/nav-mode";
+import { PageShell } from "@/components/ui/page-shell";
 
 export function ContactsClient() {
   const router = useRouter();
@@ -128,32 +128,39 @@ export function ContactsClient() {
     !!query.trim() || stage !== "all" || tagFilter !== "all" || sourceFilter !== "all" || consentFilter !== "all";
 
   return (
-    <div className="flex h-full flex-col">
-      <header className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3 sm:gap-4 sm:px-6 sm:py-4">
-        <div className="flex flex-wrap items-center gap-2">
-          <NavRevealButton />
-          <h2 className="text-[17px] font-bold tracking-tight">Contactos</h2>
+    <PageShell
+      pillar="pipeline"
+      variant="fluid"
+      actions={
+        <>
           <Button size="sm" onClick={() => setCreando(true)}>
-            <UserPlus className="mr-1.5 h-4 w-4" strokeWidth={1.8} />
-            Nuevo contacto
+            <UserPlus className="h-4 w-4 sm:mr-1.5" strokeWidth={1.8} />
+            <span className="hidden sm:inline">Nuevo contacto</span>
+            <span className="sr-only sm:hidden">Nuevo contacto</span>
           </Button>
           {viewer.can("contacts.import") && (
             <Button size="sm" variant="outline" onClick={() => setImportando(true)}>
-              <Upload className="mr-1.5 h-4 w-4" strokeWidth={1.8} />
-              Importar
+              <Upload className="h-4 w-4 sm:mr-1.5" strokeWidth={1.8} />
+              <span className="hidden sm:inline">Importar</span>
+              <span className="sr-only sm:hidden">Importar</span>
             </Button>
           )}
           {viewer.can("contacts.export") && (
             // Descarga directa: el navegador guarda el CSV que arma el
             // servidor con los MISMOS filtros que se ven en la lista.
-            <a href={`/api/contacts/export?${filterParams()}`} download>
+            <a href={`/api/contacts/export?${filterParams()}`} download className="inline-flex">
               <Button size="sm" variant="outline" type="button">
-                <Download className="mr-1.5 h-4 w-4" strokeWidth={1.8} />
-                Exportar{filtering ? " filtrados" : ""}
+                <Download className="h-4 w-4 sm:mr-1.5" strokeWidth={1.8} />
+                <span className="hidden sm:inline">Exportar{filtering ? " filtrados" : ""}</span>
+                <span className="sr-only sm:hidden">Exportar{filtering ? " filtrados" : ""}</span>
               </Button>
             </a>
           )}
-        </div>
+        </>
+      }
+    >
+      {/* 039: los filtros, en su propia fila bajo las pestañas del pilar. */}
+      <div className="border-b px-4 py-2.5 sm:px-6">
         <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:gap-3">
           <label className="flex items-center gap-2 text-xs text-muted-foreground">
             <input
@@ -232,7 +239,7 @@ export function ContactsClient() {
             />
           </div>
         </div>
-      </header>
+      </div>
 
       <div className="flex-1 overflow-y-auto p-4 sm:p-6">
         {error && (
@@ -417,7 +424,7 @@ export function ContactsClient() {
           }}
         />
       )}
-    </div>
+    </PageShell>
   );
 }
 

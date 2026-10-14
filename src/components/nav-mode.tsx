@@ -13,7 +13,15 @@ import type { NavMode } from "@/lib/preferences";
  * con el menú oculto, el logo para volver vive en el encabezado de cada
  * pantalla, en la fila de su título (no flotando en una esquina).
  */
-type NavModeContext = { mode: NavMode; cycle: () => void; branding: BrandingMark };
+type NavModeContext = {
+  mode: NavMode;
+  cycle: () => void;
+  branding: BrandingMark;
+  /** 039 — Abre el cajón del menú en el teléfono (el botón vive en `PageShell`). */
+  openDrawer?: () => void;
+  /** ¿Está abierto el cajón? (para `aria-expanded`). */
+  drawerOpen?: boolean;
+};
 
 const Ctx = createContext<NavModeContext | null>(null);
 
@@ -61,5 +69,31 @@ export function NavRevealButton({ className }: { className?: string }) {
       {/* 025 — Menú oculto: el globo del chat de equipo va en el botón que lo reabre. */}
       <TeamUnreadLogoBadge />
     </m.button>
+  );
+}
+
+/**
+ * 039 — El botón del menú en el teléfono y la tableta: el logo de la marca,
+ * a la izquierda del título de cada pantalla (`PageShell`). Abre el cajón del
+ * menú. En escritorio no se pinta: ahí el menú es una columna fija.
+ */
+export function NavMenuButton({ className }: { className?: string }) {
+  const nav = useContext(Ctx);
+  if (!nav?.openDrawer) return null;
+  return (
+    <button
+      type="button"
+      onClick={nav.openDrawer}
+      aria-label="Abrir el menú"
+      aria-expanded={nav.drawerOpen ?? false}
+      className={cn(
+        "relative -ml-1 shrink-0 rounded-[9px] transition-[filter,transform] duration-150 hover:brightness-110 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:hidden",
+        className
+      )}
+    >
+      <BrandTile branding={nav.branding} className="h-8 w-8 rounded-[9px] text-[15px]" />
+      {/* 025 — En el teléfono el menú se abre desde aquí: el globo del chat va encima. */}
+      <TeamUnreadLogoBadge />
+    </button>
   );
 }

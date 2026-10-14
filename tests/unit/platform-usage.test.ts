@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { countActiveModules, PLATFORM_MODULE_LABEL, PLATFORM_MODULE_TOGGLES } from "@/lib/platform-modules";
+import { countActiveModules, PLATFORM_MODULE_LABEL, PLATFORM_MODULE_PILLAR, PLATFORM_MODULE_TOGGLES, planOfModules } from "@/lib/platform-modules";
 import { aiMeter, countMeter, formatTokens, meterTone, storageMeter, turnos } from "@/lib/usage";
 
 /** 036 (PR 4) — Medidores y «x/12» de la lista de /platform (reglas puras). */
@@ -64,6 +64,17 @@ describe("medidores de /platform", () => {
     const todo = Object.fromEntries(PLATFORM_MODULE_TOGGLES.map((k) => [k, true])) as Record<(typeof PLATFORM_MODULE_TOGGLES)[number], boolean>;
     expect(countActiveModules(todo)).toEqual({ active: 13, total: 13 });
     expect(countActiveModules({ ...todo, campaigns: false, customNav: false, instagram: false })).toEqual({ active: 10, total: 13 });
+  });
+
+  it("039: los 13 interruptores dicen a qué plan corresponden (o «personalizado»)", () => {
+    const todo = Object.fromEntries(PLATFORM_MODULE_TOGGLES.map((k) => [k, true])) as Record<(typeof PLATFORM_MODULE_TOGGLES)[number], boolean>;
+    expect(planOfModules(todo)).toBe("ultra");
+    expect(planOfModules({ ...todo, campaigns: false, asistente: false })).toBe("pro");
+    const esencial = { ...todo, agent: false, lab: false, agenda: false, atribucion: false, instagram: false, messenger: false, customNav: false, campaigns: false, asistente: false };
+    expect(planOfModules(esencial)).toBe("esencial");
+    // Uno movido a mano: ya no es ningún plan.
+    expect(planOfModules({ ...esencial, campaigns: true })).toBe("personalizado");
+    for (const k of PLATFORM_MODULE_TOGGLES) expect(PLATFORM_MODULE_PILLAR[k].length).toBeGreaterThan(3);
   });
 });
 

@@ -7,7 +7,7 @@ import { fetchJson } from "@/lib/fetch-json";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useViewer } from "@/components/viewer-context";
-import { NavRevealButton } from "@/components/nav-mode";
+import { PageShell } from "@/components/ui/page-shell";
 import { formatBytes } from "@/components/inbox/helpers";
 import { KnowledgeEditor } from "./knowledge-editor";
 
@@ -71,18 +71,20 @@ export function KnowledgeClient() {
   const filtering = query.trim() !== "" || tag !== "all";
 
   return (
-    <div className="flex h-full flex-col">
-      <header className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3 sm:gap-4 sm:px-6 sm:py-4">
-        <div className="flex flex-wrap items-center gap-2">
-          <NavRevealButton />
-          <h2 className="text-[17px] font-bold tracking-tight">Conocimientos</h2>
-          {canManage && (
-            <Button size="sm" onClick={() => setEditing("new")}>
-              <Plus className="mr-1 h-4 w-4" strokeWidth={1.8} />
-              Nueva entrada
-            </Button>
-          )}
-        </div>
+    <PageShell
+      pillar="pipeline"
+      variant="fluid"
+      actions={
+        canManage ? (
+          <Button size="sm" onClick={() => setEditing("new")}>
+            <Plus className="mr-1 h-4 w-4" strokeWidth={1.8} />
+            Nueva entrada
+          </Button>
+        ) : undefined
+      }
+    >
+      {/* 039: la búsqueda y el filtro, en su fila bajo las pestañas del pilar. */}
+      <div className="border-b px-4 py-2.5 sm:px-6">
         <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:gap-3">
           {tags.length > 0 && (
             <select
@@ -111,7 +113,7 @@ export function KnowledgeClient() {
             />
           </div>
         </div>
-      </header>
+      </div>
 
       {error && (
         <p role="alert" className="mx-4 mt-3 rounded-md border border-danger-soft bg-danger-tint px-3 py-2 text-sm text-danger-text sm:mx-6">
@@ -213,6 +215,6 @@ export function KnowledgeClient() {
           }}
         />
       )}
-    </div>
+    </PageShell>
   );
 }

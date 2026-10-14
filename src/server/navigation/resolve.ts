@@ -29,6 +29,6 @@ export async function navForSession(session: SessionContext): Promise<SessionNav
   const role = isRole(session.role) ? session.role : "asesor";
   const nav = isRole(session.role)
     ? resolveNav({ role, modules, can: (p) => can(session, p), layout })
-    : { main: [], settings: false };
+    : { main: [], settings: false, hrefs: {} };
   return { ...nav, modules: [...modules], customNav: m.customNav };
 }

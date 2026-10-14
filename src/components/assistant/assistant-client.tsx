@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AlertTriangle, BotMessageSquare, Database, Plus, Send, Trash2 } from "lucide-react";
-import { NavRevealButton } from "@/components/nav-mode";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -25,6 +24,7 @@ import { fetchJson, jsonInit } from "@/lib/fetch-json";
 import { countMeter, formatTokens } from "@/lib/usage";
 import { gaugeMeter } from "@/lib/usage-visibility";
 import { cn } from "@/lib/utils";
+import { PageShell } from "@/components/ui/page-shell";
 
 /**
  * 038 — Pantalla del asistente interno.
@@ -135,12 +135,7 @@ export function AssistantClient() {
   const canAsk = !!status?.canAsk && !!status.noticeAcceptedAt;
 
   return (
-    <div className="flex h-full flex-col">
-      <header className="flex flex-wrap items-center gap-2 border-b px-4 py-3 sm:px-6 sm:py-4">
-        <NavRevealButton />
-        <h2 className="text-[17px] font-bold tracking-tight">Asistente interno</h2>
-      </header>
-
+    <PageShell pillar="results" variant="fluid">
       <div
         role="note"
         data-testid="assistant-cost-banner"
@@ -307,7 +302,7 @@ export function AssistantClient() {
           </div>
         </div>
       )}
-    </div>
+    </PageShell>
   );
 }
 

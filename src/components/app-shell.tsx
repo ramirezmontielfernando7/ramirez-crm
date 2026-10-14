@@ -7,9 +7,7 @@ import type { ThemePreference } from "@/lib/theme";
 import type { ResolvedCommit } from "@/lib/version";
 import { AppNav } from "@/components/app-nav";
 import { cn } from "@/lib/utils";
-import { BrandLogo, BrandTile } from "@/components/brand-mark";
 import { ViewerProvider } from "@/components/viewer-context";
-import { TeamUnreadLogoBadge } from "@/components/team-chat/unread-badge";
 import { HandoffNotices } from "@/components/handoff-notices";
 import { NumberHealthBanner } from "@/components/number-health";
 import { CampaignPauseBanner } from "@/components/campaigns/campaign-pause-banner";
@@ -26,7 +24,7 @@ import type { NavEntries } from "@/lib/modules/nav-layout";
  *
  * - Escritorio (lg+): el panel lateral es una columna fija, como siempre.
  * - Móvil/tableta: el lateral sale de la izquierda como cajón sobre un velo,
- *   y arriba queda una barra azul marino con el hamburguesa y la marca. El
+ *   y su botón (el logo) va en el encabezado de cada pantalla (039, `PageShell`). El
  *   cajón se cierra solo al navegar (el `pathname` cambia) y con Escape.
  *
  * La altura usa `100dvh` (no `100vh`) porque en el navegador móvil la barra de
@@ -160,7 +158,11 @@ function ShellFrame({
     }, 300);
   }, []);
   const closeNav = useCallback(() => setNavOpen(false), []);
-  const navCtx = useMemo(() => ({ mode, cycle: cycleNav, branding }), [mode, cycleNav, branding]);
+  const openDrawer = useCallback(() => setNavOpen(true), []);
+  const navCtx = useMemo(
+    () => ({ mode, cycle: cycleNav, branding, openDrawer, drawerOpen: navOpen }),
+    [mode, cycleNav, branding, openDrawer, navOpen]
+  );
 
   // El lugar del menú (el separador) cambia de golpe; el menú anima su ancho
   // por CSS (AppNav) y la columna de contenido ENTERA se desliza pegada a su
@@ -253,22 +255,9 @@ function ShellFrame({
           ref={content}
           className="shell-content flex min-w-0 flex-1 flex-col overflow-hidden bg-surface lg:rounded-panel lg:border lg:shadow-panel"
         >
-          {/* Misma pieza que la barra lateral (`nav-dark`): en el teléfono la
-              franja azul marino de arriba es lo que queda del bicolor. */}
-          <header className="nav-dark flex h-14 shrink-0 items-center gap-2.5 border-b bg-nav px-2 text-foreground lg:hidden">
-            {/* El logo abre el cajón, como el de la barra lateral en escritorio. */}
-            <button
-              onClick={() => setNavOpen(true)}
-              aria-label="Abrir el menú"
-              aria-expanded={navOpen}
-              className="relative ml-1 shrink-0 rounded-[9px] transition-[filter,transform] duration-150 hover:brightness-110 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              <BrandTile branding={branding} className="h-8 w-8 rounded-[9px] text-[15px]" />
-              {/* 025 — En el teléfono el menú se abre desde aquí: el globo del chat va encima. */}
-              <TeamUnreadLogoBadge />
-            </button>
-            <BrandLogo branding={branding} tile={false} className="min-w-0" />
-          </header>
+          {/* 039 — Sin barra propia en el teléfono: el botón que abre el
+              cajón (el logo) va en el encabezado de 56 px de cada pantalla
+              (`PageShell` → `NavMenuButton`), junto a su título. */}
 
           {/* Campañas v2: aviso de salud del número (Propietario y Coordinador). */}
           <NumberHealthBanner campaigns={campaigns} />

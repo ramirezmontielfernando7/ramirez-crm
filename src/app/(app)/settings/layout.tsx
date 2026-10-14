@@ -1,4 +1,4 @@
-import { SettingsNav } from "@/components/settings/settings-nav";
+import { SettingsShell } from "@/components/settings/settings-nav";
 import { SETTINGS_OPEN_TABS, SETTINGS_TAB_PERMISSION } from "@/lib/auth/page-guard";
 import { can } from "@/lib/auth/permissions";
 import { getSessionOrNull } from "@/lib/auth/session";
@@ -6,7 +6,6 @@ import { agendaEnabled } from "@/server/agenda/flag";
 import { atribucionEnabled } from "@/server/attribution/flag";
 import { isChannelEnabled } from "@/server/channels/enabled";
 import { campaignsEnabled } from "@/server/campaigns/flag";
-import { NavRevealButton } from "@/components/nav-mode";
 
 // Los módulos se leen en cada petición: si esto se resolviera al construir,
 // encenderlos desde /platform no haría nada.
@@ -33,23 +32,16 @@ export default async function SettingsLayout({
         campaignsEnabled(org),
       ])
     : [false, false, false, false];
+  // 039: Ajustes en 5 pestañas con el encabezado de 56 px de toda la app.
   return (
-    <div className="flex h-full flex-col">
-      <header className="flex items-center gap-2 border-b px-4 py-3 sm:px-6 sm:py-4">
-        <NavRevealButton />
-        <h2 className="text-[17px] font-bold tracking-tight">Configuración</h2>
-      </header>
-      {/* En móvil las pestañas van arriba (en fila), no como columna lateral. */}
-      <div className="flex min-h-0 flex-1 flex-col sm:flex-row">
-        <SettingsNav
-          agenda={agenda}
-          atribucion={atribucion}
-          messenger={messenger}
-          templates={!campaigns}
-          allowed={allowed}
-        />
-        <div className="min-w-0 flex-1 overflow-y-auto p-4 sm:p-6">{children}</div>
-      </div>
-    </div>
+    <SettingsShell
+      agenda={agenda}
+      atribucion={atribucion}
+      messenger={messenger}
+      templates={!campaigns}
+      allowed={allowed}
+    >
+      {children}
+    </SettingsShell>
   );
 }

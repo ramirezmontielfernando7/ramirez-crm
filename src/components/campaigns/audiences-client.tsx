@@ -20,7 +20,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { CampaignsTabs } from "./campaigns-tabs";
+import { CampaignsShell } from "./campaigns-tabs";
 
 /** Los campos que se pueden asignar en "¿qué es cada columna?". */
 const MAPPABLE: ImportColumn[] = ["name", "phone", "email", "tags"];
@@ -74,17 +74,16 @@ export function AudiencesClient() {
   }
 
   return (
-    <div className="flex h-full flex-col">
-      <CampaignsTabs
-        actions={
-          !uploading && (
-            <Button size="sm" onClick={() => setUploading(true)} data-testid="audience-new">
-              <Upload className="mr-1.5 h-4 w-4" strokeWidth={1.8} />
-              Subir base
-            </Button>
-          )
-        }
-      />
+    <CampaignsShell
+      actions={
+        !uploading && (
+          <Button size="sm" onClick={() => setUploading(true)} data-testid="audience-new">
+            <Upload className="mr-1.5 h-4 w-4" strokeWidth={1.8} />
+            Subir base
+          </Button>
+        )
+      }
+    >
       <div className="flex-1 overflow-y-auto p-4 sm:p-6">
         <div className="max-w-4xl space-y-4">
           {uploading && (
@@ -160,7 +159,7 @@ export function AudiencesClient() {
           )}
         </div>
       </div>
-    </div>
+    </CampaignsShell>
   );
 }
 

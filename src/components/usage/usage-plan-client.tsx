@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { NavRevealButton } from "@/components/nav-mode";
 import { UsageMeter } from "@/components/usage/usage-meter";
 import { fetchJson } from "@/lib/fetch-json";
 import { PLAN_LABEL, STORAGE_MODE_LABEL } from "@/lib/limits";
@@ -107,22 +106,22 @@ export function UsagePlanClient() {
   }, []);
 
   const header = (
-    <header className="flex flex-wrap items-center gap-2 border-b px-4 py-3 sm:px-6 sm:py-4">
-      <NavRevealButton />
-      <h2 className="text-[17px] font-bold tracking-tight">Uso y plan</h2>
+    // 039: vive en Ajustes → Uso y plan; el encabezado de 56 px es el de Ajustes.
+    <div className="mb-4 flex flex-wrap items-center gap-2">
+      <h2 className="text-[15px] font-semibold tracking-tight">Uso y plan</h2>
       {usage && (
         <span className="rounded-sm bg-muted px-1.5 py-0.5 text-xs text-text-2" data-testid="usage-plan-name">
           Plan {PLAN_LABEL[usage.limits.planKey]}
         </span>
       )}
-    </header>
+    </div>
   );
 
   if (!usage) {
     return (
-      <div className="flex h-full flex-col">
+      <div>
         {header}
-        <p className={cn("p-6 text-sm", error ? "text-destructive" : "text-text-2")}>{error ?? "Cargando tu consumo…"}</p>
+        <p className={cn("text-sm", error ? "text-destructive" : "text-text-2")}>{error ?? "Cargando tu consumo…"}</p>
       </div>
     );
   }
@@ -145,9 +144,9 @@ export function UsagePlanClient() {
   const maxAgente = Math.max(0.0001, ...(ai.byAgent ?? []).map((a) => a.share));
 
   return (
-    <div className="flex h-full flex-col">
+    <div>
       {header}
-      <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-6">
+      <div className="min-w-0">
         <div className="mx-auto max-w-5xl space-y-4" data-testid="usage-plan">
           <p className="text-sm text-text-2">
             Consumo de {mesDe(usage.period)} (el mes se cuenta en UTC) contra los topes de tu plan. Para cambiar tu plan o tus

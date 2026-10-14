@@ -26,7 +26,7 @@ import { AmountDialog } from "./amount-dialog";
 import { PriorityBadge } from "./priority-picker";
 import { LeadDrawer } from "./lead-drawer";
 import { useViewer } from "@/components/viewer-context";
-import { NavRevealButton } from "@/components/nav-mode";
+import { PageShell } from "@/components/ui/page-shell";
 
 export type BoardLead = {
   id: string;
@@ -176,21 +176,19 @@ export function PipelineClient() {
   }
 
   return (
-    <div className="flex h-full flex-col">
-      <header className="flex flex-wrap items-center justify-between gap-2 border-b px-4 py-3 sm:px-6 sm:py-4">
-        <div className="flex items-center gap-2">
-          <NavRevealButton />
-          <h2 className="text-[17px] font-bold tracking-tight">Pipeline</h2>
-        </div>
-        {/* 020: crear, editar y borrar etapas no es del asesor (la API lo
-            niega igual); mover sus tarjetas sí. */}
-        {viewer.can("pipeline.edit") && (
+    <PageShell
+      pillar="pipeline"
+      variant="fluid"
+      actions={
+        // 020: crear, editar y borrar etapas no es del asesor (la API lo
+        // niega igual); mover sus tarjetas sí.
+        viewer.can("pipeline.edit") ? (
           <Button variant="outline" size="sm" onClick={() => setManaging(true)}>
             <Settings2 className="h-4 w-4" /> Gestionar etapas
           </Button>
-        )}
-      </header>
-
+        ) : undefined
+      }
+    >
       {/* El tablero se arrastra en horizontal; en el teléfono cada columna
           se detiene en su sitio (snap) para no quedar a medio camino. */}
       <div className="flex-1 snap-x snap-mandatory overflow-x-auto p-3 sm:snap-none sm:p-4">
@@ -273,7 +271,7 @@ export function PipelineClient() {
           }}
         />
       )}
-    </div>
+    </PageShell>
   );
 }
 

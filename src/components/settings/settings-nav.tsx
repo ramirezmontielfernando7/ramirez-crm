@@ -1,75 +1,118 @@
 "use client";
 
-import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { cn } from "@/lib/utils";
+import { Settings } from "lucide-react";
+import { PageShell } from "@/components/ui/page-shell";
+import { SectionTabs, type SectionTab } from "@/components/ui/section-tabs";
+import { pathWithin } from "@/lib/modules/nav-layout";
 
-type Tab = { href: string; label: string };
+/**
+ * 039 — Ajustes en 5 pestañas (`SectionTabs` del `PageShell`), cada una con
+ * sus páginas de siempre (sus direcciones no cambian):
+ *
+ * 1. Canales y Meta: WhatsApp, Messenger, Plantillas (sin Campañas) y
+ *    Anuncios (Atribución / CAPI).
+ * 2. Equipo y permisos: Miembros y roles, Chat de equipo.
+ * 3. Operación CRM: Etiquetas y Conectores de agenda.
+ * 4. Marca y apariencia: Personalización (Apariencia, Marca y Navegación).
+ * 5. Uso y plan: el consumo del mes contra los topes (solo el Propietario).
+ *
+ * Una pestaña aparece si al menos una de sus páginas se puede abrir; con más
+ * de una, sus páginas van en una segunda fila dentro del contenido. Qué
+ * páginas existen lo decide el servidor y baja por prop (`allowed` y los
+ * módulos): este es un componente de cliente y no puede leer variables de
+ * entorno. El servidor valida igual cada página y cada ruta.
+ */
+type Page = { slug: string; label: string };
+type Group = { label: string; pages: readonly Page[] };
 
-const TABS: Tab[] = [
-  { href: "/settings/whatsapp", label: "WhatsApp" },
+const GROUPS: readonly Group[] = [
+  {
+    label: "Canales y Meta",
+    pages: [
+      { slug: "whatsapp", label: "WhatsApp" },
+      { slug: "messenger", label: "Messenger" },
+      { slug: "templates", label: "Plantillas" },
+      { slug: "ads", label: "Anuncios (CAPI)" },
+    ],
+  },
+  {
+    label: "Equipo y permisos",
+    pages: [
+      { slug: "team", label: "Miembros y roles" },
+      { slug: "team-chat", label: "Chat de equipo" },
+    ],
+  },
+  {
+    label: "Operación CRM",
+    pages: [
+      { slug: "tags", label: "Etiquetas" },
+      { slug: "calendar", label: "Conectores de agenda" },
+    ],
+  },
   // Fase D: Marca y Navegación son subpestañas de Personalización.
-  { href: "/settings/personalization", label: "Personalización" },
-  { href: "/settings/templates", label: "Plantillas" },
-  { href: "/settings/tags", label: "Etiquetas" },
-  { href: "/settings/team", label: "Equipo" },
-  { href: "/settings/team-chat", label: "Chat de equipo" },
+  { label: "Marca y apariencia", pages: [{ slug: "personalization", label: "Personalización" }] },
+  // 036 (PR 6) → 039: «Uso y plan» vive aquí (antes /uso, que redirige).
+  { label: "Uso y plan", pages: [{ slug: "uso", label: "Uso y plan" }] },
 ];
 
-/** 015 — "Agenda" solo existe si esta instancia encendió la bandera. */
-const AGENDA_TAB: Tab = { href: "/settings/calendar", label: "Agenda" };
+const href = (slug: string) => `/settings/${slug}`;
 
-/** 016 — Igual con "Anuncios" y la bandera ATRIBUCION. */
-const ADS_TAB: Tab = { href: "/settings/ads", label: "Anuncios" };
+/** Las 5 pestañas, solo con las páginas que existen para quien mira. */
+export function settingsGroups(visible: (slug: string) => boolean): { label: string; pages: Page[] }[] {
+  return GROUPS.map((g) => ({ label: g.label, pages: g.pages.filter((p) => visible(p.slug)) })).filter(
+    (g) => g.pages.length > 0
+  );
+}
 
-/** 017 — "Messenger" solo si el canal está encendido con CHANNELS. */
-const MESSENGER_TAB: Tab = { href: "/settings/messenger", label: "Messenger" };
-
-export function SettingsNav({
+export function SettingsShell({
   agenda = false,
   atribucion = false,
   messenger = false,
   templates = true,
   allowed,
+  children,
 }: {
   agenda?: boolean;
   atribucion?: boolean;
   messenger?: boolean;
-  /** 030 (PR 4) — con Campañas encendido, Plantillas vive en Campañas. */
+  /** 030 (PR 4) — con Campañas encendido, Plantillas vive en Marketing. */
   templates?: boolean;
-  /** 020 — pestañas que el rol puede abrir (`/settings/<clave>`); lo decide el servidor. */
+  /** 020 — páginas que el rol puede abrir (`/settings/<clave>`); lo decide el servidor. */
   allowed?: string[];
+  children: React.ReactNode;
 }) {
   const pathname = usePathname();
-  // Qué pestañas existen lo decide el servidor y baja por prop: este es un
-  // componente de cliente y no puede leer variables de entorno.
-  // Messenger va junto a WhatsApp: son las dos conexiones de mensajería.
-  const tabs = [
-    ...TABS.slice(0, 1),
-    ...(messenger ? [MESSENGER_TAB] : []),
-    ...TABS.slice(1),
-    ...(agenda ? [AGENDA_TAB] : []),
-    ...(atribucion ? [ADS_TAB] : []),
-  ]
-    .filter((t) => templates || t.href !== "/settings/templates")
-    .filter((t) => !allowed || allowed.includes(t.href.replace("/settings/", "")));
+  const groups = settingsGroups((slug) => {
+    // 015/016/017 — Agenda, Anuncios y Messenger solo con su módulo.
+    if (slug === "calendar" && !agenda) return false;
+    if (slug === "ads" && !atribucion) return false;
+    if (slug === "messenger" && !messenger) return false;
+    if (slug === "templates" && !templates) return false;
+    return !allowed || allowed.includes(slug);
+  });
+  const tabs: SectionTab[] = groups.map((g) => ({
+    href: href(g.pages[0]!.slug),
+    label: g.label,
+    // Exacta o subruta: "/settings/team" no debe encender "/settings/team-chat".
+    match: (p) => g.pages.some((page) => pathWithin(href(page.slug), p)),
+  }));
+  const current = groups.find((g) => g.pages.some((page) => pathWithin(href(page.slug), pathname)));
   return (
-    <nav className="flex shrink-0 gap-1 overflow-x-auto border-b p-2 sm:w-44 sm:flex-col sm:space-y-1 sm:overflow-visible sm:border-b-0 sm:border-r sm:p-3">
-      {tabs.map((t) => (
-        <Link
-          key={t.href}
-          href={t.href}
-          className={cn(
-            "block shrink-0 whitespace-nowrap rounded-sm px-3 py-2 text-[13.5px] font-semibold transition-colors",
-            // Exacta o subruta: "/settings/team" no debe encender "/settings/team-chat".
-            pathname === t.href || pathname.startsWith(`${t.href}/`)
-              ? "bg-brand-tint text-brand-text"
-              : "text-text-2 hover:bg-accent hover:text-foreground"
-          )}
-        >
-          {t.label}
-        </Link>
-      ))}
-    </nav>
+    <PageShell title="Ajustes" icon={Settings} pillar={false} tabs={tabs} tabsLabel="Secciones de Ajustes">
+      {current && current.pages.length > 1 && (
+        <div className="-mt-2 mb-5 border-b">
+          <SectionTabs
+            tabs={current.pages.map((page) => ({
+              href: href(page.slug),
+              label: page.label,
+              match: (p) => pathWithin(href(page.slug), p),
+            }))}
+            label={`Secciones de ${current.label}`}
+          />
+        </div>
+      )}
+      {children}
+    </PageShell>
   );
 }

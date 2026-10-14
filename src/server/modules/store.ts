@@ -177,8 +177,8 @@ export async function seedOrgModules(
 }
 
 /**
- * 030 (PR 4) — Perfil de alta (Básico o Completo): SOLO una plantilla para
- * los interruptores al crear la organización; no se guarda cuál fue.
+ * 039 — Plan de alta (Esencial, Pro o Ultra): SOLO una plantilla para los 13
+ * interruptores al crear la organización; no se guarda cuál fue.
  */
 function profileRow(profile: ModuleProfile) {
   const p = MODULE_PROFILES[profile].modules;
@@ -193,6 +193,9 @@ function profileRow(profile: ModuleProfile) {
     results: p.results,
     customNav: p.customNav,
     trabajo: p.trabajo,
+    asistente: p.asistente,
+    // Los canales opcionales que trae el plan (WhatsApp va siempre).
+    channels: [...(p.instagram ? ["instagram"] : []), ...(p.messenger ? ["messenger"] : [])],
     updatedBy: `perfil:${profile}`,
   };
 }

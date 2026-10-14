@@ -6,12 +6,18 @@ import {
   MODULES,
   MODULE_PROFILES,
   NAV_MODULES,
+  PLAN_OPTIONS,
+  moduleDef,
+  profileOfPlan,
   effectiveModules,
   type ModuleKey,
 } from "@/lib/modules/registry";
 import {
+  activeSection,
+  availableSections,
   defaultLayout,
   normalizeLayout,
+  pillarOfPath,
   resolveNav,
   validateLayout,
   type NavLayoutItem,
@@ -66,15 +72,30 @@ describe("registro de módulos", () => {
     expect([...new Set(Object.values(SETTINGS_TAB_PERMISSION))].sort()).toEqual([...(ajustes.permissions ?? [])].sort());
   });
 
-  it("los perfiles Básico y Completo respetan la dependencia", () => {
+  it("039: los planes Esencial, Pro y Ultra: cada uno incluye al anterior y respetan la dependencia", () => {
+    const { esencial, pro, ultra } = MODULE_PROFILES;
     for (const p of Object.values(MODULE_PROFILES)) {
       if (p.modules.lab) expect(p.modules.agent).toBe(true);
+      // Los 13 interruptores de /platform, todos definidos.
+      expect(Object.keys(p.modules)).toHaveLength(13);
     }
-    expect(MODULE_PROFILES.completo.modules.customNav).toBe(true);
-    expect(MODULE_PROFILES.basico.modules.customNav).toBe(false);
-    // 033: las organizaciones nuevas con perfil nacen con Tareas y Notas.
-    expect(MODULE_PROFILES.completo.modules.trabajo).toBe(true);
-    expect(MODULE_PROFILES.basico.modules.trabajo).toBe(true);
+    const enc = (m: Record<string, boolean>) => Object.keys(m).filter((k) => m[k]);
+    for (const k of enc(esencial.modules)) expect(pro.modules[k as keyof typeof pro.modules], k).toBe(true);
+    for (const k of enc(pro.modules)) expect(ultra.modules[k as keyof typeof ultra.modules], k).toBe(true);
+    // Esencial: Bandeja (con equipo), CRM (Tareas, Notas, Biblioteca), sin IA.
+    expect(esencial.modules).toMatchObject({ team_chat: true, trabajo: true, knowledge: true, agent: false, lab: false, asistente: false, campaigns: false });
+    // Pro: + IA, Agenda, CAPI, Instagram y Messenger.
+    expect(pro.modules).toMatchObject({ agent: true, lab: true, agenda: true, atribucion: true, instagram: true, messenger: true, campaigns: false, asistente: false });
+    // Ultra: + Campañas y el Asistente interno (el 13.º).
+    expect(ultra.modules).toMatchObject({ campaigns: true, asistente: true });
+    expect(enc(ultra.modules)).toHaveLength(13);
+  });
+
+  it("039: «Personalizado» no es plantilla (valen el entorno y los 13 a mano)", () => {
+    expect(PLAN_OPTIONS).toEqual(["esencial", "pro", "ultra", "personalizado"]);
+    expect(profileOfPlan("personalizado")).toBeUndefined();
+    expect(profileOfPlan(undefined)).toBeUndefined();
+    expect(profileOfPlan("pro")).toBe("pro");
   });
 
   it("las columnas de la 0034 nacen encendidas y custom_nav apagado", () => {
@@ -97,88 +118,117 @@ describe("registro de módulos", () => {
 });
 
 describe("menú por rol", () => {
-  // 033: la entrada de Citas (clave `agenda`) ahora es «Trabajo» en /trabajo,
-  // en el mismo lugar del menú.
-  it("sin personalizar, cada rol ve lo mismo que antes del PR 4", () => {
+  const rutas = (r: ReturnType<typeof resolveNav>) => r.main.map((m) => r.hrefs[m.key]);
+
+  it("039: el menú son 5 pilares + Ajustes, y cada rol ve los suyos", () => {
     const esperado: Record<Role, string[]> = {
-      // 038: con el módulo encendido, el Propietario ve además «Asistente».
-      owner: ["/inbox", "/chat", "/trabajo", "/pipeline", "/contacts", "/knowledge", "/campaigns", "/results", "/lab", "/asistente"],
-      coordinador: ["/inbox", "/chat", "/trabajo", "/pipeline", "/contacts", "/knowledge", "/campaigns", "/results"],
-      asesor: ["/inbox", "/chat", "/trabajo", "/pipeline", "/contacts", "/knowledge"],
+      owner: ["Bandeja", "CRM Comercial", "Estudio de IA", "Marketing", "Inteligencia"],
+      coordinador: ["Bandeja", "CRM Comercial", "Marketing", "Inteligencia"],
+      asesor: ["Bandeja", "CRM Comercial"],
     };
     for (const role of ROLES) {
       const nav = resolveNav({ role, modules: TODOS, can: canRole(role), layout: null });
-      expect(nav.main.map((m) => m.route), role).toEqual(esperado[role]);
+      expect(nav.main.map((m) => m.label), role).toEqual(esperado[role]);
       expect(nav.settings, role).toBe(role !== "asesor");
+    }
+    expect(NAV_MODULES.map((m) => m.key)).toEqual(["inbox", "pipeline", "lab", "campaigns", "results", "settings"]);
+  });
+
+  it("039: las pestañas de cada pilar, en orden y sin rutas repetidas", () => {
+    const pestañas = (key: ModuleKey) => (moduleDef(key).sections ?? []).map((s) => s.route);
+    expect(pestañas("inbox")).toEqual(["/inbox", "/chat"]);
+    expect(pestañas("pipeline")).toEqual(["/pipeline", "/contacts", "/bookings", "/trabajo/tareas", "/knowledge"]);
+    expect(pestañas("lab")).toEqual(["/lab", "/agent", "/lab/documentos", "/lab/asignacion", "/lab/evaluaciones"]);
+    expect(pestañas("campaigns")).toEqual(["/campaigns", "/campaigns/audiences", "/campaigns/templates", "/campaigns/metrics"]);
+    expect(pestañas("results")).toEqual(["/results", "/asistente"]);
+    const todas = NAV_MODULES.flatMap((m) => (m.sections ?? []).map((s) => s.route));
+    expect(new Set(todas).size).toBe(todas.length);
+    // Ningún módulo absorbido conserva renglón propio.
+    for (const k of ["team_chat", "agenda", "contacts", "knowledge", "agent", "asistente", "trabajo"] as const) {
+      expect(moduleDef(k).route, k).toBeNull();
     }
   });
 
-  it("031: con el Laboratorio a la vista «Agente» sale del menú; sin Laboratorio (apagado, sin permiso u oculto) se queda", () => {
-    const keys = (r: ReturnType<typeof resolveNav>) => r.main.map((m) => m.key);
-    // Con Laboratorio: solo Laboratorio.
+  it("039: el renglón lleva a la primera pestaña que se puede abrir", () => {
+    // Estudio de IA: con Laboratorio, /lab; sin él (Agente encendido), /agent.
     const con = resolveNav({ role: "owner", modules: TODOS, can: canRole("owner"), layout: null });
-    expect(keys(con)).toContain("lab");
-    expect(keys(con)).not.toContain("agent");
-    // Laboratorio apagado (Agente encendido): se ve «Agente».
+    expect(con.hrefs.lab).toBe("/lab");
     const sinLab = effectiveModules(new Set<ModuleKey>(["team_chat", "knowledge", "results", "agent"]));
     const a = resolveNav({ role: "owner", modules: sinLab, can: canRole("owner"), layout: null });
-    expect(keys(a)).toContain("agent");
-    expect(keys(a)).not.toContain("lab");
-    // Sin permiso de Laboratorio (agent.manage) pero con el módulo: no hay ni uno ni otro.
-    const sinPermiso = resolveNav({ role: "asesor", modules: TODOS, can: canRole("asesor"), layout: null });
-    expect(keys(sinPermiso)).not.toContain("lab");
-    // Laboratorio oculto por el Propietario en Ajustes → Navegación: «Agente» vuelve.
-    const layout = defaultLayout("owner").map((i) => (i.key === "lab" ? { ...i, hidden: true } : { ...i, hidden: i.key === "agent" ? false : i.hidden }));
-    const oculto = resolveNav({ role: "owner", modules: TODOS, can: canRole("owner"), layout });
-    expect(keys(oculto)).toContain("agent");
-    expect(keys(oculto)).not.toContain("lab");
+    expect(a.hrefs.lab).toBe("/agent");
+    expect(availableSections(moduleDef("lab"), sinLab, canRole("owner")).map((s) => s.route)).toEqual(["/agent"]);
+    // Con Laboratorio, la pestaña del agente general cede su lugar.
+    expect(availableSections(moduleDef("lab"), TODOS, canRole("owner")).map((s) => s.route)).not.toContain("/agent");
+    // Sin agente: no hay Estudio de IA.
+    const sinIa = effectiveModules(new Set<ModuleKey>(["team_chat", "results"]));
+    expect(resolveNav({ role: "owner", modules: sinIa, can: canRole("owner"), layout: null }).main.map((m) => m.key)).not.toContain("lab");
+    // Inteligencia solo con el Asistente: lleva a /asistente.
+    const soloAsistente = effectiveModules(new Set<ModuleKey>(["asistente"]));
+    const b = resolveNav({ role: "owner", modules: soloAsistente, can: canRole("owner"), layout: null });
+    expect(b.hrefs.results).toBe("/asistente");
+    // …y el Coordinador (sin assistant.use) no la ve.
+    expect(resolveNav({ role: "coordinador", modules: soloAsistente, can: canRole("coordinador"), layout: null }).main.map((m) => m.key)).not.toContain("results");
   });
 
-  it("033: «Trabajo» aparece con Citas (agenda) o con Tareas y notas (trabajo); sin ninguno, no", () => {
-    const base = ["team_chat", "knowledge", "results", "agent", "lab"] as ModuleKey[];
-    const ruta = (mods: ModuleKey[]) =>
-      resolveNav({ role: "asesor", modules: effectiveModules(new Set<ModuleKey>([...base, ...mods])), can: canRole("asesor"), layout: null }).main.map(
-        (m) => m.route
-      );
-    expect(ruta([])).not.toContain("/trabajo");
-    expect(ruta(["agenda"])).toContain("/trabajo");
-    expect(ruta(["trabajo"])).toContain("/trabajo");
-    expect(ruta(["agenda", "trabajo"]).filter((r) => r === "/trabajo")).toHaveLength(1);
-    // Mismo lugar que tenía «Citas»: justo después del Chat de equipo.
-    expect(ruta(["trabajo"]).slice(0, 3)).toEqual(["/inbox", "/chat", "/trabajo"]);
-    // Tareas y notas no tiene entrada propia: vive dentro de «Trabajo».
-    expect(MODULES.find((m) => m.key === "trabajo")?.route).toBeNull();
+  it("039: el CRM Comercial y la Bandeja siempre existen; sus pestañas siguen a sus módulos", () => {
+    const nada = effectiveModules(new Set());
+    const nav = resolveNav({ role: "asesor", modules: nada, can: canRole("asesor"), layout: null });
+    expect(rutas(nav)).toEqual(["/inbox", "/pipeline"]);
+    expect(availableSections(moduleDef("inbox"), nada, canRole("asesor")).map((s) => s.label)).toEqual(["Clientes"]);
+    expect(availableSections(moduleDef("pipeline"), nada, canRole("asesor")).map((s) => s.label)).toEqual(["Pipeline", "Contactos"]);
+    const todo = availableSections(moduleDef("pipeline"), TODOS, canRole("asesor")).map((s) => s.label);
+    expect(todo).toEqual(["Pipeline", "Contactos", "Agenda", "Tareas y notas", "Biblioteca"]);
   });
 
-  it("033: un menú guardado con «Citas» oculta conserva «Trabajo» oculto (misma clave)", () => {
-    const layout = defaultLayout("owner").map((i) => (i.key === "agenda" ? { ...i, hidden: true } : i));
-    const nav = resolveNav({ role: "owner", modules: TODOS, can: canRole("owner"), layout });
-    expect(nav.main.map((m) => m.route)).not.toContain("/trabajo");
+  it("039: la pestaña activa es la de la ruta más larga que contiene a la página", () => {
+    const mkt = moduleDef("campaigns").sections!;
+    expect(activeSection(mkt, "/campaigns")?.label).toBe("Campañas");
+    expect(activeSection(mkt, "/campaigns/c_123")?.label).toBe("Campañas");
+    expect(activeSection(mkt, "/campaigns/audiences")?.label).toBe("Audiencias");
+    const crm = moduleDef("pipeline").sections!;
+    expect(activeSection(crm, "/trabajo/notas")?.label).toBe("Tareas y notas");
+    expect(activeSection(crm, "/bookings")?.label).toBe("Agenda");
+    const lab = moduleDef("lab").sections!;
+    expect(activeSection(lab, "/lab/agents/ag_1")?.label).toBe("Mis agentes");
+    expect(activeSection(lab, "/lab/documentos/grp_1")?.label).toBe("Conocimiento y documentos");
+    expect(pillarOfPath("/chat")?.key).toBe("inbox");
+    expect(pillarOfPath("/knowledge")?.key).toBe("pipeline");
+    expect(pillarOfPath("/asistente")?.key).toBe("results");
+    expect(pillarOfPath("/settings/team")).toBeUndefined();
+  });
+
+  it("039: un menú guardado con claves viejas (sin renglón) se normaliza a los pilares", () => {
+    const viejo = [
+      { key: "contacts", hidden: false },
+      { key: "team_chat", hidden: true },
+      { key: "results", hidden: false },
+      { key: "inbox", hidden: false },
+    ];
+    expect(normalizeLayout(viejo, "owner").map((i) => i.key)).toEqual(["results", "inbox", "pipeline", "lab", "campaigns", "settings"]);
   });
 
   it("un módulo apagado no aparece aunque el menú guardado lo muestre", () => {
     const sinCampanas = effectiveModules(new Set<ModuleKey>(["team_chat", "knowledge", "results", "agent", "lab"]));
     const nav = resolveNav({ role: "owner", modules: sinCampanas, can: canRole("owner"), layout: defaultLayout("owner") });
     expect(nav.main.map((m) => m.key)).not.toContain("campaigns");
-    expect(nav.main.map((m) => m.key)).not.toContain("agenda");
   });
 
   it("ocultar es solo estético: mostrar algo sin permiso no lo hace aparecer", () => {
     const layout = defaultLayout("asesor").map((i) => ({ ...i, hidden: false }));
     const nav = resolveNav({ role: "asesor", modules: TODOS, can: canRole("asesor"), layout });
     expect(nav.main.map((m) => m.key)).not.toContain("results");
-    expect(nav.main.map((m) => m.key)).not.toContain("agent");
+    expect(nav.main.map((m) => m.key)).not.toContain("lab");
     expect(nav.settings).toBe(false);
   });
 
   it("reordena y oculta según lo guardado", () => {
     const layout: NavLayoutItem[] = [
-      { key: "contacts", hidden: false },
+      { key: "pipeline", hidden: false },
       { key: "inbox", hidden: false },
-      { key: "team_chat", hidden: true },
+      { key: "campaigns", hidden: true },
     ];
-    const nav = resolveNav({ role: "asesor", modules: TODOS, can: canRole("asesor"), layout });
-    expect(nav.main.map((m) => m.key)).toEqual(["contacts", "inbox", "agenda", "pipeline", "knowledge"]);
+    const nav = resolveNav({ role: "coordinador", modules: TODOS, can: canRole("coordinador"), layout });
+    expect(nav.main.map((m) => m.key)).toEqual(["pipeline", "inbox", "results"]);
   });
 
   it("normaliza: descarta claves desconocidas y repetidas, agrega las nuevas y deja Ajustes al final", () => {
@@ -186,20 +236,7 @@ describe("menú por rol", () => {
       [{ key: "settings", hidden: false }, { key: "x" }, { key: "inbox", hidden: true }, { key: "inbox", hidden: false }, { key: "instagram" }],
       "coordinador"
     );
-    expect(items.map((i) => i.key)).toEqual([
-      "inbox",
-      "team_chat",
-      "agenda",
-      "pipeline",
-      "contacts",
-      "knowledge",
-      "campaigns",
-      "results",
-      "agent",
-      "lab",
-      "asistente",
-      "settings",
-    ]);
+    expect(items.map((i) => i.key)).toEqual(["inbox", "pipeline", "lab", "campaigns", "results", "settings"]);
     expect(items[0]).toEqual({ key: "inbox", hidden: true });
   });
 

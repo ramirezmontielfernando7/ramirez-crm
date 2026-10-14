@@ -16,7 +16,7 @@ import {
 } from "@/server/modules";
 import { envModuleDefaults } from "@/server/modules/defaults";
 import { ModuleDependencyError, updateOrgModules, type ModulesPatch } from "@/server/modules/store";
-import type { ModuleProfile } from "@/lib/modules/registry";
+import { profileOfPlan, type PlanOption } from "@/lib/modules/registry";
 import type { EffectiveLimits, LimitsPatch } from "@/lib/limits";
 import { PLATFORM_MODULE_TOGGLES, type PlatformModuleToggle } from "@/lib/platform-modules";
 import { runWithOrganization } from "@/lib/request-context";
@@ -185,7 +185,7 @@ export function slugFor(name: string): string {
  * 409 (sin decir de qué organización es).
  */
 export async function createOrganization(
-  input: { name: string; ownerName: string; ownerEmail: string; profile?: ModuleProfile },
+  input: { name: string; ownerName: string; ownerEmail: string; profile?: PlanOption },
   actor: AuditActor,
   ip: string | null
 ): Promise<{ organizationId: string; activationUrl: string; expiresAt: Date }> {
@@ -211,7 +211,7 @@ export async function createOrganization(
   try {
     await db.transaction(async (tx) => {
       await tx.insert(schema.organization).values({ id: organizationId, name, slug: slugFor(name) });
-      await seedOrganization(tx as unknown as Db, organizationId, input.profile);
+      await seedOrganization(tx as unknown as Db, organizationId, profileOfPlan(input.profile));
       await tx.insert(schema.user).values({ id: userId, name: ownerName, email, emailVerified: false });
       await tx.insert(schema.account).values({
         id: newId("account"),
@@ -236,6 +236,7 @@ export async function createOrganization(
     action: "organization.created",
     org: { id: organizationId, name },
     user: { id: userId, email },
+    // 039: el plan con que nació (también «personalizado»), solo para la bitácora.
     ...(input.profile ? { detail: { perfil_de_modulos: input.profile } } : {}),
     ip,
   });

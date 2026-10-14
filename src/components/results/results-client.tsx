@@ -14,7 +14,7 @@ import { defaultRange, RangePicker, type Range } from "./range-picker";
 import { SalesSection } from "./sales-section";
 import { useViewer } from "@/components/viewer-context";
 import { useAssignees } from "@/components/assignment/use-assignees";
-import { NavRevealButton } from "@/components/nav-mode";
+import { PageShell } from "@/components/ui/page-shell";
 
 type Block<T> = { data: T | null; loading: boolean; error: string | null };
 
@@ -105,40 +105,34 @@ export function ResultsClient({
   }, [who]);
 
   return (
-    <div className="flex h-full flex-col">
-      <header className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3 sm:px-6 sm:py-4">
-        <div className="flex min-w-0 items-start gap-2">
-          <NavRevealButton />
-          <div className="min-w-0">
-            <h2 className="text-[17px] font-bold tracking-tight">
-              {teamView ? "Resultados" : "Tus resultados"}
-            </h2>
-            <p className="text-xs text-text-3">
-              {teamView
-                ? "Ventas, el trabajo del agente, de dónde llegan y qué se está cayendo."
-                : "Lo de tus chats y leads asignados: ventas, de dónde llegan y qué se está cayendo."}
-            </p>
-          </div>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {teamView && (
-            <select
-              value={person}
-              onChange={(e) => setPerson(e.target.value)}
-              aria-label="Resultados de"
-              className="h-9 rounded-md border border-input bg-card px-2 text-sm"
-            >
-              <option value="">Todo el equipo</option>
-              {team.map((m) => (
-                <option key={m.userId} value={m.userId}>
-                  {m.name}
-                </option>
-              ))}
-            </select>
-          )}
-          <RangePicker value={range} onChange={setRange} today={today} timezone={timezone} />
-        </div>
-      </header>
+    <PageShell
+      pillar="results"
+      variant="fluid"
+      subtitle={
+        teamView
+          ? "Ventas, el trabajo del agente, de dónde llegan y qué se está cayendo."
+          : "Tus resultados: lo de tus chats y leads asignados."
+      }
+    >
+      {/* 039: el periodo y la persona, en su fila bajo las pestañas del pilar. */}
+      <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-b px-4 py-2.5 sm:px-6">
+        {teamView && (
+          <select
+            value={person}
+            onChange={(e) => setPerson(e.target.value)}
+            aria-label="Resultados de"
+            className="h-9 rounded-md border border-input bg-card px-2 text-sm"
+          >
+            <option value="">Todo el equipo</option>
+            {team.map((m) => (
+              <option key={m.userId} value={m.userId}>
+                {m.name}
+              </option>
+            ))}
+          </select>
+        )}
+        <RangePicker value={range} onChange={setRange} today={today} timezone={timezone} />
+      </div>
 
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-3 sm:p-6">
         <SalesSection {...sales} currency={currency} />
@@ -146,6 +140,6 @@ export function ResultsClient({
         <BotSection {...bot} agenda={agenda} />
         <HygieneSection {...hygiene} currency={currency} />
       </div>
-    </div>
+    </PageShell>
   );
 }
