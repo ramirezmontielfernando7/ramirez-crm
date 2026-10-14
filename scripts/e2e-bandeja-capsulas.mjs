@@ -57,8 +57,15 @@ async function hasta(cond, ms = 30000) {
 const browser = await chromium.launch(
   process.env.PLAYWRIGHT_CHROMIUM ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM } : {}
 );
+let ips = 0;
+/** Cada navegador con su propia IP: el límite de login es por IP (FR-062). */
 const newCtx = (opts = {}) =>
-  browser.newContext({ viewport: { width: 1440, height: 900 }, locale: "es-MX", extraHTTPHeaders: { origin: BASE }, ...opts });
+  browser.newContext({
+    viewport: { width: 1440, height: 900 },
+    locale: "es-MX",
+    extraHTTPHeaders: { "x-forwarded-for": `10.95.${Number(RUN.slice(-3)) % 256}.${++ips}`, origin: BASE },
+    ...opts,
+  });
 
 function apiOf(ctx) {
   return async (method, path, body) => {
@@ -101,6 +108,10 @@ try {
   ok("número de WhatsApp conectado (wa-mock)", conn.status < 400, String(conn.status));
   // Sin agente: la fila NO debe pintar punto de IA (se enciende más abajo).
   await call("PUT", "/api/agent/profile", { name: "Sofi", enabled: false });
+  // …ni cerebro externo: otro guion del mismo servidor pudo usar /api/bot/*
+  // con la llave de esta organización (el servidor lo recuerda en memoria).
+  const olvido = await call("DELETE", "/api/dev/brain-status");
+  ok("el servidor olvida el cerebro externo visto (mock)", olvido.status === 200, String(olvido.status));
 
   const tagNames = [`Alumno${RUN}`, `VIP${RUN}`, `Becado${RUN}`];
   const tags = [];

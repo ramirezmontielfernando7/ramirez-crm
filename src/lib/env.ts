@@ -182,7 +182,7 @@ export function getEnv(): Env {
  * `getEnv()` vuelva a leer `process.env` (p. ej. al cambiar de llave).
  */
 export function resetEnvCacheForTests(): void {
-  if (process.env.NODE_ENV === "production") return;
+  if (process.env.NODE_ENV === "production" && !isMockEnabled()) return;
   cached = null;
 }
 
@@ -194,12 +194,35 @@ function stripEmpty(env: NodeJS.ProcessEnv): Record<string, string> {
   return out;
 }
 
-/** true si el entorno de pruebas interno (mocks) está habilitado y NO es producción. */
+/** ¿`raw` es una URL cuyo host es estrictamente `localhost` o `127.0.0.1`? */
+export function isLoopbackUrl(raw: string | undefined): boolean {
+  if (!raw) return false;
+  try {
+    const { hostname } = new URL(raw);
+    return hostname === "localhost" || hostname === "127.0.0.1";
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * true si el entorno de pruebas interno (mocks) está habilitado.
+ *
+ * Siempre exige `WA_MOCK_ENABLED=true`. Fuera de producción basta con eso.
+ * Con `NODE_ENV=production` (el servidor compilado de `next start`) los mocks
+ * solo existen si ADEMÁS hay `ALLOW_CI_MOCKS=true` y `APP_BASE_URL` apunta a
+ * `localhost`/`127.0.0.1`: es el runner de CI corriendo la app compilada.
+ * Un despliegue real tiene su dominio en `APP_BASE_URL`, así que ahí los
+ * mocks siguen en 404 aunque alguien deje las dos banderas puestas.
+ *
+ * Se lee con corchetes A PROPÓSITO: así `next build` no sustituye el valor
+ * en tiempo de compilación y la decisión se toma en runtime.
+ */
 export function isMockEnabled(): boolean {
-  return (
-    process.env.WA_MOCK_ENABLED === "true" &&
-    process.env.NODE_ENV !== "production"
-  );
+  const env = process.env;
+  if (env["WA_MOCK_ENABLED"] !== "true") return false;
+  if (env["NODE_ENV"] !== "production") return true;
+  return env["ALLOW_CI_MOCKS"] === "true" && isLoopbackUrl(env["APP_BASE_URL"]);
 }
 
 /** true si hay proveedor de IA configurado (token presente y no vacío). */

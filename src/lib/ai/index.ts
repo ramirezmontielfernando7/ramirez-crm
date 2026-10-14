@@ -1,5 +1,5 @@
 import type { z } from "zod";
-import { getEnv, isAiConfigured } from "@/lib/env";
+import { getEnv, isAiConfigured, isMockEnabled } from "@/lib/env";
 import { logger } from "@/lib/log";
 import { hasOpenTransaction } from "@/lib/request-context";
 
@@ -39,7 +39,8 @@ export type ChatJsonResult<T> =
  * de BD abierta (`withTenant` o `db.transaction()`), esa conexión del pool
  * queda tomada todo ese tiempo, y con decenas de organizaciones a la vez el
  * pool se agota. Fuera de producción es un error que tumba la prueba
- * (`tests/unit/llm-sin-transaccion.test.ts`, E2E); en producción se registra
+ * (`tests/unit/llm-sin-transaccion.test.ts`, E2E, también con la app compilada
+ * del CI: `isMockEnabled()`); en producción se registra
  * y la llamada sigue, para no dejar a un cliente sin respuesta.
  */
 export class LlmInTransactionError extends Error {
@@ -53,7 +54,8 @@ export class LlmInTransactionError extends Error {
 export function assertNoOpenTransaction(): void {
   if (!hasOpenTransaction()) return;
   const err = new LlmInTransactionError();
-  if (process.env.NODE_ENV !== "production") throw err;
+  // Con los mocks (también la app compilada del CI) sigue siendo un error.
+  if (process.env.NODE_ENV !== "production" || isMockEnabled()) throw err;
   logger("ai").error("llamada al LLM dentro de una transacción", { err });
 }
 

@@ -10,7 +10,7 @@ import { countAssignedByUser } from "@/server/assignment/assign";
 import { assertCanAddMember } from "@/server/limits";
 import { checkMemberAlerts } from "@/server/limits/alerts";
 import { limitBlocked } from "@/server/limits/http";
-import { checkRateLimit } from "@/lib/rate-limit";
+import { checkRateLimit, clientIp } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -100,6 +100,11 @@ export const POST = withAuth(async (session, req: Request) => {
           email: body.data.email,
           password: body.data.password,
         },
+        // El límite por IP de registro (FR-062) cuenta a quien da el alta.
+        // Sin esto, toda alta de equipo caía en la IP "local": un solo cubo
+        // para TODA la instancia, sumando las altas de todas las
+        // organizaciones.
+        headers: new Headers({ "x-forwarded-for": clientIp(req.headers) }),
       })
     );
     newUserId = result.user.id;

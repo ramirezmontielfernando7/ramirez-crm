@@ -219,6 +219,28 @@ function diferencias(a, b) {
   return Object.keys({ ...a, ...b }).filter((k) => a[k] !== b[k]);
 }
 
+/**
+ * La huella cuando la organización ya dejó de moverse sola: un entrante
+ * dispara un turno del agente EN SEGUNDO PLANO tras AGENT_COALESCE_MS, que
+ * escribe en sus tablas (p. ej. crea su agente general). Se espera a que nada
+ * cambie durante esa ventana + 2 s, para no culpar a un ataque de ese turno.
+ */
+async function huellaQuieta(orgId) {
+  const calma = Number(process.env.AGENT_COALESCE_MS || 6000) + 2000;
+  const fin = Date.now() + 60_000;
+  let h = await huella(orgId);
+  let desde = Date.now();
+  while (Date.now() - desde < calma && Date.now() < fin) {
+    await sleep(500);
+    const n = await huella(orgId);
+    if (diferencias(h, n).length > 0) {
+      h = n;
+      desde = Date.now();
+    }
+  }
+  return h;
+}
+
 // ---------------------------------------------------------------------------
 
 async function main() {
@@ -442,7 +464,7 @@ async function main() {
   }
 
   console.log("\n== A ataca los recursos de B (API) ==");
-  const antes = await huella(orgB);
+  const antes = await huellaQuieta(orgB);
   const J = (o) => JSON.stringify(o);
   /** [método, ruta, cuerpo] — cada una apunta a un recurso de B. */
   const ataques = [
