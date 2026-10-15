@@ -85,7 +85,7 @@ vende Demfort.
   sección nueva.
 - **«Múltiples agentes» como límite del plan**: hoy no hay un interruptor que
   limite cuántos agentes; Pro y Ultra traen el Laboratorio (varios agentes).
-- **Guardar el plan**: `organization_plan.plan_key` sigue solo en `custom`
+- **Guardar el plan** (resuelto en el [040](../040-biblioteca-planes-plataforma/spec.md)): `organization_plan.plan_key` sigue solo en `custom`
   (lo de los topes). Persistir Esencial/Pro/Ultra pide migración y decidir
   cómo conviven plan y topes.
 - **Etapas en Ajustes → Operación CRM**: se siguen gestionando desde el

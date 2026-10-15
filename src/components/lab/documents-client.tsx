@@ -13,9 +13,16 @@ import { call, formatDate } from "@/components/lab/agents-api";
 import { GENERAL_GROUP_KEY, GROUP_NAME_MAX, groupIdFromKey, groupKey } from "@/lib/kb-docs";
 import type { KbDocumentView } from "@/server/kb-docs/http";
 import type { KbGroupSummary } from "@/server/kb-docs/store";
+import { DestinationBadges, DestinationToggle } from "@/components/library/destinations";
+import { Switch } from "@/components/ui/switch";
+
+/** 040 — Cada documento dice si su original también está en la Bandeja. */
+type DocRow = KbDocumentView & { inChat: boolean; hasOriginal: boolean };
 
 type Listing = {
-  documents: KbDocumentView[];
+  documents: DocRow[];
+  /** 040 — ¿Se puede ofrecer «Disponible en Bandeja»? */
+  library: { chat: boolean };
   usage: { documents: number; chunks: number; exclusive: number };
   limits: { maxFileBytes: number; maxDocuments: number; maxChunks: number; maxChars: number };
   embeddings: { enabled: boolean; model: string | null };
@@ -50,6 +57,11 @@ const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one :
  * `/lab/documentos`, cada grupo en `/lab/documentos/[id]`). Crear, renombrar
  * y eliminar grupos (moviendo sus documentos a General o borrándolos), y
  * mover un documento de grupo.
+ *
+ * 040 — Biblioteca unificada: con el módulo Biblioteca, «Disponible en Bandeja
+ * para envío rápido de asesores» (encendido por defecto) guarda también el
+ * archivo para el `KnowledgePicker`, sin subirlo dos veces; cada fila lo
+ * enciende o apaga.
  */
 export function DocumentsClient({ groupKey: activeKey = GENERAL_GROUP_KEY }: { groupKey?: string }) {
   const router = useRouter();
@@ -60,6 +72,8 @@ export function DocumentsClient({ groupKey: activeKey = GENERAL_GROUP_KEY }: { g
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [toChat, setToChat] = useState(true);
+  const [chatBusy, setChatBusy] = useState<string | null>(null);
   const [toDelete, setToDelete] = useState<KbDocumentView | null>(null);
   const [busy, setBusy] = useState(false);
   const [naming, setNaming] = useState<{ mode: "create" } | { mode: "rename"; group: KbGroupSummary } | null>(null);
@@ -103,11 +117,22 @@ export function DocumentsClient({ groupKey: activeKey = GENERAL_GROUP_KEY }: { g
     const form = new FormData();
     form.append("file", file);
     form.append("groupId", activeKey);
+    if (data?.library.chat && toChat) form.append("chat", "true");
     const r = await call<{ document: KbDocumentView }>("/api/lab/documents", { method: "POST", body: form });
     setUploading(false);
     if (fileRef.current) fileRef.current.value = "";
     if (!r.ok) return setError(r.message);
     setNotice(`«${r.data.document.title}» se subió. Se está indexando; en unos segundos el agente ya lo consulta.`);
+    void load();
+  }
+
+  /** 040 — Enciende o apaga su copia en la Bandeja (sin volver a subirlo). */
+  async function setInChat(d: DocRow, on: boolean) {
+    setError(null);
+    setChatBusy(d.id);
+    const r = await call(`/api/lab/documents/${d.id}`, { method: "PATCH", json: { chat: on } });
+    setChatBusy(null);
+    if (!r.ok) return setError(r.message);
     void load();
   }
 
@@ -232,13 +257,26 @@ export function DocumentsClient({ groupKey: activeKey = GENERAL_GROUP_KEY }: { g
                   if (f) void upload(f);
                 }}
               />
-              <Button
-                onClick={() => fileRef.current?.click()}
-                disabled={uploading || atLimit}
-                title={atLimit ? "Llegaste al máximo de documentos" : undefined}
-              >
-                <Upload className="h-4 w-4" /> {uploading ? "Subiendo…" : "Subir documento"}
-              </Button>
+              <div className="flex flex-wrap items-center gap-3">
+                {data.library.chat && (
+                  <label className="flex items-center gap-2 text-xs text-text-2" data-testid="kb-docs-to-chat">
+                    <Switch
+                      size="sm"
+                      checked={toChat}
+                      label="Disponible en Bandeja para envío rápido de asesores"
+                      onCheckedChange={setToChat}
+                    />
+                    Disponible en Bandeja para envío rápido de asesores
+                  </label>
+                )}
+                <Button
+                  onClick={() => fileRef.current?.click()}
+                  disabled={uploading || atLimit}
+                  title={atLimit ? "Llegaste al máximo de documentos" : undefined}
+                >
+                  <Upload className="h-4 w-4" /> {uploading ? "Subiendo…" : "Subir documento"}
+                </Button>
+              </div>
             </div>
 
             {error && (
@@ -279,6 +317,19 @@ export function DocumentsClient({ groupKey: activeKey = GENERAL_GROUP_KEY }: { g
                       {d.errorMessage && d.status === "failed" && (
                         <span className="mt-1 block text-xs text-destructive">{d.errorMessage}</span>
                       )}
+                      <span className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1">
+                        <DestinationBadges chat={d.inChat} rag />
+                        {data.library.chat && (
+                          <DestinationToggle
+                            destination="chat"
+                            name={d.title}
+                            checked={d.inChat}
+                            disabled={chatBusy === d.id || (!d.hasOriginal && !d.inChat)}
+                            hint={!d.hasOriginal ? "Se subió solo para la IA: vuelve a subirlo con «Disponible en Bandeja»" : null}
+                            onChange={(next) => void setInChat(d, next)}
+                          />
+                        )}
+                      </span>
                     </div>
                     <button
                       type="button"

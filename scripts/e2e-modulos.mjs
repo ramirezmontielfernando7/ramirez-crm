@@ -297,9 +297,11 @@ async function main() {
   await page.goto(`${BASE}/platform/organizaciones`, { timeout: 180000 });
   const filaB = page.getByTestId(`platform-org-${orgB}`);
   await filaB.waitFor({ timeout: 30000 });
-  // 036 (PR 4): los interruptores viven en el detalle de la fila.
-  await filaB.getByTestId("platform-org-toggle").click();
-  const sw = filaB.getByTestId("platform-module-campaigns").getByRole("switch");
+  // 040: los interruptores viven en la ficha (pestaña «Plan y módulos»).
+  await filaB.getByTestId("platform-org-open").click();
+  await page.waitForURL(new RegExp(`/platform/organizaciones/${orgB}$`), { timeout: 60000 });
+  const sw = page.getByTestId("platform-module-campaigns").getByRole("switch");
+  await sw.waitFor({ timeout: 30000 });
   ok("el interruptor de Campañas de B está apagado", (await sw.getAttribute("aria-checked")) === "false");
   await sw.click();
   ok("al tocarlo queda encendido", await hasta(async () => (await sw.getAttribute("aria-checked")) === "true"));

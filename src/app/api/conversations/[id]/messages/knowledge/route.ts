@@ -3,7 +3,7 @@ import { apiError, parseBody, withAuth } from "@/lib/api";
 import { getConversation } from "@/server/inbox/queries";
 import { SendError } from "@/server/inbox/send";
 import { deliverKnowledgeEntry, KnowledgeDeliveryError } from "@/server/knowledge/deliver";
-import { getKnowledge } from "@/server/knowledge/store";
+import { getKnowledgeForChat } from "@/server/knowledge/store";
 import { MediaValidationError } from "@/server/whatsapp/media";
 import { moduleOff } from "@/server/modules";
 
@@ -41,7 +41,7 @@ export const POST = withAuth(async (session, req: Request, ctx: Params) => {
   const body = await parseBody(req, bodySchema);
   if (!body.ok) return body.response;
 
-  const entry = await getKnowledge(session.organizationId, body.data.entryId);
+  const entry = await getKnowledgeForChat(session.organizationId, body.data.entryId); // 040: solo lo que aparece en la Bandeja
   if (!entry) return apiError(404, "not_found", "Entrada no encontrada");
 
   try {

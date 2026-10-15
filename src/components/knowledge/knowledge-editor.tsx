@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { FileText, Upload, X } from "lucide-react";
 import {
   KNOWLEDGE_ACCEPT,
@@ -13,16 +13,27 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { formatBytes } from "@/components/inbox/helpers";
+import { Switch } from "@/components/ui/switch";
+import { DESTINATION_LABEL } from "@/lib/knowledge";
 
-/** 024 — Crear o editar una entrada: título, texto, etiquetas y archivo. */
+type Group = { id: string | null; name: string };
+
+/**
+ * 024 — Crear o editar una entrada: título, texto, etiquetas y archivo.
+ * 040 — Al crear, con Documentos del agente y `agent.manage`: «Entrenar
+ * también al Agente de IA con este documento (RAG)» y su grupo.
+ */
 export function KnowledgeEditor({
   entry,
+  canTrainAgent = false,
   onClose,
   onSaved,
 }: {
   entry: KnowledgeEntryDto | null;
+  canTrainAgent?: boolean;
   onClose: () => void;
-  onSaved: () => void;
+  /** `warning`: la entrada se guardó pero la IA no la pudo leer (motivo). */
+  onSaved: (warning?: string) => void;
 }) {
   const [title, setTitle] = useState(entry?.title ?? "");
   const [body, setBody] = useState(entry?.body ?? "");
@@ -32,6 +43,21 @@ export function KnowledgeEditor({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const offerRag = canTrainAgent && !entry;
+  const [rag, setRag] = useState(false);
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [groupId, setGroupId] = useState("general");
+
+  useEffect(() => {
+    if (!offerRag) return;
+    let vivo = true;
+    void fetchJson<{ groups: Group[] }>("/api/lab/document-groups").then((r) => {
+      if (vivo && r.ok) setGroups(r.data.groups);
+    });
+    return () => {
+      vivo = false;
+    };
+  }, [offerRag]);
 
   const currentFile = !removeFile && !file ? entry?.file ?? null : null;
   const hasContent = body.trim().length > 0 || file !== null || currentFile !== null;
@@ -46,7 +72,11 @@ export function KnowledgeEditor({
     form.set("tags", tags);
     if (file) form.set("file", file);
     else if (removeFile) form.set("removeFile", "true");
-    const res = await fetchJson(entry ? `/api/knowledge/${entry.id}` : "/api/knowledge", {
+    if (offerRag && rag) {
+      form.set("rag", "true");
+      form.set("ragGroupId", groupId);
+    }
+    const res = await fetchJson<{ ragError?: { message: string } | string | null }>(entry ? `/api/knowledge/${entry.id}` : "/api/knowledge", {
       method: entry ? "PATCH" : "POST",
       body: form,
     });
@@ -55,7 +85,12 @@ export function KnowledgeEditor({
       setError(res.error);
       return;
     }
-    onSaved();
+    const ragError = res.data.ragError;
+    onSaved(
+      ragError
+        ? `Se guardó en la Biblioteca, pero el agente no lo pudo leer: ${typeof ragError === "string" ? ragError : ragError.message}`
+        : undefined
+    );
   }
 
   return (
@@ -149,6 +184,40 @@ export function KnowledgeEditor({
               </Button>
             )}
           </div>
+          {offerRag && (
+            <div className="space-y-2 rounded-md border bg-subtle p-2.5" data-testid="knowledge-rag-option">
+              <label className="flex items-start gap-2 text-sm">
+                <Switch
+                  size="sm"
+                  checked={rag}
+                  label="Entrenar también al Agente de IA con este documento (RAG)"
+                  onCheckedChange={setRag}
+                />
+                <span>
+                  Entrenar también al Agente de IA con este documento (RAG)
+                  <span className="block text-[11px] text-text-3">
+                    {DESTINATION_LABEL.rag}: lee el texto del .pdf, .txt o .md (o el contenido escrito). Cuenta contra
+                    tus límites de documentos.
+                  </span>
+                </span>
+              </label>
+              {rag && groups.length > 1 && (
+                <select
+                  value={groupId}
+                  onChange={(e) => setGroupId(e.target.value)}
+                  aria-label="Grupo de documentos"
+                  className="h-8 rounded-sm border bg-background px-2 text-sm"
+                  data-testid="knowledge-rag-group"
+                >
+                  {groups.map((g) => (
+                    <option key={g.id ?? "general"} value={g.id ?? "general"}>
+                      {g.name}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+          )}
         </div>
 
         {error && (

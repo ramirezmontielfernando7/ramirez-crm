@@ -52,6 +52,10 @@ export type KbDocumentDto = {
   indexedAt: string | null;
   /** 037 — `null` = General. */
   groupId: string | null;
+  /** 037 (PR 3) — Exclusivo de este agente. */
+  agentId: string | null;
+  /** 040 — La entrada de Conocimientos que guarda su archivo (`null` = solo IA). */
+  knowledgeEntryId: string | null;
 };
 
 export function toDto(d: KbDocument): KbDocumentDto {
@@ -69,6 +73,8 @@ export function toDto(d: KbDocument): KbDocumentDto {
     createdAt: d.createdAt.toISOString(),
     indexedAt: d.indexedAt?.toISOString() ?? null,
     groupId: d.groupId,
+    agentId: d.agentId,
+    knowledgeEntryId: d.knowledgeEntryId,
   };
 }
 
@@ -147,6 +153,11 @@ export async function createDocument(
      * la FK compuesta garantiza que sea de esta organización.
      */
     agentId?: string | null;
+    /**
+     * 040 — La entrada de Conocimientos que guarda el archivo original (un
+     * archivo, dos destinos). La FK compuesta la ata a esta organización.
+     */
+    knowledgeEntryId?: string | null;
   }
 ): Promise<KbDocument> {
   const agentId = input.agentId ?? null;
@@ -190,6 +201,7 @@ export async function createDocument(
           uploadedByUserId: input.uploadedByUserId,
           groupId,
           agentId,
+          knowledgeEntryId: input.knowledgeEntryId ?? null,
         })
         .returning();
       return row!;
@@ -242,6 +254,31 @@ export async function deleteDocument(organizationId: string, id: string): Promis
     .where(scoped(schema.kbDocument.organizationId, organizationId, eq(schema.kbDocument.id, id)))
     .returning({ id: schema.kbDocument.id });
   return rows.length > 0;
+}
+
+/* ------------------------------------------------------------------
+ * 040 — Biblioteca unificada (el puente vive en src/server/library/)
+ * ---------------------------------------------------------------- */
+
+/** El documento del agente que sale de esta entrada de Conocimientos, si lo hay. */
+export async function getDocumentByEntry(organizationId: string, knowledgeEntryId: string): Promise<KbDocument | null> {
+  const [row] = await getDb()
+    .select()
+    .from(schema.kbDocument)
+    .where(scoped(schema.kbDocument.organizationId, organizationId, eq(schema.kbDocument.knowledgeEntryId, knowledgeEntryId)))
+    .limit(1);
+  return row ?? null;
+}
+
+/** Los documentos de estas entradas (para las insignias de la Biblioteca), por entrada. */
+export async function documentsByEntries(organizationId: string, knowledgeEntryIds: string[]): Promise<Map<string, KbDocument>> {
+  const ids = [...new Set(knowledgeEntryIds)];
+  if (ids.length === 0) return new Map();
+  const rows = await getDb()
+    .select()
+    .from(schema.kbDocument)
+    .where(scoped(schema.kbDocument.organizationId, organizationId, inArray(schema.kbDocument.knowledgeEntryId, ids)));
+  return new Map(rows.filter((r) => r.knowledgeEntryId).map((r) => [r.knowledgeEntryId!, r]));
 }
 
 /* ------------------------------------------------------------------

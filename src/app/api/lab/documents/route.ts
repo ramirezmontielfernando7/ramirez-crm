@@ -5,11 +5,14 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { currentEmbeddingModel } from "@/server/ai-quota/embed";
 import { extractDocumentText } from "@/server/kb-docs/extract";
 import { kbDocsOff } from "@/server/kb-docs/flag";
-import { documentView, kbDocError, withKbDocErrors } from "@/server/kb-docs/http";
+import { documentView, kbDocError } from "@/server/kb-docs/http";
 import { scheduleIndex } from "@/server/kb-docs/indexer";
 import { formatBytes, getKbDocLimits } from "@/server/kb-docs/limits";
 import { getAgent } from "@/server/agents/store";
 import { createDocument, getUsage, listAgentDocuments, listDocuments } from "@/server/kb-docs/store";
+import { chatStateOf } from "@/server/knowledge/store";
+import { createChatCopy, discardChatCopy, libraryAccess } from "@/server/library/bridge";
+import { withLibraryErrors } from "@/server/library/http";
 import { assertCanUpload } from "@/server/limits";
 import { checkStorageAlerts } from "@/server/limits/alerts";
 import { limitBlocked } from "@/server/limits/http";
@@ -32,15 +35,24 @@ export const GET = withAuth(async (session, req: Request) => {
   const params = new URL(req.url).searchParams;
   const group = params.get("group");
   const agentId = params.get("agentId");
-  const [docs, usage, limits] = await Promise.all([
+  const [docs, usage, limits, library] = await Promise.all([
     agentId
       ? listAgentDocuments(session.organizationId, agentId)
       : listDocuments(session.organizationId, group === null ? {} : { groupId: groupIdFromKey(group) }),
     getUsage(session.organizationId),
     getKbDocLimits(session.organizationId),
+    libraryAccess(session),
   ]);
+  // 040 — «💬 Envío en chat»: si su original está en la Biblioteca y aparece en la Bandeja.
+  const chat = await chatStateOf(session.organizationId, docs.flatMap((d) => (d.knowledgeEntryId ? [d.knowledgeEntryId] : [])));
   return Response.json({
-    documents: docs.map(documentView),
+    documents: docs.map((d) => ({
+      ...documentView(d),
+      inChat: d.knowledgeEntryId ? (chat.get(d.knowledgeEntryId) ?? false) : false,
+      hasOriginal: Boolean(d.knowledgeEntryId && chat.has(d.knowledgeEntryId)),
+    })),
+    // 040 — ¿Se puede ofrecer «Disponible en Bandeja»? (módulo Biblioteca + `knowledge.manage`).
+    library: { chat: library.chat },
     usage,
     limits: { ...limits, maxChars: KB_DOC_MAX_CHARS },
     embeddings: { enabled: currentEmbeddingModel() !== null, model: currentEmbeddingModel() },
@@ -52,6 +64,11 @@ export const GET = withAuth(async (session, req: Request) => {
  * 035 — Sube un documento (multipart: `file`, `title` opcional). Se valida y
  * se extrae su texto AQUÍ (para responder el motivo al momento); fragmentos y
  * vectores corren después, in-process (`indexer.ts`).
+ * 040 — `chat=true` («Disponible en Bandeja para envío rápido de asesores»):
+ * además guarda el archivo en la Biblioteca (`knowledge_entry`) y los ata
+ * (`kb_document.knowledge_entry_id`). Pide el módulo Biblioteca y
+ * `knowledge.manage`; sin ellos, 403. Si el documento no se crea, la copia
+ * tampoco se queda.
  */
 export const POST = withAuth(async (session, req: Request) => {
   const off = (await moduleOff(session.organizationId, "lab")) ?? kbDocsOff();
@@ -79,9 +96,17 @@ export const POST = withAuth(async (session, req: Request) => {
   const extracted = await extractDocumentText(filename, bytes);
   if (!extracted.ok) return kbDocError(extracted.code);
   if (extracted.text.length > KB_DOC_MAX_CHARS) return kbDocError("too_long");
+  // 040 — ¿También a la Bandeja?
+  const wantsChat = form.get("chat") === "true";
+  if (wantsChat && !(await libraryAccess(session)).chat) {
+    return apiError(403, "forbidden", "No puedes publicar en la Biblioteca de la Bandeja");
+  }
   // 036 (PR 3a): con «Bloquear subidas manuales», no pasar el tope de
-  // almacenamiento. Lo que ocupa: su texto y el de sus fragmentos (≈ 2 × texto).
-  const blocked = await limitBlocked(() => assertCanUpload(session.organizationId, Buffer.byteLength(extracted.text) * 2));
+  // almacenamiento. Lo que ocupa: su texto y el de sus fragmentos (≈ 2 × texto)
+  // y, con «Disponible en Bandeja» (040), el archivo original.
+  const blocked = await limitBlocked(() =>
+    assertCanUpload(session.organizationId, Buffer.byteLength(extracted.text) * 2 + (wantsChat ? bytes.length : 0))
+  );
   if (blocked) return blocked;
 
   // 037 — El grupo («general» o ausente = General).
@@ -98,8 +123,13 @@ export const POST = withAuth(async (session, req: Request) => {
   const rawTitle = form.get("title");
   const title = (typeof rawTitle === "string" && rawTitle.trim() ? rawTitle.trim() : titleFromFilename(filename)).slice(0, 200);
 
-  return withKbDocErrors(async () => {
-    const doc = await createDocument(session.organizationId, {
+  return withLibraryErrors(async () => {
+    const copy = wantsChat
+      ? await createChatCopy({ organizationId: session.organizationId, userId: session.userId, title, filename, mime: extracted.mime, bytes })
+      : null;
+    let doc;
+    try {
+      doc = await createDocument(session.organizationId, {
       title,
       filename,
       mime: extracted.mime,
@@ -109,9 +139,14 @@ export const POST = withAuth(async (session, req: Request) => {
       uploadedByUserId: session.userId,
       groupId,
       agentId,
+      knowledgeEntryId: copy?.id ?? null,
     });
+    } catch (err) {
+      if (copy) await discardChatCopy(session.organizationId, copy.id);
+      throw err;
+    }
     scheduleIndex(session.organizationId, doc.id);
     void checkStorageAlerts(session.organizationId);
-    return Response.json({ document: documentView(doc) }, { status: 201 });
+    return Response.json({ document: { ...documentView(doc), inChat: Boolean(copy), hasOriginal: Boolean(copy) } }, { status: 201 });
   });
 }, { permission: "agent.manage" });

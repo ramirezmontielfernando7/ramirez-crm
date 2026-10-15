@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { useViewer } from "@/components/viewer-context";
 import { PageShell } from "@/components/ui/page-shell";
 import { formatBytes } from "@/components/inbox/helpers";
+import { DestinationBadges, DestinationToggle } from "@/components/library/destinations";
 import { KnowledgeEditor } from "./knowledge-editor";
 
 const DATE = new Intl.DateTimeFormat("es-MX", { day: "numeric", month: "short", year: "numeric" });
@@ -17,6 +18,9 @@ const DATE = new Intl.DateTimeFormat("es-MX", { day: "numeric", month: "short", 
  * 024 — Conocimientos: fichas, catálogos, políticas y respuestas tipo que el
  * equipo envía a los clientes desde la Bandeja. Todos lo ven y buscan;
  * crear, editar y borrar es de Propietario y Coordinador.
+ * 040 — Biblioteca unificada: cada tarjeta dice a dónde va su archivo
+ * («💬 Envío en chat» y/o «🤖 Lectura IA (RAG)») y quien puede los enciende o
+ * apaga desde ahí, sin volver a subirlo.
  */
 export function KnowledgeClient() {
   const viewer = useViewer();
@@ -28,6 +32,9 @@ export function KnowledgeClient() {
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState<KnowledgeEntryDto | "new" | null>(null);
+  const [library, setLibrary] = useState<{ chat: boolean; rag: boolean }>({ chat: false, rag: false });
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Lo tecleado antes de hidratar no se pierde (mismo rescate que Contactos).
@@ -40,7 +47,9 @@ export function KnowledgeClient() {
     const params = new URLSearchParams();
     if (query.trim()) params.set("q", query.trim());
     if (tag !== "all") params.set("tag", tag);
-    const res = await fetchJson<{ entries: KnowledgeEntryDto[]; tags: string[] }>(
+    // 040: la pantalla de la Biblioteca (quien administra ve también lo que solo lee la IA).
+    params.set("scope", "library");
+    const res = await fetchJson<{ entries: KnowledgeEntryDto[]; tags: string[]; library: { chat: boolean; rag: boolean } }>(
       `/api/knowledge?${params}`
     );
     setLoaded(true);
@@ -51,7 +60,25 @@ export function KnowledgeClient() {
     setError(null);
     setEntries(res.data.entries);
     setTags(res.data.tags);
+    setLibrary(res.data.library);
   }, [query, tag]);
+
+  /** 040 — Enciende o apaga un destino de la entrada (sin volver a subir el archivo). */
+  async function setDestination(entry: KnowledgeEntryDto, change: { chat?: boolean; rag?: boolean }) {
+    setBusyId(entry.id);
+    setNotice(null);
+    const res = await fetchJson<{ entry: KnowledgeEntryDto }>(`/api/knowledge/${entry.id}/destinations`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(change),
+    });
+    setBusyId(null);
+    if (!res.ok) {
+      setNotice(res.error);
+      return;
+    }
+    setEntries((list) => list.map((x) => (x.id === entry.id ? res.data.entry : x)));
+  }
 
   useEffect(() => {
     const t = setTimeout(() => void refetch(), 200);
@@ -59,7 +86,10 @@ export function KnowledgeClient() {
   }, [refetch]);
 
   async function remove(entry: KnowledgeEntryDto) {
-    if (!window.confirm(`¿Borrar «${entry.title}»? No se puede deshacer.`)) return;
+    const aviso = entry.rag
+      ? `¿Borrar «${entry.title}» de la Biblioteca? El agente lo seguirá leyendo (Lectura IA); para que deje de leerlo, apágala antes o bórralo en Estudio de IA → Documentos.`
+      : `¿Borrar «${entry.title}»? No se puede deshacer.`;
+    if (!window.confirm(aviso)) return;
     const res = await fetchJson(`/api/knowledge/${entry.id}`, { method: "DELETE" });
     if (!res.ok) {
       setError(`No se borró: ${res.error}`);
@@ -115,6 +145,11 @@ export function KnowledgeClient() {
         </div>
       </div>
 
+      {notice && (
+        <p role="alert" className="mx-4 mt-3 rounded-md border border-warning-soft bg-warning-tint px-3 py-2 text-sm text-warning-text sm:mx-6" data-testid="library-notice">
+          {notice}
+        </p>
+      )}
       {error && (
         <p role="alert" className="mx-4 mt-3 rounded-md border border-danger-soft bg-danger-tint px-3 py-2 text-sm text-danger-text sm:mx-6">
           {error}
@@ -139,7 +174,7 @@ export function KnowledgeClient() {
         ) : (
           <ul className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             {entries.map((e) => (
-              <li key={e.id} className="flex flex-col rounded-lg border bg-card p-4 shadow-sm">
+              <li key={e.id} className="flex flex-col rounded-lg border bg-card p-4 shadow-sm" data-testid="knowledge-card" data-title={e.title}>
                 <div className="flex items-start justify-between gap-2">
                   <h3 className="min-w-0 break-words font-semibold leading-snug">{e.title}</h3>
                   {canManage && (
@@ -196,6 +231,31 @@ export function KnowledgeClient() {
                     </span>
                   </a>
                 )}
+                <DestinationBadges chat={e.showInChat} rag={e.rag !== null} className="mt-3" />
+                {canManage && (library.chat || library.rag) && (
+                  <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1.5 border-t pt-2">
+                    {library.chat && (
+                      <DestinationToggle
+                        destination="chat"
+                        name={e.title}
+                        checked={e.showInChat}
+                        disabled={busyId === e.id || (e.showInChat && !e.rag)}
+                        hint={e.showInChat && !e.rag ? "Es su único destino" : null}
+                        onChange={(next) => void setDestination(e, { chat: next })}
+                      />
+                    )}
+                    {library.rag && (
+                      <DestinationToggle
+                        destination="rag"
+                        name={e.title}
+                        checked={e.rag !== null}
+                        disabled={busyId === e.id || (e.rag !== null && !e.showInChat)}
+                        hint={e.rag !== null && !e.showInChat ? "Es su único destino" : null}
+                        onChange={(next) => void setDestination(e, { rag: next })}
+                      />
+                    )}
+                  </div>
+                )}
                 <p className="mt-auto pt-3 font-mono text-[10.5px] tracking-[0.04em] text-text-3">
                   Actualizado {DATE.format(new Date(e.updatedAt))}
                 </p>
@@ -208,9 +268,11 @@ export function KnowledgeClient() {
       {editing && (
         <KnowledgeEditor
           entry={editing === "new" ? null : editing}
+          canTrainAgent={library.rag}
           onClose={() => setEditing(null)}
-          onSaved={() => {
+          onSaved={(warning) => {
             setEditing(null);
+            setNotice(warning ?? null);
             void refetch();
           }}
         />

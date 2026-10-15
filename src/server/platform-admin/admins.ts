@@ -98,3 +98,33 @@ export async function reauthenticate(
   }
   return { ok: false, reason: "wrong_password" };
 }
+
+export type PlatformAdminRow = {
+  userId: string;
+  email: string;
+  name: string;
+  createdAt: Date;
+  /** `null` = lo dio el script del operador. */
+  createdBy: string | null;
+  lockedUntil: Date | null;
+};
+
+/**
+ * 040 — Los administradores de plataforma (Plataforma → Administradores y
+ * auditoría). Solo lectura: darlos o quitarlos sigue siendo del operador
+ * (`scripts/platform-admin.mjs`), que necesita acceso al servidor.
+ */
+export async function listPlatformAdmins(): Promise<PlatformAdminRow[]> {
+  return sys()
+    .select({
+      userId: schema.platformAdmin.userId,
+      email: schema.user.email,
+      name: schema.user.name,
+      createdAt: schema.platformAdmin.createdAt,
+      createdBy: schema.platformAdmin.createdBy,
+      lockedUntil: schema.platformAdmin.lockedUntil,
+    })
+    .from(schema.platformAdmin)
+    .innerJoin(schema.user, eq(schema.user.id, schema.platformAdmin.userId))
+    .orderBy(schema.platformAdmin.createdAt);
+}

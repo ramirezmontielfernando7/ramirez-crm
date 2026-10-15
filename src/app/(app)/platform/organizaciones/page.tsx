@@ -5,11 +5,10 @@ import { currentPlatformAdmin } from "@/server/platform-admin/admins";
 export const dynamic = "force-dynamic";
 
 /**
- * 036 (PR 4) — Plataforma → Organizaciones: alta, estado, personas, módulos y
- * el consumo del mes (IA y almacenamiento aproximado) de cada organización.
+ * 036 (PR 4) / 040 — Plataforma → Organizaciones y Planes: la tabla con
+ * filtros (estado, plan) y el alta. Cada fila abre su ficha en pestañas.
  */
 export default async function PlatformOrganizationsPage() {
-  const admin = await currentPlatformAdmin();
-  if (!admin) notFound();
-  return <OrganizationsClient adminUserId={admin.userId} />;
+  if (!(await currentPlatformAdmin())) notFound();
+  return <OrganizationsClient />;
 }

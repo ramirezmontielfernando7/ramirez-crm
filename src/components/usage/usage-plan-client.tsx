@@ -111,7 +111,7 @@ export function UsagePlanClient() {
       <h2 className="text-[15px] font-semibold tracking-tight">Uso y plan</h2>
       {usage && (
         <span className="rounded-sm bg-muted px-1.5 py-0.5 text-xs text-text-2" data-testid="usage-plan-name">
-          Plan {PLAN_LABEL[usage.limits.planKey]}
+          {PLAN_LABEL[usage.limits.planKey]}
         </span>
       )}
     </div>

@@ -4,15 +4,17 @@ import { scoped } from "@/lib/db/tenant";
 import { getEnv } from "@/lib/env";
 import {
   DEFAULT_USAGE_VISIBILITY,
+  isPlanKey,
   isUsageVisibility,
   LIMIT_MESSAGES,
   resolveLimit,
   type EffectiveLimits,
   type LimitsPatch,
+  type PlanKey,
   type StorageMode,
   type UsageVisibility,
 } from "@/lib/limits";
-import { countActiveModules, type PlatformModuleToggle } from "@/lib/platform-modules";
+import { countActiveModules, planKeyOfModules, type PlatformModuleToggle } from "@/lib/platform-modules";
 import { envKbDocLimits, getOwnKbDocLimits } from "@/server/kb-docs/limits";
 import { saveKbDocLimits } from "@/server/kb-docs/store";
 import type { OrgModules } from "@/server/modules";
@@ -75,7 +77,7 @@ export async function getEffectiveLimits(organizationId: string, db: Db = getDb(
     getOwnKbDocLimits(organizationId, db),
   ]);
   return {
-    planKey: "custom",
+    planKey: planKeyOfRow(plan),
     aiTurns: resolveLimit(quota?.turns, env.AI_DEFAULT_MONTHLY_TURNS),
     aiTokens: resolveLimit(quota?.tokens, env.AI_DEFAULT_MONTHLY_TOKENS),
     embedTokens: resolveLimit(plan?.embedTokenLimit, env.AI_DEFAULT_MONTHLY_EMBED_TOKENS),
@@ -90,6 +92,11 @@ export async function getEffectiveLimits(organizationId: string, db: Db = getDb(
     kbMaxChunks: resolveLimit(kb.maxChunks, kbEnv.maxChunks),
     kbMaxFileBytes: resolveLimit(kb.maxFileBytes, kbEnv.maxFileBytes),
   };
+}
+
+/** 040 — El plan guardado (sin fila, o un valor desconocido: «Personalizado»). */
+function planKeyOfRow(plan: PlanRow | null): PlanKey {
+  return isPlanKey(plan?.planKey) ? plan.planKey : "custom";
 }
 
 function visibilityOf(plan: PlanRow | null): UsageVisibility {
@@ -151,13 +158,13 @@ export async function saveOrgLimits(
         .onConflictDoUpdate({ target: schema.aiQuota.organizationId, set: values });
     }
 
-    const tocaPlan = (["planKey", "members", "storageBytes", "storageMode", "modules", "embedTokens", "usageVisibility"] as const).some(
+    const tocaPlan = (["members", "storageBytes", "storageMode", "modules", "embedTokens", "usageVisibility"] as const).some(
       (k) => patch[k] !== undefined
     );
     if (tocaPlan) {
       const actual = await planRow(organizationId, tx);
       const values = {
-        planKey: patch.planKey ?? actual?.planKey ?? "custom",
+        planKey: planKeyOfRow(actual),
         maxMembers: patch.members === undefined ? (actual?.maxMembers ?? null) : patch.members,
         storageLimitBytes: patch.storageBytes === undefined ? (actual?.storageLimitBytes ?? null) : patch.storageBytes,
         storageMode: patch.storageMode ?? actual?.storageMode ?? "warn",
@@ -181,6 +188,33 @@ export async function saveOrgLimits(
   });
   const after = await withTenant(organizationId, (tx) => getEffectiveLimits(organizationId, tx));
   return { before, after };
+}
+
+/**
+ * 040 — Sincroniza el plan guardado (`organization_plan.plan_key`) con los 13
+ * interruptores de la organización: si coinciden exactamente con Esencial,
+ * Pro o Ultra, esa clave; si no, `custom`. La llaman el alta y cada cambio de
+ * módulos o topes desde /platform. Solo escribe si cambió. A nombre de la
+ * organización (RLS). Devuelve la clave vigente. No toca `updated_by`: es un
+ * reflejo de los módulos (quién los movió queda en la bitácora de plataforma).
+ */
+export async function syncPlanKey(
+  organizationId: string,
+  modules: Record<PlatformModuleToggle, boolean>
+): Promise<PlanKey> {
+  const planKey = planKeyOfModules(modules);
+  await withTenant(organizationId, async (tx) => {
+    const actual = await planRow(organizationId, tx);
+    if (actual?.planKey === planKey) return;
+    await tx
+      .insert(schema.organizationPlan)
+      .values({ organizationId, planKey })
+      .onConflictDoUpdate({
+        target: schema.organizationPlan.organizationId,
+        set: { planKey, updatedAt: new Date() },
+      });
+  });
+  return planKey;
 }
 
 /* ───────── Comprobaciones antes de crecer ───────── */

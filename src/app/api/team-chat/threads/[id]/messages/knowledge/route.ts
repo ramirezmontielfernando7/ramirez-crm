@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { apiError, parseBody, withAuth } from "@/lib/api";
 import { deliverKnowledgeEntry, KnowledgeDeliveryError } from "@/server/knowledge/deliver";
-import { getKnowledge } from "@/server/knowledge/store";
+import { getKnowledgeForChat } from "@/server/knowledge/store";
 import { threadAccess } from "@/server/team-chat/threads";
 import { teamChatErrorResponse } from "@/server/team-chat/errors";
 import { moduleOff } from "@/server/modules";
@@ -30,7 +30,7 @@ export const POST = withAuth(async (session, req: Request, ctx: Params) => {
   if (!body.ok) return body.response;
   try {
     await threadAccess(session, id);
-    const entry = await getKnowledge(session.organizationId, body.data.entryId);
+    const entry = await getKnowledgeForChat(session.organizationId, body.data.entryId); // 040: solo lo que aparece en la Bandeja
     if (!entry) return apiError(404, "not_found", "Entrada no encontrada");
     const result = await deliverKnowledgeEntry({ kind: "internal_chat", session, threadId: id }, entry, body.data.mode);
     return Response.json({ messageId: result.messageId }, { status: 201 });

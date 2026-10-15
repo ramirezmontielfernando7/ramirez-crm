@@ -1,5 +1,5 @@
 import { createHmac } from "node:crypto";
-import { count, lt } from "drizzle-orm";
+import { count, desc, lt, max, sql } from "drizzle-orm";
 import { getSystemDb, schema } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
 import { getEnv } from "@/lib/env";
@@ -17,8 +17,10 @@ import { sealForStorage } from "@/server/credentials";
  * - CIFRADO (puede traer mensajes de clientes) y jamás al log: el log solo
  *   dice fuente, tipo de llave, llave y campo.
  * - 7 días: `purgeUnrouted()` al arrancar y cada hora.
- * - Sin reprocesamiento automático ni pantalla (decisión de la Fase 3: ver
- *   docs/credenciales.md).
+ * - Sin reprocesamiento automático (decisión de la Fase 3: ver
+ *   docs/credenciales.md). 040: Plataforma → Webhooks sin ruta los muestra
+ *   AGRUPADOS por llave (fuente, tipo, llave, campo, motivo, cuántos y
+ *   cuándo), NUNCA su contenido: el cifrado no sale de aquí.
  * - Solo eventos que pasaron la firma: un evento sin firma válida nunca
  *   llega aquí (sería una forma gratis de llenar la tabla).
  */
@@ -121,4 +123,44 @@ export async function startUnroutedPurge(): Promise<void> {
     globalForPurge.__voceroUnroutedPurge = setInterval(run, 60 * 60 * 1000);
     globalForPurge.__voceroUnroutedPurge.unref();
   }
+}
+
+export type UnroutedGroup = {
+  source: string;
+  routeKind: string;
+  routeKey: string;
+  reason: string;
+  fields: string[];
+  events: number;
+  firstAt: Date;
+  lastAt: Date;
+};
+
+/**
+ * 040 — Lo que llegó sin organización, agrupado por llave (para diagnosticar
+ * un número o una página que falta conectar). Solo metadatos: el contenido
+ * cifrado no se lee ni se descifra.
+ */
+export async function listUnroutedGroups(limit = 200): Promise<{ groups: UnroutedGroup[]; total: number }> {
+  const w = schema.webhookUnrouted;
+  const lastAt = max(w.receivedAt);
+  const [rows, [{ n } = { n: 0 }]] = await Promise.all([
+    sys()
+      .select({
+        source: w.source,
+        routeKind: w.routeKind,
+        routeKey: w.routeKey,
+        reason: w.reason,
+        fields: sql<string[]>`array_remove(array_agg(distinct ${w.field}), null)`,
+        events: sql<number>`count(*)::int`,
+        firstAt: sql<Date>`min(${w.receivedAt})`.mapWith(w.receivedAt),
+        lastAt: sql<Date>`max(${w.receivedAt})`.mapWith(w.receivedAt),
+      })
+      .from(w)
+      .groupBy(w.source, w.routeKind, w.routeKey, w.reason)
+      .orderBy(desc(lastAt))
+      .limit(limit),
+    sys().select({ n: count() }).from(w),
+  ]);
+  return { groups: rows, total: Number(n) };
 }

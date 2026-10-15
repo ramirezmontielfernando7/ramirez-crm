@@ -32,7 +32,7 @@ export function AuditLog() {
   }, []);
 
   return (
-    <Card className="max-w-5xl">
+    <Card>
       <CardHeader>
         <CardTitle>Bitácora de plataforma</CardTitle>
         <CardDescription>Quién hizo qué, sobre qué organización, cuándo y desde qué IP.</CardDescription>

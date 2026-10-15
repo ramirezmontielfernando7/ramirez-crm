@@ -289,6 +289,29 @@ await picker.waitFor({ timeout: 5000 });
 await ap.keyboard.press("Escape");
 ok("Esc cierra el buscador", (await ap.getByRole("dialog", { name: "Conocimientos" }).count()) === 0);
 
+/* ── 5b · 040 Biblioteca unificada (con o sin Documentos del agente) ── */
+console.log("\n== 5b · 040 — Destinos de cada archivo ==");
+const libOwner = await owner.call("GET", "/api/knowledge?scope=library");
+ok("la Biblioteca dice qué destinos puede mover quien pide", typeof libOwner.json?.library?.chat === "boolean" && typeof libOwner.json?.library?.rag === "boolean", JSON.stringify(libOwner.json?.library));
+ok("cada entrada dice si va a la Bandeja («💬 Envío en chat»)", (libOwner.json?.entries ?? []).filter((e) => e.title.includes(RUN)).every((e) => e.showInChat === true));
+const libAsesor = await asesor.call("GET", "/api/knowledge?scope=library");
+ok("el Asesor no mueve destinos", libAsesor.json?.library?.chat === false && libAsesor.json?.library?.rag === false);
+const aDest = await asesor.call("PATCH", `/api/knowledge/${envios.json?.entry?.id}/destinations`, { chat: false });
+ok("el Asesor NO cambia destinos → 403", aDest.status === 403, `status=${aDest.status}`);
+const ultimo = await owner.call("PATCH", `/api/knowledge/${envios.json?.entry?.id}/destinations`, { chat: false });
+ok("sin «Lectura IA», apagar «Envío en chat» (su único destino) → 422", ultimo.status === 422, `status=${ultimo.status}`);
+if (!libOwner.json?.library?.rag) {
+  const sinRag = await owner.call("POST", "/api/knowledge", { title: `IA ${RUN}`, body: "x", rag: true });
+  ok("sin Documentos del agente, «Entrenar también al Agente» → 403", sinRag.status === 403, `status=${sinRag.status}`);
+  await op.goto(`${BASE}/knowledge`);
+  await op.getByRole("button", { name: "Nueva entrada" }).click();
+  ok("…y el formulario no ofrece el interruptor de la IA", (await op.getByTestId("knowledge-rag-option").count()) === 0);
+}
+await op.goto(`${BASE}/knowledge`);
+const tarjeta = op.locator('[data-testid="knowledge-card"]').filter({ hasText: `Política de envíos ${RUN}` });
+await tarjeta.waitFor({ timeout: 15000 });
+ok("la tarjeta lleva la insignia «💬 Envío en chat»", (await tarjeta.getByTestId("dest-chat").count()) === 1);
+
 /* ── 6 · Borrar ──────────────────────────────────────────────────── */
 console.log("\n== 6 · Borrar ==");
 await op.goto(`${BASE}/knowledge`);
