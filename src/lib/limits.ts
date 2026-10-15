@@ -15,10 +15,25 @@ export const STORAGE_MODE_LABEL: Record<StorageMode, string> = {
   block_uploads: "Bloquear subidas manuales",
 };
 
-/** Hoy solo hay un plan: «Personalizado». Los planes base llegan después. */
-export const PLAN_KEYS = ["custom"] as const;
+/**
+ * 040 — El plan comercial GUARDADO de la organización
+ * (`organization_plan.plan_key`). No se elige aparte: es el reflejo de sus 13
+ * interruptores (`planKeyOfModules`, `src/lib/platform-modules.ts`) y se
+ * sincroniza en el alta y en cada cambio de módulos o topes desde /platform.
+ * `custom` = «Personalizado» (una combinación a la medida).
+ */
+export const PLAN_KEYS = ["esencial", "pro", "ultra", "custom"] as const;
 export type PlanKey = (typeof PLAN_KEYS)[number];
-export const PLAN_LABEL: Record<PlanKey, string> = { custom: "Personalizado" };
+export const PLAN_LABEL: Record<PlanKey, string> = {
+  esencial: "Plan Esencial",
+  pro: "Plan Pro",
+  ultra: "Plan Ultra",
+  custom: "Personalizado",
+};
+
+export function isPlanKey(v: unknown): v is PlanKey {
+  return typeof v === "string" && (PLAN_KEYS as readonly string[]).includes(v);
+}
 
 /**
  * 038 (PR 1) — Cómo ve el CLIENTE su consumo de IA (Uso y plan, avisos y el
@@ -56,9 +71,11 @@ export type EffectiveLimits = {
   kbMaxFileBytes: Limit;
 };
 
-/** Lo que el administrador puede cambiar: `undefined` = no tocar; `null` = heredar. */
+/**
+ * Lo que el administrador puede cambiar: `undefined` = no tocar; `null` =
+ * heredar. 040: el plan NO va aquí: lo deciden los módulos (`syncPlanKey`).
+ */
 export type LimitsPatch = {
-  planKey?: PlanKey;
   aiTurns?: number | null;
   aiTokens?: number | null;
   embedTokens?: number | null;

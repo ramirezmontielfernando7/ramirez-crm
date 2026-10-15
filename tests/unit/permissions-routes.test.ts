@@ -188,6 +188,8 @@ const PROTEGIDAS: [string, Method, Permission][] = [
   ["knowledge", "POST", "knowledge.manage"],
   ["knowledge/[id]", "PATCH", "knowledge.manage"],
   ["knowledge/[id]", "DELETE", "knowledge.manage"],
+  // 040: destinos de la Biblioteca unificada (la IA además pide agent.manage dentro).
+  ["knowledge/[id]/destinations", "PATCH", "knowledge.manage"],
   // 025 — Chat de equipo: crear/editar/borrar grupos (Propietario, o el
   // Coordinador con la delegación) y los ajustes de supervisión (Propietario).
   ["team-chat/groups", "GET", "team_chat.create_groups"],
@@ -328,6 +330,10 @@ const PLATAFORMA: [string, Method][] = [
   ["platform/costs", "GET"],
   ["platform/users/[id]/link", "POST"],
   ["platform/audit", "GET"],
+  // 040: ficha de una organización, administradores y webhooks sin ruta.
+  ["platform/organizations/[id]/summary", "GET"],
+  ["platform/admins", "GET"],
+  ["platform/webhooks", "GET"],
 ];
 
 /**

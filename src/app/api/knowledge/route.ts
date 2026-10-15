@@ -1,5 +1,10 @@
 import { apiError, withAuth } from "@/lib/api";
-import { createKnowledge, knowledgeTags, listKnowledge, serializeKnowledge } from "@/server/knowledge/store";
+import { can } from "@/lib/auth/permissions";
+import { groupIdFromKey } from "@/lib/kb-docs";
+import { createKnowledge, knowledgeTags, listKnowledge } from "@/server/knowledge/store";
+import { enableRagForEntry, libraryAccess } from "@/server/library/bridge";
+import { withLibraryErrors } from "@/server/library/http";
+import { withRag } from "@/server/library/view";
 import { readKnowledgeInput } from "@/server/knowledge/input";
 import { MediaValidationError } from "@/server/whatsapp/media";
 import { assertCanUpload } from "@/server/limits";
@@ -13,28 +18,45 @@ export const dynamic = "force-dynamic";
  * 024 — Conocimientos. Ver y buscar: cualquier rol (`?q=` título, contenido,
  * etiquetas y nombre de archivo; `?tag=`). Son datos del negocio, no de
  * clientes.
+ * 040 — Sin más, solo lo que aparece en la Bandeja (el selector del chat).
+ * `?scope=library` (la pantalla Biblioteca): quien administra
+ * (`knowledge.manage`) ve también los originales que solo lee la IA. Cada
+ * entrada lleva su «Lectura IA» cuando la organización tiene Documentos del
+ * agente; `library` dice qué destinos puede mover quien pide.
  */
 export const GET = withAuth(async (session, req: Request) => {
   const off = await moduleOff(session.organizationId, "knowledge");
   if (off) return off;
   const url = new URL(req.url);
-  const [entries, tags] = await Promise.all([
+  const library = url.searchParams.get("scope") === "library";
+  const [entries, tags, access] = await Promise.all([
     listKnowledge(session.organizationId, {
       q: url.searchParams.get("q") ?? undefined,
       tag: url.searchParams.get("tag") ?? undefined,
+      chatOnly: !(library && can(session, "knowledge.manage")),
     }),
     knowledgeTags(session.organizationId),
+    libraryAccess(session),
   ]);
-  return Response.json({ entries: entries.map(serializeKnowledge), tags });
+  return Response.json({ entries: await withRag(session.organizationId, entries), tags, library: access });
 });
 
-/** Crear: Propietario y Coordinador. Texto, archivo o ambos. */
+/**
+ * Crear: Propietario y Coordinador. Texto, archivo o ambos.
+ * 040 — `rag=true` («Entrenar también al Agente de IA», `ragGroupId`
+ * opcional): además crea el documento del agente por su puerta (límites,
+ * duplicados, almacenamiento). Si eso falla, la entrada SÍ se queda (es
+ * otro destino) y la respuesta trae `ragError` con el motivo.
+ */
 export const POST = withAuth(async (session, req: Request) => {
   const off = await moduleOff(session.organizationId, "knowledge");
   if (off) return off;
   const input = await readKnowledgeInput(req);
   if (!input.ok) return input.response;
-  const { title, body = "", tags = [], file } = input.data;
+  const { title, body = "", tags = [], file, rag, ragGroupId } = input.data;
+  if (rag && !(await libraryAccess(session)).rag) {
+    return apiError(403, "forbidden", "No puedes entrenar al Agente de IA desde aquí");
+  }
   if (!title) return apiError(422, "invalid_body", "El título es obligatorio");
   if (!body && !file) {
     return apiError(422, "invalid_body", "Agrega un contenido de texto o un archivo");
@@ -54,7 +76,24 @@ export const POST = withAuth(async (session, req: Request) => {
       file: file ?? null,
     });
     if (file) void checkStorageAlerts(session.organizationId);
-    return Response.json({ entry: serializeKnowledge(row) }, { status: 201 });
+    let ragError: { code: string; message: string } | null = null;
+    if (rag) {
+      const res = await withLibraryErrors(async () => {
+        await enableRagForEntry({
+          organizationId: session.organizationId,
+          userId: session.userId,
+          entry: row,
+          groupId: ragGroupId ? groupIdFromKey(ragGroupId) : null,
+        });
+        return new Response(null, { status: 204 });
+      });
+      if (!res.ok) {
+        const j = (await res.json().catch(() => null)) as { error?: { code?: string; message?: string } } | null;
+        ragError = { code: j?.error?.code ?? "internal", message: j?.error?.message ?? "No se pudo entrenar al agente" };
+      }
+    }
+    const [entry] = await withRag(session.organizationId, [row]);
+    return Response.json({ entry, ragError }, { status: 201 });
   } catch (err) {
     if (err instanceof MediaValidationError) {
       return apiError(err.code === "too_large" ? 413 : 415, err.code, err.message);

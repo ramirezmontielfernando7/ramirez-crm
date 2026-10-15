@@ -634,6 +634,67 @@ async function main() {
     ok("subir un exclusivo por la API", sub10.status === 201, sub10.text.slice(0, 200));
     await A.api(`/api/lab/agents/${agente10b.id}`, { method: "DELETE" });
     ok("archivar sin elegir borra sus exclusivos", (await estado(A, doc10b)) === null);
+
+    console.log("\n== 11. 040 — Biblioteca unificada: un archivo, dos destinos ==");
+    const X11 = `OMEGA-${RUN}`;
+    const lib0 = await A.api("/api/lab/documents");
+    ok("Documentos ofrece «Disponible en Bandeja» (módulo Biblioteca)", lib0.json?.library?.chat === true, JSON.stringify(lib0.json?.library));
+    const form11 = new FormData();
+    form11.append("file", new Blob([`# Catálogo ${RUN}\n\nLa mochila modelo ${X11} cuesta 450 pesos.`], { type: "text/markdown" }), `catalogo-${RUN}.md`);
+    form11.append("chat", "true");
+    const sub11 = await A.api("/api/lab/documents", { method: "POST", body: form11 });
+    ok("subir con «Disponible en Bandeja» (201)", sub11.status === 201 && sub11.json?.document?.inChat === true, sub11.text.slice(0, 200));
+    const doc11 = sub11.json?.document?.id;
+    ok("…genera sus fragmentos para el agente", await hasta(async () => (await estado(A, doc11))?.status === "ready" && (await estado(A, doc11))?.chunkCount > 0));
+    const enBandeja = async (titulo) => ((await A.api("/api/knowledge")).json?.entries ?? []).some((e) => e.title === titulo);
+    ok("…Y aparece en el selector de la Bandeja (KnowledgePicker), sin subirlo dos veces", await enBandeja(`catalogo-${RUN}`));
+    const lee11 = await preguntar("¿Cuánto cuesta la mochila?");
+    ok("…y el agente lo lee", String(lee11.json?.reply ?? "").includes(X11), lee11.text.slice(0, 300));
+
+    // La tarjeta en Documentos: insignias e interruptor «Envío en chat».
+    await page.goto(`${BASE}/lab/documentos`);
+    const fila11 = page.locator('[data-testid="kb-docs-list"] li').filter({ hasText: `catalogo-${RUN}` });
+    await fila11.waitFor();
+    ok("la fila dice «💬 Envío en chat» y «🤖 Lectura IA (RAG)»", (await fila11.getByTestId("dest-chat").count()) === 1 && (await fila11.getByTestId("dest-rag").count()) === 1);
+    const sw11 = fila11.getByTestId("dest-toggle-chat").getByRole("switch");
+    await sw11.click();
+    ok("apagar «Envío en chat» desde la fila lo saca de la Bandeja", await hasta(async () => !(await enBandeja(`catalogo-${RUN}`))));
+    ok("…sin tocar lo que lee el agente", (await estado(A, doc11))?.status === "ready");
+    await page.reload();
+    await fila11.getByTestId("dest-toggle-chat").getByRole("switch").click();
+    ok("encenderlo de nuevo (sin volver a subir) lo devuelve", await hasta(async () => await enBandeja(`catalogo-${RUN}`)));
+
+    // Al revés: desde CRM Comercial → Biblioteca, «Entrenar también al Agente».
+    const Y11 = `SIGMA-${RUN}`;
+    const form11b = new FormData();
+    form11b.append("title", `Plan de estudios ${RUN}`);
+    form11b.append("rag", "true");
+    form11b.append("file", new Blob([`Plan de estudios ${RUN}: el curso ${Y11} dura seis meses.`], { type: "text/plain" }), `plan-${RUN}.txt`);
+    const kn11 = await A.api("/api/knowledge", { method: "POST", body: form11b });
+    ok("crear en la Biblioteca con «Entrenar también al Agente» (201)", kn11.status === 201 && kn11.json?.ragError === null && Boolean(kn11.json?.entry?.rag?.documentId), kn11.text.slice(0, 300));
+    const ragDoc11 = kn11.json?.entry?.rag?.documentId;
+    ok("…su documento llega a «Listo» con fragmentos", await hasta(async () => (await estado(A, ragDoc11))?.status === "ready" && (await estado(A, ragDoc11))?.chunkCount > 0));
+    const lee11b = await preguntar("¿Cuánto dura el curso?");
+    ok("…y el agente lo lee", String(lee11b.json?.reply ?? "").includes(Y11), lee11b.text.slice(0, 300));
+    await page.goto(`${BASE}/knowledge`);
+    const card11 = page.locator('[data-testid="knowledge-card"]').filter({ hasText: `Plan de estudios ${RUN}` });
+    await card11.waitFor({ timeout: 30000 });
+    ok("la tarjeta de la Biblioteca lleva las dos insignias", (await card11.getByTestId("dest-chat").count()) === 1 && (await card11.getByTestId("dest-rag").count()) === 1);
+    await card11.getByTestId("dest-toggle-rag").getByRole("switch").click();
+    ok("apagar «Lectura IA» desde la tarjeta borra su documento", await hasta(async () => (await estado(A, ragDoc11)) === null));
+    ok("…y la entrada sigue en la Bandeja", (await A.api("/api/knowledge")).json?.entries?.some((e) => e.title === `Plan de estudios ${RUN}`) === true);
+    const solo = (await A.api("/api/knowledge?scope=library")).json?.entries?.find((e) => e.title === `Plan de estudios ${RUN}`);
+    const ultimo = await A.api(`/api/knowledge/${solo?.id}/destinations`, { method: "PATCH", body: JSON.stringify({ chat: false }) });
+    ok("un destino al menos: apagar el último → 422", ultimo.status === 422, ultimo.text.slice(0, 200));
+    // El nuevo con el interruptor de la pantalla.
+    await page.getByRole("button", { name: "Nueva entrada" }).click();
+    const dlg11 = page.getByRole("dialog", { name: "Nueva entrada" });
+    ok("el formulario ofrece «Entrenar también al Agente de IA con este documento (RAG)»", (await dlg11.getByTestId("knowledge-rag-option").count()) === 1);
+    await page.keyboard.press("Escape").catch(() => null);
+    await page.goto(`${BASE}/lab/documentos`);
+
+    // Limpieza de lo que esta sección dejó en la Biblioteca.
+    await sql`delete from knowledge_entry where organization_id = ${org} and (title like ${`%${RUN}%`})`;
   } finally {
     await browser.close();
   }

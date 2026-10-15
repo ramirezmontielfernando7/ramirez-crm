@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { apiError, parseBody } from "@/lib/api";
-import { PLAN_KEYS, STORAGE_MODES, USAGE_VISIBILITIES } from "@/lib/limits";
+import { STORAGE_MODES, USAGE_VISIBILITIES } from "@/lib/limits";
 import { PLATFORM_MODULE_TOGGLES } from "@/lib/platform-modules";
 import { runWithOrganization } from "@/lib/request-context";
 import { getEffectiveLimits } from "@/server/limits";
@@ -33,7 +33,6 @@ const INT = 2_147_483_647;
 
 const schema = z
   .object({
-    planKey: z.enum(PLAN_KEYS).optional(),
     aiTurns: tope(INT),
     aiTokens: tope(INT),
     embedTokens: tope(Number.MAX_SAFE_INTEGER),

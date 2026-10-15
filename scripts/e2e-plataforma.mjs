@@ -137,14 +137,32 @@ async function main() {
 
   console.log("\n== 3 · Alta de la organización B desde /platform ==");
   const page = await A.ctx.newPage();
+  await page.setViewportSize({ width: 1440, height: 900 });
   const r1 = await page.goto(`${BASE}/platform`);
   ok("ahora /platform → 200", r1?.status() === 200, String(r1?.status()));
+  // 040: /platform abre «Organizaciones y Planes».
+  await page.waitForURL(/\/platform\/organizaciones$/, { timeout: 30000 });
   ok("el menú muestra «Plataforma»", (await page.getByRole("link", { name: "Plataforma" }).count()) > 0);
-  // 036 (PR 4): dos pestañas; «Mi panel» trae la bitácora.
   const pestanas = page.getByRole("navigation", { name: "Secciones de Plataforma" });
-  ok("pestañas «Mi panel» y «Organizaciones»", (await pestanas.getByRole("link", { name: "Mi panel" }).count()) === 1 && (await pestanas.getByRole("link", { name: "Organizaciones" }).count()) === 1);
-  ok("«Mi panel» muestra la bitácora", await page.getByTestId("platform-audit").waitFor({ timeout: 20000 }).then(() => true, () => false));
-  await pestanas.getByRole("link", { name: "Organizaciones" }).click();
+  const nombres = ["Organizaciones y Planes", "Costos y Precios IA", "Webhooks sin ruta", "Administradores y auditoría"];
+  ok("040: cuatro pestañas de Plataforma", (await Promise.all(nombres.map((n) => pestanas.getByRole("link", { name: n, exact: true }).count()))).every((c) => c === 1));
+  // 040: la geometría del estándar (039): UNA barra de 56 px con las pestañas en píldora dentro.
+  const geo = await page.evaluate(() => {
+    const header = document.querySelector("[data-page-header]");
+    const nav = header?.querySelector('nav[aria-label="Secciones de Plataforma"]');
+    const pill = nav?.querySelector("a");
+    return { header: header?.getBoundingClientRect().height ?? 0, dentro: Boolean(nav), pill: pill?.getBoundingClientRect().height ?? 0, otraBarra: document.querySelectorAll("[data-page-header] ~ * nav[aria-label='Secciones de Plataforma']").length };
+  });
+  ok("geometría: encabezado de 56 px con las pestañas dentro (sin segunda barra)", Math.round(geo.header) === 56 && geo.dentro && geo.otraBarra === 0, JSON.stringify(geo));
+  ok("geometría: cada pestaña en píldora cabe en la barra (≤ 40 px)", geo.pill > 0 && geo.pill <= 40, JSON.stringify(geo));
+  await pestanas.getByRole("link", { name: "Administradores y auditoría" }).click();
+  await page.waitForURL(/\/platform\/admin$/);
+  ok("«Administradores y auditoría» muestra la bitácora", await page.getByTestId("platform-audit").waitFor({ timeout: 20000 }).then(() => true, () => false));
+  ok("…y la lista de administradores (con el operador)", await hasta(async () => (await page.getByTestId("platform-admins").innerText().catch(() => "")).includes(ADMIN.email)));
+  await pestanas.getByRole("link", { name: "Webhooks sin ruta" }).click();
+  await page.waitForURL(/\/platform\/webhooks$/);
+  ok("«Webhooks sin ruta» carga (solo metadatos)", await page.getByTestId("platform-webhooks").waitFor({ timeout: 20000 }).then(() => true, () => false));
+  await pestanas.getByRole("link", { name: "Organizaciones y Planes" }).click();
   await page.waitForURL(/\/platform\/organizaciones$/);
   await page.getByTestId("platform-create-open").click();
   await page.fill("#org-name", NAME_B);
@@ -198,6 +216,7 @@ async function main() {
   await topesYAvisos(A, B, orgB.id);
   await costosEnPlataforma(A, B, orgB.id);
   await usoYPlan(A, B, orgB.id);
+  await planesGuardados(A);
   await asistenteBase(A, B, orgB.id);
   await asistenteMotor(A, B, orgB.id);
   await asistenteAnalisis(A, B, orgB.id);
@@ -346,14 +365,47 @@ async function consumoEnPlataforma(A, B, orgB) {
   ok("la fila cerrada muestra IA del mes", /tokens/.test(await fila.getByTestId("platform-org-ai").first().innerText()));
   ok("…almacenamiento aproximado («sin tope» hasta los límites)", /KB · sin tope/.test(await fila.getByTestId("platform-org-storage").first().innerText()));
   ok("…y módulos activos «x/13»", /^\d+\/13$/.test((await fila.getByTestId("platform-org-modules-count").last().innerText()).trim()));
-  ok("cerrada no muestra los interruptores", (await fila.getByTestId("platform-modules").count()) === 0);
-  await fila.getByTestId("platform-org-toggle").click();
-  const det = fila.getByTestId("platform-usage-detail");
+  // 040: estado y plan guardado en la fila (la etiqueta amigable).
+  const [{ plan_key: planB } = {}] = await sql`select plan_key from organization_plan where organization_id = ${orgB}`;
+  const PLAN_TXT = { esencial: "Plan Esencial", pro: "Plan Pro", ultra: "Plan Ultra", custom: "Personalizado" };
+  ok("040: la fila dice su estado y su plan guardado", (await fila.getByTestId("platform-org-status").innerText()) === "Activa" && (await fila.getByTestId("platform-org-plan").innerText()) === PLAN_TXT[planB ?? "custom"], String(planB));
+  ok("la tabla no muestra interruptores", (await fila.getByTestId("platform-modules").count()) === 0);
+  ok("040: filtros rápidos por estado", await (async () => {
+    await page.getByTestId("platform-filter-status-suspended").click();
+    const oculto = await hasta(async () => (await page.getByTestId(`platform-org-${orgB}`).count()) === 0);
+    await page.getByTestId("platform-filter-status-active").click();
+    return oculto && (await hasta(async () => (await page.getByTestId(`platform-org-${orgB}`).count()) === 1));
+  })());
+  ok("040: …y por plan", await (async () => {
+    const otro = planB === "ultra" ? "esencial" : "ultra";
+    await page.getByTestId("platform-filter-plan").selectOption(otro);
+    const oculto = await hasta(async () => (await page.getByTestId(`platform-org-${orgB}`).count()) === 0);
+    await page.getByTestId("platform-filter-plan").selectOption(planB ?? "custom");
+    const visible = await hasta(async () => (await page.getByTestId(`platform-org-${orgB}`).count()) === 1);
+    await page.getByTestId("platform-filter-plan").selectOption("all");
+    await page.getByTestId("platform-filter-status-all").click();
+    return oculto && visible;
+  })());
+  // 040: la fila abre la ficha, en pestañas.
+  await fila.getByTestId("platform-org-open").click();
+  await page.waitForURL(new RegExp(`/platform/organizaciones/${orgB}$`), { timeout: 30000 });
+  const fichaTabs = page.getByRole("navigation", { name: "Secciones de la organización" });
+  ok("040: la ficha tiene sus cuatro pestañas", (await Promise.all(["Plan y módulos", "Topes y visibilidad", "Consumo y almacenamiento", "Accesos y estado"].map((n) => fichaTabs.getByRole("link", { name: n }).count()))).every((c) => c === 1));
+  const geoFicha = await page.evaluate(() => document.querySelector("[data-page-header]")?.getBoundingClientRect().height ?? 0);
+  ok("040: la ficha también usa la barra de 56 px", Math.round(geoFicha) === 56, String(geoFicha));
+  ok("«Plan y módulos»: plantillas y los 13 agrupados por pilar", await page.getByTestId("platform-modules").waitFor({ timeout: 20000 }).then(() => true, () => false) && (await page.getByTestId("platform-plan-templates").count()) === 1 && (await page.locator("[data-testid^='platform-pillar-']").count()) >= 5 && (await page.locator("[data-testid^='platform-module-']").count()) === 13);
+  await fichaTabs.getByRole("link", { name: "Consumo y almacenamiento" }).click();
+  await page.waitForURL(/\/consumo$/);
+  const det = page.getByTestId("platform-usage-detail");
   await det.waitFor({ timeout: 20000 });
   ok("al abrirla: consumo por agente con el nombre del agente", (await det.getByTestId("platform-usage-agents").innerText()).includes(general?.internalName ?? "?"));
   ok("…por función", /Laboratorio y vista previa/.test(await det.getByTestId("platform-usage-kinds").innerText()) && /Asistente de redacción/.test(await det.getByTestId("platform-usage-kinds").innerText()));
   ok("…almacenamiento por categoría con su nota", /Archivos de Conocimientos/.test(await det.getByTestId("platform-usage-storage").innerText()) && (await det.getByText(/No incluye los mensajes/).count()) === 1);
-  ok("…y lo de siempre: módulos, ritmo, personas y estado", (await fila.getByTestId("platform-modules").count()) === 1 && (await fila.getByRole("button", { name: "Personas" }).count()) === 1 && (await fila.getByTestId("platform-suspend").count()) === 1 && (await fila.getByTestId("platform-delete").count()) === 1);
+  await fichaTabs.getByRole("link", { name: "Accesos y estado" }).click();
+  await page.waitForURL(/\/accesos$/);
+  ok("«Accesos y estado»: personas y estado", await page.getByTestId("platform-members").waitFor({ timeout: 20000 }).then(() => true, () => false) && (await hasta(async () => (await page.getByTestId("platform-members").innerText()).includes(OWNER_B.email))) && (await page.getByTestId("platform-suspend").count()) === 1 && (await page.getByTestId("platform-delete").count()) === 1);
+  await page.goto(`${BASE}/platform/organizaciones`);
+  await page.getByTestId(`platform-org-${orgB}`).waitFor({ timeout: 30000 });
   ok("el buscador filtra por nombre", await (async () => {
     await page.getByTestId("platform-org-search").fill(`zz-no-existe-${RUN}`);
     const vacio = await page.getByText("Ninguna organización coincide.").isVisible();
@@ -376,9 +428,12 @@ async function consumoEnPlataforma(A, B, orgB) {
     });
   ok("celular: la lista no se desplaza a lo ancho", !(await desborde()));
   ok("celular: modo oscuro", (await cel.evaluate(() => document.documentElement.getAttribute("data-theme"))) === "dark");
-  await filaCel.getByTestId("platform-org-toggle").click();
-  await filaCel.getByTestId("platform-usage-detail").waitFor({ timeout: 20000 });
-  ok("celular: la fila abierta tampoco se desplaza a lo ancho", !(await desborde()));
+  await cel.goto(`${BASE}/platform/organizaciones/${orgB}/consumo`);
+  await cel.getByTestId("platform-usage-detail").waitFor({ timeout: 20000 });
+  ok("celular: la ficha (consumo) tampoco se desplaza a lo ancho", !(await desborde()));
+  await cel.goto(`${BASE}/platform/organizaciones/${orgB}`);
+  await cel.getByTestId("platform-modules").waitFor({ timeout: 20000 });
+  ok("celular: «Plan y módulos» tampoco", !(await desborde()));
   await cel.screenshot({ path: "scratch/e2e-plataforma-movil-oscuro.png", fullPage: true }).catch(() => null);
   await movil.close();
 }
@@ -405,13 +460,13 @@ async function topesYAvisos(A, B, orgB) {
   // Desde la pantalla: personas = 1 (la Propietaria) y bloqueo de subidas.
   const page = await A.ctx.newPage();
   await page.setViewportSize({ width: 1440, height: 1000 });
-  await page.goto(`${BASE}/platform/organizaciones`);
-  const fila = page.getByTestId(`platform-org-${orgB}`);
-  await fila.waitFor({ timeout: 30000 });
-  await fila.getByTestId("platform-org-toggle").click();
-  const form = fila.getByTestId("platform-limits");
-  await form.waitFor({ timeout: 20000 });
-  ok("el plan dice «Personalizado»", (await form.getByTestId("platform-plan").inputValue()) === "custom" && /Personalizado/.test(await form.getByTestId("platform-plan").innerText()));
+  // 040: los topes viven en la pestaña «Topes y visibilidad» de la ficha.
+  await page.goto(`${BASE}/platform/organizaciones/${orgB}/topes`);
+  const form = page.getByTestId("platform-limits");
+  await form.waitFor({ timeout: 30000 });
+  const [{ plan_key: planB } = {}] = await sql`select plan_key from organization_plan where organization_id = ${orgB}`;
+  const PLAN_TXT = { esencial: "Plan Esencial", pro: "Plan Pro", ultra: "Plan Ultra", custom: "Personalizado" };
+  ok("040: los topes dicen el plan guardado", (await form.getByTestId("platform-plan").getAttribute("data-plan")) === (planB ?? "custom") && (await form.getByTestId("platform-plan").innerText()) === PLAN_TXT[planB ?? "custom"], String(planB));
   ok("un tope sin valor propio dice de dónde hereda", /Hereda:/.test(await form.getByTestId("platform-limit-members").getAttribute("placeholder")));
   await form.getByTestId("platform-limit-members").fill("1");
   await form.getByTestId("platform-limit-storageMode").selectOption("block_uploads");
@@ -478,7 +533,7 @@ async function topesYAvisos(A, B, orgB) {
   ok("«Entendido» lo oculta", await banner.waitFor({ state: "detached", timeout: 10000 }).then(() => true, () => false));
   ok("…y en el servidor queda visto (ya no sale)", await hasta(async () => ((await B.call("GET", "/api/usage/alerts")).json?.alerts ?? []).length === 0));
   await pB.close();
-  await page.reload();
+  await page.goto(`${BASE}/platform/organizaciones`);
   const filaR = page.getByTestId(`platform-org-${orgB}`);
   await filaR.waitFor({ timeout: 30000 });
   ok("el administrador ve el aviso en la fila", /100 %/.test((await filaR.getByTestId("platform-org-alert").innerText().catch(() => "")) ?? ""));
@@ -494,6 +549,44 @@ async function topesYAvisos(A, B, orgB) {
   // Deja a B sin topes propios para el resto del guion.
   const reset = await A.call("PUT", `/api/platform/organizations/${orgB}/limits`, { members: null, storageBytes: null, storageMode: "warn", modules: null });
   ok("volver a heredar (sin topes propios)", reset.json?.limits?.members?.source === "none" && reset.json?.limits?.storageMode === "warn");
+}
+
+/**
+ * 040 — El plan comercial GUARDADO: una organización nace «Plan Pro», la
+ * plantilla rápida «Esencial» de su ficha la pasa a «Plan Esencial» (en la
+ * BD, la lista y la ficha) y mover un interruptor a mano la deja en
+ * «Personalizado».
+ */
+async function planesGuardados(A) {
+  console.log("\n== 4e-bis · Planes guardados (040) ==");
+  const nombre = `Plan Pro ${RUN}`;
+  const alta = await A.call("POST", "/api/platform/organizations", { name: nombre, ownerName: "Dueño Pro", ownerEmail: `pro.${RUN}@plataforma.test`, profile: "pro" });
+  ok("alta con el plan Pro", alta.status === 201, String(alta.status));
+  const orgP = alta.json?.organizationId;
+  const guardado = async () => (await sql`select plan_key from organization_plan where organization_id = ${orgP}`)[0]?.plan_key ?? null;
+  ok("…se guarda plan_key = pro", (await guardado()) === "pro");
+  const page = await A.ctx.newPage();
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto(`${BASE}/platform/organizaciones`);
+  const fila = page.getByTestId(`platform-org-${orgP}`);
+  await fila.waitFor({ timeout: 30000 });
+  ok("la lista dice «Plan Pro»", (await fila.getByTestId("platform-org-plan").innerText()) === "Plan Pro");
+  await fila.getByTestId("platform-org-open").click();
+  await page.waitForURL(new RegExp(`/platform/organizaciones/${orgP}$`));
+  await page.getByTestId("platform-template-esencial").waitFor({ timeout: 20000 });
+  ok("la plantilla actual está marcada", (await page.getByTestId("platform-template-pro").getAttribute("aria-pressed")) === "true");
+  page.once("dialog", (d) => void d.accept());
+  await page.getByTestId("platform-template-esencial").click();
+  ok("la plantilla «Esencial» deja plan_key = esencial", await hasta(async () => (await guardado()) === "esencial"));
+  ok("…y la ficha dice «Plan Esencial»", await hasta(async () => (await page.getByTestId("platform-detail-badge").getByTestId("platform-org-plan").innerText()) === "Plan Esencial"));
+  const sw = page.getByTestId("platform-module-agenda").getByRole("switch");
+  await sw.click();
+  ok("mover un interruptor a mano → «Personalizado» (custom)", await hasta(async () => (await guardado()) === "custom"));
+  ok("…también en la ficha", await hasta(async () => (await page.getByTestId("platform-detail-badge").getByTestId("platform-org-plan").innerText()) === "Personalizado"));
+  const bit = (await A.call("GET", `/api/platform/audit?org=${orgP}`)).json?.entries ?? [];
+  ok("la bitácora registra el cambio de plan", bit.some((e) => e.action === "organization.modules_changed" && e.detail?.plan?.a === "custom"));
+  await page.close();
+  await A.call("POST", `/api/platform/organizations/${orgP}/status`, { action: "delete", reason: "e2e planes" });
 }
 
 /**
@@ -513,7 +606,8 @@ async function costosEnPlataforma(A, B, orgB) {
   const page = await A.ctx.newPage();
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto(`${BASE}/platform`);
-  await page.getByRole("navigation", { name: "Secciones de Plataforma" }).getByRole("link", { name: "Costos" }).click();
+  await page.waitForURL(/\/platform\/organizaciones$/);
+  await page.getByRole("navigation", { name: "Secciones de Plataforma" }).getByRole("link", { name: "Costos y Precios IA" }).click();
   await page.waitForURL(/\/platform\/costos$/);
   const form = page.getByTestId("platform-pricing");
   await form.waitFor({ timeout: 30000 });
@@ -594,7 +688,9 @@ async function usoYPlan(A, B, orgB) {
   const u = api.json?.usage;
   ok("la Propietaria lee su uso (200)", api.status === 200 && Boolean(u), String(api.status));
   ok("…contra sus topes (IA, personas, almacenamiento)", u?.ai?.total?.tokens?.limit === 1_000_000 && u?.limits?.members?.value === 3 && u?.limits?.storageBytes?.value === 50 * 1024 * 1024, JSON.stringify(u?.limits).slice(0, 300));
-  ok("…plan «Personalizado»", u?.limits?.planKey === "custom");
+  // 040: el plan GUARDADO (el que corresponde a sus 13 interruptores).
+  const [{ plan_key: planB } = {}] = await sql`select plan_key from organization_plan where organization_id = ${orgB}`;
+  ok("…su plan guardado", u?.limits?.planKey === (planB ?? "custom"), `${u?.limits?.planKey} vs ${planB}`);
   ok("…por función (Laboratorio y redacción) y por agente", ["lab", "writing"].every((k) => (u?.ai?.byKind ?? []).some((l) => l.key === k && l.tokens > 0)) && (u?.ai?.byAgent?.length ?? 0) >= 1, JSON.stringify(u?.ai?.byKind));
   ok("…sin costos ni precios (son de la plataforma)", !JSON.stringify(u).includes("costUsd") && !JSON.stringify(u).includes("Mtok"));
 
@@ -609,7 +705,8 @@ async function usoYPlan(A, B, orgB) {
   ok("…en la pestaña «Uso y plan» de Ajustes", (await page.getByRole("navigation", { name: "Secciones de Ajustes" }).getByRole("link", { name: "Uso y plan" }).getAttribute("aria-current").catch(() => null)) === "page");
   const pantalla = page.getByTestId("usage-plan");
   await pantalla.waitFor({ timeout: 30000 });
-  ok("la pantalla dice el plan", /Personalizado/.test(await page.getByTestId("usage-plan-name").innerText()));
+  const PLAN_TXT = { esencial: "Plan Esencial", pro: "Plan Pro", ultra: "Plan Ultra", custom: "Personalizado" };
+  ok("la pantalla dice el plan («Plan Esencial», «Plan Pro», «Plan Ultra» o «Personalizado»)", (await page.getByTestId("usage-plan-name").innerText()).trim() === PLAN_TXT[planB ?? "custom"]);
   ok("IA del mes contra su tope", /\/ 1 M tokens/.test(await page.getByTestId("usage-plan-ai-meter").innerText()));
   ok("personas contra su tope", /\/ 3 personas/.test(await page.getByTestId("usage-plan-members-meter").innerText()));
   ok("«Almacenamiento (aprox.)» contra su tope, por categoría", /\/ 50 MB/.test(await page.getByTestId("usage-plan-storage-meter").innerText()) && /Archivos de Conocimientos/.test(await page.getByTestId("usage-plan-storage-categories").innerText()));
@@ -780,10 +877,13 @@ async function asistenteBase(A, B, orgB) {
   const fila = pa.getByTestId(`platform-org-${orgB}`);
   await fila.waitFor({ timeout: 30000 });
   ok("la fila cuenta «x/13»", /^\d+\/13$/.test((await fila.getByTestId("platform-org-modules-count").last().innerText()).trim()));
-  await fila.getByTestId("platform-org-toggle").click();
-  await fila.getByTestId("platform-limits").waitFor({ timeout: 30000 });
-  ok("el administrador ve el interruptor «Asistente interno»", /Asistente interno/.test(await fila.getByTestId("platform-module-asistente").innerText()));
-  ok("…el tope del asistente y la visibilidad del consumo", (await fila.getByTestId("platform-limit-assistantTokens").count()) === 1 && (await fila.getByTestId("platform-limit-usageVisibility").inputValue()) === "percent");
+  // 040: interruptor en «Plan y módulos» (pilar Inteligencia); tope y visibilidad en «Topes y visibilidad».
+  await pa.goto(`${BASE}/platform/organizaciones/${orgB}`);
+  await pa.getByTestId("platform-module-asistente").waitFor({ timeout: 30000 });
+  ok("el administrador ve el interruptor «Asistente interno» (en Inteligencia)", /Asistente interno/.test(await pa.getByTestId("platform-pillar-Inteligencia").getByTestId("platform-module-asistente").innerText()));
+  await pa.goto(`${BASE}/platform/organizaciones/${orgB}/topes`);
+  await pa.getByTestId("platform-limits").waitFor({ timeout: 30000 });
+  ok("…el tope del asistente y la visibilidad del consumo", (await pa.getByTestId("platform-limit-assistantTokens").count()) === 1 && (await pa.getByTestId("platform-limit-usageVisibility").inputValue()) === "percent");
   await pa.close();
 
   const off = await A.call("POST", `/api/platform/organizations/${orgB}/modules`, { asistente: false });

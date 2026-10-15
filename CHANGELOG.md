@@ -115,6 +115,22 @@ publique (sube la versión, fecha esta sección y crea el tag `v1.5.0`).
   (siguen viendo todo, como hasta hoy); bájalas a Asesor desde Ajustes → Equipo
   cuando hayas repartido sus chats, o dejarán de verlos.
 
+### Biblioteca unificada, plan guardado y Plataforma en pestañas (spec 040)
+
+- **Un archivo, dos destinos.** Al subir un `.pdf`, `.txt` o `.md` en Estudio
+  de IA → Documentos, «Disponible en Bandeja para envío rápido de asesores»
+  lo deja también en la Biblioteca; al crear una entrada en CRM Comercial →
+  Biblioteca, «Entrenar también al Agente de IA con este documento (RAG)» lo
+  da a leer al agente. Cada tarjeta muestra «💬 Envío en chat» y «🤖 Lectura
+  IA (RAG)» y los enciende o apaga sin volver a subir el archivo.
+- **Plan guardado.** `organization_plan.plan_key` acepta `esencial`, `pro`,
+  `ultra` y `custom` y sigue a los 13 módulos; «Uso y plan» y /platform dicen
+  «Plan Esencial», «Plan Pro», «Plan Ultra» o «Personalizado».
+- **/platform en pestañas**: Organizaciones y Planes (tabla con filtros y una
+  ficha por organización en cuatro pestañas), Costos y Precios IA, Webhooks
+  sin ruta y Administradores y auditoría.
+- **Migración `0050`** (solo agrega; rellena el plan de cada organización).
+
 ## 1.4.0 — 2026-09-22
 
 ### Actualizar desde 1.3.0

@@ -20,7 +20,26 @@ export type KnowledgeEntryDto = {
   file: KnowledgeFileDto | null;
   createdAt: string;
   updatedAt: string;
+  /** 040 — ¿Aparece en la Bandeja para envío rápido? («💬 Envío en chat»). */
+  showInChat: boolean;
+  /**
+   * 040 — Su documento del agente («🤖 Lectura IA (RAG)»), si lo hay. Solo
+   * viaja cuando la organización tiene Documentos del agente.
+   */
+  rag: KnowledgeRagDto | null;
 };
+
+export type KnowledgeRagDto = {
+  documentId: string;
+  status: "pending" | "processing" | "ready" | "failed";
+  groupId: string | null;
+};
+
+/** 040 — Las dos insignias de la Biblioteca unificada (Biblioteca y Documentos). */
+export const DESTINATION_LABEL = {
+  chat: "💬 Envío en chat",
+  rag: "🤖 Lectura IA (RAG)",
+} as const;
 
 export const KNOWLEDGE_TITLE_MAX = 200;
 /** Lo que cabe en un mensaje de WhatsApp (4096) — el cuerpo se envía tal cual. */
@@ -40,6 +59,8 @@ export const KNOWLEDGE_ACCEPT = [
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   "text/plain",
   ".txt",
+  // 040: también Markdown (la IA lo lee; se envía como texto plano).
+  ".md",
 ].join(",");
 
 /** "Precios, Envíos ,precios" → ["Precios", "Envíos"] (sin vacíos ni repetidos). */

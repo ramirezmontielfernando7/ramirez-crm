@@ -1285,8 +1285,19 @@ export const knowledgeEntry = pgTable(
     }),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
+    /**
+     * 040 — ¿Aparece en la Bandeja (`KnowledgePicker`) para envío rápido?
+     * `false` = solo se guarda el original para el agente (Biblioteca
+     * unificada: el mismo archivo alimenta `kb_document`). Las filas de antes
+     * quedan en `true`.
+     */
+    showInChat: boolean("show_in_chat").notNull().default(true),
   },
-  (t) => [index("knowledge_entry_org_updated_idx").on(t.organizationId, t.updatedAt)]
+  (t) => [
+    index("knowledge_entry_org_updated_idx").on(t.organizationId, t.updatedAt),
+    // 040 — Para la FK compuesta desde `kb_document.knowledge_entry_id`.
+    unique("knowledge_entry_org_id_uq").on(t.organizationId, t.id),
+  ]
 );
 
 /**
@@ -2628,8 +2639,9 @@ export const aiUsageAgent = pgTable(
  * funcionando). Sin fila, o NULL: el del entorno o sin tope. Única puerta:
  * `src/server/limits/`. La edita solo el administrador de plataforma.
  *
- * `plan_key`: hoy solo 'custom' («Personalizado»). Cuando haya planes base,
- * el CHECK se amplía y los topes de aquí quedan como ajustes encima.
+ * `plan_key` (040): 'esencial' | 'pro' | 'ultra' | 'custom' («Personalizado»).
+ * Reflejo de los 13 interruptores (`syncPlanKey`); los topes de aquí son
+ * ajustes encima del plan.
  * `storage_mode`: 'warn' solo avisa; 'block_uploads' rechaza las subidas
  * hechas desde el CRM que pasarían el tope. La multimedia ENTRANTE de
  * WhatsApp se guarda siempre.
@@ -2657,7 +2669,7 @@ export const organizationPlan = pgTable(
     updatedBy: text("updated_by").references(() => user.id, { onDelete: "set null" }),
   },
   (t) => [
-    check("organization_plan_key_chk", sql`${t.planKey} in ('custom')`),
+    check("organization_plan_key_chk", sql`${t.planKey} in ('esencial', 'pro', 'ultra', 'custom')`),
     check("organization_plan_storage_mode_chk", sql`${t.storageMode} in ('warn', 'block_uploads')`),
     check("organization_plan_max_members_chk", sql`${t.maxMembers} is null or ${t.maxMembers} >= 0`),
     check("organization_plan_storage_chk", sql`${t.storageLimitBytes} is null or ${t.storageLimitBytes} >= 0`),
@@ -3327,6 +3339,13 @@ export const kbDocument = pgTable(
     groupId: text("group_id"),
     /** 037 — NULL = de la empresa; si no, exclusivo de ese agente (sin grupo). */
     agentId: text("agent_id"),
+    /**
+     * 040 — Biblioteca unificada: la entrada de Conocimientos que guarda el
+     * ARCHIVO original de este documento (mismo archivo, dos destinos).
+     * NULL = solo IA (o subido antes del 040). Borrar la entrada deja el
+     * documento como «solo IA» (SET NULL de esta columna).
+     */
+    knowledgeEntryId: text("knowledge_entry_id"),
   },
   (t) => [
     unique("kb_document_org_id_uq").on(t.organizationId, t.id),
@@ -3349,6 +3368,15 @@ export const kbDocument = pgTable(
       columns: [t.organizationId, t.agentId],
       foreignColumns: [agent.organizationId, agent.id],
     }).onDelete("cascade"),
+    // 040 — En la BD es ON DELETE SET NULL (knowledge_entry_id). Una entrada, un documento.
+    foreignKey({
+      name: "kb_document_org_knowledge_fk",
+      columns: [t.organizationId, t.knowledgeEntryId],
+      foreignColumns: [knowledgeEntry.organizationId, knowledgeEntry.id],
+    }).onDelete("set null"),
+    uniqueIndex("kb_document_org_knowledge_uq")
+      .on(t.organizationId, t.knowledgeEntryId)
+      .where(sql`${t.knowledgeEntryId} is not null`),
   ]
 );
 

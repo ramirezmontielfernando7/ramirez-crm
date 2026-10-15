@@ -21,6 +21,10 @@ export type KnowledgeInput = {
   body?: string;
   tags?: string[];
   file?: KnowledgeFileInput | null;
+  /** 040 — «Entrenar también al Agente de IA con este documento (RAG)». */
+  rag?: boolean;
+  /** 040 — El grupo de documentos (`general` o ausente = General). */
+  ragGroupId?: string;
 };
 
 const fieldsSchema = z.object({
@@ -28,6 +32,8 @@ const fieldsSchema = z.object({
   body: z.string().trim().max(KNOWLEDGE_BODY_MAX).optional(),
   tags: z.union([z.string(), z.array(z.string()).max(KNOWLEDGE_TAGS_MAX * 2)]).optional(),
   removeFile: z.union([z.boolean(), z.enum(["true", "false"])]).optional(),
+  rag: z.union([z.boolean(), z.enum(["true", "false"])]).optional(),
+  ragGroupId: z.string().trim().max(64).optional(),
 });
 
 /** Nombre y MIME del archivo: los navegadores a veces mandan `.docx` sin tipo. */
@@ -36,6 +42,9 @@ const MIME_BY_EXT: Record<string, string> = {
   doc: "application/msword",
   docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   txt: "text/plain",
+  // 040: el .md se guarda como texto plano (WhatsApp lo abre); la IA lo lee igual.
+  md: "text/plain",
+  markdown: "text/plain",
   png: "image/png",
   jpg: "image/jpeg",
   jpeg: "image/jpeg",
@@ -44,6 +53,7 @@ const MIME_BY_EXT: Record<string, string> = {
 
 function mimeOf(file: File): string {
   // Sin tipo, el multipart lo entrega como octet-stream: se deduce por extensión.
+  if (file.type === "text/markdown" || file.type === "text/x-markdown") return "text/plain";
   if (file.type && file.type !== "application/octet-stream") return file.type;
   const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
   return MIME_BY_EXT[ext] ?? "application/octet-stream";
@@ -67,7 +77,7 @@ export async function readKnowledgeInput(
     if (!form) {
       return { ok: false, response: apiError(400, "invalid", "Se esperaba multipart/form-data o JSON") };
     }
-    for (const key of ["title", "body", "tags", "removeFile"]) {
+    for (const key of ["title", "body", "tags", "removeFile", "rag", "ragGroupId"]) {
       const v = form.get(key);
       if (typeof v === "string") raw[key] = v;
     }
@@ -92,6 +102,8 @@ export async function readKnowledgeInput(
       title: d.title,
       body: d.body,
       tags: d.tags === undefined ? undefined : parseTags(d.tags),
+      rag: d.rag === undefined ? undefined : d.rag === true || d.rag === "true",
+      ragGroupId: d.ragGroupId || undefined,
       file: file
         ? {
             data: Buffer.from(await file.arrayBuffer()),

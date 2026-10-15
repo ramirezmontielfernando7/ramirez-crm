@@ -20,7 +20,7 @@ import { profileOfPlan, type PlanOption } from "@/lib/modules/registry";
 import type { EffectiveLimits, LimitsPatch } from "@/lib/limits";
 import { PLATFORM_MODULE_TOGGLES, type PlatformModuleToggle } from "@/lib/platform-modules";
 import { runWithOrganization } from "@/lib/request-context";
-import { assertModulesWithinLimit, LimitError, saveOrgLimits } from "@/server/limits";
+import { assertModulesWithinLimit, getEffectiveLimits, LimitError, saveOrgLimits, syncPlanKey } from "@/server/limits";
 import { checkAllAlerts, checkModuleAlerts } from "@/server/limits/alerts";
 
 /**
@@ -230,6 +230,10 @@ export async function createOrganization(
     throw err;
   }
 
+  // 040: el plan guardado nace con lo que quedó en sus 13 interruptores
+  // (el del perfil elegido, o el que coincida con los del entorno).
+  await syncPlanKey(organizationId, modulesDto(await getOrgModules(organizationId)));
+
   const link = await createAccountLink(userId, "activate", actor?.userId ?? null);
   await recordPlatformAudit({
     actor,
@@ -375,13 +379,19 @@ export async function changeOrganizationModules(
   const { before, after } = result;
   const de = modulesDto(before);
   const a = modulesDto(after);
+  // 040: el plan guardado sigue a los 13 interruptores.
+  const planAntes = (await runWithOrganization(organizationId, () => getEffectiveLimits(organizationId))).planKey;
+  const planKey = await syncPlanKey(organizationId, a);
   const cambios = (Object.keys(a) as (keyof ModulesDto)[]).filter((k) => de[k] !== a[k]);
   if (cambios.length > 0) {
     await recordPlatformAudit({
       actor,
       action: "organization.modules_changed",
       org: { id: org.id, name: org.name },
-      detail: Object.fromEntries(cambios.map((k) => [k, { de: de[k], a: a[k] }])),
+      detail: {
+        ...Object.fromEntries(cambios.map((k) => [k, { de: de[k], a: a[k] }])),
+        ...(planAntes !== planKey ? { plan: { de: planAntes, a: planKey } } : {}),
+      },
       ip,
     });
     await runWithOrganization(organizationId, () => checkModuleAlerts(organizationId));
@@ -407,7 +417,10 @@ export async function changeOrganizationLimits(
     .where(eq(schema.organization.id, organizationId))
     .limit(1);
   if (!org) throw new PlatformError(404, "not_found", "Organización no encontrada");
-  const { before, after } = await saveOrgLimits(organizationId, patch, actor?.userId ?? null);
+  const { before } = await saveOrgLimits(organizationId, patch, actor?.userId ?? null);
+  // 040: guardar topes también deja el plan guardado al día con los módulos.
+  await syncPlanKey(organizationId, modulesDto(await getOrgModules(organizationId)));
+  const after = await runWithOrganization(organizationId, () => getEffectiveLimits(organizationId));
   const cambios = (Object.keys(after) as (keyof EffectiveLimits)[]).filter(
     (k) => JSON.stringify(before[k]) !== JSON.stringify(after[k])
   );

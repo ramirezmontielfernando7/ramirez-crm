@@ -1,4 +1,5 @@
 import type { PlatformModuleToggle } from "@/lib/platform-modules";
+import type { PlanKey } from "@/lib/limits";
 import type { AiUsageKind, StorageUsage } from "@/lib/usage";
 
 /**
@@ -21,7 +22,7 @@ export type OrgUsage = {
   storageBytes: number;
   /** 036 (PR 3a) — Plan y topes propios. */
   plan: {
-    planKey: "custom";
+    planKey: PlanKey;
     storageLimitBytes: number | null;
     storageMode: "warn" | "block_uploads";
     maxModules: number | null;

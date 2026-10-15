@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { parseBody } from "@/lib/api";
 import { actorOf, withPlatformAdmin } from "@/server/platform-admin/http";
+import { planToggles } from "@/lib/platform-modules";
 import { changeOrganizationModules } from "@/server/platform-admin/organizations";
 
 export const dynamic = "force-dynamic";
@@ -27,6 +28,9 @@ const schema = z
     trabajo: z.boolean().optional(),
     // 038: Asistente interno (premium; apagado por defecto).
     asistente: z.boolean().optional(),
+    // 040: aplicar la plantilla de un plan (los 13 a la vez); los
+    // interruptores sueltos que vengan junto a ella la ajustan.
+    plan: z.enum(["esencial", "pro", "ultra"]).optional(),
   })
   .strict();
 
@@ -43,6 +47,7 @@ export const POST = withPlatformAdmin(async (admin, ip, req, { params }: Params)
   const { id } = await params;
   const body = await parseBody(req, schema);
   if (!body.ok) return body.response;
-  const modules = await changeOrganizationModules(id, body.data, actorOf(admin), ip);
+  const { plan, ...change } = body.data;
+  const modules = await changeOrganizationModules(id, plan ? { ...planToggles(plan), ...change } : change, actorOf(admin), ip);
   return Response.json({ modules });
 });

@@ -199,6 +199,26 @@ docker exec <contenedor-de-vocero> node ops/kb-limits.mjs set --org org_… --do
 O para toda la instancia, con las variables `KB_DOCS_MAX_FILE_MB`,
 `KB_DOCS_MAX_DOCUMENTS` y `KB_DOCS_MAX_CHUNKS`.
 
+## Un archivo, dos destinos: la Biblioteca unificada (040)
+
+El mismo archivo puede servir a los asesores y al agente sin subirlo dos
+veces:
+
+- En **Estudio de IA → Documentos**, si tu negocio tiene la Biblioteca,
+  «Disponible en Bandeja para envío rápido de asesores» (encendido por
+  defecto) guarda también el archivo original para el botón de Conocimientos
+  de la Bandeja.
+- En **CRM Comercial → Biblioteca**, «Entrenar también al Agente de IA con
+  este documento (RAG)» manda su texto al agente (del `.pdf`, `.txt` o `.md`,
+  o el texto escrito de la entrada), al grupo que elijas.
+
+Cada archivo muestra sus destinos —«💬 Envío en chat» y «🤖 Lectura IA
+(RAG)»— y se encienden o apagan desde su tarjeta. Siempre queda al menos uno.
+Apagar «Envío en chat» guarda el archivo (no se vuelve a subir); apagar la IA
+borra su documento y sus fragmentos. Un documento que se subió solo para la
+IA no guarda el original: para mandarlo por chat, súbelo de nuevo con el
+interruptor encendido. Cuenta contra los mismos límites de esta página.
+
 ## Grupos de documentos (037)
 
 En Laboratorio → Documentos, los documentos se ordenan en **grupos**

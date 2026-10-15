@@ -8,4 +8,5 @@
 - [x] Ajustes en 5 pestañas; `/settings/uso` (y `/uso` redirige); `uso` en `SETTINGS_TAB_PERMISSION`.
 - [x] Planes Esencial/Pro/Ultra/Personalizado (`MODULE_PROFILES`, `PLAN_OPTIONS`, `profileOfPlan`), canales del plan en `profileRow`, API y formulario de /platform, `planOfModules` y pilar de cada interruptor (`src/lib/platform-modules.ts`).
 - [x] Pruebas unitarias, de BD y guiones E2E actualizados.
-- [ ] Fase 2: Diagnóstico de conversaciones; límite de agentes por plan; persistir el plan.
+- [x] Fase 2: persistir el plan (040, `organization_plan.plan_key`).
+- [ ] Pendiente: Diagnóstico de conversaciones; límite de agentes por plan.

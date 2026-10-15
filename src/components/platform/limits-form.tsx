@@ -30,7 +30,7 @@ import { api } from "./api";
  */
 
 type Alert = { metric: AlertMetric; threshold: number; used: number; limit: number; seenAt: string | null };
-type Field = keyof Omit<LimitsPatch, "planKey" | "storageMode" | "usageVisibility">;
+type Field = keyof Omit<LimitsPatch, "storageMode" | "usageVisibility">;
 
 const GB = 1024 ** 3;
 const MB = 1024 ** 2;
@@ -138,15 +138,16 @@ export function LimitsForm({ orgId, onSaved }: { orgId: string; onSaved: () => v
 
   return (
     <section className="space-y-3" data-testid="platform-limits">
-      <p className="text-xs font-medium text-text-2">Plan y topes</p>
       <div className="flex flex-wrap items-center gap-2 text-sm">
-        <Label htmlFor={`plan-${orgId}`} className="text-xs text-text-2">
-          Plan
-        </Label>
-        <select id={`plan-${orgId}`} className="h-8 rounded-sm border bg-background px-2 text-sm" value="custom" disabled data-testid="platform-plan">
-          <option value="custom">{PLAN_LABEL.custom}</option>
-        </select>
-        <span className="text-xs text-text-3">Sin plan base: todos los topes son ajustes manuales.</span>
+        <span className="text-xs text-text-2">Plan guardado</span>
+        <span
+          className="rounded-sm bg-muted px-1.5 py-0.5 text-xs font-medium"
+          data-testid="platform-plan"
+          data-plan={limits.planKey}
+        >
+          {PLAN_LABEL[limits.planKey]}
+        </span>
+        <span className="text-xs text-text-3">Lo deciden los 13 módulos; estos topes son ajustes encima del plan.</span>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">

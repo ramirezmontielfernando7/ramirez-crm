@@ -1,3 +1,4 @@
+import type { PlanKey } from "@/lib/limits";
 import { MODULE_PROFILES, type ModuleProfile, type PlanOption, type ProfileModules } from "@/lib/modules/registry";
 
 /**
@@ -87,9 +88,10 @@ const PROFILE_KEY: Record<PlatformModuleToggle, keyof ProfileModules> = {
 };
 
 /**
- * 039 — ¿A qué plan corresponden HOY los 13 interruptores? El plan no se
- * guarda (es solo la plantilla del alta): si coinciden exactamente con uno,
- * ese; si alguien movió alguno a mano, «personalizado».
+ * 039 — ¿A qué plan corresponden HOY los 13 interruptores? Si coinciden
+ * exactamente con uno, ese; si alguien movió alguno a mano, «personalizado».
+ * 040: lo que sale de aquí se guarda en `organization_plan.plan_key`
+ * (`planKeyOfModules`).
  */
 export function planOfModules(modules: Record<PlatformModuleToggle, boolean>): PlanOption {
   for (const plan of Object.keys(MODULE_PROFILES) as ModuleProfile[]) {
@@ -97,4 +99,26 @@ export function planOfModules(modules: Record<PlatformModuleToggle, boolean>): P
     if (PLATFORM_MODULE_TOGGLES.every((k) => modules[k] === p[PROFILE_KEY[k]])) return plan;
   }
   return "personalizado";
+}
+
+/** 040 — La clave que se GUARDA (`organization_plan.plan_key`): «personalizado» → `custom`. */
+export function planKeyOf(plan: PlanOption): PlanKey {
+  return plan === "personalizado" ? "custom" : plan;
+}
+
+/** 040 — El plan guardado que corresponde a estos 13 interruptores. */
+export function planKeyOfModules(modules: Record<PlatformModuleToggle, boolean>): PlanKey {
+  return planKeyOf(planOfModules(modules));
+}
+
+/**
+ * 040 — Los 13 interruptores de la plantilla de un plan (los botones
+ * «Esencial / Pro / Ultra» del detalle en /platform). El Laboratorio solo con
+ * el Agente, como al crear.
+ */
+export function planToggles(plan: ModuleProfile): Record<PlatformModuleToggle, boolean> {
+  const p = MODULE_PROFILES[plan].modules;
+  const out = Object.fromEntries(PLATFORM_MODULE_TOGGLES.map((k) => [k, p[PROFILE_KEY[k]]])) as Record<PlatformModuleToggle, boolean>;
+  if (!out.agent) out.lab = false;
+  return out;
 }

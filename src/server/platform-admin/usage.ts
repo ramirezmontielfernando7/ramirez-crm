@@ -2,6 +2,7 @@ import { and, eq } from "drizzle-orm";
 import { getSystemDb, schema, type Db } from "@/lib/db";
 import { getEnv } from "@/lib/env";
 import { runWithOrganization } from "@/lib/request-context";
+import { isPlanKey, type PlanKey } from "@/lib/limits";
 import { emptyStorageUsage } from "@/lib/usage";
 import { currentPeriod, type QuotaLimits } from "@/server/ai-quota/quota";
 import { readOrgUsageDetail, type OrgUsageDetail } from "@/server/usage/detail";
@@ -28,7 +29,7 @@ export type OrgUsageSummary = {
   storageBytes: number;
   /** 036 (PR 3a) — Plan y topes propios (sin fila: «Personalizado» y sin topes). */
   plan: {
-    planKey: "custom";
+    planKey: PlanKey;
     storageLimitBytes: number | null;
     storageMode: "warn" | "block_uploads";
     maxModules: number | null;
@@ -79,6 +80,7 @@ export async function listOrgsUsage(ids: string[], now = new Date()): Promise<Ma
     db
       .select({
         org: schema.organizationPlan.organizationId,
+        planKey: schema.organizationPlan.planKey,
         storageLimitBytes: schema.organizationPlan.storageLimitBytes,
         storageMode: schema.organizationPlan.storageMode,
         maxModules: schema.organizationPlan.maxActiveModules,
@@ -106,7 +108,7 @@ export async function listOrgsUsage(ids: string[], now = new Date()): Promise<Ma
       ai: { turns: t?.turns ?? 0, tokens: (t?.prompt ?? 0) + (t?.completion ?? 0), limits: withEnvDefaults(tope.get(id)) },
       storageBytes: (almacen.get(id) ?? emptyStorageUsage()).totalBytes,
       plan: {
-        planKey: "custom",
+        planKey: isPlanKey(plan.get(id)?.planKey) ? (plan.get(id)!.planKey as PlanKey) : "custom",
         storageLimitBytes: plan.get(id)?.storageLimitBytes ?? null,
         storageMode: plan.get(id)?.storageMode ?? "warn",
         maxModules: plan.get(id)?.maxModules ?? null,
