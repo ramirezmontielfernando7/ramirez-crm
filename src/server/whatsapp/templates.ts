@@ -149,16 +149,32 @@ export function serializeTemplate(t: TemplateRow) {
   };
 }
 
-function metaFailure(err: MetaApiError, organizationId: string): Promise<never> {
+/** El motivo que dio Meta, con su código, para mostrarlo tal cual. */
+function metaReason(err: MetaApiError): string {
+  const cause = err.status === 0 && err.details instanceof Error ? `: ${err.details.message}` : "";
+  const code = err.code !== null ? ` (código ${err.code})` : "";
+  return `${err.message}${cause}${code}`;
+}
+
+function metaFailure(err: MetaApiError, organizationId: string, step?: string): Promise<never> {
   return (async () => {
+    log.warn("Meta rechazó la operación de plantillas", {
+      organizationId,
+      step: step ?? "plantilla",
+      status: err.status,
+      code: err.code,
+      type: err.type,
+      message: err.message,
+    });
     if (err.isAuthError) {
       await markReconnectRequired(organizationId);
       throw new TemplateError("reconnect_required", "El token expiró: reconecta el número");
     }
+    const reason = step ? `${step}: ${metaReason(err)}` : metaReason(err);
     if (err.status === 0 || err.status >= 500) {
-      throw new TemplateError("meta_unavailable", "Meta no está disponible ahora");
+      throw new TemplateError("meta_unavailable", `Meta no está disponible ahora (${reason})`);
     }
-    throw new TemplateError("meta_error", err.message);
+    throw new TemplateError("meta_error", reason);
   })();
 }
 
@@ -237,9 +253,12 @@ export async function createTemplate(
 
   let waTemplateId: string | null = null;
   let components: TemplateComponentDto[];
+  let step: string | undefined;
   try {
     if (assetId && headerImage) {
+      step = "Subida de la imagen del encabezado";
       headerHandle = await uploadTemplateHeaderSample(creds.token, headerImage);
+      step = undefined;
     }
     components = buildTemplateComponents(draft, headerHandle);
     const res = await graphRequest<{ id?: string; status?: string; category?: string }>(
@@ -253,7 +272,7 @@ export async function createTemplate(
     waTemplateId = res.id ?? null;
   } catch (err) {
     await discardImage();
-    if (err instanceof MetaApiError) return metaFailure(err, organizationId);
+    if (err instanceof MetaApiError) return metaFailure(err, organizationId, step);
     throw err;
   }
 

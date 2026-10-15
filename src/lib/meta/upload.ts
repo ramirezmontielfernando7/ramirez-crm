@@ -28,8 +28,15 @@ async function parse(res: Response): Promise<unknown> {
     // respuesta no-JSON: se conserva el texto crudo en details
   }
   if (!res.ok) {
-    const err = (json as { error?: { message?: string; code?: number; type?: string } } | null)?.error;
-    throw new MetaApiError(err?.message ?? `Meta respondió ${res.status}`, {
+    const err = (
+      json as {
+        error?: { message?: string; code?: number; type?: string; error_subcode?: number; error_user_msg?: string };
+      } | null
+    )?.error;
+    // El motivo legible para el negocio (error_user_msg) va junto al técnico.
+    const reason = [err?.message, err?.error_user_msg].filter(Boolean).join(" — ");
+    const subcode = err?.error_subcode ? ` (subcódigo ${err.error_subcode})` : "";
+    throw new MetaApiError(reason ? `${reason}${subcode}` : `Meta respondió ${res.status}${subcode}`, {
       status: res.status,
       code: err?.code ?? null,
       type: err?.type ?? null,
@@ -64,15 +71,23 @@ export async function uploadTemplateHeaderSample(
     headers: { Authorization: `Bearer ${token}` },
   })) as { id?: string } | null;
   const sessionId = session?.id;
-  if (!sessionId || !/^upload:[\w.:=-]+$/.test(sessionId)) {
-    throw new MetaApiError("Meta no devolvió la sesión de subida", { status: 502, details: session });
+  // Meta devuelve el id con su firma pegada: "upload:<base64>?sig=<firma>".
+  // La firma viaja tal cual en el paso 2; sin ella Meta rechaza la subida.
+  if (!sessionId || !/^upload:[^\s#]+$/.test(sessionId) || sessionId.includes("..")) {
+    throw new MetaApiError(
+      `Meta no devolvió una sesión de subida válida (recibido: ${JSON.stringify(session).slice(0, 200)})`,
+      { status: 502, details: session }
+    );
   }
   const uploaded = (await post(`${base}/${sessionId}`, {
     headers: { Authorization: `OAuth ${token}`, file_offset: "0", "Content-Type": file.mimeType },
     body: new Uint8Array(file.data),
   })) as { h?: string } | null;
   if (!uploaded?.h) {
-    throw new MetaApiError("Meta no devolvió el identificador de la imagen", { status: 502, details: uploaded });
+    throw new MetaApiError(
+      `Meta no devolvió el identificador de la imagen (recibido: ${JSON.stringify(uploaded).slice(0, 200)})`,
+      { status: 502, details: uploaded }
+    );
   }
   return uploaded.h;
 }
