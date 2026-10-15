@@ -1,4 +1,4 @@
-import { and, eq, inArray, or } from "drizzle-orm";
+import { and, eq, inArray, isNull, or } from "drizzle-orm";
 import {
   bodyFromComponents,
   buildTemplateComponents,
@@ -181,6 +181,74 @@ function metaFailure(err: MetaApiError, organizationId: string, step?: string): 
 /** Imagen del encabezado que llega del navegador (ya leída). */
 export type HeaderImageInput = { data: Uint8Array; mimeType: string; fileName: string };
 
+/** JPG o PNG, hasta el límite de imagen de la Cloud API (5 MB). */
+function assertHeaderImage(image: HeaderImageInput): void {
+  if (!/^image\/(jpeg|png)$/.test(image.mimeType)) {
+    throw new TemplateError("invalid", "La imagen del encabezado debe ser JPG o PNG");
+  }
+  if (image.data.byteLength === 0) throw new TemplateError("invalid", "La imagen está vacía");
+  if (image.data.byteLength > MEDIA_LIMITS.image.maxBytes) {
+    throw new TemplateError("invalid", `La imagen excede el límite de ${MEDIA_LIMITS.image.label}`);
+  }
+}
+
+/**
+ * Guarda en el CRM la imagen del encabezado de una plantilla que ya existe
+ * (típicamente creada fuera del CRM e importada): al enviar, Meta pide la
+ * imagen en cada mensaje y el CRM no tenía copia. NO toca Meta: la plantilla
+ * aprobada sigue igual; solo se guarda la imagen como la guarda
+ * `createTemplate`. Si ya tiene imagen, no se reemplaza.
+ */
+export async function attachTemplateHeaderImage(
+  organizationId: string,
+  templateId: string,
+  image: HeaderImageInput
+): Promise<TemplateRow> {
+  assertHeaderImage(image);
+  const db = getDb();
+  const [t] = await db
+    .select()
+    .from(schema.template)
+    .where(scoped(schema.template.organizationId, organizationId, eq(schema.template.id, templateId)))
+    .limit(1);
+  if (!t) throw new TemplateError("not_found", "La plantilla no existe");
+  if (!sendRequirements(t.components).headerImage) {
+    throw new TemplateError("invalid", "Esta plantilla no lleva imagen en el encabezado");
+  }
+  if (t.headerMediaAssetId) throw new TemplateError("invalid", "Esta plantilla ya tiene su imagen guardada");
+
+  const assetId = newId("mediaAsset");
+  const storagePath = await saveMediaFile(organizationId, assetId, image.data);
+  await db.insert(schema.mediaAsset).values({
+    id: assetId,
+    organizationId,
+    kind: "image",
+    mimeType: image.mimeType,
+    fileName: image.fileName.slice(0, 200),
+    fileSize: image.data.byteLength,
+    storagePath,
+    fetchStatus: "available",
+  });
+  // Solo si sigue sin imagen: dos clics simultáneos no dejan una huérfana ligada.
+  const [updated] = await db
+    .update(schema.template)
+    .set({ headerMediaAssetId: assetId, updatedAt: new Date() })
+    .where(
+      scoped(
+        schema.template.organizationId,
+        organizationId,
+        and(eq(schema.template.id, templateId), isNull(schema.template.headerMediaAssetId))
+      )
+    )
+    .returning();
+  if (!updated) {
+    await db.delete(schema.mediaAsset).where(scoped(schema.mediaAsset.organizationId, organizationId, eq(schema.mediaAsset.id, assetId)));
+    await deleteMediaFile(organizationId, assetId);
+    throw new TemplateError("invalid", "Esta plantilla ya tiene su imagen guardada");
+  }
+  return updated;
+}
+
 /**
  * Crea la plantilla y la manda a aprobación de Meta (FR-050; Campañas v2:
  * encabezado de texto o imagen, pie, botones de respuesta rápida o URL y los
@@ -205,12 +273,7 @@ export async function createTemplate(
       );
     }
     if (!headerImage) throw new TemplateError("invalid", "Sube la imagen del encabezado");
-    if (!/^image\/(jpeg|png)$/.test(headerImage.mimeType)) {
-      throw new TemplateError("invalid", "La imagen del encabezado debe ser JPG o PNG");
-    }
-    if (headerImage.data.byteLength > MEDIA_LIMITS.image.maxBytes) {
-      throw new TemplateError("invalid", `La imagen excede el límite de ${MEDIA_LIMITS.image.label}`);
-    }
+    assertHeaderImage(headerImage);
   }
 
   const creds = await getCredentialsByOrg(organizationId);

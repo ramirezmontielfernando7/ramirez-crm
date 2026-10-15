@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { AlertTriangle, Plus, RefreshCw, Trash2 } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { AlertTriangle, ImagePlus, Plus, RefreshCw, Trash2 } from "lucide-react";
 import type { TemplateDto } from "@/lib/types";
 import {
   countVariables,
@@ -19,6 +19,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { useViewer } from "@/components/viewer-context";
 
 const STATUS_BADGE: Record<
   TemplateDto["status"],
@@ -40,6 +41,7 @@ const META_BADGE: Record<string, { label: string; variant: "warning" | "destruct
 const SELECT_CLASS = "flex h-9 w-full rounded-md border border-input bg-card px-3 text-sm";
 
 export function TemplatesClient() {
+  const canManage = useViewer().can("templates.manage");
   const [templates, setTemplates] = useState<TemplateDto[]>([]);
   const [headerImageAvailable, setHeaderImageAvailable] = useState(false);
   const [syncing, setSyncing] = useState(false);
@@ -206,6 +208,9 @@ export function TemplatesClient() {
               {t.status === "approved" && !t.sendable && t.unsendableReason && (
                 <p className="mt-2 text-xs text-destructive">No se puede enviar: {t.unsendableReason}</p>
               )}
+              {canManage && header?.format === "IMAGE" && !t.hasHeaderImage && (
+                <AttachHeaderImage templateId={t.id} onAttached={() => void refetch()} />
+              )}
             </div>
           );
         })}
@@ -217,6 +222,55 @@ export function TemplatesClient() {
           </p>
         )}
       </div>
+    </div>
+  );
+}
+
+/**
+ * Plantilla con imagen en el encabezado creada fuera del CRM: guarda la
+ * imagen aquí para poder enviarla. No toca la plantilla en Meta.
+ */
+function AttachHeaderImage({ templateId, onAttached }: { templateId: string; onAttached: () => void }) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function upload(file: File) {
+    setError(null);
+    if (!/^image\/(jpeg|png)$/.test(file.type)) return setError("La imagen debe ser JPG o PNG");
+    if (file.size > 5 * 1024 * 1024) return setError("La imagen excede 5 MB");
+    setSaving(true);
+    const form = new FormData();
+    form.set("image", file);
+    const res = await fetchJson<{ template: TemplateDto }>(`/api/templates/${encodeURIComponent(templateId)}/header-image`, {
+      method: "POST",
+      body: form,
+    });
+    setSaving(false);
+    if (!res.ok) return setError(res.error);
+    onAttached();
+  }
+
+  return (
+    <div className="mt-2 flex flex-wrap items-center gap-2">
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/jpeg,image/png"
+        className="sr-only"
+        data-testid="template-attach-image-input"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          e.target.value = "";
+          if (file) void upload(file);
+        }}
+      />
+      <Button size="sm" variant="outline" disabled={saving} onClick={() => inputRef.current?.click()} data-testid="template-attach-image">
+        <ImagePlus className="h-4 w-4" />
+        {saving ? "Guardando…" : "Adjuntar imagen"}
+      </Button>
+      <span className="text-xs text-muted-foreground">JPG o PNG, máx. 5 MB. Solo se guarda en el CRM; la plantilla en Meta no cambia.</span>
+      {error && <p className="w-full text-xs text-destructive">{error}</p>}
     </div>
   );
 }

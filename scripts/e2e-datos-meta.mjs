@@ -404,6 +404,29 @@ async function main() {
     ok("sin META_APP_ID: imagen rechazada con explicación", withImg.res.status === 422 && /META_APP_ID/.test(withImg.json?.error?.message ?? ""), JSON.stringify(withImg.json));
   }
 
+  // Aprobada con imagen pero creada FUERA del CRM: no se puede enviar hasta
+  // que alguien adjunta la imagen en su tarjeta (sin tocar Meta).
+  const extName = `externa_imagen_${STAMP}`;
+  await post("/api/dev/wa-mock/seed-template", {
+    wabaId: WABA,
+    name: extName,
+    category: "MARKETING",
+    status: "APPROVED",
+    components: [{ type: "HEADER", format: "IMAGE" }, { type: "BODY", text: "Promo con imagen" }],
+    qualityScore: "GREEN",
+  });
+  await api("/api/templates/sync", { method: "POST" });
+  const extTpl = ((await api("/api/templates")).json?.templates ?? []).find((t) => t.name === extName);
+  ok(
+    "importada con imagen y sin copia: no enviable, con motivo",
+    extTpl?.status === "approved" && extTpl?.sendable === false && extTpl?.hasHeaderImage === false && /imagen/.test(extTpl?.unsendableReason ?? ""),
+    JSON.stringify(extTpl)
+  );
+  const badAttach = new FormData();
+  badAttach.set("image", new Blob([new Uint8Array([1, 2, 3])], { type: "image/gif" }), "x.gif");
+  const badRes = await api(`/api/templates/${extTpl?.id}/header-image`, { method: "POST", body: badAttach });
+  ok("adjuntar un GIF: 422 con motivo", badRes.res.status === 422 && /JPG o PNG/.test(badRes.json?.error?.message ?? ""), JSON.stringify(badRes.json));
+
   console.log("\n== 4c. Estado y categoría por webhook ==");
   const createdId = created.json?.template?.id;
   await post("/api/dev/wa-mock/template-status", { wabaId: WABA, name: tplName, language: "es_MX", event: "APPROVED" });
@@ -492,6 +515,24 @@ async function main() {
     await banner.waitFor({ state: "detached", timeout: 30000 });
     const seen = ((await api("/api/templates")).json?.templates ?? []).find((t) => t.id === createdId);
     ok("«Entendido» lo marca como visto", seen?.categoryChange === null);
+    // Adjuntar la imagen a la plantilla importada desde su tarjeta.
+    const extCard = page.getByTestId("template-list").locator(":scope > div", { hasText: extName });
+    await extCard.getByTestId("template-attach-image").waitFor({ timeout: 30000 });
+    ok("tarjeta de la importada: botón «Adjuntar imagen»", await extCard.getByText("No se puede enviar").isVisible());
+    await extCard.getByTestId("template-attach-image-input").setInputFiles({ name: "promo.png", mimeType: "image/png", buffer: Buffer.from(png) });
+    await extCard.getByTestId("template-attach-image").waitFor({ state: "detached", timeout: 30000 });
+    ok("tras adjuntar: el botón y el aviso rojo desaparecen", (await extCard.getByText("No se puede enviar").count()) === 0);
+    const extAfter = ((await api("/api/templates")).json?.templates ?? []).find((t) => t.id === extTpl?.id);
+    ok("la importada ya es enviable y tiene imagen", extAfter?.sendable === true && extAfter?.hasHeaderImage === true, JSON.stringify(extAfter));
+    const again = new FormData();
+    again.set("image", new Blob([png], { type: "image/png" }), "otra.png");
+    const againRes = await api(`/api/templates/${extTpl?.id}/header-image`, { method: "POST", body: again });
+    ok("con imagen ya guardada: no se reemplaza (422)", againRes.res.status === 422, JSON.stringify(againRes.json));
+    const sendExt = await post(`/api/conversations/${c2?.id}/messages/template`, { templateId: extTpl?.id, variables: [] });
+    const outExt = [...(await outbox())].reverse().find((e) => e.body?.template?.name === extName);
+    const extHeader = outExt?.body?.template?.components?.find((c) => c.type === "header")?.parameters?.[0];
+    ok("la importada se envía con la imagen adjuntada", sendExt.res.ok && extHeader?.type === "image" && !!extHeader?.image?.id, JSON.stringify(sendExt.json));
+
     await page.getByLabel("Encabezado").selectOption("TEXT");
     await page.getByLabel("Texto del encabezado").fill("Hola");
     await page.getByLabel("Cuerpo").fill("Hola {{1}}");
