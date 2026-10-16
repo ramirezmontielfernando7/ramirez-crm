@@ -313,16 +313,19 @@ export async function POST(req: Request, ctx: Params) {
     }
     const state = getWaMockState();
     state.uploads ??= {};
-    const id = `upload:mock${nextN()}`;
+    const n = nextN();
+    const id = `upload:mock${n}`;
     state.uploads[id] = { length, type };
-    return Response.json({ id });
+    // Como Meta real: el id trae su firma pegada ("upload:…?sig=…").
+    return Response.json({ id: `${id}?sig=ARmock${n}` });
   }
   // 2) POST {upload:…} con el archivo (Authorization: OAuth …, file_offset: 0) → { h }
   if (path.length === 1 && path[0]!.startsWith("upload:")) {
     const session = getWaMockState().uploads?.[path[0]!];
     const auth = req.headers.get("authorization") ?? "";
     const bytes = new Uint8Array(await req.arrayBuffer());
-    if (!session || !auth.startsWith("OAuth ") || req.headers.get("file_offset") !== "0" || bytes.byteLength !== session.length) {
+    const sig = new URL(req.url).searchParams.get("sig");
+    if (!session || !sig || !auth.startsWith("OAuth ") || req.headers.get("file_offset") !== "0" || bytes.byteLength !== session.length) {
       return Response.json(
         { error: { message: "(#100) Invalid upload session or file", type: "GraphMethodException", code: 100 } },
         { status: 400 }

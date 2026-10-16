@@ -143,6 +143,7 @@ const PROTEGIDAS: [string, Method, Permission][] = [
   ["templates", "POST", "templates.manage"],
   ["templates/sync", "POST", "templates.manage"],
   ["templates/category-seen", "POST", "templates.manage"],
+  ["templates/[id]/header-image", "POST", "templates.manage"],
   // Asignación.
   ["assignments", "POST", "assignment.manage"],
   ["assignments/bulk", "POST", "assignment.manage"],
