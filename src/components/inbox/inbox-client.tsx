@@ -520,7 +520,11 @@ export function InboxClient({ channels }: { channels: readonly Channel[] }) {
               panelOpen ? "xl:opacity-100" : "xl:pointer-events-none xl:opacity-0"
             )}
           >
+            {/* key por contacto: el panel y sus tarjetas (asignación,
+                participantes, etiquetas) guardan estado propio; sin esto, al
+                cambiar de chat asoman los datos del contacto anterior. */}
             <ContactPanel
+              key={selected.contact.id}
               conversation={selected}
               refreshKey={detailRev}
               onPatchConversation={patchConversation}
