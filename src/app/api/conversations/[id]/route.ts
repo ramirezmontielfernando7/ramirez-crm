@@ -56,12 +56,17 @@ export const PATCH = withAuth(async (session, req: Request, ctx: Params) => {
       null,
       null,
       row.anuncio,
-      row.assigneeName
+      row.assigneeName,
+      { campaignName: row.campaignName }
     );
-    publish(session.organizationId, {
-      type: "conversation.updated",
-      data: { conversation: dto },
-    });
+    // 041: un chat que sigue en «Campañas» no avisa a la Bandeja (abrirlo
+    // marca leído; con cientos de chats serían cientos de refetch).
+    if (!row.conversation.campaignPendingId) {
+      publish(session.organizationId, {
+        type: "conversation.updated",
+        data: { conversation: dto },
+      });
+    }
     return Response.json({ conversation: dto });
   }
   return Response.json({ conversation: null });

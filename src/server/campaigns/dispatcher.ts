@@ -16,6 +16,7 @@ import { marketingSkipReason } from "@/server/campaigns/audience";
 import { MARKETING_OPT_OUT_CODE, markMarketingOptOut } from "@/server/inbox/marketing-opt-out";
 import { classifySendError, MAX_ATTEMPTS, backoffScale, retryDelayMs } from "@/server/campaigns/outcome";
 import { safetyCheck, type SafetyPause } from "@/server/campaigns/safety";
+import { markCampaignPending } from "@/server/campaigns/inbox-view";
 import {
   acquireLease,
   claimNext,
@@ -131,12 +132,17 @@ export const sendRecipient: SendFn = async (organizationId, campaign, recipient,
     recipient.variables ?? resolveVariables(campaign.variables as CampaignVariable[], contact.name);
   try {
     const conversation = await getOrCreateConversation(organizationId, contact.id);
+    // 041: sin respuesta previa del contacto, el chat vive en «Campañas» y
+    // el envío no avisa en vivo a la Bandeja (cientos de envíos = cientos de
+    // refetch en cada pantalla abierta).
+    const pending = await markCampaignPending(organizationId, conversation.id, campaign.id);
     const { messageId } = await sendTemplate({
       organizationId,
       conversationId: conversation.id,
       templateId: campaign.templateId,
       variables,
       reserve: (id) => linkMessage(organizationId, recipient.id, id),
+      silent: pending,
     });
     await finishClaim(organizationId, recipient, { status: "sent", messageId }, owner);
     return { kind: "sent" };

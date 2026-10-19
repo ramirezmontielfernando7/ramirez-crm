@@ -516,6 +516,10 @@ async function ingestInboundMessageInOrg(input: {
       unreadCount: sql`${schema.conversation.unreadCount} + 1`,
       // 034: un mensaje entrante saca el chat del archivo.
       archivedAt: null,
+      // 041: y de la pestaña «Campañas»: pasa a la principal con «Respondió
+      // a campaña X». Una sola sentencia (Postgres lee los valores de antes).
+      campaignRepliedId: sql`coalesce(${schema.conversation.campaignPendingId}, ${schema.conversation.campaignRepliedId})`,
+      campaignPendingId: null,
       updatedAt: new Date(),
     })
     .where(eq(schema.conversation.id, conversation.id));
