@@ -79,3 +79,9 @@ control de acceso del plugin `organization` de better-auth (`createAccessControl
 
 Reparto automático (round-robin), interfaz de equipos de ventas y la
 exportación de contactos (el permiso ya existe para cuando llegue).
+
+## Pendientes
+
+- Revisar si `AssignmentCard` necesita `key` al cambiar de lead sin cerrar el
+  cajón (`LeadDrawer`, Pipeline). Sin corregir: en la Bandeja ya se resolvió
+  remontando `ContactPanel` por contacto (#75).
