@@ -36,6 +36,8 @@ type PendingOut = {
  * breakpoint `xl:` que usan las clases de la sección de detalles.
  */
 const PANEL_MEDIA_QUERY = "(min-width: 1280px)";
+/** Respiro para juntar avisos en vivo seguidos; el mismo del globo del menú. */
+const REFETCH_DEBOUNCE_MS = 250;
 const isWideEnoughForPanel = () =>
   typeof window !== "undefined" && window.matchMedia(PANEL_MEDIA_QUERY).matches;
 
@@ -109,6 +111,23 @@ export function InboxClient({ channels }: { channels: readonly Channel[] }) {
     setCampaignPending(data.campaignPending ?? 0);
     lastFetchRef.current = new Date().toISOString();
   }, [refetchCampaigns]);
+  // Un mensaje trae varios avisos seguidos (message.new, conversation.updated,
+  // el de marcar leído…): se juntan en UNA descarga, como el globo del menú.
+  // La respuesta más reciente sigue ganando (fetchSeq/appliedSeq).
+  const refetchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const scheduleRefetch = useCallback(() => {
+    if (refetchTimer.current) clearTimeout(refetchTimer.current);
+    refetchTimer.current = setTimeout(() => {
+      refetchTimer.current = null;
+      void refetchConversations();
+    }, REFETCH_DEBOUNCE_MS);
+  }, [refetchConversations]);
+  useEffect(
+    () => () => {
+      if (refetchTimer.current) clearTimeout(refetchTimer.current);
+    },
+    []
+  );
   const onCampaignView = useCallback(
     (open: boolean) => {
       campaignViewRef.current = open;
@@ -210,7 +229,7 @@ export function InboxClient({ channels }: { channels: readonly Channel[] }) {
           body: JSON.stringify({ markRead: true }),
         });
       }
-      void refetchConversations();
+      scheduleRefetch();
       // Un entrante nuevo puede crear/mover el lead: refresca el panel.
       setDetailRev((v) => v + 1);
     },
@@ -229,23 +248,23 @@ export function InboxClient({ channels }: { channels: readonly Channel[] }) {
       );
     },
     onConversationUpdated: () => {
-      void refetchConversations();
+      scheduleRefetch();
       // El agente movió de etapa o cambió el handoff: refresca el panel en vivo.
       setDetailRev((v) => v + 1);
     },
     // 020: me asignaron o me quitaron chats (o, si reparto, cambió el reparto).
     onAssignmentChanged: () => {
-      void refetchConversations();
+      scheduleRefetch();
       setDetailRev((v) => v + 1);
     },
     // 026: me sumaron o me quitaron como participante de un chat.
     onParticipantsChanged: () => {
-      void refetchConversations();
+      scheduleRefetch();
       setDetailRev((v) => v + 1);
     },
     onReconnect: () => {
       // Catch-up tras reconexión (contrato sse.md): refetch completo.
-      void refetchConversations();
+      scheduleRefetch();
       if (selectedIdRef.current) void refetchMessages(selectedIdRef.current);
       setDetailRev((v) => v + 1);
     },

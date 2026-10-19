@@ -210,6 +210,7 @@ const PROTEGIDAS: [string, Method, Permission][] = [
  */
 const FILTRADAS: [string, Method][] = [
   ["conversations", "GET"],
+  ["conversations/unread", "GET"],
   ["conversations/[id]", "PATCH"],
   // 031 (PR B): «Atiende: …» de la conversación que se puede ver (getConversation).
   ["conversations/[id]/agent", "GET"],
