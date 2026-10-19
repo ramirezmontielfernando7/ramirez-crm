@@ -23,9 +23,10 @@ function emit(next: number) {
 }
 
 async function refetch() {
-  const res = await fetchJson<{ conversations: { unreadCount: number }[] }>("/api/conversations");
+  // Solo el total (no la lista entera): mismo filtro que la lista de la Bandeja.
+  const res = await fetchJson<{ unread: number }>("/api/conversations/unread");
   // Informativo: un fallo se corrige con el siguiente evento.
-  if (res.ok) emit(res.data.conversations.reduce((a, c) => a + c.unreadCount, 0));
+  if (res.ok) emit(res.data.unread);
 }
 
 function scheduleRefetch() {

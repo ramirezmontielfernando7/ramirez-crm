@@ -121,6 +121,31 @@ export async function countCampaignPending(
   return rows[0]?.n ?? 0;
 }
 
+/**
+ * Total de no leídos que ve la sesión: EXACTAMENTE la suma de `unreadCount`
+ * de lo que devuelve `listConversations(access)` sin parámetros (Bandeja
+ * principal: incluye archivados, deja fuera pruebas y chats de «Campañas»).
+ * Mismo `scopedContacts` y mismos filtros, para que el globo del menú no tenga
+ * que bajar la lista entera solo para sumar. Si cambias uno, cambia el otro:
+ * `tests/db/bandeja-no-leidos.test.ts` compara los dos.
+ */
+export async function countUnread(access: Access): Promise<number> {
+  const rows = await getDb()
+    .select({ n: sql<number>`coalesce(sum(${schema.conversation.unreadCount}), 0)::int` })
+    .from(schema.conversation)
+    .innerJoin(schema.contact, eq(schema.conversation.contactId, schema.contact.id))
+    .where(
+      scopedContacts(
+        schema.conversation.organizationId,
+        access,
+        schema.conversation.contactId,
+        eq(schema.conversation.isTest, false),
+        viewCondition("main")
+      )
+    );
+  return rows[0]?.n ?? 0;
+}
+
 export async function listConversations(
   access: Access,
   since?: Date,
