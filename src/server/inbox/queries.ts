@@ -1,4 +1,4 @@
-import { and, desc, eq, gt, isNull, sql } from "drizzle-orm";
+import { and, count, desc, eq, gt, isNotNull, isNull, sql } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import {
   scopedContacts,
@@ -7,6 +7,7 @@ import {
 } from "@/lib/db/tenant";
 import { isWindowOpen, windowRemainingMs } from "@/server/inbox/window";
 import type { ConversationDto } from "@/lib/types";
+import type { InboxView } from "@/lib/campaign-inbox";
 import { isTagColor, type TagDto } from "@/lib/tags";
 import { botLastSeenAt, EXTERNAL_SEEN_WINDOW_MS } from "@/server/bot/status";
 
@@ -76,10 +77,55 @@ function assignmentCondition(access: Access, filter: AssignmentFilter) {
   }
 }
 
+/**
+ * 041 — Nombre de la campaña del chat (la pendiente o la que respondió).
+ * Subconsulta con la organización: el id no lleva FK (borrar la campaña no
+ * toca el chat; la marca queda genérica).
+ */
+const campaignNameSql = sql<string | null>`(
+  select k.name from campaign k
+  where k.organization_id = ${schema.conversation.organizationId}
+    and k.id = coalesce(${schema.conversation.campaignPendingId}, ${schema.conversation.campaignRepliedId})
+)`;
+
+/** 041: la principal sin los chats de campaña sin respuesta; «Campañas», solo ellos. */
+function viewCondition(view: InboxView) {
+  return view === "campaigns"
+    ? isNotNull(schema.conversation.campaignPendingId)
+    : isNull(schema.conversation.campaignPendingId);
+}
+
+/**
+ * 041 — Cuántos chats esperan en «Campañas» (lo que la sesión puede ver,
+ * con el mismo filtro de asignación), para el contador de la pestaña sin
+ * bajar la lista.
+ */
+export async function countCampaignPending(
+  access: Access,
+  filter: AssignmentFilter = { kind: "all" }
+): Promise<number> {
+  const rows = await getDb()
+    .select({ n: count() })
+    .from(schema.conversation)
+    .innerJoin(schema.contact, eq(schema.conversation.contactId, schema.contact.id))
+    .where(
+      scopedContacts(
+        schema.conversation.organizationId,
+        access,
+        schema.conversation.contactId,
+        eq(schema.conversation.isTest, false),
+        viewCondition("campaigns"),
+        access.seesAll ? assignmentCondition(access, filter) : undefined
+      )
+    );
+  return rows[0]?.n ?? 0;
+}
+
 export async function listConversations(
   access: Access,
   since?: Date,
-  filter: AssignmentFilter = { kind: "all" }
+  filter: AssignmentFilter = { kind: "all" },
+  view: InboxView = "main"
 ): Promise<ConversationDto[]> {
   const db = getDb();
   const previewSql = sql<string | null>`(
@@ -137,6 +183,7 @@ export async function listConversations(
       agentOn: agentOnSql,
       anuncio: anuncioDeLista,
       assigneeName: assigneeNameSql,
+      campaignName: campaignNameSql,
     })
     .from(schema.conversation)
     .innerJoin(
@@ -150,6 +197,7 @@ export async function listConversations(
         access,
         schema.conversation.contactId,
         eq(schema.conversation.isTest, false),
+        viewCondition(view),
         since ? gt(schema.conversation.updatedAt, since) : undefined,
         access.seesAll ? assignmentCondition(access, filter) : undefined
       )
@@ -175,6 +223,7 @@ export async function listConversations(
         stageColor: r.stageColor,
         tags: r.tags ?? [],
         aiAvailable: !!r.agentOn || externalSeen,
+        campaignName: r.campaignName,
       }
     )
   );
@@ -193,6 +242,7 @@ export async function getConversation(access: Access, conversationId: string) {
       contact: schema.contact,
       anuncio: anuncioDeLista,
       assigneeName: assigneeNameSql,
+      campaignName: campaignNameSql,
     })
     .from(schema.conversation)
     .innerJoin(
@@ -251,6 +301,7 @@ export function serializeConversation(
     stageColor?: string | null;
     tags?: ConversationDto["tags"];
     aiAvailable?: boolean;
+    campaignName?: string | null;
   } = {}
 ): ConversationDto {
   return {
@@ -277,6 +328,11 @@ export function serializeConversation(
     windowRemainingMs: windowRemainingMs(c.lastInboundAt),
     preview,
     anuncio,
+    campaign: c.campaignPendingId
+      ? { state: "pending", name: extra.campaignName ?? null }
+      : c.campaignRepliedId
+        ? { state: "replied", name: extra.campaignName ?? null }
+        : null,
   };
 }
 

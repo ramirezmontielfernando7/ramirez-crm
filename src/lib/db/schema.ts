@@ -773,10 +773,25 @@ export const conversation = pgTable(
      * `contact.archived_at`, que archiva al contacto.)
      */
     archivedAt: timestamp("archived_at"),
+    /**
+     * 041: la campaña masiva que inició este chat y que el contacto AÚN no
+     * responde. No NULL = vive en la pestaña «Campañas», fuera de la Bandeja
+     * principal (ni no leídos ni avisos en vivo). Solo se marca si el
+     * contacto nunca había escrito (`last_inbound_at` NULL); el primer
+     * entrante la pasa a `campaign_replied_id` en la misma sentencia
+     * (`ingest.ts`). Sin FK: borrar la campaña no toca el chat.
+     */
+    campaignPendingId: text("campaign_pending_id"),
+    /** 041: la campaña a la que respondió («Respondió a campaña X»). */
+    campaignRepliedId: text("campaign_replied_id"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },
   (t) => [
+    // 041: la pestaña «Campañas» y el filtro de la principal.
+    index("conversation_org_campaign_pending_idx")
+      .on(t.organizationId, t.campaignPendingId)
+      .where(sql`${t.campaignPendingId} is not null`),
     // Una conversación real por contacto; las de prueba no compiten.
     uniqueIndex("conversation_org_contact_real_uq")
       .on(t.organizationId, t.contactId)

@@ -2,11 +2,12 @@
 
 import { memo, useEffect, useRef, useState } from "react";
 import { m } from "motion/react";
-import { Bot, CheckSquare, Megaphone, Sparkles } from "lucide-react";
+import { Bot, CheckSquare, Megaphone, Send, Sparkles } from "lucide-react";
 import type { ConversationDto, StageDto } from "@/lib/types";
 import type { TagDto } from "@/lib/tags";
 import type { MenuAnchor } from "./floating-menu";
 import { etiquetaDeOrigen, titularDeOrigen } from "@/lib/anuncios";
+import { campaignPendingLabel, campaignReplyLabel } from "@/lib/campaign-inbox";
 import { CHANNEL_LABEL, type Channel } from "@/lib/channels";
 import { ChannelBadge } from "@/components/channel-badge";
 import { matchesQuery } from "@/lib/search";
@@ -104,6 +105,9 @@ export const ConversationList = memo(function ConversationList({
   onSeeded,
   onPatchRow,
   onRemoved,
+  campaignConversations,
+  campaignCount,
+  onCampaignView,
 }: {
   conversations: ConversationDto[] | null;
   /** Canales encendidos en esta instancia (ADR-001). */
@@ -115,6 +119,12 @@ export const ConversationList = memo(function ConversationList({
   onPatchRow: PatchRow;
   /** 034: se archivó, recuperó o eliminó un chat. */
   onRemoved: (id: string, kind: "archive" | "restore" | "delete") => void;
+  /** 041: chats de campaña sin respuesta (null = aún no se piden). */
+  campaignConversations: ConversationDto[] | null;
+  /** 041: cuántos hay, aunque la pestaña no se haya abierto. */
+  campaignCount: number;
+  /** 041: se abrió o se dejó la pestaña «Campañas» (la lista se pide aparte). */
+  onCampaignView: (open: boolean) => void;
 }) {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<InboxFilter>("all");
@@ -155,25 +165,30 @@ export const ConversationList = memo(function ConversationList({
   const [bulkBusy, setBulkBusy] = useState(false);
   const [bulkError, setBulkError] = useState<string | null>(null);
 
-  const loading = conversationsProp === null;
+  const showCampaigns = filter === "campaigns";
+  useEffect(() => onCampaignView(showCampaigns), [showCampaigns, onCampaignView]);
+  const loading = conversationsProp === null || (showCampaigns && campaignConversations === null);
   const conversations = conversationsProp ?? [];
   // Solo NOMBRE y TELÉFONO, como cualquier filtro de contactos. Antes también
   // miraba el preview, y como el agente nombra al dueño en sus propios
   // mensajes, buscar ese nombre devolvía media bandeja. Encima era una
   // búsqueda de mensajes a medias: solo el último de cada hilo, no el historial.
-  const searchedAll = conversations.filter(
-    (c) =>
-      matchesQuery(query, {
-        text: [c.contact.name],
-        phone: c.contact.phone,
-      }) &&
-      (stage === "all" || c.stageName === stage) &&
-      matchesTag(c, tag) &&
-      (owner === "all" ||
-        (owner === "mine" && c.assignee?.id === viewer.userId) ||
-        (owner === "unassigned" && !c.assignee) ||
-        c.assignee?.id === owner)
-  );
+  const matches = (c: ConversationDto) =>
+    matchesQuery(query, {
+      text: [c.contact.name],
+      phone: c.contact.phone,
+    }) &&
+    (stage === "all" || c.stageName === stage) &&
+    matchesTag(c, tag) &&
+    (owner === "all" ||
+      (owner === "mine" && c.assignee?.id === viewer.userId) ||
+      (owner === "unassigned" && !c.assignee) ||
+      c.assignee?.id === owner);
+  const searchedAll = conversations.filter(matches);
+  // 041: la pestaña «Campañas» trae su propia lista (la principal no los incluye).
+  const deCampanas = (campaignConversations ?? [])
+    .filter(matches)
+    .filter((c) => inbox === "all" || c.channel === inbox);
   // 034: las archivadas no cuentan en «Todas», «No leídas»… y se ven aparte.
   const showArchived = filter === "archived";
   const archivadas = searchedAll.filter(isArchived);
@@ -206,11 +221,13 @@ export const ConversationList = memo(function ConversationList({
   const humanos = inInbox.filter((c) => c.handoffAt !== null);
   const archivadasEnBandeja =
     inbox === "all" ? archivadas : archivadas.filter((c) => c.channel === inbox);
-  const visible = showArchived
-    ? archivadasEnBandeja
-    : filter === "humano"
-      ? humanos
-      : visibleBase;
+  const visible = showCampaigns
+    ? deCampanas
+    : showArchived
+      ? archivadasEnBandeja
+      : filter === "humano"
+        ? humanos
+        : visibleBase;
   const filtros: { id: typeof filter; label: string; count: number }[] = [
     { id: "all", label: "Todas", count: inInbox.length },
     { id: "unread", label: "No leídas", count: unreadCount },
@@ -222,6 +239,15 @@ export const ConversationList = memo(function ConversationList({
   }
   if (deAnuncios.length > 0 || filter === "anuncios") {
     filtros.push({ id: "anuncios", label: "Anuncios", count: deAnuncios.length });
+  }
+  // 041: los chats que abrió una campaña y nadie ha respondido. Sin ninguno,
+  // no aparece (igual que «Anuncios»). Abierta, cuenta lo que muestra.
+  if (campaignCount > 0 || showCampaigns) {
+    filtros.push({
+      id: "campaigns",
+      label: "Campañas",
+      count: showCampaigns && campaignConversations ? deCampanas.length : campaignCount,
+    });
   }
   // Lo que la cápsula de filtros diría, para el buscador abierto que la tapa.
   const extraFiltros =
@@ -429,7 +455,7 @@ export const ConversationList = memo(function ConversationList({
               onSelect(id);
             }}
           />
-        ) : conversations.length === 0 ? (
+        ) : conversations.length === 0 && campaignCount === 0 && !showCampaigns ? (
           <EmptyState onSeeded={onSeeded} />
         ) : visible.length === 0 ? (
           <p className="p-6 text-center text-xs text-text-3">
@@ -685,6 +711,23 @@ const ConversationRow = memo(function ConversationRow({
               onError={onError}
             />
           </div>
+          {c.campaign && (
+            <span
+              data-campaign-chip={c.campaign.state}
+              className={cn(
+                CHIP,
+                "self-start",
+                c.campaign.state === "replied" ? "bg-brand-tint text-brand-text" : "bg-chip text-text-2"
+              )}
+            >
+              <Send className="h-3 w-3 shrink-0" strokeWidth={2} />
+              <span className="truncate">
+                {c.campaign.state === "replied"
+                  ? campaignReplyLabel(c.campaign.name)
+                  : campaignPendingLabel(c.campaign.name)}
+              </span>
+            </span>
+          )}
           {c.anuncio && (
             <span
               className={cn(CHIP, "self-start bg-info-tint text-info-text")}

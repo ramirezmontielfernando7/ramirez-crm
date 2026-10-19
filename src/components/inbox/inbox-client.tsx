@@ -81,16 +81,41 @@ export function InboxClient({ channels }: { channels: readonly Channel[] }) {
   // acaba de archivarse. Solo se aplica la respuesta más reciente pedida.
   const fetchSeq = useRef(0);
   const appliedSeq = useRef(0);
+  // 041: la pestaña «Campañas» (chats de campaña sin respuesta) se pide
+  // aparte y SOLO mientras está abierta: la principal ya no los trae, solo
+  // su cuántos.
+  const [campaignPending, setCampaignPending] = useState(0);
+  const [campaignConversations, setCampaignConversations] = useState<ConversationDto[] | null>(null);
+  const campaignViewRef = useRef(false);
+  const campaignSeq = useRef(0);
+  const refetchCampaigns = useCallback(async () => {
+    const seq = ++campaignSeq.current;
+    const res = await fetch("/api/conversations?view=campaigns").catch(() => null);
+    if (!res?.ok) return null;
+    const data = (await res.json()) as { conversations: ConversationDto[] };
+    if (seq !== campaignSeq.current) return null;
+    setCampaignConversations(data.conversations);
+    return data.conversations;
+  }, []);
   const refetchConversations = useCallback(async () => {
     const seq = ++fetchSeq.current;
+    if (campaignViewRef.current) void refetchCampaigns();
     const res = await fetch("/api/conversations").catch(() => null);
     if (!res?.ok) return;
-    const data = (await res.json()) as { conversations: ConversationDto[] };
+    const data = (await res.json()) as { conversations: ConversationDto[]; campaignPending?: number };
     if (seq < appliedSeq.current) return;
     appliedSeq.current = seq;
     setConversations(data.conversations);
+    setCampaignPending(data.campaignPending ?? 0);
     lastFetchRef.current = new Date().toISOString();
-  }, []);
+  }, [refetchCampaigns]);
+  const onCampaignView = useCallback(
+    (open: boolean) => {
+      campaignViewRef.current = open;
+      if (open) void refetchCampaigns();
+    },
+    [refetchCampaigns]
+  );
 
   const refetchMessages = useCallback(async (conversationId: string) => {
     const res = await fetch(
@@ -111,6 +136,7 @@ export function InboxClient({ channels }: { channels: readonly Channel[] }) {
   // servidor (si falla, la fila se repone y se vuelve a pedir la lista).
   const patchRow = useCallback<PatchRow>((id, patch) => {
     setConversations((prev) => prev && prev.map((c) => (c.id === id ? { ...c, ...patch } : c)));
+    setCampaignConversations((prev) => prev && prev.map((c) => (c.id === id ? { ...c, ...patch } : c)));
     setDetailRev((v) => v + 1);
   }, []);
   // 034: archivar, recuperar o eliminar un chat. Si era el abierto, se suelta
@@ -153,10 +179,23 @@ export function InboxClient({ channels }: { channels: readonly Channel[] }) {
   const searchParams = useSearchParams();
   const contactParam = searchParams.get("contact");
   useEffect(() => {
-    if (!contactParam || selectedIdRef.current) return;
-    const match = conversations?.find((c) => c.contact.id === contactParam);
-    if (match) select(match.id);
-  }, [contactParam, conversations, select]);
+    if (!contactParam || selectedIdRef.current || !conversations) return;
+    const match = conversations.find((c) => c.contact.id === contactParam);
+    if (match) {
+      select(match.id);
+      return;
+    }
+    // 041: puede ser un chat de campaña sin respuesta (fuera de la principal).
+    if (campaignPending === 0) return;
+    let cancelled = false;
+    void refetchCampaigns().then((list) => {
+      const pend = list?.find((c) => c.contact.id === contactParam);
+      if (!cancelled && pend && !selectedIdRef.current) select(pend.id);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [contactParam, conversations, campaignPending, refetchCampaigns, select]);
 
   useEvents({
     onMessageNew: ({ conversationId, message }) => {
@@ -212,7 +251,10 @@ export function InboxClient({ channels }: { channels: readonly Channel[] }) {
     },
   });
 
-  const selected = conversations?.find((c) => c.id === selectedId) ?? null;
+  const selected =
+    conversations?.find((c) => c.id === selectedId) ??
+    campaignConversations?.find((c) => c.id === selectedId) ??
+    null;
 
   /**
    * Hilo visible = lo confirmado + lo que aún viaja. El mensaje real puede
@@ -344,6 +386,9 @@ export function InboxClient({ channels }: { channels: readonly Channel[] }) {
           onSeeded={onSeeded}
           onPatchRow={patchRow}
           onRemoved={onRemoved}
+          campaignConversations={campaignConversations}
+          campaignCount={campaignPending}
+          onCampaignView={onCampaignView}
         />
       </section>
 
