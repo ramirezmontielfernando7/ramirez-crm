@@ -44,6 +44,7 @@
     "test:e2e:trabajo": "node --env-file=.env scripts/e2e-trabajo.mjs",
     "test:e2e:numero-nuevo": "node --env-file=.env scripts/e2e-numero-nuevo.mjs",
     "test:e2e:documentos": "node --env-file=.env scripts/e2e-documentos.mjs",
+    "test:e2e:bandeja-campanas": "node --env-file=.env scripts/e2e-bandeja-campanas.mjs",
     "test:watch": "vitest",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
