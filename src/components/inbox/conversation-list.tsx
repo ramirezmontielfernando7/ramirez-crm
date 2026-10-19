@@ -60,7 +60,7 @@ const CONTROL_FILTRO =
 
 function EmptyState({ onSeeded }: { onSeeded: () => void }) {
   const [seeding, setSeeding] = useState(false);
-  const [failed, setFailed] = useState(false);
+  const [failed, setFailed] = useState<string | null>(null);
 
   async function seed() {
     setSeeding(true);
@@ -69,7 +69,16 @@ function EmptyState({ onSeeded }: { onSeeded: () => void }) {
     );
     setSeeding(false);
     if (res?.ok) onSeeded();
-    else setFailed(true);
+    else {
+      // El servidor explica en español por qué no se puede (409).
+      const body = (await res?.json().catch(() => null)) as {
+        error?: { message?: string };
+      } | null;
+      setFailed(
+        body?.error?.message ??
+          "No se pudo cargar la demostración. Inténtalo de nuevo."
+      );
+    }
   }
 
   return (
@@ -81,7 +90,11 @@ function EmptyState({ onSeeded }: { onSeeded: () => void }) {
         Cuando alguien escriba a tu número de WhatsApp, su conversación
         aparecerá aquí en tiempo real.
       </p>
-      {!failed && (
+      {failed ? (
+        <p role="alert" className="max-w-xs text-xs text-text-3">
+          {failed}
+        </p>
+      ) : (
         <Button
           size="sm"
           variant="outline"
