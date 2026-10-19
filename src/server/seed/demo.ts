@@ -1,8 +1,14 @@
-import { inArray } from "drizzle-orm";
+import { inArray, isNull } from "drizzle-orm";
 import type { getDb } from "@/lib/db";
 import { schema } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
 import { scoped } from "@/lib/db/tenant";
+import {
+  configFromProfile,
+  MIRROR_DEFAULT_NAME,
+  parseStoredConfig,
+  sameConfig,
+} from "@/server/agents/config";
 
 /**
  * Negocio de demostración "Ferretería El Martillo" (FR-075).
@@ -416,15 +422,87 @@ export async function seedDemo(
   return { contacts: DEMO_CONTACTS.length, kbEntries: DEMO_KB.length };
 }
 
-/** true si la organización aún no tiene datos de dominio (para el botón). */
-export async function isDomainEmpty(
+/**
+ * Por qué NO se puede cargar la demo en esta organización (`null` = se puede).
+ *
+ * La demo borra todo el conocimiento y reemplaza el agente por el de ejemplo,
+ * así que solo corre en una empresa realmente vacía: sin contactos, sin
+ * conocimiento propio (cualquier `kb_entry`, compartido o de un agente) y sin
+ * agente editado (otro agente además del general, o el general con algo
+ * distinto al perfil de fábrica, publicado o en borrador).
+ */
+export async function demoBlockReason(
   db: Db,
   organizationId: string
-): Promise<boolean> {
-  const rows = await db
+): Promise<string | null> {
+  const [contact] = await db
     .select({ id: schema.contact.id })
     .from(schema.contact)
     .where(scoped(schema.contact.organizationId, organizationId))
     .limit(1);
-  return rows.length === 0;
+  if (contact) {
+    return "Ya hay contactos en tu empresa. Los datos de demostración solo se cargan en una empresa vacía.";
+  }
+
+  const [kb] = await db
+    .select({ id: schema.kbEntry.id })
+    .from(schema.kbEntry)
+    .where(scoped(schema.kbEntry.organizationId, organizationId))
+    .limit(1);
+  if (kb) {
+    return "Ya tienes conocimiento guardado. Los datos de demostración lo borrarían, así que solo se cargan en una empresa vacía.";
+  }
+
+  const agents = await db
+    .select({
+      isGeneral: schema.agent.isGeneral,
+      draft: schema.agent.draft,
+      published: schema.agent.published,
+    })
+    .from(schema.agent)
+    .where(
+      scoped(
+        schema.agent.organizationId,
+        organizationId,
+        isNull(schema.agent.archivedAt)
+      )
+    );
+  const factory = configFromProfile({
+    name: MIRROR_DEFAULT_NAME,
+    tone: null,
+    instructions: null,
+    escalationRules: null,
+    greeting: null,
+  });
+  const untouched = (raw: unknown) => {
+    const cfg = parseStoredConfig(raw);
+    return cfg !== null && sameConfig(cfg, factory);
+  };
+  const edited = agents.some(
+    (a) => !a.isGeneral || !untouched(a.draft) || !untouched(a.published)
+  );
+  const [profile] = await db
+    .select()
+    .from(schema.agentProfile)
+    .where(scoped(schema.agentProfile.organizationId, organizationId))
+    .limit(1);
+  const profileEdited =
+    !!profile &&
+    (profile.name !== MIRROR_DEFAULT_NAME ||
+      !!profile.tone ||
+      !!profile.instructions ||
+      !!profile.escalationRules ||
+      !!profile.greeting);
+  if (edited || profileEdited) {
+    return "Ya configuraste tu agente. Los datos de demostración lo reemplazarían, así que solo se cargan en una empresa vacía.";
+  }
+  return null;
+}
+
+/** true si la empresa está realmente vacía (para el botón y el servidor). */
+export async function isDomainEmpty(
+  db: Db,
+  organizationId: string
+): Promise<boolean> {
+  return (await demoBlockReason(db, organizationId)) === null;
 }
