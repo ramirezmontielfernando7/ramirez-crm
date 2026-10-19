@@ -42,6 +42,12 @@ export type ConversationDto = {
     /** `post` si fue una publicación y no un anuncio. */
     sourceType: string | null;
   } | null;
+  /**
+   * 041: la campaña masiva del chat. `pending` = la inició y el contacto no
+   * ha respondido (vive en «Campañas»); `replied` = respondió («Respondió a
+   * campaña X»). `name` null = la campaña ya no existe.
+   */
+  campaign: { state: "pending" | "replied"; name: string | null } | null;
 };
 
 /** 018 — De qué anuncio llegó un contacto, como lo ve la bandeja. */

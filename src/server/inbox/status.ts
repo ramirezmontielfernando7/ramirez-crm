@@ -64,7 +64,8 @@ const TIME_KEY = { sent: "sentAt", delivered: "deliveredAt", read: "readAt" } as
  * y luego escribir: dos webhooks simultáneos no pueden degradar el estado):
  *
  * 1. La transición: `UPDATE … WHERE status IN (<estados previos válidos>)`.
- *    Solo si cambió algo se publica por SSE.
+ *    Solo si cambió algo se publica por SSE (y nunca para un mensaje de
+ *    campaña masiva, 041).
  * 2. La hora del estado y el `pricing`: se guardan aunque el estado llegue
  *    fuera de orden (un `delivered` que llega después del `read` deja su
  *    hora), y cada uno una sola vez (`coalesce`: el primero gana). Un
@@ -96,7 +97,19 @@ export async function applyStatusUpdate(
         : { status: next, error: null, errorCode: null }
     )
     .where(scoped(schema.message.organizationId, organizationId, byWamid, inArray(schema.message.status, ALLOWED_FROM[next])))
-    .returning({ id: schema.message.id, conversationId: schema.message.conversationId });
+    .returning({
+      id: schema.message.id,
+      conversationId: schema.message.conversationId,
+      // 041: ¿lo envió una campaña masiva? En la misma sentencia (índice
+      // `campaign_recipient_org_message_idx`), sin otra ida a la BD por tick.
+      // Columnas con la tabla escrita a mano: en un RETURNING drizzle las
+      // pone sin calificar y dentro de la subconsulta serían las de `r`.
+      fromCampaign: sql<boolean>`exists (
+        select 1 from campaign_recipient r
+        where r.organization_id = "message"."organization_id"
+          and r.message_id = "message"."id"
+      )`,
+    });
 
   const pricing = pricingOf(status);
   if (next !== "failed" || pricing) {
@@ -131,6 +144,11 @@ export async function applyStatusUpdate(
   if (next === "failed" && errorCode === MARKETING_OPT_OUT_CODE) {
     await markMarketingOptOutForConversation({ organizationId, conversationId: msg.conversationId, at });
   }
+
+  // 041: los ticks de un envío masivo NO van por SSE (miles por campaña, y a
+  // cada asesor conectado le costaría una consulta de visibilidad por tick).
+  // La BD ya quedó al día arriba: el chat abierto los ve al reabrirse.
+  if (msg.fromCampaign) return;
 
   publish(organizationId, {
     type: "message.status",

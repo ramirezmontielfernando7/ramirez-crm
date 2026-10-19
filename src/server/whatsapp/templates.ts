@@ -780,6 +780,12 @@ export async function sendTemplate(input: {
    * mensaje reservado se borra (nunca salió).
    */
   reserve?: (messageId: string) => Promise<void>;
+  /**
+   * 041: no publicar `message.new`. Lo usa la campaña cuando el chat queda en
+   * la pestaña «Campañas» (sin respuesta del contacto): la BD se escribe
+   * igual; la pestaña la lee al abrirse.
+   */
+  silent?: boolean;
 }): Promise<{ messageId: string }> {
   // Fase 3, PR 2: nada sale de una organización suspendida o dada de baja.
   await assertOrgActive(input.organizationId);
@@ -961,13 +967,15 @@ export async function sendTemplate(input: {
     .set({ lastMessageAt: new Date(), updatedAt: new Date() })
     .where(eq(schema.conversation.id, input.conversationId));
 
-  publish(input.organizationId, {
-    type: "message.new",
-    data: {
-      conversationId: input.conversationId,
-      message: serializeMessage(message),
-    },
-  });
+  if (!input.silent) {
+    publish(input.organizationId, {
+      type: "message.new",
+      data: {
+        conversationId: input.conversationId,
+        message: serializeMessage(message),
+      },
+    });
+  }
 
   return { messageId: message.id };
 }
