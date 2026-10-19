@@ -47,7 +47,9 @@ conectado el servidor le hace una consulta de visibilidad por evento.
 ## Chats viejos
 
 `scripts/reclasificar-campanas.mjs` (`--org <id>` o `--all`; por defecto solo
-cuenta; `--apply` pide el número exacto). Solo llena columnas vacías: nunca
+cuenta; `--apply` pide el número exacto). En la imagen de Docker viaja como
+`/app/ops/reclasificar-campanas.mjs` (`docker exec -it <app> node
+ops/reclasificar-campanas.mjs --all`). Solo llena columnas vacías: nunca
 escribió → «Campañas»; escribió después de la primera campaña → «Respondió a
 campaña X»; escribía antes → no se toca. Correrlo dos veces cambia 0. Se
 aplica solo con autorización del dueño y después de una copia de seguridad.
@@ -58,6 +60,14 @@ aplica solo con autorización del dueño y después de una copia de seguridad.
   cada `message.new`/`conversation.updated`; la Bandeja sin espera entre
   ráfagas y sin usar `since=` (el contrato sse.md dice que el catch-up es con
   `since=`, el cliente no lo hace).
+
+## Pendientes
+
+- Agregar `scripts/e2e-bandeja-campanas.mjs` al job `e2e-multiorg` del CI
+  (`.github/workflows/ci.yml`). Decisión del dueño: va en un PR aparte. Hasta
+  entonces se corre a mano con `pnpm test:e2e:bandeja-campanas`.
+- Aplicar la reclasificación de los chats viejos en producción: solo con
+  autorización del dueño y después de una copia de seguridad de la BD.
 
 ## Pruebas
 
