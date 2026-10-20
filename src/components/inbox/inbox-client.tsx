@@ -16,6 +16,7 @@ import { Composer } from "./composer";
 import { ContactPanel } from "./contact-panel";
 import { contactLabel } from "@/lib/phone-search";
 import { useConversationActions } from "./conversation-actions";
+import { mergeSubset, RefreshBatch, subsetQuery, type RefreshPlan } from "@/lib/inbox-refresh";
 import type { PatchRow } from "./chat-capsules";
 
 /**
@@ -71,18 +72,12 @@ export function InboxClient({ channels }: { channels: readonly Channel[] }) {
   }, []);
   const selectedIdRef = useRef<string | null>(null);
   selectedIdRef.current = selectedId;
-  const lastFetchRef = useRef<string | null>(null);
   const tmpSeq = useRef(0);
   // Los envíos salen en fila: el compositor ya no espera, pero WhatsApp debe
   // recibir "hola" antes que el renglón siguiente. Sin esta cadena, dos POST
   // simultáneos pueden llegar a Meta en desorden.
   const sendQueue = useRef<Promise<unknown>>(Promise.resolve());
 
-  // Un refetch lento (disparado por un evento anterior) no debe pisar la lista
-  // de uno más nuevo: si resolviera tarde, devolvería a la vista un chat que
-  // acaba de archivarse. Solo se aplica la respuesta más reciente pedida.
-  const fetchSeq = useRef(0);
-  const appliedSeq = useRef(0);
   // 041: la pestaña «Campañas» (chats de campaña sin respuesta) se pide
   // aparte y SOLO mientras está abierta: la principal ya no los trae, solo
   // su cuántos.
@@ -99,32 +94,102 @@ export function InboxClient({ channels }: { channels: readonly Channel[] }) {
     setCampaignConversations(data.conversations);
     return data.conversations;
   }, []);
-  const refetchConversations = useCallback(async () => {
-    const seq = ++fetchSeq.current;
-    if (campaignViewRef.current) void refetchCampaigns();
-    const res = await fetch("/api/conversations").catch(() => null);
-    if (!res?.ok) return;
-    const data = (await res.json()) as { conversations: ConversationDto[]; campaignPending?: number };
-    if (seq < appliedSeq.current) return;
-    appliedSeq.current = seq;
-    setConversations(data.conversations);
-    setCampaignPending(data.campaignPending ?? 0);
-    lastFetchRef.current = new Date().toISOString();
-  }, [refetchCampaigns]);
-  // Un mensaje trae varios avisos seguidos (message.new, conversation.updated,
-  // el de marcar leído…): se juntan en UNA descarga, como el globo del menú.
-  // La respuesta más reciente sigue ganando (fetchSeq/appliedSeq).
-  const refetchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const scheduleRefetch = useCallback(() => {
-    if (refetchTimer.current) clearTimeout(refetchTimer.current);
-    refetchTimer.current = setTimeout(() => {
-      refetchTimer.current = null;
-      void refetchConversations();
-    }, REFETCH_DEBOUNCE_MS);
-  }, [refetchConversations]);
+
+  /**
+   * Paso 2 — La lista se refresca POR PARTES. Cada aviso apunta qué chat
+   * cambió en un lote; tras un respiro corto (los de una ráfaga se juntan) se
+   * piden SOLO esos con la misma consulta y permisos que la lista, y lo que no
+   * vuelve sale de la vista. La lista completa, solo al cargar, al reconectar
+   * o cuando un aviso no dice qué cambió.
+   *
+   * Las peticiones van EN FILA, una a la vez: una respuesta vieja nunca pisa
+   * a una más nueva (antes lo cuidaba un contador de secuencia).
+   */
+  const batch = useRef(new RefreshBatch());
+  const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const refreshing = useRef(false);
+  const loaded = useRef(false);
+  const runPlan = useCallback(
+    async (plan: RefreshPlan) => {
+      if (plan.kind === "full") {
+        if (campaignViewRef.current) void refetchCampaigns();
+        const res = await fetch("/api/conversations").catch(() => null);
+        if (!res?.ok) return;
+        const data = (await res.json()) as { conversations: ConversationDto[]; campaignPending?: number };
+        setConversations(data.conversations);
+        setCampaignPending(data.campaignPending ?? 0);
+        loaded.current = true;
+        return;
+      }
+      // Sin la lista inicial no hay sobre qué aplicar: la completa.
+      if (!loaded.current) {
+        batch.current.markFull();
+        return;
+      }
+      const q = subsetQuery(plan);
+      const [res, resCampaigns] = await Promise.all([
+        fetch(`/api/conversations?${q}`).catch(() => null),
+        campaignViewRef.current ? fetch(`/api/conversations?view=campaigns&${q}`).catch(() => null) : null,
+      ]);
+      if (!res?.ok) {
+        // Sin la fila no hay cómo saber qué cambió: la lista completa.
+        batch.current.markFull();
+        return;
+      }
+      const data = (await res.json()) as { conversations: ConversationDto[]; campaignPending?: number };
+      setConversations((prev) => prev && mergeSubset(prev, plan, data.conversations));
+      setCampaignPending(data.campaignPending ?? 0);
+      if (resCampaigns?.ok) {
+        const camp = (await resCampaigns.json()) as { conversations: ConversationDto[] };
+        setCampaignConversations((prev) => prev && mergeSubset(prev, plan, camp.conversations));
+      }
+    },
+    [refetchCampaigns]
+  );
+  const drain = useCallback(async () => {
+    if (refreshing.current) return; // al terminar la que viaja, sigue con el lote
+    refreshing.current = true;
+    try {
+      for (let plan = batch.current.take(); plan; plan = batch.current.take()) {
+        try {
+          await runPlan(plan);
+        } catch {
+          // Respuesta cortada a medias: lo parcial se repone con la lista
+          // completa (una vez; si esa también falla, espera al siguiente aviso).
+          if (plan.kind === "subset") batch.current.markFull();
+        }
+      }
+    } finally {
+      refreshing.current = false;
+    }
+  }, [runPlan]);
+  /** Junta lo de la ráfaga y pide tras el respiro (`now`: sin esperar). */
+  const scheduleRefresh = useCallback(
+    (add: (b: RefreshBatch) => void, now = false) => {
+      add(batch.current);
+      if (refreshTimer.current) clearTimeout(refreshTimer.current);
+      refreshTimer.current = null;
+      if (now) {
+        void drain();
+        return;
+      }
+      refreshTimer.current = setTimeout(() => {
+        refreshTimer.current = null;
+        void drain();
+      }, REFETCH_DEBOUNCE_MS);
+    },
+    [drain]
+  );
+  /** La lista completa, ya (carga inicial, datos de demostración). */
+  const refetchConversations = useCallback(() => scheduleRefresh((b) => b.markFull(), true), [scheduleRefresh]);
+  /** Solo la fila de este chat, ya (tras una acción propia sobre él). */
+  const refreshConversation = useCallback(
+    (id: string) => scheduleRefresh((b) => b.addConversation(id), true),
+    [scheduleRefresh]
+  );
   useEffect(
     () => () => {
-      if (refetchTimer.current) clearTimeout(refetchTimer.current);
+      if (refreshTimer.current) clearTimeout(refreshTimer.current);
     },
     []
   );
@@ -175,9 +240,9 @@ export function InboxClient({ channels }: { channels: readonly Channel[] }) {
                   : c
               ))
       );
-      void refetchConversations();
+      refreshConversation(id);
     },
-    [refetchConversations]
+    [refreshConversation]
   );
   const headerActions = useConversationActions(onRemoved);
   const select = useCallback(
@@ -229,7 +294,7 @@ export function InboxClient({ channels }: { channels: readonly Channel[] }) {
           body: JSON.stringify({ markRead: true }),
         });
       }
-      scheduleRefetch();
+      scheduleRefresh((b) => b.addConversation(conversationId));
       // Un entrante nuevo puede crear/mover el lead: refresca el panel.
       setDetailRev((v) => v + 1);
     },
@@ -247,24 +312,25 @@ export function InboxClient({ channels }: { channels: readonly Channel[] }) {
         )
       );
     },
-    onConversationUpdated: () => {
-      scheduleRefetch();
+    onConversationUpdated: ({ conversation }) => {
+      scheduleRefresh((b) => b.addConversation((conversation as { id?: string } | null)?.id));
       // El agente movió de etapa o cambió el handoff: refresca el panel en vivo.
       setDetailRev((v) => v + 1);
     },
     // 020: me asignaron o me quitaron chats (o, si reparto, cambió el reparto).
-    onAssignmentChanged: () => {
-      scheduleRefetch();
+    onAssignmentChanged: ({ contactIds }) => {
+      scheduleRefresh((b) => b.addContacts(contactIds));
       setDetailRev((v) => v + 1);
     },
     // 026: me sumaron o me quitaron como participante de un chat.
-    onParticipantsChanged: () => {
-      scheduleRefetch();
+    onParticipantsChanged: ({ contactIds }) => {
+      scheduleRefresh((b) => b.addContacts(contactIds));
       setDetailRev((v) => v + 1);
     },
     onReconnect: () => {
-      // Catch-up tras reconexión (contrato sse.md): refetch completo.
-      scheduleRefetch();
+      // Catch-up tras reconexión (contrato sse.md): lista completa (lo que
+      // pasó mientras no había canal no trae aviso).
+      scheduleRefresh((b) => b.markFull(), true);
       if (selectedIdRef.current) void refetchMessages(selectedIdRef.current);
       setDetailRev((v) => v + 1);
     },
@@ -359,7 +425,7 @@ export function InboxClient({ channels }: { channels: readonly Channel[] }) {
         // revés, la burbuja parpadearía.
         await refetchMessages(conversationId);
         drop();
-        void refetchConversations();
+        refreshConversation(conversationId);
         return null;
       };
 
@@ -367,20 +433,21 @@ export function InboxClient({ channels }: { channels: readonly Channel[] }) {
       sendQueue.current = queued.catch(() => null);
       return queued;
     },
-    [refetchMessages, refetchConversations]
+    [refetchMessages, refreshConversation]
   );
 
   const patchConversation = useCallback(
     async (patch: { aiEnabled?: boolean; reactivate?: boolean }) => {
-      if (!selectedIdRef.current) return;
-      await fetch(`/api/conversations/${selectedIdRef.current}`, {
+      const id = selectedIdRef.current;
+      if (!id) return;
+      await fetch(`/api/conversations/${id}`, {
         method: "PATCH",
         headers: { "content-type": "application/json" },
         body: JSON.stringify(patch),
       }).catch(() => null);
-      void refetchConversations();
+      refreshConversation(id);
     },
-    [refetchConversations]
+    [refreshConversation]
   );
 
   return (
@@ -484,9 +551,10 @@ export function InboxClient({ channels }: { channels: readonly Channel[] }) {
               conversation={selected}
               onSend={sendText}
               onSent={() => {
-                if (selectedIdRef.current)
-                  void refetchMessages(selectedIdRef.current);
-                void refetchConversations();
+                const id = selectedIdRef.current;
+                if (!id) return;
+                void refetchMessages(id);
+                refreshConversation(id);
               }}
             />
           </>

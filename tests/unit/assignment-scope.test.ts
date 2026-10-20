@@ -130,6 +130,7 @@ describe("020 — el asesor recibe 404 en lo de otro, y la consulta lleva su fil
 const LISTAS: [string, string, string][] = [
   ["bandeja", "conversations", "http://localhost/api/conversations"],
   ["no leídos del globo", "conversations/unread", "http://localhost/api/conversations/unread"],
+  ["bandeja: refresco por chat", "conversations", "http://localhost/api/conversations?ids=cv_1,cv_2&contactIds=ct_1"],
   ["tablero del pipeline", "pipeline/board", "http://localhost/api/pipeline/board"],
   ["directorio de contactos", "contacts", "http://localhost/api/contacts"],
   ["citas", "bookings", "http://localhost/api/bookings"],

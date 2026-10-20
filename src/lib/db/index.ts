@@ -33,7 +33,12 @@ import * as schema from "./schema";
  */
 export const PG_CONNECTION_OPTIONS = {
   onnotice: () => {},
-  connection: { TimeZone: "UTC" },
+  // Sin JIT: las consultas del CRM son cortas y muchas, y compilar con LLVM
+  // les cuesta más que lo que ahorra. Medido (Paso 2 de la Bandeja, 50,000
+  // chats): la lista de un asesor sin chats tardaba ~960 ms, de los que
+  // ~940 eran compilar; sin JIT, 21 ms. Un Postgres compilado sin LLVM
+  // ignora el ajuste (equivale a no tenerlo).
+  connection: { TimeZone: "UTC", jit: "off" },
 } as const;
 
 /**
