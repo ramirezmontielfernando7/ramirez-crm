@@ -415,6 +415,38 @@ try {
   const manual = await acall("DELETE", `/api/conversations/${D.id}`);
   ok("un DELETE manual del asesor recibe 403", manual.status === 403, String(manual.status));
   ok("…y el chat sigue ahí", Boolean(await conv(N.d)));
+
+  console.log("== 9. En vivo, solo el chat que cambió (Paso 2) ==");
+  // Cada GET /api/conversations que pide la pantalla del asesor. Tras la
+  // carga inicial, un aviso en vivo debe pedir SOLO ese chat (?ids= o
+  // ?contactIds=), nunca la lista completa.
+  const pedidas = [];
+  ap.on("request", (req) => {
+    const u = new URL(req.url());
+    if (u.pathname === "/api/conversations" && req.method() === "GET") pedidas.push(u.search);
+  });
+  const soloParciales = () => pedidas.length > 0 && pedidas.every((q) => /[?&](ids|contactIds)=/.test(q));
+  await sleep(1500);
+  pedidas.length = 0;
+  await inbound(N.d, 4, `segundo mensaje ${RUN}`);
+  ok("al asesor le llega el mensaje en su fila", await hasta(async () => (await arow(N.d).innerText()).includes(`segundo mensaje ${RUN}`)));
+  await sleep(800);
+  ok("…pidiendo solo ese chat, sin la lista completa", soloParciales(), pedidas.join(" | "));
+  pedidas.length = 0;
+  await call("POST", "/api/assignments", { contactIds: [D.contact.id], userId: null });
+  ok("al quitárselo, el chat sale de su lista", await oculto(arow(N.d)));
+  await sleep(800);
+  ok("…también sin bajar la lista completa", soloParciales(), pedidas.join(" | "));
+  pedidas.length = 0;
+  await call("POST", "/api/assignments", { contactIds: [D.contact.id], userId: asesorId });
+  ok("al devolvérselo, vuelve a su lista", await ver(arow(N.d)));
+  await sleep(800);
+  ok("…igual, solo ese chat", soloParciales(), pedidas.join(" | "));
+  const Bnow = await conv(N.b);
+  const ajeno = await acall("GET", `/api/conversations?ids=${Bnow.id}&contactIds=${Bnow.contact.id}`);
+  ok("pedir por id un chat que no es suyo no trae nada", ajeno.status === 200 && (ajeno.json?.conversations ?? []).length === 0, JSON.stringify(ajeno.json).slice(0, 200));
+  const suyo = await acall("GET", `/api/conversations?ids=${D.id}`);
+  ok("…y el suyo sí", (suyo.json?.conversations ?? []).map((c) => c.id).join() === D.id, JSON.stringify(suyo.json).slice(0, 200));
   await as.close();
 } catch (err) {
   failures++;
