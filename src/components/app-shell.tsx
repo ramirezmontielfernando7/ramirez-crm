@@ -242,7 +242,7 @@ function ShellFrame({
           aria-hidden
           className={cn(
             "hidden shrink-0 lg:block",
-            mode === "expanded" ? "lg:mr-3 lg:w-56" : mode === "collapsed" ? "lg:mr-3 lg:w-14" : "lg:w-0"
+            mode === "expanded" ? "lg:mr-3 lg:w-[13.5rem]" : mode === "collapsed" ? "lg:mr-3 lg:w-14" : "lg:w-0"
           )}
         />
 
