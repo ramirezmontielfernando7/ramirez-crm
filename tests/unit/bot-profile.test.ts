@@ -40,6 +40,8 @@ function profileRow(overrides: Partial<AgentProfile> = {}): AgentProfile {
     id: "ap_1",
     organizationId: "org_1",
     enabled: false,
+    pausedAt: null,
+    pausedBy: null,
     name: "Sofi",
     tone: "cálido y directo",
     instructions: "Vendemos limpiezas dentales.",

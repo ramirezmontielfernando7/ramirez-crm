@@ -41,6 +41,7 @@ const HANDOFF_LABELS: Record<string, string> = {
   error: "Error del proveedor de IA",
   ventana: "Ventana de 24h cerrada",
   cuota: "Se agotó la cuota mensual de IA",
+  pausa: "Los agentes de IA están en pausa",
   manual_reply: "Respondiste desde el teléfono — IA en pausa",
 };
 

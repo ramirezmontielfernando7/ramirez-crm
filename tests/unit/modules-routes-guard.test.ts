@@ -20,6 +20,7 @@ const CARPETAS: [string, ModuleKey[]][] = [
   ["team-chat", ["team_chat"]],
   ["kb", ["agent"]],
   ["agent/profile", ["agent"]],
+  ["agent/pause", ["agent"]],
   ["lab", ["lab"]],
   ["analytics", ["results"]],
   // 033 — Tareas (y en el PR 2, Notas).

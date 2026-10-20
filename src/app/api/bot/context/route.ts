@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { scoped } from "@/lib/db/tenant";
+import { isBrainPaused } from "@/server/agents/store";
 import { apiError } from "@/lib/api";
 import { requireBotKey } from "@/server/bot/auth";
 import { serializeFicha } from "@/server/bot/ficha";
@@ -88,6 +89,9 @@ export async function GET(req: Request) {
       return apiError(404, "not_found", "Conversación no encontrada");
     }
 
+    // 042: la pausa de los agentes (solo lectura: el traspaso lo hace el envío).
+    const paused = !conversation.isTest && (await isBrainPaused(organizationId));
+
     const [leadRows, booking] = await Promise.all([
       db
         .select({ lead: schema.lead, stage: schema.pipelineStage })
@@ -121,7 +125,9 @@ export async function GET(req: Request) {
         id: conversation.id,
         // Una sola verdad para el bot: si hay handoff, la IA está apagada
         // aunque el flag siga en true.
-        aiEnabled: conversation.aiEnabled && !conversation.handoffAt,
+        aiEnabled: conversation.aiEnabled && !conversation.handoffAt && !paused,
+        /** 042 (aditivo): el equipo pausó los agentes; no hables aunque aiEnabled fuera true. */
+        ...(paused ? { paused: true } : {}),
         handoffAt: conversation.handoffAt?.toISOString() ?? null,
         windowOpen: isWindowOpen(conversation.lastInboundAt),
         windowRemainingMs: windowRemainingMs(conversation.lastInboundAt),

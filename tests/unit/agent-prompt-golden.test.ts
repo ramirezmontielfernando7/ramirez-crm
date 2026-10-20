@@ -17,6 +17,8 @@ const profile = {
   id: "agp_1",
   organizationId: "org_1",
   enabled: true,
+  pausedAt: null,
+  pausedBy: null,
   name: "Martillito",
   tone: "Cercano y práctico",
   instructions: "Ayuda a cotizar.\nNunca inventes existencias.",

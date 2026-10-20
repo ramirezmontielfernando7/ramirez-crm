@@ -279,4 +279,6 @@ export const HANDOFF_LABEL: Record<string, string> = {
   manual_reply: "Respondiste desde el teléfono",
   // Fase 3: la organización agotó su cuota mensual de IA.
   cuota: "Se agotó la cuota mensual de IA",
+  // 042: el equipo apagó el agente (o todos).
+  pausa: "Los agentes de IA están en pausa",
 };

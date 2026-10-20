@@ -2,6 +2,7 @@ import { desc, eq, isNotNull } from "drizzle-orm";
 import { z } from "zod";
 import { getDb, schema } from "@/lib/db";
 import { scoped } from "@/lib/db/tenant";
+import { isBrainPaused } from "@/server/agents/store";
 import { apiError, parseBody } from "@/lib/api";
 import { requireBotKey } from "@/server/bot/auth";
 import { getCredentialsByOrg } from "@/server/whatsapp/credentials";
@@ -50,6 +51,11 @@ export async function POST(req: Request) {
     if (!conv.aiEnabled || conv.handoffAt) {
       // Handoff/IA pausada: un humano atiende — "escribiendo…" aquí sería
       // mentirle al cliente. Se omite sin tocar Meta.
+      return Response.json({ ok: false, reason: "ai_paused" });
+    }
+
+    // 042: con los agentes en pausa, tampoco se finge que "escribe".
+    if (await isBrainPaused(organizationId)) {
       return Response.json({ ok: false, reason: "ai_paused" });
     }
 
