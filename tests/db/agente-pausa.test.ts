@@ -50,7 +50,27 @@ vi.mock("@/server/inbox/send", async (importOriginal) => {
   };
 });
 
+// El cerebro externo: la llave "key-A" es de la organización A, "key-B" de B.
+const llaves = vi.hoisted(() => new Map<string, string>());
+vi.mock("@/server/bot/keys", () => ({
+  resolveBotKey: async (k: string | null) => {
+    const org = k ? llaves.get(k) : undefined;
+    return org ? { keyId: `bak_${org}`, organizationId: org } : null;
+  },
+  touchBotKey: async () => {},
+}));
+
 const { runAgentTurn } = await import("@/server/ai/pipeline");
+const botMessages = await import("@/app/api/bot/messages/route");
+const botTyping = await import("@/app/api/bot/typing/route");
+const botContext = await import("@/app/api/bot/context/route");
+
+const bot = (path: string, key: string, body?: unknown) =>
+  new Request(`http://localhost/api/bot/${path}`, {
+    method: body ? "POST" : "GET",
+    headers: { "x-api-key": key, "content-type": "application/json" },
+    body: body ? JSON.stringify(body) : undefined,
+  });
 
 const sys = () => getSystemDb();
 const as = <T>(org: string, fn: () => Promise<T>) => runWithOrganization(org, fn);
@@ -141,6 +161,8 @@ beforeAll(async () => {
   resetEnvCacheForTests();
   A = await crearOrganizacion("Pausa A");
   B = await crearOrganizacion("Pausa B");
+  llaves.set("key-A", A.id);
+  llaves.set("key-B", B.id);
   ACTOR = `usr_pausa_${Math.random().toString(36).slice(2, 8)}`;
   asesor = `usr_asesor_${Math.random().toString(36).slice(2, 8)}`;
   await sys().insert(schema.user).values([
@@ -318,5 +340,95 @@ describe("aislamiento entre organizaciones", () => {
     // El pausado general de A tampoco se lee desde B.
     await as(A.id, () => setOrgPaused(A.id, ACTOR, true));
     expect((await as(B.id, () => getOrgPause(B.id))).paused).toBe(false);
+  });
+});
+
+describe("al reanudar, los chats que ya pasaron a una persona NO regresan solos al agente", () => {
+  it("se quedan con la persona; solo los chats nuevos vuelven al agente", async () => {
+    const etapa = stages[A.id]![0]!.id;
+    const viejo = await cliente(A.id, etapa);
+    await as(A.id, () => setOrgPaused(A.id, ACTOR, true));
+    await turno(A.id, viejo.conversationId);
+    const traspasado = await conversacion(viejo.conversationId);
+    expect(traspasado.handoffReason).toBe("pausa");
+
+    await as(A.id, () => setOrgPaused(A.id, ACTOR, false));
+    // El cliente vuelve a escribir en ese mismo chat, ya reanudado.
+    await sys().insert(schema.message).values({
+      id: newId("message"), organizationId: A.id, conversationId: viejo.conversationId,
+      direction: "in", type: "text", text: "¿hay alguien?", status: "delivered",
+      waTimestamp: new Date(), createdAt: new Date(),
+    });
+    h.enviados = [];
+    await turno(A.id, viejo.conversationId);
+    expect(h.enviados).toHaveLength(0);
+    expect(h.llamadas).toHaveLength(0);
+    const despues = await conversacion(viejo.conversationId);
+    expect(despues.handoffAt?.getTime()).toBe(traspasado.handoffAt?.getTime());
+    expect(despues.handoffReason).toBe("pausa");
+
+    const nuevo = await cliente(A.id, etapa);
+    await turno(A.id, nuevo.conversationId);
+    expect(h.enviados).toEqual(["hola"]);
+  });
+});
+
+describe("cerebro externo (/api/bot/*) respeta la pausa", () => {
+  it("sin pausa, el envío del cerebro pasa (línea base)", async () => {
+    const { conversationId } = await cliente(A.id, stages[A.id]![0]!.id);
+    const r = await botMessages.POST(bot("messages", "key-A", { conversationId, text: "hola desde el cerebro" }));
+    expect(r.status).toBe(200);
+    expect(h.enviados).toEqual(["hola desde el cerebro"]);
+  });
+
+  it("pausa general: 409 ai_paused, no se envía nada y el chat pasa a una persona", async () => {
+    const { conversationId } = await cliente(A.id, stages[A.id]![0]!.id);
+    await as(A.id, () => setOrgPaused(A.id, ACTOR, true));
+    const r = await botMessages.POST(bot("messages", "key-A", { conversationId, text: "hola" }));
+    expect(r.status).toBe(409);
+    expect((await r.json()).error.code).toBe("ai_paused");
+    expect(h.enviados).toHaveLength(0);
+    const conv = await conversacion(conversationId);
+    expect(conv.handoffReason).toBe("pausa");
+    expect(conv.unreadCount).toBe(2);
+    // Y sigue respondiendo lo mismo que cualquier traspaso.
+    const otra = await botMessages.POST(bot("messages", "key-A", { conversationId, text: "otra vez" }));
+    expect(otra.status).toBe(409);
+  });
+
+  it("interruptor del agente general: también calla al cerebro", async () => {
+    const { conversationId } = await cliente(A.id, stages[A.id]![0]!.id);
+    const general = await generalDe(A.id);
+    await as(A.id, () => setAgentPaused(A.id, general.id, ACTOR, true));
+    const r = await botMessages.POST(bot("messages", "key-A", { conversationId, text: "hola" }));
+    expect(r.status).toBe(409);
+    expect(h.enviados).toHaveLength(0);
+  });
+
+  it("'escribiendo…' y el contexto lo reflejan sin tocar nada (solo lectura)", async () => {
+    const { conversationId } = await cliente(A.id, stages[A.id]![0]!.id);
+    await as(A.id, () => setOrgPaused(A.id, ACTOR, true));
+    const t = await botTyping.POST(bot("typing", "key-A", { conversationId }));
+    expect(await t.json()).toEqual({ ok: false, reason: "ai_paused" });
+    const c = await botContext.GET(bot(`context?conversationId=${conversationId}`, "key-A"));
+    const cuerpo = await c.json();
+    expect(cuerpo.conversation.aiEnabled).toBe(false);
+    expect(cuerpo.conversation.paused).toBe(true);
+    expect((await conversacion(conversationId)).handoffAt).toBeNull();
+  });
+
+  it("pausar A no frena el cerebro de B", async () => {
+    await as(A.id, () => setOrgPaused(A.id, ACTOR, true));
+    const enB = await cliente(B.id, stages[B.id]![0]!.id);
+    const r = await botMessages.POST(bot("messages", "key-B", { conversationId: enB.conversationId, text: "hola B" }));
+    expect(r.status).toBe(200);
+  });
+
+  it("el chat de prueba del Laboratorio no se pausa (cae en su guarda de sandbox, no en ai_paused)", async () => {
+    const { conversationId } = await cliente(A.id, stages[A.id]![0]!.id, { isTest: true });
+    await as(A.id, () => setOrgPaused(A.id, ACTOR, true));
+    const r = await botMessages.POST(bot("messages", "key-A", { conversationId, text: "hola" }));
+    expect((await r.json()).error?.code).not.toBe("ai_paused");
+    expect((await conversacion(conversationId)).handoffAt).toBeNull();
   });
 });

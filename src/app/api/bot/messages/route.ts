@@ -4,6 +4,9 @@ import { getDb, schema } from "@/lib/db";
 import { scoped } from "@/lib/db/tenant";
 import { apiError, parseBody } from "@/lib/api";
 import { requireBotKey } from "@/server/bot/auth";
+import { PAUSE_HANDOFF_REASON } from "@/lib/agent-pause";
+import { applyHandoff } from "@/server/ai/pipeline";
+import { isBrainPaused } from "@/server/agents/store";
 import { SendError, sendText } from "@/server/inbox/send";
 import { runWithOrganization } from "@/lib/request-context";
 
@@ -20,7 +23,8 @@ const bodySchema = z.object({
  * que el mensaje queda en el hilo marcado como IA, respeta la ventana de 24 h
  * y hereda el guard de sandbox del Laboratorio.
  *
- * 409 tipados: ai_paused (un humano tomó la conversación) · window_closed ·
+ * 409 tipados: ai_paused (un humano tomó la conversación, o el equipo pausó los
+ * agentes: 042) · window_closed ·
  * sandbox_violation.
  */
 export async function POST(req: Request) {
@@ -42,6 +46,7 @@ export async function POST(req: Request) {
       .select({
         aiEnabled: schema.conversation.aiEnabled,
         handoffAt: schema.conversation.handoffAt,
+        isTest: schema.conversation.isTest,
       })
       .from(schema.conversation)
       .where(
@@ -53,6 +58,14 @@ export async function POST(req: Request) {
     const conv = convs[0];
     if (!conv) return apiError(404, "not_found", "Conversación no encontrada");
     if (!conv.aiEnabled || conv.handoffAt) {
+      return apiError(409, "ai_paused", "La IA está en pausa en esta conversación");
+    }
+
+    // 042: la pausa de los agentes (general o del agente general) también
+    // calla al cerebro externo. Como cualquier pausa: el chat pasa a una
+    // persona (no se queda en silencio) y la respuesta es la de siempre.
+    if (!conv.isTest && (await isBrainPaused(organizationId))) {
+      await applyHandoff(body.data.conversationId, organizationId, PAUSE_HANDOFF_REASON);
       return apiError(409, "ai_paused", "La IA está en pausa en esta conversación");
     }
 

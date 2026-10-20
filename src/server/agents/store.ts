@@ -16,6 +16,7 @@ import { copyAgentKb } from "./kb";
 import { appendPublishLog, type PublishAction } from "./log";
 import { syncGeneralToProfile } from "./mirror";
 import { removeAgentStages } from "./assignments";
+import { pauseScope } from "@/lib/agent-pause";
 import { logger } from "@/lib/log";
 import { existingGroupIds, settleAgentDocuments } from "@/server/kb-docs/store";
 
@@ -473,6 +474,28 @@ export async function setOrgPaused(
     por: actorUserId,
   });
   return { paused: !!row.pausedAt, pausedAt: row.pausedAt?.toISOString() ?? null };
+}
+
+/**
+ * 042 — ¿Debe el cerebro externo (`/api/bot/*`) callar? El cerebro ocupa el
+ * lugar del agente GENERAL (no usa asignaciones por etapa), así que lo
+ * detienen la pausa general Y el interruptor del agente general. Solo lee.
+ */
+export async function isBrainPaused(organizationId: string): Promise<boolean> {
+  const [row] = await getDb()
+    .select({ orgPausedAt: schema.agentProfile.pausedAt, agentPausedAt: schema.agent.pausedAt })
+    .from(schema.agentProfile)
+    .leftJoin(
+      schema.agent,
+      and(
+        eq(schema.agent.organizationId, schema.agentProfile.organizationId),
+        eq(schema.agent.isGeneral, true),
+        isNull(schema.agent.archivedAt)
+      )
+    )
+    .where(scoped(schema.agentProfile.organizationId, organizationId))
+    .limit(1);
+  return pauseScope({ orgPausedAt: row?.orgPausedAt ?? null, agentPausedAt: row?.agentPausedAt ?? null }) !== null;
 }
 
 /** Apaga o enciende UN agente (cualquiera, el general incluido). */

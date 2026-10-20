@@ -13,8 +13,24 @@ su configuración (p. ej. durante una campaña masiva).
   a quien ve todo, línea de tiempo `ai_handoff`). No responde, ni siquiera el
   aviso del patrón de respaldo; no gasta IA; no toca asignación, etapa ni no
   leídos. Las conversaciones del Laboratorio (`isTest`) no se pausan.
-- Reanudar solo quita la marca: los chats que ya pasaron a una persona se
-  quedan con ella (como todo handoff); los nuevos vuelven al agente.
+- **Al reanudar, los chats que ya pasaron a atención humana POR LA PAUSA se
+  quedan con las personas.** Reanudar solo quita la marca de pausa: no toca
+  `handoff_at` de ningún chat, y el agente calla en todo chat con traspaso (igual
+  que con cualquier otro). Los chats NUEVOS (y los que nunca se traspasaron)
+  vuelven al agente. Para devolver un chat al agente, una persona enciende
+  «IA en esta conversación» en el panel del chat, como siempre. Esto es
+  deliberado: reanudar no debe disparar al agente sobre decenas de chats que ya
+  tienen a una persona atendiéndolos. Cubierto en
+  `tests/db/agente-pausa.test.ts` («al reanudar, los chats que ya pasaron…»).
+- **Cerebro externo (`/api/bot/*`)**: lo detienen la pausa general y el
+  interruptor del agente GENERAL (el cerebro ocupa su lugar y no usa
+  asignaciones por etapa; un agente de etapa apagado no lo afecta). En pausa:
+  `POST /messages` → 409 `ai_paused` (lo mismo que cualquier traspaso), no envía
+  y pasa el chat a una persona (handoff `pausa`); `POST /typing` →
+  `{ok:false, reason:"ai_paused"}`; `GET /context` → `aiEnabled:false` y el campo
+  aditivo `paused:true` (solo lectura: el traspaso lo hace el intento de envío).
+  Los chats de prueba del Laboratorio no se pausan. Sin cambios para quien no
+  pausa.
 - Permiso: `agent.manage` (Propietario) en las tres rutas. Ampliarlo al
   Coordinador pide un permiso nuevo y un lugar para el interruptor, porque hoy
   no puede abrir el Estudio de IA (decisión pendiente del dueño).
@@ -29,7 +45,7 @@ su configuración (p. ej. durante una campaña masiva).
   con el estado en `ResolvedAgent.pause` (`resolve.ts`).
 - Única puerta de escritura: `setOrgPaused` / `setAgentPaused` en
   `src/server/agents/store.ts`.
-- Rutas: `GET/PUT /api/agent/pause` (módulo `agent`),
+- Rutas: `GET/PUT /api/agent/pause` (módulo `agent`), `isBrainPaused` (`store.ts`) para el cerebro externo,
   `PUT /api/lab/agents/[id]/pause` (módulos `lab` + `agent`).
 - UI: `components/lab/agent-pause-bar.tsx` (barra + aviso) e interruptor por
   fila en `agents-list.tsx`.
@@ -42,5 +58,5 @@ su configuración (p. ej. durante una campaña masiva).
 - El punto de IA de la fila de la Bandeja (`agentOn` en `queries.ts`) sigue
   leyendo solo `agent_profile.enabled`: no refleja la pausa hasta que alguien
   lo agregue (otra sesión trabaja esa pantalla).
-- El cerebro externo (`/api/bot/*`) no es un agente de esta tabla: la pausa no
-  lo detiene (`brain-status` sí deja de decir que el agente incluido contesta).
+- `brain-status` deja de decir que el agente incluido contesta mientras dura la
+  pausa general.
