@@ -29,7 +29,7 @@ RUN pnpm exec esbuild scripts/migrate.mjs --bundle --platform=node \
     --banner:js="import { createRequire } from 'module'; const require = createRequire(import.meta.url);"
 # Fase 3: scripts de OPERADOR autocontenidos, para correrlos dentro del
 # contenedor (docker exec … node ops/<script>.mjs). Usan DATABASE_URL_SYSTEM.
-RUN for s in platform-admin purge-organization ai-quota bot-key set-consent-inicial kb-limits reclasificar-campanas; do \
+RUN for s in platform-admin purge-organization ai-quota bot-key set-consent-inicial kb-limits reclasificar-campanas respaldo probar-restauracion; do \
       pnpm exec esbuild scripts/$s.mjs --bundle --platform=node --format=esm --outfile=ops/$s.mjs \
         --banner:js="import { createRequire } from 'module'; const require = createRequire(import.meta.url);" || exit 1; \
     done
@@ -48,6 +48,17 @@ ENV MEDIA_DIR=/data/media
 # su-exec: el entrypoint arranca como root SOLO para dejar /data escribible y
 # baja a `vocero` antes de correr la app (idea de #40).
 RUN apk add --no-cache su-exec
+# Operación 1: pg_dump/pg_restore para ops/respaldo.mjs y
+# ops/probar-restauracion.mjs (docs/respaldos.md). DEBE ser de la MISMA versión
+# mayor que el Postgres de producción (18) o más nueva: un pg_dump más viejo
+# no respalda un servidor más nuevo. node:22-alpine es Alpine 3.24, que trae
+# postgresql18-client; si la base cambia y el paquete no existe, el build
+# falla aquí (mejor que un respaldo que no se puede sacar). El job «Imagen» de
+# CI comprueba que `$PG_BIN/pg_dump --version` diga 18.
+RUN apk add --no-cache postgresql18-client
+# Ruta fija a los binarios de la versión 18 (Alpine los instala aquí y solo
+# enlaza a /usr/bin la versión «por defecto»): los guiones usan PG_BIN.
+ENV PG_BIN=/usr/libexec/postgresql18
 RUN addgroup -S vocero && adduser -S vocero -G vocero
 # El punto de montaje nace de `vocero`: un volumen nombrado nuevo hereda ese
 # dueño al montarse vacío. Los que llegan como root (Coolify, Railway, un bind

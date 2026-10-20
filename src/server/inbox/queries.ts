@@ -1,4 +1,4 @@
-import { and, count, desc, eq, gt, isNotNull, isNull, sql } from "drizzle-orm";
+import { and, count, desc, eq, gt, inArray, isNotNull, isNull, or, sql } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import {
   scopedContacts,
@@ -146,43 +146,70 @@ export async function countUnread(access: Access): Promise<number> {
   return rows[0]?.n ?? 0;
 }
 
+/**
+ * Paso 2 (PR 2) — Solo ESTOS chats (por id de conversación o por contacto),
+ * para refrescar la fila que un aviso en vivo cambió sin bajar la lista
+ * entera. Pasa por la MISMA consulta, con el mismo `scopedContacts`, la misma
+ * vista y el mismo filtro de asignación: una fila refrescada es idéntica a la
+ * de la lista completa, y lo que la sesión ya no ve (archivado aparte,
+ * eliminado, reasignado, pasado a «Campañas») simplemente no vuelve.
+ */
+export type ConversationSubset = { ids?: string[]; contactIds?: string[] };
+
+function subsetCondition(only: ConversationSubset | undefined) {
+  if (!only) return undefined;
+  const parts = [
+    only.ids?.length ? inArray(schema.conversation.id, only.ids) : undefined,
+    only.contactIds?.length ? inArray(schema.conversation.contactId, only.contactIds) : undefined,
+  ].filter((c) => c !== undefined);
+  // Pedir «ninguno» no es pedir «todos».
+  return parts.length ? or(...parts)! : sql`false`;
+}
+
 export async function listConversations(
   access: Access,
   since?: Date,
   filter: AssignmentFilter = { kind: "all" },
-  view: InboxView = "main"
+  view: InboxView = "main",
+  only?: ConversationSubset
 ): Promise<ConversationDto[]> {
   const db = getDb();
+  // La organización va explícita (no solo por RLS): así el índice
+  // (organization_id, conversation_id, created_at) sirve aunque la consulta
+  // corra con un rol sin RLS, y no se recorre `message` entero por fila.
   const previewSql = sql<string | null>`(
     select coalesce(m.text, m.type)
     from message m
-    where m.conversation_id = ${schema.conversation.id}
+    where m.organization_id = ${access.organizationId}
+      and m.conversation_id = ${schema.conversation.id}
     order by m.created_at desc
-    limit 1
-  )`;
-  const stageSql = sql<string | null>`(
-    select s.name from lead l
-    join pipeline_stage s on s.id = l.stage_id
-    where l.contact_id = ${schema.contact.id}
-    limit 1
-  )`;
-
-  const stageColorSql = sql<string | null>`(
-    select s.color from lead l
-    join pipeline_stage s on s.id = l.stage_id
-    where l.contact_id = ${schema.contact.id}
     limit 1
   )`;
 
   // 034: lead, etapa, etiquetas y "¿hay bot?" viajan en LA MISMA consulta (y
   // por tanto con el mismo filtro de asignación del asesor), no en consultas
-  // aparte que habría que proteger una por una.
-  const leadSql = sql<string | null>`(
-    select l.id from lead l where l.contact_id = ${schema.contact.id} limit 1
-  )`;
-  const stageIdSql = sql<string | null>`(
-    select l.stage_id from lead l where l.contact_id = ${schema.contact.id} limit 1
-  )`;
+  // aparte que habría que proteger una por una. El lead y su etapa salen de
+  // UNA búsqueda lateral por fila (antes eran cuatro subconsultas al mismo lead).
+  const leadActual = db
+    .select({
+      leadId: schema.lead.id,
+      stageId: schema.lead.stageId,
+      stageName: schema.pipelineStage.name,
+      stageColor: schema.pipelineStage.color,
+    })
+    .from(schema.lead)
+    .leftJoin(
+      schema.pipelineStage,
+      and(
+        eq(schema.pipelineStage.organizationId, schema.lead.organizationId),
+        eq(schema.pipelineStage.id, schema.lead.stageId)
+      )
+    )
+    // Con el mismo filtro de asignación que la fila (para quien ve todo no
+    // agrega nada; al asesor solo se le evalúa en sus filas visibles).
+    .where(scopedContacts(schema.lead.organizationId, access, schema.lead.contactId, eq(schema.lead.contactId, schema.contact.id)))
+    .limit(1)
+    .as("lead_actual");
   const tagsSql = sql<TagDto[] | null>`(
     select json_agg(json_build_object('id', t.id, 'name', t.name, 'color', t.color) order by t.name)
     from contact_tag_assignment a
@@ -200,10 +227,10 @@ export async function listConversations(
       conversation: schema.conversation,
       contact: schema.contact,
       preview: previewSql,
-      stageName: stageSql,
-      stageColor: stageColorSql,
-      leadId: leadSql,
-      stageId: stageIdSql,
+      stageName: leadActual.stageName,
+      stageColor: leadActual.stageColor,
+      leadId: leadActual.leadId,
+      stageId: leadActual.stageId,
       tags: tagsSql,
       agentOn: agentOnSql,
       anuncio: anuncioDeLista,
@@ -216,6 +243,7 @@ export async function listConversations(
       eq(schema.conversation.contactId, schema.contact.id)
     )
     .leftJoin(schema.adAttribution, anuncioDeLaConversacion)
+    .leftJoinLateral(leadActual, sql`true`)
     .where(
       scopedContacts(
         schema.conversation.organizationId,
@@ -224,7 +252,8 @@ export async function listConversations(
         eq(schema.conversation.isTest, false),
         viewCondition(view),
         since ? gt(schema.conversation.updatedAt, since) : undefined,
-        access.seesAll ? assignmentCondition(access, filter) : undefined
+        access.seesAll ? assignmentCondition(access, filter) : undefined,
+        subsetCondition(only)
       )
     )
     .orderBy(desc(sql`coalesce(${schema.conversation.lastMessageAt}, ${schema.conversation.createdAt})`));
@@ -348,6 +377,7 @@ export function serializeConversation(
     handoffReason: c.handoffReason,
     lastInboundAt: c.lastInboundAt?.toISOString() ?? null,
     lastMessageAt: c.lastMessageAt?.toISOString() ?? null,
+    createdAt: c.createdAt.toISOString(),
     unreadCount: c.unreadCount,
     windowOpen: isWindowOpen(c.lastInboundAt),
     windowRemainingMs: windowRemainingMs(c.lastInboundAt),

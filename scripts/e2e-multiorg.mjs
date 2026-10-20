@@ -550,6 +550,9 @@ async function main() {
     "/api/team-chat/unread", "/api/settings/team", "/api/assignments", "/api/lab/runs",
     "/api/contacts/export", "/api/analytics/sales", "/api/analytics/hygiene", "/api/analytics/ads",
     `/api/contacts?q=${encodeURIComponent(SECRETO_B)}`, `/api/conversations?q=${encodeURIComponent(SECRETO_B)}`,
+    // Paso 2: el refresco por chat de la Bandeja, pidiendo a propósito los ids de B.
+    `/api/conversations?ids=${convB?.id}&contactIds=${contactB}`,
+    `/api/conversations?view=campaigns&ids=${convB?.id}&contactIds=${contactB}`,
   ];
   for (const c of [ownerA, coordA, asesorA]) {
     for (const ruta of listados) {
@@ -559,6 +562,22 @@ async function main() {
         fuga.length === 0 && !r.text.includes(SECRETO_B), fuga.join(","));
     }
   }
+
+  console.log("\n== Refresco por chat (Paso 2): cada quien solo lo suyo ==");
+  for (const c of [ownerA, coordA, asesorA]) {
+    const r = await c.api(`/api/conversations?ids=${convB?.id}&contactIds=${contactB}`);
+    ok(`${c.nombre}: pedir el chat de B por id no trae nada`, r.status === 200 && (r.json?.conversations ?? []).length === 0, r.text.slice(0, 160));
+  }
+  const propioB = await ownerB.api(`/api/conversations?ids=${convB?.id}`);
+  const filaB = ((await ownerB.api("/api/conversations")).json?.conversations ?? []).find((x) => x.id === convB?.id);
+  const solaB = propioB.json?.conversations ?? [];
+  ok(
+    "B pide su propio chat por id: la misma fila que en su lista",
+    solaB.length === 1 && filaB && JSON.stringify({ ...solaB[0], windowRemainingMs: 0 }) === JSON.stringify({ ...filaB, windowRemainingMs: 0 }),
+    JSON.stringify(solaB).slice(0, 200)
+  );
+  const malos = await ownerA.api(`/api/conversations?ids=${encodeURIComponent("cv_1') or ('1'='1")}`);
+  ok("ids con caracteres raros → 422", malos.status === 422, `status=${malos.status}`);
 
   const despues = await huella(orgB);
   const cambios = diferencias(antes, despues);

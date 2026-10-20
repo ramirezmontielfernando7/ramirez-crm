@@ -31,6 +31,8 @@ export type ConversationDto = {
   handoffReason: string | null;
   lastInboundAt: string | null;
   lastMessageAt: string | null;
+  /** Para ordenar como la lista (último mensaje, o la creación si no hay) al refrescar una fila suelta. */
+  createdAt: string;
   unreadCount: number;
   windowOpen: boolean;
   windowRemainingMs: number;

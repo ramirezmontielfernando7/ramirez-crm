@@ -133,3 +133,77 @@ jobs:
             SOURCE_COMMIT=${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  # Operación 1: los guiones de respaldo DENTRO de la imagen, contra el mismo
+  # Postgres que producción (18). Atrapa lo que ningún test unitario ve: que
+  # falte pg_dump, que sea de una versión menor que el servidor, o que la
+  # restauración de prueba no funcione con la base real migrada.
+  respaldos:
+    name: respaldo + prueba de restauración (PostgreSQL 18)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: vocero
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres -d vocero"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      DB: postgresql://postgres:postgres@localhost:5432/vocero
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: docker/setup-buildx-action@v4
+
+      - uses: docker/build-push-action@v7
+        with:
+          context: .
+          platforms: linux/amd64
+          load: true
+          tags: vocero:ci
+          cache-from: type=gha
+
+      - name: pg_dump de la imagen es versión 18
+        run: |
+          v=$(docker run --rm --entrypoint sh vocero:ci -c '"$PG_BIN/pg_dump" --version')
+          echo "$v"
+          echo "$v" | grep -q "PostgreSQL) 18\."
+
+      - name: migrar, respaldar y probar la restauración
+        run: |
+          KEY=$(openssl rand -base64 32)
+          mkdir -p "$RUNNER_TEMP/data/media/org_ci"
+          echo hola > "$RUNNER_TEMP/data/media/org_ci/archivo.txt"
+          app() {
+            docker run --rm --network host -v "$RUNNER_TEMP/data:/data" \
+              -e DATABASE_URL_MIGRATE="$DB" -e DATABASE_URL="$DB" -e ENCRYPTION_KEY="$KEY" \
+              vocero:ci "$@"
+          }
+          app node migrate.mjs
+          # Una organización y un token cifrado con la llave, como los de verdad.
+          read -r C I T < <(KEY="$KEY" node -e '
+            const c = require("crypto"), k = Buffer.from(process.env.KEY, "base64"), iv = c.randomBytes(12);
+            const x = c.createCipheriv("aes-256-gcm", k, iv), e = Buffer.concat([x.update("token-ci"), x.final()]);
+            console.log(e.toString("base64"), iv.toString("base64"), x.getAuthTag().toString("base64"))')
+          psql "$DB" -v ON_ERROR_STOP=1 \
+            -c "insert into organization (id, name, slug, created_at) values ('org_ci', 'CI', 'ci', now())" \
+            -c "insert into whatsapp_business_account (id, organization_id, waba_id) values ('wb_ci', 'org_ci', 'w')" \
+            -c "insert into meta_credentials (id, organization_id, waba_id, phone_number_id, token_cipher, token_iv, token_tag) values ('mc_ci', 'org_ci', 'w', 'p', '$C', '$I', '$T')"
+          app node ops/respaldo.mjs
+          # La carpeta es 700 y del usuario de la app: se revisa como root.
+          sudo sh -c "cd '$RUNNER_TEMP/data/backups' && ls -l && sha256sum -c ./*.sha256 && tar -tzf ./*-media.tar.gz" | tee revisar.log
+          grep -q "media/org_ci/archivo.txt" revisar.log
+          app node ops/probar-restauracion.mjs | tee prueba.log
+          grep -q "PRUEBA APROBADA" prueba.log
+          # La base temporal no se queda.
+          test "$(psql "$DB" -Atc "select count(*) from pg_database where datname like 'vocero_prueba_restauracion_%'")" = 0
+          # Con otra llave, la prueba FALLA (y lo dice).
+          if docker run --rm --network host -v "$RUNNER_TEMP/data:/data" -e DATABASE_URL_MIGRATE="$DB" \
+               -e ENCRYPTION_KEY="$(openssl rand -base64 32)" vocero:ci node ops/probar-restauracion.mjs > otra.log; then
+            echo "la prueba debió fallar con otra llave"; cat otra.log; exit 1
+          fi
+          grep -q "NO lo abre" otra.log

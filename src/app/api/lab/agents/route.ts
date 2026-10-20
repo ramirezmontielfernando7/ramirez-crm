@@ -2,7 +2,7 @@ import { z } from "zod";
 import { parseBody, withAuth } from "@/lib/api";
 import { isAiConfigured } from "@/lib/env";
 import { withAgentErrors } from "@/server/agents/http";
-import { createAgent, listAgents, MAX_ACTIVE_AGENTS } from "@/server/agents/store";
+import { createAgent, getOrgPause, listAgents, MAX_ACTIVE_AGENTS } from "@/server/agents/store";
 import { moduleOff } from "@/server/modules";
 
 export const dynamic = "force-dynamic";
@@ -11,8 +11,8 @@ export const dynamic = "force-dynamic";
 export const GET = withAuth(async (session) => {
   const off = (await moduleOff(session.organizationId, "lab")) ?? (await moduleOff(session.organizationId, "agent"));
   if (off) return off;
-  const agents = await listAgents(session.organizationId);
-  return Response.json({ agents, maxAgents: MAX_ACTIVE_AGENTS, aiConfigured: isAiConfigured() });
+  const [agents, pause] = await Promise.all([listAgents(session.organizationId), getOrgPause(session.organizationId)]);
+  return Response.json({ agents, maxAgents: MAX_ACTIVE_AGENTS, aiConfigured: isAiConfigured(), orgPaused: pause.paused });
 }, { permission: "agent.manage" });
 
 const createSchema = z.object({

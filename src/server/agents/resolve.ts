@@ -6,6 +6,7 @@ import { orgHasModule } from "@/server/modules";
 import { agentLabel, stageAgentForContact } from "./assignments";
 import { type AgentConfig } from "./config";
 import { ensureGeneralAgent } from "./ensure";
+import { type PauseState } from "@/lib/agent-pause";
 import { kbForAgent, toKbItems, type KbItem } from "./kb";
 
 const log = logger("agentes");
@@ -28,6 +29,8 @@ export type ResolvedAgent = {
   kb: KbItem[] | null;
   /** El interruptor global de `agent_profile` (las conversaciones de prueba lo ignoran). */
   enabled: boolean;
+  /** 042 — Estado de los interruptores de pausa (general y de este agente). */
+  pause: PauseState;
 };
 
 /**
@@ -59,6 +62,7 @@ export async function resolveAgentForTurn(
       config: opts.override.config,
       kb: opts.override.kb,
       enabled: general.enabled,
+      pause: { orgPausedAt: general.orgPausedAt, agentPausedAt: general.agent.pausedAt },
     };
   }
   if (!general.published) {
@@ -74,6 +78,7 @@ export async function resolveAgentForTurn(
     config: general.published,
     kb: null,
     enabled: general.enabled,
+    pause: { orgPausedAt: general.orgPausedAt, agentPausedAt: general.agent.pausedAt },
   };
 }
 
@@ -92,7 +97,15 @@ export async function withStageAgent(
   if (!(await orgHasModule(organizationId, "lab"))) return general;
   const staged = await stageAgentForContact(organizationId, contactId);
   if (staged.ok) {
-    return { agentId: staged.agent.id, isGeneral: false, config: staged.config, kb: null, enabled: general.enabled };
+    return {
+      agentId: staged.agent.id,
+      isGeneral: false,
+      config: staged.config,
+      kb: null,
+      enabled: general.enabled,
+      // 042: la pausa general es de la organización; el interruptor, de ESTE agente.
+      pause: { orgPausedAt: general.pause.orgPausedAt, agentPausedAt: staged.agent.pausedAt },
+    };
   }
   if (staged.reason !== "no_assignment") {
     log.warn("la etapa tiene un agente que no puede atender: atiende el general", {

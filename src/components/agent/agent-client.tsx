@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Cable, Plus, Sparkles, Trash2 } from "lucide-react";
 import { AgentConfigForm } from "@/components/agent/agent-config-form";
+import { AgentPauseBar } from "@/components/lab/agent-pause-bar";
 import { BrainStatusCard } from "@/components/agent/brain-status-card";
 import {
   externalAnswerLabel,
@@ -134,6 +135,8 @@ export function AgentClient() {
       }
     >
       <div className="min-h-0 flex-1 overflow-y-auto">
+
+      <AgentPauseBar />
 
       {labOn && (
         <p className="mx-4 mt-4 text-sm text-muted-foreground sm:mx-6">

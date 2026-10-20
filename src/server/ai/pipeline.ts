@@ -25,6 +25,7 @@ import { toPromptConfig, type AgentPromptConfig } from "@/server/agents/config";
 import type { KbItem } from "@/server/agents/kb";
 import { kbForConfig, resolveAgentForTurn, withStageAgent, type AgentOverride } from "@/server/agents/resolve";
 import { recordTurnAgent } from "@/server/agents/handover";
+import { PAUSE_HANDOFF_REASON, turnIsPaused } from "@/lib/agent-pause";
 import { agendaEnabled } from "@/server/agenda/flag";
 import { bookSlot, offerSlots } from "@/server/agenda/agent";
 import { getOffers, mapaDeHuecosParaModelo } from "@/server/agenda/offers";
@@ -170,6 +171,7 @@ type TurnPlan =
   | { kind: "silent" }
   | { kind: "window_closed"; conversation: Conversation }
   | { kind: "backup_handoff"; conversation: Conversation }
+  | { kind: "paused_handoff"; conversation: Conversation }
   | { kind: "decide"; conversation: Conversation; input: DecideInput; agentId: string };
 
 /**
@@ -189,6 +191,11 @@ export async function runAgentTurn(conversationId: string, opts: TurnOptions = {
     case "window_closed":
       // Ventana cerrada: el agente JAMÁS envía texto libre → handoff 'ventana'.
       await applyHandoff(plan.conversation.id, plan.conversation.organizationId, "ventana");
+      return;
+    case "paused_handoff":
+      // 042: el agente (o todos) está apagado por el equipo. Ni responde ni
+      // avisa: el chat pasa a una persona, igual que cualquier traspaso.
+      await applyHandoff(plan.conversation.id, plan.conversation.organizationId, PAUSE_HANDOFF_REASON);
       return;
     case "backup_handoff":
       // Patrón de respaldo ANTES del LLM (FR-022). Avisa y traspasa, en el
@@ -251,17 +258,25 @@ async function loadTurnContext(conversationId: string, opts: TurnOptions): Promi
   if (!conversation.isTest && !isWindowOpen(conversation.lastInboundAt)) {
     return { kind: "window_closed", conversation };
   }
-  if (lastInbound.text && matchesHandoffIntent(lastInbound.text)) {
-    return { kind: "backup_handoff", conversation };
-  }
 
   // PR B: en conversaciones reales, el agente de la etapa del lead (solo con
-  // el módulo Laboratorio). Después de los silencios y traspasos de arriba:
-  // esos turnos no llegan al modelo y no necesitan saberlo.
+  // el módulo Laboratorio). Después de los silencios de arriba y de la ventana
+  // cerrada: esos turnos no llegan al modelo y no necesitan saberlo.
   const agent =
     conversation.isTest || opts.agentOverride
       ? general
       : await withStageAgent(organizationId, conversation.contactId, general);
+
+  // 042: los interruptores. Antes del patrón de respaldo de abajo, que
+  // responde («te paso con una persona») a nombre del agente: un agente
+  // apagado no habla, solo traspasa. El Laboratorio no se pausa.
+  if (!opts.agentOverride && turnIsPaused(agent.pause, conversation.isTest)) {
+    return { kind: "paused_handoff", conversation };
+  }
+
+  if (lastInbound.text && matchesHandoffIntent(lastInbound.text)) {
+    return { kind: "backup_handoff", conversation };
+  }
   const kb = agent.kb ?? (await kbForConfig(organizationId, { id: agent.agentId, isGeneral: agent.isGeneral }, agent.config));
   const stages = await db
     .select({ id: schema.pipelineStage.id, name: schema.pipelineStage.name })
@@ -589,7 +604,7 @@ async function persistTestOutbound(
 export async function applyHandoff(
   conversationId: string,
   organizationId: string,
-  reason: "cliente" | "modelo" | "error" | "ventana" | "cuota"
+  reason: "cliente" | "modelo" | "error" | "ventana" | "cuota" | typeof PAUSE_HANDOFF_REASON
 ): Promise<void> {
   const db = getDb();
   const updated = await db

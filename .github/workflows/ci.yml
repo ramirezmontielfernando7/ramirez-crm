@@ -249,6 +249,9 @@ jobs:
           # efectos, borrador/publicado, evaluación con snapshot y que
           # producción la siga atendiendo el general).
           node --env-file=.env scripts/e2e-agentes.mjs
+          # 042: interruptores de los agentes (general y por agente): en
+          # pausa los chats pasan a una persona; aviso en el Estudio de IA.
+          node --env-file=.env scripts/e2e-pausa-agentes.mjs
           # 033: «Trabajo» (Citas + Tareas + Notas): menú, alta rápida, marcar
           # hecha, tarea desde un chat, permisos y módulos.
           node --env-file=.env scripts/e2e-trabajo.mjs

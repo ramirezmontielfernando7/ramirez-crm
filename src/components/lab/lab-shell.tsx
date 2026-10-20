@@ -1,5 +1,6 @@
 "use client";
 
+import { AgentPauseBar } from "@/components/lab/agent-pause-bar";
 import { PageShell } from "@/components/ui/page-shell";
 
 /**
@@ -22,6 +23,7 @@ export function LabShell({ children, documents = false }: { children: React.Reac
       subtitle="Sandbox interno — no envía mensajes reales"
       hideSections={documents ? undefined : SIN_DOCUMENTOS}
     >
+      <AgentPauseBar />
       <div className="min-h-0 flex-1">{children}</div>
     </PageShell>
   );
