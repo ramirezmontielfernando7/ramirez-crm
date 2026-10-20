@@ -33,6 +33,64 @@ permissions:
   packages: write
 
 jobs:
+  # Operación 1 (spec 043): la SEÑAL llega a Node dentro de la imagen real.
+  # `docker stop` manda SIGTERM al PID 1 (tini), tini la reenvía a Node y la
+  # app sale sola con 0, en menos de su tope (25 s), sin llegar al SIGKILL.
+  # Antes el PID 1 era la shell de `sh -c` y la señal se perdía.
+  apagado:
+    name: docker stop → apagado limpio (tini + Node)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: vocero
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres -d vocero"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/build-push-action@v7
+        with:
+          context: .
+          platforms: linux/amd64
+          load: true
+          tags: vocero:apagado
+          cache-from: type=gha
+
+      - name: arrancar, comprobar PID 1 y detener con docker stop
+        run: |
+          docker run -d --name app --network host \
+            -e APP_BASE_URL=http://localhost:3000 \
+            -e DATABASE_URL_MIGRATE=postgresql://postgres:postgres@localhost:5432/vocero \
+            -e DATABASE_URL=postgresql://vocero_app:app-ci-password-0123456789@localhost:5432/vocero \
+            -e DATABASE_URL_SYSTEM=postgresql://vocero_system:system-ci-password-0123456789@localhost:5432/vocero \
+            -e VOCERO_APP_DB_PASSWORD=app-ci-password-0123456789 \
+            -e VOCERO_SYSTEM_DB_PASSWORD=system-ci-password-0123456789 \
+            -e BETTER_AUTH_SECRET="$(openssl rand -hex 24)" \
+            -e ENCRYPTION_KEY="$(openssl rand -base64 32)" \
+            -e META_WEBHOOK_VERIFY_TOKEN="tok_$(openssl rand -hex 12)" \
+            -e META_APP_SECRET="$(openssl rand -hex 16)" \
+            vocero:apagado
+          for i in $(seq 1 120); do curl -sf localhost:3000/api/health >/dev/null && break; sleep 1; done
+          curl -sf localhost:3000/api/health
+          echo; docker exec app ps -o pid,ppid,args | tee ps.txt
+          # PID 1 = tini; Node (server.js) es su hijo directo: le llega la señal.
+          grep -E '^ *1 +0 +/sbin/tini' ps.txt
+          grep -E '^ *[0-9]+ +1 +node server\.js' ps.txt
+          inicio=$(date +%s)
+          docker stop -t 30 app
+          dur=$(( $(date +%s) - inicio ))
+          echo "docker stop tardó ${dur} s"
+          docker logs app 2>&1 | tail -n 20
+          test "$(docker inspect -f '{{.State.ExitCode}}' app)" = 0
+          test "$dur" -lt 26
+          docker logs app 2>&1 | grep -q "apagado limpio terminado"
+
   imagen:
     name: docker build${{ startsWith(github.ref, 'refs/tags/v') && ' · publicar' || '' }}
     runs-on: ubuntu-latest

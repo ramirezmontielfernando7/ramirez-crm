@@ -7,15 +7,28 @@ import { normalizeMx } from "@/lib/meta/mx";
  * por graphRequest. En self-test, META_GRAPH_BASE_URL apunta al wa-mock.
  */
 
+/**
+ * Operación 1 — Tope de cada llamada a Meta. Antes no había: una llamada
+ * colgada dejaba al despachador de campañas (y al apagado) esperando para
+ * siempre.
+ */
+export const META_TIMEOUT_MS = 20_000;
+
 export class MetaApiError extends Error {
   status: number;
   code: number | null;
   type: string | null;
   details: unknown;
+  /**
+   * Se agotó el tiempo esperando a Meta. NO es lo mismo que «Meta caído»: la
+   * petición pudo llegar y el mensaje pudo salir. Quien envía NO debe
+   * reintentar (duplicaría), igual que un envío interrumpido por un reinicio.
+   */
+  timedOut: boolean;
 
   constructor(
     message: string,
-    opts: { status: number; code?: number | null; type?: string | null; details?: unknown }
+    opts: { status: number; code?: number | null; type?: string | null; details?: unknown; timedOut?: boolean }
   ) {
     super(message);
     this.name = "MetaApiError";
@@ -23,6 +36,7 @@ export class MetaApiError extends Error {
     this.code = opts.code ?? null;
     this.type = opts.type ?? null;
     this.details = opts.details;
+    this.timedOut = opts.timedOut ?? false;
   }
 
   /**
@@ -43,13 +57,19 @@ export async function graphRequest<T>(
     method?: "GET" | "POST" | "DELETE";
     token: string;
     body?: unknown;
+    /** Tope de la llamada; por defecto META_TIMEOUT_MS. */
+    timeoutMs?: number;
   }
 ): Promise<T> {
   const env = getEnv();
   const url = `${env.META_GRAPH_BASE_URL}/${env.META_GRAPH_API_VERSION}/${path}`;
+  const timeoutMs = opts.timeoutMs ?? META_TIMEOUT_MS;
+  const signal = AbortSignal.timeout(timeoutMs);
   let res: Response;
+  let text: string;
   try {
     res = await fetch(url, {
+      signal,
       method: opts.method ?? "GET",
       headers: {
         Authorization: `Bearer ${opts.token}`,
@@ -59,14 +79,22 @@ export async function graphRequest<T>(
       },
       body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
     });
+    // El cuerpo también cuenta contra el tope: Meta puede colgarse a media respuesta.
+    text = await res.text();
   } catch (cause) {
+    if (signal.aborted) {
+      throw new MetaApiError(`Meta no respondió en ${Math.round(timeoutMs / 1000)} s`, {
+        status: 0,
+        details: cause,
+        timedOut: true,
+      });
+    }
     throw new MetaApiError("No se pudo contactar la API de Meta", {
       status: 0,
       details: cause,
     });
   }
 
-  const text = await res.text();
   let json: unknown = null;
   try {
     json = text ? JSON.parse(text) : null;

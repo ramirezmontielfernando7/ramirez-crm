@@ -52,6 +52,7 @@ services:
       OPENROUTER_JUDGE_MODEL: ${OPENROUTER_JUDGE_MODEL:-}
       ALLOW_SIGNUP: ${ALLOW_SIGNUP:-}
       AGENT_COALESCE_MS: ${AGENT_COALESCE_MS:-6000}
+      SHUTDOWN_GRACE_MS: ${SHUTDOWN_GRACE_MS:-}
       # Opcionales: vacías = apagadas (guía de cada una en .env.example).
       CHANNELS: ${CHANNELS:-}
       AGENDA: ${AGENDA:-}
@@ -75,6 +76,9 @@ services:
       postgres:
         condition: service_healthy
     # el HEALTHCHECK vive en el Dockerfile (/api/health)
+    # Operación 1: tiempo para el apagado limpio (la app sale en ≤ 25 s,
+    # SHUTDOWN_GRACE_MS); sin esto Docker la mata a los 10 s.
+    stop_grace_period: 40s
 
   postgres:
     image: postgres:16-alpine

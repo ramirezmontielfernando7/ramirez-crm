@@ -100,6 +100,18 @@ export function getSystemSql() {
 }
 
 /**
+ * Operación 1 — Al apagar: cierra los DOS pools. Espera hasta `timeoutSec` a
+ * que terminen las consultas en curso y luego corta. Solo cierra los pools
+ * que llegaron a abrirse (no crea uno para cerrarlo).
+ */
+export async function closeDbPools(timeoutSec = 3): Promise<void> {
+  const pools = [globalForDb.__voceroSql, globalForDb.__voceroSystemSql].filter((p) => p !== undefined);
+  globalForDb.__voceroSql = undefined;
+  globalForDb.__voceroSystemSql = undefined;
+  await Promise.allSettled(pools.map((p) => p.end({ timeout: timeoutSec })));
+}
+
+/**
  * Consulta al pool de la app SIN organización en el contexto. En el PR 4 RLS
  * le devolverá cero filas; hoy funciona igual que antes y se registra (una
  * vez por consulta distinta). Con DB_TENANT_STRICT=true (E2E y CI) lanza,

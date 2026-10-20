@@ -56,6 +56,12 @@ export class SendError extends Error {
    * como fallido a un destinatario que solo tocó un límite de ritmo.
    */
   metaCode?: number | null;
+  /**
+   * Operación 1: se agotó el tiempo esperando a Meta (`MetaApiError.timedOut`).
+   * El mensaje PUDO salir: no se reintenta (duplicaría). Va con el código
+   * `meta_unavailable` para que las rutas respondan igual (503).
+   */
+  timedOut = false;
 
   constructor(code: SendError["code"], message: string, metaCode?: number | null) {
     super(message);
@@ -64,6 +70,10 @@ export class SendError extends Error {
     this.metaCode = metaCode ?? null;
   }
 }
+
+/** El texto que ve quien envía cuando Meta no respondió a tiempo. */
+export const META_TIMEOUT_MESSAGE =
+  "Meta no respondió a tiempo: no se sabe si el mensaje salió. No se reintentó para no duplicarlo";
 
 type SendResult = { messageId: string };
 
@@ -550,6 +560,11 @@ export async function callGraphSend(
           "reconnect_required",
           "El token de WhatsApp expiró: reconecta el número en Configuración"
         );
+      }
+      if (err.timedOut) {
+        const timeout = new SendError("meta_unavailable", META_TIMEOUT_MESSAGE, err.code);
+        timeout.timedOut = true;
+        throw timeout;
       }
       if (err.status === 0 || err.status >= 500) {
         throw new SendError("meta_unavailable", "Meta no está disponible ahora", err.code);

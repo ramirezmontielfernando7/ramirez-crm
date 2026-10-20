@@ -10,6 +10,7 @@ import { processEchoesValue, processMessagesValue } from "@/server/inbox/ingest"
 import { processTemplateStatusValue } from "@/server/whatsapp/template-events";
 import { isWabaField, processWabaEvent } from "@/server/whatsapp/waba-events";
 import { logger } from "@/lib/log";
+import { acceptsWebhooks, beginTask } from "@/server/shutdown";
 
 const log = logger("webhook");
 
@@ -50,6 +51,11 @@ export async function POST(req: Request, { params }: Params) {
   if (!isValidWebhookToken(webhookToken, env.META_WEBHOOK_VERIFY_TOKEN)) {
     return new Response(null, { status: 404 });
   }
+  // Operación 1: apagándose y sin tiempo para procesarlo → 503 y la fuente
+  // lo reintenta (le llega al contenedor nuevo). Nunca un 200 sin procesar.
+  if (!acceptsWebhooks()) {
+    return new Response(null, { status: 503, headers: { "Retry-After": "5" } });
+  }
 
   const rawBody = await req.text();
   const signature = req.headers.get("x-hub-signature-256");
@@ -69,11 +75,15 @@ export async function POST(req: Request, { params }: Params) {
     return Response.json({ received: true });
   }
 
+  // El apagado espera este procesamiento (se abre ANTES de agendarlo).
+  const task = beginTask("webhook:wa");
   after(async () => {
     try {
       await processPayload(payload);
     } catch (err) {
       log.error("error procesando payload", { err });
+    } finally {
+      task.end();
     }
   });
 

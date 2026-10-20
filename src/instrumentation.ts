@@ -12,6 +12,10 @@ export async function register(): Promise<void> {
       warnIfWebhookUnsigned,
     } = await import("./instrumentation-node");
     const { syncEnvBotKey } = await import("@/server/bot/keys");
+    // Operación 1: el manejador de SIGTERM, lo primero (con
+    // NEXT_MANUAL_SIG_HANDLE=true, la imagen la trae; src/server/shutdown.ts).
+    const { installShutdownHandler } = await import("@/server/shutdown");
+    installShutdownHandler();
     warnIfWebhookUnsigned();
     // Fase 3: antes que nada que lea credenciales (rotación de la llave y
     // secretos de Zernio en claro → cifrados). Nunca tumba el arranque.
