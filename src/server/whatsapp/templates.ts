@@ -930,6 +930,17 @@ export async function sendTemplate(input: {
     try {
       waMessageId = await callGraphSend(creds, payload);
     } catch (err) {
+      if (err instanceof SendError && err.timedOut) {
+        // Operación 1: Meta no respondió a tiempo y el mensaje PUDO salir. La
+        // reserva se queda (fallida, «no se sabe si llegó»), igual que un
+        // envío interrumpido por un reinicio (`recoverAbandoned`): nada la
+        // vuelve a enviar.
+        await db
+          .update(schema.message)
+          .set({ status: "failed", error: "Envío interrumpido: Meta no respondió a tiempo, no se sabe si llegó" })
+          .where(scoped(schema.message.organizationId, input.organizationId, eq(schema.message.id, pending.id)));
+        throw err;
+      }
       // Meta respondió con error: el mensaje no salió. Se borra la reserva
       // (la FK suelta campaign_recipient.message_id).
       await db

@@ -86,10 +86,23 @@ EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
 
-# start-period amplio: cubre las migraciones del arranque
-HEALTHCHECK --interval=15s --timeout=5s --start-period=40s --retries=5 \
+# start-period amplio: cubre las migraciones del arranque (una migración
+# pesada puede pasar de 40 s; mientras dura, un fallo no cuenta)
+HEALTHCHECK --interval=15s --timeout=5s --start-period=90s --retries=5 \
   CMD wget -q -O /dev/null http://127.0.0.1:3000/api/health || exit 1
 
-ENTRYPOINT ["vocero-entrypoint.sh"]
+# Operación 1 — APAGADO LIMPIO (spec 043, apagado.md). Antes el PID 1 era la
+# shell de `sh -c`, que no reenvía SIGTERM: el contenedor moría por SIGKILL a
+# mitad de lo que hiciera. Ahora:
+# - `tini` es el PID 1: reenvía las señales (-g: a todo el grupo, también a
+#   migrate.mjs si se apaga mientras migra) y recoge procesos huérfanos;
+# - `exec node server.js`: Node reemplaza a la shell y recibe la señal;
+# - NEXT_MANUAL_SIG_HANDLE: Next no instala su manejador (esperaría a cerrar
+#   las conexiones SSE, que nunca se cierran solas); el nuestro
+#   (src/server/shutdown.ts) termina lo que está en curso y sale en menos de
+#   SHUTDOWN_GRACE_MS (25 s), dentro del «Stop grace period» de Coolify (30 s).
+RUN apk add --no-cache tini
+ENV NEXT_MANUAL_SIG_HANDLE=true
+ENTRYPOINT ["/sbin/tini", "-g", "--", "vocero-entrypoint.sh"]
 # Migrar al BOOT del contenedor nuevo y arrancar el server standalone
-CMD ["sh", "-c", "node migrate.mjs && node server.js"]
+CMD ["sh", "-c", "node migrate.mjs && exec node server.js"]

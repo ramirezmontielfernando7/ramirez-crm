@@ -17,6 +17,7 @@ import { MARKETING_OPT_OUT_CODE, markMarketingOptOut } from "@/server/inbox/mark
 import { classifySendError, MAX_ATTEMPTS, backoffScale, retryDelayMs } from "@/server/campaigns/outcome";
 import { safetyCheck, type SafetyPause } from "@/server/campaigns/safety";
 import { markCampaignPending } from "@/server/campaigns/inbox-view";
+import { isShuttingDown, onShutdown } from "@/server/shutdown";
 import {
   acquireLease,
   claimNext,
@@ -58,6 +59,12 @@ const log = logger("campaign");
  *   arrancar) arranca las programadas, reanuda las pausas por límite cuando
  *   toca y se asegura de que cada número con campañas activas tenga su
  *   despachador.
+ * - Operación 1 (apagado limpio, `src/server/shutdown.ts`): al apagar, el
+ *   programador se detiene y cada despachador termina SOLO el envío en curso,
+ *   cierra su reclamo y suelta la concesión (el contenedor nuevo sigue sin
+ *   esperar a que venza). Los reclamos abandonados por un corte brusco se
+ *   recuperan también mientras el despachador espera, no solo al arrancar
+ *   (antes uno podía quedar `sending` para siempre).
  */
 
 const HEARTBEAT_MS = 10_000;
@@ -66,6 +73,8 @@ const SAFETY_EVERY_FAILS = 5;
 const HEALTH_CACHE_MS = 30_000;
 const PROGRESS_EVERY_MS = 1_000;
 const DEFAULT_TICK_MS = 15_000;
+/** Cada cuánto, mientras el despachador espera, se buscan reclamos abandonados. */
+const RECOVER_EVERY_MS = 60_000;
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, Math.max(0, ms)));
 
@@ -216,6 +225,8 @@ export type DispatchOptions = {
   send?: SendFn;
   /** Para pruebas: se detiene tras este número de envíos. */
   maxSends?: number;
+  /** Para pruebas: cada cuánto se buscan reclamos abandonados mientras espera. */
+  recoverEveryMs?: number;
 };
 
 /**
@@ -242,11 +253,17 @@ export async function dispatchNumber(
   }, HEARTBEAT_MS);
 
   let sends = 0;
-  try {
+  const recoverEveryMs = opts.recoverEveryMs ?? RECOVER_EVERY_MS;
+  let recoveredAt = 0;
+  const recover = async () => {
+    recoveredAt = Date.now();
     const recovered = await recoverAbandoned(organizationId);
     if (recovered.requeued + recovered.sent + recovered.failed > 0) {
       log.info("reclamos abandonados recuperados", { org: organizationId, ...recovered });
     }
+  };
+  try {
+    await recover();
     const minIntervalMs = 1000 / (await campaignSendRate(organizationId));
     let settings: CampaignSettingsDto = await getCampaignSettings(organizationId);
     let health: Health | null = null;
@@ -262,6 +279,9 @@ export async function dispatchNumber(
 
     for (;;) {
       if (lost) break;
+      // Operación 1: al apagar no se reclama a nadie más; el envío anterior
+      // ya cerró su reclamo y el `finally` suelta la concesión.
+      if (isShuttingDown()) break;
       if (opts.maxSends !== undefined && sends >= opts.maxSends) break;
       // Fase 3: nada sale de una organización suspendida ni por un módulo apagado.
       if (!(await isOrgActive(organizationId))) {
@@ -275,8 +295,10 @@ export async function dispatchNumber(
       const campaigns = await activeCampaigns(organizationId, phoneNumberId);
       if (campaigns.length === 0) break;
       if (idle.size >= campaigns.length) {
-        // Todas esperan un reintento: no girar en vacío.
+        // Todas esperan un reintento (o un reclamo abandonado por un corte
+        // brusco, que solo se libera con `recoverAbandoned`): no girar en vacío.
         idle.clear();
+        if (Date.now() - recoveredAt >= recoverEveryMs) await recover();
         await sleep(1000 * Math.max(backoffScale(), 0.05));
         continue;
       }
@@ -362,7 +384,7 @@ function running(): Map<string, Promise<unknown>> {
 /** Arranca el despachador del número si esta réplica no lo tiene ya. */
 export function ensureDispatcher(organizationId: string, phoneNumberId: string): void {
   const key = `${organizationId}:${phoneNumberId}`;
-  if (running().has(key)) return;
+  if (running().has(key) || isShuttingDown()) return;
   const p = runWithOrganization(organizationId, () => dispatchNumber(organizationId, phoneNumberId))
     .catch((err: unknown) => {
       // Las campañas siguen `sending`: el siguiente pulso del programador lo reintenta.
@@ -377,6 +399,7 @@ export function ensureDispatcher(organizationId: string, phoneNumberId: string):
  * organizaciones); el trabajo de cada una corre a nombre de ELLA.
  */
 export async function campaignSchedulerTick(): Promise<void> {
+  if (isShuttingDown()) return;
   const now = new Date();
   const rows = await getSystemDb()
     .selectDistinct({ organizationId: schema.campaign.organizationId })
@@ -449,9 +472,21 @@ function tickMs(): number {
   return Number.isFinite(n) && n >= 1000 ? n : DEFAULT_TICK_MS;
 }
 
+/** Operación 1: detiene el programador (al apagar). */
+export function stopCampaignScheduler(): void {
+  if (globalForDispatch.__voceroCampaignScheduler) clearInterval(globalForDispatch.__voceroCampaignScheduler);
+  globalForDispatch.__voceroCampaignScheduler = undefined;
+}
+
+/** Operación 1: se resuelve cuando todos los despachadores de esta réplica terminaron. */
+export async function waitForDispatchers(): Promise<void> {
+  while (running().size > 0) await Promise.allSettled([...running().values()]);
+}
+
 /** Al arrancar el servidor: un pulso inmediato y luego cada 15 s. */
 export function startCampaignScheduler(): void {
   if (globalForDispatch.__voceroCampaignScheduler) return;
+  onShutdown("campañas", { stop: stopCampaignScheduler, drain: waitForDispatchers });
   const run = async () => {
     try {
       await campaignSchedulerTick();

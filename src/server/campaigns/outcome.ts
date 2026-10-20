@@ -18,7 +18,8 @@ const log = logger("campaign");
  *   quien dejó de recibir marketing (131050) no dicen nada del número.
  *
  * 131049 NO se reintenta: Meta lo retiene para "cuidar el ecosistema" y
- * reintentar antes de 24 h no sirve.
+ * reintentar antes de 24 h no sirve. Tampoco un tiempo agotado esperando a
+ * Meta (Operación 1): el mensaje pudo salir y reintentar lo duplicaría.
  */
 export type SendDecision =
   | { kind: "pause"; reason: string; code: number | null }
@@ -57,6 +58,11 @@ export function classifySendError(err: unknown): SendDecision {
   }
   if (err instanceof SendError) {
     const code = err.metaCode ?? null;
+    // Operación 1: tiempo agotado = el mensaje PUDO salir. Como un envío
+    // interrumpido por un reinicio: fallido y SIN reintento (no duplicar).
+    if (err.timedOut) {
+      return { kind: "fail", reason: `${err.message}.`, code, countsForHealth: false };
+    }
     if (err.code === "reconnect_required" || err.code === "not_connected") {
       return { kind: "pause", reason: `WhatsApp desconectado: ${err.message}`, code };
     }

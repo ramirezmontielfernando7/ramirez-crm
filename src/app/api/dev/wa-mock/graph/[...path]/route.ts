@@ -492,6 +492,12 @@ export async function POST(req: Request, ctx: Params) {
     if (destino && destino.endsWith("55500")) {
       await new Promise((r) => setTimeout(r, 700));
     }
+    // Operación 1 — termina en 77700 → Meta se cuelga 25 s (más que el tope
+    // de 20 s del cliente). El mensaje SÍ queda en el outbox, como un Meta que
+    // lo recibió y no alcanzó a responder: el CRM no debe reintentarlo.
+    if (destino && destino.endsWith("77700")) {
+      await new Promise((r) => setTimeout(r, 25_000));
+    }
     if (destino && destino.endsWith("42900")) {
       const limited = (globalThis as { __waMockRateLimited?: Set<string> });
       limited.__waMockRateLimited ??= new Set();

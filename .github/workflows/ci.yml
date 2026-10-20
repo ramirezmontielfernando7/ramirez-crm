@@ -275,6 +275,11 @@ jobs:
           for i in $(seq 1 120); do curl -sf localhost:3000/api/health >/dev/null && break; sleep 1; done
           node --env-file=.env scripts/e2e-documentos.mjs
           kill -- -"$(cat app.pid)"; sleep 2
+      # Operación 1 (spec 043): APAGADO LIMPIO con el server.js standalone (el
+      # de la imagen) y un SIGTERM de verdad a mitad de una campaña. El guion
+      # arranca y apaga la app él mismo (dos veces), así que va solo.
+      - name: e2e de apagado limpio (SIGTERM a mitad de una campaña)
+        run: node --env-file=.env scripts/e2e-apagado.mjs
       - name: logs de la app
         if: ${{ failure() }}
         run: tail -n 200 app1.log app2.log app3.log || true

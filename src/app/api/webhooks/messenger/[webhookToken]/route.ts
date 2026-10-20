@@ -9,6 +9,7 @@ import {
 import { isValidZernioSignature, looksLikeMetaPayload, zernioSignatureFrom } from "@/server/zernio";
 import { processZernioPayload, resolveZernioSecret } from "@/server/zernio/dispatch";
 import { logger } from "@/lib/log";
+import { acceptsWebhooks, beginTask } from "@/server/shutdown";
 
 const log = logger("messenger");
 
@@ -52,6 +53,11 @@ export async function POST(req: Request, { params }: Params) {
   if (!isValidWebhookToken(webhookToken, env.META_WEBHOOK_VERIFY_TOKEN)) {
     return new Response(null, { status: 404 });
   }
+  // Operación 1: apagándose y sin tiempo para procesarlo → 503 y la fuente
+  // lo reintenta (le llega al contenedor nuevo). Nunca un 200 sin procesar.
+  if (!acceptsWebhooks()) {
+    return new Response(null, { status: 503, headers: { "Retry-After": "5" } });
+  }
 
   const rawBody = await req.text();
 
@@ -90,6 +96,8 @@ export async function POST(req: Request, { params }: Params) {
 
   // Zernio corta a los 5 segundos y reintenta; Meta también. Se acusa recibo
   // YA y se procesa fuera de la ruta.
+  // El apagado espera este procesamiento (se abre ANTES de agendarlo).
+  const task = beginTask("webhook:messenger");
   after(async () => {
     try {
       // Un evento de Zernio se reparte por plataforma: la misma URL sirve para
@@ -98,6 +106,8 @@ export async function POST(req: Request, { params }: Params) {
       else await processZernioPayload(payload);
     } catch (err) {
       log.error("error procesando payload", { err });
+    } finally {
+      task.end();
     }
   });
 

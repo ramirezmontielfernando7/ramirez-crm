@@ -1,9 +1,18 @@
 import { getSql, getSystemSql } from "@/lib/db";
 import { APP_VERSION, resolveCommit } from "@/lib/version";
+import { isShuttingDown } from "@/server/shutdown";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
+  // Operación 1: apagándose, el contenedor deja de decirse sano (no se
+  // consulta la base: sus pools están por cerrarse).
+  if (isShuttingDown()) {
+    return Response.json(
+      { ok: false, error: { code: "shutting_down", message: "Apagándose" } },
+      { status: 503 }
+    );
+  }
   try {
     // PR 3: los DOS pools (vocero_app y vocero_system). Una contraseña mal
     // puesta en cualquiera deja el contenedor sin salud y la plataforma no
