@@ -89,10 +89,10 @@ async function main() {
     if (n === 0 && args.all) continue;
     console.log(`\n${org.name} (${org.id})`);
     console.log(`  a «Campañas» (nunca respondieron):        ${plan.pending.length}`);
-    console.log(`  con «Respondió a campaña» (en la Bandeja): ${plan.replied.length}`);
-    console.log(`  sin tocar (ya escribían antes):           ${plan.active}`);
     for (const p of plan.pending.slice(0, 10)) console.log(`    - ${p.id} → Campañas (${p.campaignId})`);
     if (plan.pending.length > 10) console.log(`    … y ${plan.pending.length - 10} más`);
+    console.log(`  con «Respondió a campaña» (en la Bandeja): ${plan.replied.length}`);
+    console.log(`  sin tocar (ya escribían antes):           ${plan.active}`);
     planes.push({ org, plan });
     total += n;
   }

@@ -170,8 +170,11 @@ export function LeadDrawer({
             )}
           </section>
 
-          {/* 020: quién lo atiende, reasignar y el historial. */}
-          <AssignmentCard contactId={lead.contact.id} />
+          {/* 020: quién lo atiende, reasignar y el historial. `key`: el cajón
+              sigue abierto si se cambia de lead con el teclado; sin ella, la
+              tarjeta enseñaría a quien atendía al lead anterior hasta que
+              llegue (o falle) la consulta del nuevo. */}
+          <AssignmentCard key={lead.contact.id} contactId={lead.contact.id} />
 
           {/* Cuánto */}
           <section className="border-b p-4">

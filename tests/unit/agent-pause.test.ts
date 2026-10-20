@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { pauseScope, turnIsPaused } from "@/lib/agent-pause";
+import { pauseScope, rowAiBadge, turnIsPaused } from "@/lib/agent-pause";
 
 const now = new Date();
 
@@ -28,5 +28,24 @@ describe("042 — regla de los interruptores de agentes", () => {
 
   it("el Laboratorio (chat de prueba) nunca se pausa", () => {
     expect(turnIsPaused({ orgPausedAt: now, agentPausedAt: now }, true)).toBe(false);
+  });
+});
+
+describe("fila de la Bandeja: ícono del bot", () => {
+  const base = { aiAvailable: true, aiEnabled: true, handoffAt: null, orgPaused: false };
+
+  it("el agente atiende: ícono normal", () => {
+    expect(rowAiBadge(base)).toBe("on");
+  });
+  it("agente apagado: sin ícono", () => {
+    expect(rowAiBadge({ ...base, aiAvailable: false })).toBe("none");
+  });
+  it("solo ese chat en pausa o en traspaso: ícono tenue", () => {
+    expect(rowAiBadge({ ...base, aiEnabled: false })).toBe("paused");
+    expect(rowAiBadge({ ...base, handoffAt: "2026-01-01T00:00:00Z" })).toBe("paused");
+  });
+  it("pausa general: sin ícono en la fila, aunque el chat siga activo o en traspaso", () => {
+    expect(rowAiBadge({ ...base, orgPaused: true })).toBe("none");
+    expect(rowAiBadge({ ...base, orgPaused: true, handoffAt: "2026-01-01T00:00:00Z" })).toBe("none");
   });
 });

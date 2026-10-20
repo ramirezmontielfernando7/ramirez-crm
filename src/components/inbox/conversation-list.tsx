@@ -21,6 +21,8 @@ import { assignContacts, useAssignees } from "@/components/assignment/use-assign
 import { NavRevealButton } from "@/components/nav-mode";
 import { InboxModeSwitch } from "./inbox-mode-switch";
 import { FilterMenu, type InboxFilter } from "./filter-menu";
+import { rowAiBadge } from "@/lib/agent-pause";
+import { useAgentsPaused } from "./use-agents-paused";
 import { ALL_TAGS, inArchiveView, isArchived, matchesTag } from "@/lib/inbox-filters";
 import { AssigneeCapsule, StageCapsule, TagsCapsule, type PatchRow } from "./chat-capsules";
 import { useConversationActions } from "./conversation-actions";
@@ -161,6 +163,7 @@ export const ConversationList = memo(function ConversationList({
   // 034: filtro por etiqueta ("all" = toda etiqueta).
   const [tag, setTag] = useState<string>(ALL_TAGS);
   const catalogs = useInboxCatalogs();
+  const agentsPaused = useAgentsPaused();
   const canCreateTags = viewer.can("tags.manage");
   // Un fallo de una cápsula se dice en una línea flotante: sin esto, el
   // cambio se revertiría en silencio.
@@ -418,6 +421,17 @@ export const ConversationList = memo(function ConversationList({
         </div>
       </header>
 
+      {agentsPaused && (
+        <p
+          data-ai-paused-notice
+          title="Los agentes de IA están en pausa: los chats nuevos pasan a una persona"
+          className="flex shrink-0 items-center gap-1.5 border-b bg-warning-tint px-4 py-1 text-[11.5px] font-medium text-warning-text"
+        >
+          <Bot className="h-3 w-3" aria-hidden />
+          IA en pausa
+        </p>
+      )}
+
       <Collapse open={selecting}>
         <div className="space-y-2 border-b bg-subtle px-4 py-2.5">
           <div className="flex items-center justify-between gap-2">
@@ -480,6 +494,7 @@ export const ConversationList = memo(function ConversationList({
           <ul key={`${filter}|${stage}|${tag}|${owner}|${inbox}`}>
             {visible.map((c, index) => (
               <ConversationRow
+                agentsPaused={agentsPaused}
                 key={c.id}
                 c={c}
                 index={index}
@@ -543,6 +558,7 @@ const ConversationRow = memo(function ConversationRow({
   selecting,
   picked,
   multiChannel,
+  agentsPaused,
   viewerId,
   stages,
   tagCatalog,
@@ -563,6 +579,8 @@ const ConversationRow = memo(function ConversationRow({
   selecting: boolean;
   picked: boolean;
   multiChannel: boolean;
+  /** Pausa general de los agentes (se avisa en el encabezado, no en la fila). */
+  agentsPaused: boolean;
   viewerId: string;
   stages: StageDto[];
   tagCatalog: TagDto[];
@@ -582,7 +600,8 @@ const ConversationRow = memo(function ConversationRow({
   const press = useLongPress((x, y) => onOpenMenu(c, { kind: "point", x, y }));
   // 034: IA activa = punto verde; en pausa o esperando a una persona = naranja.
   // El texto completo («Requiere humano · sin asignar»…) vive solo en Detalles.
-  const aiOn = c.aiEnabled && !c.handoffAt;
+  const aiBadge = rowAiBadge({ ...c, orgPaused: agentsPaused });
+  const aiOn = aiBadge === "on";
   // El texto de ayuda explica el estado; el nombre accesible sigue siendo corto.
   const aiHint = aiOn
     ? "Atendido por un agente de IA"
@@ -691,23 +710,26 @@ const ConversationRow = memo(function ConversationRow({
             línea: con poco ancho las cápsulas truncan su texto en vez de
             envolver (los «·» no pueden quedar colgando al final de una línea). */}
         <div className="relative flex flex-col gap-1.5 pb-[var(--row-py)] pl-[58px] pr-4 pt-2">
-          {c.aiAvailable && (
+          {aiBadge !== "none" && (
             // Debajo del círculo del avatar (cuyo punto verde de «ventana
             // abierta» está en su esquina inferior derecha, sin chocar),
             // centrado en su columna de 32 px y sin cambiar el alto de la
             // fila. Punto del ícono: verde = activa, naranja = en pausa.
-            <span className="pointer-events-none absolute left-4 top-1 flex h-5 w-8 items-center justify-center">
+            <span className="pointer-events-none absolute left-4 top-1.5 flex h-4 w-8 items-center justify-center">
               <span
                 role="img"
                 aria-label={aiOn ? "IA activa" : "IA en pausa"}
                 title={aiHint}
-                data-ai-badge={aiOn ? "on" : "paused"}
-                className="pointer-events-auto relative inline-flex text-text-3"
+                data-ai-badge={aiBadge}
+                className={cn(
+                  "pointer-events-auto relative inline-flex text-text-3",
+                  !aiOn && "opacity-60"
+                )}
               >
-                <Bot className="h-4 w-4" strokeWidth={1.8} aria-hidden />
+                <Bot className="h-3 w-3" strokeWidth={1.8} aria-hidden />
                 <span
                   className={cn(
-                    "absolute -right-[3px] -top-[2px] h-[7px] w-[7px] rounded-full border border-background",
+                    "absolute -right-[3px] -top-[2px] h-[6px] w-[6px] rounded-full border border-background",
                     aiOn ? "bg-success" : "bg-warning"
                   )}
                 />

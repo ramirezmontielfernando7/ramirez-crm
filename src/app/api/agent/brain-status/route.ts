@@ -43,5 +43,7 @@ export const GET = withAuth(async (session) => {
     health,
     now: new Date(),
   });
-  return Response.json(status, { headers: { "cache-control": "no-store" } });
+  // 042: la Bandeja avisa la pausa general una sola vez, no en cada fila.
+  const agentsPaused = agentModule && !!rows[0]?.pausedAt;
+  return Response.json({ ...status, agentsPaused }, { headers: { "cache-control": "no-store" } });
 });

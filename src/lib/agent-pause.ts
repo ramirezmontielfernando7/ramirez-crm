@@ -40,3 +40,22 @@ export const PAUSE_LABEL = {
   bannerBody:
     "No responden a ningún cliente: los chats nuevos pasan a atención humana. Tu configuración sigue intacta.",
 } as const;
+
+/**
+ * Qué muestra la fila de la Bandeja para la IA de ESE chat:
+ * - `none`: nada (el agente está apagado, o la pausa general ya se avisa una
+ *   sola vez en el encabezado de la lista);
+ * - `on`: el agente atiende;
+ * - `paused`: solo este chat está en pausa o espera a una persona.
+ */
+export type RowAiBadge = "none" | "on" | "paused";
+
+export function rowAiBadge(c: {
+  aiAvailable: boolean;
+  aiEnabled: boolean;
+  handoffAt: string | null;
+  orgPaused: boolean;
+}): RowAiBadge {
+  if (!c.aiAvailable || c.orgPaused) return "none";
+  return c.aiEnabled && !c.handoffAt ? "on" : "paused";
+}
