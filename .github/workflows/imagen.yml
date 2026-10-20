@@ -79,9 +79,10 @@ jobs:
           for i in $(seq 1 120); do curl -sf localhost:3000/api/health >/dev/null && break; sleep 1; done
           curl -sf localhost:3000/api/health
           echo; docker exec app ps -o pid,ppid,args | tee ps.txt
-          # PID 1 = tini; Node (server.js) es su hijo directo: le llega la señal.
+          # PID 1 = tini; Node es su hijo directo (PPID 1): le llega la señal.
+          # Next cambia el nombre del proceso a «next-server (v…)».
           grep -E '^ *1 +0 +/sbin/tini' ps.txt
-          grep -E '^ *[0-9]+ +1 +node server\.js' ps.txt
+          grep -E '^ *[0-9]+ +1 +(next-server|node server\.js)' ps.txt
           inicio=$(date +%s)
           docker stop -t 30 app
           dur=$(( $(date +%s) - inicio ))
