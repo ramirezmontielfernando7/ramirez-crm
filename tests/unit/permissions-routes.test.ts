@@ -97,6 +97,10 @@ const PROTEGIDAS: [string, Method, Permission][] = [
   ["lab/agents/[id]", "DELETE", "agent.manage"],
   ["lab/agents/[id]/draft", "PUT", "agent.manage"],
   ["lab/agents/[id]/publish", "POST", "agent.manage"],
+  // 042: interruptores (por agente y general).
+  ["lab/agents/[id]/pause", "PUT", "agent.manage"],
+  ["agent/pause", "GET", "agent.manage"],
+  ["agent/pause", "PUT", "agent.manage"],
   ["lab/agents/[id]/make-general", "POST", "agent.manage"],
   ["lab/agents/[id]/versions", "GET", "agent.manage"],
   ["lab/agents/[id]/versions/[logId]/restore", "POST", "agent.manage"],

@@ -25,6 +25,8 @@ export const GENERAL_INTERNAL_NAME = "Agente principal";
 export type GeneralState = {
   /** El interruptor global (sigue viviendo en `agent_profile`). */
   enabled: boolean;
+  /** 042 — La pausa general de emergencia (`agent_profile.paused_at`). */
+  orgPausedAt: Date | null;
   agent: AgentRow;
   /** La config PUBLICADA del general (`null` si no se pudo leer). */
   published: AgentConfig | null;
@@ -67,7 +69,7 @@ export async function ensureGeneralAgent(organizationId: string): Promise<Genera
       published = parseStoredConfig(fixed.published);
     }
   }
-  return { enabled: profile.enabled, agent, published };
+  return { enabled: profile.enabled, orgPausedAt: profile.pausedAt, agent, published };
 }
 
 async function readGeneral(organizationId: string): Promise<{ profile: ProfileRow; agent: AgentRow | null } | null> {

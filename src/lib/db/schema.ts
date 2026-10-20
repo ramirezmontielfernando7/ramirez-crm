@@ -756,6 +756,8 @@ export const conversation = pgTable(
         "manual_reply",
         // Fase 3: la organización agotó su cuota mensual de IA.
         "cuota",
+        // 042: el agente (o todos) está apagado por el equipo.
+        "pausa",
       ],
     }),
     lastInboundAt: timestamp("last_inbound_at"),
@@ -1128,6 +1130,14 @@ export const agentProfile = pgTable(
       .notNull()
       .references(() => organization.id, { onDelete: "cascade" }),
     enabled: boolean("enabled").notNull().default(false),
+    /**
+     * 042 — Pausa GENERAL de emergencia (freno durante campañas masivas). NO
+     * es `enabled`: ese es «el negocio ya encendió su agente»; esto es «alto
+     * a todos los agentes, sin tocar su configuración». No NULL = en pausa:
+     * los chats que el agente atendería pasan a atención humana.
+     */
+    pausedAt: timestamp("paused_at"),
+    pausedBy: text("paused_by"),
     name: text("name").notNull().default("Asistente"),
     tone: text("tone"),
     instructions: text("instructions"),
@@ -1163,6 +1173,9 @@ export const agent = pgTable(
     publishedAt: timestamp("published_at"),
     publishedBy: text("published_by").references(() => user.id, { onDelete: "set null" }),
     archivedAt: timestamp("archived_at"),
+    /** 042 — Interruptor de ESTE agente: no NULL = apagado (sus chats pasan a una persona). */
+    pausedAt: timestamp("paused_at"),
+    pausedBy: text("paused_by"),
     createdBy: text("created_by").references(() => user.id, { onDelete: "set null" }),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),

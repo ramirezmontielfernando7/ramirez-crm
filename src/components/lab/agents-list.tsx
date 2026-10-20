@@ -9,10 +9,12 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ArchiveExclusiveDocsChoice } from "@/components/lab/agent-doc-sources";
+import { PAUSE_CHANGED_EVENT } from "@/components/lab/agent-pause-bar";
+import { Switch } from "@/components/ui/switch";
 import { ConfirmDialog } from "@/components/lab/confirm-dialog";
 import { call, formatDate, NO_NAME_LABEL, STATUS_LABEL, type AgentSummary } from "@/components/lab/agents-api";
 
-type Listing = { agents: AgentSummary[]; maxAgents: number; aiConfigured: boolean };
+type Listing = { agents: AgentSummary[]; maxAgents: number; aiConfigured: boolean; orgPaused: boolean };
 
 /**
  * 031 (A2) — Pestaña «Agentes»: una sola columna. El agente general va fijo
@@ -41,7 +43,17 @@ export function AgentsList() {
 
   useEffect(() => {
     void load();
+    // 042: la pausa general se mueve en la barra de arriba; la lista se pone al día.
+    window.addEventListener(PAUSE_CHANGED_EVENT, load);
+    return () => window.removeEventListener(PAUSE_CHANGED_EVENT, load);
   }, [load]);
+
+  async function togglePaused(a: AgentSummary, paused: boolean) {
+    setError(null);
+    const r = await call(`/api/lab/agents/${a.id}/pause`, { method: "PUT", json: { paused } });
+    if (!r.ok) setError(r.message);
+    void load();
+  }
 
   async function create() {
     const name = newName.trim();
@@ -157,6 +169,7 @@ export function AgentsList() {
                   <Badge variant={a.status === "published" ? "success" : a.status === "changes" ? "warning" : "secondary"}>
                     {STATUS_LABEL[a.status]}
                   </Badge>
+                  {a.paused && <Badge variant="destructive">Apagado</Badge>}
                 </span>
                 <span className="mt-0.5 flex items-center gap-1 truncate text-xs text-muted-foreground">
                   <Sparkles className="h-3 w-3 shrink-0" strokeWidth={1.7} />
@@ -173,6 +186,19 @@ export function AgentsList() {
                 ) : (
                   "Sin evaluar"
                 )}
+              </span>
+              <span
+                className="flex items-center gap-2 text-xs text-muted-foreground"
+                title={data.orgPaused ? "Todos los agentes están en pausa (interruptor general)" : undefined}
+              >
+                {a.paused ? "Apagado" : "Activo"}
+                <Switch
+                  size="sm"
+                  checked={!a.paused}
+                  disabled={data.orgPaused}
+                  label={`Agente «${a.internalName}» activo`}
+                  onCheckedChange={(on) => void togglePaused(a, !on)}
+                />
               </span>
               <span className="flex flex-wrap gap-1">
                 <Link href={`/lab/agents/${a.id}`} className={buttonVariants({ size: "sm", variant: "ghost" })}>

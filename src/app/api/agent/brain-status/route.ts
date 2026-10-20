@@ -21,7 +21,7 @@ export const GET = withAuth(async (session) => {
   const db = getDb();
   const [rows, health, botKeyConfigured] = await Promise.all([
     db
-      .select({ enabled: schema.agentProfile.enabled })
+      .select({ enabled: schema.agentProfile.enabled, pausedAt: schema.agentProfile.pausedAt })
       .from(schema.agentProfile)
       .where(scoped(schema.agentProfile.organizationId, session.organizationId))
       .limit(1),
@@ -36,7 +36,8 @@ export const GET = withAuth(async (session) => {
   const agentModule = await orgHasModule(session.organizationId, "agent");
   const status = computeBrainStatus({
     aiConfigured: isAiConfigured(),
-    agentEnabled: agentModule && (rows[0]?.enabled ?? false),
+    // 042: con la pausa general el agente incluido no contesta.
+    agentEnabled: agentModule && (rows[0]?.enabled ?? false) && !rows[0]?.pausedAt,
     botKeyConfigured,
     lastSeenAt: botLastSeenAt(session.organizationId),
     health,

@@ -16,7 +16,10 @@ import { copyAgentKb } from "./kb";
 import { appendPublishLog, type PublishAction } from "./log";
 import { syncGeneralToProfile } from "./mirror";
 import { removeAgentStages } from "./assignments";
+import { logger } from "@/lib/log";
 import { existingGroupIds, settleAgentDocuments } from "@/server/kb-docs/store";
+
+const log = logger("agentes");
 
 /**
  * 031 — ÚNICA puerta de `agent` y `agent_publish_log` (con `ensure.ts`,
@@ -45,6 +48,8 @@ export type AgentSummary = {
   displayName: string | null;
   isGeneral: boolean;
   status: AgentStatus;
+  /** 042 — El interruptor de este agente: `true` = apagado (sus chats pasan a una persona). */
+  paused: boolean;
   publishedAt: string | null;
   lastRun: { score: number | null; at: string } | null;
   createdAt: string;
@@ -171,6 +176,7 @@ export async function listAgents(organizationId: string): Promise<AgentSummary[]
       displayName: (d.published ?? d.draft).displayName,
       isGeneral: d.isGeneral,
       status: d.status,
+      paused: row.pausedAt !== null,
       publishedAt: d.publishedAt,
       lastRun: lastRun.get(d.id) ?? null,
       createdAt: d.createdAt,
@@ -420,6 +426,71 @@ export async function restoreVersion(
     return updated!;
   });
   return toDetail(row);
+}
+
+/* ------------------------------------------------------------------------
+ * 042 — Interruptores: la pausa general de la organización y la de cada
+ * agente. Solo mueven `paused_at`/`paused_by`: no tocan la configuración, el
+ * borrador ni lo publicado, así que reanudar deja todo exactamente como
+ * estaba. Quien decide qué pasa con un chat mientras tanto es el turno
+ * (`loadTurnContext`): traspaso a una persona, nunca silencio.
+ * --------------------------------------------------------------------- */
+
+export type OrgPauseState = { paused: boolean; pausedAt: string | null };
+
+export async function getOrgPause(organizationId: string): Promise<OrgPauseState> {
+  const [row] = await getDb()
+    .select({ pausedAt: schema.agentProfile.pausedAt })
+    .from(schema.agentProfile)
+    .where(scoped(schema.agentProfile.organizationId, organizationId))
+    .limit(1);
+  return { paused: !!row?.pausedAt, pausedAt: row?.pausedAt?.toISOString() ?? null };
+}
+
+/**
+ * Pausa o reanuda a TODOS los agentes de la organización. Idempotente: pausar
+ * dos veces conserva la hora de la primera. `updated_at` no se toca (lo usa la
+ * reconciliación del espejo y esto no es comportamiento).
+ */
+export async function setOrgPaused(
+  organizationId: string,
+  actorUserId: string,
+  paused: boolean
+): Promise<OrgPauseState> {
+  const rows = await getDb()
+    .update(schema.agentProfile)
+    .set(
+      paused
+        ? { pausedAt: sql`coalesce(${schema.agentProfile.pausedAt}, now())`, pausedBy: actorUserId }
+        : { pausedAt: null, pausedBy: actorUserId }
+    )
+    .where(scoped(schema.agentProfile.organizationId, organizationId))
+    .returning({ pausedAt: schema.agentProfile.pausedAt });
+  const row = rows[0];
+  if (!row) throw new AgentError("not_found", "Esta organización aún no tiene agente configurado");
+  log.info(paused ? "pausa general de agentes ACTIVADA" : "pausa general de agentes quitada", {
+    org: organizationId,
+    por: actorUserId,
+  });
+  return { paused: !!row.pausedAt, pausedAt: row.pausedAt?.toISOString() ?? null };
+}
+
+/** Apaga o enciende UN agente (cualquiera, el general incluido). */
+export async function setAgentPaused(
+  organizationId: string,
+  id: string,
+  actorUserId: string,
+  paused: boolean
+): Promise<{ id: string; paused: boolean }> {
+  await withTenant(organizationId, async (tx) => {
+    const row = await lockAgent(tx, organizationId, id);
+    await tx
+      .update(schema.agent)
+      .set({ pausedAt: paused ? (row.pausedAt ?? new Date()) : null, pausedBy: actorUserId })
+      .where(scoped(schema.agent.organizationId, organizationId, eq(schema.agent.id, id)));
+  });
+  log.info(paused ? "agente apagado" : "agente encendido", { org: organizationId, agente: id, por: actorUserId });
+  return { id, paused };
 }
 
 /* ------------------------------------------------------------------------
