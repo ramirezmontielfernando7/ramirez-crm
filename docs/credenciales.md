@@ -58,6 +58,8 @@ Variable»).
 
 ### Backups y la llave vieja (importante)
 
+Cómo sacar, guardar y probar los respaldos: [respaldos.md](respaldos.md).
+
 Un backup de la base guarda los tokens **cifrados con la llave que tenían
 ese día**. Por eso:
 
