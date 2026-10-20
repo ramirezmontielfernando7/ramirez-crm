@@ -583,6 +583,12 @@ const ConversationRow = memo(function ConversationRow({
   // 034: IA activa = punto verde; en pausa o esperando a una persona = naranja.
   // El texto completo («Requiere humano · sin asignar»…) vive solo en Detalles.
   const aiOn = c.aiEnabled && !c.handoffAt;
+  // El texto de ayuda explica el estado; el nombre accesible sigue siendo corto.
+  const aiHint = aiOn
+    ? "Atendido por un agente de IA"
+    : c.handoffAt
+      ? "Agente de IA en pausa: esperando a una persona"
+      : "Agente de IA en pausa en este chat";
 
   return (
     <m.li
@@ -654,22 +660,6 @@ const ConversationRow = memo(function ConversationRow({
                 >
                   {contactLabel(c.contact)}
                 </span>
-                {c.aiAvailable && (
-                  <span
-                    role="img"
-                    aria-label={aiOn ? "IA activa" : "IA en pausa"}
-                    title={aiOn ? "IA activa" : "IA en pausa"}
-                    className="relative inline-flex shrink-0 text-text-3"
-                  >
-                    <Bot className="h-3.5 w-3.5" strokeWidth={1.8} aria-hidden />
-                    <span
-                      className={cn(
-                        "absolute -right-[3px] -top-[2px] h-[7px] w-[7px] rounded-full border border-background",
-                        aiOn ? "bg-success" : "bg-warning"
-                      )}
-                    />
-                  </span>
-                )}
               </span>
               <span
                 className={cn(
@@ -700,7 +690,30 @@ const ConversationRow = memo(function ConversationRow({
         {/* Alineadas con el texto (avatar de 32 px + espacios = 58 px). UNA sola
             línea: con poco ancho las cápsulas truncan su texto en vez de
             envolver (los «·» no pueden quedar colgando al final de una línea). */}
-        <div className="flex flex-col gap-1.5 pb-[var(--row-py)] pl-[58px] pr-4 pt-2">
+        <div className="relative flex flex-col gap-1.5 pb-[var(--row-py)] pl-[58px] pr-4 pt-2">
+          {c.aiAvailable && (
+            // Debajo del círculo del avatar (cuyo punto verde de «ventana
+            // abierta» está en su esquina inferior derecha, sin chocar),
+            // centrado en su columna de 32 px y sin cambiar el alto de la
+            // fila. Punto del ícono: verde = activa, naranja = en pausa.
+            <span className="pointer-events-none absolute left-4 top-1 flex h-5 w-8 items-center justify-center">
+              <span
+                role="img"
+                aria-label={aiOn ? "IA activa" : "IA en pausa"}
+                title={aiHint}
+                data-ai-badge={aiOn ? "on" : "paused"}
+                className="pointer-events-auto relative inline-flex text-text-3"
+              >
+                <Bot className="h-4 w-4" strokeWidth={1.8} aria-hidden />
+                <span
+                  className={cn(
+                    "absolute -right-[3px] -top-[2px] h-[7px] w-[7px] rounded-full border border-background",
+                    aiOn ? "bg-success" : "bg-warning"
+                  )}
+                />
+              </span>
+            </span>
+          )}
           <div className="flex min-w-0 items-center gap-1.5">
             <StageCapsule conversation={c} stages={stages} onPatch={onPatchRow} onRefetch={onRefetch} onError={onError} />
             <span aria-hidden className="shrink-0 text-[10.5px] text-text-3">·</span>

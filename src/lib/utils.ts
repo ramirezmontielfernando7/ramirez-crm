@@ -5,35 +5,43 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-/** Iniciales (máx 2) para el avatar de un contacto. */
-export function initials(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return "?";
-  const first = parts[0]?.[0] ?? "";
-  const second = parts.length > 1 ? (parts[parts.length - 1]?.[0] ?? "") : "";
-  return (first + second).toUpperCase() || "?";
+const segmenter =
+  typeof Intl !== "undefined" && "Segmenter" in Intl
+    ? new Intl.Segmenter(undefined, { granularity: "grapheme" })
+    : null;
+
+/** Grafemas de un texto: un emoji o una letra con acento cuentan como UNO. */
+function graphemes(text: string): string[] {
+  return segmenter ? Array.from(segmenter.segment(text), (s) => s.segment) : Array.from(text);
 }
 
-/* Paleta de los avatares del mockup de la landing (hsl(h 62% 52%)): tonos
-   medios saturados, legibles con inicial blanca en los dos temas. */
-const AVATAR_COLORS = [
-  "bg-[#3985d1]", // azul
-  "bg-[#d17139]", // terracota
-  "bg-[#9e39d1]", // violeta
-  "bg-[#30a657]", // verde
-  "bg-[#ce3b6c]", // frambuesa
-  "bg-[#b67c20]", // ámbar
-  "bg-[#30a6a6]", // turquesa
-  "bg-[#6954d4]", // índigo
-] as const;
+const LETTER_OR_DIGIT = /^[\p{L}\p{N}]/u;
 
-/** Color estable por contacto: hash simple del id/teléfono → misma clase siempre. */
-export function avatarColor(seed: string): string {
-  let hash = 0;
-  for (let i = 0; i < seed.length; i++) {
-    hash = (hash * 31 + seed.charCodeAt(i)) >>> 0;
-  }
-  return AVATAR_COLORS[hash % AVATAR_COLORS.length] ?? AVATAR_COLORS[0];
+/** Primera letra o número de una palabra (salta símbolos y emojis del inicio). */
+function firstUsable(word: string): string {
+  return graphemes(word).find((g) => LETTER_OR_DIGIT.test(g)) ?? "";
+}
+
+/**
+ * Iniciales (máx 2) para el avatar de un contacto, SOLO con letras o números.
+ * Corta por grafemas (nunca a la mitad de un emoji) y salta emojis y símbolos:
+ * «😀 Marta Ruiz» → «MR», «Fer 🔥» → «F», «👍» o «###» → «» (sin iniciales).
+ */
+export function contactInitials(name: string): string {
+  const letters = name
+    .trim()
+    .split(/\s+/)
+    .map(firstUsable)
+    .filter(Boolean);
+  if (letters.length === 0) return "";
+  const first = letters[0] ?? "";
+  const last = letters.length > 1 ? (letters[letters.length - 1] ?? "") : "";
+  return (first + last).toLocaleUpperCase();
+}
+
+/** Iniciales con «?» de respaldo, para los lugares que siempre pintan algo. */
+export function initials(name: string): string {
+  return contactInitials(name) || "?";
 }
 
 export function formatPhone(phone: string | null | undefined): string {

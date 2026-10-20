@@ -392,7 +392,7 @@ export function InboxClient({ channels }: { channels: readonly Channel[] }) {
           hilo en cuanto hay conversación elegida (patrón maestro-detalle). */}
       <section
         className={cn(
-          "w-full shrink-0 overflow-hidden border-r md:w-[300px] lg:w-[360px]",
+          "w-full shrink-0 overflow-hidden border-r md:w-[clamp(300px,32vw,340px)] lg:w-[clamp(340px,30vw,460px)]",
           "lg:rounded-panel lg:border lg:bg-surface lg:shadow-panel",
           selected && "max-md:hidden"
         )}
