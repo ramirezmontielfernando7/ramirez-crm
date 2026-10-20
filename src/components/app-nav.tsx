@@ -203,7 +203,7 @@ export function AppNav({
         "lg:absolute lg:inset-y-3 lg:left-3 lg:z-10 lg:overflow-x-hidden",
         "lg:transition-[width,padding,transform,visibility] lg:duration-nav lg:ease-panel",
         "lg:rounded-panel lg:border lg:shadow-panel",
-        narrow ? "lg:w-14 lg:px-2" : "lg:w-56",
+        narrow ? "lg:w-14 lg:px-2" : "lg:w-[13.5rem]",
         // Oculto sale 68 px fijos (56 de su forma angosta + 12 del margen),
         // no un %: el % cambiaría con el ancho a medio camino y el borde se
         // despegaría del contenido al volver.
@@ -382,7 +382,7 @@ const NavFooter = memo(function NavFooter({
       <div className="hidden flex-col group-data-[mini]/nav:flex">
         <ProfileMenu userName={userName} roleText={roleText} theme={theme} onSignOut={onSignOut} showUsage={showUsage} />
       </div>
-      <div className="mt-1 flex items-center gap-2.5 rounded-sm px-2.5 py-2 hover:bg-accent group-data-[mini]/nav:hidden">
+      <div className="mt-1 flex items-center gap-2 rounded-sm px-2 py-2 hover:bg-accent group-data-[mini]/nav:hidden">
         <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-soft text-xs font-bold text-brand-text">
           {initials(userName)}
         </span>
