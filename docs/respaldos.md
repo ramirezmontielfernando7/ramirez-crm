@@ -5,7 +5,8 @@ de seguridad automáticas, dónde quedan, cómo llevarte una copia a tu
 computadora, cómo **probar cada mes** que una copia sirve y qué hacer si un
 día hay que restaurar.
 
-> **Antes de empezar.** Esta guía describe **Coolify v4**. Para ver tu
+> **Antes de empezar.** Esta guía describe **Coolify v4** (los nombres de
+> botones y campos se revisaron contra la versión 4.4.6). Para ver tu
 > versión, abre Coolify: el número aparece **abajo a la izquierda** del menú
 > (algo como `v4.0.0-beta.4xx`); también en **Settings**. Si tu pantalla no
 > se parece a lo que aquí se describe (un botón con otro nombre, una pestaña
@@ -31,23 +32,27 @@ otra llave, la app arranca pero queda desconectada de WhatsApp.
 1. En Coolify abre tu **proyecto** → el recurso **PostgreSQL** de Dashfort
    (el que dice PostgreSQL 18).
 2. Entra a la pestaña **Backups**.
-3. Pulsa **+ Add** (o **Add Scheduled Backup**).
-4. En **Frequency** escribe `0 3 * * *` (todos los días a las 3:00 a. m.,
-   hora del servidor). Si te pide **Timezone**, pon la tuya
-   (`America/Mexico_City`, por ejemplo).
-5. **Save to S3**: déjalo **apagado** por ahora (es el Paso 6, opcional).
-6. Guarda (**Save**).
-7. Abre el respaldo que acabas de crear y busca la parte de **retención**
-   (en versiones recientes se llama **Backup Retention Settings**; en otras,
-   **Number of backups to keep**). Pon:
-   - **Number of backups to keep (local)**: `14` → dos semanas de copias
-     diarias en el servidor.
-   - Si también aparece **Days to keep** o **Maximum storage**: `14` días y
-     déjalo sin máximo de almacenamiento, o el que te sobre de disco.
-8. Pulsa **Backup Now** para sacar el primero sin esperar a la noche.
+3. Pulsa **+ Add** para crear un respaldo programado.
+4. En **Frequency** escribe `0 3 * * *` (todos los días a las 3:00 a. m.).
+   También acepta palabras como `daily`.
+5. Guarda. Luego abre el respaldo que acabas de crear (**Manage**) y revisa:
+   - **Timezone**: la tuya (`America/Mexico_City`, por ejemplo). Si la dejas
+     vacía usa la del servidor.
+   - **Databases to back up**: el nombre de la base de Dashfort (lo que va
+     después de la última `/` en `DATABASE_URL` de la app). Vacío = la base
+     por defecto del recurso.
+   - Si ves una opción para respaldar **todas las bases** («all
+     databases» / `pg_dumpall`), déjala **apagada**: ese formato no lo puede
+     revisar la prueba de restauración del Paso 5.
+   - **S3 storage**: déjalo **sin elegir** por ahora (es el Paso 6, opcional).
+6. En la parte de retención (**Local backups**) pon:
+   - **Backups to keep**: `14` → dos semanas de copias diarias en el servidor.
+   - **Days to keep**: `14`.
+   - **Maximum storage (GB)**: déjalo vacío, o pon lo que te sobre de disco.
+7. Pulsa **Back up now** para sacar el primero sin esperar a la noche.
 
-- **Debes ver**: en la lista de ejecuciones (**Executions**) una línea nueva
-  con estado **Success** y un tamaño mayor que cero.
+- **Debes ver**: en **Executions** una línea nueva con **Status** de éxito
+  y un **Size** mayor que cero.
 - **Si falla** (estado **Failed**): abre la ejecución y copia el mensaje de
   error. No sigas con los demás pasos hasta resolverlo.
 
@@ -63,7 +68,9 @@ En el **disco del servidor**, en una carpeta parecida a:
 /data/coolify/backups/databases/<tu-equipo>-<número>/<nombre-de-la-base>-<id>/
 ```
 
-con archivos llamados `pg-dump-<base>-<número>.dmp`. Para encontrar la ruta
+con archivos llamados `pg-dump-<base>-<número>-<código>.dmp` (en
+**Executions**, el botón **Copy backup path** copia la ruta completa). Para
+encontrar la ruta
 exacta, abre la **terminal del servidor** (en Coolify: **Servers** → tu
 servidor → **Terminal**, o por SSH) y escribe:
 
@@ -114,7 +121,7 @@ node ops/respaldo.mjs
 
 - **Debes ver**: `✔ Base respaldada: …` y `✔ Archivos respaldados: …`.
 - **Si dice** `pg_dump es versión X y el servidor es Y`: la imagen de la app
-  quedó con un `pg_dump` más viejo que la base. Usa mejor **Backup Now** de
+  quedó con un `pg_dump` más viejo que la base. Usa mejor **Back up now** de
   Coolify (Paso 1) y avisa a quien mantiene el código.
 
 ---
@@ -141,9 +148,9 @@ node ops/respaldo.mjs
 
 Así, si el servidor se pierde, tienes la copia fuera.
 
-**A. Si en Coolify ves un botón de descarga.** En **PostgreSQL → Backups →
-Executions**, algunas versiones muestran **Download** junto a cada
-respaldo. Úsalo con el más reciente que diga **Success**.
+**A. Con el botón de descarga.** En **PostgreSQL → Backups → Executions**,
+cada respaldo tiene en **Actions** el botón **Download backup**. Úsalo con el
+más reciente que haya salido bien. (Si tu versión no lo tiene, usa la B.)
 
 **B. Si no hay botón: desde tu computadora con `scp`.** Necesitas el acceso
 SSH al servidor (usuario e IP). En Windows abre **PowerShell**; en Mac,
@@ -188,8 +195,8 @@ la abra, y luego la borra. **Nunca toca la base de producción.**
 
 Hazla en un horario tranquilo (usa el mismo servidor de Postgres).
 
-1. En Coolify, **PostgreSQL → Backups → Backup Now** (o usa el de anoche).
-   - Debes ver: **Success**.
+1. En Coolify, **PostgreSQL → Backups → Back up now** (o usa el de anoche).
+   - Debes ver: la ejecución nueva con éxito en **Executions**.
 2. En la **terminal del servidor**, copia ese respaldo al contenedor de la
    app (el `find` del Paso 1 te da la ruta; `docker ps` el nombre del
    contenedor):
@@ -240,7 +247,8 @@ Hazla en un horario tranquilo (usa el mismo servidor de Postgres).
 | `no coincide con su .sha256` | El archivo se dañó o quedó a medias | Prueba con otro respaldo. Si fallan varios, revisa el disco del servidor |
 | `pg_restore terminó con código…` | La copia no se pudo restaurar | Prueba con el respaldo anterior; guarda el mensaje y pide ayuda |
 | `Organizaciones en la copia: 0` | La copia está vacía | Revisa el Paso 1 (¿respalda la base correcta?) |
-| `La copia no trae la tabla de migraciones` | Es de otra base, no de Dashfort | Revisa en Coolify qué base respalda (**Databases To Backup**) |
+| `La copia no trae la tabla de migraciones` | Es de otra base, no de Dashfort | Revisa en Coolify qué base respalda (**Databases to back up**) |
+| `no es un respaldo en formato propio de pg_dump` | El respaldo se hizo con «todas las bases» (`pg-dump-all-….gz`) | Apaga esa opción (Paso 1, punto 5) y saca otro |
 | `Llave de cifrado: … NO lo abre` o `… que este contenedor no tiene` | La `ENCRYPTION_KEY` actual no es la de esa copia (¿se rotó?) | Busca la llave de esa fecha en tu gestor (Paso 3). Sin ella, esa copia no sirve completa |
 | `no se encontró «…/pg_restore»` | La imagen de la app no trae el cliente de Postgres | Avisa a quien mantiene el código |
 
@@ -269,10 +277,11 @@ externo y ya no dependes de bajarlo a mano.
    (en R2 es `auto`), **Access Key** y **Secret Key**. Pulsa
    **Validate Connection**.
    - Debes ver: la conexión validada.
-3. En **PostgreSQL → Backups**, abre tu respaldo programado y enciende
-   **Save to S3** eligiendo ese almacenamiento. En la retención de **S3**,
-   pon `30`.
-4. **Backup Now** y revisa que el archivo aparezca en el bucket.
+3. En **PostgreSQL → Backups**, abre tu respaldo programado (**Manage**) y
+   en **S3 storage** elige ese almacenamiento. Deja encendida **Local copy**
+   (así también queda la copia en el servidor). En la retención de **S3**,
+   pon **Backups to keep** `30` y **Days to keep** `30`.
+4. **Back up now** y revisa que el archivo aparezca en el bucket.
 
 Las copias en R2/B2 también se prueban con el Paso 5: descarga una a tu
 computadora y súbela al servidor con `scp`, luego sigue desde el punto 2.
@@ -297,7 +306,8 @@ a mandar los mensajes que ya entregó. Por eso:
    restauras.
    - Debes ver: la app en estado **Stopped**.
 2. **Respaldo del estado actual**, por si acaso: PostgreSQL → Backups →
-   **Backup Now**. Debes ver **Success**. No lo borres hasta terminar.
+   **Back up now**. Debes verlo con éxito en **Executions**. No lo borres
+   hasta terminar.
 3. **Copia el respaldo elegido al contenedor de Postgres**, desde la
    terminal del servidor:
 
