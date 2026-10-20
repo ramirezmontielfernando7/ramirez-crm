@@ -31,9 +31,12 @@ su configuración (p. ej. durante una campaña masiva).
   aditivo `paused:true` (solo lectura: el traspaso lo hace el intento de envío).
   Los chats de prueba del Laboratorio no se pausan. Sin cambios para quien no
   pausa.
-- Permiso: `agent.manage` (Propietario) en las tres rutas. Ampliarlo al
-  Coordinador pide un permiso nuevo y un lugar para el interruptor, porque hoy
-  no puede abrir el Estudio de IA (decisión pendiente del dueño).
+- Permiso: `agent.manage` (solo el Propietario) en las rutas de pausa. Decisión
+  del dueño: el freno queda solo para el Propietario por ahora. **Mejora
+  futura:** darlo al Coordinador (que opera las campañas) pide un permiso nuevo
+  (p. ej. `agent.pause`, en la matriz de `permissions.ts` y en la tabla de
+  `permissions-routes.test.ts`) y un lugar donde pueda usarlo, porque hoy no puede
+  abrir el Estudio de IA (p. ej. un botón en Campañas).
 - Aviso rojo («Los agentes de IA están en pausa») arriba del Estudio de IA y de
   `/agent` mientras el general esté pausado; con la pausa general, los
   interruptores por agente quedan bloqueados.
