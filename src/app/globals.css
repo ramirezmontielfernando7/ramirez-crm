@@ -322,13 +322,14 @@
 
 @layer components {
   /*
-    Fluidez PR 1: fila de la Bandeja. Fuera de la vista el navegador no la
-    dibuja ni la acomoda; `auto` recuerda su alto real en cuanto se vio una
-    vez (84 px es el alto típico con cápsulas), así la barra no salta.
+    Fila de la Bandeja. PR 1 usaba `content-visibility: auto`; desde PR 2 la
+    lista es virtual (solo existen las filas que se ven) y ese truco
+    estorbaría: la fila se MIDE al pintarse y con él mediría el alto de
+    reserva, no el real. `contain` deja que el navegador acomode cada fila
+    sin recalcular las demás.
   */
   .inbox-row {
-    content-visibility: auto;
-    contain-intrinsic-size: auto 84px;
+    contain: layout style;
   }
 
   /* Mosaico de marca: degradado del acento, como el favicon */

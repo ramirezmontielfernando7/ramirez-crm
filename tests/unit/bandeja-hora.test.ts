@@ -34,11 +34,9 @@ describe("formatTime (hora de la fila de la Bandeja)", () => {
 describe("fila de la Bandeja sin animación de entrada", () => {
   const fuente = readFileSync("src/components/inbox/conversation-list.tsx", "utf8");
 
-  it("la fila es un <li> normal con content-visibility (inbox-row), no m.li", () => {
+  it("la fila es un <li> normal (inbox-row), no m.li", () => {
     expect(fuente).not.toMatch(/<m\.li\b/);
     expect(fuente).toMatch(/className="inbox-row /);
-    const css = readFileSync("src/app/globals.css", "utf8");
-    expect(css).toMatch(/\.inbox-row\s*\{[^}]*content-visibility:\s*auto/);
   });
 
   it("no crea formateadores de fecha por fila", () => {
