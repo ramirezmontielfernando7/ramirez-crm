@@ -363,7 +363,7 @@ export async function sendMediaMessage(input: {
   caption?: string;
 }): Promise<SendResult> {
   // Validación previa (FR-007): tipo y tamaño antes de tocar disco o red.
-  const kind = validateOutgoing(input.file.mimeType, input.file.data.byteLength);
+  const kind = validateOutgoing(input.file.mimeType, input.file.data.byteLength, input.file.fileName);
 
   const target = await prepareSend(input.conversationId, input.organizationId);
   const { credentials } = target;

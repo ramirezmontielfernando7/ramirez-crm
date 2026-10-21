@@ -4,6 +4,7 @@ import { detectFormat, KB_DOC_MAX_CHARS, normalizeText, type KbDocMime } from "@
 import { extractDocumentText } from "@/server/kb-docs/extract";
 import { orgHasKbDocs } from "@/server/kb-docs/flag";
 import { scheduleIndex } from "@/server/kb-docs/indexer";
+import { formatBytes, getKbDocLimits } from "@/server/kb-docs/limits";
 import {
   createDocument,
   deleteDocument,
@@ -175,6 +176,12 @@ async function textOfEntry(
   entry: KnowledgeRow
 ): Promise<{ text: string; mime: KbDocMime; filename: string; byteSize: number }> {
   if (entry.filePath && entry.fileName && KB_EXT.test(entry.fileName)) {
+    // 044: el mismo tope que al subir a Documentos (Plataforma o el entorno):
+    // un PDF de 100 MB de la Biblioteca no se abre entero en memoria.
+    const { maxFileBytes } = await getKbDocLimits(organizationId);
+    if ((entry.fileSize ?? 0) > maxFileBytes) {
+      throw new KbDocError("too_large", `Para que la IA lo lea, el archivo debe pesar hasta ${formatBytes(maxFileBytes)}; este pesa ${formatBytes(entry.fileSize ?? 0)}.`);
+    }
     const bytes = new Uint8Array(await readKnowledgeFile(organizationId, entry));
     const format = detectFormat(entry.fileName, bytes.subarray(0, 8));
     if (format.ok) {

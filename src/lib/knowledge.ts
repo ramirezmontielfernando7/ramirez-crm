@@ -46,8 +46,7 @@ export const KNOWLEDGE_TITLE_MAX = 200;
 export const KNOWLEDGE_BODY_MAX = 4096;
 export const KNOWLEDGE_TAGS_MAX = 10;
 export const KNOWLEDGE_TAG_MAX = 40;
-/** Tope de la subida; además vale el límite de WhatsApp de cada tipo (media.ts). */
-export const KNOWLEDGE_FILE_MAX_BYTES = 100 * 1024 * 1024;
+// El tope del archivo (100 MB y los de WhatsApp por tipo) vive en `upload-limits.ts`.
 
 /** Qué archivos se aceptan en el selector (PDF, imágenes, Word, texto). */
 export const KNOWLEDGE_ACCEPT = [

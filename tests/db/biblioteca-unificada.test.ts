@@ -289,6 +289,31 @@ describe("040 — desde la Biblioteca: «Entrenar también al Agente de IA»", (
     expect((r.data.entry as { rag: unknown }).rag).toBeNull();
   });
 
+  it("044 — un archivo más grande que el tope de Documentos: la entrada se queda y la IA no lo abre (too_large)", async () => {
+    await sys()
+      .insert(schema.kbDocumentLimit)
+      .values({ organizationId: A.id, maxFileBytes: 1024 })
+      .onConflictDoUpdate({ target: [schema.kbDocumentLimit.organizationId], set: { maxFileBytes: 1024 } });
+    como(A, ownerA);
+    const grande = `Lista de precios 044.\n${"Tornillo de media pulgada a 3 pesos. ".repeat(80)}`;
+    const r = await llamar("knowledge", "POST", { form: archivo("precios-044.md", grande, { title: "Precios grandes", rag: "true" }) });
+    expect(r.status, JSON.stringify(r.data)).toBe(201);
+    expect(r.data.ragError).toMatchObject({ code: "too_large" });
+    expect((r.data.ragError as { message: string }).message).toMatch(/hasta 1 KB/);
+    expect((r.data.entry as { rag: unknown; showInChat: boolean })).toMatchObject({ rag: null, showInChat: true });
+    await sys().update(schema.kbDocumentLimit).set({ maxFileBytes: null }).where(eq(schema.kbDocumentLimit.organizationId, A.id));
+  });
+
+  it("044 — la Biblioteca rechaza HTML y SVG (415) sin guardar nada", async () => {
+    como(A, ownerA);
+    const antes = await sys().select({ n: sql<number>`count(*)::int` }).from(schema.knowledgeEntry).where(eq(schema.knowledgeEntry.organizationId, A.id));
+    const r = await llamar("knowledge", "POST", { form: archivo("pagina.html", "<script>alert(1)</script>", { title: "Página" }) });
+    expect(r.status).toBe(415);
+    expect((r.data.error as { message: string }).message).toMatch(/SVG ni HTML/);
+    const despues = await sys().select({ n: sql<number>`count(*)::int` }).from(schema.knowledgeEntry).where(eq(schema.knowledgeEntry.organizationId, A.id));
+    expect(despues[0]?.n).toBe(antes[0]?.n);
+  });
+
   it("una entrada solo de texto también entrena al agente (título + contenido)", async () => {
     como(A, ownerA);
     const r = await llamar("knowledge", "POST", {

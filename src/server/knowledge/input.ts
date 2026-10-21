@@ -2,11 +2,12 @@ import { z } from "zod";
 import { apiError } from "@/lib/api";
 import {
   KNOWLEDGE_BODY_MAX,
-  KNOWLEDGE_FILE_MAX_BYTES,
   KNOWLEDGE_TAGS_MAX,
   KNOWLEDGE_TITLE_MAX,
   parseTags,
 } from "@/lib/knowledge";
+import { formatSize, LIBRARY_FILE_MAX_BYTES, libraryFileProblem } from "@/lib/upload-limits";
+import { readUploadForm } from "@/server/uploads/body";
 import type { KnowledgeFileInput } from "./store";
 
 /**
@@ -73,10 +74,12 @@ export async function readKnowledgeInput(
     }
     raw = json as Record<string, unknown>;
   } else {
-    const form = await req.formData().catch(() => null);
-    if (!form) {
-      return { ok: false, response: apiError(400, "invalid", "Se esperaba multipart/form-data o JSON") };
-    }
+    // 044: el tope se aplica antes de leer y mientras llega el archivo.
+    const read = await readUploadForm(req, LIBRARY_FILE_MAX_BYTES, () =>
+      apiError(413, "too_large", `El archivo pasa del máximo de ${formatSize(LIBRARY_FILE_MAX_BYTES)}.`)
+    );
+    if (!read.ok) return read;
+    const form = read.form;
     for (const key of ["title", "body", "tags", "removeFile", "rag", "ragGroupId"]) {
       const v = form.get(key);
       if (typeof v === "string") raw[key] = v;
@@ -90,8 +93,10 @@ export async function readKnowledgeInput(
     const detail = parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ");
     return { ok: false, response: apiError(422, "invalid_body", detail) };
   }
-  if (file && file.size > KNOWLEDGE_FILE_MAX_BYTES) {
-    return { ok: false, response: apiError(413, "too_large", "El archivo excede 100 MB") };
+  // 044: tipo (PDF, Word, texto, imagen; nunca SVG ni HTML) y tamaño.
+  const problem = file ? libraryFileProblem(file.type, file.name, file.size) : null;
+  if (problem) {
+    return { ok: false, response: apiError(problem.code === "too_large" ? 413 : 415, problem.code, problem.message) };
   }
 
   const d = parsed.data;

@@ -10,6 +10,7 @@ import {
   attachmentRejection,
   isInlineImage,
   isReactionEmoji,
+  TEAM_ATTACHMENT_MAX_BYTES,
   TEAM_MESSAGE_MAX,
   TEAM_PAGE_DEFAULT,
   TEAM_PAGE_MAX,
@@ -290,7 +291,7 @@ async function saveAttachment(
 ): Promise<AttachmentRow> {
   const rejection = attachmentRejection(file.mimeType, file.fileName, file.data.byteLength);
   if (rejection) {
-    const code = /16 MB/.test(rejection) ? 413 : 415;
+    const code = file.data.byteLength > TEAM_ATTACHMENT_MAX_BYTES ? 413 : 415;
     throw new TeamChatError(code, code === 413 ? "too_large" : "unsupported_type", rejection);
   }
   const id = newId("teamChatAttachment");

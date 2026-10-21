@@ -133,18 +133,13 @@ ok("la lista trae las etiquetas en uso", (lista.json?.tags ?? []).includes("env�
 const archivo = await asesor.call("GET", `/api/knowledge/${catalogo.json?.entry?.id}/file`);
 ok("el Asesor descarga el archivo → 200 PDF", archivo.status === 200 && archivo.headers["content-type"] === "application/pdf");
 
+// 044: la Biblioteca ya no guarda HTML ni SVG (antes se guardaba y se
+// servía solo como descarga; los que ya existan se siguen sirviendo así).
 const html = await owner.call("POST", "/api/knowledge", null, {
   title: `Página ${RUN}`,
   file: { name: "x.html", mimeType: "text/html", buffer: Buffer.from("<script>alert(1)</script>") },
 });
-const htmlFile = await owner.call("GET", `/api/knowledge/${html.json?.entry?.id}/file`);
-ok(
-  "un HTML subido se descarga, nunca se sirve como página",
-  htmlFile.headers["content-type"] === "application/octet-stream" &&
-    htmlFile.headers["content-disposition"]?.startsWith("attachment") &&
-    htmlFile.headers["x-content-type-options"] === "nosniff"
-);
-await owner.call("DELETE", `/api/knowledge/${html.json?.entry?.id}`);
+ok("un HTML se rechaza → 415 con el motivo", html.status === 415 && /HTML/.test(html.json?.error?.message ?? ""), `status=${html.status}`);
 
 console.log("\n== 3 · Editar ==");
 const editada = await coord.call("PATCH", `/api/knowledge/${envios.json?.entry?.id}`, {

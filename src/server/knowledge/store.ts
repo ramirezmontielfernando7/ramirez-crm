@@ -138,7 +138,7 @@ export async function chatStateOf(organizationId: string, ids: string[]): Promis
 
 /** Valida el archivo con los límites de WhatsApp: lo que se sube se puede enviar. */
 function checkFile(file: KnowledgeFileInput): void {
-  validateOutgoing(file.mimeType, file.data.byteLength);
+  validateOutgoing(file.mimeType, file.data.byteLength, file.fileName);
 }
 
 export async function createKnowledge(input: {
