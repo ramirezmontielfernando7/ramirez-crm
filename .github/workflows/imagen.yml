@@ -40,6 +40,8 @@ jobs:
   apagado:
     name: docker stop → apagado limpio (tini + Node)
     runs-on: ubuntu-latest
+    # Tope por si algo se cuelga: sin él GitHub espera 6 horas.
+    timeout-minutes: 45
     services:
       postgres:
         image: postgres:18-alpine
@@ -95,6 +97,8 @@ jobs:
   imagen:
     name: docker build${{ startsWith(github.ref, 'refs/tags/v') && ' · publicar' || '' }}
     runs-on: ubuntu-latest
+    # Tope por si algo se cuelga: sin él GitHub espera 6 horas.
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7
 
@@ -141,6 +145,8 @@ jobs:
   respaldos:
     name: respaldo + prueba de restauración (PostgreSQL 18)
     runs-on: ubuntu-latest
+    # Tope por si algo se cuelga: sin él GitHub espera 6 horas.
+    timeout-minutes: 45
     services:
       postgres:
         image: postgres:18-alpine

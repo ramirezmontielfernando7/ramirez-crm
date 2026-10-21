@@ -233,6 +233,17 @@ automatizados: con la app viva y los mocks encendidos, `pnpm test:e2e`
 cero si algo falla. Al agregar una historia, extiende el arnés en vez de dejar
 solo el `.md`.
 
+## Cómo trabajar con el dueño
+
+- Fer no programa: háblale en español sencillo, sin jerga, con el resultado
+  primero.
+- Nunca fusionar un PR ni desplegar sin que Fer escriba «fusiona». Cada
+  fusión a `main` es un deploy a producción (Coolify Auto Deploy).
+- Una migración a la vez (no abrir dos PRs con migraciones en paralelo) y un
+  deploy de Coolify a la vez.
+- Cada PR con CI en verde y reporte en español: qué cambió / qué no se probó /
+  riesgos / cómo revertir.
+
 ## Modo Objetivo — Loop SDD
 
 Cuando el dueño da una META (no prompts paso a paso): Discover → Plan →

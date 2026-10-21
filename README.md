@@ -60,6 +60,14 @@ cerrada), respuestas del agente marcadas como IA y handoff a humano con un
 click. Los adjuntos van y vienen (imagen, audio, video, documento, ubicación y
 contacto) con vista previa, y los archivos se guardan en tu propio servidor.
 
+La lista aguanta miles de chats sin trabarse: solo se dibujan las filas que se
+ven (lista virtual) y cada fila es ligera. Topes de archivos: lo que sale a
+WhatsApp respeta los de Meta (fotos 5 MB, audio y video 16 MB, documentos
+100 MB), la Biblioteca acepta hasta 100 MB y el chat de equipo hasta 50 MB
+(detalle en `specs/044-limites-archivos`). Las letras (Inter e IBM Plex Mono)
+vienen dentro del código, así que construir la app ya no descarga nada de
+Google Fonts.
+
 Si la conversación empezó en un anuncio Click-to-WhatsApp, la bandeja dice de
 cuál: «Anuncio · titular» en la lista, un filtro «Anuncios», y en el panel del
 contacto el creativo, el texto y el enlace del anuncio. No pide bandera ni

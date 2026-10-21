@@ -31,6 +31,20 @@ publique (sube la versión, fecha esta sección y crea el tag `v1.5.0`).
   Configuración → WhatsApp. Solo en desarrollo, con `WA_MOCK_ENABLED=true`
   fuera de producción, se aceptan eventos sin firma.
 
+### Bandeja más fluida, topes de archivos y letras locales (#86–#89)
+
+Sin migraciones ni variables nuevas.
+
+- **Fluidez de la Bandeja (#86, #88).** Filas sin animaciones y fechas con un
+  formateador compartido; luego lista virtual (`@tanstack/react-virtual`): con
+  5,000 chats la lista queda lista en ~1.5 s (antes ~13.5 s). Script de
+  medición: `scripts/medir-fluidez.mjs`; E2E: `scripts/e2e-bandeja-virtual.mjs`.
+- **Topes de archivos (#87, spec 044).** Biblioteca 100 MB, chat de equipo
+  50 MB, Documentos del agente 20 MB por defecto; mensajes claros antes de
+  subir. Si Traefik corta subidas grandes, subir su `readTimeout` (ver spec).
+- **Letras locales (#89).** Inter e IBM Plex Mono con `next/font/local` en
+  `src/app/fonts`: el build ya no depende de Google Fonts.
+
 ### Seguridad y mantenimiento
 
 - **Next.js 15.5.26** (antes 15.5.20): corrige el RCE sin autenticación del
