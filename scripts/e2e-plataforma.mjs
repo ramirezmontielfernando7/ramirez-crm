@@ -220,6 +220,7 @@ async function main() {
   await asistenteBase(A, B, orgB.id);
   await asistenteMotor(A, B, orgB.id);
   await asistenteAnalisis(A, B, orgB.id);
+  await conexionDirecta(A, B, orgB.id);
 
   console.log("\n== 5 · Suspensión ==");
   const sus = await A.call("POST", `/api/platform/organizations/${orgB.id}/status`, { action: "suspend", reason: "prueba e2e" });
@@ -890,6 +891,54 @@ async function asistenteBase(A, B, orgB) {
   ok("al apagarlo, la API vuelve a 404", off.status === 200 && (await B.call("GET", "/api/assistant/status")).status === 404);
   const reset = await A.call("PUT", `/api/platform/organizations/${orgB}/limits`, { assistantTokens: null, aiTokens: null });
   ok("B vuelve a heredar sus topes", reset.status === 200);
+}
+
+/**
+ * Conexión directa (PR 1) — complemento oculto: apagado y sin rastro para la
+ * organización; /platform lo enciende sin tocar el plan ni el «x/13»; los
+ * servidores son solo del administrador y su llave nunca regresa.
+ */
+async function conexionDirecta(A, B, orgB) {
+  console.log("\n== 4i · Conexión directa: módulo y datos (PR 1) ==");
+  const antes = ((await A.call("GET", "/api/platform/organizations")).json?.organizations ?? []).find((o) => o.id === orgB);
+  ok("nace apagada", antes?.modules?.conexionDirecta === false, JSON.stringify(antes?.modules));
+  ok("B (usuaria común) → 404 en los servidores", (await B.call("GET", "/api/platform/direct-servers")).status === 404);
+
+  const llave = `llave-e2e-${RUN}-XYZW`;
+  const alta = await A.call("POST", "/api/platform/direct-servers", { name: `Servidor ${RUN}`, baseUrl: `https://directa-${RUN}.e2e.test/`, apiKey: llave });
+  ok("el administrador registra un servidor", alta.status === 201 && alta.json?.server?.apiKeyLast4 === "XYZW", `${alta.status} ${JSON.stringify(alta.json)}`);
+  ok("…y la llave nunca regresa", !JSON.stringify(alta.json).includes(llave) && !JSON.stringify((await A.call("GET", "/api/platform/direct-servers")).json).includes(llave));
+  const [fila] = await sql`select api_key_cipher from evolution_server where id = ${alta.json?.server?.id ?? ""}`;
+  ok("…guardada cifrada", Boolean(fila?.api_key_cipher) && !String(fila?.api_key_cipher).includes(llave));
+  ok("una dirección sin https se rechaza", (await A.call("POST", "/api/platform/direct-servers", { name: "Mala", baseUrl: "http://evo.e2e.test", apiKey: llave })).status === 422);
+
+  const pa = await A.ctx.newPage();
+  await pa.setViewportSize({ width: 1440, height: 900 });
+  await pa.goto(`${BASE}/platform/organizaciones/${orgB}`);
+  const sw = pa.getByTestId("platform-addon-conexionDirecta").getByRole("switch");
+  await sw.waitFor({ timeout: 30000 });
+  const conteo = async () => (await pa.getByTestId("platform-modules").locator("h2").innerText()).trim();
+  const conteoAntes = await conteo();
+  ok("el interruptor está en «Complementos ocultos», apagado", (await sw.getAttribute("aria-checked")) === "false");
+  await sw.click();
+  await pa.waitForFunction(() => document.querySelector('[data-testid="platform-addon-conexionDirecta"] [role="switch"]')?.getAttribute("aria-checked") === "true", null, { timeout: 15000 });
+  ok("encenderlo no cambia el «x de 13»", (await conteo()) === conteoAntes, `${conteoAntes} → ${await conteo()}`);
+  await pa.reload();
+  await sw.waitFor({ timeout: 30000 });
+  ok("…y queda guardado", (await sw.getAttribute("aria-checked")) === "true");
+  await pa.close();
+
+  const pB = await B.ctx.newPage();
+  await pB.goto(`${BASE}/inbox`);
+  await pB.waitForLoadState("networkidle").catch(() => null);
+  const html = await pB.content();
+  ok("la organización no ve rastro en pantalla (PR 1: nada visible)", !/Conexión directa|Dispositivo vinculado|no oficial/i.test(html));
+  await pB.close();
+
+  const off = await A.call("POST", `/api/platform/organizations/${orgB}/modules`, { conexionDirecta: false });
+  ok("se apaga desde la API", off.status === 200 && off.json?.modules?.conexionDirecta === false);
+  const baja = await A.call("DELETE", `/api/platform/direct-servers/${alta.json?.server?.id}`);
+  ok("un servidor sin empresas se borra", baja.status === 204, String(baja.status));
 }
 
 /** 038 (PR 2) — Una pregunta; si el límite por minuto la frena, espera y reintenta. */

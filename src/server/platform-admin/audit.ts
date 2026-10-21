@@ -25,7 +25,10 @@ export type AuditAction =
   | "reauth.failed"
   | "reauth.locked"
   | "admin.added"
-  | "admin.removed";
+  | "admin.removed"
+  | "direct_server.added"
+  | "direct_server.changed"
+  | "direct_server.removed";
 
 export type AuditActor = { userId: string; email: string } | null;
 

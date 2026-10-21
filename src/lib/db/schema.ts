@@ -306,11 +306,22 @@ export const contact = pgTable(
      * llena la importación de audiencias sin pisar un valor existente.
      */
     email: text("email"),
+    /**
+     * Conexión directa (0055) — el ID privado de WhatsApp (`…@lid`) que a
+     * veces entrega el dispositivo vinculado en lugar del teléfono. Se guarda
+     * para unirlo con el contacto y no crear duplicados. Único por
+     * organización cuando existe.
+     */
+    waLid: text("wa_lid"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },
   (t) => [
     index("contact_org_assigned_idx").on(t.organizationId, t.assignedUserId),
+    // 0055: un `@lid` es de un solo contacto en la organización.
+    uniqueIndex("contact_org_wa_lid_uq")
+      .on(t.organizationId, t.waLid)
+      .where(sql`${t.waLid} is not null`),
     index("contact_org_email_idx").on(t.organizationId, sql`lower(${t.email})`),
     // 014: el canal entra en la llave. Sin el, un IGSID que coincidiera con
     // un telefono normalizado mezclaria dos personas en silencio.
@@ -786,10 +797,26 @@ export const conversation = pgTable(
     campaignPendingId: text("campaign_pending_id"),
     /** 041: la campaña a la que respondió («Respondió a campaña X»). */
     campaignRepliedId: text("campaign_replied_id"),
+    /**
+     * Conexión directa (0055) — por dónde sale lo que se escribe en este
+     * chat: `meta` (Oficial), `directa` (sale y entra por el dispositivo
+     * vinculado) o `mixta` (sale por el dispositivo, entra por Meta; en
+     * pantalla «Automática»). Es UN solo dato: de él sale también por dónde
+     * entra (`inboundSourceOf` en src/lib/direct-connection.ts), así no hay
+     * dos ajustes que se contradigan. NULL = el modo por defecto de la
+     * organización. Sin el módulo se ignora.
+     */
+    connectionMode: text("connection_mode", { enum: ["meta", "directa", "mixta"] }),
+    /** 0055 — cuándo se cambió el modo por última vez (para el regreso automático). */
+    connectionModeChangedAt: timestamp("connection_mode_changed_at"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },
   (t) => [
+    check(
+      "conversation_connection_mode_chk",
+      sql`${t.connectionMode} is null or ${t.connectionMode} in ('meta', 'directa', 'mixta')`
+    ),
     // 041: la pestaña «Campañas» y el filtro de la principal.
     index("conversation_org_campaign_pending_idx")
       .on(t.organizationId, t.campaignPendingId)
@@ -876,9 +903,28 @@ export const message = pgTable(
     pricingCategory: text("pricing_category"),
     pricingModel: text("pricing_model"),
     pricingType: text("pricing_type"),
+    /**
+     * Conexión directa (0055) — por dónde salió (o entró) este mensaje.
+     * NULL = Meta, como todo lo anterior a la 0055. `directa` = por el
+     * dispositivo vinculado.
+     */
+    transport: text("transport", { enum: ["meta", "directa"] }),
+    /**
+     * 0055 — el ID del OTRO lado: al salir por la conexión directa se guarda
+     * el ID del dispositivo aquí, para unir el mensaje con su eco de Meta
+     * (que trae su propio `wa_message_id`) sin mostrarlo dos veces.
+     */
+    altMessageId: text("alt_message_id"),
+    /** 0055 — saliente detenido por los límites de envío: sale a esta hora («En cola»). */
+    queuedUntil: timestamp("queued_until"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
   (t) => [
+    check("message_transport_chk", sql`${t.transport} is null or ${t.transport} in ('meta', 'directa')`),
+    // 0055: unir el eco de Meta con lo enviado por la conexión directa.
+    index("message_org_alt_id_idx")
+      .on(t.organizationId, t.altMessageId)
+      .where(sql`${t.altMessageId} is not null`),
     // Campañas v2: destino de la FK compuesta de campaign_recipient.
     unique("message_org_id_uq").on(t.organizationId, t.id),
     index("message_org_conv_idx").on(
@@ -2533,6 +2579,14 @@ export const organizationModule = pgTable(
    * plataforma lo enciende, organización por organización.
    */
   asistente: boolean("asistente").notNull().default(false),
+  /**
+   * Conexión directa (PR 1, 0055) — complemento OCULTO: DEFAULT false, sin
+   * variable de entorno ni plan de alta que lo encienda; no cuenta entre los
+   * 13 interruptores ni para el plan. Solo /platform lo enciende. Sin él, la
+   * organización no ve ningún rastro (rutas en 404). Ver
+   * `src/server/direct-connection/`.
+   */
+  conexionDirecta: boolean("conexion_directa").notNull().default(false),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
   updatedBy: text("updated_by"),
 },
@@ -2544,6 +2598,162 @@ export const organizationModule = pgTable(
     check("organization_module_channels_chk", sql`${t.channels} <@ array['instagram', 'messenger']::text[]`),
     // 030 (PR 4): el Laboratorio evalúa al agente; sin agente no existe.
     check("organization_module_lab_requires_agent_chk", sql`not ${t.lab} or ${t.agent}`),
+  ]
+);
+
+/* ============================================================
+ * Conexión directa (PR 1, migración 0055) — dispositivo vinculado
+ * ============================================================ */
+
+/**
+ * Servidores del dispositivo vinculado que registra el administrador de
+ * plataforma (pueden ser varios). Tabla de PLATAFORMA: sin organización, sin
+ * RLS y solo el pool de sistema (`vocero_app` no tiene permisos, ver
+ * SOLO_SISTEMA en scripts/migrate.mjs). La llave maestra va cifrada con
+ * ENCRYPTION_KEY y jamás sale del servidor; se lee y escribe solo por
+ * `src/server/credentials/direct.ts`.
+ */
+export const evolutionServer = pgTable(
+  "evolution_server",
+  {
+    id: text("id").primaryKey(),
+    name: text("name").notNull(),
+    baseUrl: text("base_url").notNull(),
+    apiKeyCipher: text("api_key_cipher").notNull(),
+    apiKeyIv: text("api_key_iv").notNull(),
+    apiKeyTag: text("api_key_tag").notNull(),
+    /** Últimos 4 de la llave, para reconocerla en pantalla sin descifrar. */
+    apiKeyLast4: text("api_key_last4").notNull(),
+    keyVersion: integer("key_version").notNull().default(1),
+    /** Cuántas empresas caben (decisión del 21 oct: 25 hasta medirlo). */
+    maxInstances: integer("max_instances").notNull().default(25),
+    /** `active` recibe empresas nuevas; `full` y `disabled`, no. */
+    status: text("status", { enum: ["active", "full", "disabled"] }).notNull().default("active"),
+    notes: text("notes"),
+    createdBy: text("created_by").references(() => user.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("evolution_server_base_url_uq").on(t.baseUrl),
+    check("evolution_server_status_chk", sql`${t.status} in ('active', 'full', 'disabled')`),
+    check("evolution_server_capacity_chk", sql`${t.maxInstances} between 1 and 1000`),
+    check("evolution_server_name_chk", sql`char_length(${t.name}) between 1 and 80`),
+  ]
+);
+
+/**
+ * La conexión directa de UNA organización: en qué servidor vive su
+ * instancia, su llave (cifrada), su estado y su número. Una por organización
+ * POR AHORA (índice único); para varios números por organización basta con
+ * quitar ese índice. La crea el PR 2 al vincular; el PR 1 solo deja la tabla.
+ */
+export const directConnection = pgTable(
+  "direct_connection",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    /** RESTRICT: un servidor con empresas no se puede borrar (se mueve antes). */
+    serverId: text("server_id")
+      .notNull()
+      .references(() => evolutionServer.id, { onDelete: "restrict" }),
+    instanceName: text("instance_name").notNull(),
+    instanceKeyCipher: text("instance_key_cipher"),
+    instanceKeyIv: text("instance_key_iv"),
+    instanceKeyTag: text("instance_key_tag"),
+    keyVersion: integer("key_version").notNull().default(1),
+    /**
+     * SHA-256 del token secreto que va en la URL del webhook de esta
+     * organización (como el de Meta). Solo el hash: el token no se guarda.
+     */
+    webhookTokenHash: text("webhook_token_hash"),
+    status: text("status", { enum: ["pending", "connecting", "connected", "disconnected"] })
+      .notNull()
+      .default("pending"),
+    phoneNumber: text("phone_number"),
+    connectedAt: timestamp("connected_at"),
+    lastSeenAt: timestamp("last_seen_at"),
+    lastCheckAt: timestamp("last_check_at"),
+    /** Desconexiones del día (freno de emergencia: 2 en un día pausan 24 h). */
+    disconnectCount: integer("disconnect_count").notNull().default(0),
+    disconnectWindowStart: timestamp("disconnect_window_start"),
+    /** Freno de emergencia: hasta cuándo está en pausa la conexión directa. */
+    pausedUntil: timestamp("paused_until"),
+    pauseReason: text("pause_reason", { enum: ["ban", "disconnects", "manual"] }),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("direct_connection_org_uq").on(t.organizationId),
+    uniqueIndex("direct_connection_server_instance_uq").on(t.serverId, t.instanceName),
+    uniqueIndex("direct_connection_webhook_uq").on(t.webhookTokenHash),
+    check(
+      "direct_connection_status_chk",
+      sql`${t.status} in ('pending', 'connecting', 'connected', 'disconnected')`
+    ),
+    check(
+      "direct_connection_pause_chk",
+      sql`${t.pauseReason} is null or ${t.pauseReason} in ('ban', 'disconnects', 'manual')`
+    ),
+    check(
+      "direct_connection_key_chk",
+      sql`(${t.instanceKeyCipher} is null) = (${t.instanceKeyIv} is null) and (${t.instanceKeyIv} is null) = (${t.instanceKeyTag} is null)`
+    ),
+  ]
+);
+
+/**
+ * La «Configuración avanzada» de la conexión directa de una organización.
+ * Sin fila, valen los valores por defecto de `DEFAULT_DIRECT_SETTINGS`
+ * (src/lib/direct-connection.ts), que son los mismos que los DEFAULT de aquí.
+ */
+export const directConnectionSettings = pgTable(
+  "direct_connection_settings",
+  {
+    organizationId: text("organization_id")
+      .primaryKey()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    /** Modo de un chat sin modo propio. */
+    defaultMode: text("default_mode", { enum: ["meta", "directa", "mixta"] }).notNull().default("meta"),
+    /** Límites de envío: activos por defecto; el Propietario los cambia o apaga. */
+    limitsEnabled: boolean("limits_enabled").notNull().default(true),
+    minIntervalSeconds: integer("min_interval_seconds").notNull().default(8),
+    perChatPerMinute: integer("per_chat_per_minute").notNull().default(5),
+    perHour: integer("per_hour").notNull().default(60),
+    /** «Usar Meta mientras la ventana de 24 h esté abierta». */
+    preferMetaInWindow: boolean("prefer_meta_in_window").notNull().default(true),
+    /** Regreso automático a Oficial cuando el contacto vuelve a escribir. */
+    autoReturnToMeta: boolean("auto_return_to_meta").notNull().default(true),
+    /** A qué modo pasa «Continuar por conexión directa» con la ventana cerrada. */
+    closedWindowMode: text("closed_window_mode", { enum: ["directa", "mixta"] }).notNull().default("mixta"),
+    /** La IA responde por la conexión directa (solo organizaciones sin Meta; lo enciende la plataforma). */
+    aiViaDirect: boolean("ai_via_direct").notNull().default(false),
+    /**
+     * Permisos delegados por el Propietario (roles, además de él). Los
+     * permisos y a quién se pueden dar viven en src/lib/auth/permissions.ts.
+     */
+    modeRoles: text("mode_roles").array().notNull().default(sql`'{coordinador}'::text[]`),
+    linkRoles: text("link_roles").array().notNull().default(sql`'{}'::text[]`),
+    limitsRoles: text("limits_roles").array().notNull().default(sql`'{}'::text[]`),
+    /** Aviso de activación: quién lo aceptó y cuándo. */
+    noticeAcceptedBy: text("notice_accepted_by").references(() => user.id, { onDelete: "set null" }),
+    noticeAcceptedAt: timestamp("notice_accepted_at"),
+    updatedBy: text("updated_by").references(() => user.id, { onDelete: "set null" }),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => [
+    check("direct_connection_settings_mode_chk", sql`${t.defaultMode} in ('meta', 'directa', 'mixta')`),
+    check("direct_connection_settings_closed_chk", sql`${t.closedWindowMode} in ('directa', 'mixta')`),
+    check(
+      "direct_connection_settings_limits_chk",
+      sql`${t.minIntervalSeconds} between 0 and 3600 and ${t.perChatPerMinute} between 1 and 60 and ${t.perHour} between 1 and 10000`
+    ),
+    check(
+      "direct_connection_settings_roles_chk",
+      sql`${t.modeRoles} <@ array['coordinador', 'asesor']::text[] and ${t.linkRoles} <@ array['coordinador', 'asesor']::text[] and ${t.limitsRoles} <@ array['coordinador', 'asesor']::text[]`
+    ),
   ]
 );
 

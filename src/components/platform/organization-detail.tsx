@@ -296,6 +296,23 @@ export function PlanModulesSection() {
           </p>
         )}
       </Section>
+
+      <Section
+        title="Complementos ocultos"
+        hint="Solo los ves tú. La organización no ve ningún rastro hasta que los enciendes. No cuentan entre los 13 ni cambian el plan."
+        testId="platform-addons"
+      >
+        <label className="flex items-center gap-2 text-sm" data-testid="platform-addon-conexionDirecta">
+          <Switch
+            size="sm"
+            checked={modules.conexionDirecta}
+            disabled={disabled}
+            label={`Conexión directa en ${org.name}`}
+            onCheckedChange={(next) => void save({ conexionDirecta: next })}
+          />
+          <span className="min-w-0">Conexión directa (dispositivo vinculado)</span>
+        </label>
+      </Section>
     </div>
   );
 }

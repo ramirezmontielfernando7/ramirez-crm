@@ -342,6 +342,11 @@ const PLATAFORMA: [string, Method][] = [
   ["platform/organizations/[id]/summary", "GET"],
   ["platform/admins", "GET"],
   ["platform/webhooks", "GET"],
+  // Conexión directa (PR 1): servidores del dispositivo vinculado.
+  ["platform/direct-servers", "GET"],
+  ["platform/direct-servers", "POST"],
+  ["platform/direct-servers/[id]", "PATCH"],
+  ["platform/direct-servers/[id]", "DELETE"],
 ];
 
 /**

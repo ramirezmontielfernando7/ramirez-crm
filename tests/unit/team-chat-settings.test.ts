@@ -30,6 +30,9 @@ vi.mock("@/lib/db", async (importOriginal) => {
   return { ...original, getDb: () => chain };
 });
 
+// La parte de la conexión directa tiene su propia prueba (conexion-directa.test.ts).
+vi.mock("@/server/direct-connection/grants", () => ({ directConnectionGrants: async () => [] }));
+
 import {
   DEFAULT_TEAM_CHAT_SETTINGS,
   delegatedGrants,
@@ -67,7 +70,7 @@ describe("025 — delegación de grupos", () => {
     expect(grantsFromSettings("coordinador", DEFAULT_TEAM_CHAT_SETTINGS)).toEqual([]);
   });
 
-  it("para roles que no pueden recibir delegaciones NO se consulta la BD", async () => {
+  it("para roles que no pueden recibir delegaciones del chat NO se consulta su ajuste", async () => {
     db.calls = 0;
     expect(await delegatedGrants("org_a", "asesor")).toEqual([]);
     expect(await delegatedGrants("org_a", "owner")).toEqual([]);

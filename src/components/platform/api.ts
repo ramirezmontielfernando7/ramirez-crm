@@ -11,6 +11,8 @@ import type { AiUsageKind, StorageUsage } from "@/lib/usage";
 /** Fase 3, PR 3 — Los módulos opcionales de una organización. */
 export type Modules = Record<PlatformModuleToggle, boolean> & {
   campaignSendRate: number;
+  /** Complemento oculto (no es de los 13 ni cuenta para el plan). */
+  conexionDirecta: boolean;
 };
 
 export type Limits = { turns: number | null; tokens: number | null };

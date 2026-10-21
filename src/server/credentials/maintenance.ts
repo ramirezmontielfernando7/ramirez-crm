@@ -100,6 +100,22 @@ function targets(): Target[] {
       secrets: [{ cipher: schema.capiSettings.tokenCipher, iv: schema.capiSettings.tokenIv, tag: schema.capiSettings.tokenTag }],
     },
     {
+      name: "evolution_server",
+      table: schema.evolutionServer,
+      id: schema.evolutionServer.id,
+      keyVersion: schema.evolutionServer.keyVersion,
+      secrets: [{ cipher: schema.evolutionServer.apiKeyCipher, iv: schema.evolutionServer.apiKeyIv, tag: schema.evolutionServer.apiKeyTag }],
+    },
+    {
+      name: "direct_connection",
+      table: schema.directConnection,
+      id: schema.directConnection.id,
+      keyVersion: schema.directConnection.keyVersion,
+      secrets: [
+        { cipher: schema.directConnection.instanceKeyCipher, iv: schema.directConnection.instanceKeyIv, tag: schema.directConnection.instanceKeyTag },
+      ],
+    },
+    {
       name: "webhook_unrouted",
       table: schema.webhookUnrouted,
       id: schema.webhookUnrouted.id,

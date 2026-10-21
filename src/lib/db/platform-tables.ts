@@ -16,6 +16,8 @@ export const PLATFORM_TABLES: Readonly<Record<string, string>> = {
   account_link_token: "Fase 3: enlaces de un solo uso para poner contraseña, antes de tener sesión (solo pool de sistema)",
   platform_ai_pricing:
     "036 PR 3: precios de IA y tipo de cambio que captura el administrador de plataforma, para estimar el costo de TODAS las organizaciones (solo pool de sistema)",
+  evolution_server:
+    "Conexión directa PR 1: servidores del dispositivo vinculado que registra el administrador de plataforma; atienden a VARIAS organizaciones (solo pool de sistema, llave cifrada)",
   webhook_unrouted:
     "eventos de Meta que no se pudieron enrutar: justo no se sabe de qué organización son (solo pool de sistema, cifrados, 7 días)",
 };

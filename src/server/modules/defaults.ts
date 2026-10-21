@@ -68,6 +68,12 @@ export type OrgModules = {
   trabajo: boolean;
   /** 038 — Asistente interno (premium). Apagado por defecto; solo lo enciende /platform. */
   asistente: boolean;
+  /**
+   * Conexión directa (PR 1) — complemento OCULTO: apagado por defecto, solo
+   * lo enciende /platform. No es uno de los 13 interruptores ni cuenta para
+   * el plan, y no tiene entrada en el menú.
+   */
+  conexionDirecta: boolean;
 };
 
 export const DEFAULT_SEND_RATE = 10;
@@ -108,6 +114,8 @@ export const NEW_MODULE_DEFAULTS = {
   trabajo: false,
   // 038: premium. Sin variable de entorno ni perfil de alta: solo /platform.
   asistente: false,
+  // Conexión directa: complemento oculto. Sin variable de entorno ni plan: solo /platform.
+  conexionDirecta: false,
 } as const;
 
 /**

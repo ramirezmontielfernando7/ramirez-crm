@@ -13,6 +13,11 @@
  */
 export const TENANT_QUERY_EXCEPTIONS: Record<string, { max: number; motivo: string }> = {
   // --- Globales a propósito: aún no hay organización -------------------------
+  "server/credentials/direct.ts": {
+    max: 1,
+    motivo:
+      "Conexión directa PR 1 — /platform cuenta cuántas empresas tiene cada servidor (direct_connection por server_id, cruza organizaciones a propósito; solo el conteo, pool de sistema, sin descifrar nada).",
+  },
   "server/credentials/resolve.ts": {
     max: 10,
     motivo:

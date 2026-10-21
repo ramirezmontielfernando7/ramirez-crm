@@ -379,6 +379,13 @@
       "when": 1792617690553,
       "tag": "0053_bandeja_paginada",
       "breakpoints": true
+    },
+    {
+      "idx": 54,
+      "version": "7",
+      "when": 1792622702692,
+      "tag": "0055_conexion_directa",
+      "breakpoints": true
     }
   ]
 }
