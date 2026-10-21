@@ -2,6 +2,8 @@ import { apiError, withAuth } from "@/lib/api";
 import { getConversation } from "@/server/inbox/queries";
 import { SendError, sendMediaMessage } from "@/server/inbox/send";
 import { MediaValidationError } from "@/server/whatsapp/media";
+import { readUploadForm, withUploadSlot } from "@/server/uploads/body";
+import { CHAT_MEDIA_MAX_BYTES } from "@/lib/upload-limits";
 
 export const dynamic = "force-dynamic";
 
@@ -27,45 +29,49 @@ export const POST = withAuth(async (session, req: Request, ctx: Params) => {
   const conv = await getConversation(session.access, id);
   if (!conv) return apiError(404, "not_found", "Conversación no encontrada");
 
-  const form = await req.formData().catch(() => null);
-  if (!form) {
-    return apiError(400, "invalid", "Se esperaba multipart/form-data");
-  }
-  const file = form.get("file");
-  if (!(file instanceof File)) {
-    return apiError(422, "invalid", "Falta el archivo (campo `file`)");
-  }
-  const captionRaw = form.get("caption");
-  const caption =
-    typeof captionRaw === "string" && captionRaw.trim()
-      ? captionRaw.trim().slice(0, 1024)
-      : undefined;
-
-  const data = Buffer.from(await file.arrayBuffer());
-
-  try {
-    const result = await sendMediaMessage({
-      conversationId: id,
-      organizationId: session.organizationId,
-      file: {
-        data,
-        mimeType: file.type || "application/octet-stream",
-        fileName: file.name || undefined,
-      },
-      caption,
-    });
-    return Response.json({ messageId: result.messageId }, { status: 201 });
-  } catch (err) {
-    if (err instanceof MediaValidationError) {
-      return apiError(
-        err.code === "too_large" ? 413 : 415,
-        err.code,
-        err.message
-      );
+  // 044: tope antes de leer (y mientras llega) + pocas subidas pesadas a la vez.
+  return withUploadSlot(req, async () => {
+    const read = await readUploadForm(req, CHAT_MEDIA_MAX_BYTES, () =>
+      apiError(413, "too_large", "El archivo pasa de 100 MB, lo más que acepta WhatsApp.")
+    );
+    if (!read.ok) return read.response;
+    const form = read.form;
+    const file = form.get("file");
+    if (!(file instanceof File)) {
+      return apiError(422, "invalid", "Falta el archivo (campo `file`)");
     }
-    if (err instanceof SendError) {
-      return apiError(SEND_ERROR_STATUS[err.code], err.code, err.message);
+    const captionRaw = form.get("caption");
+    const caption =
+      typeof captionRaw === "string" && captionRaw.trim()
+        ? captionRaw.trim().slice(0, 1024)
+        : undefined;
+
+    const data = Buffer.from(await file.arrayBuffer());
+
+    try {
+      const result = await sendMediaMessage({
+        conversationId: id,
+        organizationId: session.organizationId,
+        file: {
+          data,
+          mimeType: file.type || "application/octet-stream",
+          fileName: file.name || undefined,
+        },
+        caption,
+      });
+      return Response.json({ messageId: result.messageId }, { status: 201 });
+    } catch (err) {
+      if (err instanceof MediaValidationError) {
+        return apiError(
+          err.code === "too_large" ? 413 : 415,
+          err.code,
+          err.message
+        );
+      }
+      if (err instanceof SendError) {
+        return apiError(SEND_ERROR_STATUS[err.code], err.code, err.message);
+      }
+      throw err;
     }
-    throw err;
-  }
+  });
 });

@@ -60,7 +60,7 @@ lento y el prompt crece sin control.
 
 | Límite | Valor | Se mide |
 |---|---|---|
-| Tamaño por archivo | 5 MB (`KB_DOCS_MAX_FILE_MB`) | bytes del archivo, antes de leerlo (413) |
+| Tamaño por archivo | 20 MB (`KB_DOCS_MAX_FILE_MB`; 5 MB hasta 044; tope 50) | bytes del archivo, antes de leerlo (413) |
 | Texto por documento | 300 000 caracteres | tras extraer (422 `too_long`) |
 | Documentos | 50 (`KB_DOCS_MAX_DOCUMENTS`) | `count(kb_document)` con candado de la organización (409) |
 | Fragmentos | 3 000 (`KB_DOCS_MAX_CHUNKS`) | suma de `chunk_count` al indexar (`failed: chunk_limit`) |

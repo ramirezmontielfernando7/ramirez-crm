@@ -86,7 +86,7 @@ const envSchema = z.object({
   EMBEDDINGS_PREFIX_MODE: z.enum(["auto", "e5", "none"]).default("auto").catch("auto"),
   // 035: límites por organización (valores por defecto; cada organización puede
   // tener los suyos en kb_document_limit — scripts/kb-limits.mjs).
-  KB_DOCS_MAX_FILE_MB: z.coerce.number().positive().max(50).default(5).catch(5),
+  KB_DOCS_MAX_FILE_MB: z.coerce.number().positive().max(50).default(20).catch(20),
   KB_DOCS_MAX_DOCUMENTS: z.coerce.number().int().min(1).max(10_000).default(50).catch(50),
   KB_DOCS_MAX_CHUNKS: z.coerce.number().int().min(1).max(100_000).default(3000).catch(3000),
   // Similitud coseno mínima para que un fragmento cuente como relevante. Los

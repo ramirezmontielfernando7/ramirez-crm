@@ -17,6 +17,7 @@ import { assertCanUpload } from "@/server/limits";
 import { checkStorageAlerts } from "@/server/limits/alerts";
 import { limitBlocked } from "@/server/limits/http";
 import { moduleOff } from "@/server/modules";
+import { readUploadForm, withUploadSlot } from "@/server/uploads/body";
 
 export const dynamic = "force-dynamic";
 
@@ -71,82 +72,83 @@ export const GET = withAuth(async (session, req: Request) => {
  * tampoco se queda.
  */
 export const POST = withAuth(async (session, req: Request) => {
-  const off = (await moduleOff(session.organizationId, "lab")) ?? kbDocsOff();
-  if (off) return off;
-  const limit = checkRateLimit(`kb-docs-upload:${session.userId}`, { windowMs: 3_600_000, max: UPLOADS_PER_HOUR });
-  if (!limit.allowed) {
-    return apiError(429, "upload_rate_limited", `Vas muy rápido: puedes subir ${UPLOADS_PER_HOUR} documentos por hora. Espera un poco.`);
-  }
-
-  const limits = await getKbDocLimits(session.organizationId);
-  const tooLarge = () => kbDocError("too_large", `El archivo pasa del máximo de ${formatBytes(limits.maxFileBytes)}.`);
-  // Antes de leer el cuerpo: un archivo enorme no llega a memoria.
-  const declared = Number(req.headers.get("content-length") ?? 0);
-  if (declared > limits.maxFileBytes + 64 * 1024) return tooLarge();
-
-  const form = await req.formData().catch(() => null);
-  if (!form) return apiError(400, "invalid", "Se esperaba multipart/form-data");
-  const file = form.get("file");
-  if (!(file instanceof File)) return apiError(422, "invalid", "Falta el archivo (campo `file`)");
-  if (file.size > limits.maxFileBytes) return tooLarge();
-  if (file.size === 0) return kbDocError("empty");
-
-  const bytes = new Uint8Array(await file.arrayBuffer());
-  const filename = (file.name || "documento").slice(0, 255);
-  const extracted = await extractDocumentText(filename, bytes);
-  if (!extracted.ok) return kbDocError(extracted.code);
-  if (extracted.text.length > KB_DOC_MAX_CHARS) return kbDocError("too_long");
-  // 040 — ¿También a la Bandeja?
-  const wantsChat = form.get("chat") === "true";
-  if (wantsChat && !(await libraryAccess(session)).chat) {
-    return apiError(403, "forbidden", "No puedes publicar en la Biblioteca de la Bandeja");
-  }
-  // 036 (PR 3a): con «Bloquear subidas manuales», no pasar el tope de
-  // almacenamiento. Lo que ocupa: su texto y el de sus fragmentos (≈ 2 × texto)
-  // y, con «Disponible en Bandeja» (040), el archivo original.
-  const blocked = await limitBlocked(() =>
-    assertCanUpload(session.organizationId, Buffer.byteLength(extracted.text) * 2 + (wantsChat ? bytes.length : 0))
-  );
-  if (blocked) return blocked;
-
-  // 037 — El grupo («general» o ausente = General).
-  const rawGroup = form.get("groupId");
-  const groupId = typeof rawGroup === "string" && rawGroup.trim() ? groupIdFromKey(rawGroup.trim()) : null;
-  // 037 (PR 3) — O exclusivo de un agente (activo y de esta organización).
-  const rawAgent = form.get("agentId");
-  const agentId = typeof rawAgent === "string" && rawAgent.trim() ? rawAgent.trim() : null;
-  // Se mira el campo tal como llegó: «general» también es un grupo.
-  const askedGroup = typeof rawGroup === "string" && rawGroup.trim() !== "";
-  if (agentId && askedGroup) return apiError(422, "invalid", "Un documento es de un grupo o exclusivo de un agente, no las dos cosas.");
-  if (agentId && !(await getAgent(session.organizationId, agentId))) return apiError(404, "agent_not_found", "Agente no encontrado");
-
-  const rawTitle = form.get("title");
-  const title = (typeof rawTitle === "string" && rawTitle.trim() ? rawTitle.trim() : titleFromFilename(filename)).slice(0, 200);
-
-  return withLibraryErrors(async () => {
-    const copy = wantsChat
-      ? await createChatCopy({ organizationId: session.organizationId, userId: session.userId, title, filename, mime: extracted.mime, bytes })
-      : null;
-    let doc;
-    try {
-      doc = await createDocument(session.organizationId, {
-      title,
-      filename,
-      mime: extracted.mime,
-      byteSize: bytes.length,
-      text: extracted.text,
-      contentSha256: createHash("sha256").update(extracted.text).digest("hex"),
-      uploadedByUserId: session.userId,
-      groupId,
-      agentId,
-      knowledgeEntryId: copy?.id ?? null,
-    });
-    } catch (err) {
-      if (copy) await discardChatCopy(session.organizationId, copy.id);
-      throw err;
+  // 044: pocas subidas pesadas a la vez (el archivo vive en memoria todo el turno).
+  return withUploadSlot(req, async () => {
+    const off = (await moduleOff(session.organizationId, "lab")) ?? kbDocsOff();
+    if (off) return off;
+    const limit = checkRateLimit(`kb-docs-upload:${session.userId}`, { windowMs: 3_600_000, max: UPLOADS_PER_HOUR });
+    if (!limit.allowed) {
+      return apiError(429, "upload_rate_limited", `Vas muy rápido: puedes subir ${UPLOADS_PER_HOUR} documentos por hora. Espera un poco.`);
     }
-    scheduleIndex(session.organizationId, doc.id);
-    void checkStorageAlerts(session.organizationId);
-    return Response.json({ document: { ...documentView(doc), inChat: Boolean(copy), hasOriginal: Boolean(copy) } }, { status: 201 });
+
+    const limits = await getKbDocLimits(session.organizationId);
+    const tooLarge = () => kbDocError("too_large", `El archivo pasa del máximo de ${formatBytes(limits.maxFileBytes)}.`);
+    // Antes de leer el cuerpo (y mientras llega, 044): un archivo enorme no llega a memoria.
+    const read = await readUploadForm(req, limits.maxFileBytes, tooLarge);
+    if (!read.ok) return read.response;
+    const form = read.form;
+    const file = form.get("file");
+    if (!(file instanceof File)) return apiError(422, "invalid", "Falta el archivo (campo `file`)");
+    if (file.size > limits.maxFileBytes) return tooLarge();
+    if (file.size === 0) return kbDocError("empty");
+
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    const filename = (file.name || "documento").slice(0, 255);
+    const extracted = await extractDocumentText(filename, bytes);
+    if (!extracted.ok) return kbDocError(extracted.code);
+    if (extracted.text.length > KB_DOC_MAX_CHARS) return kbDocError("too_long");
+    // 040 — ¿También a la Bandeja?
+    const wantsChat = form.get("chat") === "true";
+    if (wantsChat && !(await libraryAccess(session)).chat) {
+      return apiError(403, "forbidden", "No puedes publicar en la Biblioteca de la Bandeja");
+    }
+    // 036 (PR 3a): con «Bloquear subidas manuales», no pasar el tope de
+    // almacenamiento. Lo que ocupa: su texto y el de sus fragmentos (≈ 2 × texto)
+    // y, con «Disponible en Bandeja» (040), el archivo original.
+    const blocked = await limitBlocked(() =>
+      assertCanUpload(session.organizationId, Buffer.byteLength(extracted.text) * 2 + (wantsChat ? bytes.length : 0))
+    );
+    if (blocked) return blocked;
+
+    // 037 — El grupo («general» o ausente = General).
+    const rawGroup = form.get("groupId");
+    const groupId = typeof rawGroup === "string" && rawGroup.trim() ? groupIdFromKey(rawGroup.trim()) : null;
+    // 037 (PR 3) — O exclusivo de un agente (activo y de esta organización).
+    const rawAgent = form.get("agentId");
+    const agentId = typeof rawAgent === "string" && rawAgent.trim() ? rawAgent.trim() : null;
+    // Se mira el campo tal como llegó: «general» también es un grupo.
+    const askedGroup = typeof rawGroup === "string" && rawGroup.trim() !== "";
+    if (agentId && askedGroup) return apiError(422, "invalid", "Un documento es de un grupo o exclusivo de un agente, no las dos cosas.");
+    if (agentId && !(await getAgent(session.organizationId, agentId))) return apiError(404, "agent_not_found", "Agente no encontrado");
+
+    const rawTitle = form.get("title");
+    const title = (typeof rawTitle === "string" && rawTitle.trim() ? rawTitle.trim() : titleFromFilename(filename)).slice(0, 200);
+
+    return withLibraryErrors(async () => {
+      const copy = wantsChat
+        ? await createChatCopy({ organizationId: session.organizationId, userId: session.userId, title, filename, mime: extracted.mime, bytes })
+        : null;
+      let doc;
+      try {
+        doc = await createDocument(session.organizationId, {
+        title,
+        filename,
+        mime: extracted.mime,
+        byteSize: bytes.length,
+        text: extracted.text,
+        contentSha256: createHash("sha256").update(extracted.text).digest("hex"),
+        uploadedByUserId: session.userId,
+        groupId,
+        agentId,
+        knowledgeEntryId: copy?.id ?? null,
+      });
+      } catch (err) {
+        if (copy) await discardChatCopy(session.organizationId, copy.id);
+        throw err;
+      }
+      scheduleIndex(session.organizationId, doc.id);
+      void checkStorageAlerts(session.organizationId);
+      return Response.json({ document: { ...documentView(doc), inChat: Boolean(copy), hasOriginal: Boolean(copy) } }, { status: 201 });
+    });
   });
 }, { permission: "agent.manage" });

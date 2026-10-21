@@ -9,6 +9,7 @@ import {
   type KnowledgeEntryDto,
 } from "@/lib/knowledge";
 import { fetchJson } from "@/lib/fetch-json";
+import { checkOutgoing, libraryFileProblem } from "@/lib/upload-limits";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -17,6 +18,15 @@ import { Switch } from "@/components/ui/switch";
 import { DESTINATION_LABEL } from "@/lib/knowledge";
 
 type Group = { id: string | null; name: string };
+
+/** 044 — Tipo y tamaño de la Biblioteca, y que se pueda mandar por WhatsApp. */
+function fileProblem(f: File): string | null {
+  const mime = f.type || "application/octet-stream";
+  const problem = libraryFileProblem(mime, f.name, f.size);
+  if (problem) return problem.message;
+  const send = checkOutgoing(mime, f.size, f.name);
+  return send.ok ? null : send.message;
+}
 
 /**
  * 024 — Crear o editar una entrada: título, texto, etiquetas y archivo.
@@ -154,7 +164,16 @@ export function KnowledgeEditor({
               aria-label="Archivo de la entrada"
               className="hidden"
               onChange={(e) => {
-                setFile(e.target.files?.[0] ?? null);
+                const picked = e.target.files?.[0] ?? null;
+                // 044: el mismo tope que revisa el servidor, antes de subir.
+                const problem = picked ? fileProblem(picked) : null;
+                if (problem) {
+                  setError(problem);
+                  e.target.value = "";
+                  return;
+                }
+                setError(null);
+                setFile(picked);
                 setRemoveFile(false);
               }}
             />
@@ -183,6 +202,9 @@ export function KnowledgeEditor({
                 Subir archivo
               </Button>
             )}
+            <p className="text-[11px] text-text-3">
+              PDF, Word o texto hasta 100 MB; fotos hasta 5 MB (lo que acepta WhatsApp).
+            </p>
           </div>
           {offerRag && (
             <div className="space-y-2 rounded-md border bg-subtle p-2.5" data-testid="knowledge-rag-option">

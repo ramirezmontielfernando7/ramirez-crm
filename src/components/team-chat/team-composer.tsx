@@ -307,7 +307,7 @@ export function TeamComposer({
           type="button"
           onClick={() => fileRef.current?.click()}
           aria-label="Adjuntar archivo"
-          title="Adjuntar archivo (máx. 16 MB; no SVG ni HTML)"
+          title="Adjuntar archivo (máx. 50 MB; no SVG ni HTML)"
           className="rounded p-1.5 text-text-3 transition-[color,background-color,transform] duration-150 hover:bg-secondary hover:text-foreground active:scale-90"
         >
           <Paperclip className="h-[18px] w-[18px]" strokeWidth={1.7} />

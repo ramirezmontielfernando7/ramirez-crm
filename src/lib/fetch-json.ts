@@ -7,6 +7,8 @@
  * mostrar — el patrón `.catch(() => null)` dejaba al usuario sin saber que su
  * cambio no se guardó.
  */
+import { uploadHttpMessage } from "@/lib/upload-limits";
+
 export type FetchResult<T> =
   | { ok: true; data: T; status: number }
   | { ok: false; error: string; code: string | null; status: number };
@@ -40,7 +42,7 @@ export async function fetchJson<T>(url: string, init?: RequestInit): Promise<Fet
         ? "No tienes permiso para esta acción"
         : res.status === 404
           ? "No encontrado"
-          : `Error del servidor (${res.status})`),
+          : (uploadHttpMessage(res.status) ?? `Error del servidor (${res.status})`)),
     code: apiErr?.code ?? null,
     status: res.status,
   };

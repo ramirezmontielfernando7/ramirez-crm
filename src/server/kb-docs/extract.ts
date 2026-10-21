@@ -1,5 +1,6 @@
 import { decodeText, detectFormat, normalizeText, type KbDocErrorCode, type KbDocMime } from "@/lib/kb-docs";
 import { logger } from "@/lib/log";
+import { RAG_EXTRACT_MAX_BYTES } from "@/lib/upload-limits";
 
 /**
  * 035 — Del archivo subido a texto. Solo .txt, .md y .pdf con capa de texto
@@ -14,6 +15,8 @@ export type Extracted = { ok: true; mime: KbDocMime; text: string } | { ok: fals
 
 export async function extractDocumentText(filename: string, bytes: Uint8Array): Promise<Extracted> {
   if (bytes.length === 0) return { ok: false, code: "empty" };
+  // 044: nunca se abre en memoria algo más grande (pdf.js lo carga entero).
+  if (bytes.length > RAG_EXTRACT_MAX_BYTES) return { ok: false, code: "too_large" };
   const format = detectFormat(filename, bytes.subarray(0, 8));
   if (!format.ok) return { ok: false, code: "unsupported" };
 

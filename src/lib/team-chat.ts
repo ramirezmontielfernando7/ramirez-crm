@@ -5,6 +5,7 @@
  */
 
 import type { MentionDto } from "@/lib/team-chat-mentions";
+import { ACTIVE_CONTENT_MESSAGE, isActiveContent, TEAM_ATTACHMENT_MAX_BYTES, tooLargeMessage } from "@/lib/upload-limits";
 
 export type TeamThreadKind = "direct" | "group" | "announcements";
 
@@ -24,8 +25,8 @@ export const TEAM_GROUP_NAME_MAX = 60;
 /** Página del historial: por defecto y tope. */
 export const TEAM_PAGE_DEFAULT = 50;
 export const TEAM_PAGE_MAX = 100;
-/** Adjuntos: tope de tamaño. */
-export const TEAM_ATTACHMENT_MAX_BYTES = 16 * 1024 * 1024;
+/** Adjuntos: tope de tamaño (044: 50 MB, antes 16; vive en `upload-limits.ts`). */
+export { TEAM_ATTACHMENT_MAX_BYTES };
 /** Aviso fijo para los miembros cuando la supervisión está visible. */
 export const OVERSIGHT_NOTICE = "El Propietario puede supervisar las conversaciones";
 
@@ -72,18 +73,12 @@ export function isReactionEmoji(value: string): boolean {
 
 /* ---------- Adjuntos ---------- */
 
-/** Nunca se aceptan: el navegador los interpretaría como documento activo. */
-const BLOCKED_MIME = /^(image\/svg\+xml|text\/html|application\/xhtml\+xml|text\/xml|application\/xml)$/i;
-const BLOCKED_EXT = /\.(svg|svgz|html?|xhtml|xht|xml|mht|mhtml)$/i;
-
 /** ¿Se puede subir este archivo? Bloquea SVG y HTML por tipo Y por extensión. */
 export function attachmentRejection(mime: string, fileName: string, size: number): string | null {
   if (!/^[\w.-]+\/[\w.+-]+$/.test(mime)) return "Tipo de archivo no reconocido";
-  if (BLOCKED_MIME.test(mime) || BLOCKED_EXT.test(fileName)) {
-    return "Por seguridad no se aceptan archivos SVG ni HTML";
-  }
+  if (isActiveContent(mime, fileName)) return ACTIVE_CONTENT_MESSAGE;
   if (size <= 0) return "El archivo está vacío";
-  if (size > TEAM_ATTACHMENT_MAX_BYTES) return "El archivo pasa de 16 MB";
+  if (size > TEAM_ATTACHMENT_MAX_BYTES) return tooLargeMessage(size, TEAM_ATTACHMENT_MAX_BYTES);
   return null;
 }
 

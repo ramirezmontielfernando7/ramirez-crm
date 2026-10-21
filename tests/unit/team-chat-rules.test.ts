@@ -84,7 +84,8 @@ describe("adjuntos", () => {
   it("acepta documentos e imágenes dentro del tope", () => {
     expect(attachmentRejection("application/pdf", "cotizacion.pdf", 1000)).toBeNull();
     expect(attachmentRejection("image/png", "foto.png", 1000)).toBeNull();
-    expect(attachmentRejection("application/pdf", "grande.pdf", 17 * 1024 * 1024)).toMatch(/16 MB/);
+    expect(attachmentRejection("application/pdf", "mediano.pdf", 17 * 1024 * 1024)).toBeNull();
+    expect(attachmentRejection("application/pdf", "grande.pdf", 51 * 1024 * 1024)).toMatch(/50 MB/);
     expect(attachmentRejection("application/pdf", "vacio.pdf", 0)).toMatch(/vacío/);
   });
 

@@ -1,4 +1,5 @@
 import type { AgentConfig } from "@/server/agents/config";
+import { uploadHttpMessage } from "@/lib/upload-limits";
 import type { AgentDetail, AgentSummary, AgentVersion } from "@/server/agents/store";
 
 /** 031 (A2) — Tipos y llamadas del Centro de Agentes (rutas /api/lab/agents/*). */
@@ -29,7 +30,8 @@ export async function call<T>(path: string, init?: RequestInit & { json?: unknow
       ok: false,
       status: res.status,
       code: body?.error?.code ?? "error",
-      message: body?.error?.message ?? "Algo salió mal. Inténtalo de nuevo.",
+      // 044: sin nuestro JSON (lo cortó el proxy: 413, 502, 504) se dice por qué.
+      message: body?.error?.message ?? (body ? null : uploadHttpMessage(res.status)) ?? "Algo salió mal. Inténtalo de nuevo.",
     };
   }
   return { ok: true, data: body as T };

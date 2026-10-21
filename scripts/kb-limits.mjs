@@ -45,7 +45,7 @@ if (!url) uso("falta DATABASE_URL");
 if (!["show", "set"].includes(cmd)) uso();
 
 const env = {
-  fileMb: Number(process.env.KB_DOCS_MAX_FILE_MB || 5),
+  fileMb: Number(process.env.KB_DOCS_MAX_FILE_MB || 20),
   documents: Number(process.env.KB_DOCS_MAX_DOCUMENTS || 50),
   chunks: Number(process.env.KB_DOCS_MAX_CHUNKS || 3000),
 };

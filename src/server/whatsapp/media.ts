@@ -9,6 +9,7 @@ import {
   type Credentials,
 } from "@/server/whatsapp/credentials";
 import { logger } from "@/lib/log";
+import { checkOutgoing, kindFromMime, WA_MEDIA_RULES } from "@/lib/upload-limits";
 
 const log = logger("media");
 
@@ -26,40 +27,15 @@ export const MEDIA_LIMITS: Record<
   Exclude<MediaKind, "location" | "contacts">,
   { maxBytes: number; mimes: RegExp; label: string }
 > = {
-  image: {
-    maxBytes: 5 * 1024 * 1024,
-    mimes: /^image\/(jpeg|png|webp)$/,
-    label: "imagen (jpeg/png/webp, máx. 5 MB)",
-  },
-  sticker: {
-    maxBytes: 100 * 1024,
-    mimes: /^image\/webp$/,
-    label: "sticker (webp, máx. 100 KB)",
-  },
-  audio: {
-    maxBytes: 16 * 1024 * 1024,
-    mimes: /^audio\/(aac|mp4|mpeg|amr|ogg|opus)/,
-    label: "audio (aac/mp4/mpeg/amr/ogg, máx. 16 MB)",
-  },
-  video: {
-    maxBytes: 16 * 1024 * 1024,
-    mimes: /^video\/(mp4|3gpp)$/,
-    label: "video (mp4/3gpp, máx. 16 MB)",
-  },
-  document: {
-    maxBytes: 100 * 1024 * 1024,
-    mimes: /^[\w.-]+\/[\w.+-]+$/,
-    label: "documento (máx. 100 MB)",
-  },
+  image: { ...WA_MEDIA_RULES.image, label: "imagen (jpeg/png/webp, máx. 5 MB)" },
+  sticker: { ...WA_MEDIA_RULES.sticker, label: "sticker (webp, máx. 100 KB)" },
+  audio: { ...WA_MEDIA_RULES.audio, label: "audio (aac/mp4/mpeg/amr/ogg, máx. 16 MB)" },
+  video: { ...WA_MEDIA_RULES.video, label: "video (mp4/3gpp, máx. 16 MB)" },
+  document: { ...WA_MEDIA_RULES.document, label: "documento (máx. 100 MB)" },
 };
 
 /** Clasifica un MIME de archivo saliente al tipo de mensaje de la Cloud API. */
-export function kindFromMime(mime: string): "image" | "audio" | "video" | "document" {
-  if (MEDIA_LIMITS.image.mimes.test(mime)) return "image";
-  if (MEDIA_LIMITS.audio.mimes.test(mime)) return "audio";
-  if (MEDIA_LIMITS.video.mimes.test(mime)) return "video";
-  return "document";
-}
+export { kindFromMime };
 
 export class MediaValidationError extends Error {
   code: "too_large" | "unsupported_type";
@@ -71,23 +47,14 @@ export class MediaValidationError extends Error {
 }
 
 /**
- * Valida MIME y tamaño para envío; devuelve el kind resuelto. Los formatos
- * que WhatsApp no acepta como su tipo nativo (p. ej. image/bmp) van como
- * documento — igual que hace la app de WhatsApp.
+ * Valida MIME y tamaño para envío; devuelve el kind resuelto. Las reglas (y
+ * el mensaje para la persona) viven en `src/lib/upload-limits.ts`, las mismas
+ * que revisa el navegador antes de subir. 044: SVG y HTML no se mandan.
  */
-export function validateOutgoing(mime: string, sizeBytes: number) {
-  if (!/^[\w.-]+\/[\w.+-]+$/.test(mime)) {
-    throw new MediaValidationError("unsupported_type", "Tipo de archivo no reconocido");
-  }
-  const kind = kindFromMime(mime);
-  const limit = MEDIA_LIMITS[kind];
-  if (sizeBytes > limit.maxBytes) {
-    throw new MediaValidationError(
-      "too_large",
-      `El archivo excede el límite de ${limit.label}`
-    );
-  }
-  return kind;
+export function validateOutgoing(mime: string, sizeBytes: number, fileName?: string) {
+  const check = checkOutgoing(mime, sizeBytes, fileName);
+  if (!check.ok) throw new MediaValidationError(check.code, check.message);
+  return check.kind;
 }
 
 /* ---------- Disco local ---------- */

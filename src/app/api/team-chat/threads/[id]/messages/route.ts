@@ -1,6 +1,8 @@
 import { z } from "zod";
 import { apiError, withAuth } from "@/lib/api";
-import { TEAM_MESSAGE_MAX, TEAM_PAGE_MAX } from "@/lib/team-chat";
+import { TEAM_ATTACHMENT_MAX_BYTES, TEAM_MESSAGE_MAX, TEAM_PAGE_MAX } from "@/lib/team-chat";
+import { formatSize } from "@/lib/upload-limits";
+import { readUploadForm, withUploadSlot } from "@/server/uploads/body";
 import { listMessages, postMessage, type TeamFileInput } from "@/server/team-chat/messages";
 import { teamChatErrorResponse } from "@/server/team-chat/errors";
 import { assertCanUpload } from "@/server/limits";
@@ -54,51 +56,56 @@ const textSchema = z.object({ body: z.string().max(TEAM_MESSAGE_MAX * 2) });
  * se valida en el servidor (TEAM_MESSAGE_MAX); SVG y HTML se rechazan.
  */
 export const POST = withAuth(async (session, req: Request, ctx: Params) => {
-  const off = await moduleOff(session.organizationId, "team_chat");
-  if (off) return off;
-  const { id } = await ctx.params;
-  let body = "";
-  let file: TeamFileInput | null = null;
-  const type = req.headers.get("content-type") ?? "";
-  if (type.includes("multipart/form-data")) {
-    let form: FormData;
+  // 044: pocas subidas pesadas a la vez.
+  return withUploadSlot(req, async () => {
+    const off = await moduleOff(session.organizationId, "team_chat");
+    if (off) return off;
+    const { id } = await ctx.params;
+    let body = "";
+    let file: TeamFileInput | null = null;
+    const type = req.headers.get("content-type") ?? "";
+    if (type.includes("multipart/form-data")) {
+      // 044: tope de 50 MB antes de leer y mientras llega el archivo.
+      const read = await readUploadForm(req, TEAM_ATTACHMENT_MAX_BYTES, () =>
+        apiError(413, "too_large", `El archivo pasa de ${formatSize(TEAM_ATTACHMENT_MAX_BYTES)}`)
+      );
+      if (!read.ok) {
+        return read.response.status === 413 ? read.response : apiError(422, "invalid_body", "Formulario inválido");
+      }
+      const form = read.form;
+      const rawBody = form.get("body");
+      body = typeof rawBody === "string" ? rawBody : "";
+      const f = form.get("file");
+      if (f instanceof File && f.size > 0) {
+        file = {
+          data: Buffer.from(await f.arrayBuffer()),
+          mimeType: f.type || "application/octet-stream",
+          fileName: f.name || "archivo",
+        };
+      }
+    } else {
+      let raw: unknown;
+      try {
+        raw = await req.json();
+      } catch {
+        return apiError(422, "invalid_body", "El body debe ser JSON válido");
+      }
+      const parsed = textSchema.safeParse(raw);
+      if (!parsed.success) return apiError(422, "invalid_body", "Falta el texto del mensaje");
+      body = parsed.data.body;
+    }
+    // 036 (PR 3a): con «Bloquear subidas manuales», un adjunto no pasa el tope de almacenamiento.
+    if (file) {
+      const adjunto = file;
+      const blocked = await limitBlocked(() => assertCanUpload(session.organizationId, adjunto.data.byteLength));
+      if (blocked) return blocked;
+    }
     try {
-      form = await req.formData();
-    } catch {
-      return apiError(422, "invalid_body", "Formulario inválido");
+      const { message } = await postMessage(session, id, { body, file });
+      if (file) void checkStorageAlerts(session.organizationId);
+      return Response.json({ message }, { status: 201 });
+    } catch (err) {
+      return teamChatErrorResponse(err, "publicar mensaje");
     }
-    const rawBody = form.get("body");
-    body = typeof rawBody === "string" ? rawBody : "";
-    const f = form.get("file");
-    if (f instanceof File && f.size > 0) {
-      file = {
-        data: Buffer.from(await f.arrayBuffer()),
-        mimeType: f.type || "application/octet-stream",
-        fileName: f.name || "archivo",
-      };
-    }
-  } else {
-    let raw: unknown;
-    try {
-      raw = await req.json();
-    } catch {
-      return apiError(422, "invalid_body", "El body debe ser JSON válido");
-    }
-    const parsed = textSchema.safeParse(raw);
-    if (!parsed.success) return apiError(422, "invalid_body", "Falta el texto del mensaje");
-    body = parsed.data.body;
-  }
-  // 036 (PR 3a): con «Bloquear subidas manuales», un adjunto no pasa el tope de almacenamiento.
-  if (file) {
-    const adjunto = file;
-    const blocked = await limitBlocked(() => assertCanUpload(session.organizationId, adjunto.data.byteLength));
-    if (blocked) return blocked;
-  }
-  try {
-    const { message } = await postMessage(session, id, { body, file });
-    if (file) void checkStorageAlerts(session.organizationId);
-    return Response.json({ message }, { status: 201 });
-  } catch (err) {
-    return teamChatErrorResponse(err, "publicar mensaje");
-  }
+  });
 });

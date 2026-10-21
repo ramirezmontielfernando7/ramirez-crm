@@ -25,6 +25,7 @@ import {
   type KnowledgePickAction,
 } from "@/components/knowledge/knowledge-picker";
 import type { KnowledgeEntryDto } from "@/lib/knowledge";
+import { checkOutgoing, uploadHttpMessage } from "@/lib/upload-limits";
 import { useViewer } from "@/components/viewer-context";
 
 /**
@@ -158,6 +159,13 @@ export function Composer({
   }
 
   function pickFile(f: File | null) {
+    // 044: el mismo límite de WhatsApp que revisa el servidor, antes de subir.
+    const check = f ? checkOutgoing(f.type || "application/octet-stream", f.size, f.name) : null;
+    if (check && !check.ok) {
+      if (fileRef.current) fileRef.current.value = "";
+      setError(check.message);
+      return;
+    }
     if (filePreview) URL.revokeObjectURL(filePreview);
     setFile(f);
     setFilePreview(f && f.type.startsWith("image/") ? URL.createObjectURL(f) : null);
@@ -201,8 +209,10 @@ export function Composer({
   async function apiSend(path: string, init: RequestInit): Promise<string | null> {
     const res = await fetch(path, init);
     if (res.ok) return null;
-    const data = (await res.json().catch(() => null)) as { message?: string } | null;
-    return data?.message ?? `Error ${res.status}`;
+    // La API responde `{ error: { message } }`; antes se leía `message` y se
+    // veía «Error 413» en vez del motivo.
+    const data = (await res.json().catch(() => null)) as { error?: { message?: string } } | null;
+    return data?.error?.message ?? uploadHttpMessage(res.status) ?? `Error ${res.status}`;
   }
 
   async function submit() {
