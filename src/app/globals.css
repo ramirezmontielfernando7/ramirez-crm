@@ -321,6 +321,16 @@
 }
 
 @layer components {
+  /*
+    Fluidez PR 1: fila de la Bandeja. Fuera de la vista el navegador no la
+    dibuja ni la acomoda; `auto` recuerda su alto real en cuanto se vio una
+    vez (84 px es el alto típico con cápsulas), así la barra no salta.
+  */
+  .inbox-row {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 84px;
+  }
+
   /* Mosaico de marca: degradado del acento, como el favicon */
   .brand-tile {
     background: linear-gradient(135deg, var(--accent), var(--accent-hover));

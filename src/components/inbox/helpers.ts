@@ -2,18 +2,20 @@
 
 import type { ClipboardEvent } from "react";
 
-export function formatTime(iso: string | null): string {
+// Fluidez PR 1: los formateadores se crean UNA vez. `toLocaleTimeString`
+// arma uno nuevo en cada llamada y la lista llama a esto por cada fila.
+const HORA = new Intl.DateTimeFormat("es-MX", { hour: "2-digit", minute: "2-digit" });
+const DIA = new Intl.DateTimeFormat("es-MX", { day: "numeric", month: "short" });
+
+export function formatTime(iso: string | null, now: Date = new Date()): string {
   if (!iso) return "";
   const d = new Date(iso);
-  const now = new Date();
-  const sameDay = d.toDateString() === now.toDateString();
-  if (sameDay) {
-    return d.toLocaleTimeString("es-MX", {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  }
-  return d.toLocaleDateString("es-MX", { day: "numeric", month: "short" });
+  if (Number.isNaN(d.getTime())) return "";
+  const sameDay =
+    d.getDate() === now.getDate() &&
+    d.getMonth() === now.getMonth() &&
+    d.getFullYear() === now.getFullYear();
+  return sameDay ? HORA.format(d) : DIA.format(d);
 }
 
 export function formatRemaining(ms: number): string {
