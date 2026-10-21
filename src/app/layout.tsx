@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
-import { IBM_Plex_Mono, Inter } from "next/font/google";
+import localFont from "next/font/local";
 import "@fontsource-variable/geist";
 import "@fontsource-variable/plus-jakarta-sans";
 import "@fontsource-variable/dm-sans";
@@ -21,19 +21,27 @@ import "./globals.css";
 // (@fontsource-variable, empaquetados con la app: sin Google Fonts en
 // runtime) y solo se descarga la que se use. Cuál se pinta lo decide
 // `data-font` (globals.css).
-// Letras: next/font las descarga en BUILD y las sirve self-hosted desde la
-// propia instancia (sin CDN en runtime: soberanía). Inter es la letra de la
-// interfaz (400 contenido, 500 interfaz, 600 títulos; ver --font-ui en
-// globals.css); IBM Plex Mono queda para etiquetas y horas.
-const inter = Inter({
-  subsets: ["latin"],
-  weight: ["400", "500", "600"],
+// Letras: archivos .woff2 dentro del repo (src/app/fonts, licencia OFL) que
+// next/font/local sirve self-hosted desde la propia instancia. Antes eran
+// next/font/google, que las descargaba en BUILD y tumbaba el despliegue
+// cuando Google no respondía. Inter es la letra de la interfaz (400
+// contenido, 500 interfaz, 600 títulos; ver --font-ui en globals.css); IBM
+// Plex Mono queda para etiquetas y horas.
+const inter = localFont({
+  src: [
+    { path: "./fonts/inter-latin-400-normal.woff2", weight: "400", style: "normal" },
+    { path: "./fonts/inter-latin-500-normal.woff2", weight: "500", style: "normal" },
+    { path: "./fonts/inter-latin-600-normal.woff2", weight: "600", style: "normal" },
+  ],
   variable: "--font-inter",
   display: "swap",
 });
-const plexMono = IBM_Plex_Mono({
-  subsets: ["latin"],
-  weight: ["400", "500", "600"],
+const plexMono = localFont({
+  src: [
+    { path: "./fonts/ibm-plex-mono-latin-400-normal.woff2", weight: "400", style: "normal" },
+    { path: "./fonts/ibm-plex-mono-latin-500-normal.woff2", weight: "500", style: "normal" },
+    { path: "./fonts/ibm-plex-mono-latin-600-normal.woff2", weight: "600", style: "normal" },
+  ],
   variable: "--font-mono",
   display: "swap",
 });
