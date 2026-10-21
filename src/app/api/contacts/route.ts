@@ -4,6 +4,7 @@ import { apiError, parseBody, withAuth } from "@/lib/api";
 import { getDb, schema } from "@/lib/db";
 import { scopedContacts, type Access } from "@/lib/db/tenant";
 import { normalizeMx } from "@/lib/meta/client";
+import { stripPhoneAdornments } from "@/lib/phone-search";
 import { createContactWithLead, serializeContact } from "@/server/contacts";
 import {
   contactFilterConditions,
@@ -133,8 +134,9 @@ const createSchema = z.object({
    */
   phone: z
     .string()
-    .trim()
-    .regex(/^\d{7,15}$/, "Teléfono en dígitos, con código de país (ej. 5215512345678)"),
+    // Espacios, guiones, paréntesis y «+» se aceptan y se quitan al guardar.
+    .transform(stripPhoneAdornments)
+    .pipe(z.string().regex(/^\d{7,15}$/, "Teléfono en dígitos, con código de país (ej. 5215512345678)")),
   notes: z.string().max(4000).optional(),
   source: z.enum(["anuncio", "organico", "referido", "conocido", "otro"]).optional(),
   /** Etapa inicial del lead; si no viene, la primera abierta del tablero. */

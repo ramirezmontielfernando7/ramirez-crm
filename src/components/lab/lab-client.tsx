@@ -67,6 +67,8 @@ const TIPO_LABELS: Record<Hallazgo["tipo"], string> = {
 
 export function LabClient() {
   const [runs, setRuns] = useState<Run[]>([]);
+  // Hasta la primera respuesta de /api/lab/runs no se sabe si hay corridas.
+  const [runsLoaded, setRunsLoaded] = useState(false);
   const [aiConfigured, setAiConfigured] = useState(true);
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
   const [detail, setDetail] = useState<{ run: Run; cases: Case[] } | null>(null);
@@ -95,6 +97,8 @@ export function LabClient() {
 
   const refetchRuns = useCallback(async () => {
     const res = await fetch("/api/lab/runs").catch(() => null);
+    // Un fallo también termina la espera: no se queda en «Cargando…» para siempre.
+    setRunsLoaded(true);
     if (!res?.ok) return;
     const data = (await res.json()) as { runs: Run[]; aiConfigured: boolean };
     setRuns(data.runs);
@@ -215,7 +219,9 @@ export function LabClient() {
           />
         ) : (
           <div className="rounded-lg border border-dashed p-10 text-center text-sm text-muted-foreground">
-            {runs.length === 0
+            {!runsLoaded
+              ? "Cargando…"
+              : runs.length === 0
               ? "Corre tu primera evaluación: 6 clientes simulados conversarán con tu agente y un juez calificará cada conversación."
               : "Elige una corrida del historial."}
           </div>

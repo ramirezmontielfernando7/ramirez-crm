@@ -26,6 +26,16 @@ export function looksLikePhone(query: string): boolean {
   return q.replace(/\D/g, "").length >= MIN_PHONE_DIGITS;
 }
 
+/**
+ * Un teléfono escrito a mano ("+52 462-134-9768", "(462) 134 9768") en solo
+ * dígitos. Con letras u otros signos NO se toca: la validación lo rechaza en
+ * vez de adivinar. No agrega código de país (eso lo exige quien guarda).
+ */
+export function stripPhoneAdornments(input: string): string {
+  const raw = input.trim();
+  return PHONE_SHAPE.test(raw) ? raw.replace(/\D/g, "") : raw;
+}
+
 export type TypedPhone = {
   /** Identidad de WhatsApp (521→52 ya aplicado), solo dígitos. */
   phone: string;

@@ -1,8 +1,8 @@
 import { cn, contactInitials } from "@/lib/utils";
 
 /**
- * Avatar de contacto: iniciales (solo letras o números) sobre UN color neutro
- * del tema, igual en toda la app. Sin iniciales usables (nombre vacío, solo
+ * Avatar de contacto: iniciales (solo letras o números) sobre un tono suave
+ * del color de marca, igual en toda la app. Sin iniciales usables (nombre vacío, solo
  * emojis o símbolos) pinta una silueta de persona, como WhatsApp Web.
  * WhatsApp no entrega fotos de perfil, así que no hay foto que mostrar.
  */
@@ -26,9 +26,9 @@ export function ContactAvatar({
   return (
     <div
       className={cn(
-        // secondary / secondary-foreground: --bg-panel con --text-2, tokens del
-        // tema (claro y oscuro) con contraste de texto normal (> 4.5:1).
-        "flex shrink-0 items-center justify-center rounded-full bg-secondary font-semibold text-secondary-foreground",
+        // brand-soft / brand-text: el tono suave del acento con su texto oscuro
+        // (claro) o claro (oscuro); el acento white-label los recalcula.
+        "flex shrink-0 items-center justify-center rounded-full bg-brand-soft font-semibold text-brand-text",
         sizes[size]
       )}
       aria-hidden
