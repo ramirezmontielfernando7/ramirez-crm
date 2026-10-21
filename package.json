@@ -62,6 +62,7 @@
     "test:e2e:send-failure": "node --env-file=.env scripts/e2e-send-failure.mjs",
     "test:e2e:templates-multivar": "node --env-file=.env scripts/e2e-templates-multivar.mjs",
     "test:e2e:templates-sync": "node --env-file=.env scripts/e2e-templates-sync.mjs",
+    "test:e2e:bandeja-paginada": "node --env-file=.env scripts/e2e-bandeja-paginada.mjs",
     "test:watch": "vitest",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",

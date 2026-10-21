@@ -6,6 +6,10 @@
  * Los chats son FALSOS: el navegador intercepta `GET /api/conversations` y
  * responde N filas inventadas (con etapa, etiquetas, asignado, no leídos…),
  * así se mide solo el navegador, sin sembrar la BD ni depender del servidor.
+ * Desde el PR 3 las responde por PÁGINAS, como el servidor
+ * (`scripts/lib/bandeja-falsa.mjs`); el «scroll» va bajando y pidiendo las
+ * siguientes. Para medir el servidor con la BD sembrada:
+ * `scripts/medir-bandeja.mjs`.
  * Lo demás (sesión, catálogos, SSE) es la app real.
  *
  * Mide, por cada combinación:
@@ -31,6 +35,7 @@
  * de una computadora a otra, las proporciones antes/después no.
  */
 import { chromium } from "playwright";
+import { bandejaFalsa } from "./lib/bandeja-falsa.mjs";
 
 const BASE = process.env.APP_BASE_URL ?? "http://localhost:3000";
 const arg = (name) => process.argv.find((a) => a.startsWith(`--${name}=`))?.split("=")[1];
@@ -135,25 +140,8 @@ async function medir(browser, chats, cpu) {
       }).observe({ type: "longtask", buffered: true });
     } catch {}
   });
-  const cuerpo = JSON.stringify({ conversations: chats, campaignPending: 0 });
-  const porId = new Map(chats.map((c) => [c.id, c]));
-  await ctx.route(
-    (u) => u.pathname === "/api/conversations",
-    async (route) => {
-      if (route.request().method() !== "GET") return route.continue();
-      const q = new URL(route.request().url()).searchParams;
-      if (q.get("view") === "campaigns") return route.fulfill({ json: { conversations: [] } });
-      // Refresco por chat (`?ids=`): devuelve esos mismos chats falsos.
-      const ids = q.get("ids");
-      if (ids) {
-        const solo = ids.split(",").map((id) => porId.get(id)).filter(Boolean);
-        return route.fulfill({ json: { conversations: solo, campaignPending: 0 } });
-      }
-      return route.fulfill({ body: cuerpo, contentType: "application/json" });
-    }
-  );
-  // Abrir un chat falso no debe pegarle a la BD.
-  await ctx.route(/\/api\/conversations\/cvfalso_/, (route) => route.fulfill({ json: { messages: [] } }));
+  // Fluidez PR 3: responde como el servidor (por páginas, con contadores).
+  await bandejaFalsa(ctx, chats);
 
   const page = await ctx.newPage();
   const cdp = await ctx.newCDPSession(page);

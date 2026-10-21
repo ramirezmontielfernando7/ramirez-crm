@@ -7,7 +7,9 @@
  *   1. (opcional, `--chats=N`) siembra N chats con 10 mensajes en la
  *      organización del usuario e2e, directo en la BD (`DATABASE_URL_MIGRATE`
  *      o `DATABASE_URL`). Se limpian con `--limpiar`.
- *   2. Cronometra (HTTP) la lista completa y, si existe, el contador ligero.
+ *   2. Cronometra (HTTP) la lista completa y, si existen, el contador ligero,
+ *      la primera página (`?limit=50`, Fluidez PR 3) y los contadores
+ *      (`/counts`). También mide lo que baja al ABRIR /inbox (carga inicial).
  *   3. Abre /inbox en Chromium y mide tres escenarios (cada uno tras dejar
  *      asentar la pantalla):
  *        - abrir un chat (el PATCH de «marcar leído» y su eco),
@@ -162,10 +164,14 @@ async function main() {
   };
   const lista = await cronometra("/api/conversations");
   const contador = await cronometra("/api/conversations/unread");
+  const pagina = await cronometra("/api/conversations?limit=50");
+  const counts = await cronometra("/api/conversations/counts");
   const total = (await api("/api/conversations")).json?.conversations?.length ?? 0;
   console.log(`\n== Chats en la Bandeja principal: ${total} ==`);
   console.log(`GET /api/conversations         : ${lista.ms.toFixed(0)} ms, ${kb(lista.bytes)}`);
   console.log(contador ? `GET /api/conversations/unread  : ${contador.ms.toFixed(0)} ms, ${kb(contador.bytes)}` : "GET /api/conversations/unread  : no existe (404)");
+  console.log(`GET /api/conversations?limit=50: ${pagina.ms.toFixed(0)} ms, ${kb(pagina.bytes)}`);
+  console.log(counts ? `GET /api/conversations/counts  : ${counts.ms.toFixed(0)} ms, ${kb(counts.bytes)}` : "GET /api/conversations/counts  : no existe (404)");
 
   /* ---- 2. Navegador: peticiones y bytes por escenario ---- */
   const browser = await chromium.launch(process.env.PLAYWRIGHT_CHROMIUM ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM } : {});
@@ -185,16 +191,24 @@ async function main() {
       if (!u.pathname.startsWith("/api/conversations")) return;
       const p = (async () => {
         const body = await res.body().catch(() => Buffer.alloc(0));
-        const clase = u.pathname === "/api/conversations" ? `lista${u.search}` : u.pathname === "/api/conversations/unread" ? "contador" : u.pathname.endsWith("/messages") ? "mensajes del chat" : `${res.request().method()} chat`;
+        const clase = u.pathname === "/api/conversations" ? `lista${u.search}` : u.pathname === "/api/conversations/unread" ? "contador" : u.pathname === "/api/conversations/counts" ? "GET contadores" : u.pathname.endsWith("/messages") ? "mensajes del chat" : `${res.request().method()} chat`;
         capturas.push({ clase, bytes: body.length });
       })();
       pendientes.add(p);
       p.finally(() => pendientes.delete(p));
     });
+    const t0 = performance.now();
     await page.goto(`${BASE}/inbox`, { timeout: 180000, waitUntil: "domcontentloaded" });
     await page.locator("[data-conversation-row]").first().waitFor({ timeout: 120000 });
+    const primeraFila = performance.now() - t0;
     await page.waitForLoadState("networkidle").catch(() => {});
     await sleep(2000);
+    await Promise.all(pendientes);
+    const inicial = capturas.filter((c) => c.clase.startsWith("lista") || c.clase.startsWith("GET"));
+    console.log("\n== Carga inicial de /inbox (navegador real) ==");
+    console.log(`   primera fila: ${(primeraFila / 1000).toFixed(1)} s`);
+    for (const c of inicial) console.log(`   ${c.clase.padEnd(40)} ${kb(c.bytes)}`);
+    console.log(`   TOTAL listas y contadores: ${inicial.length} peticiones, ${kb(inicial.reduce((a, c) => a + c.bytes, 0))}`);
 
     const sse = escucharSse();
     await sleep(500);

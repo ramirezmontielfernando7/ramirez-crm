@@ -131,6 +131,8 @@ const LISTAS: [string, string, string][] = [
   ["bandeja", "conversations", "http://localhost/api/conversations"],
   ["no leídos del globo", "conversations/unread", "http://localhost/api/conversations/unread"],
   ["bandeja: refresco por chat", "conversations", "http://localhost/api/conversations?ids=cv_1,cv_2&contactIds=ct_1"],
+  ["bandeja: una página con filtros", "conversations", "http://localhost/api/conversations?limit=50&status=unread&q=ana&tag=tg_1&stage=Nuevo&assigned=mine"],
+  ["bandeja: contadores", "conversations/counts", "http://localhost/api/conversations/counts?q=55&stage=Nuevo&tag=tg_1"],
   ["tablero del pipeline", "pipeline/board", "http://localhost/api/pipeline/board"],
   ["directorio de contactos", "contacts", "http://localhost/api/contacts"],
   ["citas", "bookings", "http://localhost/api/bookings"],

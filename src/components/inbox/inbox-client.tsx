@@ -16,7 +16,16 @@ import { Composer } from "./composer";
 import { ContactPanel } from "./contact-panel";
 import { contactLabel } from "@/lib/phone-search";
 import { useConversationActions } from "./conversation-actions";
-import { mergeSubset, RefreshBatch, subsetQuery, type RefreshPlan } from "@/lib/inbox-refresh";
+import { RefreshBatch, subsetQuery, type RefreshPlan } from "@/lib/inbox-refresh";
+import {
+  appendPage,
+  listQueryParams,
+  MAX_PAGE_SIZE,
+  mergeSubsetPaged,
+  PAGE_SIZE,
+  type InboxCounts,
+  type ListQuery,
+} from "@/lib/inbox-list";
 import type { PatchRow } from "./chat-capsules";
 
 /**
@@ -78,29 +87,130 @@ export function InboxClient({ channels }: { channels: readonly Channel[] }) {
   // simultáneos pueden llegar a Meta en desorden.
   const sendQueue = useRef<Promise<unknown>>(Promise.resolve());
 
-  // 041: la pestaña «Campañas» (chats de campaña sin respuesta) se pide
-  // aparte y SOLO mientras está abierta: la principal ya no los trae, solo
-  // su cuántos.
-  const [campaignPending, setCampaignPending] = useState(0);
-  const [campaignConversations, setCampaignConversations] = useState<ConversationDto[] | null>(null);
-  const campaignViewRef = useRef(false);
-  const campaignSeq = useRef(0);
-  const refetchCampaigns = useCallback(async () => {
-    const seq = ++campaignSeq.current;
-    const res = await fetch("/api/conversations?view=campaigns").catch(() => null);
-    if (!res?.ok) return null;
-    const data = (await res.json()) as { conversations: ConversationDto[] };
-    if (seq !== campaignSeq.current) return null;
-    setCampaignConversations(data.conversations);
-    return data.conversations;
+  /**
+   * Fluidez PR 3 — La lista llega POR PÁGINAS, ya filtrada por el servidor
+   * con lo que la persona eligió en `ConversationList` (qué mostrar, búsqueda,
+   * etapa, etiqueta, quién atiende, bandeja). Al bajar se pide la siguiente
+   * con el cursor. Los contadores vienen aparte (`/counts`), con los mismos
+   * filtros. «Campañas» es otra vista de la misma lista.
+   */
+  const [listQuery, setListQuery] = useState<ListQuery | null>(null);
+  const listQueryRef = useRef<ListQuery | null>(null);
+  listQueryRef.current = listQuery;
+  /** De qué filtros es lo cargado (la lista muestra «Cargando…» mientras no coincide). */
+  const [loadedKey, setLoadedKey] = useState<string | null>(null);
+  const [counts, setCounts] = useState<InboxCounts | null>(null);
+  const nextCursor = useRef<string | null>(null);
+  const [hasMore, setHasMore] = useState(false);
+  const hasMoreRef = useRef(false);
+  hasMoreRef.current = hasMore;
+  const [loadingMore, setLoadingMore] = useState(false);
+  const conversationsRef = useRef<ConversationDto[] | null>(null);
+  conversationsRef.current = conversations;
+  // Cada carga desde cero sube el número: una respuesta de antes (otros
+  // filtros, o una página que viajaba) no pisa a la nueva.
+  const listSeq = useRef(0);
+  const countsSeq = useRef(0);
+
+  /**
+   * El chat abierto, aunque los filtros lo dejen fuera de lo cargado (antes la
+   * lista entera siempre lo tenía): el hilo no se cierra al cambiar de filtro.
+   */
+  const [openConv, setOpenConv] = useState<ConversationDto | null>(null);
+  const openConvRef = useRef<ConversationDto | null>(null);
+  openConvRef.current = openConv;
+  const loadingMoreRef = useRef(false);
+  /** ¿Ya llegó la primera página? (sin ella, un refresco parcial no tiene sobre qué aplicar). */
+  const loaded = useRef(false);
+
+  const refetchCounts = useCallback(async () => {
+    const q = listQueryRef.current;
+    if (!q) return;
+    const seq = ++countsSeq.current;
+    const params = listQueryParams({ ...q, view: "main", status: "all" });
+    const res = await fetch(`/api/conversations/counts?${params}`).catch(() => null);
+    if (!res?.ok) return;
+    const data = (await res.json()) as InboxCounts;
+    if (seq === countsSeq.current) setCounts(data);
+  }, []);
+  const countsTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** Tras un cambio propio o un aviso: los contadores, con el mismo respiro. */
+  const scheduleCounts = useCallback(() => {
+    if (countsTimer.current) clearTimeout(countsTimer.current);
+    countsTimer.current = setTimeout(() => {
+      countsTimer.current = null;
+      void refetchCounts();
+    }, REFETCH_DEBOUNCE_MS);
+  }, [refetchCounts]);
+
+  /**
+   * La lista desde la primera página. `keep`: pide tanto como ya había
+   * cargado (reconexión, datos de demostración), para no perder lo que la
+   * persona ya bajó.
+   */
+  const reloadList = useCallback(async (keep: boolean) => {
+    const q = listQueryRef.current;
+    if (!q) return;
+    const seq = ++listSeq.current;
+    const already = conversationsRef.current?.length ?? 0;
+    const limit = keep ? Math.min(Math.max(PAGE_SIZE, already), MAX_PAGE_SIZE) : PAGE_SIZE;
+    const params = listQueryParams(q);
+    params.set("limit", String(limit));
+    const res = await fetch(`/api/conversations?${params}`).catch(() => null);
+    if (!res?.ok) return;
+    const data = (await res.json()) as { conversations: ConversationDto[]; nextCursor: string | null };
+    if (seq !== listSeq.current) return;
+    nextCursor.current = data.nextCursor;
+    setHasMore(data.nextCursor !== null);
+    setConversations(data.conversations);
+    setLoadedKey(listQueryParams(q).toString());
+    loaded.current = true;
+  }, []);
+
+  const loadMore = useCallback(async () => {
+    const q = listQueryRef.current;
+    const cursor = nextCursor.current;
+    if (!q || !cursor || loadingMoreRef.current) return;
+    loadingMoreRef.current = true;
+    setLoadingMore(true);
+    const seq = listSeq.current;
+    try {
+      const params = listQueryParams(q);
+      params.set("limit", String(PAGE_SIZE));
+      params.set("cursor", cursor);
+      const res = await fetch(`/api/conversations?${params}`).catch(() => null);
+      if (!res?.ok) return;
+      const data = (await res.json()) as { conversations: ConversationDto[]; nextCursor: string | null };
+      if (seq !== listSeq.current) return;
+      nextCursor.current = data.nextCursor;
+      setHasMore(data.nextCursor !== null);
+      setConversations((prev) => (prev ? appendPage(prev, data.conversations) : data.conversations));
+    } finally {
+      loadingMoreRef.current = false;
+      setLoadingMore(false);
+    }
+  }, []);
+
+  /** El chat abierto, pedido aparte (no está en lo cargado). null = ya no lo ve. */
+  const fetchOpen = useCallback(async (id: string) => {
+    for (const view of ["main", "campaigns"] as const) {
+      const q = new URLSearchParams({ ids: id });
+      if (view === "campaigns") q.set("view", "campaigns");
+      const res = await fetch(`/api/conversations?${q}`).catch(() => null);
+      if (!res?.ok) return undefined; // sin respuesta: se queda como estaba
+      const data = (await res.json()) as { conversations: ConversationDto[] };
+      const c = data.conversations[0];
+      if (c) return c;
+    }
+    return null;
   }, []);
 
   /**
    * Paso 2 — La lista se refresca POR PARTES. Cada aviso apunta qué chat
    * cambió en un lote; tras un respiro corto (los de una ráfaga se juntan) se
    * piden SOLO esos con la misma consulta y permisos que la lista, y lo que no
-   * vuelve sale de la vista. La lista completa, solo al cargar, al reconectar
-   * o cuando un aviso no dice qué cambió.
+   * vuelve sale de la vista. La lista completa (lo ya cargado), solo al
+   * cargar, al reconectar o cuando un aviso no dice qué cambió.
    *
    * Las peticiones van EN FILA, una a la vez: una respuesta vieja nunca pisa
    * a una más nueva (antes lo cuidaba un contador de secuencia).
@@ -108,43 +218,47 @@ export function InboxClient({ channels }: { channels: readonly Channel[] }) {
   const batch = useRef(new RefreshBatch());
   const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const refreshing = useRef(false);
-  const loaded = useRef(false);
   const runPlan = useCallback(
     async (plan: RefreshPlan) => {
       if (plan.kind === "full") {
-        if (campaignViewRef.current) void refetchCampaigns();
-        const res = await fetch("/api/conversations").catch(() => null);
-        if (!res?.ok) return;
-        const data = (await res.json()) as { conversations: ConversationDto[]; campaignPending?: number };
-        setConversations(data.conversations);
-        setCampaignPending(data.campaignPending ?? 0);
-        loaded.current = true;
+        await Promise.all([reloadList(true), refetchCounts()]);
+        const open = selectedIdRef.current;
+        if (open && !conversationsRef.current?.some((c) => c.id === open)) {
+          const c = await fetchOpen(open);
+          if (c !== undefined && selectedIdRef.current === open) setOpenConv(c);
+        }
         return;
       }
       // Sin la lista inicial no hay sobre qué aplicar: la completa.
-      if (!loaded.current) {
+      if (!loaded.current || !listQueryRef.current) {
         batch.current.markFull();
         return;
       }
       const q = subsetQuery(plan);
-      const [res, resCampaigns] = await Promise.all([
-        fetch(`/api/conversations?${q}`).catch(() => null),
-        campaignViewRef.current ? fetch(`/api/conversations?view=campaigns&${q}`).catch(() => null) : null,
-      ]);
+      const view = listQueryRef.current.view;
+      const seq = listSeq.current;
+      const res = await fetch(`/api/conversations?${view === "campaigns" ? "view=campaigns&" : ""}${q}`).catch(() => null);
       if (!res?.ok) {
         // Sin la fila no hay cómo saber qué cambió: la lista completa.
         batch.current.markFull();
         return;
       }
-      const data = (await res.json()) as { conversations: ConversationDto[]; campaignPending?: number };
-      setConversations((prev) => prev && mergeSubset(prev, plan, data.conversations));
-      setCampaignPending(data.campaignPending ?? 0);
-      if (resCampaigns?.ok) {
-        const camp = (await resCampaigns.json()) as { conversations: ConversationDto[] };
-        setCampaignConversations((prev) => prev && mergeSubset(prev, plan, camp.conversations));
+      const data = (await res.json()) as { conversations: ConversationDto[] };
+      if (seq === listSeq.current) {
+        setConversations((prev) => prev && mergeSubsetPaged(prev, plan, data.conversations, hasMoreRef.current));
+      }
+      scheduleCounts();
+      // El chat abierto: su fila nueva, aunque los filtros lo dejen fuera.
+      const open = selectedIdRef.current;
+      if (!open) return;
+      const mine = data.conversations.find((c) => c.id === open);
+      if (mine) setOpenConv(mine);
+      else if (plan.ids.includes(open) || (openConvRef.current && plan.contactIds.includes(openConvRef.current.contact.id))) {
+        const c = await fetchOpen(open);
+        if (c !== undefined && selectedIdRef.current === open) setOpenConv(c);
       }
     },
-    [refetchCampaigns]
+    [reloadList, refetchCounts, scheduleCounts, fetchOpen]
   );
   const drain = useCallback(async () => {
     if (refreshing.current) return; // al terminar la que viaja, sigue con el lote
@@ -180,7 +294,7 @@ export function InboxClient({ channels }: { channels: readonly Channel[] }) {
     },
     [drain]
   );
-  /** La lista completa, ya (carga inicial, datos de demostración). */
+  /** La lista completa, ya (datos de demostración, asignación en lote). */
   const refetchConversations = useCallback(() => scheduleRefresh((b) => b.markFull(), true), [scheduleRefresh]);
   /** Solo la fila de este chat, ya (tras una acción propia sobre él). */
   const refreshConversation = useCallback(
@@ -190,15 +304,29 @@ export function InboxClient({ channels }: { channels: readonly Channel[] }) {
   useEffect(
     () => () => {
       if (refreshTimer.current) clearTimeout(refreshTimer.current);
+      if (countsTimer.current) clearTimeout(countsTimer.current);
     },
     []
   );
-  const onCampaignView = useCallback(
-    (open: boolean) => {
-      campaignViewRef.current = open;
-      if (open) void refetchCampaigns();
+  /**
+   * Cambiaron los filtros: la primera página de los nuevos y sus contadores.
+   * Lo cargado se queda mientras tanto (la lista lo filtra igual en el
+   * navegador), así no parpadea.
+   */
+  const onListQuery = useCallback(
+    (q: ListQuery) => {
+      const prev = listQueryRef.current;
+      listQueryRef.current = q;
+      setListQuery(q);
+      nextCursor.current = null;
+      setHasMore(false);
+      void reloadList(false);
+      // Los contadores no dependen de «qué mostrar»: solo si cambió lo demás.
+      if (!prev || listQueryParams({ ...prev, view: "main", status: "all" }).toString() !== listQueryParams({ ...q, view: "main", status: "all" }).toString()) {
+        void refetchCounts();
+      }
     },
-    [refetchCampaigns]
+    [reloadList, refetchCounts]
   );
 
   const refetchMessages = useCallback(async (conversationId: string) => {
@@ -210,19 +338,20 @@ export function InboxClient({ channels }: { channels: readonly Channel[] }) {
     if (selectedIdRef.current === conversationId) setMessages(data.messages);
   }, []);
 
-  useEffect(() => {
-    void refetchConversations();
-  }, [refetchConversations]);
-
   // Estable para que `ConversationList` (memoizada) no se repinte de más.
   const onSeeded = useCallback(() => void refetchConversations(), [refetchConversations]);
   // 034: una cápsula cambió un dato de la fila: se pinta ya, sin esperar al
   // servidor (si falla, la fila se repone y se vuelve a pedir la lista).
-  const patchRow = useCallback<PatchRow>((id, patch) => {
-    setConversations((prev) => prev && prev.map((c) => (c.id === id ? { ...c, ...patch } : c)));
-    setCampaignConversations((prev) => prev && prev.map((c) => (c.id === id ? { ...c, ...patch } : c)));
-    setDetailRev((v) => v + 1);
-  }, []);
+  const patchRow = useCallback<PatchRow>(
+    (id, patch) => {
+      setConversations((prev) => prev && prev.map((c) => (c.id === id ? { ...c, ...patch } : c)));
+      setOpenConv((prev) => (prev?.id === id ? { ...prev, ...patch } : prev));
+      setDetailRev((v) => v + 1);
+      // Una etapa o etiqueta nueva mueve los contadores.
+      scheduleCounts();
+    },
+    [scheduleCounts]
+  );
   // 034: archivar, recuperar o eliminar un chat. Si era el abierto, se suelta
   // (en móvil vuelve a la lista); un eliminado sale de la lista al instante.
   const onRemoved = useCallback(
@@ -240,14 +369,22 @@ export function InboxClient({ channels }: { channels: readonly Channel[] }) {
                   : c
               ))
       );
+      setOpenConv((prev) =>
+        prev?.id !== id
+          ? prev
+          : kind === "delete"
+            ? null
+            : { ...prev, archivedAt: kind === "archive" ? new Date().toISOString() : null }
+      );
       refreshConversation(id);
     },
     [refreshConversation]
   );
   const headerActions = useConversationActions(onRemoved);
   const select = useCallback(
-    (id: string) => {
+    (id: string, conv?: ConversationDto) => {
       setSelectedId(id);
+      setOpenConv(conv ?? conversationsRef.current?.find((c) => c.id === id) ?? null);
       setMessages([]);
       void refetchMessages(id);
       void fetch(`/api/conversations/${id}`, {
@@ -262,24 +399,38 @@ export function InboxClient({ channels }: { channels: readonly Channel[] }) {
   // Enlace directo desde Contactos/Pipeline: /inbox?contact=<id>
   const searchParams = useSearchParams();
   const contactParam = searchParams.get("contact");
+  const contactOpened = useRef<string | null>(null);
   useEffect(() => {
     if (!contactParam || selectedIdRef.current || !conversations) return;
+    if (contactOpened.current === contactParam) return;
+    contactOpened.current = contactParam;
     const match = conversations.find((c) => c.contact.id === contactParam);
     if (match) {
-      select(match.id);
+      select(match.id, match);
       return;
     }
-    // 041: puede ser un chat de campaña sin respuesta (fuera de la principal).
-    if (campaignPending === 0) return;
+    // Puede estar más abajo de lo cargado, o ser un chat de campaña sin
+    // respuesta (041, fuera de la principal): se pide solo ese.
     let cancelled = false;
-    void refetchCampaigns().then((list) => {
-      const pend = list?.find((c) => c.contact.id === contactParam);
-      if (!cancelled && pend && !selectedIdRef.current) select(pend.id);
-    });
+    void (async () => {
+      for (const view of ["main", "campaigns"] as const) {
+        const q = new URLSearchParams({ contactIds: contactParam });
+        if (view === "campaigns") q.set("view", "campaigns");
+        const res = await fetch(`/api/conversations?${q}`).catch(() => null);
+        if (!res?.ok) return;
+        const data = (await res.json()) as { conversations: ConversationDto[] };
+        const c = data.conversations[0];
+        if (cancelled || selectedIdRef.current) return;
+        if (c) {
+          select(c.id, c);
+          return;
+        }
+      }
+    })();
     return () => {
       cancelled = true;
     };
-  }, [contactParam, conversations, campaignPending, refetchCampaigns, select]);
+  }, [contactParam, conversations, select]);
 
   useEvents({
     onMessageNew: ({ conversationId, message }) => {
@@ -338,8 +489,7 @@ export function InboxClient({ channels }: { channels: readonly Channel[] }) {
 
   const selected =
     conversations?.find((c) => c.id === selectedId) ??
-    campaignConversations?.find((c) => c.id === selectedId) ??
-    null;
+    (openConv?.id === selectedId ? openConv : null);
 
   /**
    * Hilo visible = lo confirmado + lo que aún viaja. El mensaje real puede
@@ -466,15 +616,18 @@ export function InboxClient({ channels }: { channels: readonly Channel[] }) {
       >
         <ConversationList
           conversations={conversations}
+          loadedKey={loadedKey}
+          counts={counts}
+          hasMore={hasMore}
+          loadingMore={loadingMore}
+          onLoadMore={loadMore}
+          onListQuery={onListQuery}
           channels={channels}
           selectedId={selectedId}
           onSelect={select}
           onSeeded={onSeeded}
           onPatchRow={patchRow}
           onRemoved={onRemoved}
-          campaignConversations={campaignConversations}
-          campaignCount={campaignPending}
-          onCampaignView={onCampaignView}
         />
       </section>
 

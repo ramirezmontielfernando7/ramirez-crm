@@ -9,6 +9,8 @@ Todas autenticadas por sesión Better Auth y scoped a la organización del usuar
 | `GET /api/health` | healthcheck deploy: `{ ok: true }` + check de BD |
 | `GET /api/events` | SSE (ver sse.md) |
 | `GET /api/conversations?since=` | lista bandeja (excluye `is_test`) |
+| `GET /api/conversations?limit=&cursor=` | Fluidez PR 3: una página de la bandeja con filtros (`status`, `q`, `stage`, `tag`, `assigned`, `channel`, `view`) → `{ conversations, nextCursor }` |
+| `GET /api/conversations/counts` | Fluidez PR 3: contadores de la bandeja con los mismos filtros (sin `status`) |
 | `GET /api/conversations/:id/messages?since=` | hilo + catch-up |
 | `POST /api/conversations/:id/messages` | enviar texto `{ text }` — 409 si ventana cerrada |
 | `POST /api/conversations/:id/messages/template` | enviar plantilla `{ templateId, variable }` |

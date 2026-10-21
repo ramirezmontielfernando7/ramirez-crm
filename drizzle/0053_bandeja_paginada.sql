@@ -1,0 +1,13 @@
+-- Fluidez PR 3 — Bandeja paginada con cursor.
+--
+-- La lista de chats (`GET /api/conversations?limit=…`) ya no baja entera:
+-- pide de a una página ordenada por último mensaje (o creación) y luego por
+-- id, y la siguiente arranca donde terminó la anterior. Este índice es
+-- EXACTAMENTE esa llave dentro de la organización, así Postgres lee las
+-- primeras N filas en orden sin ordenar todos los chats de la empresa.
+--
+-- Solo aditiva: un índice nuevo, sin tocar columnas ni datos. El código
+-- anterior lo ignora. Idempotente: re-ejecutable.
+--
+-- Revertir (si hiciera falta): DROP INDEX IF EXISTS "conversation_org_recent_idx";
+CREATE INDEX IF NOT EXISTS "conversation_org_recent_idx" ON "conversation" USING btree ("organization_id",(coalesce("last_message_at", "created_at")) desc,"id" desc);

@@ -9,16 +9,22 @@
  *   - clic en una fila abre ese chat;
  *   - ↑/↓ con el teclado recorren la lista más allá de lo pintado;
  *   - la búsqueda encuentra un chat que estaba muy abajo;
- *   - `/inbox?contact=…` (enlace desde Contactos/Pipeline) lleva la lista
- *     hasta el chat abierto aunque esté en el puesto 2,900.
+ *   - `/inbox?contact=…` (enlace desde Contactos/Pipeline) abre el chat
+ *     aunque esté en el puesto 2,900 (todavía sin cargar).
+ *
+ * Fluidez PR 3: la lista llega por PÁGINAS. Además comprueba que solo se
+ * pide la primera al entrar, que bajar trae las siguientes sin repetir filas
+ * y que los contadores y la búsqueda vienen del servidor.
  *
  * Los chats son FALSOS (como en scripts/medir-fluidez.mjs): el navegador
- * intercepta `GET /api/conversations`, así no se siembra la BD.
+ * intercepta `GET /api/conversations` y `/counts` con la Bandeja falsa de
+ * `scripts/lib/bandeja-falsa.mjs`, así no se siembra la BD.
  *
  * Uso: node --env-file=.env scripts/e2e-bandeja-virtual.mjs
  * Requiere: app corriendo con el .env de pruebas y Playwright.
  */
 import { chromium } from "playwright";
+import { bandejaFalsa } from "./lib/bandeja-falsa.mjs";
 
 const BASE = process.env.APP_BASE_URL ?? "http://localhost:3000";
 const N = 3000;
@@ -87,24 +93,7 @@ await req.put(`${BASE}/api/settings/whatsapp`, {
 });
 
 const chats = chatsFalsos(N);
-const porId = new Map(chats.map((c) => [c.id, c]));
-const cuerpo = JSON.stringify({ conversations: chats, campaignPending: 0 });
-await ctx.route(
-  (u) => u.pathname === "/api/conversations",
-  (route) => {
-    if (route.request().method() !== "GET") return route.continue();
-    const q = new URL(route.request().url()).searchParams;
-    if (q.get("view") === "campaigns") return route.fulfill({ json: { conversations: [] } });
-    const ids = q.get("ids");
-    if (ids) {
-      const solo = ids.split(",").map((id) => porId.get(id)).filter(Boolean);
-      return route.fulfill({ json: { conversations: solo, campaignPending: 0 } });
-    }
-    return route.fulfill({ body: cuerpo, contentType: "application/json" });
-  }
-);
-await ctx.route(/\/api\/conversations\/cvfalso_/, (route) => route.fulfill({ json: { messages: [] } }));
-
+const stats = await bandejaFalsa(ctx, chats);
 const page = await ctx.newPage();
 const fila = (g) => page.locator(`[data-conversation-row="cvfalso_${g}"]`);
 // ¿La fila está dentro del recuadro visible de la lista?
@@ -123,6 +112,10 @@ await page.goto(`${BASE}/inbox`);
 await fila(1).waitFor({ timeout: 60_000 });
 const enDom = await page.locator("[data-conversation-row]").count();
 ok(`pocas filas en el DOM (${enDom} de ${N})`, enDom > 0 && enDom <= 80);
+await page.waitForTimeout(500);
+ok(`al entrar se pide UNA página (${stats.paginas})`, stats.paginas === 1);
+const todas = page.getByRole("button", { name: /Todas/ }).first();
+ok("el contador «Todas» es el del servidor (3,000)", /3[,.]?000/.test((await todas.innerText().catch(() => "")) ?? ""), await todas.innerText().catch(() => "—"));
 
 // Las filas no se enciman: cada una empieza donde termina la anterior.
 await page.evaluate(() => {
@@ -143,18 +136,22 @@ const encimadas = await page.evaluate(() => {
 });
 ok("las filas no se enciman ni dejan huecos (alto medido)", encimadas === 0, `${encimadas} pares`);
 
-// Al fondo: el último chat aparece.
-await page.evaluate(() => {
-  const caja = document.querySelector("[data-conversation-row]")?.closest("ul")?.parentElement;
-  if (caja) caja.scrollTop = caja.scrollHeight;
-});
+// Al fondo: bajar trae las páginas siguientes hasta el último chat.
+const alFondo = () =>
+  page.evaluate(() => {
+    const caja = document.querySelector("[data-conversation-row]")?.closest("ul")?.parentElement;
+    if (caja) caja.scrollTop = caja.scrollHeight;
+  });
+for (let k = 0; k < 200 && (await fila(N).count()) === 0; k++) {
+  await alFondo();
+  await page.waitForTimeout(100);
+}
+await alFondo();
 await page.waitForTimeout(300);
-await page.evaluate(() => {
-  const caja = document.querySelector("[data-conversation-row]")?.closest("ul")?.parentElement;
-  if (caja) caja.scrollTop = caja.scrollHeight;
-});
-await fila(N).waitFor({ timeout: 5000 }).catch(() => {});
 ok("bajar hasta el fondo enseña el último chat", (await fila(N).count()) === 1 && (await aLaVista(N)));
+ok(`las páginas siguientes se pidieron al bajar (${stats.paginas})`, stats.paginas >= N / 50);
+const total = await page.evaluate(() => document.querySelector("ul[style]")?.getBoundingClientRect().height ?? 0);
+ok("sin filas repetidas (el alto total cuadra con 3,000 filas)", total > 84 * (N - 50) && total < 84 * N * 1.6, String(total));
 
 // Clic: abre ese chat.
 const g = N - 2;
@@ -200,11 +197,10 @@ await campo.fill("");
 
 console.log("== Enlace directo a un chat lejano ==");
 await page.goto(`${BASE}/inbox?contact=ctfalso_2900`);
-await fila(2900).waitFor({ timeout: 30_000 }).catch(() => {});
-await page.waitForTimeout(500);
+await page.getByRole("heading", { name: "Virtual Persona 2900" }).or(page.locator("header p", { hasText: "Virtual Persona 2900" })).first().waitFor({ timeout: 30_000 }).catch(() => {});
 ok(
-  "/inbox?contact=… baja la lista hasta el chat 2900",
-  (await fila(2900).count()) === 1 && (await aLaVista(2900))
+  "/inbox?contact=… abre el chat 2900 aunque su fila aún no esté cargada",
+  (await page.locator("header p", { hasText: "Virtual Persona 2900" }).count()) >= 1
 );
 
 await browser.close();
