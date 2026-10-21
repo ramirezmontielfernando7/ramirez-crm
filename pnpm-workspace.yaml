@@ -9,7 +9,9 @@ allowBuilds:
 # - postcss: next fija 8.4.31 exacto y tailwind trae 8.5.16; 8.5.28 es
 #   compatible (lectura de archivos, path traversal y XSS en stringify).
 # - sharp: lo trae next (optimizador de imágenes); next 15.5.26 ya acepta
-#   ^0.35.4 (vulnerabilidades de libvips/libheif).
+#   ^0.35.4 (vulnerabilidades de libvips/libheif); 0.35.5 corrige librsvg.
+# - source-map-js y postcss-selector-parser: parches de denegación de
+#   servicio de herramientas de compilación (next/postcss, eslint, tailwind).
 overrides:
   "postcss@<8.5.23": ^8.5.28
   "nanoid@<3.3.18": ^3.3.18
@@ -18,4 +20,6 @@ overrides:
   "js-yaml@<4.3.2": ^4.3.2
   "browserslist@<4.28.7": ^4.28.7
   "baseline-browser-mapping@<2.11.0": ^2.11.0
-  "sharp@<0.35.4": ^0.35.4
+  "sharp@<0.35.5": ^0.35.5
+  "source-map-js@<1.2.2": ^1.2.2
+  "postcss-selector-parser@<7.1.6": ^7.1.6
