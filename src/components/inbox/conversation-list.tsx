@@ -1,7 +1,16 @@
 "use client";
 
-import { memo, useEffect, useRef, useState } from "react";
+import {
+  memo,
+  useEffect,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type ReactNode,
+  type RefObject,
+} from "react";
 import { m } from "motion/react";
+import { useVirtualizer, type VirtualItem } from "@tanstack/react-virtual";
 import { Bot, CheckSquare, Megaphone, Send, Sparkles } from "lucide-react";
 import type { ConversationDto, StageDto } from "@/lib/types";
 import type { TagDto } from "@/lib/tags";
@@ -56,6 +65,15 @@ const FOCO_SEPARADO =
  */
 const CHIP =
   "inline-flex h-5 min-w-0 items-center gap-1 rounded-full px-2 text-[10.5px] font-medium leading-none";
+
+/**
+ * Fluidez PR 2: la lista es VIRTUAL. Solo existen en el DOM las filas que se
+ * ven (más un margen arriba y abajo); con 5,000 chats hay ~30 filas, no 5,000.
+ * El alto de cada fila se mide al pintarla (las de campaña o anuncio llevan
+ * una cápsula más); 84 px es el típico y solo sirve hasta medirla.
+ */
+const ROW_ESTIMATE = 84;
+const ROW_OVERSCAN = 8;
 
 const CONTROL_FILTRO =
   "box-border h-6 shrink-0 rounded-full border py-0 text-[11.5px] font-semibold leading-none transition-colors";
@@ -244,6 +262,8 @@ export const ConversationList = memo(function ConversationList({
       : filter === "humano"
         ? humanos
         : visibleBase;
+  const scrollRef = useRef<HTMLDivElement>(null);
+
   const filtros: { id: typeof filter; label: string; count: number }[] = [
     { id: "all", label: "Todas", count: inInbox.length },
     { id: "unread", label: "No leídas", count: unreadCount },
@@ -468,7 +488,7 @@ export const ConversationList = memo(function ConversationList({
         </div>
       </Collapse>
 
-      <div className="flex-1 overflow-y-auto">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto">
         {loading ? (
           <p className="p-6 text-center text-xs text-text-3">Cargando…</p>
         ) : visible.length === 0 && sinRegistrar ? (
@@ -489,11 +509,17 @@ export const ConversationList = memo(function ConversationList({
             Sin resultados para este filtro.
           </p>
         ) : (
-          <ul>
-            {visible.map((c) => (
+          <VirtualRows
+            items={visible}
+            scrollRef={scrollRef}
+            selectedId={selectedId}
+            renderRow={(c, v, measureRef) => (
               <ConversationRow
+                key={v.key}
+                index={v.index}
+                start={v.start}
+                measureRef={measureRef}
                 agentsPaused={agentsPaused}
-                key={c.id}
                 c={c}
                 active={selectedId === c.id}
                 selecting={selecting}
@@ -513,8 +539,8 @@ export const ConversationList = memo(function ConversationList({
                 onError={setNotice}
                 onOpenMenu={actions.openMenu}
               />
-            ))}
-          </ul>
+            )}
+          />
         )}
       </div>
       {actions.element}
@@ -538,6 +564,108 @@ export const ConversationList = memo(function ConversationList({
 });
 
 /**
+ * Fluidez PR 2: la lista virtual, aparte de `ConversationList` a propósito.
+ * Al bajar, el virtualizador vuelve a pintar SOLO este componente (qué filas
+ * tocan y dónde van); los filtros, contadores y el encabezado de la lista no
+ * se recalculan en cada cuadro de scroll.
+ */
+function VirtualRows({
+  items: visible,
+  scrollRef,
+  selectedId,
+  renderRow,
+}: {
+  items: ConversationDto[];
+  /** La caja con scroll (la columna de la lista). */
+  scrollRef: RefObject<HTMLDivElement | null>;
+  selectedId: string | null;
+  renderRow: (
+    c: ConversationDto,
+    v: VirtualItem,
+    measureRef: (el: HTMLElement | null) => void
+  ) => ReactNode;
+}) {
+  const virtualizer = useVirtualizer({
+    count: visible.length,
+    getScrollElement: () => scrollRef.current,
+    estimateSize: () => ROW_ESTIMATE,
+    overscan: ROW_OVERSCAN,
+    getItemKey: (i) => visible[i]?.id ?? i,
+    // React 19: sin `flushSync` en cada evento de scroll (avisa en consola y
+    // no hace falta; la fila nueva llega en el siguiente cuadro).
+    useFlushSync: false,
+  });
+  // El chat abierto queda a la vista aunque se haya elegido desde fuera de la
+  // lista (`/inbox?contact=…`) o un filtro lo haya movido: si su fila no está
+  // pintada o está fuera del recuadro, se baja (o sube) hasta ella. Solo
+  // cuando cambia el chat abierto, no en cada refresco de la lista. Se revisa
+  // unos cuadros más: las filas que se pintan al llegar se miden y pueden
+  // empujar la elegida un poco fuera.
+  const visibleRef = useRef(visible);
+  visibleRef.current = visible;
+  useEffect(() => {
+    if (!selectedId) return;
+    let cuadro = 0;
+    const traer = (intentos: number) => {
+      const i = visibleRef.current.findIndex((c) => c.id === selectedId);
+      if (i < 0) return;
+      const caja = scrollRef.current;
+      const fila = caja?.querySelector(`[data-index="${i}"]`);
+      if (caja && fila) {
+        const a = fila.getBoundingClientRect();
+        const b = caja.getBoundingClientRect();
+        if (a.top >= b.top && a.bottom <= b.bottom) return;
+      }
+      virtualizer.scrollToIndex(i, { align: "auto" });
+      if (intentos > 0) cuadro = requestAnimationFrame(() => traer(intentos - 1));
+    };
+    traer(10);
+    return () => cancelAnimationFrame(cuadro);
+  }, [selectedId, virtualizer, scrollRef]);
+
+  // Teclado: ↑/↓ pasan al chat de arriba/abajo aunque su fila aún no exista
+  // (la lista virtual solo pinta lo que se ve): primero se lleva la fila a la
+  // vista y luego se le da el foco. Con la tecla sostenida, la siguiente
+  // pulsación puede llegar antes de que la fila nueva exista: se cuenta desde
+  // la fila PEDIDA, no desde la que aún tiene el foco.
+  const focoPendiente = useRef<number | null>(null);
+  function onListKeyDown(e: KeyboardEvent<HTMLUListElement>) {
+    if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
+    const desde = (e.target as HTMLElement).closest<HTMLElement>("[data-index]");
+    if (!desde || !(e.target as HTMLElement).matches("[data-row-main]")) return;
+    const base = focoPendiente.current ?? Number(desde.dataset.index);
+    const i = Math.min(Math.max(base + (e.key === "ArrowDown" ? 1 : -1), 0), visible.length - 1);
+    e.preventDefault();
+    focoPendiente.current = i;
+    virtualizer.scrollToIndex(i, { align: "auto" });
+    const enfocar = (intentos: number) => {
+      if (focoPendiente.current !== i) return; // ya se pidió otra
+      const btn = scrollRef.current?.querySelector<HTMLElement>(
+        `[data-index="${i}"] [data-row-main]`
+      );
+      if (btn || intentos === 0) {
+        focoPendiente.current = null;
+        btn?.focus({ preventScroll: true });
+      } else requestAnimationFrame(() => enfocar(intentos - 1));
+    };
+    enfocar(20);
+  }
+
+  return (
+    <ul
+      onKeyDown={onListKeyDown}
+      className="relative"
+      style={{ height: virtualizer.getTotalSize() }}
+    >
+      {virtualizer.getVirtualItems().map((v) => {
+        const c = visible[v.index];
+        return c ? renderRow(c, v, virtualizer.measureElement) : null;
+      })}
+    </ul>
+  );
+}
+
+/**
  * Una fila de la lista. Es un componente (y no un `map` en línea) porque
  * lleva su propia pulsación larga. Estructura, de afuera hacia adentro:
  *
@@ -549,6 +677,9 @@ export const ConversationList = memo(function ConversationList({
  * botón dentro de otro no es HTML válido y el clic de una no debe abrir el chat.
  */
 const ConversationRow = memo(function ConversationRow({
+  index,
+  start,
+  measureRef,
   c,
   active,
   selecting,
@@ -569,6 +700,11 @@ const ConversationRow = memo(function ConversationRow({
   onError,
   onOpenMenu,
 }: {
+  /** Fluidez PR 2: posición en la lista virtual y dónde empieza (px). */
+  index: number;
+  start: number;
+  /** Mide el alto real de la fila al pintarla. */
+  measureRef: (el: HTMLElement | null) => void;
   c: ConversationDto;
   active: boolean;
   selecting: boolean;
@@ -607,11 +743,14 @@ const ConversationRow = memo(function ConversationRow({
   return (
     <li
       // Fluidez PR 1: sin animación de entrada (con miles de filas, montar
-      // una animación por fila congelaba la Bandeja). `inbox-row` en
-      // globals.css: el navegador no pinta las filas fuera de la vista.
+      // una animación por fila congelaba la Bandeja). PR 2: la lista es
+      // virtual; cada fila se coloca en su `start` y se mide al pintarse.
       // Separador que arranca en el texto (no bajo el avatar): la
       // columna de avatares queda limpia y el ojo baja por ella.
-      className="inbox-row relative after:absolute after:bottom-0 after:left-[58px] after:right-0 after:h-px after:bg-border"
+      ref={measureRef}
+      data-index={index}
+      style={{ transform: `translateY(${start}px)` }}
+      className="inbox-row absolute left-0 top-0 w-full after:absolute after:bottom-0 after:left-[58px] after:right-0 after:h-px after:bg-border"
     >
       {active && (
         // La marca del chat abierto crece desde el centro.
@@ -632,6 +771,7 @@ const ConversationRow = memo(function ConversationRow({
         )}
       >
         <button
+          data-row-main
           onClick={() => (selecting ? onTogglePick(c.id) : onSelect(c.id))}
           aria-pressed={selecting ? picked : undefined}
           className={cn(

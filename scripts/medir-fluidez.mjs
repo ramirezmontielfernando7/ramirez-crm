@@ -13,8 +13,11 @@
  *   - «lista lista»: hasta que el hilo principal queda 1 s sin tareas largas
  *     (lo que siente la persona: ya puede hacer clic sin que se trabe).
  *   - «bloqueado»: suma de tareas largas (> 50 ms) durante la carga.
- *   - «scroll»: baja la lista en 20 pasos y suma las tareas largas y el peor
- *     cuadro (ms entre dos cuadros).
+ *   - «scroll»: baja la lista en 20 saltos (como arrastrar la barra) y suma
+ *     las tareas largas, el peor cuadro (ms entre dos cuadros) y los cuadros
+ *     por segundo (fps).
+ *   - «rueda»: desde arriba, baja 60 px en cada cuadro durante 3 s (como la
+ *     rueda del ratón o el trackpad) y reporta fps y peor cuadro.
  *
  * Uso: app corriendo (como el job e2e de CI: `next start` con el .env de
  * pruebas) y el usuario e2e (lo crea si no existe):
@@ -183,7 +186,8 @@ async function medir(browser, chats, cpu) {
     while (caja && !(caja.scrollHeight > caja.clientHeight && getComputedStyle(caja).overflowY !== "visible")) {
       caja = caja.parentElement;
     }
-    if (!caja) return { bloqueado: 0, peorCuadro: 0 };
+    if (!caja) return { bloqueado: 0, peorCuadro: 0, fps: 0 };
+    const t0 = performance.now();
     const antes = window.__largas.length;
     const cuadros = [];
     let corriendo = true;
@@ -205,11 +209,47 @@ async function medir(browser, chats, cpu) {
     return {
       bloqueado: Math.round(nuevas.reduce((s, e) => s + e.d, 0)),
       peorCuadro: Math.round(Math.max(0, ...cuadros)),
+      fps: Math.round((cuadros.length / (performance.now() - t0)) * 1000),
     };
   });
 
+  // Rueda: 60 px por cuadro durante 3 s, desde arriba.
+  const rueda = await page.evaluate(async () => {
+    const fila = document.querySelector("[data-conversation-row]");
+    let caja = fila?.parentElement;
+    while (caja && !(caja.scrollHeight > caja.clientHeight && getComputedStyle(caja).overflowY !== "visible")) {
+      caja = caja.parentElement;
+    }
+    if (!caja) return { fps: 0, peorCuadro: 0 };
+    caja.scrollTop = 0;
+    await new Promise((r) => setTimeout(r, 500));
+    return await new Promise((fin) => {
+      const cuadros = [];
+      const t0 = performance.now();
+      let previo = t0;
+      const tic = (t) => {
+        cuadros.push(t - previo);
+        previo = t;
+        caja.scrollTop += 60;
+        if (t - t0 < 3000) requestAnimationFrame(tic);
+        else fin({ fps: Math.round((cuadros.length / (t - t0)) * 1000), peorCuadro: Math.round(Math.max(0, ...cuadros.slice(1))) });
+      };
+      requestAnimationFrame(tic);
+    });
+  });
+
   await ctx.close();
-  return { primeraFila, listaLista, bloqueado, filas, scrollBloqueado: scroll.bloqueado, peorCuadro: scroll.peorCuadro };
+  return {
+    primeraFila,
+    listaLista,
+    bloqueado,
+    filas,
+    scrollBloqueado: scroll.bloqueado,
+    peorCuadro: scroll.peorCuadro,
+    fpsSaltos: scroll.fps,
+    fpsRueda: rueda.fps,
+    peorCuadroRueda: rueda.peorCuadro,
+  };
 }
 
 async function main() {
@@ -250,10 +290,12 @@ async function main() {
     await browser.close();
   }
   const s = (ms) => `${(ms / 1000).toFixed(1)} s`;
-  console.log("\n| Chats | CPU | Primera fila | Lista lista | Bloqueado al cargar | Bloqueado al bajar | Peor cuadro | Filas en el DOM |");
-  console.log("|---|---|---|---|---|---|---|---|");
+  console.log("\n| Chats | CPU | Primera fila | Lista lista | Bloqueado al cargar | Bloqueado al bajar | Peor cuadro | fps a saltos | fps con rueda | Peor cuadro (rueda) | Filas en el DOM |");
+  console.log("|---|---|---|---|---|---|---|---|---|---|---|");
   for (const f of filas) {
-    console.log(`| ${f.chats} | ${f.cpu} | ${s(f.primeraFila)} | ${s(f.listaLista)} | ${s(f.bloqueado)} | ${s(f.scrollBloqueado)} | ${f.peorCuadro} ms | ${f.filas} |`);
+    console.log(
+      `| ${f.chats} | ${f.cpu} | ${s(f.primeraFila)} | ${s(f.listaLista)} | ${s(f.bloqueado)} | ${s(f.scrollBloqueado)} | ${f.peorCuadro} ms | ${f.fpsSaltos} | ${f.fpsRueda} | ${f.peorCuadroRueda} ms | ${f.filas} |`
+    );
   }
   if (process.argv.includes("--json")) console.log(JSON.stringify(filas));
 }

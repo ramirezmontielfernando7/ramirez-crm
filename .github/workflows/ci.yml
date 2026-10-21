@@ -261,6 +261,9 @@ jobs:
           # 034: cápsulas de la fila, punto de IA, filtro por etiqueta,
           # archivar y eliminar (clic derecho y pulsación larga).
           node --env-file=.env scripts/e2e-bandeja-capsulas.mjs
+          # Fluidez PR 2: la lista virtual con 3,000 chats falsos (teclado,
+          # clic, búsqueda y enlace directo a un chat lejano).
+          node --env-file=.env scripts/e2e-bandeja-virtual.mjs
           kill -- -"$(cat app.pid)"; sleep 2
       # 035: Documentos del agente (RAG) ENCENDIDOS, con el mock de embeddings
       # (exige los prefijos e5). Las vueltas de arriba corren con KB_DOCS
