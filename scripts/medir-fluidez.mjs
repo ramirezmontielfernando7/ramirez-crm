@@ -29,6 +29,15 @@
  *   node --env-file=.env scripts/medir-fluidez.mjs
  *   node --env-file=.env scripts/medir-fluidez.mjs --chats=1000 --cpu=4 --vueltas=3
  *
+ * Fluidez PR 4: la primera página ya viene en el HTML (la consulta el
+ * SERVIDOR, que el navegador no puede interceptar). Para medir lo que de
+ * verdad se ve al abrir, `--real` no inventa chats: usa los que hay en la BD
+ * del usuario e2e, sembrados antes con `scripts/medir-bandeja.mjs --chats=N`
+ * (`--chats` entonces solo rotula la tabla; mide una cantidad a la vez).
+ *
+ *   node --env-file=.env scripts/medir-bandeja.mjs --chats=1000
+ *   node --env-file=.env scripts/medir-fluidez.mjs --real --chats=1000
+ *
  * `--chats` y `--cpu` aceptan listas (`--chats=1000,5000 --cpu=4,6`, el valor
  * por defecto). Con `--vueltas=N` repite cada combinación y reporta la
  * mediana. Compara siempre en la MISMA máquina: las cifras absolutas cambian
@@ -43,6 +52,7 @@ const lista = (v, def) => (v ?? def).split(",").map(Number).filter((n) => n > 0)
 const CHATS = lista(arg("chats"), "1000,5000");
 const CPU = lista(arg("cpu"), "4,6");
 const VUELTAS = Math.max(1, Number(arg("vueltas") ?? 1));
+const REAL = process.argv.includes("--real");
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 let cookie = "";
@@ -141,7 +151,8 @@ async function medir(browser, chats, cpu) {
     } catch {}
   });
   // Fluidez PR 3: responde como el servidor (por páginas, con contadores).
-  await bandejaFalsa(ctx, chats);
+  // Con `--real`, la app y la BD de verdad.
+  if (!REAL) await bandejaFalsa(ctx, chats);
 
   const page = await ctx.newPage();
   const cdp = await ctx.newCDPSession(page);
