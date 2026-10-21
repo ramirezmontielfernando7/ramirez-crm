@@ -2,7 +2,7 @@ import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
 import { scoped } from "@/lib/db/tenant";
-import { countVariables } from "@/lib/templates";
+import { countVariables, variableLabel } from "@/lib/templates";
 import { parseMessagingLimit } from "@/lib/phone-health";
 import { emptyCounts, resolveVariables } from "@/lib/campaigns";
 import type {
@@ -313,22 +313,23 @@ function validateVariables(
     );
   }
   return variables.map((v, i) => {
+    const label = variableLabel(template.body, i);
     if (v.kind === "contact_name") return v;
     if (v.kind === "column") {
       if (!columns) {
-        throw new CampaignError("invalid", `{{${i + 1}}}: las columnas solo existen si el público es una base subida`);
+        throw new CampaignError("invalid", `${label}: las columnas solo existen si el público es una base subida`);
       }
       if (!columns.includes(v.column)) {
-        throw new CampaignError("invalid", `{{${i + 1}}}: la base no tiene la columna "${v.column}"`);
+        throw new CampaignError("invalid", `${label}: la base no tiene la columna "${v.column}"`);
       }
       return { kind: "column" as const, column: v.column };
     }
     const value = v.value.trim();
-    if (!value) throw new CampaignError("invalid", `Falta el valor de {{${i + 1}}}`);
-    if (value.length > 500) throw new CampaignError("invalid", `{{${i + 1}}} pasa de 500 caracteres`);
+    if (!value) throw new CampaignError("invalid", `Falta el valor de ${label}`);
+    if (value.length > 500) throw new CampaignError("invalid", `${label} pasa de 500 caracteres`);
     // Meta rechaza parámetros con saltos de línea, tabuladores o 4+ espacios.
     if (/[\n\t]| {4,}/.test(value)) {
-      throw new CampaignError("invalid", `{{${i + 1}}} no puede llevar saltos de línea, tabuladores ni 4 espacios seguidos (Meta lo rechaza)`);
+      throw new CampaignError("invalid", `${label} no puede llevar saltos de línea, tabuladores ni 4 espacios seguidos (Meta lo rechaza)`);
     }
     return { kind: "fixed" as const, value };
   });

@@ -6,14 +6,7 @@ import { Send } from "lucide-react";
 import type { TemplateDto } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-
-/** Cuenta {{1}}..{{n}} igual que el servidor, para pedir sus valores. */
-function countVariables(body: string): number {
-  const found = new Set(
-    Array.from(body.matchAll(/\{\{\s*(\d+)\s*\}\}/g)).map((m) => m[1])
-  );
-  return found.size;
-}
+import { countVariables, variableLabel, variableNames } from "@/lib/templates";
 
 /**
  * Abrir conversación con quien nunca ha escrito.
@@ -125,8 +118,8 @@ export function StartConversation({
         <Input
           key={i}
           value={vars[i] ?? ""}
-          aria-label={`Valor de la variable ${i + 1}`}
-          placeholder={`Valor de {{${i + 1}}}`}
+          aria-label={`Valor de la variable ${(elegida ? variableNames(elegida.body)[i] : null) ?? i + 1}`}
+          placeholder={`Valor de ${elegida ? variableLabel(elegida.body, i) : `{{${i + 1}}}`}`}
           onChange={(e) => {
             const next = [...vars];
             next[i] = e.target.value;

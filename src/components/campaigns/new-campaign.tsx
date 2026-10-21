@@ -16,7 +16,7 @@ import {
 import type { AudienceDto } from "@/lib/audiences";
 import { fetchJson, jsonInit } from "@/lib/fetch-json";
 import type { TagDto } from "@/lib/tags";
-import { countVariables, headerOf, renderBody } from "@/lib/templates";
+import { countVariables, headerOf, renderBody, variableLabel } from "@/lib/templates";
 import type { TemplateDto } from "@/lib/types";
 import { SOURCE_LABELS } from "@/server/contact-source";
 import { Button } from "@/components/ui/button";
@@ -103,6 +103,8 @@ export function NewCampaign({ initialAudienceId }: { initialAudienceId: string |
   const notApproved = (templates ?? []).length - approved.length;
   const template = approved.find((t) => t.id === templateId) ?? null;
   const varCount = template ? countVariables(template.body) : 0;
+  // `{{1}}` en las posicionales, `{{nombre}}` en las de variables con nombre.
+  const varLabel = (i: number) => (template ? variableLabel(template.body, i) : `{{${i + 1}}}`);
   const base = (audiences ?? []).find((a) => a.id === importId) ?? null;
   const columns = useMemo(() => (mode === "base" || mode === "file" ? (base?.columns ?? []) : []), [mode, base]);
 
@@ -158,7 +160,7 @@ export function NewCampaign({ initialAudienceId }: { initialAudienceId: string |
     for (const c of columns) out[c] = `[${c}]`;
     return out;
   }, [columns]);
-  const sampleValues = resolveVariables(variables, "Ana López", sampleFields).map((v, i) => v || `{{${i + 1}}}`);
+  const sampleValues = resolveVariables(variables, "Ana López", sampleFields).map((v, i) => v || varLabel(i));
 
   async function ensureDraft(): Promise<string | null> {
     if (draftId) return draftId;
@@ -433,11 +435,11 @@ export function NewCampaign({ initialAudienceId }: { initialAudienceId: string |
                     </div>
                     {variables.map((v, i) => (
                       <div key={i} className="space-y-1.5">
-                        <Label>{`Variable {{${i + 1}}}`}</Label>
+                        <Label>{`Variable ${varLabel(i)}`}</Label>
                         <div className="flex flex-wrap items-center gap-2">
                           <select
                             value={v.kind}
-                            aria-label={`Tipo de {{${i + 1}}}`}
+                            aria-label={`Tipo de ${varLabel(i)}`}
                             onChange={(e) => {
                               const next = [...variables];
                               const k = e.target.value;
@@ -459,7 +461,7 @@ export function NewCampaign({ initialAudienceId }: { initialAudienceId: string |
                             <Input
                               value={v.value}
                               maxLength={500}
-                              aria-label={`Valor de {{${i + 1}}}`}
+                              aria-label={`Valor de ${varLabel(i)}`}
                               className="min-w-[10rem] flex-1"
                               onChange={(e) => {
                                 const next = [...variables];
@@ -471,7 +473,7 @@ export function NewCampaign({ initialAudienceId }: { initialAudienceId: string |
                           {v.kind === "column" && (
                             <select
                               value={v.column}
-                              aria-label={`Columna de {{${i + 1}}}`}
+                              aria-label={`Columna de ${varLabel(i)}`}
                               onChange={(e) => {
                                 const next = [...variables];
                                 next[i] = { kind: "column", column: e.target.value };
@@ -506,7 +508,7 @@ export function NewCampaign({ initialAudienceId }: { initialAudienceId: string |
                       ? "Falta el nombre de la campaña."
                       : !template
                         ? "Falta elegir la plantilla."
-                        : `Falta el valor de {{${missingVar + 1}}}.`}
+                        : `Falta el valor de ${varLabel(missingVar)}.`}
                   </p>
                 )}
               </CardContent>

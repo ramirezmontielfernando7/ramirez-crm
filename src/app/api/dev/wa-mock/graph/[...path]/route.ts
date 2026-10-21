@@ -6,6 +6,7 @@ import {
   nextTemplateId,
   type MockTemplate,
 } from "@/server/dev/wa-mock-state";
+import { checkTemplateBodyParams, mockParameterFormat } from "@/server/dev/wa-mock-template-params";
 
 /**
  * Imitación de la Graph API (contrato mocks.md). El cliente real apunta aquí
@@ -94,6 +95,7 @@ export async function GET(req: Request, ctx: Params) {
         language: t.language,
         category: t.category,
         status: t.status,
+        parameter_format: mockParameterFormat(t.body),
         components: t.components ?? [{ type: "BODY", text: t.body }],
         ...(t.qualityScore ? { quality_score: { score: t.qualityScore } } : {}),
         ...(t.rejectedReason ? { rejected_reason: t.rejectedReason } : {}),
@@ -515,7 +517,7 @@ export async function POST(req: Request, ctx: Params) {
         );
       }
     }
-    // Meta responde 132000 si los parámetros no cuadran con las {{n}} de la
+    // Meta responde 132000 si los parámetros no cuadran con las variables de la
     // plantilla aprobada. El mock lo replica para que un desfase no pase.
     if (body.type === "template") {
       const tplSend = body.template as
@@ -526,14 +528,11 @@ export async function POST(req: Request, ctx: Params) {
         | undefined;
       const known = state.templates.find((t) => t.name === tplSend?.name);
       if (known) {
-        const expected = [...known.body.matchAll(/\{\{\s*(\d+)\s*\}\}/g)].reduce(
-          (max, m) => Math.max(max, Number(m[1])),
-          0
+        // POSITIONAL ({{1}}) o NAMED ({{nombre}}, con `parameter_name`).
+        const paramsError = checkTemplateBodyParams(
+          known.body,
+          tplSend?.components?.find((c) => (c.type ?? "").toLowerCase() === "body")?.parameters
         );
-        const got =
-          tplSend?.components?.find(
-            (c) => (c.type ?? "").toLowerCase() === "body"
-          )?.parameters?.length ?? 0;
         // Campañas v2: una plantilla con IMAGEN en el encabezado exige la
         // imagen en cada envío (si falta, Meta responde 132012).
         const headerFormat = (known.components as { type?: string; format?: string }[] | undefined)
@@ -555,11 +554,11 @@ export async function POST(req: Request, ctx: Params) {
             );
           }
         }
-        if (expected !== got) {
+        if (paramsError) {
           return Response.json(
             {
               error: {
-                message: `(#132000) Number of parameters does not match the expected number of params: expected ${expected}, got ${got}`,
+                message: paramsError,
                 type: "OAuthException",
                 code: 132000,
                 fbtrace_id: "mock",
