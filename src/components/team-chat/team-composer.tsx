@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
-import { AnimatePresence, m } from "motion/react";
+import { AnimatePresence, m } from "framer-motion";
 import { AtSign, BookOpen, Eye, FileText, Megaphone, Paperclip, SendHorizontal, Smile, X } from "lucide-react";
 import { encodeMentions } from "@/lib/team-chat-mentions";
 import { MentionPicker } from "./mention-picker";

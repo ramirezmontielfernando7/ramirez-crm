@@ -10,7 +10,8 @@ import {
   type ReactNode,
   type RefObject,
 } from "react";
-import { m } from "motion/react";
+import { m } from "framer-motion";
+import dynamic from "next/dynamic";
 import { useVirtualizer, type VirtualItem } from "@tanstack/react-virtual";
 import { Bot, CheckSquare, Megaphone, Send, Sparkles } from "lucide-react";
 import type { ConversationDto, StageDto } from "@/lib/types";
@@ -45,8 +46,13 @@ import { useConversationActions } from "./conversation-actions";
 import { longPressClass, useLongPress } from "./use-long-press";
 import { useInboxCatalogs } from "./use-inbox-catalogs";
 import { SearchPill } from "./search-pill";
-import { UnregisteredNumberCard } from "./unregistered-number";
 import { Collapse, SPRING } from "@/components/motion";
+
+// La tarjeta de «número sin registrar» solo sale al buscar un teléfono que no
+// existe: su código no se baja en el arranque de la Bandeja.
+const UnregisteredNumberCard = dynamic(
+  () => import("./unregistered-number").then((mod) => mod.UnregisteredNumberCard)
+);
 
 /**
  * Foco por teclado de chips y selector: el anillo de `ui/button`, acento

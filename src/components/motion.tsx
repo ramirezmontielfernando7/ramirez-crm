@@ -1,6 +1,6 @@
 "use client";
 
-import { AnimatePresence, LazyMotion, MotionConfig, domAnimation, m } from "motion/react";
+import { AnimatePresence, LazyMotion, MotionConfig, m } from "framer-motion";
 import { ChevronDown } from "lucide-react";
 import { memo, useId } from "react";
 import { cn } from "@/lib/utils";
@@ -56,13 +56,23 @@ export const ENTER = { type: "spring", duration: 0.18, bounce: 0 } as const;
  * el menú, medido). Por eso va por ENCIMA de cualquier estado de la interfaz
  * (ver `AppShell`) y memoizado: sus hijos no cambian de identidad.
  */
+/**
+ * Las funciones de animación se bajan APARTE (import dinámico): salen del JS
+ * con el que arranca cada pantalla (~30 KB gzip) y llegan un instante después
+ * de pintar. Mientras tanto los `m.*` ya muestran su estado inicial; solo la
+ * primera animación de entrada (y la presión táctil) puede empezar unos
+ * milisegundos más tarde. Cambiar a `domAnimation` directo vuelve a lo
+ * anterior.
+ */
+const cargarFunciones = () => import("./motion-features").then((mod) => mod.default);
+
 export const MotionProvider = memo(function MotionProvider({
   children,
 }: {
   children: React.ReactNode;
 }) {
   return (
-    <LazyMotion features={domAnimation} strict>
+    <LazyMotion features={cargarFunciones} strict>
       <MotionConfig reducedMotion="user" transition={SPRING}>
         {children}
       </MotionConfig>

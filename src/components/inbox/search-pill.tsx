@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { AnimatePresence, m, useReducedMotion } from "motion/react";
+import { AnimatePresence, m, useReducedMotion } from "framer-motion";
 import { Search, X } from "lucide-react";
 import { MORPH } from "@/components/motion";
 import { cn } from "@/lib/utils";
