@@ -30,7 +30,7 @@ import { longPressClass, useLongPress } from "./use-long-press";
 import { useInboxCatalogs } from "./use-inbox-catalogs";
 import { SearchPill } from "./search-pill";
 import { UnregisteredNumberCard } from "./unregistered-number";
-import { Collapse, ENTER, SPRING } from "@/components/motion";
+import { Collapse, SPRING } from "@/components/motion";
 
 /**
  * Foco por teclado de chips y selector: el anillo de `ui/button`, acento
@@ -489,15 +489,12 @@ export const ConversationList = memo(function ConversationList({
             Sin resultados para este filtro.
           </p>
         ) : (
-          // La llave cambia con el filtro (no con cada tecla de la búsqueda):
-          // al filtrar, la lista vuelve a "caer" en su lugar escalonada.
-          <ul key={`${filter}|${stage}|${tag}|${owner}|${inbox}`}>
-            {visible.map((c, index) => (
+          <ul>
+            {visible.map((c) => (
               <ConversationRow
                 agentsPaused={agentsPaused}
                 key={c.id}
                 c={c}
-                index={index}
                 active={selectedId === c.id}
                 selecting={selecting}
                 picked={picked.has(c.id)}
@@ -553,7 +550,6 @@ export const ConversationList = memo(function ConversationList({
  */
 const ConversationRow = memo(function ConversationRow({
   c,
-  index,
   active,
   selecting,
   picked,
@@ -574,7 +570,6 @@ const ConversationRow = memo(function ConversationRow({
   onOpenMenu,
 }: {
   c: ConversationDto;
-  index: number;
   active: boolean;
   selecting: boolean;
   picked: boolean;
@@ -610,15 +605,13 @@ const ConversationRow = memo(function ConversationRow({
       : "Agente de IA en pausa en este chat";
 
   return (
-    <m.li
-      // Entra con opacidad + 4 px; el escalón solo en las primeras
-      // filas (las que se ven), así una lista larga no "gotea".
-      initial={{ opacity: 0, y: 4 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ ...ENTER, delay: Math.min(index, 10) * 0.018 }}
+    <li
+      // Fluidez PR 1: sin animación de entrada (con miles de filas, montar
+      // una animación por fila congelaba la Bandeja). `inbox-row` en
+      // globals.css: el navegador no pinta las filas fuera de la vista.
       // Separador que arranca en el texto (no bajo el avatar): la
       // columna de avatares queda limpia y el ojo baja por ella.
-      className="relative after:absolute after:bottom-0 after:left-[58px] after:right-0 after:h-px after:bg-border"
+      className="inbox-row relative after:absolute after:bottom-0 after:left-[58px] after:right-0 after:h-px after:bg-border"
     >
       {active && (
         // La marca del chat abierto crece desde el centro.
@@ -790,6 +783,6 @@ const ConversationRow = memo(function ConversationRow({
           )}
         </div>
       </div>
-    </m.li>
+    </li>
   );
 });
