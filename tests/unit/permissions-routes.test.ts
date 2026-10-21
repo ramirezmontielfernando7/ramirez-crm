@@ -215,6 +215,8 @@ const PROTEGIDAS: [string, Method, Permission][] = [
 const FILTRADAS: [string, Method][] = [
   ["conversations", "GET"],
   ["conversations/unread", "GET"],
+  // Fluidez PR 3: contadores de la Bandeja (los mismos filtros que la lista).
+  ["conversations/counts", "GET"],
   ["conversations/[id]", "PATCH"],
   // 031 (PR B): «Atiende: …» de la conversación que se puede ver (getConversation).
   ["conversations/[id]/agent", "GET"],
