@@ -251,6 +251,11 @@ async function main() {
   ok("A ahora la ve", deA.some((c) => c.id === conv1?.id));
   ok("…marcada como suya", deA.find((c) => c.id === conv1?.id)?.assignee?.id === ID_A);
   ok("B no la ve", !(await conversaciones(asesorB)).some((c) => c.id === conv1?.id));
+  // Fluidez PR 4: la primera página de la Bandeja viene en el HTML de
+  // /inbox; el servidor la arma con el mismo filtro de rol que la API.
+  const htmlDe = async (c) => (await c.api("/inbox", { headers: { accept: "text/html" } })).res.text();
+  ok("en el HTML de /inbox de A viene su chat (PR 4)", (await htmlDe(asesorA)).includes(`data-conversation-row="${conv1?.id}"`));
+  ok("…y en el de B ni rastro de él", !(await htmlDe(asesorB)).includes(conv1?.id ?? "sin-chat"));
 
   console.log("\n== B no puede leer ni tocar el lead de A (404 de la BD real) ==");
   const boardA = (await asesorA.api("/api/pipeline/board")).json;

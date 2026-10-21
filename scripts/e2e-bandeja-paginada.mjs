@@ -11,7 +11,10 @@
  *   - la búsqueda encuentra un chat que aún no estaba cargado;
  *   - «No leídas» filtra en el servidor (todas sus filas son no leídas);
  *   - un mensaje que entra a un chat de muy abajo lo sube a la cima en vivo;
- *   - `/inbox?contact=…` abre un chat que no está en la primera página.
+ *   - `/inbox?contact=…` abre un chat que no está en la primera página;
+ *   - (Fluidez PR 4) la primera página viene YA PINTADA en el HTML de
+ *     /inbox (sin «Cargando…»), en el mismo orden que la API, solo 50, y el
+ *     navegador la retoma sin errores de hidratación.
  *
  * Al terminar borra lo sembrado.
  *
@@ -96,7 +99,26 @@ page.on("response", async (rs) => {
     paginas.push({ cursor: u.searchParams.get("cursor"), next: j.nextCursor, ids: j.conversations.map((c) => c.id), status: u.searchParams.get("status") });
 });
 
+const errores = [];
+page.on("console", (m) => {
+  if (m.type() === "error") errores.push(m.text());
+});
+page.on("pageerror", (e) => errores.push(e.message));
+
 try {
+  console.log("== Primera página desde el servidor (PR 4) ==");
+  const html = await (await req.get(`${BASE}/inbox`)).text();
+  const enHtml = [...html.matchAll(/data-conversation-row="([^"]+)"/g)].map((m) => m[1]);
+  const api50 = await req.get(`${BASE}/api/conversations?limit=50`).then((x) => x.json());
+  ok(`el HTML ya trae filas (${enHtml.length})`, enHtml.length > 0 && enHtml.includes(id(1)));
+  ok(
+    "…las mismas y en el mismo orden que la API",
+    enHtml.join() === api50.conversations.slice(0, enHtml.length).map((c) => c.id).join(),
+    `${enHtml.slice(0, 3)} / ${api50.conversations.slice(0, 3).map((c) => c.id)}`
+  );
+  ok("…sin «Cargando…» en la lista", !html.includes("Cargando…"));
+  ok("…y solo la primera página (50), no la lista entera", !html.includes(id(N)));
+
   console.log("== Primera página ==");
   await page.goto(`${BASE}/inbox`);
   await fila(1).waitFor({ timeout: 60_000 });
@@ -110,6 +132,10 @@ try {
   ok(`el servidor cuenta todo (${cuenta.all} ≥ ${N})`, cuenta.all >= N);
   const capsula = (await page.getByRole("button", { name: /^Filtrar la bandeja/ }).getAttribute("aria-label")) ?? "";
   ok("«Todas» dice el total del servidor, no lo cargado", capsula.includes(`(${cuenta.all})`), capsula);
+  // React avisa en consola si el HTML del servidor no cuadra con el navegador
+  // (#418/#423/#425 en producción, «Hydration» en desarrollo).
+  const hidratacion = errores.filter((e) => /hydrat|#41[89]|#42[35]/i.test(e));
+  ok("el navegador retoma el HTML sin errores de hidratación", hidratacion.length === 0, hidratacion[0]);
 
   console.log("== Bajar ==");
   const alFondo = () =>

@@ -51,10 +51,30 @@ const REFETCH_DEBOUNCE_MS = 250;
 const isWideEnoughForPanel = () =>
   typeof window !== "undefined" && window.matchMedia(PANEL_MEDIA_QUERY).matches;
 
-export function InboxClient({ channels }: { channels: readonly Channel[] }) {
+/**
+ * Fluidez PR 4 — La primera página y sus contadores, ya consultados por el
+ * servidor al armar /inbox (con la organización y el rol de la sesión). Con
+ * ella la lista se pinta desde el HTML, sin «Cargando…».
+ */
+export type InboxInitial = {
+  /** Con qué filtros se consultó (la Bandeja recién abierta: la principal, sin filtros). */
+  query: ListQuery;
+  conversations: ConversationDto[];
+  nextCursor: string | null;
+  counts: InboxCounts;
+};
+
+export function InboxClient({
+  channels,
+  initial = null,
+}: {
+  channels: readonly Channel[];
+  /** null = el servidor no la trajo: se pide desde el navegador, como antes. */
+  initial?: InboxInitial | null;
+}) {
   const multiChannel = channels.length > 1;
   const [conversations, setConversations] = useState<ConversationDto[] | null>(
-    null
+    initial?.conversations ?? null
   );
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [messages, setMessages] = useState<MessageDto[]>([]);
@@ -94,14 +114,16 @@ export function InboxClient({ channels }: { channels: readonly Channel[] }) {
    * con el cursor. Los contadores vienen aparte (`/counts`), con los mismos
    * filtros. «Campañas» es otra vista de la misma lista.
    */
-  const [listQuery, setListQuery] = useState<ListQuery | null>(null);
+  const [listQuery, setListQuery] = useState<ListQuery | null>(initial?.query ?? null);
   const listQueryRef = useRef<ListQuery | null>(null);
   listQueryRef.current = listQuery;
   /** De qué filtros es lo cargado (la lista muestra «Cargando…» mientras no coincide). */
-  const [loadedKey, setLoadedKey] = useState<string | null>(null);
-  const [counts, setCounts] = useState<InboxCounts | null>(null);
-  const nextCursor = useRef<string | null>(null);
-  const [hasMore, setHasMore] = useState(false);
+  const [loadedKey, setLoadedKey] = useState<string | null>(
+    initial ? listQueryParams(initial.query).toString() : null
+  );
+  const [counts, setCounts] = useState<InboxCounts | null>(initial?.counts ?? null);
+  const nextCursor = useRef<string | null>(initial?.nextCursor ?? null);
+  const [hasMore, setHasMore] = useState(initial ? initial.nextCursor !== null : false);
   const hasMoreRef = useRef(false);
   hasMoreRef.current = hasMore;
   const [loadingMore, setLoadingMore] = useState(false);
@@ -121,7 +143,7 @@ export function InboxClient({ channels }: { channels: readonly Channel[] }) {
   openConvRef.current = openConv;
   const loadingMoreRef = useRef(false);
   /** ¿Ya llegó la primera página? (sin ella, un refresco parcial no tiene sobre qué aplicar). */
-  const loaded = useRef(false);
+  const loaded = useRef(initial !== null);
 
   const refetchCounts = useCallback(async () => {
     const q = listQueryRef.current;
@@ -301,6 +323,18 @@ export function InboxClient({ channels }: { channels: readonly Channel[] }) {
     (id: string) => scheduleRefresh((b) => b.addConversation(id), true),
     [scheduleRefresh]
   );
+  /**
+   * PR 4: lo que pasó entre que el servidor consultó la primera página y que
+   * esta pantalla quedó escuchando los avisos en vivo no trae aviso. Un
+   * refresco completo, por detrás y sin «Cargando…» (lo de siempre se queda
+   * pintado mientras llega), lo pone al día.
+   */
+  const fromServer = useRef(initial !== null);
+  useEffect(() => {
+    if (!fromServer.current) return;
+    fromServer.current = false;
+    scheduleRefresh((b) => b.markFull());
+  }, [scheduleRefresh]);
   useEffect(
     () => () => {
       if (refreshTimer.current) clearTimeout(refreshTimer.current);
@@ -318,6 +352,9 @@ export function InboxClient({ channels }: { channels: readonly Channel[] }) {
       const prev = listQueryRef.current;
       listQueryRef.current = q;
       setListQuery(q);
+      // PR 4: al montar, la lista avisa sus filtros; si son los de la página
+      // que mandó el servidor, ya está cargada: no se pide otra vez.
+      if (prev && listQueryParams(prev).toString() === listQueryParams(q).toString()) return;
       nextCursor.current = null;
       setHasMore(false);
       void reloadList(false);

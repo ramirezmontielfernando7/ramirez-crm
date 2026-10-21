@@ -5,6 +5,7 @@ import {
   useEffect,
   useRef,
   useState,
+  useSyncExternalStore,
   type KeyboardEvent,
   type ReactNode,
   type RefObject,
@@ -80,6 +81,12 @@ const CHIP =
  */
 const ROW_ESTIMATE = 84;
 const ROW_OVERSCAN = 8;
+/**
+ * Fluidez PR 4: el alto que se supone para la caja de la lista ANTES de
+ * medirla (en el HTML del servidor no hay caja que medir). Con esto el
+ * servidor ya pinta las primeras ~18 filas; al medirla, se ajusta.
+ */
+const LIST_HEIGHT_ESTIMATE = 900;
 /** Fluidez PR 3: a cuántas filas del final se pide la página siguiente. */
 const LOAD_MORE_THRESHOLD = 15;
 /** Respiro de la búsqueda antes de preguntarle al servidor. */
@@ -594,6 +601,7 @@ function VirtualRows({
     getScrollElement: () => scrollRef.current,
     estimateSize: () => ROW_ESTIMATE,
     overscan: ROW_OVERSCAN,
+    initialRect: { width: 0, height: LIST_HEIGHT_ESTIMATE },
     getItemKey: (i) => visible[i]?.id ?? i,
     // React 19: sin `flushSync` en cada evento de scroll (avisa en consola y
     // no hace falta; la fila nueva llega en el siguiente cuadro).
@@ -831,7 +839,7 @@ const ConversationRow = memo(function ConversationRow({
                   unread ? "font-semibold text-brand-ink" : "font-medium text-text-3"
                 )}
               >
-                {formatTime(c.lastMessageAt)}
+                <RowTime iso={c.lastMessageAt} />
               </span>
             </span>
             <span className="flex items-center justify-between gap-2">
@@ -938,3 +946,20 @@ const ConversationRow = memo(function ConversationRow({
     </li>
   );
 });
+
+const sinSuscripcion = () => () => {};
+
+/**
+ * Fluidez PR 4 — La hora de la fila, con la zona horaria y el idioma del
+ * NAVEGADOR. El HTML del servidor (otra zona, otro Intl) la deja vacía y se
+ * pone en cuanto la página despierta en el navegador: si el servidor pusiera
+ * la suya, el navegador la tendría que corregir fila por fila.
+ */
+function RowTime({ iso }: { iso: string | null }) {
+  const enNavegador = useSyncExternalStore(
+    sinSuscripcion,
+    () => true,
+    () => false
+  );
+  return <>{enNavegador ? formatTime(iso) : ""}</>;
+}
