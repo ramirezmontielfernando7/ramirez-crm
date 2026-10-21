@@ -800,6 +800,12 @@ export const conversation = pgTable(
       .where(sql`${t.isTest} = false`),
     index("conversation_org_last_idx").on(t.organizationId, t.lastMessageAt),
     index("conversation_org_archived_idx").on(t.organizationId, t.archivedAt),
+    // Fluidez PR 3 (0053): la Bandeja paginada ordena por ESTA llave y el id.
+    index("conversation_org_recent_idx").on(
+      t.organizationId,
+      sql`(coalesce(${t.lastMessageAt}, ${t.createdAt})) desc`,
+      sql`${t.id} desc`
+    ),
     unique("conversation_org_id_uq").on(t.organizationId, t.id),
     // Fase 1 (H6): el contacto es de la MISMA organización
     foreignKey({

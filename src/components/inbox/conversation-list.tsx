@@ -19,7 +19,6 @@ import { etiquetaDeOrigen, titularDeOrigen } from "@/lib/anuncios";
 import { campaignPendingLabel, campaignReplyLabel } from "@/lib/campaign-inbox";
 import { CHANNEL_LABEL, type Channel } from "@/lib/channels";
 import { ChannelBadge } from "@/components/channel-badge";
-import { matchesQuery } from "@/lib/search";
 import { contactLabel, looksLikePhone } from "@/lib/phone-search";
 import { cn } from "@/lib/utils";
 import { ContactAvatar } from "@/components/avatar";
@@ -32,7 +31,14 @@ import { InboxModeSwitch } from "./inbox-mode-switch";
 import { FilterMenu, type InboxFilter } from "./filter-menu";
 import { rowAiBadge } from "@/lib/agent-pause";
 import { useAgentsPaused } from "./use-agents-paused";
-import { ALL_TAGS, inArchiveView, isArchived, matchesTag } from "@/lib/inbox-filters";
+import { ALL_TAGS } from "@/lib/inbox-filters";
+import {
+  listQueryParams,
+  matchesListQuery,
+  type InboxCounts,
+  type ListQuery,
+  type ListStatus,
+} from "@/lib/inbox-list";
 import { AssigneeCapsule, StageCapsule, TagsCapsule, type PatchRow } from "./chat-capsules";
 import { useConversationActions } from "./conversation-actions";
 import { longPressClass, useLongPress } from "./use-long-press";
@@ -74,6 +80,10 @@ const CHIP =
  */
 const ROW_ESTIMATE = 84;
 const ROW_OVERSCAN = 8;
+/** Fluidez PR 3: a cuántas filas del final se pide la página siguiente. */
+const LOAD_MORE_THRESHOLD = 15;
+/** Respiro de la búsqueda antes de preguntarle al servidor. */
+const SEARCH_DEBOUNCE_MS = 250;
 
 const CONTROL_FILTRO =
   "box-border h-6 shrink-0 rounded-full border py-0 text-[11.5px] font-semibold leading-none transition-colors";
@@ -132,17 +142,31 @@ function EmptyState({ onSeeded }: { onSeeded: () => void }) {
 /** Memoizado por lo mismo que `MessageThread`: el panel de Detalles no la toca. */
 export const ConversationList = memo(function ConversationList({
   conversations: conversationsProp,
+  loadedKey,
+  counts,
+  hasMore,
+  loadingMore,
+  onLoadMore,
+  onListQuery,
   channels,
   selectedId,
   onSelect,
   onSeeded,
   onPatchRow,
   onRemoved,
-  campaignConversations,
-  campaignCount,
-  onCampaignView,
 }: {
+  /** Fluidez PR 3: lo cargado (páginas ya filtradas por el servidor). */
   conversations: ConversationDto[] | null;
+  /** De qué filtros es lo cargado (`listQueryParams`); null = aún nada. */
+  loadedKey: string | null;
+  /** Los contadores del servidor (null = aún no llegan). */
+  counts: InboxCounts | null;
+  /** ¿Quedan páginas por pedir? */
+  hasMore: boolean;
+  loadingMore: boolean;
+  onLoadMore: () => void;
+  /** Cambiaron los filtros: la lista se pide de nuevo con estos. */
+  onListQuery: (q: ListQuery) => void;
   /** Canales encendidos en esta instancia (ADR-001). */
   channels: readonly Channel[];
   selectedId: string | null;
@@ -152,12 +176,6 @@ export const ConversationList = memo(function ConversationList({
   onPatchRow: PatchRow;
   /** 034: se archivó, recuperó o eliminó un chat. */
   onRemoved: (id: string, kind: "archive" | "restore" | "delete") => void;
-  /** 041: chats de campaña sin respuesta (null = aún no se piden). */
-  campaignConversations: ConversationDto[] | null;
-  /** 041: cuántos hay, aunque la pestaña no se haya abierto. */
-  campaignCount: number;
-  /** 041: se abrió o se dejó la pestaña «Campañas» (la lista se pide aparte). */
-  onCampaignView: (open: boolean) => void;
 }) {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<InboxFilter>("all");
@@ -200,81 +218,66 @@ export const ConversationList = memo(function ConversationList({
   const [bulkError, setBulkError] = useState<string | null>(null);
 
   const showCampaigns = filter === "campaigns";
-  useEffect(() => onCampaignView(showCampaigns), [showCampaigns, onCampaignView]);
-  const loading = conversationsProp === null || (showCampaigns && campaignConversations === null);
+  // Fluidez PR 3: los filtros viajan al servidor. La búsqueda, tras un
+  // respiro (no una petición por tecla); mientras, lo cargado se filtra aquí.
+  const [sentQuery, setSentQuery] = useState("");
+  useEffect(() => {
+    const t = setTimeout(() => setSentQuery(query.trim()), SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(t);
+  }, [query]);
+  const listQuery: ListQuery = {
+    view: showCampaigns ? "campaigns" : "main",
+    status: showCampaigns ? "all" : (filter as ListStatus),
+    q: sentQuery,
+    stage,
+    tag,
+    owner: seesAll ? owner : "all",
+    channel: inbox,
+  };
+  const listKey = listQueryParams(listQuery).toString();
+  const listQueryNow = useRef(listQuery);
+  listQueryNow.current = listQuery;
+  useEffect(() => onListQuery(listQueryNow.current), [listKey, onListQuery]);
+
+  const loading = conversationsProp === null;
+  /** Lo cargado aún es de otros filtros (la página nueva viene en camino). */
+  const pending = loadedKey !== listKey;
   const conversations = conversationsProp ?? [];
-  // Solo NOMBRE y TELÉFONO, como cualquier filtro de contactos. Antes también
-  // miraba el preview, y como el agente nombra al dueño en sus propios
-  // mensajes, buscar ese nombre devolvía media bandeja. Encima era una
-  // búsqueda de mensajes a medias: solo el último de cada hilo, no el historial.
-  const matches = (c: ConversationDto) =>
-    matchesQuery(query, {
-      text: [c.contact.name],
-      phone: c.contact.phone,
-    }) &&
-    (stage === "all" || c.stageName === stage) &&
-    matchesTag(c, tag) &&
-    (owner === "all" ||
-      (owner === "mine" && c.assignee?.id === viewer.userId) ||
-      (owner === "unassigned" && !c.assignee) ||
-      c.assignee?.id === owner);
-  const searchedAll = conversations.filter(matches);
-  // 041: la pestaña «Campañas» trae su propia lista (la principal no los incluye).
-  const deCampanas = (campaignConversations ?? [])
-    .filter(matches)
-    .filter((c) => inbox === "all" || c.channel === inbox);
-  // 034: las archivadas no cuentan en «Todas», «No leídas»… y se ven aparte.
-  const showArchived = filter === "archived";
-  const archivadas = searchedAll.filter(isArchived);
-  const searched = searchedAll.filter((c) => inArchiveView(c, false));
-  // «Número no registrado»: parece teléfono y ninguna conversación lo tiene.
+  // La MISMA regla del servidor sobre lo cargado, con la búsqueda tal como
+  // se teclea: un cambio propio (archivar, leer, mover de etapa) se ve ya.
+  const visibleQuery: ListQuery = { ...listQuery, q: query };
+  const visible = conversations.filter((c) => matchesListQuery(c, visibleQuery, viewer.userId));
+  // «Número no registrado»: parece teléfono y ninguna conversación lo tiene
+  // (lo cuenta el servidor, con esta misma búsqueda).
   const sinRegistrar =
-    looksLikePhone(query) &&
-    !conversations.some((c) =>
-      matchesQuery(query, { text: [c.contact.name], phone: c.contact.phone })
-    );
-  // La bandeja elegida es el filtro de AFUERA: "Todas" y "No leídas" cuentan
-  // dentro de ella, no sobre la suma de los dos canales.
-  const inInbox =
-    inbox === "all" ? searched : searched.filter((c) => c.channel === inbox);
-  const inboxCount = (ch: Channel) =>
-    searched.filter((c) => c.channel === ch).length;
-  const unreadCount = inInbox.filter((c) => c.unreadCount > 0).length;
-  // 018: las que abrió un anuncio (o una publicación con botón de WhatsApp).
-  const deAnuncios = inInbox.filter((c) => c.anuncio !== null);
-  const visibleBase =
-    filter === "unread"
-      ? inInbox.filter((c) => c.unreadCount > 0)
-      : filter === "anuncios"
-        ? deAnuncios
-        : inInbox;
+    looksLikePhone(query) && counts !== null && counts.q === query.trim() && counts.queryHits === 0;
+  const inboxCount = (ch: Channel) => counts?.channels[ch] ?? 0;
+  const humanos = counts?.humano ?? 0;
+  const anuncios = counts?.anuncios ?? 0;
+  const campaignCount = counts?.campaignPending ?? 0;
+  const scrollRef = useRef<HTMLDivElement>(null);
+  // Si lo cargado quedó todo fuera del filtro (p. ej. se archivó lo último
+  // que había) pero el servidor tiene más, se pide sin esperar al scroll.
+  const needMore = !pending && visible.length === 0 && hasMore && !loadingMore;
+  useEffect(() => {
+    if (needMore) onLoadMore();
+  }, [needMore, onLoadMore]);
+
+  const filtros: { id: typeof filter; label: string; count: number }[] = [
+    { id: "all", label: "Todas", count: counts?.all ?? 0 },
+    { id: "unread", label: "No leídas", count: counts?.unread ?? 0 },
+    // 034: siempre a la vista, junto a «Todas» y «No leídas».
+    { id: "archived", label: "Archivados", count: counts?.archived ?? 0 },
+  ];
   // Sin ninguna conversación de anuncio el filtro no aparece: a quien no
   // anuncia no se le pinta un botón que siempre dice 0. Si está elegido, se
   // queda, para poder salir de él aunque el contador baje a cero.
   // 020: los chats que esperan a una persona (la IA hizo handoff).
-  const humanos = inInbox.filter((c) => c.handoffAt !== null);
-  const archivadasEnBandeja =
-    inbox === "all" ? archivadas : archivadas.filter((c) => c.channel === inbox);
-  const visible = showCampaigns
-    ? deCampanas
-    : showArchived
-      ? archivadasEnBandeja
-      : filter === "humano"
-        ? humanos
-        : visibleBase;
-  const scrollRef = useRef<HTMLDivElement>(null);
-
-  const filtros: { id: typeof filter; label: string; count: number }[] = [
-    { id: "all", label: "Todas", count: inInbox.length },
-    { id: "unread", label: "No leídas", count: unreadCount },
-    // 034: siempre a la vista, junto a «Todas» y «No leídas».
-    { id: "archived", label: "Archivados", count: archivadasEnBandeja.length },
-  ];
-  if (humanos.length > 0 || filter === "humano") {
-    filtros.push({ id: "humano", label: "Atención humana", count: humanos.length });
+  if (humanos > 0 || filter === "humano") {
+    filtros.push({ id: "humano", label: "Atención humana", count: humanos });
   }
-  if (deAnuncios.length > 0 || filter === "anuncios") {
-    filtros.push({ id: "anuncios", label: "Anuncios", count: deAnuncios.length });
+  if (anuncios > 0 || filter === "anuncios") {
+    filtros.push({ id: "anuncios", label: "Anuncios", count: anuncios });
   }
   // 041: los chats que abrió una campaña y nadie ha respondido. Sin ninguno,
   // no aparece (igual que «Anuncios»). Abierta, cuenta lo que muestra.
@@ -282,7 +285,7 @@ export const ConversationList = memo(function ConversationList({
     filtros.push({
       id: "campaigns",
       label: "Campañas",
-      count: showCampaigns && campaignConversations ? deCampanas.length : campaignCount,
+      count: showCampaigns ? (counts?.campaigns ?? 0) : campaignCount,
     });
   }
   // Lo que la cápsula de filtros diría, para el buscador abierto que la tapa.
@@ -296,16 +299,13 @@ export const ConversationList = memo(function ConversationList({
   // los renglones ni filtro. La pantalla queda exactamente como antes de 014.
   const multiChannel = channels.length > 1;
 
-  // Etapas presentes en la bandeja, en el orden en que llegan del pipeline.
-  const stages: string[] = [];
-  for (const c of conversations) {
-    if (c.stageName && !stages.includes(c.stageName)) stages.push(c.stageName);
-  }
+  // Etapas presentes en la bandeja (las cuenta el servidor), más la elegida.
+  const stages: string[] = [...(counts?.stages ?? [])];
+  if (stage !== "all" && !stages.includes(stage)) stages.push(stage);
 
   // 034: etiquetas que llevan los chats de la bandeja (más la elegida, para
   // poder salir de ella aunque ya ningún chat la lleve).
-  const tagsPresent = new Map<string, string>();
-  for (const c of conversations) for (const t of c.tags) tagsPresent.set(t.id, t.name);
+  const tagsPresent = new Map<string, string>(counts?.tags ?? []);
   if (tag !== ALL_TAGS && !tagsPresent.has(tag)) {
     tagsPresent.set(tag, catalogs.tags.find((t) => t.id === tag)?.name ?? "Etiqueta");
   }
@@ -315,10 +315,8 @@ export const ConversationList = memo(function ConversationList({
   // asignado en la bandeja.
   const owners = new Map<string, string>();
   for (const a of assignees) owners.set(a.userId, a.name);
-  for (const c of conversations) {
-    if (c.assignee && !owners.has(c.assignee.id)) {
-      owners.set(c.assignee.id, c.assignee.name);
-    }
+  for (const [id, name] of counts?.owners ?? []) {
+    if (!owners.has(id)) owners.set(id, name);
   }
 
   function togglePick(id: string) {
@@ -489,7 +487,7 @@ export const ConversationList = memo(function ConversationList({
       </Collapse>
 
       <div ref={scrollRef} className="flex-1 overflow-y-auto">
-        {loading ? (
+        {loading || (visible.length === 0 && pending) ? (
           <p className="p-6 text-center text-xs text-text-3">Cargando…</p>
         ) : visible.length === 0 && sinRegistrar ? (
           // Un teléfono que no existe en NINGUNA conversación (sin importar los
@@ -502,8 +500,10 @@ export const ConversationList = memo(function ConversationList({
               onSelect(id);
             }}
           />
-        ) : conversations.length === 0 && campaignCount === 0 && !showCampaigns ? (
+        ) : counts?.total === 0 && campaignCount === 0 && !showCampaigns ? (
           <EmptyState onSeeded={onSeeded} />
+        ) : visible.length === 0 && (hasMore || counts === null) ? (
+          <p className="p-6 text-center text-xs text-text-3">Cargando…</p>
         ) : visible.length === 0 ? (
           <p className="p-6 text-center text-xs text-text-3">
             Sin resultados para este filtro.
@@ -513,6 +513,7 @@ export const ConversationList = memo(function ConversationList({
             items={visible}
             scrollRef={scrollRef}
             selectedId={selectedId}
+            onEndReached={hasMore && !loadingMore ? onLoadMore : undefined}
             renderRow={(c, v, measureRef) => (
               <ConversationRow
                 key={v.key}
@@ -573,9 +574,12 @@ function VirtualRows({
   items: visible,
   scrollRef,
   selectedId,
+  onEndReached,
   renderRow,
 }: {
   items: ConversationDto[];
+  /** Fluidez PR 3: se acerca el final de lo cargado (undefined = no pedir más). */
+  onEndReached?: () => void;
   /** La caja con scroll (la columna de la lista). */
   scrollRef: RefObject<HTMLDivElement | null>;
   selectedId: string | null;
@@ -595,6 +599,14 @@ function VirtualRows({
     // no hace falta; la fila nueva llega en el siguiente cuadro).
     useFlushSync: false,
   });
+  // Fluidez PR 3: a LOAD_MORE_THRESHOLD filas del final, la página siguiente.
+  const pintadas = virtualizer.getVirtualItems();
+  const lastIndex = pintadas[pintadas.length - 1]?.index ?? -1;
+  const nearEnd = lastIndex >= visible.length - LOAD_MORE_THRESHOLD;
+  useEffect(() => {
+    if (nearEnd) onEndReached?.();
+  }, [nearEnd, onEndReached]);
+
   // El chat abierto queda a la vista aunque se haya elegido desde fuera de la
   // lista (`/inbox?contact=…`) o un filtro lo haya movido: si su fila no está
   // pintada o está fuera del recuadro, se baja (o sube) hasta ella. Solo

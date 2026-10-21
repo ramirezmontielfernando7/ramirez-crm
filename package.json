@@ -48,6 +48,7 @@
     "test:e2e:bandeja-campanas": "node --env-file=.env scripts/e2e-bandeja-campanas.mjs",
     "test:e2e:apagado": "node --env-file=.env scripts/e2e-apagado.mjs",
     "test:e2e:bandeja-virtual": "node --env-file=.env scripts/e2e-bandeja-virtual.mjs",
+    "test:e2e:bandeja-paginada": "node --env-file=.env scripts/e2e-bandeja-paginada.mjs",
     "test:watch": "vitest",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",

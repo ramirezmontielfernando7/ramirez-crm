@@ -1,4 +1,4 @@
-import { and, count, desc, eq, gt, inArray, isNotNull, isNull, or, sql } from "drizzle-orm";
+import { and, count, desc, eq, gt, inArray, isNotNull, isNull, or, sql, type SQL } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import {
   scopedContacts,
@@ -10,6 +10,11 @@ import type { ConversationDto } from "@/lib/types";
 import type { InboxView } from "@/lib/campaign-inbox";
 import { isTagColor, type TagDto } from "@/lib/tags";
 import { botLastSeenAt, EXTERNAL_SEEN_WINDOW_MS } from "@/server/bot/status";
+import { ALL_TAGS } from "@/lib/inbox-filters";
+import type { InboxCounts, ListFilters, ListStatus } from "@/lib/inbox-list";
+import { CHANNEL_ORDER } from "@/lib/channels";
+import { digitsOnly, normalizeText } from "@/lib/search";
+import { encodeCursor, type Cursor } from "@/server/inbox/cursor";
 
 /**
  * 018 — El anuncio de origen viaja con la conversación. La llave única
@@ -166,13 +171,159 @@ function subsetCondition(only: ConversationSubset | undefined) {
   return parts.length ? or(...parts)! : sql`false`;
 }
 
+/**
+ * Fluidez PR 3 — Los filtros de la pantalla, en el servidor. Cada uno es la
+ * MISMA regla que `matchesListQuery` (src/lib/inbox-list.ts) aplica en el
+ * navegador sobre lo ya cargado: si cambias uno, cambia el otro.
+ */
+export type ListOptions = {
+  list?: ListFilters & { status: ListStatus };
+  /** Sin `page`: la lista entera, como siempre (globo, menciones, guiones). */
+  page?: { limit: number; cursor: Cursor | null };
+};
+
+/** La llave de orden de la lista (y de su índice, migración 0053). */
+const sortKeySql = sql`coalesce(${schema.conversation.lastMessageAt}, ${schema.conversation.createdAt})`;
+
+/**
+ * Sin acentos ni mayúsculas, como `normalizeText` (src/lib/search.ts). Con
+ * `translate` y no `unaccent`: no hace falta extensión y `lower` de un texto
+ * ya sin acentos no depende del idioma de la BD.
+ */
+const ACENTOS = "ÁÀÄÂÃáàäâãÉÈËÊéèëêÍÌÏÎíìïîÓÒÖÔÕóòöôõÚÙÜÛúùüûÑñÇç";
+const SIN_ACENTOS = "AAAAAaaaaaEEEEeeeeIIIIiiiiOOOOOoooooUUUUuuuuNnCc";
+
+const escapeLike = (v: string) => v.replace(/[\\%_]/g, (c) => `\\${c}`);
+
+/** `matchesQuery`: nombre sin acentos, o (con 3+ dígitos) el teléfono por dígitos. */
+function queryCondition(q: string) {
+  const text = normalizeText(q.trim());
+  if (!text) return undefined;
+  const byName = sql`lower(translate(coalesce(${schema.contact.name}, ''), ${ACENTOS}, ${SIN_ACENTOS})) like ${`%${escapeLike(text)}%`}`;
+  const digits = digitsOnly(q);
+  if (digits.length < 3) return byName;
+  const byPhone = sql`regexp_replace(coalesce(${schema.contact.phone}, ''), '[^0-9]', '', 'g') like ${`%${digits}%`}`;
+  return or(byName, byPhone)!;
+}
+
+/** Quién atiende, para quien ve todo (al asesor ya lo limita `scopedContacts`). */
+function ownerCondition(access: Access, owner: string) {
+  if (!access.seesAll || owner === "all") return undefined;
+  if (owner === "mine") return assignmentCondition(access, { kind: "mine" });
+  if (owner === "unassigned") return assignmentCondition(access, { kind: "unassigned" });
+  return assignmentCondition(access, { kind: "user", userId: owner });
+}
+
+/** Lleva la etiqueta (solo las visibles: las de sistema no salen en la fila). */
+function tagCondition(tag: string) {
+  if (!tag || tag === ALL_TAGS) return undefined;
+  return sql`exists (
+    select 1 from contact_tag_assignment a
+    join contact_tag t on t.id = a.tag_id
+    where a.contact_id = ${schema.contact.id}
+      and a.tag_id = ${tag}
+      and t.system_origin is null
+  )`;
+}
+
+const archivada = isNotNull(schema.conversation.archivedAt);
+const aLaVista = isNull(schema.conversation.archivedAt);
+const conAnuncio = isNotNull(schema.adAttribution.id);
+const enAtencionHumana = isNotNull(schema.conversation.handoffAt);
+const noLeida = gt(schema.conversation.unreadCount, 0);
+
+function statusCondition(status: ListStatus) {
+  switch (status) {
+    case "all":
+      return aLaVista;
+    case "unread":
+      return and(aLaVista, noLeida);
+    case "archived":
+      return archivada;
+    case "humano":
+      return and(aLaVista, enAtencionHumana);
+    case "anuncios":
+      return and(aLaVista, conAnuncio);
+  }
+}
+
+/**
+ * El lead del contacto y su etapa: UNA búsqueda lateral por fila (antes eran
+ * cuatro subconsultas al mismo lead), con el mismo filtro de asignación que
+ * la fila (para quien ve todo no agrega nada; al asesor solo se le evalúa en
+ * sus filas visibles).
+ */
+function leadActualDe(access: Access) {
+  return getDb()
+    .select({
+      leadId: schema.lead.id,
+      stageId: schema.lead.stageId,
+      stageName: schema.pipelineStage.name,
+      stageColor: schema.pipelineStage.color,
+    })
+    .from(schema.lead)
+    .leftJoin(
+      schema.pipelineStage,
+      and(
+        eq(schema.pipelineStage.organizationId, schema.lead.organizationId),
+        eq(schema.pipelineStage.id, schema.lead.stageId)
+      )
+    )
+    .where(scopedContacts(schema.lead.organizationId, access, schema.lead.contactId, eq(schema.lead.contactId, schema.contact.id)))
+    .limit(1)
+    .as("lead_actual");
+}
+
+/** Búsqueda, etapa, etiqueta y quién atiende (sin bandeja ni estado). */
+function screenFilters(access: Access, f: ListFilters, stageName: unknown) {
+  return [
+    queryCondition(f.q),
+    f.stage !== "all" ? sql`${stageName} = ${f.stage}` : undefined,
+    tagCondition(f.tag),
+    ownerCondition(access, f.owner),
+  ];
+}
+
 export async function listConversations(
   access: Access,
   since?: Date,
   filter: AssignmentFilter = { kind: "all" },
   view: InboxView = "main",
-  only?: ConversationSubset
+  only?: ConversationSubset,
+  options: ListOptions = {}
 ): Promise<ConversationDto[]> {
+  return (await queryConversations(access, since, filter, view, only, options)).conversations;
+}
+
+/**
+ * Fluidez PR 3 — Una página de la Bandeja con los filtros de la pantalla.
+ * `nextCursor` null = no hay más.
+ */
+export async function listConversationsPage(
+  access: Access,
+  view: InboxView,
+  list: ListFilters & { status: ListStatus },
+  page: { limit: number; cursor: Cursor | null }
+): Promise<{ conversations: ConversationDto[]; nextCursor: string | null }> {
+  const { conversations, nextCursor } = await queryConversations(
+    access,
+    undefined,
+    { kind: "all" },
+    view,
+    undefined,
+    { list, page }
+  );
+  return { conversations, nextCursor };
+}
+
+async function queryConversations(
+  access: Access,
+  since: Date | undefined,
+  filter: AssignmentFilter,
+  view: InboxView,
+  only: ConversationSubset | undefined,
+  { list, page }: ListOptions
+): Promise<{ conversations: ConversationDto[]; nextCursor: string | null }> {
   const db = getDb();
   // La organización va explícita (no solo por RLS): así el índice
   // (organization_id, conversation_id, created_at) sirve aunque la consulta
@@ -188,28 +339,8 @@ export async function listConversations(
 
   // 034: lead, etapa, etiquetas y "¿hay bot?" viajan en LA MISMA consulta (y
   // por tanto con el mismo filtro de asignación del asesor), no en consultas
-  // aparte que habría que proteger una por una. El lead y su etapa salen de
-  // UNA búsqueda lateral por fila (antes eran cuatro subconsultas al mismo lead).
-  const leadActual = db
-    .select({
-      leadId: schema.lead.id,
-      stageId: schema.lead.stageId,
-      stageName: schema.pipelineStage.name,
-      stageColor: schema.pipelineStage.color,
-    })
-    .from(schema.lead)
-    .leftJoin(
-      schema.pipelineStage,
-      and(
-        eq(schema.pipelineStage.organizationId, schema.lead.organizationId),
-        eq(schema.pipelineStage.id, schema.lead.stageId)
-      )
-    )
-    // Con el mismo filtro de asignación que la fila (para quien ve todo no
-    // agrega nada; al asesor solo se le evalúa en sus filas visibles).
-    .where(scopedContacts(schema.lead.organizationId, access, schema.lead.contactId, eq(schema.lead.contactId, schema.contact.id)))
-    .limit(1)
-    .as("lead_actual");
+  // aparte que habría que proteger una por una.
+  const leadActual = leadActualDe(access);
   const tagsSql = sql<TagDto[] | null>`(
     select json_agg(json_build_object('id', t.id, 'name', t.name, 'color', t.color) order by t.name)
     from contact_tag_assignment a
@@ -222,7 +353,16 @@ export async function listConversations(
     where ap.organization_id = ${schema.conversation.organizationId}
   )`;
 
-  const rows = await db
+  const listConditions = list
+    ? [
+        ...screenFilters(access, list, leadActual.stageName),
+        list.channel !== "all" ? eq(schema.conversation.channel, list.channel) : undefined,
+        view === "main" ? statusCondition(list.status) : undefined,
+      ]
+    : [];
+  const cursor = page?.cursor;
+
+  const query = db
     .select({
       conversation: schema.conversation,
       contact: schema.contact,
@@ -236,6 +376,8 @@ export async function listConversations(
       anuncio: anuncioDeLista,
       assigneeName: assigneeNameSql,
       campaignName: campaignNameSql,
+      // Texto con microsegundos, para el cursor (ver src/server/inbox/cursor.ts).
+      sortKey: sql<string>`to_char(${sortKeySql}, 'YYYY-MM-DD HH24:MI:SS.US')`,
     })
     .from(schema.conversation)
     .innerJoin(
@@ -253,17 +395,27 @@ export async function listConversations(
         viewCondition(view),
         since ? gt(schema.conversation.updatedAt, since) : undefined,
         access.seesAll ? assignmentCondition(access, filter) : undefined,
-        subsetCondition(only)
+        subsetCondition(only),
+        ...listConditions,
+        cursor
+          ? sql`(${sortKeySql}, ${schema.conversation.id}) < (${cursor.key}::timestamp, ${cursor.id})`
+          : undefined
       )
     )
-    .orderBy(desc(sql`coalesce(${schema.conversation.lastMessageAt}, ${schema.conversation.createdAt})`));
+    .orderBy(desc(sortKeySql), desc(schema.conversation.id));
+  // Una fila de más: si llega, hay página siguiente.
+  const rows = page ? await query.limit(page.limit + 1) : await query;
+  const more = !!page && rows.length > page.limit;
+  if (more) rows.length = page.limit;
+  const last = rows[rows.length - 1];
+  const nextCursor = more && last ? encodeCursor({ key: last.sortKey, id: last.conversation.id }) : null;
 
   // ¿Hay algo que conteste? El agente encendido, o un cerebro externo que se
   // asomó en las últimas 24 h (en memoria; no consulta su /health).
   const seen = botLastSeenAt(access.organizationId);
   const externalSeen = !!seen && Date.now() - seen.getTime() < EXTERNAL_SEEN_WINDOW_MS;
 
-  return rows.map((r) =>
+  const conversations = rows.map((r) =>
     serializeConversation(
       r.conversation,
       r.contact,
@@ -281,6 +433,96 @@ export async function listConversations(
       }
     )
   );
+  return { conversations, nextCursor };
+}
+
+/**
+ * Fluidez PR 3 — Los contadores de la Bandeja (`GET /api/conversations/counts`)
+ * sin bajar la lista: cada cifra es EXACTAMENTE cuántas filas traería la lista
+ * con ese filtro (mismas condiciones de arriba, mismo `scopedContacts`). Antes
+ * los contaba el navegador sobre la lista completa; las reglas son las mismas
+ * (ver el tipo `InboxCounts`).
+ */
+export async function countConversations(access: Access, f: ListFilters): Promise<InboxCounts> {
+  const db = getDb();
+  const leadActual = leadActualDe(access);
+  const main = isNull(schema.conversation.campaignPendingId);
+  const campaign = isNotNull(schema.conversation.campaignPendingId);
+  const filtros = and(...screenFilters(access, f, leadActual.stageName)) ?? sql`true`;
+  const enBandeja =
+    f.channel !== "all" ? eq(schema.conversation.channel, f.channel) : sql`true`;
+  const n = (cond: SQL | undefined) => sql<number>`(count(*) filter (where ${cond ?? sql`true`}))::int`;
+  const q = queryCondition(f.q);
+  const real = eq(schema.conversation.isTest, false);
+
+  const enLaPrincipal = and(main, filtros, enBandeja);
+  const [totals] = await db
+    .select({
+      total: n(main),
+      all: n(and(enLaPrincipal, aLaVista)),
+      unread: n(and(enLaPrincipal, aLaVista, noLeida)),
+      archived: n(and(enLaPrincipal, archivada)),
+      humano: n(and(enLaPrincipal, aLaVista, enAtencionHumana)),
+      anuncios: n(and(enLaPrincipal, aLaVista, conAnuncio)),
+      campaigns: n(and(campaign, filtros, enBandeja)),
+      campaignPending: n(campaign),
+      queryHits: n(q ? and(main, q) : sql`false`),
+      ...Object.fromEntries(
+        CHANNEL_ORDER.map((ch) => [
+          `ch_${ch}`,
+          n(and(main, filtros, aLaVista, eq(schema.conversation.channel, ch))),
+        ])
+      ),
+    })
+    .from(schema.conversation)
+    .innerJoin(schema.contact, eq(schema.conversation.contactId, schema.contact.id))
+    .leftJoin(schema.adAttribution, anuncioDeLaConversacion)
+    .leftJoinLateral(leadActual, sql`true`)
+    .where(scopedContacts(schema.conversation.organizationId, access, schema.conversation.contactId, real));
+
+  // Lo que ofrecen los selectores: lo PRESENTE en la principal (con
+  // archivados), sin los filtros de pantalla, como cuando se sacaba de la
+  // lista completa. Las etapas, en el orden en que aparecían en ella.
+  const stageRows = await db
+    .select({ name: leadActual.stageName })
+    .from(schema.conversation)
+    .innerJoin(schema.contact, eq(schema.conversation.contactId, schema.contact.id))
+    .leftJoinLateral(leadActual, sql`true`)
+    .where(scopedContacts(schema.conversation.organizationId, access, schema.conversation.contactId, real, main, isNotNull(leadActual.stageName)))
+    .groupBy(leadActual.stageName)
+    .orderBy(desc(sql`max(${sortKeySql})`));
+  const tagRows = await db
+    .selectDistinct({ id: schema.contactTag.id, name: schema.contactTag.name })
+    .from(schema.conversation)
+    .innerJoin(schema.contact, eq(schema.conversation.contactId, schema.contact.id))
+    .innerJoin(schema.contactTagAssignment, eq(schema.contactTagAssignment.contactId, schema.contact.id))
+    .innerJoin(schema.contactTag, eq(schema.contactTag.id, schema.contactTagAssignment.tagId))
+    .where(scopedContacts(schema.conversation.organizationId, access, schema.conversation.contactId, real, main, isNull(schema.contactTag.systemOrigin)));
+  const ownerRows = await db
+    .selectDistinct({ id: schema.contact.assignedUserId, name: assigneeNameSql })
+    .from(schema.conversation)
+    .innerJoin(schema.contact, eq(schema.conversation.contactId, schema.contact.id))
+    .where(scopedContacts(schema.conversation.organizationId, access, schema.conversation.contactId, real, main, isNotNull(schema.contact.assignedUserId)));
+
+  const t = (totals ?? {}) as Record<string, number | undefined>;
+  const channels: InboxCounts["channels"] = {};
+  for (const ch of CHANNEL_ORDER) channels[ch] = t[`ch_${ch}`] ?? 0;
+  return {
+    q: f.q,
+    total: t.total ?? 0,
+    all: t.all ?? 0,
+    unread: t.unread ?? 0,
+    archived: t.archived ?? 0,
+    humano: t.humano ?? 0,
+    anuncios: t.anuncios ?? 0,
+    campaigns: t.campaigns ?? 0,
+    campaignPending: t.campaignPending ?? 0,
+    channels,
+    queryHits: t.queryHits ?? 0,
+    stages: stageRows.map((r) => r.name).filter((s): s is string => !!s),
+    tags: tagRows.map((r) => [r.id, r.name]),
+    owners: ownerRows.filter((r): r is { id: string; name: string | null } => !!r.id).map((r) => [r.id, r.name ?? ""]),
+  };
 }
 
 /**

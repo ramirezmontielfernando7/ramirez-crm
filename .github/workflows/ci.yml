@@ -264,6 +264,9 @@ jobs:
           # Fluidez PR 2: la lista virtual con 3,000 chats falsos (teclado,
           # clic, búsqueda y enlace directo a un chat lejano).
           node --env-file=.env scripts/e2e-bandeja-virtual.mjs
+          # Fluidez PR 3: la Bandeja paginada con 180 chats reales en la BD
+          # (más de tres páginas): contadores, bajar, búsqueda, en vivo.
+          node --env-file=.env scripts/e2e-bandeja-paginada.mjs
           kill -- -"$(cat app.pid)"; sleep 2
       # 035: Documentos del agente (RAG) ENCENDIDOS, con el mock de embeddings
       # (exige los prefijos e5). Las vueltas de arriba corren con KB_DOCS
