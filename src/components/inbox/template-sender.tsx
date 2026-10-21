@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { TemplateDto } from "@/lib/types";
-import { countVariables, renderBody } from "@/lib/templates";
+import { countVariables, renderBody, variableLabel } from "@/lib/templates";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -68,8 +68,8 @@ export function TemplateSender({
   }
 
   const selected = templates.find((t) => t.id === selectedId) ?? null;
-  // El cuerpo puede llevar {{1}}..{{n}}: el número de parámetros es el índice
-  // más alto, y Meta los exige todos.
+  // El cuerpo puede llevar {{1}}..{{n}} o variables con nombre ({{nombre}}):
+  // Meta exige un valor por cada una.
   const variableCount = selected ? countVariables(selected.body) : 0;
   const values = Array.from({ length: variableCount }, (_, i) => variables[i] ?? "");
   const missingValue = values.some((v) => !v.trim());
@@ -127,13 +127,13 @@ export function TemplateSender({
       </div>
       {selected && (
         <p className="rounded-md bg-subtle p-2.5 text-xs text-muted-foreground">
-          {renderBody(selected.body, values.map((v, i) => v.trim() || `{{${i + 1}}}`))}
+          {renderBody(selected.body, values.map((v, i) => v.trim() || variableLabel(selected.body, i)))}
         </p>
       )}
       {values.map((value, i) => (
         <div key={i} className="space-y-1.5">
           <Label htmlFor={`template-variable-${i + 1}`}>
-            Valor de {`{{${i + 1}}}`}
+            Valor de {selected ? variableLabel(selected.body, i) : `{{${i + 1}}}`}
           </Label>
           <Input
             id={`template-variable-${i + 1}`}

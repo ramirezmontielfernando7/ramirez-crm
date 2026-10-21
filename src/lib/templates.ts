@@ -1,13 +1,48 @@
 /**
- * Variables posicionales {{n}} del cuerpo de una plantilla de WhatsApp.
- * Puro y sin dependencias: lo usan tanto el servicio de servidor como la UI
- * (que necesita saber cuántos campos pintar antes de enviar).
+ * Variables del cuerpo de una plantilla de WhatsApp. Puro y sin
+ * dependencias: lo usan tanto el servicio de servidor como la UI (que
+ * necesita saber cuántos campos pintar antes de enviar).
+ *
+ * Meta tiene dos formatos (`parameter_format` de la plantilla):
+ * - POSITIONAL: `{{1}}`, `{{2}}`… (el de siempre; el que crea el CRM).
+ * - NAMED: `{{nombre}}`, `{{fecha_cita}}`… (minúsculas, números y guion
+ *   bajo). Al enviar, cada parámetro lleva su `parameter_name`; mandarlos
+ *   como posicionales responde 132000.
+ *
+ * En los dos casos los valores viajan como una lista ordenada: en las
+ * posicionales, `valores[n-1]` es `{{n}}`; en las de nombre, el orden es el
+ * de la PRIMERA aparición de cada nombre en el cuerpo. Así las rutas, las
+ * campañas guardadas y la API no cambian de forma.
  */
 
 const VARIABLE_REGEX = /\{\{\s*(\d+)\s*\}\}/g;
+/** Cualquier variable: numérica o con nombre. */
+const ANY_VARIABLE_REGEX = /\{\{\s*([A-Za-z0-9_]+)\s*\}\}/g;
 
 /** Máximo de parámetros posicionales por cuerpo que acepta Meta. */
 export const MAX_TEMPLATE_VARIABLES = 10;
+
+export type TemplateParameterFormat = "positional" | "named";
+
+/**
+ * Formato de las variables de un cuerpo. Se deduce del texto (sin columna
+ * nueva): una variable que no es solo dígitos solo existe en las de nombre.
+ */
+export function parameterFormat(body: string): TemplateParameterFormat {
+  for (const m of body.matchAll(ANY_VARIABLE_REGEX)) {
+    if (!/^\d+$/.test(m[1]!)) return "named";
+  }
+  return "positional";
+}
+
+/** Nombres distintos de las variables con nombre, en orden de primera aparición. */
+function namedVariables(body: string): string[] {
+  const found: string[] = [];
+  for (const m of body.matchAll(ANY_VARIABLE_REGEX)) {
+    if (!found.includes(m[1]!)) found.push(m[1]!);
+  }
+  return found;
+}
 
 /** Índices distintos de {{n}} presentes en el cuerpo, ordenados. */
 function variableIndexes(body: string): number[] {
@@ -17,19 +52,40 @@ function variableIndexes(body: string): number[] {
 }
 
 /**
- * Cuántos parámetros exige el cuerpo = el índice más alto. Con la numeración
- * validada (1..N sin saltos) equivale al número de variables distintas.
+ * Cuántos parámetros exige el cuerpo. Posicional: el índice más alto (con la
+ * numeración validada, 1..N sin saltos, equivale a las variables
+ * distintas). Con nombre: cuántos nombres distintos.
  */
 export function countVariables(body: string): number {
+  if (parameterFormat(body) === "named") return namedVariables(body).length;
   const indexes = variableIndexes(body);
   return indexes.length ? indexes[indexes.length - 1]! : 0;
 }
 
 /**
+ * Los nombres de las variables en el orden en que se piden sus valores:
+ * `["1", "2"]` en una posicional, `["nombre", "fecha"]` en una con nombre.
+ */
+export function variableNames(body: string): string[] {
+  if (parameterFormat(body) === "named") return namedVariables(body);
+  return Array.from({ length: countVariables(body) }, (_, i) => String(i + 1));
+}
+
+/** Cómo se muestra la variable `i` (desde 0) al usuario: `{{1}}` o `{{nombre}}`. */
+export function variableLabel(body: string, i: number): string {
+  return `{{${variableNames(body)[i] ?? String(i + 1)}}}`;
+}
+
+/**
  * Meta acepta varias variables por cuerpo, pero exige numeración posicional
- * contigua desde {{1}}: un salto ({{1}} y {{3}}) es rechazo seguro.
+ * contigua desde {{1}}: un salto ({{1}} y {{3}}) es rechazo seguro. Las
+ * variables con nombre solo llegan de plantillas creadas en Meta: el CRM
+ * crea plantillas posicionales.
  */
 export function validateBodyVariables(body: string): string | null {
+  if (parameterFormat(body) === "named") {
+    return "Al crear desde el CRM usa variables numeradas {{1}}, {{2}}…; las variables con nombre ({{nombre}}) solo se crean en Meta";
+  }
   const indexes = variableIndexes(body);
   if (indexes.length === 0) return null;
   if (indexes.length > MAX_TEMPLATE_VARIABLES) {
@@ -43,11 +99,33 @@ export function validateBodyVariables(body: string): string | null {
   return null;
 }
 
-/** Sustituye {{n}} por `variables[n-1]` (vacío si no hay valor). */
+/**
+ * Sustituye cada variable por su valor (vacío si no hay). Posicional:
+ * `{{n}}` → `variables[n-1]`. Con nombre: `{{x}}` → el valor de la posición
+ * de `x` en `variableNames`.
+ */
 export function renderBody(body: string, variables: string[] = []): string {
+  if (parameterFormat(body) === "named") {
+    const names = namedVariables(body);
+    return body.replace(ANY_VARIABLE_REGEX, (_match, name: string) => variables[names.indexOf(name)] ?? "");
+  }
   return body.replace(VARIABLE_REGEX, (_match, index: string) => {
     return variables[Number(index) - 1] ?? "";
   });
+}
+
+/** Un parámetro de texto del cuerpo como lo pide `POST /messages`. */
+export type BodyParameter = { type: "text"; text: string; parameter_name?: string };
+
+/**
+ * Los parámetros del componente `body` al ENVIAR. Con nombre, cada uno lleva
+ * `parameter_name` (sin él, Meta responde 132000); posicional, como siempre.
+ */
+export function bodyParameters(body: string, values: string[]): BodyParameter[] {
+  if (parameterFormat(body) === "named") {
+    return namedVariables(body).map((name, i) => ({ type: "text", parameter_name: name, text: values[i] ?? "" }));
+  }
+  return values.map((text) => ({ type: "text", text }));
 }
 
 /* ============================================================

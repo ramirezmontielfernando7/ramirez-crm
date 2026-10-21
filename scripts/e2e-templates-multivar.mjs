@@ -2,6 +2,9 @@
  * Self-test E2E de comportamiento — plantillas con VARIAS variables
  * (guion tests/e2e/us6-templates.md, sección "multivariable").
  *
+ * Además (2026-10): una plantilla creada en Meta con variables CON NOMBRE
+ * ({{nombre}}) se envía con `parameter_name` en vez de fallar con 132000.
+ *
  * Reproduce el bloqueo reportado el 2026-08-09: el CRM rechazaba en la propia
  * pantalla un cuerpo con {{1}} {{2}} {{3}} ("v1 admite una sola variable"),
  * aunque Meta las acepta. Cubre alta, aprobación, envío con N parámetros y los
@@ -240,6 +243,67 @@ async function main() {
     outOne?.body?.template?.components?.find((c) => c.type === "body")
       ?.parameters ?? [];
   ok("1 parámetro", paramsOne.length === 1 && paramsOne[0]?.text === "María", JSON.stringify(paramsOne));
+
+  console.log("\n== Plantilla creada EN META con variables con nombre ({{nombre}}) ==");
+  // Antes: el CRM las mandaba como {{1}}, {{2}} y Meta respondía 132000.
+  const namedName = `cita_con_nombre_${stamp}`;
+  const namedBody = "Hola {{nombre}}, tu cita es el {{fecha_cita}}. ¡Te esperamos, {{nombre}}!";
+  const seeded = await api("/api/dev/wa-mock/seed-template", {
+    method: "POST",
+    body: JSON.stringify({
+      wabaId: WABA,
+      name: namedName,
+      language: "es_MX",
+      category: "UTILITY",
+      components: [
+        {
+          type: "BODY",
+          text: namedBody,
+          example: {
+            body_text_named_params: [
+              { param_name: "nombre", example: "Ana" },
+              { param_name: "fecha_cita", example: "lunes" },
+            ],
+          },
+        },
+      ],
+    }),
+  });
+  ok("plantilla con nombre sembrada en Meta", seeded.res.ok, JSON.stringify(seeded.json));
+  await api("/api/templates/sync", { method: "POST" });
+  const namedLocal = await findTemplate(namedName);
+  ok("se importó con su cuerpo y enviable", namedLocal?.body === namedBody && namedLocal?.sendable === true, JSON.stringify(namedLocal));
+
+  const namedShort = await api(`/api/conversations/${conv?.id}/messages/template`, {
+    method: "POST",
+    body: JSON.stringify({ templateId: namedLocal?.id, variables: ["Ana"] }),
+  });
+  ok("422 si falta un valor", namedShort.res.status === 422, String(namedShort.res.status));
+  ok("dice cuál falta por su NOMBRE", /\{\{fecha_cita\}\}/.test(namedShort.json?.error?.message ?? ""), JSON.stringify(namedShort.json));
+
+  const namedSent = await api(`/api/conversations/${conv?.id}/messages/template`, {
+    method: "POST",
+    body: JSON.stringify({ templateId: namedLocal?.id, variables: ["Ana", "12 de agosto"] }),
+  });
+  ok("envío con nombre 200 (antes: 132000)", namedSent.res.ok, JSON.stringify(namedSent.json));
+  const outNamed = await lastOutbound();
+  const paramsNamed = outNamed?.body?.template?.components?.find((c) => c.type === "body")?.parameters ?? [];
+  ok(
+    "cada parámetro lleva su parameter_name",
+    JSON.stringify(paramsNamed) ===
+      JSON.stringify([
+        { type: "text", parameter_name: "nombre", text: "Ana" },
+        { type: "text", parameter_name: "fecha_cita", text: "12 de agosto" },
+      ]),
+    JSON.stringify(paramsNamed)
+  );
+  const msgsNamed = await api(`/api/conversations/${conv?.id}/messages`);
+  const namedMsg = [...(msgsNamed.json?.messages ?? [])].reverse().find((m) => m.type === "template");
+  ok(
+    "el hilo muestra el texto con los nombres sustituidos",
+    namedMsg?.text === "Hola Ana, tu cita es el 12 de agosto. ¡Te esperamos, Ana!",
+    namedMsg?.text
+  );
 
   console.log(
     `\n${failures === 0 ? "TODO VERDE" : "CON FALLOS"} — ${checks - failures}/${checks} checks`

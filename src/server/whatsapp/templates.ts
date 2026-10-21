@@ -1,12 +1,14 @@
 import { and, eq, inArray, isNull, or } from "drizzle-orm";
 import {
   bodyFromComponents,
+  bodyParameters,
   buildTemplateComponents,
   countVariables,
   renderBody,
   sendRequirements,
   validateBodyVariables,
   validateTemplateDraft,
+  variableLabel,
   type TemplateComponentDto,
   type TemplateDraft,
 } from "@/lib/templates";
@@ -815,19 +817,20 @@ export async function sendTemplate(input: {
     throw new TemplateError("invalid", `La plantilla no se puede enviar: ${sendability.reason}. Solo se envían plantillas aprobadas y activas`);
   }
   // Meta exige EXACTAMENTE un parámetro por variable del cuerpo: si sobran o
-  // falta alguno responde 132000 (plantilla y parámetros no coinciden).
+  // falta alguno responde 132000 (plantilla y parámetros no coinciden). Con
+  // variables con nombre, cada valor va con su `parameter_name`.
   const variableCount = countVariables(template.body);
   const values = (input.variables ?? [])
     .slice(0, variableCount)
     .map((v) => v.trim());
   if (values.length < variableCount || values.some((v) => !v)) {
     const missing = values.findIndex((v) => !v);
-    const n = missing === -1 ? values.length + 1 : missing + 1;
+    const label = variableLabel(template.body, missing === -1 ? values.length : missing);
     throw new TemplateError(
       "invalid",
       variableCount === 1
-        ? "La plantilla requiere el valor de {{1}}"
-        : `La plantilla requiere ${variableCount} valores: falta {{${n}}}`
+        ? `La plantilla requiere el valor de ${label}`
+        : `La plantilla requiere ${variableCount} valores: falta ${label}`
     );
   }
 
@@ -894,7 +897,7 @@ export async function sendTemplate(input: {
     components.push({ type: "header", parameters: [{ type: "image", image: { id: mediaId } }] });
   }
   if (variableCount > 0) {
-    components.push({ type: "body", parameters: values.map((text) => ({ type: "text", text })) });
+    components.push({ type: "body", parameters: bodyParameters(template.body, values) });
   }
 
   const payload = {
