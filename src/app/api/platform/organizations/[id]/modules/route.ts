@@ -28,6 +28,8 @@ const schema = z
     trabajo: z.boolean().optional(),
     // 038: Asistente interno (premium; apagado por defecto).
     asistente: z.boolean().optional(),
+    // Conexión directa: complemento oculto (fuera de los 13 y de los planes).
+    conexionDirecta: z.boolean().optional(),
     // 040: aplicar la plantilla de un plan (los 13 a la vez); los
     // interruptores sueltos que vengan junto a ella la ajustan.
     plan: z.enum(["esencial", "pro", "ultra"]).optional(),

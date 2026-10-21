@@ -51,6 +51,19 @@ export async function orgHasModule(organizationId: string, key: ModuleKey): Prom
   return (await orgModuleKeys(organizationId)).has(key);
 }
 
+/** Conexión directa (PR 1) — el complemento oculto. */
+export async function orgHasConexionDirecta(organizationId: string): Promise<boolean> {
+  return (await getOrgModules(organizationId)).conexionDirecta;
+}
+
+/**
+ * Conexión directa (PR 1) — como `moduleOff`, para sus rutas: `null` si la
+ * organización tiene el complemento; si no, el 404 listo (cero rastro).
+ */
+export async function conexionDirectaOff(organizationId: string): Promise<Response | null> {
+  return (await orgHasConexionDirecta(organizationId)) ? null : new Response(null, { status: 404 });
+}
+
 /** 030 (PR 4) — ¿Puede el Propietario personalizar el menú? */
 export async function orgHasCustomNav(organizationId: string): Promise<boolean> {
   return (await getOrgModules(organizationId)).customNav;

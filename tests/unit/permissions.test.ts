@@ -45,6 +45,11 @@ const MATRIZ: Record<Permission, Record<Role, boolean>> = {
   // 038: asistente interno, solo el Propietario (y no se delega).
   "assistant.use": { owner: true, coordinador: false, asesor: false },
   "contacts.consent_override": { owner: true, coordinador: true, asesor: false },
+  // Conexión directa: de fábrica solo el Propietario; los demás, por delegación
+  // de la organización (el Coordinador cambia el modo por el DEFAULT de sus ajustes).
+  "direct_connection.mode": { owner: true, coordinador: false, asesor: false },
+  "direct_connection.link": { owner: true, coordinador: false, asesor: false },
+  "direct_connection.limits": { owner: true, coordinador: false, asesor: false },
 };
 
 describe("matriz de permisos (020)", () => {

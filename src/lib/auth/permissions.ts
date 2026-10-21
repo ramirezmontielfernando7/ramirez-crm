@@ -82,6 +82,15 @@ const statements = {
    * lectura). Solo el Propietario, y solo si la plataforma encendió el módulo.
    */
   assistant: ["use"],
+  /**
+   * Conexión directa (PR 1; solo si la plataforma encendió el módulo).
+   * `mode`: cambiar el modo de un chat (Meta / Directa / Automática).
+   * `link`: vincular el dispositivo por QR, reconectar y desvincular.
+   * `limits`: editar los límites de envío y la configuración avanzada.
+   * Los tres son del Propietario; él los delega a Coordinador y Asesor desde
+   * Ajustes (DELEGABLE, abajo). De fábrica, el Coordinador cambia el modo.
+   */
+  direct_connection: ["mode", "link", "limits"],
 } as const;
 
 export const ac = createAccessControl(statements);
@@ -105,6 +114,7 @@ const owner = ac.newRole({
   conversation: ["delete"],
   usage: ["read"],
   assistant: ["use"],
+  direct_connection: ["mode", "link", "limits"],
 });
 
 /** Operación: reparte, ve todo, edita etapas y plantillas. No configura. */
@@ -173,7 +183,10 @@ export type Permission =
   | "work.manage"
   | "conversation.delete"
   | "usage.read"
-  | "assistant.use";
+  | "assistant.use"
+  | "direct_connection.mode"
+  | "direct_connection.link"
+  | "direct_connection.limits";
 
 /**
  * 025 — Permisos que el Propietario puede DELEGAR por organización, desde
@@ -184,6 +197,11 @@ export type Permission =
  */
 export const DELEGABLE: Partial<Record<Permission, readonly Role[]>> = {
   "team_chat.create_groups": ["coordinador"],
+  // Conexión directa: qué roles reciben cada uno lo guarda
+  // `direct_connection_settings` (`*_roles`); solo con el módulo encendido.
+  "direct_connection.mode": ["coordinador", "asesor"],
+  "direct_connection.link": ["coordinador", "asesor"],
+  "direct_connection.limits": ["coordinador", "asesor"],
 };
 
 /** ¿Algún permiso de este rol depende de la organización? (evita la consulta si no). */

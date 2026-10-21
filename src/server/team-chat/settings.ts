@@ -2,6 +2,7 @@ import { getDb, schema } from "@/lib/db";
 import { scoped } from "@/lib/db/tenant";
 import { DELEGABLE, hasDelegableFor, type Permission } from "@/lib/auth/permissions";
 import { logger } from "@/lib/log";
+import { directConnectionGrants } from "@/server/direct-connection/grants";
 
 const log = logger("team-chat");
 
@@ -73,9 +74,25 @@ export function grantsFromSettings(role: string, s: TeamChatSettings): Permissio
   return out;
 }
 
+/** ¿Algún permiso del chat de equipo se le puede delegar a este rol? */
+function teamChatDelegable(role: string): boolean {
+  return (Object.keys(GRANT_SETTING) as Permission[]).some((p) => (DELEGABLE[p] ?? []).includes(role as never));
+}
+
+async function teamChatGrants(organizationId: string, role: string): Promise<Permission[]> {
+  if (!teamChatDelegable(role)) return [];
+  try {
+    return grantsFromSettings(role, await getTeamChatSettings(organizationId));
+  } catch (err) {
+    log.error("no se pudieron leer las delegaciones", { org: organizationId, err });
+    return [];
+  }
+}
+
 /**
- * Las delegaciones de la organización para la sesión de este rol. Solo
- * consulta si el rol puede recibir alguna; si la consulta falla, falla
+ * Las delegaciones de la organización para la sesión de este rol: las del
+ * chat de equipo y (con su módulo) las de la conexión directa. Solo consulta
+ * lo que el rol puede recibir; si una consulta falla, esa parte falla
  * CERRADO (sin delegaciones) en vez de tumbar cada petición del usuario.
  */
 export async function delegatedGrants(
@@ -83,10 +100,9 @@ export async function delegatedGrants(
   role: string
 ): Promise<Permission[]> {
   if (!hasDelegableFor(role)) return [];
-  try {
-    return grantsFromSettings(role, await getTeamChatSettings(organizationId));
-  } catch (err) {
-    log.error("no se pudieron leer las delegaciones", { org: organizationId, err });
-    return [];
-  }
+  const [team, direct] = await Promise.all([
+    teamChatGrants(organizationId, role),
+    directConnectionGrants(organizationId, role),
+  ]);
+  return [...team, ...direct];
 }

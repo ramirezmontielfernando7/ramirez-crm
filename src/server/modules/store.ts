@@ -61,6 +61,7 @@ function fromRow(row: Row, defaults: OrgModules): OrgModules {
     customNav: row.customNav,
     trabajo: row.trabajo,
     asistente: row.asistente,
+    conexionDirecta: row.conexionDirecta,
   };
 }
 
@@ -157,6 +158,7 @@ function defaultsRow(organizationId: string) {
     customNav: d.customNav,
     trabajo: d.trabajo,
     asistente: d.asistente,
+    conexionDirecta: d.conexionDirecta,
     updatedBy: "entorno",
   };
 }
@@ -228,6 +230,7 @@ export async function backfillOrgModules(): Promise<number> {
             customNav: sql<boolean>`${d.customNav}::boolean`.as("custom_nav"),
             trabajo: sql<boolean>`${d.trabajo}::boolean`.as("trabajo"),
             asistente: sql<boolean>`${d.asistente}::boolean`.as("asistente"),
+            conexionDirecta: sql<boolean>`${d.conexionDirecta}::boolean`.as("conexion_directa"),
             updatedAt: sql<Date>`now()`.as("updated_at"),
             updatedBy: sql<string>`${d.updatedBy}`.as("updated_by"),
           })
@@ -270,6 +273,7 @@ export type ModulesPatch = {
   customNav?: boolean;
   trabajo?: boolean;
   asistente?: boolean;
+  conexionDirecta?: boolean;
 };
 
 /**
@@ -317,6 +321,7 @@ export async function updateOrgModules(
     customNav: patch.customNav ?? before.customNav,
     trabajo: patch.trabajo ?? before.trabajo,
     asistente: patch.asistente ?? before.asistente,
+    conexionDirecta: patch.conexionDirecta ?? before.conexionDirecta,
     ...resolveLabAgent(before, patch),
     updatedBy: actor,
     updatedAt: new Date(),
@@ -347,6 +352,7 @@ export async function updateOrgModules(
         customNav: values.customNav,
         trabajo: values.trabajo,
         asistente: values.asistente,
+        conexionDirecta: values.conexionDirecta,
         updatedBy: actor,
         updatedAt: values.updatedAt,
       },

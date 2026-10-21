@@ -88,6 +88,8 @@ export type ModulesDto = {
   trabajo: boolean;
   /** 038 — Asistente interno (premium). */
   asistente: boolean;
+  /** Conexión directa — complemento oculto (no es de los 13 ni cuenta para el plan). */
+  conexionDirecta: boolean;
 };
 
 export function modulesDto(m: OrgModules): ModulesDto {
@@ -106,6 +108,7 @@ export function modulesDto(m: OrgModules): ModulesDto {
     customNav: m.customNav,
     trabajo: m.trabajo,
     asistente: m.asistente,
+    conexionDirecta: m.conexionDirecta,
   };
 }
 
@@ -346,6 +349,7 @@ export async function changeOrganizationModules(
     customNav: change.customNav,
     trabajo: change.trabajo,
     asistente: change.asistente,
+    conexionDirecta: change.conexionDirecta,
   };
   if (change.instagram !== undefined || change.messenger !== undefined) {
     const current = modulesDto(await getOrgModules(organizationId));

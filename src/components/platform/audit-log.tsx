@@ -21,6 +21,9 @@ const ACTION_LABEL: Record<string, string> = {
   "reauth.locked": "bloqueo temporal por intentos fallidos",
   "admin.added": "agregó un administrador de plataforma",
   "admin.removed": "quitó un administrador de plataforma",
+  "direct_server.added": "registró un servidor de conexión directa",
+  "direct_server.changed": "cambió un servidor de conexión directa",
+  "direct_server.removed": "borró un servidor de conexión directa",
 };
 
 /** Fase 3, PR 2 — Bitácora de plataforma: quién hizo qué, sobre qué organización, cuándo y desde qué IP. */

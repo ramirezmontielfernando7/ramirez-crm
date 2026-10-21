@@ -77,6 +77,9 @@ const prefixes = {
   kbDocumentGroup: "kdg",
   // 036 PR 3b — precios de IA de la plataforma
   aiPricing: "aip",
+  // Conexión directa (PR 1)
+  evolutionServer: "evs",
+  directConnection: "dcn",
   user: "usr",
   account: "acc",
 } as const;
