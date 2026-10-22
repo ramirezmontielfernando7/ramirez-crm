@@ -28,6 +28,10 @@ export async function register(): Promise<void> {
     await checkMediaDir();
     await cleanupOrphanRuns();
     await resumeSendingCampaigns();
+    // Conexión directa (PR 3): los mensajes «En cola» salen a su hora; lo
+    // que un reinicio dejó a medias se da por fallido sin reenviar.
+    const { resumeDirectQueue } = await import("@/server/direct-connection/send");
+    await resumeDirectQueue();
     // H2: la BOT_API_KEY de la variable queda ligada a PLATFORM_ORG_ID.
     await syncEnvBotKey();
     // Fase 3: eventos sin organización, 7 días (al arrancar y cada hora).

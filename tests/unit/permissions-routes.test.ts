@@ -51,6 +51,9 @@ const PROTEGIDAS: [string, Method, Permission][] = [
   ["settings/branding/favicon", "DELETE", "settings.manage"],
   ["settings/whatsapp", "GET", "settings.manage"],
   ["settings/whatsapp", "PUT", "settings.manage"],
+  // Conexión directa (PR 3): límites de envío (Propietario; delegable).
+  ["settings/direct-connection/limits", "GET", "direct_connection.limits"],
+  ["settings/direct-connection/limits", "PUT", "direct_connection.limits"],
   ["settings/whatsapp/test", "POST", "settings.manage"],
   ["settings/webhook", "GET", "settings.manage"],
   // Conexión directa (PR 2): vincular por QR (Propietario o quien él delegue).
