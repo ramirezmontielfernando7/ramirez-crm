@@ -623,6 +623,7 @@ export function serializeConversation(
     unreadCount: c.unreadCount,
     windowOpen: isWindowOpen(c.lastInboundAt),
     windowRemainingMs: windowRemainingMs(c.lastInboundAt),
+    connectionMode: c.connectionMode,
     preview,
     anuncio,
     campaign: c.campaignPendingId

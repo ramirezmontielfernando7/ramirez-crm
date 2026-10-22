@@ -28,6 +28,7 @@ import {
 import { registrarAnuncioDeOrigen } from "@/server/attribution/store";
 import { createLeadForContact, onLeadActivity } from "@/server/inbox/lead-activity";
 import { maybeRunAgentTurn } from "@/server/ai/trigger";
+import { autoReturnOnInbound } from "@/server/direct-connection/mode";
 import { announceHandoff } from "@/server/inbox/handoff-notice";
 import { joinDirectEcho } from "@/server/direct-connection/echo";
 import { logger } from "@/lib/log";
@@ -541,6 +542,9 @@ async function ingestInboundMessageInOrg(input: {
     .where(eq(schema.conversation.id, conversation.id));
 
   await onLeadActivity(organizationId, contact.id, waTimestamp);
+
+  // Conexión directa (PR 5): el contacto escribió, el chat vuelve a Oficial.
+  await autoReturnOnInbound(organizationId, conversation);
 
   publish(organizationId, {
     type: "message.new",

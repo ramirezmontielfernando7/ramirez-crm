@@ -7,6 +7,8 @@ import { ChevronLeft, MoreHorizontal, PanelRight } from "lucide-react";
 import { m } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { ContactAvatar } from "@/components/avatar";
+import { ChatModeDot } from "./chat-mode-dot";
+import type { InboxDirectContext } from "@/lib/direct-connection";
 import type { ConversationDto, MessageDto } from "@/lib/types";
 import { type Channel } from "@/lib/channels";
 import { ChannelBadge } from "@/components/channel-badge";
@@ -75,8 +77,11 @@ export type InboxInitial = {
 export function InboxClient({
   channels,
   initial = null,
+  direct = null,
 }: {
   channels: readonly Channel[];
+  /** Conexión directa (PR 5): null = el complemento está apagado (cero rastro). */
+  direct?: InboxDirectContext | null;
   /** null = el servidor no la trajo: se pide desde el navegador, como antes. */
   initial?: InboxInitial | null;
 }) {
@@ -673,6 +678,7 @@ export function InboxClient({
           onSeeded={onSeeded}
           onPatchRow={patchRow}
           onRemoved={onRemoved}
+          directDefaultMode={direct?.defaultMode ?? null}
         />
       </section>
 
@@ -706,11 +712,25 @@ export function InboxClient({
                   <ChevronLeft className="h-5 w-5" strokeWidth={1.8} />
                 </button>
                 <div className="flex min-w-0 flex-1 items-center gap-3 px-1">
-                  <ContactAvatar
-                    name={contactLabel(selected.contact)}
-                    seed={selected.contact.id}
-                    size="md"
-                  />
+                  {direct ? (
+                    <ChatModeDot
+                      conversation={selected}
+                      ctx={direct}
+                      onChanged={(id, connectionMode) => patchRow(id, { connectionMode })}
+                    >
+                      <ContactAvatar
+                        name={contactLabel(selected.contact)}
+                        seed={selected.contact.id}
+                        size="md"
+                      />
+                    </ChatModeDot>
+                  ) : (
+                    <ContactAvatar
+                      name={contactLabel(selected.contact)}
+                      seed={selected.contact.id}
+                      size="md"
+                    />
+                  )}
                   <p className="flex min-w-0 items-center gap-1.5 text-[15px] font-semibold leading-tight tracking-tight">
                     {multiChannel && <ChannelBadge channel={selected.channel} />}
                     <span className="truncate">{contactLabel(selected.contact)}</span>
