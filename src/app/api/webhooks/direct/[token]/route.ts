@@ -1,6 +1,8 @@
 import { logger } from "@/lib/log";
 import { handleWebhookState } from "@/server/direct-connection/link";
 import { parseState } from "@/server/direct-connection/evolution-api";
+import { handleWebhookStatuses } from "@/server/direct-connection/status";
+import { parseDirectStatusUpdates } from "@/lib/direct-echo";
 import { acceptsWebhooks } from "@/server/shutdown";
 
 export const dynamic = "force-dynamic";
@@ -12,8 +14,9 @@ type Params = { params: Promise<{ token: string }> };
 /**
  * Conexión directa (PR 2) — El aviso de estado del dispositivo vinculado. El
  * token de la URL (de un solo uso por organización; en la base solo su hash)
- * decide de quién es. Un token que no existe responde 404 sin efectos. Solo
- * se lee el estado (`connection.update`); lo demás se ignora.
+ * decide de quién es. Un token que no existe responde 404 sin efectos. Se
+ * lee el estado del dispositivo (`connection.update`) y, desde el PR 4, las
+ * palomitas de lo enviado (`messages.update`); lo demás se ignora.
  */
 export async function POST(req: Request, { params }: Params) {
   const { token } = await params;
@@ -26,6 +29,15 @@ export async function POST(req: Request, { params }: Params) {
     return new Response(null, { status: 400 });
   }
   const event = typeof body.event === "string" ? body.event.toLowerCase().replace(/_/g, ".") : "";
+  if (event === "messages.update") {
+    try {
+      const known = await handleWebhookStatuses(token, parseDirectStatusUpdates(body.data));
+      return new Response(null, { status: known ? 200 : 404 });
+    } catch (err) {
+      log.error("no se pudieron aplicar las palomitas del dispositivo vinculado", { err });
+      return new Response(null, { status: 500 });
+    }
+  }
   if (event !== "connection.update") return new Response(null, { status: 200 });
   const state = parseState(body.data);
   if (!state) return new Response(null, { status: 200 });

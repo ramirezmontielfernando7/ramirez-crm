@@ -5,6 +5,7 @@ import { scoped } from "@/lib/db/tenant";
 import type { ConnectionMode } from "@/lib/direct-connection";
 import {
   classifyFailure,
+  DIRECT_TIMEOUT_TEXT,
   directNumber,
   failureText,
   isPaused,
@@ -54,11 +55,10 @@ import { getDirectSettings } from "./settings";
  *    toca después, queda «En cola» (`queued_until`) y sale solo con un timer;
  *    al arrancar se retoma la fila (`resumeDirectQueue`).
  * 2. «escribiendo…» de 1 a 3 s y luego el mensaje.
- * 3. Bien: `sent` + el ID del dispositivo en `alt_message_id`. GANCHO PR 4:
- *    el eco de Meta (`smb_message_echoes`) de este mensaje llegará con otro
- *    `wa_message_id`; el PR 4 lo une a esta fila por `alt_message_id` (o
- *    chat + texto + hora) en vez de mostrarlo dos veces. Hasta entonces se
- *    verá también como «Celular».
+ * 3. Bien: `sent` + el ID del dispositivo en `alt_message_id`. El eco de
+ *    Meta (`smb_message_echoes`) de este mensaje llega con otro
+ *    `wa_message_id` y se une a esta fila por ese ID (PR 4,
+ *    `src/server/direct-connection/echo.ts`): no se ve dos veces.
  * 4. Mal: `failed` con el motivo en palabras discretas; si fue el
  *    dispositivo (no el número del contacto), cuenta para el freno de
  *    emergencia (`recordDirectFailure`).
@@ -80,8 +80,7 @@ export class DirectSendFailure extends Error {
   }
 }
 
-export const DIRECT_TIMEOUT_TEXT =
-  "El dispositivo vinculado no respondió a tiempo: no se sabe si el mensaje salió. No se reintentó para no duplicarlo.";
+export { DIRECT_TIMEOUT_TEXT };
 
 /* ───────── ¿Por dónde sale? ───────── */
 

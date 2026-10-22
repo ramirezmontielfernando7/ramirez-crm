@@ -30,6 +30,7 @@ import { createLeadForContact, onLeadActivity } from "@/server/inbox/lead-activi
 import { maybeRunAgentTurn } from "@/server/ai/trigger";
 import { autoReturnOnInbound } from "@/server/direct-connection/mode";
 import { announceHandoff } from "@/server/inbox/handoff-notice";
+import { joinDirectEcho } from "@/server/direct-connection/echo";
 import { logger } from "@/lib/log";
 import { runWithOrganization } from "@/lib/request-context";
 
@@ -340,6 +341,19 @@ async function ingestManualEcho(
 
   const waTimestamp = toDate(echo.timestamp);
 
+  // Conexión directa (PR 4): el eco de lo que una persona mandó por el
+  // dispositivo vinculado se une a ese envío (sin otra burbuja, sin lead ni
+  // pausa de la IA). Sin el complemento no hace nada.
+  const join = await joinDirectEcho({
+    organizationId,
+    conversationId: conversation.id,
+    waMessageId: echo.id,
+    type: echo.type,
+    text: echo.text?.body ?? null,
+    at: waTimestamp,
+  });
+  if (join.joined) return;
+
   // Idempotencia dura: los mensajes ya registrados (o echoes repetidos) no
   // duplican efectos — mismo wa_message_id → sin inserción ni handoff extra.
   const inserted = await db
@@ -355,6 +369,8 @@ async function ingestManualEcho(
       status: "sent",
       origin: "manual",
       waTimestamp,
+      // PR 4: el ID del dispositivo, para sus palomitas de entrega.
+      altMessageId: join.directId,
     })
     .onConflictDoNothing({ target: [schema.message.waMessageId] })
     .returning();

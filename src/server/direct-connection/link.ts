@@ -10,6 +10,7 @@ import {
   openServerKey,
   patchConnection,
   saveInstance,
+  saveWebhookTokenHash,
   serverForNewOrganization,
   type ConnectionRow,
   type StatusPatch,
@@ -22,6 +23,8 @@ import {
   linkedPhone,
   logoutInstance,
   setWebhook,
+  webhookEvents,
+  WEBHOOK_EVENTS,
   type EvolutionServerRef,
   type InstanceState,
   type Qr,
@@ -80,6 +83,10 @@ async function serverOf(row: ConnectionRow): Promise<{ ok: true; server: Evoluti
   return { ok: true, server: { baseUrl: key.baseUrl, apiKey: key.apiKey } };
 }
 
+function webhookUrl(token: string): string {
+  return `${getEnv().APP_BASE_URL.replace(/\/+$/, "")}/api/webhooks/direct/${token}`;
+}
+
 /** Crea la instancia en el servidor y su webhook. Si el nombre quedó de antes, la borra y la hace de nuevo. */
 async function ensureInstance(row: ConnectionRow, server: EvolutionServerRef): Promise<LinkError | null> {
   const token = randomBytes(24).toString("hex");
@@ -90,7 +97,7 @@ async function ensureInstance(row: ConnectionRow, server: EvolutionServerRef): P
     created = await createInstance(server, { instanceName: row.instanceName, token: instanceKey });
   }
   if (!created.ok) return created.error === "unreachable" ? "server_unreachable" : "failed";
-  const hook = await setWebhook(server, row.instanceName, `${getEnv().APP_BASE_URL.replace(/\/+$/, "")}/api/webhooks/direct/${token}`);
+  const hook = await setWebhook(server, row.instanceName, webhookUrl(token));
   if (!hook.ok) {
     await deleteInstance(server, row.instanceName);
     return hook.error === "unreachable" ? "server_unreachable" : "failed";
@@ -178,6 +185,41 @@ export async function handleWebhookState(token: string, state: InstanceState): P
   return true;
 }
 
+const globalForHooks = globalThis as unknown as { __voceroDirectHooksOk?: Set<string> };
+
+/**
+ * PR 4: una instancia vinculada antes de este cambio solo manda el estado del
+ * dispositivo. Una vez por arranque se revisa qué eventos manda; si le faltan
+ * las palomitas, se le pone el webhook de nuevo (token nuevo: en la base solo
+ * vive su hash, así que el viejo no se puede reusar). Nunca lanza.
+ */
+export async function ensureWebhookEvents(row: ConnectionRow, server: EvolutionServerRef): Promise<void> {
+  const done = (globalForHooks.__voceroDirectHooksOk ??= new Set());
+  if (done.has(row.instanceName) || !row.instanceKeyCipher) return;
+  try {
+    const current = await webhookEvents(server, row.instanceName);
+    if (!current.ok) return;
+    const have = new Set((current.data ?? []).map((e) => e.toUpperCase().replace(/\./g, "_")));
+    if (WEBHOOK_EVENTS.every((e) => have.has(e))) {
+      done.add(row.instanceName);
+      return;
+    }
+    const token = randomBytes(24).toString("hex");
+    const hook = await setWebhook(server, row.instanceName, webhookUrl(token));
+    if (!hook.ok) return;
+    await saveWebhookTokenHash(row.organizationId, hashToken(token));
+    done.add(row.instanceName);
+    log.info("webhook del dispositivo vinculado al día (palomitas)", { org: row.organizationId });
+  } catch (err) {
+    log.warn("no se pudo revisar el webhook del dispositivo vinculado", { org: row.organizationId, err });
+  }
+}
+
+/** Solo pruebas. */
+export function resetWebhookEventsCheckForTests(): void {
+  globalForHooks.__voceroDirectHooksOk?.clear();
+}
+
 /** La revisión de cada 5 minutos: pregunta al servidor el estado de cada conexión viva. */
 export async function checkAllConnections(): Promise<{ checked: number; failed: number }> {
   const rows = await connectionsToCheck();
@@ -204,6 +246,7 @@ export async function checkAllConnections(): Promise<{ checked: number; failed: 
       }
       await patchConnection(row.organizationId, { lastCheckAt: new Date() });
       await refreshFromState(row.organizationId, state.data);
+      await ensureWebhookEvents(row, s.server);
       checked++;
     } catch (err) {
       failed++;

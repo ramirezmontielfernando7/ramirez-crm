@@ -17,7 +17,7 @@ type MessageStatus = "pending" | "sent" | "delivered" | "read" | "failed";
  * pisa un `delivered` ni un `read`: si Meta ya confirmó la entrega, un fallo
  * que llega después no la deshace. `failed` es terminal.
  */
-const ALLOWED_FROM: Record<Exclude<MessageStatus, "pending">, MessageStatus[]> = {
+export const ALLOWED_FROM: Record<Exclude<MessageStatus, "pending">, MessageStatus[]> = {
   sent: ["pending"],
   delivered: ["pending", "sent"],
   read: ["pending", "sent", "delivered"],

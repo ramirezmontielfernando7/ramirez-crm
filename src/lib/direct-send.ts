@@ -155,6 +155,10 @@ export function typingDelayMs(random: () => number = Math.random): number {
   return 1000 + Math.floor(random() * 2000);
 }
 
+/** El motivo de un envío que se agotó esperando al dispositivo (el eco de Meta puede probar que sí salió, PR 4). */
+export const DIRECT_TIMEOUT_TEXT =
+  "El dispositivo vinculado no respondió a tiempo: no se sabe si el mensaje salió. No se reintentó para no duplicarlo.";
+
 /** Pasado esto, un envío que se quedó a medias (reinicio) se da por fallido sin reenviar. */
 export const STUCK_SEND_MS = 2 * MINUTE;
 
