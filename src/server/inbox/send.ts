@@ -37,6 +37,13 @@ import {
   uploadGraphMedia,
   validateOutgoing,
 } from "@/server/whatsapp/media";
+import { directNumber, unavailableText } from "@/lib/direct-send";
+import {
+  DirectSendFailure,
+  directRouteFor,
+  sendDirect,
+  type DirectOutgoing,
+} from "@/server/direct-connection/send";
 
 /** Error tipado del envío; `code` mapea a HTTP en la capa de API. */
 export class SendError extends Error {
@@ -75,7 +82,19 @@ export class SendError extends Error {
 export const META_TIMEOUT_MESSAGE =
   "Meta no respondió a tiempo: no se sabe si el mensaje salió. No se reintentó para no duplicarlo";
 
-type SendResult = { messageId: string };
+type SendResult = {
+  messageId: string;
+  /** Conexión directa (PR 3): el mensaje quedó «En cola» y sale solo a esta hora. */
+  queuedUntil?: Date | null;
+};
+
+/**
+ * Conexión directa (PR 3) — SOLO un envío de una persona desde la Bandeja
+ * pide `allowDirect` (las rutas de texto y de archivos del chat). La
+ * IA, las campañas, el cerebro externo, las bajas automáticas y las
+ * plantillas no lo pasan: salen por Meta, siempre.
+ */
+type SendOptions = { allowDirect?: boolean };
 
 type SendTarget = {
   conversation: typeof schema.conversation.$inferSelect;
@@ -89,6 +108,8 @@ type SendTarget = {
   instagram?: InstagramCredentials;
   /** 017: presente solo en conversaciones de Messenger. */
   messenger?: MessengerCredentials;
+  /** Conexión directa (PR 3): sale por el dispositivo vinculado, no por Graph. */
+  direct?: true;
 };
 
 /**
@@ -98,7 +119,8 @@ type SendTarget = {
  */
 async function prepareSend(
   conversationId: string,
-  organizationId: string
+  organizationId: string,
+  opts: SendOptions = {}
 ): Promise<SendTarget> {
   // Fase 3, PR 2: nada sale de una organización suspendida o dada de baja.
   await assertOrgActive(organizationId);
@@ -198,6 +220,30 @@ async function prepareSend(
       destinatario: { to: fbRecipient },
       recipient: fbRecipient,
       messenger: fbCreds,
+    };
+  }
+
+  // Conexión directa (PR 3): un chat en Directa o Automática sale por el
+  // dispositivo vinculado, sin ventana de 24 h. Sin `allowDirect`, sin el
+  // módulo, sin dispositivo vinculado o en modo Meta: lo de siempre.
+  const route = await directRouteFor(organizationId, row.conversation, opts.allowDirect === true);
+  if (route.via === "unavailable") {
+    throw new SendError("not_connected", unavailableText(route.reason));
+  }
+  if (route.via === "directa") {
+    if (!directNumber(row.contact.phone)) {
+      throw new SendError(
+        "meta_error",
+        "Este contacto no tiene teléfono: no se puede enviar por conexión directa."
+      );
+    }
+    return {
+      conversation: row.conversation,
+      credentials: null,
+      // La vía directa arma su propio destino con el teléfono del contacto.
+      destinatario: { to: "" },
+      recipient: "",
+      direct: true,
     };
   }
 
@@ -316,8 +362,19 @@ export async function sendText(input: {
   organizationId: string;
   text: string;
   aiGenerated?: boolean;
-}): Promise<SendResult> {
-  const target = await prepareSend(input.conversationId, input.organizationId);
+} & SendOptions): Promise<SendResult> {
+  const target = await prepareSend(input.conversationId, input.organizationId, {
+    // La IA nunca: aunque alguien lo pidiera, un texto generado sale por Meta.
+    allowDirect: input.allowDirect === true && !input.aiGenerated,
+  });
+  if (target.direct) {
+    return viaDirect({
+      organizationId: input.organizationId,
+      conversationId: input.conversationId,
+      type: "text",
+      text: input.text,
+    });
+  }
   const { credentials } = target;
 
   const waMessageId = target.instagram
@@ -361,11 +418,13 @@ export async function sendMediaMessage(input: {
   organizationId: string;
   file: { data: Buffer; mimeType: string; fileName?: string };
   caption?: string;
-}): Promise<SendResult> {
+} & SendOptions): Promise<SendResult> {
   // Validación previa (FR-007): tipo y tamaño antes de tocar disco o red.
   const kind = validateOutgoing(input.file.mimeType, input.file.data.byteLength, input.file.fileName);
 
-  const target = await prepareSend(input.conversationId, input.organizationId);
+  const target = await prepareSend(input.conversationId, input.organizationId, {
+    allowDirect: input.allowDirect,
+  });
   const { credentials } = target;
   const sendCaps = capabilitiesFor(target.conversation.channel);
   if (!sendCaps.outboundMedia) {
@@ -397,6 +456,18 @@ export async function sendMediaMessage(input: {
     })
     .returning();
   const asset = assetRows[0]!;
+
+  // Conexión directa (PR 3): el archivo ya está en disco; la vía directa lo
+  // lee de ahí (también si espera en la fila). Si falla, queda `failed`.
+  if (target.direct) {
+    return viaDirect({
+      organizationId: input.organizationId,
+      conversationId: input.conversationId,
+      type: kind,
+      text: null,
+      mediaAsset: asset,
+    });
+  }
 
   try {
     const waMediaId = await uploadGraphMedia(credentials!, input.file);
@@ -537,6 +608,21 @@ export async function sendStructured(
     media: asset,
   });
   return { messageId };
+}
+
+/** Conexión directa (PR 3): envía por el dispositivo y traduce su falla a `SendError`. */
+async function viaDirect(input: DirectOutgoing): Promise<SendResult> {
+  try {
+    return await sendDirect(input);
+  } catch (err) {
+    if (err instanceof DirectSendFailure) {
+      const sendErr = new SendError(err.code, err.message);
+      sendErr.timedOut = err.timedOut;
+      sendErr.messageId = err.messageId;
+      throw sendErr;
+    }
+    throw err;
+  }
 }
 
 /** Llama a Graph /messages y traduce errores de Meta a SendError. */
