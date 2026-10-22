@@ -20,6 +20,8 @@ import type { MenuAnchor } from "./floating-menu";
 import { etiquetaDeOrigen, titularDeOrigen } from "@/lib/anuncios";
 import { campaignPendingLabel, campaignReplyLabel } from "@/lib/campaign-inbox";
 import { CHANNEL_LABEL, type Channel } from "@/lib/channels";
+import { effectiveMode, modeDotLabel, type ConnectionMode } from "@/lib/direct-connection";
+import { modeDotClass } from "./chat-mode-dot";
 import { ChannelBadge } from "@/components/channel-badge";
 import { contactLabel, looksLikePhone } from "@/lib/phone-search";
 import { cn } from "@/lib/utils";
@@ -167,6 +169,7 @@ export const ConversationList = memo(function ConversationList({
   onSeeded,
   onPatchRow,
   onRemoved,
+  directDefaultMode = null,
 }: {
   /** Fluidez PR 3: lo cargado (páginas ya filtradas por el servidor). */
   conversations: ConversationDto[] | null;
@@ -189,6 +192,8 @@ export const ConversationList = memo(function ConversationList({
   onPatchRow: PatchRow;
   /** 034: se archivó, recuperó o eliminó un chat. */
   onRemoved: (id: string, kind: "archive" | "restore" | "delete") => void;
+  /** Conexión directa (PR 5): el modo por defecto de la organización; null = sin el complemento. */
+  directDefaultMode?: ConnectionMode | null;
 }) {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<InboxFilter>("all");
@@ -539,6 +544,7 @@ export const ConversationList = memo(function ConversationList({
                 selecting={selecting}
                 picked={picked.has(c.id)}
                 multiChannel={multiChannel}
+                directDefaultMode={directDefaultMode}
                 viewerId={viewer.userId}
                 stages={catalogs.stages}
                 tagCatalog={catalogs.tags}
@@ -711,6 +717,7 @@ const ConversationRow = memo(function ConversationRow({
   selecting,
   picked,
   multiChannel,
+  directDefaultMode,
   agentsPaused,
   viewerId,
   stages,
@@ -736,6 +743,7 @@ const ConversationRow = memo(function ConversationRow({
   selecting: boolean;
   picked: boolean;
   multiChannel: boolean;
+  directDefaultMode: ConnectionMode | null;
   /** Pausa general de los agentes (se avisa en el encabezado, no en la fila). */
   agentsPaused: boolean;
   viewerId: string;
@@ -819,8 +827,19 @@ const ConversationRow = memo(function ConversationRow({
               nombre y la vista previa (38 px juntos). */}
           <span className="relative mt-[3px] shrink-0">
             <ContactAvatar name={contactLabel(c.contact)} seed={c.contact.id} size="list" />
-            {c.windowOpen && (
-              <span className="absolute -bottom-px -right-px h-[9px] w-[9px] rounded-full border-2 border-background bg-success" />
+            {directDefaultMode && c.channel === "whatsapp" && effectiveMode(c.connectionMode, directDefaultMode) !== "meta" ? (
+              // Conexión directa (PR 5): en Directa o Automática el punto dice el modo (azul / morado).
+              <span
+                className={cn(
+                  "absolute -bottom-px -right-px h-[9px] w-[9px] rounded-full border-2 border-background",
+                  modeDotClass(effectiveMode(c.connectionMode, directDefaultMode))
+                )}
+                title={modeDotLabel(effectiveMode(c.connectionMode, directDefaultMode))}
+              />
+            ) : (
+              c.windowOpen && (
+                <span className="absolute -bottom-px -right-px h-[9px] w-[9px] rounded-full border-2 border-background bg-success" />
+              )
             )}
           </span>
           <span className="min-w-0 flex-1">

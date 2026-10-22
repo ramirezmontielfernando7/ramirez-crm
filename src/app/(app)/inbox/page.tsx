@@ -5,6 +5,8 @@ import { getSessionOrNull } from "@/lib/auth/session";
 import { logger } from "@/lib/log";
 import { runWithOrganization } from "@/lib/request-context";
 import { DEFAULT_FILTERS, PAGE_SIZE, type ListQuery } from "@/lib/inbox-list";
+import { can } from "@/lib/auth/permissions";
+import { inboxDirectContext } from "@/server/direct-connection/mode";
 import { enabledChannels } from "@/server/channels/enabled";
 import { countConversations, listConversationsPage } from "@/server/inbox/queries";
 
@@ -54,5 +56,12 @@ export default async function InboxPage() {
     }
   });
 
-  return <InboxClient channels={channels} initial={initial} />;
+  // Conexión directa (PR 5): solo si el complemento está encendido; si algo
+  // falla, la Bandeja abre sin el punto de color.
+  const direct = await inboxDirectContext(session.organizationId, can(session, "direct_connection.mode")).catch((err) => {
+    log.error("contexto de la conexión directa", { err });
+    return null;
+  });
+
+  return <InboxClient channels={channels} initial={initial} direct={direct} />;
 }

@@ -190,3 +190,35 @@ export function pickServer<T extends { id: string; status: string; maxInstances:
   }
   return best;
 }
+
+/* ───────── Modo del chat (PR 5) ───────── */
+
+/** Textos del selector del punto de color del avatar. Discretos. */
+export const MODE_PICKER_TEXT = {
+  title: "Conexión del chat",
+  meta: { label: "Oficial", hint: "Entra y sale por Meta." },
+  directa: { label: "Directa", hint: "Entra y sale por el dispositivo vinculado." },
+  receiveViaMetaHint: "Lo que escriba el contacto sigue entrando por Meta.",
+  needsDevice: "Vincula un dispositivo en Ajustes para usar la conexión directa.",
+  paused: DIRECT_TEXT.emergencyPause,
+  autoReturn: "Vuelve a Oficial cuando el contacto escriba.",
+} as const;
+
+/** Nombre de pantalla del punto: «Oficial» para Meta (el resto, como antes). */
+export function modeDotLabel(mode: ConnectionMode): string {
+  return mode === "meta" ? "Oficial" : mode === "directa" ? "Directa" : `Directa · ${DIRECT_TEXT.receiveViaMeta}`;
+}
+
+/** ¿Está encendido «Recibir por Meta»? (Mixta = Directa con el interruptor.) */
+export function receivesViaMeta(mode: ConnectionMode): boolean {
+  return mode === "mixta";
+}
+
+/** Lo que el servidor le da a la Bandeja cuando el complemento está encendido. */
+export type InboxDirectContext = {
+  defaultMode: ConnectionMode;
+  canChangeMode: boolean;
+  /** ¿Hay un dispositivo vinculado y conectado, y no en pausa? Sin eso solo se puede Oficial. */
+  deviceReady: boolean;
+  paused: boolean;
+};

@@ -40,6 +40,7 @@ function fila(id: string, minutos: number, over: Partial<ConversationDto> = {}):
     unreadCount: 0,
     windowOpen: true,
     windowRemainingMs: 1,
+    connectionMode: null,
     preview: null,
     anuncio: null,
     campaign: null,
