@@ -78,8 +78,12 @@ export function parseQr(raw: unknown): Qr {
   };
 }
 
-/** Eventos que pide Dashfort al servidor: el estado del dispositivo y (PR 4) las palomitas de lo enviado. */
-export const WEBHOOK_EVENTS = ["CONNECTION_UPDATE", "MESSAGES_UPDATE"] as const;
+/**
+ * Eventos que pide Dashfort al servidor: el estado del dispositivo, (PR 4) las
+ * palomitas de lo enviado y (PR 6) los mensajes, que solo se registran en una
+ * empresa sin Meta (con Meta se ignoran: ya entran por Meta).
+ */
+export const WEBHOOK_EVENTS = ["CONNECTION_UPDATE", "MESSAGES_UPDATE", "MESSAGES_UPSERT"] as const;
 
 export async function createInstance(server: EvolutionServerRef, input: { instanceName: string; token: string }) {
   return call(server, "POST", "/instance/create", {

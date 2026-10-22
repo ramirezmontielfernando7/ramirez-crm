@@ -321,7 +321,15 @@ export function PlanModulesSection() {
 /** Conexión directa (PR 2) — El servidor de esta empresa. Con dispositivo vinculado ya no se cambia. */
 function DirectServerPicker({ orgId, disabled }: { orgId: string; disabled: boolean }) {
   const [servers, setServers] = useState<{ id: string; name: string; used: number; maxInstances: number }[]>([]);
-  const [conn, setConn] = useState<{ serverId: string | null; serverName: string | null; status: string | null; phoneNumber: string | null; locked: boolean } | null>(null);
+  const [conn, setConn] = useState<{
+    serverId: string | null;
+    serverName: string | null;
+    status: string | null;
+    phoneNumber: string | null;
+    locked: boolean;
+    metaless: boolean;
+    aiViaDirect: boolean;
+  } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -334,6 +342,16 @@ function DirectServerPicker({ orgId, disabled }: { orgId: string; disabled: bool
     const r = await api<{ connection: NonNullable<typeof conn> }>(`/api/platform/organizations/${orgId}/direct-connection`, {
       method: "PUT",
       body: JSON.stringify({ serverId }),
+    });
+    if (r.data) setConn(r.data.connection);
+    else setError(r.error);
+  }
+
+  async function setAi(aiViaDirect: boolean) {
+    setError(null);
+    const r = await api<{ connection: NonNullable<typeof conn> }>(`/api/platform/organizations/${orgId}/direct-connection`, {
+      method: "PATCH",
+      body: JSON.stringify({ aiViaDirect }),
     });
     if (r.data) setConn(r.data.connection);
     else setError(r.error);
@@ -363,6 +381,20 @@ function DirectServerPicker({ orgId, disabled }: { orgId: string; disabled: bool
           {conn.phoneNumber ? ` · ${conn.phoneNumber}` : ""}
           {conn.locked ? " · con dispositivo vinculado" : ""}
         </p>
+      )}
+      {conn?.metaless && (
+        <>
+          <p className="text-text-3">Sin número de Meta: todos sus chats entran y salen por el dispositivo vinculado.</p>
+          <label className="flex items-center gap-2" data-testid="platform-direct-ai">
+            <input
+              type="checkbox"
+              checked={conn.aiViaDirect}
+              disabled={disabled}
+              onChange={(e) => void setAi(e.target.checked)}
+            />
+            <span>La IA contesta por conexión directa</span>
+          </label>
+        </>
       )}
       {error && <p className="text-destructive">{error}</p>}
     </div>

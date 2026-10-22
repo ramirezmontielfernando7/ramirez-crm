@@ -109,6 +109,40 @@ plataforma lo enciende, PR 6).
   (`ALLOWED_FROM`: nunca retrocede). Una instancia vinculada antes se pone al
   día en la revisión de 5 min (`ensureWebhookEvents`, token nuevo).
 
-## Siguientes PRs
+## PR 6 — Empresa sin Meta (sin migración)
 
-5. Modos y pantalla. 6. Organización sin Meta.
+- «Sin Meta» no es un ajuste: es una empresa con el complemento y SIN número
+  de WhatsApp de Meta guardado (`isOrgWithoutMeta`,
+  `src/server/direct-connection/without-meta.ts`; la existencia de la fila la
+  dice `orgHasWhatsAppConnection` en `src/server/credentials/`, sin abrir
+  secretos). Si conecta Meta, vuelve a ser una empresa normal.
+- ENTRADA: el webhook del dispositivo pide también `MESSAGES_UPSERT` (las
+  instancias viejas se ponen al día en la revisión de 5 min). Lectura pura en
+  `src/lib/direct-inbound.ts` (`parseDeviceMessages`: solo chats uno a uno;
+  texto, archivos, ubicación, contactos y respuestas a botones; teléfono
+  `521…` → `52…`; `@lid` con su teléfono alterno o, si no viene, el del
+  contacto que ya lo tenía). Registro en
+  `src/server/direct-connection/inbound.ts` con la ingesta de siempre (lead,
+  no leídos, bajas, IA). `wa_message_id` = `direct.<key.id>` (idempotente),
+  `transport = 'directa'`, `alt_message_id` = `key.id`; el `@lid` se guarda
+  en `contact.wa_lid`. Con Meta el aviso se ignora (ya entra por Meta).
+- Lo que manda el negocio (`fromMe`): la copia de un envío de Dashfort se une
+  por ID (`joinDirectEcho` con `directId`); lo escrito en el celular entra
+  como «Celular» y pausa la IA (`ingestDeviceEcho`).
+- Archivos: `wa_media_id` = `direct:<key.id>`; `ensureAssetAvailable` los
+  descarga del dispositivo (`inbound-media.ts` →
+  `chat/getBase64FromMediaMessage`), no de Meta.
+- SALIDA (`routeFor` con `hasMeta: false`): todo chat es Directa, sin
+  ventana de 24 h; una persona desde la Bandeja sale por el dispositivo; sin
+  dispositivo, falla claro (no hay Meta a dónde caer). La IA solo con «IA
+  por conexión directa» (`ai_via_direct`, /platform → ficha de la empresa,
+  apagado de fábrica); con Meta la IA sale siempre por Meta. Campañas,
+  plantillas, cerebro externo, bajas automáticas y Conocimientos siguen sin
+  conocer la vía directa (en una empresa sin Meta fallan como hoy).
+- Pantalla: sin punto de color ni selector de modo; Avanzado solo muestra
+  los límites. El compositor deja escribir con la ventana cerrada cuando el
+  mensaje sale por el dispositivo (empresa sin Meta, o chat Directa/
+  Automática con el dispositivo listo; `freeTextOutsideWindow`).
+- Fuera de este PR: entrar por el dispositivo en una empresa CON Meta (modo
+  Directa sin «Recibir por Meta»), marcar como leído en el celular del
+  contacto, grupos, varios números por empresa.

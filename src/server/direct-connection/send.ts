@@ -28,6 +28,7 @@ import {
 } from "@/lib/evolution/client";
 import { logger } from "@/lib/log";
 import { runWithOrganization } from "@/lib/request-context";
+import { orgHasWhatsAppConnection } from "@/server/credentials";
 import { getDirectConnection, openDirectTarget } from "@/server/credentials/direct-instance";
 import { publish } from "@/server/events/bus";
 import { serializeMessage } from "@/server/inbox/ingest";
@@ -85,26 +86,34 @@ export { DIRECT_TIMEOUT_TEXT };
 /* ───────── ¿Por dónde sale? ───────── */
 
 /**
- * La ruta de un envío. Sin `allowDirect` o fuera de WhatsApp responde Meta
- * SIN tocar la BD (la IA y las campañas no pagan ni una consulta). Si algo
- * falla al leer, Meta: lo de siempre.
+ * La ruta de un envío. Sin `allowDirect` (ni IA), o fuera de WhatsApp,
+ * responde Meta SIN tocar la BD (las campañas no pagan ni una consulta). Si
+ * algo falla al leer, Meta: lo de siempre.
+ *
+ * PR 6: `ai` = un texto de la IA. Solo cuenta en una empresa sin Meta con
+ * «IA por conexión directa» encendido; con Meta, la IA sale por Meta.
  */
 export async function directRouteFor(
   organizationId: string,
   conversation: { channel: string; connectionMode: string | null; lastInboundAt: Date | null },
   allowDirect: boolean,
-  now = new Date()
+  now = new Date(),
+  opts: { ai?: boolean } = {}
 ): Promise<Route> {
-  if (!allowDirect || conversation.channel !== "whatsapp") return { via: "meta" };
+  const ai = opts.ai === true;
+  if ((!allowDirect && !ai) || conversation.channel !== "whatsapp") return { via: "meta" };
   try {
     if (!(await orgHasConexionDirecta(organizationId))) return { via: "meta" };
-    const [settings, connection] = await Promise.all([
+    const [settings, connection, hasMeta] = await Promise.all([
       getDirectSettings(organizationId),
       getDirectConnection(organizationId),
+      orgHasWhatsAppConnection(organizationId),
     ]);
     return routeFor({
       moduleOn: true,
       allowDirect,
+      ai,
+      hasMeta,
       channel: conversation.channel,
       chatMode: (conversation.connectionMode as ConnectionMode | null) ?? null,
       settings,
@@ -126,6 +135,8 @@ export type DirectOutgoing = {
   type: "text" | "image" | "video" | "audio" | "document";
   text: string | null;
   mediaAsset?: typeof schema.mediaAsset.$inferSelect | null;
+  /** PR 6: un texto de la IA en una empresa sin Meta (se ve como de la IA en el hilo). */
+  aiGenerated?: boolean;
 };
 
 export type DirectResult = { messageId: string; queuedUntil: Date | null };
@@ -190,7 +201,8 @@ export async function sendDirect(input: DirectOutgoing): Promise<DirectResult> {
         type: input.type,
         text: input.text,
         status: "pending",
-        origin: "operator",
+        origin: input.aiGenerated ? "ai" : "operator",
+        aiGenerated: input.aiGenerated === true,
         mediaAssetId: input.mediaAsset?.id ?? null,
         transport: "directa",
         queuedUntil: queued,

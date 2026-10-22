@@ -8,6 +8,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const state = vi.hoisted(() => ({
   moduleOn: true,
   autoReturn: true,
+  hasMeta: true,
   updates: 0,
   returned: [{ id: "cv_1" }] as { id: string }[],
   published: [] as unknown[],
@@ -18,6 +19,7 @@ vi.mock("@/server/direct-connection/settings", () => ({
   getDirectSettings: async () => ({ autoReturnToMeta: state.autoReturn, defaultMode: "meta" }),
 }));
 vi.mock("@/server/credentials/direct", () => ({ getConnection: async () => null }));
+vi.mock("@/server/credentials", () => ({ orgHasWhatsAppConnection: async () => state.hasMeta }));
 vi.mock("@/server/events/bus", () => ({ publish: (_o: string, e: unknown) => state.published.push(e) }));
 vi.mock("@/lib/db", () => ({
   schema: {
@@ -46,6 +48,7 @@ const conv = (connectionMode: string | null, channel = "whatsapp") => ({ id: "cv
 beforeEach(() => {
   state.moduleOn = true;
   state.autoReturn = true;
+  state.hasMeta = true;
   state.updates = 0;
   state.returned = [{ id: "cv_1" }];
   state.published = [];
@@ -100,6 +103,12 @@ describe("conexión directa — regreso automático a Oficial", () => {
     expect(await autoReturnOnInbound("org_a", conv("directa"))).toBe(false);
     state.moduleOn = true;
     state.autoReturn = false;
+    expect(await autoReturnOnInbound("org_a", conv("directa"))).toBe(false);
+    expect(state.updates).toBe(0);
+  });
+
+  it("PR 6: en una empresa sin Meta no hay Oficial a dónde volver", async () => {
+    state.hasMeta = false;
     expect(await autoReturnOnInbound("org_a", conv("directa"))).toBe(false);
     expect(state.updates).toBe(0);
   });

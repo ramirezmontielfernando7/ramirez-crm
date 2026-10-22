@@ -190,7 +190,7 @@ const globalForHooks = globalThis as unknown as { __voceroDirectHooksOk?: Set<st
 /**
  * PR 4: una instancia vinculada antes de este cambio solo manda el estado del
  * dispositivo. Una vez por arranque se revisa qué eventos manda; si le faltan
- * las palomitas, se le pone el webhook de nuevo (token nuevo: en la base solo
+ * las palomitas (o, desde el PR 6, los mensajes), se le pone el webhook de nuevo (token nuevo: en la base solo
  * vive su hash, así que el viejo no se puede reusar). Nunca lanza.
  */
 export async function ensureWebhookEvents(row: ConnectionRow, server: EvolutionServerRef): Promise<void> {
@@ -209,7 +209,7 @@ export async function ensureWebhookEvents(row: ConnectionRow, server: EvolutionS
     if (!hook.ok) return;
     await saveWebhookTokenHash(row.organizationId, hashToken(token));
     done.add(row.instanceName);
-    log.info("webhook del dispositivo vinculado al día (palomitas)", { org: row.organizationId });
+    log.info("webhook del dispositivo vinculado al día (palomitas y mensajes)", { org: row.organizationId });
   } catch (err) {
     log.warn("no se pudo revisar el webhook del dispositivo vinculado", { org: row.organizationId, err });
   }

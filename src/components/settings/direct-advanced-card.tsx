@@ -31,6 +31,7 @@ export function DirectAdvancedCard() {
   const [data, setData] = useState<Advanced | null>(null);
   const [ranges, setRanges] = useState<Ranges | null>(null);
   const [hint, setHint] = useState("");
+  const [metaless, setMetaless] = useState(false);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
@@ -38,10 +39,11 @@ export function DirectAdvancedCard() {
     void (async () => {
       const r = await fetch("/api/settings/direct-connection/advanced").catch(() => null);
       if (!r?.ok) return;
-      const body = (await r.json()) as { advanced: Advanced; ranges: Ranges; hint: string };
+      const body = (await r.json()) as { advanced: Advanced; ranges: Ranges; hint: string; metaless?: boolean };
       setData(body.advanced);
       setRanges(body.ranges);
       setHint(body.hint);
+      setMetaless(body.metaless === true);
     })();
   }, []);
 
@@ -92,49 +94,58 @@ export function DirectAdvancedCard() {
         <CardDescription>{hint}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
-        <div className="space-y-1">
-          <Label htmlFor="adv-default">Modo de los chats nuevos</Label>
-          <select
-            id="adv-default"
-            className={SELECT_CLASS}
-            value={data.defaultMode}
-            onChange={(e) => set("defaultMode", e.target.value as ConnectionMode)}
-          >
-            <option value="meta">{MODE_PICKER_TEXT.meta.label}</option>
-            <option value="directa">{MODE_PICKER_TEXT.directa.label}</option>
-            <option value="mixta">{`${MODE_PICKER_TEXT.directa.label} · ${DIRECT_TEXT.receiveViaMeta}`}</option>
-          </select>
-        </div>
-
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <p className="text-sm font-medium">Volver a Oficial cuando el contacto escribe</p>
-            <p className="text-xs text-muted-foreground">{MODE_PICKER_TEXT.autoReturn}</p>
-          </div>
-          <Switch label="Volver a Oficial cuando el contacto escribe" checked={data.autoReturnToMeta} onCheckedChange={(v) => set("autoReturnToMeta", v)} />
-        </div>
-
-        <div className="space-y-3 rounded-lg border p-4">
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <p className="text-sm font-medium">Ajuste por ventana de 24 h (opcional)</p>
-              <p className="text-xs text-muted-foreground">Usar Oficial mientras la ventana de 24 h esté abierta.</p>
+        {metaless ? (
+          <p className="text-sm text-muted-foreground" data-testid="direct-advanced-metaless">
+            {DIRECT_TEXT.metalessNote}
+          </p>
+        ) : (
+          <>
+            <div className="space-y-1">
+              <Label htmlFor="adv-default">Modo de los chats nuevos</Label>
+              <select
+                id="adv-default"
+                className={SELECT_CLASS}
+                value={data.defaultMode}
+                onChange={(e) => set("defaultMode", e.target.value as ConnectionMode)}
+              >
+                <option value="meta">{MODE_PICKER_TEXT.meta.label}</option>
+                <option value="directa">{MODE_PICKER_TEXT.directa.label}</option>
+                <option value="mixta">{`${MODE_PICKER_TEXT.directa.label} · ${DIRECT_TEXT.receiveViaMeta}`}</option>
+              </select>
             </div>
-            <Switch label="Usar Oficial con la ventana abierta" checked={data.preferMetaInWindow} onCheckedChange={(v) => set("preferMetaInWindow", v)} />
-          </div>
-          <div className="space-y-1">
-            <Label htmlFor="adv-closed">Con la ventana cerrada, «{DIRECT_TEXT.continueDirect}» deja el chat en</Label>
-            <select
-              id="adv-closed"
-              className={SELECT_CLASS}
-              value={data.closedWindowMode}
-              onChange={(e) => set("closedWindowMode", e.target.value as "directa" | "mixta")}
-            >
-              <option value="mixta">{`${MODE_PICKER_TEXT.directa.label} · ${DIRECT_TEXT.receiveViaMeta}`}</option>
-              <option value="directa">{MODE_PICKER_TEXT.directa.label}</option>
-            </select>
-          </div>
-        </div>
+
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="text-sm font-medium">Volver a Oficial cuando el contacto escribe</p>
+                <p className="text-xs text-muted-foreground">{MODE_PICKER_TEXT.autoReturn}</p>
+              </div>
+              <Switch label="Volver a Oficial cuando el contacto escribe" checked={data.autoReturnToMeta} onCheckedChange={(v) => set("autoReturnToMeta", v)} />
+            </div>
+
+            <div className="space-y-3 rounded-lg border p-4">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-sm font-medium">Ajuste por ventana de 24 h (opcional)</p>
+                  <p className="text-xs text-muted-foreground">Usar Oficial mientras la ventana de 24 h esté abierta.</p>
+                </div>
+                <Switch label="Usar Oficial con la ventana abierta" checked={data.preferMetaInWindow} onCheckedChange={(v) => set("preferMetaInWindow", v)} />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="adv-closed">Con la ventana cerrada, «{DIRECT_TEXT.continueDirect}» deja el chat en</Label>
+                <select
+                  id="adv-closed"
+                  className={SELECT_CLASS}
+                  value={data.closedWindowMode}
+                  onChange={(e) => set("closedWindowMode", e.target.value as "directa" | "mixta")}
+                >
+                  <option value="mixta">{`${MODE_PICKER_TEXT.directa.label} · ${DIRECT_TEXT.receiveViaMeta}`}</option>
+                  <option value="directa">{MODE_PICKER_TEXT.directa.label}</option>
+                </select>
+              </div>
+            </div>
+
+          </>
+        )}
 
         <div className="space-y-3 rounded-lg border p-4">
           <div className="flex items-center justify-between gap-4">

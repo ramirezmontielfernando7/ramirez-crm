@@ -348,7 +348,7 @@ describe("conexión directa — unir el eco de Meta", () => {
     webhookFind = { enabled: true, events: ["CONNECTION_UPDATE"] };
     await ensureWebhookEvents(row!, server);
     const set = calls.find((c) => c.url.includes("/webhook/set/inst-eco-a"));
-    expect(set?.body).toMatchObject({ webhook: { events: ["CONNECTION_UPDATE", "MESSAGES_UPDATE"] } });
+    expect(set?.body).toMatchObject({ webhook: { events: ["CONNECTION_UPDATE", "MESSAGES_UPDATE", "MESSAGES_UPSERT"] } });
     const [after] = await as(A.id, () => getDb().select().from(schema.directConnection).where(eq(schema.directConnection.organizationId, A.id)));
     expect(after!.webhookTokenHash).not.toBe(hashToken(TOKEN_A));
     const nuevo = /\/api\/webhooks\/direct\/([a-f0-9]{48})$/.exec(String((set!.body.webhook as { url: string }).url))![1]!;
@@ -359,10 +359,18 @@ describe("conexión directa — unir el eco de Meta", () => {
     await ensureWebhookEvents(after!, server);
     expect(calls).toHaveLength(0);
 
-    // Y una que ya tiene todo no se toca.
+    // PR 6: una del PR 4 (con palomitas, sin mensajes) también se pone al día.
     resetWebhookEventsCheckForTests();
     webhookFind = { enabled: true, events: ["CONNECTION_UPDATE", "MESSAGES_UPDATE"] };
     await ensureWebhookEvents(after!, server);
+    expect(calls.filter((c) => c.url.includes("/webhook/set/"))).toHaveLength(1);
+
+    // Y una que ya tiene todo no se toca.
+    calls.length = 0;
+    resetWebhookEventsCheckForTests();
+    const [ultima] = await as(A.id, () => getDb().select().from(schema.directConnection).where(eq(schema.directConnection.organizationId, A.id)));
+    webhookFind = { enabled: true, events: ["CONNECTION_UPDATE", "MESSAGES_UPDATE", "MESSAGES_UPSERT"] };
+    await ensureWebhookEvents(ultima!, server);
     expect(calls.filter((c) => c.url.includes("/webhook/set/"))).toHaveLength(0);
   });
 });

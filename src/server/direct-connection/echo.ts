@@ -46,6 +46,11 @@ export type EchoInput = {
   type: string;
   text: string | null;
   at: Date;
+  /**
+   * PR 6: el ID del dispositivo ya conocido (la copia de lo enviado que manda
+   * el propio dispositivo en una empresa sin Meta). Sin él, se lee del `wamid`.
+   */
+  directId?: string | null;
 };
 
 export type EchoJoin =
@@ -79,7 +84,7 @@ async function join(input: EchoInput, opts: Waits): Promise<EchoJoin> {
     .limit(1);
   if (seen) return { joined: true, messageId: null };
 
-  const directId = directIdFromWamid(input.waMessageId);
+  const directId = input.directId ?? directIdFromWamid(input.waMessageId);
   const deadline = Date.now() + (opts.waitMs ?? ECHO_WAIT_MS);
   for (;;) {
     if (directId) {

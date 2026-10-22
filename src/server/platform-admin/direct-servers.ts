@@ -1,4 +1,8 @@
+import { getDb, schema } from "@/lib/db";
 import { normalizeServerUrl } from "@/lib/direct-connection";
+import { runWithOrganization } from "@/lib/request-context";
+import { orgHasWhatsAppConnection } from "@/server/credentials";
+import { getDirectSettings } from "@/server/direct-connection/settings";
 import {
   assignServer,
   deleteServer,
@@ -108,11 +112,21 @@ export type OrganizationDirect = {
   phoneNumber: string | null;
   /** Con instancia creada, el servidor ya no se puede cambiar. */
   locked: boolean;
+  /** PR 6: la empresa no tiene número de Meta (opera solo con el dispositivo). */
+  metaless: boolean;
+  /** PR 6: «IA por conexión directa» (solo cuenta en una empresa sin Meta). */
+  aiViaDirect: boolean;
 };
 
 export async function organizationDirect(organizationId: string): Promise<OrganizationDirect> {
-  const row = await getConnection(organizationId);
-  if (!row) return { serverId: null, serverName: null, status: null, phoneNumber: null, locked: false };
+  const [row, extra] = await Promise.all([
+    getConnection(organizationId),
+    runWithOrganization(organizationId, async () => {
+      const [hasMeta, settings] = await Promise.all([orgHasWhatsAppConnection(organizationId), getDirectSettings(organizationId)]);
+      return { metaless: !hasMeta, aiViaDirect: settings.aiViaDirect };
+    }),
+  ]);
+  if (!row) return { serverId: null, serverName: null, status: null, phoneNumber: null, locked: false, ...extra };
   const server = await getServer(row.serverId);
   return {
     serverId: row.serverId,
@@ -120,7 +134,29 @@ export async function organizationDirect(organizationId: string): Promise<Organi
     status: row.status,
     phoneNumber: row.phoneNumber,
     locked: row.instanceKeyCipher !== null,
+    ...extra,
   };
+}
+
+/**
+ * PR 6 — «IA por conexión directa»: en una empresa SIN Meta, la IA contesta
+ * por el dispositivo vinculado (con los mismos límites de envío). Apagado de
+ * fábrica. Con Meta no cambia nada: la IA sale siempre por Meta.
+ */
+export async function setOrganizationAiViaDirect(
+  organizationId: string,
+  on: boolean,
+  actor: AuditActor,
+  ip: string | null
+): Promise<OrganizationDirect> {
+  await runWithOrganization(organizationId, () =>
+    getDb()
+      .insert(schema.directConnectionSettings)
+      .values({ organizationId, aiViaDirect: on, updatedAt: new Date() })
+      .onConflictDoUpdate({ target: schema.directConnectionSettings.organizationId, set: { aiViaDirect: on, updatedAt: new Date() } })
+  );
+  await recordPlatformAudit({ actor, action: "direct_connection.ai_changed", org: { id: organizationId, name: organizationId }, detail: { ia: on }, ip });
+  return organizationDirect(organizationId);
 }
 
 export async function assignOrganizationServer(organizationId: string, serverId: string, actor: AuditActor, ip: string | null): Promise<OrganizationDirect> {

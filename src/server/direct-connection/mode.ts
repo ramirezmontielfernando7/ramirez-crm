@@ -3,6 +3,7 @@ import { getDb, schema } from "@/lib/db";
 import { scoped } from "@/lib/db/tenant";
 import { type ConnectionMode, type InboxDirectContext } from "@/lib/direct-connection";
 import { logger } from "@/lib/log";
+import { orgHasWhatsAppConnection } from "@/server/credentials";
 import { getConnection } from "@/server/credentials/direct";
 import { publish } from "@/server/events/bus";
 import { orgHasConexionDirecta } from "@/server/modules";
@@ -25,11 +26,17 @@ export function deviceReady(conn: { status: string; pausedUntil: Date | null } |
 /** Lo que la Bandeja necesita saber de la conexión directa de esta organización. */
 export async function inboxDirectContext(organizationId: string, canChangeMode: boolean): Promise<InboxDirectContext | null> {
   if (!(await orgHasConexionDirecta(organizationId))) return null;
-  const [settings, conn] = await Promise.all([getDirectSettings(organizationId), getConnection(organizationId)]);
+  const [settings, conn, hasMeta] = await Promise.all([
+    getDirectSettings(organizationId),
+    getConnection(organizationId),
+    orgHasWhatsAppConnection(organizationId),
+  ]);
   const now = new Date();
   return {
-    defaultMode: settings.defaultMode,
-    canChangeMode,
+    // PR 6: sin Meta todo chat es Directa y no hay nada que elegir.
+    defaultMode: hasMeta ? settings.defaultMode : "directa",
+    canChangeMode: hasMeta && canChangeMode,
+    metaless: !hasMeta,
     deviceReady: deviceReady(conn, now),
     paused: !!conn?.pausedUntil && conn.pausedUntil > now,
   };
@@ -79,6 +86,8 @@ export async function autoReturnOnInbound(
   try {
     if (!(await orgHasConexionDirecta(organizationId))) return false;
     if (!(await getDirectSettings(organizationId)).autoReturnToMeta) return false;
+    // PR 6: sin Meta no hay Oficial a dónde volver.
+    if (!(await orgHasWhatsAppConnection(organizationId))) return false;
     const changed = await getDb()
       .update(schema.conversation)
       .set({ connectionMode: "meta", connectionModeChangedAt: new Date() })

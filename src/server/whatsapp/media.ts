@@ -8,7 +8,9 @@ import {
   getCredentialsByOrg,
   type Credentials,
 } from "@/server/whatsapp/credentials";
+import { deviceMediaKeyId } from "@/lib/direct-inbound";
 import { logger } from "@/lib/log";
+import { downloadDeviceMedia } from "@/server/direct-connection/inbound-media";
 import { checkOutgoing, kindFromMime, WA_MEDIA_RULES } from "@/lib/upload-limits";
 
 const log = logger("media");
@@ -181,14 +183,21 @@ export async function ensureAssetAvailable(
   if (asset.fetchStatus === "available") return asset;
   if (!asset.waMediaId) return null; // location/contacts no tienen binario
 
-  const creds = await getCredentialsByOrg(organizationId);
-  if (!creds) return null;
+  // Conexión directa (PR 6): lo que entró por el dispositivo se descarga de
+  // él, no de Meta (la empresa puede no tener Meta).
+  const deviceKeyId = deviceMediaKeyId(asset.waMediaId);
+  const waMediaId = asset.waMediaId;
+  let download: () => Promise<{ data: Buffer; mimeType: string | null; fileSize: number }>;
+  if (deviceKeyId) {
+    download = () => downloadDeviceMedia(organizationId, deviceKeyId, MEDIA_LIMITS.document.maxBytes);
+  } else {
+    const creds = await getCredentialsByOrg(organizationId);
+    if (!creds) return null;
+    download = () => downloadGraphMedia(creds.token, waMediaId);
+  }
 
   try {
-    const { data, mimeType, fileSize } = await downloadGraphMedia(
-      creds.token,
-      asset.waMediaId
-    );
+    const { data, mimeType, fileSize } = await download();
     const storagePath = await saveMediaFile(organizationId, assetId, data);
     const updated = await db
       .update(schema.mediaAsset)
