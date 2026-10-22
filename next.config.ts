@@ -28,6 +28,12 @@ const nextConfig: NextConfig = {
       { source: OWN_CSP_SOURCE, headers: [ENFORCED_CSP] },
     ];
   },
+  // La imagen Docker no repite typecheck ni lint (`SKIP_BUILD_CHECKS=1` en el
+  // Dockerfile): el CI ya los corre en cada PR y en main, y hacerlos dentro del
+  // build de producción gasta minutos y memoria que en el servidor de despliegue
+  // pueden matar el proceso sin mensaje. `pnpm build` normal los sigue haciendo.
+  typescript: { ignoreBuildErrors: process.env.SKIP_BUILD_CHECKS === "1" },
+  eslint: { ignoreDuringBuilds: process.env.SKIP_BUILD_CHECKS === "1" },
   env: {
     NEXT_PUBLIC_APP_VERSION: version,
     NEXT_PUBLIC_BUILD_COMMIT: process.env.SOURCE_COMMIT ?? "",

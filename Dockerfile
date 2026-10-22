@@ -37,6 +37,11 @@ ENV NEXT_TELEMETRY_DISABLED=1
 # el entorno al arrancar, marcado como no verificado.
 ARG SOURCE_COMMIT=""
 ENV SOURCE_COMMIT=$SOURCE_COMMIT
+# Typecheck y lint ya los corre el CI (ver next.config.ts); aquí se omiten para
+# que el build de Next no se quede sin memoria/tiempo en el servidor de
+# despliegue. El tope de heap deja margen al resto del sistema (6 GB en uso).
+ENV SKIP_BUILD_CHECKS=1
+ENV NODE_OPTIONS=--max-old-space-size=3072
 RUN pnpm build
 # migrate.mjs autocontenido (drizzle-orm + postgres bundleados)
 RUN pnpm exec esbuild scripts/migrate.mjs --bundle --platform=node \
