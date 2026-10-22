@@ -2,6 +2,13 @@ import type { z } from "zod";
 import { getEnv, isAiConfigured, isMockEnabled } from "@/lib/env";
 import { logger } from "@/lib/log";
 import { hasOpenTransaction } from "@/lib/request-context";
+import {
+  ANTHROPIC_VERSION,
+  fromMessagesResponse,
+  isBedrockClaudeModel,
+  messagesUrl,
+  toMessagesBody,
+} from "@/lib/ai/anthropic-messages";
 
 /**
  * Adaptador LLM OpenRouter-compatible — ÚNICA frontera con el proveedor de IA
@@ -104,7 +111,9 @@ export async function chatJson<T>(
             },
           ];
     try {
-      const reply = await callProvider(model, attemptMessages, opts?.timeoutMs);
+      const reply = isBedrockClaudeModel(model)
+        ? await callBedrockClaude(model, attemptMessages, opts?.judge ? "medium" : "low", opts?.timeoutMs)
+        : await callProvider(model, attemptMessages, opts?.timeoutMs);
       usage.promptTokens += reply.usage.promptTokens;
       usage.completionTokens += reply.usage.completionTokens;
       if (reply.usage.costUsd !== undefined) usage.costUsd = (usage.costUsd ?? 0) + reply.usage.costUsd;
@@ -186,6 +195,42 @@ async function callProvider(
         ...(cost !== undefined ? { costUsd: cost } : {}),
       },
     };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/**
+ * Claude en Amazon Bedrock (formato Messages, ver `anthropic-messages.ts`).
+ * Mismos errores, tiempo límite y reintentos que `callProvider`. Esfuerzo
+ * bajo para el agente y el análisis (barato y rápido), medio para el juez.
+ */
+async function callBedrockClaude(
+  model: string,
+  messages: ChatMessage[],
+  effort: "low" | "medium",
+  timeoutMs = 60_000
+): Promise<{ content: string; usage: LlmUsage }> {
+  const env = getEnv();
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(messagesUrl(env.OPENROUTER_BASE_URL), {
+      method: "POST",
+      headers: {
+        // El token jamás se loguea; solo viaja en este header.
+        "x-api-key": env.OPENROUTER_API_TOKEN ?? "",
+        "anthropic-version": ANTHROPIC_VERSION,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(toMessagesBody(model, messages, effort)),
+      signal: controller.signal,
+    });
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      throw new Error(`proveedor respondió ${res.status}: ${truncate(text)}`);
+    }
+    return fromMessagesResponse(await res.json());
   } finally {
     clearTimeout(timer);
   }
