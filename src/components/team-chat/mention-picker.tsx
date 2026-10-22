@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { m } from "motion/react";
+import { m } from "framer-motion";
 import { MessageCircle, Search, UserRound } from "lucide-react";
 import type { ConversationDto } from "@/lib/types";
 import type { TeamPersonDto, TeamThreadKind } from "@/lib/team-chat";

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type RefObject } from "react";
 import dynamic from "next/dynamic";
-import { AnimatePresence, m } from "motion/react";
+import { AnimatePresence, m } from "framer-motion";
 import {
   BookOpen,
   Clock3,
@@ -18,7 +18,6 @@ import { SPRING } from "@/components/motion";
 import type { ConversationDto, TemplateDto } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { formatBytes, formatRemaining, takePastedImage } from "./helpers";
-import { TemplateSender } from "./template-sender";
 import { WritingAssist } from "./writing-assist";
 import {
   KnowledgePicker,
@@ -36,6 +35,13 @@ type AttachPanel = "location" | "contact" | "knowledge" | null;
 
 /** Qué menú flotante del compositor está abierto (uno a la vez). */
 type Popover = "attach" | "emoji" | null;
+
+// Enviar plantilla solo aparece con la ventana de 24 h cerrada: no se baja
+// hasta que hace falta.
+const TemplateSender = dynamic(
+  () => import("./template-sender").then((mod) => mod.TemplateSender),
+  { loading: () => <div className="h-10" aria-hidden /> }
+);
 
 // El selector de emojis (y sus datos) solo se descarga al abrirlo por primera
 // vez: la Bandeja no paga ese peso si nadie lo usa.

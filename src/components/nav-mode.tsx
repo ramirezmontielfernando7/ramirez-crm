@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext } from "react";
-import { m } from "motion/react";
+import { m } from "framer-motion";
 import { NAV } from "@/components/motion";
 import { BrandTile, type BrandingMark } from "@/components/brand-mark";
 import { TeamUnreadLogoBadge } from "@/components/team-chat/unread-badge";

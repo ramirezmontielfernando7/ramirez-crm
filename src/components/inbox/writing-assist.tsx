@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { AnimatePresence, m } from "motion/react";
+import { AnimatePresence, m } from "framer-motion";
 import { ChevronDown, WandSparkles } from "lucide-react";
 import { SPRING } from "@/components/motion";
 import { cn } from "@/lib/utils";

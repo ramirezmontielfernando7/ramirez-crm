@@ -1,9 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import { useSearchParams } from "next/navigation";
 import { ChevronLeft, MoreHorizontal, PanelRight } from "lucide-react";
-import { m } from "motion/react";
+import { m } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { ContactAvatar } from "@/components/avatar";
 import type { ConversationDto, MessageDto } from "@/lib/types";
@@ -13,7 +14,6 @@ import { useEvents } from "@/components/use-events";
 import { ConversationList } from "./conversation-list";
 import { MessageThread } from "./message-thread";
 import { Composer } from "./composer";
-import { ContactPanel } from "./contact-panel";
 import { contactLabel } from "@/lib/phone-search";
 import { useConversationActions } from "./conversation-actions";
 import { RefreshBatch, subsetQuery, type RefreshPlan } from "@/lib/inbox-refresh";
@@ -27,6 +27,14 @@ import {
   type ListQuery,
 } from "@/lib/inbox-list";
 import type { PatchRow } from "./chat-capsules";
+
+// Panel de Detalles (558 líneas + notas, ficha, línea de tiempo…): se baja en
+// segundo plano, no en el arranque de la Bandeja. Va dentro de una tarjeta que
+// ya tiene su tamaño, así que al llegar solo se llena.
+const ContactPanel = dynamic(
+  () => import("./contact-panel").then((mod) => mod.ContactPanel),
+  { loading: () => <div className="h-full" aria-hidden /> }
+);
 
 /**
  * Texto que ya salió del compositor pero cuyo POST todavía viaja. Existe solo

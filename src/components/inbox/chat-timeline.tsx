@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { AnimatePresence, m } from "motion/react";
+import { AnimatePresence, m } from "framer-motion";
 import {
   ArrowRightLeft,
   Bot,

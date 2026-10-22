@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { AnimatePresence, m } from "motion/react";
+import { AnimatePresence, m } from "framer-motion";
 import { ChevronLeft, Eye, Megaphone, MessageSquarePlus, Search, ShieldAlert, Users } from "lucide-react";
 import { fetchJson, jsonInit } from "@/lib/fetch-json";
 import {

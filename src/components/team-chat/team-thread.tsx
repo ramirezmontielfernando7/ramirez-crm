@@ -2,7 +2,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
-import { AnimatePresence, m } from "motion/react";
+import { AnimatePresence, m } from "framer-motion";
 import { FileText, Pencil, SmilePlus, Trash2 } from "lucide-react";
 import { fetchJson, jsonInit } from "@/lib/fetch-json";
 import {

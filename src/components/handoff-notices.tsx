@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { AnimatePresence, m } from "motion/react";
+import { AnimatePresence, m } from "framer-motion";
 import { UserRound, X } from "lucide-react";
 import { HANDOFF_LABEL } from "@/lib/analytics";
 import { useEvents } from "@/components/use-events";
