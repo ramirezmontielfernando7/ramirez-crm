@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
-import { chatJson } from "@/lib/ai";
+import { chatJson, providerErrorType } from "@/lib/ai";
 import { fromMessagesResponse, isBedrockClaudeModel, messagesUrl, toMessagesBody } from "@/lib/ai/anthropic-messages";
 
 describe("isBedrockClaudeModel (qué formato usa cada modelo)", () => {
@@ -164,8 +164,15 @@ describe("chatJson con Claude en Bedrock", () => {
   it("error HTTP de Bedrock → provider_error tipado, sin lanzar", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue(new Response('{"message":"The security token included in the request is invalid."}', { status: 403 }))
+      vi.fn().mockImplementation(
+        async () =>
+          new Response('{"message":"The security token included in the request is invalid."}', {
+            status: 403,
+            headers: { "x-amzn-errortype": "UnrecognizedClientException:http://internal.amazon.com/coral/" },
+          })
+      )
     );
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     vi.useFakeTimers();
     const pending = chatJson(schema, [{ role: "user", content: "hola" }]);
     await vi.runAllTimersAsync();
@@ -173,5 +180,29 @@ describe("chatJson con Claude en Bedrock", () => {
     vi.useRealTimers();
     expect(result).toMatchObject({ ok: false, error: "provider_error" });
     if (!result.ok) expect(result.detail).toMatch(/403/);
+    const logged = warn.mock.calls.map((c) => c.join(" ")).join("\n");
+    expect(logged).toContain("codigo=403");
+    expect(logged).toContain("tipo=UnrecognizedClientException");
+    expect(logged).not.toContain("llave-bedrock");
+    expect(logged).not.toContain("security token");
+  });
+});
+
+describe("providerErrorType (tipo de error para el log, sin mensaje)", () => {
+  it("cabecera de AWS, con o sin sufijo", () => {
+    expect(providerErrorType("AccessDeniedException:http://internal.amazon.com/coral/", "")).toBe("AccessDeniedException");
+    expect(providerErrorType("ValidationException", "{}")).toBe("ValidationException");
+  });
+
+  it("cuerpo de Anthropic, OpenAI o AWS", () => {
+    expect(providerErrorType(null, '{"type":"error","error":{"type":"permission_error","message":"x"}}')).toBe("permission_error");
+    expect(providerErrorType(null, '{"error":{"code":"invalid_api_key","message":"x"}}')).toBe("invalid_api_key");
+    expect(providerErrorType(null, '{"__type":"com.amazon.coral.service#UnrecognizedClientException"}')).toBe("UnrecognizedClientException");
+  });
+
+  it("sin tipo reconocible o con texto raro → null", () => {
+    expect(providerErrorType(null, "<html>502</html>")).toBeNull();
+    expect(providerErrorType(null, '{"error":{"type":"tiene espacios y texto del chat"}}')).toBeNull();
+    expect(providerErrorType(null, '{"message":"Credential should be scoped"}')).toBeNull();
   });
 });

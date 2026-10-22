@@ -170,6 +170,7 @@ async function callProvider(
     });
     if (!res.ok) {
       const text = await res.text().catch(() => "");
+      logProviderHttpError(model, res, text);
       throw new Error(`proveedor respondió ${res.status}: ${truncate(text)}`);
     }
     const json = (await res.json()) as {
@@ -228,11 +229,46 @@ async function callBedrockClaude(
     });
     if (!res.ok) {
       const text = await res.text().catch(() => "");
+      logProviderHttpError(model, res, text);
       throw new Error(`proveedor respondió ${res.status}: ${truncate(text)}`);
     }
     return fromMessagesResponse(await res.json());
   } finally {
     clearTimeout(timer);
+  }
+}
+
+/**
+ * Un error HTTP del proveedor en el log: código y tipo (p. ej. 403
+ * `AccessDeniedException`), para saber si falla la llave, la región, el acceso
+ * al modelo o su nombre. Nunca el token ni el texto de la respuesta.
+ */
+function logProviderHttpError(model: string, res: Response, body: string): void {
+  logger("ai").warn("el proveedor respondió con error", {
+    modelo: model,
+    codigo: res.status,
+    tipo: providerErrorType(res.headers.get("x-amzn-errortype"), body),
+  });
+}
+
+/**
+ * El tipo de error, sin el mensaje: cabecera `x-amzn-errortype` de AWS, o
+ * `error.type`/`error.code`/`__type` del cuerpo (Anthropic, OpenAI, AWS).
+ * Solo letras, números y `_.-`, máx. 64; `null` si no viene.
+ */
+export function providerErrorType(header: string | null, body: string): string | null {
+  const clean = (v: unknown): string | null => {
+    if (typeof v !== "string" && typeof v !== "number") return null;
+    const t = String(v).split(":")[0]!.split("#").pop()!.trim();
+    return /^[A-Za-z0-9_.-]{1,64}$/.test(t) ? t : null;
+  };
+  const fromHeader = clean(header);
+  if (fromHeader) return fromHeader;
+  try {
+    const json = JSON.parse(body) as { error?: { type?: unknown; code?: unknown }; __type?: unknown };
+    return clean(json.error?.type) ?? clean(json.error?.code) ?? clean(json.__type);
+  } catch {
+    return null;
   }
 }
 
