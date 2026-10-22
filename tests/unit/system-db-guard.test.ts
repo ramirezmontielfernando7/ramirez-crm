@@ -53,7 +53,7 @@ const PERMITIDOS: Record<string, { usos: number; motivo: string }> = {
   },
   "src/server/credentials/direct.ts": {
     usos: 1,
-    motivo: "Conexión directa: servidores del dispositivo vinculado (tabla de plataforma evolution_server, sin organización) y cuántas empresas tiene cada uno",
+    motivo: "Conexión directa: servidores del dispositivo vinculado (tabla de plataforma evolution_server, sin organización), cuántas empresas tiene cada uno y la conexión de cada organización (el webhook de estado y la revisión de cada 5 min la encuentran por el hash del token, antes de saber la organización)",
   },
   "src/server/platform-admin/admins.ts": {
     usos: 1,

@@ -45,6 +45,9 @@ export async function register(): Promise<void> {
     // multimedia entrante), cada 6 horas; no frena el arranque.
     const { startLimitsCheck } = await import("@/server/limits/daily");
     startLimitsCheck();
+    // Conexión directa (PR 2): estado del dispositivo vinculado, cada 5 minutos.
+    const { startDirectConnectionCheck } = await import("@/server/direct-connection/link");
+    startDirectConnectionCheck();
     // 035: documentos del agente que quedaron en cola o sin vectores (solo
     // con KB_DOCS; no frena el arranque).
     const { resumeKbIndexing } = await import("@/server/kb-docs/indexer");

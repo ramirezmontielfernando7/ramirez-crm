@@ -42,11 +42,12 @@ describe("filtros de organizaciones", () => {
 });
 
 describe("pestañas de Plataforma", () => {
-  it("cuatro secciones: organizaciones y planes, costos, webhooks sin ruta y administradores", () => {
+  it("cinco secciones: organizaciones y planes, costos, webhooks sin ruta, conexión directa y administradores", () => {
     expect(PLATFORM_TABS.map((t) => t.href)).toEqual([
       "/platform/organizaciones",
       "/platform/costos",
       "/platform/webhooks",
+      "/platform/conexion-directa",
       "/platform/admin",
     ]);
   });

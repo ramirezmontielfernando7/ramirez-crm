@@ -14,9 +14,9 @@
 export const TENANT_QUERY_EXCEPTIONS: Record<string, { max: number; motivo: string }> = {
   // --- Globales a propósito: aún no hay organización -------------------------
   "server/credentials/direct.ts": {
-    max: 1,
+    max: 3,
     motivo:
-      "Conexión directa PR 1 — /platform cuenta cuántas empresas tiene cada servidor (direct_connection por server_id, cruza organizaciones a propósito; solo el conteo, pool de sistema, sin descifrar nada).",
+      "Conexión directa — PR 1: /platform cuenta cuántas empresas tiene cada servidor (direct_connection por server_id, cruza organizaciones a propósito; solo el conteo). PR 2: el webhook de estado DESCUBRE la organización por el hash del token, y la revisión de cada 5 min recorre las conexiones vivas de todas las organizaciones (pool de sistema; cada una se atiende a nombre de la suya).",
   },
   "server/direct-connection/send.ts": {
     max: 1,

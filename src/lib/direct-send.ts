@@ -71,15 +71,26 @@ export function unavailableText(reason: "paused" | "disconnected" | "module_off"
 }
 
 /**
- * El número tal como lo espera el dispositivo: solo dígitos, con la misma
- * normalización de México que la identidad (521 → 52). null si el contacto no
- * tiene teléfono (solo BSUID): por la directa no hay a dónde mandarlo.
+ * El número tal como lo usa el dispositivo: solo dígitos. México va al revés
+ * que en Meta: Dashfort guarda `52` + 10 dígitos y el dispositivo usa `521` +
+ * 10 (Fase 0, 21 oct: con `52` + 10 sus búsquedas no encuentran nada). null
+ * si el contacto no tiene teléfono (solo BSUID): no hay a dónde mandarlo.
  */
 export function directNumber(phone: string | null | undefined): string | null {
   if (!phone) return null;
   const digits = phone.replace(/\D/g, "");
   if (digits.length < 8 || digits.length > 15) return null;
-  return normalizeMx(digits);
+  const canonical = normalizeMx(digits);
+  return /^52\d{10}$/.test(canonical) ? `521${canonical.slice(2)}` : canonical;
+}
+
+/**
+ * Al revés: un número que llega del dispositivo (`521` + 10, con o sin
+ * `@s.whatsapp.net`) a la forma de la identidad de Dashfort (`52` + 10). Para
+ * unir ecos y entrantes (PR 4 y PR 6).
+ */
+export function phoneFromDirect(raw: string): string {
+  return normalizeMx(raw.replace(/@.*$/, "").replace(/\D/g, ""));
 }
 
 /* ───────── Límites de envío y fila ───────── */

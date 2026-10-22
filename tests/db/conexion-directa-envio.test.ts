@@ -184,17 +184,17 @@ describe("conexión directa — envío por el dispositivo vinculado", () => {
   });
 
   it("una persona en un chat Automático con la ventana cerrada: «escribiendo…» y el mensaje por el dispositivo", async () => {
-    const cv = await chat(A.id, { phone: "5215512340000" });
+    const cv = await chat(A.id, { phone: "525512340000" });
     const r = await as(A.id, () => sendText({ organizationId: A.id, conversationId: cv, text: "Hola", allowDirect: true }));
     expect(r.queuedUntil ?? null).toBeNull();
     const e = evo();
     expect(e).toHaveLength(2);
     expect(e[0]!.url).toMatch(/\/chat\/sendPresence\/inst-a$/);
-    expect(e[0]!.body).toMatchObject({ number: "525512340000", presence: "composing" });
+    expect(e[0]!.body).toMatchObject({ number: "5215512340000", presence: "composing" });
     expect(e[0]!.body.delay as number).toBeGreaterThanOrEqual(1000);
     expect(e[0]!.body.delay as number).toBeLessThanOrEqual(3000);
     expect(e[1]!.url).toMatch(/\/message\/sendText\/inst-a$/);
-    expect(e[1]!.body).toEqual({ number: "525512340000", text: "Hola" });
+    expect(e[1]!.body).toEqual({ number: "5215512340000", text: "Hola" });
     // Con la llave de la instancia, no la maestra.
     expect(e.every((c) => c.apikey === LLAVE_INSTANCIA)).toBe(true);
     expect(meta()).toHaveLength(0);

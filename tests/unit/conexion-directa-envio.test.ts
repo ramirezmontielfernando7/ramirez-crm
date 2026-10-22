@@ -8,6 +8,7 @@ import {
   directNumber,
   failureText,
   nextSlot,
+  phoneFromDirect,
   routeFor,
   typingDelayMs,
   unavailableText,
@@ -85,12 +86,21 @@ describe("conexión directa — por dónde sale cada mensaje", () => {
     });
   });
 
-  it("el número va solo en dígitos, con México 521 → 52; sin teléfono, null", () => {
-    expect(directNumber("+52 1 55 1234 0000")).toBe("525512340000");
-    expect(directNumber("5215512340000")).toBe("525512340000");
+  it("el número va solo en dígitos; México como lo usa el dispositivo (521 + 10); sin teléfono, null", () => {
+    expect(directNumber("+52 1 55 1234 0000")).toBe("5215512340000");
+    expect(directNumber("5215512340000")).toBe("5215512340000");
+    // Como lo guarda Dashfort (52 + 10) → 521 + 10.
+    expect(directNumber("525512340000")).toBe("5215512340000");
     expect(directNumber("14155550100")).toBe("14155550100");
     expect(directNumber(null)).toBeNull();
     expect(directNumber("123")).toBeNull();
+  });
+
+  it("lo que llega del dispositivo vuelve a la forma de Dashfort (52 + 10)", () => {
+    expect(phoneFromDirect("5215512340000@s.whatsapp.net")).toBe("525512340000");
+    expect(phoneFromDirect("5215512340000")).toBe("525512340000");
+    expect(phoneFromDirect("14155550100@s.whatsapp.net")).toBe("14155550100");
+    expect(phoneFromDirect(directNumber("525512340000")!)).toBe("525512340000");
   });
 });
 

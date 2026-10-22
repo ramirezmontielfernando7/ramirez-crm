@@ -35,6 +35,20 @@ plataforma lo enciende, PR 6).
   `PATCH/DELETE /api/platform/direct-servers/[id]` (404 a todos los demás).
 - Reglas puras y textos discretos: `src/lib/direct-connection.ts`.
 
+## PR 2 — Vincular por QR
+
+- /platform → «Conexión directa»: registrar servidores (llave cifrada, solo
+  últimos 4), probar, capacidad y estado; en la ficha de cada empresa con el
+  complemento, elegir su servidor (sin elegir, el que tenga más lugar).
+- Ajustes → «Conexión directa» (solo con el complemento y el permiso
+  `direct_connection.link`; si no, 404/sin pestaña): vincular por QR, estado,
+  reconectar, desvincular. Dashfort crea la instancia y su webhook
+  (`src/server/direct-connection/link.ts`, cliente en `evolution-api.ts`).
+- Webhook de estado `POST /api/webhooks/direct/[token]` (token por empresa,
+  solo su hash en la base) y revisión cada 5 min. Dos desconexiones en 24 h
+  pausan la conexión directa 24 h. Aviso discreto en la app si se desconecta.
+- Sin migración nueva.
+
 ## PR 3 — Envío directo (sin migración)
 
 - Por dónde sale (`routeFor`, `src/lib/direct-send.ts`): SOLO un envío de una
@@ -73,7 +87,5 @@ plataforma lo enciende, PR 6).
 
 ## Siguientes PRs
 
-2. Vincular por QR (pantalla de servidores en /platform, Ajustes › WhatsApp,
-   webhook de estado, revisión cada 5 min). 3. Envío directo (nueva vía en
-   `send.ts`, fila con límites, freno de emergencia). 4. Unir ecos de Meta.
+4. Unir ecos de Meta.
    5. Modos y pantalla. 6. Organización sin Meta.
