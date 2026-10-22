@@ -47,6 +47,10 @@ const PERMITIDOS: Record<string, { usos: number; motivo: string }> = {
     usos: 1,
     motivo: "Fase 3, PR 3: los módulos de una organización los decide la plataforma; se consultan también antes de abrir el contexto (webhook recién enrutado, arranque) y los escribe el administrador de plataforma",
   },
+  "src/server/direct-connection/send.ts": {
+    usos: 1,
+    motivo: "Conexión directa (PR 3): al arrancar, qué organizaciones tienen dispositivo vinculado para retomar su fila de mensajes «En cola»; cada fila se retoma luego a nombre de la suya",
+  },
   "src/server/credentials/direct.ts": {
     usos: 1,
     motivo: "Conexión directa: servidores del dispositivo vinculado (tabla de plataforma evolution_server, sin organización) y cuántas empresas tiene cada uno",

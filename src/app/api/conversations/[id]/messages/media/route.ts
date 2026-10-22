@@ -58,8 +58,16 @@ export const POST = withAuth(async (session, req: Request, ctx: Params) => {
           fileName: file.name || undefined,
         },
         caption,
+        // Conexión directa (PR 3): igual que el texto de una persona.
+        allowDirect: true,
       });
-      return Response.json({ messageId: result.messageId }, { status: 201 });
+      return Response.json(
+        {
+          messageId: result.messageId,
+          ...(result.queuedUntil ? { queuedUntil: result.queuedUntil.toISOString() } : {}),
+        },
+        { status: 201 }
+      );
     } catch (err) {
       if (err instanceof MediaValidationError) {
         return apiError(

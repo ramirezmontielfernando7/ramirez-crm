@@ -83,6 +83,9 @@ export const POST = withAuth(async (session, req: Request, ctx: Params) => {
             conversationId: id,
             organizationId: session.organizationId,
             text: data.text,
+            // Conexión directa (PR 3): una persona escribiendo puede salir
+            // por el dispositivo vinculado si el chat está en ese modo.
+            allowDirect: true,
           })
         : data.type === "location"
           ? await sendStructured({
@@ -97,7 +100,10 @@ export const POST = withAuth(async (session, req: Request, ctx: Params) => {
               kind: "contacts",
               contacts: data.contacts,
             });
-    return Response.json({ messageId: result.messageId });
+    return Response.json({
+      messageId: result.messageId,
+      ...(result.queuedUntil ? { queuedUntil: result.queuedUntil.toISOString() } : {}),
+    });
   } catch (err) {
     if (err instanceof SendError) {
       return apiError(SEND_ERROR_STATUS[err.code], err.code, err.message);
