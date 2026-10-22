@@ -3,15 +3,30 @@
 # Los secretos NO se necesitan en build: llegan en runtime.
 # ============================================================
 
-FROM node:22-alpine AS deps
+# pnpm se descarga UNA vez, aquí, con reintentos, y deps y builder lo comparten
+# (capa cacheada). Antes cada etapa lo bajaba de registry.npmjs.org al primer
+# `pnpm`, y un 503 de npm tumbaba el despliegue entero. Debe coincidir con
+# `packageManager` de package.json (la etapa deps lo comprueba).
+FROM node:22-alpine AS base
+ARG PNPM_VERSION=11.5.0
+ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
+RUN corepack enable \
+ && for i in 1 2 3 4 5 6; do \
+      corepack prepare "pnpm@${PNPM_VERSION}" --activate && break; \
+      [ "$i" = 6 ] && exit 1; \
+      echo "corepack: intento $i falló, reintento en $((i * 10)) s"; sleep $((i * 10)); \
+    done
+
+FROM base AS deps
+ARG PNPM_VERSION=11.5.0
 WORKDIR /app
-RUN corepack enable
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+RUN grep -q "\"packageManager\": \"pnpm@${PNPM_VERSION}\"" package.json \
+ || { echo "PNPM_VERSION del Dockerfile no coincide con packageManager de package.json"; exit 1; }
 RUN pnpm install --frozen-lockfile
 
-FROM node:22-alpine AS builder
+FROM base AS builder
 WORKDIR /app
-RUN corepack enable
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
@@ -22,6 +37,11 @@ ENV NEXT_TELEMETRY_DISABLED=1
 # el entorno al arrancar, marcado como no verificado.
 ARG SOURCE_COMMIT=""
 ENV SOURCE_COMMIT=$SOURCE_COMMIT
+# Typecheck y lint ya los corre el CI (ver next.config.ts); aquí se omiten para
+# que el build de Next no se quede sin memoria/tiempo en el servidor de
+# despliegue. El tope de heap deja margen al resto del sistema (6 GB en uso).
+ENV SKIP_BUILD_CHECKS=1
+ENV NODE_OPTIONS=--max-old-space-size=3072
 RUN pnpm build
 # migrate.mjs autocontenido (drizzle-orm + postgres bundleados)
 RUN pnpm exec esbuild scripts/migrate.mjs --bundle --platform=node \
