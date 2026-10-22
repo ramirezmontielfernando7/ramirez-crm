@@ -224,6 +224,14 @@ export async function saveInstance(organizationId: string, input: { instanceKey:
     .where(scoped(schema.directConnection.organizationId, organizationId));
 }
 
+/** PR 4: el webhook se volvió a poner con un token nuevo (solo cambia su hash). */
+export async function saveWebhookTokenHash(organizationId: string, webhookTokenHash: string): Promise<void> {
+  await sys()
+    .update(schema.directConnection)
+    .set({ webhookTokenHash, updatedAt: new Date() })
+    .where(scoped(schema.directConnection.organizationId, organizationId));
+}
+
 /** La instancia se borró del servidor: la fila queda lista para vincular de nuevo. */
 export async function clearInstance(organizationId: string): Promise<void> {
   await sys()

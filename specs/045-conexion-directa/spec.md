@@ -85,7 +85,30 @@ plataforma lo enciende, PR 6).
 - Fuera de este PR: cambiar el modo de un chat (PR 5), la marca «Directo» y
   «En cola» en la burbuja (PR 5), Conocimientos por la directa.
 
+## PR 4 — Unir ecos de Meta y palomitas (sin migración)
+
+- Lo que sale por la directa regresa de Meta como eco (`smb_message_echoes`)
+  con otro `wa_message_id`. Fase 0 (Evolution 2.3.7, 3 de 3): ese
+  `wamid` decodificado termina con el `key.id` del dispositivo. La unión es
+  EXACTA por ese ID (`directIdFromWamid`, `src/lib/direct-echo.ts`) contra
+  `alt_message_id`; texto y hora solo de respaldo.
+- `src/server/direct-connection/echo.ts` (`joinDirectEcho`, llamado por
+  `ingestManualEcho` ANTES de registrar el eco): unido = sin otra burbuja, sin
+  lead y sin pausar la IA; la fila del envío se queda con el `wa_message_id`
+  del eco (un reintento de Meta no hace nada).
+- Orden: si el eco llega antes de que el dispositivo conteste, espera a que
+  termine ese envío del mismo chat (máx. 30 s) y vuelve a buscar por ID.
+- Respaldo (`pickEchoFallback`): ID ilegible, o envío que se agotó sin saber
+  su ID: mismo chat, tipo y texto, a menos de 2 min; nunca contradice al ID.
+  Un envío «no se sabe si salió» pasa a «enviado» con su eco.
+- Lo escrito en el celular entra como siempre y guarda el ID del dispositivo
+  en `alt_message_id` (para sus palomitas). Sin el complemento, nada cambia.
+- Palomitas: el webhook del dispositivo pide también `MESSAGES_UPDATE`;
+  `POST /api/webhooks/direct/[token]` las aplica por `alt_message_id`
+  (`src/server/direct-connection/status.ts`) con las reglas de Meta
+  (`ALLOWED_FROM`: nunca retrocede). Una instancia vinculada antes se pone al
+  día en la revisión de 5 min (`ensureWebhookEvents`, token nuevo).
+
 ## Siguientes PRs
 
-4. Unir ecos de Meta.
-   5. Modos y pantalla. 6. Organización sin Meta.
+5. Modos y pantalla. 6. Organización sin Meta.

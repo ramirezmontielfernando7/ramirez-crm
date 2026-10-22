@@ -78,8 +78,8 @@ export function parseQr(raw: unknown): Qr {
   };
 }
 
-/** Eventos que pide Dashfort al servidor: solo el estado del dispositivo. */
-export const WEBHOOK_EVENTS = ["CONNECTION_UPDATE"] as const;
+/** Eventos que pide Dashfort al servidor: el estado del dispositivo y (PR 4) las palomitas de lo enviado. */
+export const WEBHOOK_EVENTS = ["CONNECTION_UPDATE", "MESSAGES_UPDATE"] as const;
 
 export async function createInstance(server: EvolutionServerRef, input: { instanceName: string; token: string }) {
   return call(server, "POST", "/instance/create", {
@@ -94,6 +94,15 @@ export async function setWebhook(server: EvolutionServerRef, instanceName: strin
   return call(server, "POST", `/webhook/set/${encodeURIComponent(instanceName)}`, {
     webhook: { enabled: true, url, byEvents: false, base64: false, events: [...WEBHOOK_EVENTS] },
   });
+}
+
+/** Los eventos que el servidor manda hoy a Dashfort (null si no lo dice). */
+export async function webhookEvents(server: EvolutionServerRef, instanceName: string): Promise<EvolutionResult<string[] | null>> {
+  const r = await call(server, "GET", `/webhook/find/${encodeURIComponent(instanceName)}`);
+  if (!r.ok) return r;
+  const hook = r.data as { events?: unknown; webhook?: { events?: unknown } } | null;
+  const events = hook?.events ?? hook?.webhook?.events;
+  return { ok: true, data: Array.isArray(events) ? events.filter((e): e is string => typeof e === "string") : null };
 }
 
 export async function connectInstance(server: EvolutionServerRef, instanceName: string): Promise<EvolutionResult<Qr>> {
