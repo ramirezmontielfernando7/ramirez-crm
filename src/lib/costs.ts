@@ -23,9 +23,12 @@ export type Pricing = {
   /** `null` = el juez usa los precios del modelo principal. */
   judgeInputUsdPerMtok: number | null;
   judgeOutputUsdPerMtok: number | null;
+  /** `null` = el análisis del asistente usa los precios del modelo principal. */
+  analysisInputUsdPerMtok: number | null;
+  analysisOutputUsdPerMtok: number | null;
   embedUsdPerMtok: number;
-  /** Unidades de la moneda local por 1 USD. */
-  usdToLocal: number;
+  /** Unidades de la moneda local por 1 USD. `null` = sin tipo de cambio: solo USD. */
+  usdToLocal: number | null;
   localCurrency: string;
   createdAt: string;
   createdByEmail: string | null;
@@ -36,8 +39,12 @@ export type PricingInput = {
   chatOutputUsdPerMtok: number;
   judgeInputUsdPerMtok: number | null;
   judgeOutputUsdPerMtok: number | null;
+  /** Ausente o `null` = el análisis usa el precio del principal. */
+  analysisInputUsdPerMtok?: number | null;
+  analysisOutputUsdPerMtok?: number | null;
   embedUsdPerMtok: number;
-  usdToLocal: number;
+  /** Ausente o `null` = sin tipo de cambio (solo USD). */
+  usdToLocal?: number | null;
   localCurrency: string;
   /** `YYYY-MM-DD` (UTC). Ausente = desde ahora. */
   validFrom?: string;
@@ -172,6 +179,11 @@ export function pricingMomentFor(period: string, now = new Date()): Date {
   return now.getTime() < end.getTime() ? now : new Date(end.getTime() - 1);
 }
 
+/** ¿Hay tipo de cambio capturado? Sin él todo se muestra solo en USD. */
+export function hasExchangeRate(p: Pricing | null): p is Pricing & { usdToLocal: number } {
+  return !!p && p.usdToLocal !== null;
+}
+
 /** USD con centavos; montos chicos con más decimales para que no se lean como cero. */
 export function formatUsd(usd: number | null): string {
   if (usd === null) return "—";
@@ -181,7 +193,7 @@ export function formatUsd(usd: number | null): string {
 
 /** Un monto en USD convertido a la moneda local del precio vigente. */
 export function formatLocal(usd: number | null, p: Pricing | null): string {
-  if (usd === null || !p) return "—";
+  if (usd === null || !p || p.usdToLocal === null) return "—";
   const local = usd * p.usdToLocal;
   const digits = local !== 0 && Math.abs(local) < 1 ? 4 : 2;
   return `${new Intl.NumberFormat("es-MX", { minimumFractionDigits: digits, maximumFractionDigits: digits }).format(local)} ${p.localCurrency}`.replace(/ /g, " ");
@@ -198,3 +210,118 @@ export const COST_KIND_LABEL: Record<CostKind, string> = {
 
 export const ESTIMATE_NOTE =
   "Estimado: tokens del mes × tus precios vigentes. Real: lo que reportó OpenRouter en cada llamada (desde que se activó, y solo si el proveedor lo manda). Proyección: el mayor de los dos, al ritmo de lo que va del mes.";
+
+// ---------------------------------------------------------------------------
+// Modelos: quién usa qué, precios sugeridos y calculadora de costo máximo.
+// ---------------------------------------------------------------------------
+
+/** Las cuatro funciones de modelo que configura el operador por variable de entorno. */
+export const AI_ROLES = ["main", "judge", "analysis", "embed"] as const;
+export type AiRole = (typeof AI_ROLES)[number];
+
+export const AI_ROLE_LABEL: Record<AiRole, string> = {
+  main: "Principal (agente, Laboratorio, redacción, asistente)",
+  judge: "Juez del Laboratorio",
+  analysis: "Análisis de conversaciones (asistente)",
+  embed: "Embeddings (documentos)",
+};
+
+export const AI_ROLE_ENV: Record<AiRole, string> = {
+  main: "OPENROUTER_MODEL",
+  judge: "OPENROUTER_JUDGE_MODEL",
+  analysis: "OPENROUTER_ANALYSIS_MODEL",
+  embed: "EMBEDDINGS_MODEL",
+};
+
+export type PriceSuggestion = { inputUsdPerMtok: number; outputUsdPerMtok: number; note: string };
+
+/**
+ * Precios de referencia (USD por millón de tokens) de modelos que ya usamos,
+ * para proveedores que NO publican precios por API (OpenAI, Bedrock). Son
+ * una ayuda para capturar a mano, no una fuente de verdad: confirma contra
+ * la factura del proveedor.
+ */
+const KNOWN_PRICES: { match: RegExp; price: PriceSuggestion }[] = [
+  { match: /claude-haiku-5[-.]5/i, price: { inputUsdPerMtok: 0.1, outputUsdPerMtok: 0.5, note: "Claude Haiku 5.5" } },
+  { match: /claude-sonnet-5[-.]5/i, price: { inputUsdPerMtok: 2, outputUsdPerMtok: 10, note: "Claude Sonnet 5.5" } },
+  { match: /gpt-6-luna/i, price: { inputUsdPerMtok: 0.1, outputUsdPerMtok: 0.5, note: "GPT-6 Luna" } },
+  { match: /gpt-6-sol/i, price: { inputUsdPerMtok: 2, outputUsdPerMtok: 10, note: "GPT-6 Sol (precio inferido)" } },
+];
+
+/** El precio de referencia de un modelo conocido, o `null`. */
+export function suggestedPriceFor(modelId: string | null): PriceSuggestion | null {
+  if (!modelId) return null;
+  return KNOWN_PRICES.find((k) => k.match.test(modelId))?.price ?? null;
+}
+
+/**
+ * Lee de la respuesta de `GET {OpenRouter}/v1/models` el precio de un modelo.
+ * OpenRouter lo da en USD POR TOKEN (texto); aquí sale por millón.
+ */
+export function parseOpenRouterPrice(json: unknown, modelId: string): PriceSuggestion | null {
+  const data = (json as { data?: unknown } | null)?.data;
+  if (!Array.isArray(data)) return null;
+  const m = data.find((x) => (x as { id?: unknown })?.id === modelId) as { pricing?: { prompt?: unknown; completion?: unknown } } | undefined;
+  const inp = Number(m?.pricing?.prompt);
+  const out = Number(m?.pricing?.completion);
+  if (!m || !Number.isFinite(inp) || !Number.isFinite(out) || inp < 0 || out < 0) return null;
+  const round = (n: number) => Math.round(n * 1e6 * 1e6) / 1e6;
+  return { inputUsdPerMtok: round(inp), outputUsdPerMtok: round(out), note: "OpenRouter" };
+}
+
+/** Los topes de una organización que mueven el costo. `null` = sin tope. */
+export type CapacityLimits = {
+  aiTurns: number | null;
+  aiTokens: number | null;
+  assistantTokens: number | null;
+  embedTokens: number | null;
+};
+
+export type CapacityLine = {
+  organizationId: string;
+  name: string;
+  status: string;
+  limits: CapacityLimits;
+};
+
+export type CapacityCost = {
+  chatUsd: number;
+  assistantUsd: number;
+  embedUsd: number;
+  /** `null` = sin tope de tokens de chat: el máximo no tiene techo. */
+  totalUsd: number | null;
+  /** Falta el tope de tokens de chat (o de embeddings con precio): el total es solo lo que sí tiene tope. */
+  unbounded: boolean;
+};
+
+/** USD por millón de una mezcla `inputShare` entrada / resto salida. */
+const blend = (inp: number, out: number, inputShare: number) => inp * inputShare + out * (1 - inputShare);
+
+/**
+ * Costo MÁXIMO del mes si la organización gastara todo su tope, con estos
+ * precios y esta proporción de tokens de entrada (0–1).
+ * - El tope de tokens de IA es el total (el asistente cuenta dentro de él): lo
+ *   del asistente se cobra al más caro entre principal y análisis, y el resto
+ *   al más caro entre principal y juez (peor caso).
+ * - Sin tope propio del asistente, el asistente no responde: 0.
+ * - Embeddings: tope de tokens × su precio (todo es entrada).
+ */
+export function capacityCost(limits: CapacityLimits, p: Pricing, inputShare: number): CapacityCost {
+  const share = Math.min(1, Math.max(0, inputShare));
+  const main = blend(p.chatInputUsdPerMtok, p.chatOutputUsdPerMtok, share);
+  const judge = blend(p.judgeInputUsdPerMtok ?? p.chatInputUsdPerMtok, p.judgeOutputUsdPerMtok ?? p.chatOutputUsdPerMtok, share);
+  const analysis = blend(p.analysisInputUsdPerMtok ?? p.chatInputUsdPerMtok, p.analysisOutputUsdPerMtok ?? p.chatOutputUsdPerMtok, share);
+  const chatPrice = Math.max(main, judge);
+  const assistantPrice = Math.max(main, analysis);
+
+  const total = limits.aiTokens;
+  const assistantCap = limits.assistantTokens === null ? 0 : total === null ? limits.assistantTokens : Math.min(limits.assistantTokens, total);
+  const assistantUsd = (assistantCap * assistantPrice) / M;
+  const embedUsd = ((limits.embedTokens ?? 0) * p.embedUsdPerMtok) / M;
+  if (total === null) {
+    return { chatUsd: 0, assistantUsd, embedUsd, totalUsd: null, unbounded: true };
+  }
+  const chatUsd = (Math.max(0, total - assistantCap) * chatPrice) / M;
+  const unbounded = limits.embedTokens === null && p.embedUsdPerMtok > 0;
+  return { chatUsd, assistantUsd, embedUsd, totalUsd: chatUsd + assistantUsd + embedUsd, unbounded };
+}

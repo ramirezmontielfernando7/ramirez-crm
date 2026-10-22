@@ -347,6 +347,10 @@ const PLATAFORMA: [string, Method][] = [
   ["platform/pricing", "GET"],
   ["platform/pricing", "POST"],
   ["platform/costs", "GET"],
+  ["platform/costs/capacity", "GET"],
+  ["platform/ai-models", "GET"],
+  ["platform/ai-models/test", "POST"],
+  ["platform/pricing/openrouter", "POST"],
   ["platform/users/[id]/link", "POST"],
   ["platform/audit", "GET"],
   // 040: ficha de una organización, administradores y webhooks sin ruta.
