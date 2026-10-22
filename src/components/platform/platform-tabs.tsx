@@ -13,6 +13,7 @@ export const PLATFORM_TABS = [
   { href: "/platform/organizaciones", label: "Organizaciones y Planes" },
   { href: "/platform/costos", label: "Costos y Precios IA" },
   { href: "/platform/webhooks", label: "Webhooks sin ruta" },
+  { href: "/platform/conexion-directa", label: "Conexión directa" },
   { href: "/platform/admin", label: "Administradores y auditoría" },
 ] as const;
 

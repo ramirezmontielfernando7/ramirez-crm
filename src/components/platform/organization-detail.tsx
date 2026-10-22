@@ -312,7 +312,59 @@ export function PlanModulesSection() {
           />
           <span className="min-w-0">Conexión directa (dispositivo vinculado)</span>
         </label>
+        {modules.conexionDirecta && <DirectServerPicker orgId={org.id} disabled={disabled} />}
       </Section>
+    </div>
+  );
+}
+
+/** Conexión directa (PR 2) — El servidor de esta empresa. Con dispositivo vinculado ya no se cambia. */
+function DirectServerPicker({ orgId, disabled }: { orgId: string; disabled: boolean }) {
+  const [servers, setServers] = useState<{ id: string; name: string; used: number; maxInstances: number }[]>([]);
+  const [conn, setConn] = useState<{ serverId: string | null; serverName: string | null; status: string | null; phoneNumber: string | null; locked: boolean } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    void api<{ servers: typeof servers }>("/api/platform/direct-servers").then((r) => r.data && setServers(r.data.servers));
+    void api<{ connection: NonNullable<typeof conn> }>(`/api/platform/organizations/${orgId}/direct-connection`).then((r) => r.data && setConn(r.data.connection));
+  }, [orgId]);
+
+  async function assign(serverId: string) {
+    setError(null);
+    const r = await api<{ connection: NonNullable<typeof conn> }>(`/api/platform/organizations/${orgId}/direct-connection`, {
+      method: "PUT",
+      body: JSON.stringify({ serverId }),
+    });
+    if (r.data) setConn(r.data.connection);
+    else setError(r.error);
+  }
+
+  return (
+    <div className="ml-10 space-y-1 text-xs" data-testid="platform-direct-server-picker">
+      <label className="flex items-center gap-2">
+        <span className="text-text-3">Servidor</span>
+        <select
+          className="rounded border bg-background px-1 py-0.5"
+          value={conn?.serverId ?? ""}
+          disabled={disabled || conn?.locked}
+          onChange={(e) => e.target.value && void assign(e.target.value)}
+        >
+          <option value="">Automático (el que tenga lugar)</option>
+          {servers.map((s) => (
+            <option key={s.id} value={s.id}>
+              {s.name} ({s.used}/{s.maxInstances})
+            </option>
+          ))}
+        </select>
+      </label>
+      {conn?.status && (
+        <p className="text-text-3">
+          Estado: {conn.status}
+          {conn.phoneNumber ? ` · ${conn.phoneNumber}` : ""}
+          {conn.locked ? " · con dispositivo vinculado" : ""}
+        </p>
+      )}
+      {error && <p className="text-destructive">{error}</p>}
     </div>
   );
 }

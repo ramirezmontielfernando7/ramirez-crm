@@ -34,6 +34,7 @@ const GROUPS: readonly Group[] = [
       { slug: "messenger", label: "Messenger" },
       { slug: "templates", label: "Plantillas" },
       { slug: "ads", label: "Anuncios (CAPI)" },
+      { slug: "direct-connection", label: "Conexión directa" },
     ],
   },
   {
@@ -69,6 +70,7 @@ export function SettingsShell({
   agenda = false,
   atribucion = false,
   messenger = false,
+  directConnection = false,
   templates = true,
   allowed,
   children,
@@ -76,6 +78,8 @@ export function SettingsShell({
   agenda?: boolean;
   atribucion?: boolean;
   messenger?: boolean;
+  /** Conexión directa (PR 2) — solo con el complemento encendido y el permiso de vincular. */
+  directConnection?: boolean;
   /** 030 (PR 4) — con Campañas encendido, Plantillas vive en Marketing. */
   templates?: boolean;
   /** 020 — páginas que el rol puede abrir (`/settings/<clave>`); lo decide el servidor. */
@@ -88,6 +92,7 @@ export function SettingsShell({
     if (slug === "calendar" && !agenda) return false;
     if (slug === "ads" && !atribucion) return false;
     if (slug === "messenger" && !messenger) return false;
+    if (slug === "direct-connection" && !directConnection) return false;
     if (slug === "templates" && !templates) return false;
     return !allowed || allowed.includes(slug);
   });
