@@ -2976,9 +2976,12 @@ export const platformAiPricing = pgTable(
     /** NULL = el juez usa los precios del modelo principal. */
     judgeInputUsdPerMtok: numeric("judge_input_usd_per_mtok", { precision: 12, scale: 6 }),
     judgeOutputUsdPerMtok: numeric("judge_output_usd_per_mtok", { precision: 12, scale: 6 }),
+    /** 0056: NULL = el análisis del asistente usa los precios del modelo principal. */
+    analysisInputUsdPerMtok: numeric("analysis_input_usd_per_mtok", { precision: 12, scale: 6 }),
+    analysisOutputUsdPerMtok: numeric("analysis_output_usd_per_mtok", { precision: 12, scale: 6 }),
     embedUsdPerMtok: numeric("embed_usd_per_mtok", { precision: 12, scale: 6 }).notNull().default("0"),
-    /** Unidades de la moneda local por 1 USD. */
-    usdToLocal: numeric("usd_to_local", { precision: 14, scale: 6 }).notNull(),
+    /** Unidades de la moneda local por 1 USD. 0056: NULL = sin tipo de cambio (solo USD). */
+    usdToLocal: numeric("usd_to_local", { precision: 14, scale: 6 }),
     localCurrency: text("local_currency").notNull().default("MXN"),
     createdBy: text("created_by").references(() => user.id, { onDelete: "set null" }),
     createdAt: timestamp("created_at").notNull().defaultNow(),

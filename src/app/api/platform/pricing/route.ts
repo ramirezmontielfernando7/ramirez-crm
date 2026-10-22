@@ -23,8 +23,11 @@ const schema = z
     chatOutputUsdPerMtok: precio,
     judgeInputUsdPerMtok: precio.nullable(),
     judgeOutputUsdPerMtok: precio.nullable(),
+    analysisInputUsdPerMtok: precio.nullable().default(null),
+    analysisOutputUsdPerMtok: precio.nullable().default(null),
     embedUsdPerMtok: precio,
-    usdToLocal: z.number().gt(0).max(100_000),
+    // Opcional: sin tipo de cambio, todo se muestra solo en USD.
+    usdToLocal: z.number().gt(0).max(100_000).nullable().default(null),
     localCurrency: z.string().regex(/^[A-Z]{3}$/, "Moneda de 3 letras (MXN, USD, COP…)"),
     validFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((d) => !Number.isNaN(Date.parse(`${d}T00:00:00Z`)), "Fecha no válida").optional(),
   })

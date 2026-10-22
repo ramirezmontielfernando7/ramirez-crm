@@ -11,6 +11,10 @@ import {
   projectionBase,
   projectMonth,
   sumCosts,
+  capacityCost,
+  hasExchangeRate,
+  parseOpenRouterPrice,
+  suggestedPriceFor,
   type Pricing,
 } from "@/lib/costs";
 
@@ -24,6 +28,8 @@ function precio(over: Partial<Pricing> = {}): Pricing {
     chatOutputUsdPerMtok: 15,
     judgeInputUsdPerMtok: null,
     judgeOutputUsdPerMtok: null,
+    analysisInputUsdPerMtok: null,
+    analysisOutputUsdPerMtok: null,
     embedUsdPerMtok: 0.02,
     usdToLocal: 18.5,
     localCurrency: "MXN",
@@ -109,5 +115,82 @@ describe("formato", () => {
     expect(formatUsd(null)).toBe("—");
     expect(formatLocal(10, precio())).toBe("185.00 MXN");
     expect(formatLocal(10, null)).toBe("—");
+  });
+});
+
+describe("tipo de cambio opcional", () => {
+  it("sin tipo de cambio no hay moneda local y nada se rompe", () => {
+    const p = precio({ usdToLocal: null });
+    expect(hasExchangeRate(p)).toBe(false);
+    expect(formatLocal(12.5, p)).toBe("—");
+    expect(formatUsd(12.5)).toContain("USD");
+    expect(estimateKindUsd("agent", 1_000_000, 0, p)).toBeCloseTo(3);
+    const kinds = costByKind([{ kind: "agent", promptTokens: 1_000_000, completionTokens: 0, costUsd: 0 }], p);
+    expect(sumCosts(kinds, true).estimatedUsd).toBeCloseTo(3);
+  });
+  it("con tipo de cambio convierte", () => {
+    expect(hasExchangeRate(precio())).toBe(true);
+    expect(formatLocal(2, precio())).toMatch(/37[.,]00 MXN/);
+  });
+});
+
+describe("precios sugeridos y de OpenRouter", () => {
+  it("modelos conocidos", () => {
+    expect(suggestedPriceFor("global.anthropic.claude-haiku-5-5")).toMatchObject({ inputUsdPerMtok: 0.1, outputUsdPerMtok: 0.5 });
+    expect(suggestedPriceFor("anthropic/claude-sonnet-5.5")).toMatchObject({ inputUsdPerMtok: 2, outputUsdPerMtok: 10 });
+    expect(suggestedPriceFor("global.openai.gpt-6-luna")).toMatchObject({ inputUsdPerMtok: 0.1 });
+    expect(suggestedPriceFor("algo/desconocido")).toBeNull();
+    expect(suggestedPriceFor(null)).toBeNull();
+  });
+  it("OpenRouter da USD por token: sale por millón", () => {
+    const json = { data: [{ id: "a/b", pricing: { prompt: "0.0000001", completion: "0.0000005" } }, { id: "c/d", pricing: { prompt: "x", completion: "1" } }] };
+    expect(parseOpenRouterPrice(json, "a/b")).toMatchObject({ inputUsdPerMtok: 0.1, outputUsdPerMtok: 0.5 });
+    expect(parseOpenRouterPrice(json, "c/d")).toBeNull();
+    expect(parseOpenRouterPrice(json, "no/existe")).toBeNull();
+    expect(parseOpenRouterPrice({}, "a/b")).toBeNull();
+  });
+});
+
+describe("calculadora de costo máximo por cliente", () => {
+  const p = precio({
+    chatInputUsdPerMtok: 0.1,
+    chatOutputUsdPerMtok: 0.5,
+    judgeInputUsdPerMtok: 2,
+    judgeOutputUsdPerMtok: 10,
+    analysisInputUsdPerMtok: 2,
+    analysisOutputUsdPerMtok: 10,
+    embedUsdPerMtok: 0.02,
+  });
+  it("todo el tope de chat al peor precio; asistente dentro del total; embeddings aparte", () => {
+    // 100 % entrada: principal 0.1, juez 2, análisis 2. Chat: 8M × 2 (peor caso juez), asistente 2M × 2, embeddings 5M × 0.02.
+    const c = capacityCost({ aiTurns: 1000, aiTokens: 10_000_000, assistantTokens: 2_000_000, embedTokens: 5_000_000 }, p, 1);
+    expect(c.chatUsd).toBeCloseTo(16);
+    expect(c.assistantUsd).toBeCloseTo(4);
+    expect(c.embedUsd).toBeCloseTo(0.1);
+    expect(c.totalUsd).toBeCloseTo(20.1);
+    expect(c.unbounded).toBe(false);
+  });
+  it("la proporción entrada/salida mueve el costo", () => {
+    const l = { aiTurns: null, aiTokens: 1_000_000, assistantTokens: null, embedTokens: 0 };
+    expect(capacityCost(l, p, 1).totalUsd).toBeCloseTo(2);
+    expect(capacityCost(l, p, 0).totalUsd).toBeCloseTo(10);
+    expect(capacityCost(l, p, 0.5).totalUsd).toBeCloseTo(6);
+  });
+  it("sin tope de tokens no hay techo; sin tope del asistente no responde (0)", () => {
+    const c = capacityCost({ aiTurns: null, aiTokens: null, assistantTokens: null, embedTokens: null }, p, 0.8);
+    expect(c.totalUsd).toBeNull();
+    expect(c.unbounded).toBe(true);
+    const d = capacityCost({ aiTurns: null, aiTokens: 1_000_000, assistantTokens: null, embedTokens: 0 }, p, 1);
+    expect(d.assistantUsd).toBe(0);
+  });
+  it("el tope del asistente nunca pasa del total", () => {
+    const c = capacityCost({ aiTurns: null, aiTokens: 1_000_000, assistantTokens: 5_000_000, embedTokens: 0 }, p, 1);
+    expect(c.assistantUsd).toBeCloseTo(2);
+    expect(c.chatUsd).toBe(0);
+  });
+  it("análisis sin precio propio usa el principal", () => {
+    const q = precio({ analysisInputUsdPerMtok: null, analysisOutputUsdPerMtok: null });
+    const c = capacityCost({ aiTurns: null, aiTokens: 1_000_000, assistantTokens: 1_000_000, embedTokens: 0 }, q, 1);
+    expect(c.assistantUsd).toBeCloseTo(3);
   });
 });

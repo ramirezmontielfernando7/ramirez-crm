@@ -104,6 +104,40 @@ describe("costos de IA", () => {
     expect(base.judgeOutputUsdPerMtok).toBeNull();
   });
 
+  it("el tipo de cambio es opcional y el análisis guarda su propio precio", async () => {
+    const p = await addPricing(
+      {
+        chatInputUsdPerMtok: 0.1,
+        chatOutputUsdPerMtok: 0.5,
+        judgeInputUsdPerMtok: 2,
+        judgeOutputUsdPerMtok: 10,
+        analysisInputUsdPerMtok: 2,
+        analysisOutputUsdPerMtok: 10,
+        embedUsdPerMtok: 0,
+        usdToLocal: null,
+        localCurrency: "MXN",
+        validFrom: "2001-01-01",
+      },
+      null,
+      null
+    );
+    precios.push(p.id);
+    expect(p.usdToLocal).toBeNull();
+    expect(p.analysisInputUsdPerMtok).toBe(2);
+    const otra = (await listPricing()).find((x) => x.id === p.id)!;
+    expect(otra.usdToLocal).toBeNull();
+    expect(otra.analysisOutputUsdPerMtok).toBe(10);
+    // Sin análisis ni tipo de cambio en la entrada: quedan en NULL.
+    const q = await addPricing(
+      { chatInputUsdPerMtok: 1, chatOutputUsdPerMtok: 1, judgeInputUsdPerMtok: null, judgeOutputUsdPerMtok: null, embedUsdPerMtok: 0, localCurrency: "MXN", validFrom: "2001-01-02" },
+      null,
+      null
+    );
+    precios.push(q.id);
+    expect(q.usdToLocal).toBeNull();
+    expect(q.analysisInputUsdPerMtok).toBeNull();
+  });
+
   it("el panel: estimado con el precio vigente, real reportado, proyección; sin consumo no ocupa renglón", async () => {
     const r = await getCostReport();
     // Otros archivos de prueba pueden tener precios: el vigente es el más
