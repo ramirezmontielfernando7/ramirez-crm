@@ -324,9 +324,20 @@ async function ingestEchoes(organizationId: string, echoes: WebhookMessage[]): P
   }
 }
 
+/**
+ * Conexión directa (PR 6) — Lo que el negocio mandó desde el celular (o desde
+ * Dashfort) y el DISPOSITIVO reporta en una empresa sin Meta: el mismo trato
+ * que un echo de coexistence. `directId` es su `key.id`: si es un envío de
+ * Dashfort, se une a esa fila y no se registra otra vez.
+ */
+export async function ingestDeviceEcho(organizationId: string, echo: WebhookMessage, directId: string): Promise<void> {
+  await runWithOrganization(organizationId, () => ingestManualEcho(organizationId, echo, { directId, transport: "directa" }));
+}
+
 async function ingestManualEcho(
   organizationId: string,
-  echo: WebhookMessage
+  echo: WebhookMessage,
+  opts: { directId?: string; transport?: "directa" } = {}
 ): Promise<void> {
   const db = getDb();
   const identity = normalizeMx(echo.to!);
@@ -351,6 +362,7 @@ async function ingestManualEcho(
     type: echo.type,
     text: echo.text?.body ?? null,
     at: waTimestamp,
+    directId: opts.directId ?? null,
   });
   if (join.joined) return;
 
@@ -370,7 +382,8 @@ async function ingestManualEcho(
       origin: "manual",
       waTimestamp,
       // PR 4: el ID del dispositivo, para sus palomitas de entrega.
-      altMessageId: join.directId,
+      altMessageId: join.directId ?? opts.directId ?? null,
+      transport: opts.transport ?? null,
     })
     .onConflictDoNothing({ target: [schema.message.waMessageId] })
     .returning();
@@ -465,6 +478,8 @@ async function ingestInboundMessageInOrg(input: {
   threadRef?: string | null;
   /** 016/018: el anuncio que abrió la conversación, ya normalizado por el canal. */
   anuncio?: AnuncioDeOrigen | null;
+  /** Conexión directa (PR 6): entró por el dispositivo vinculado (empresa sin Meta). */
+  device?: { keyId: string; lid: string | null } | null;
 }): Promise<void> {
   const db = getDb();
   const { organizationId } = input;
@@ -515,11 +530,22 @@ async function ingestInboundMessageInOrg(input: {
       text: input.text,
       status: "delivered",
       waTimestamp,
+      ...(input.device ? { transport: "directa" as const, altMessageId: input.device.keyId } : {}),
     })
     .onConflictDoNothing({ target: [schema.message.waMessageId] })
     .returning();
   const message = inserted[0];
   if (!message) return; // duplicado
+
+  // PR 6: el ID privado (`@lid`) del contacto, para reconocerlo si un día
+  // llega sin teléfono. Nunca tumba la entrada (único por organización).
+  if (input.device?.lid && !contact.waLid) {
+    await db
+      .update(schema.contact)
+      .set({ waLid: input.device.lid })
+      .where(scoped(schema.contact.organizationId, organizationId, eq(schema.contact.id, contact.id)))
+      .catch((err: unknown) => log.warn("no se guardó el ID privado del contacto", { org: organizationId, err }));
+  }
 
   const asset = input.media
     ? await attachMediaAsset(organizationId, message.id, input.media)

@@ -96,6 +96,13 @@ type SendResult = {
  */
 type SendOptions = { allowDirect?: boolean };
 
+/**
+ * PR 6 — Solo para `prepareSend`: un texto de la IA. Sale por el dispositivo
+ * únicamente en una empresa SIN Meta con «IA por conexión directa» encendido
+ * por la plataforma (lo decide `routeFor`); con Meta, la IA sale por Meta.
+ */
+type PrepareOptions = SendOptions & { aiDirect?: boolean };
+
 type SendTarget = {
   conversation: typeof schema.conversation.$inferSelect;
   /** null cuando el destino no es WhatsApp (014). */
@@ -120,7 +127,7 @@ type SendTarget = {
 async function prepareSend(
   conversationId: string,
   organizationId: string,
-  opts: SendOptions = {}
+  opts: PrepareOptions = {}
 ): Promise<SendTarget> {
   // Fase 3, PR 2: nada sale de una organización suspendida o dada de baja.
   await assertOrgActive(organizationId);
@@ -226,7 +233,9 @@ async function prepareSend(
   // Conexión directa (PR 3): un chat en Directa o Automática sale por el
   // dispositivo vinculado, sin ventana de 24 h. Sin `allowDirect`, sin el
   // módulo, sin dispositivo vinculado o en modo Meta: lo de siempre.
-  const route = await directRouteFor(organizationId, row.conversation, opts.allowDirect === true);
+  const route = await directRouteFor(organizationId, row.conversation, opts.allowDirect === true, new Date(), {
+    ai: opts.aiDirect === true,
+  });
   if (route.via === "unavailable") {
     throw new SendError("not_connected", unavailableText(route.reason));
   }
@@ -366,6 +375,7 @@ export async function sendText(input: {
   const target = await prepareSend(input.conversationId, input.organizationId, {
     // La IA nunca: aunque alguien lo pidiera, un texto generado sale por Meta.
     allowDirect: input.allowDirect === true && !input.aiGenerated,
+    aiDirect: input.aiGenerated === true,
   });
   if (target.direct) {
     return viaDirect({
@@ -373,6 +383,7 @@ export async function sendText(input: {
       conversationId: input.conversationId,
       type: "text",
       text: input.text,
+      aiGenerated: input.aiGenerated === true,
     });
   }
   const { credentials } = target;

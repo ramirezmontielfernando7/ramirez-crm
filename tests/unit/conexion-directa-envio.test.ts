@@ -246,7 +246,12 @@ describe("conexión directa — guardarraíles del envío", () => {
 
   it("solo la vía directa habla con el cliente de mensajes del dispositivo", () => {
     const quien = todos.filter((f) => /@\/lib\/evolution\/client/.test(f.src)).map((f) => f.rel);
-    expect(quien.sort()).toEqual(["src/server/credentials/direct-instance.ts", "src/server/direct-connection/send.ts"]);
+    // PR 6: la descarga de archivos que ENTRAN (empresa sin Meta) no envía nada.
+    expect(quien.sort()).toEqual([
+      "src/server/credentials/direct-instance.ts",
+      "src/server/direct-connection/inbound-media.ts",
+      "src/server/direct-connection/send.ts",
+    ]);
   });
 
   it("allowDirect: true solo en las rutas de la Bandeja (texto y archivos de una persona)", () => {

@@ -335,3 +335,22 @@ export async function getOrgCredentialsOrNull<K extends CredentialKind>(
   if (r.error === "not_connected") return null;
   throw new CredentialUnavailableError(kind, r.error);
 }
+
+/**
+ * Conexión directa (PR 6) — ¿La organización tiene número de WhatsApp de Meta
+ * guardado (aunque esté por reconectar)? Solo mira si la fila existe: no abre
+ * ningún secreto. Sin ella, la empresa opera solo con el dispositivo vinculado.
+ */
+export async function orgHasWhatsAppConnection(organizationId: string): Promise<boolean> {
+  const run = async () => {
+    const [row] = await getDb()
+      .select({ id: schema.metaCredentials.organizationId })
+      .from(schema.metaCredentials)
+      .where(scoped(schema.metaCredentials.organizationId, organizationId))
+      .limit(1);
+    return !!row;
+  };
+  const ctx = currentOrganizationId();
+  if (ctx !== null && ctx !== organizationId) throw new Error("orgHasWhatsAppConnection: la organización pedida no es la del contexto");
+  return ctx === null ? runWithOrganization(organizationId, run) : run();
+}

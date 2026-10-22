@@ -365,6 +365,7 @@ const PLATAFORMA: [string, Method][] = [
   ["platform/direct-servers/[id]/test", "POST"],
   ["platform/organizations/[id]/direct-connection", "GET"],
   ["platform/organizations/[id]/direct-connection", "PUT"],
+  ["platform/organizations/[id]/direct-connection", "PATCH"],
 ];
 
 /**

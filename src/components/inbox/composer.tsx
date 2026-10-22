@@ -15,6 +15,7 @@ import {
   X,
 } from "lucide-react";
 import { SPRING } from "@/components/motion";
+import { WINDOW_CLOSED_DIRECT_HINT } from "@/lib/direct-connection";
 import type { ConversationDto, TemplateDto } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { formatBytes, formatRemaining, takePastedImage } from "./helpers";
@@ -98,10 +99,19 @@ export function Composer({
   conversation,
   onSend,
   onSent,
+  freeTextOutsideWindow = false,
+  directHint = true,
 }: {
   conversation: ConversationDto;
   onSend: (text: string) => Promise<string | null>;
   onSent: () => void;
+  /**
+   * Conexión directa: con la ventana cerrada se puede escribir igual porque
+   * sale por el dispositivo (chat Directa/Automática, o empresa sin Meta).
+   */
+  freeTextOutsideWindow?: boolean;
+  /** Avisar que sale por conexión directa (en una empresa sin Meta no hace falta). */
+  directHint?: boolean;
 }) {
   // 030 (PR 4): sin el módulo Conocimientos no se ofrece (la API ya da 404).
   const knowledgeOn = useViewer().hasModule("knowledge");
@@ -350,7 +360,7 @@ export function Composer({
     onSent();
   }
 
-  if (!conversation.windowOpen) {
+  if (!conversation.windowOpen && !freeTextOutsideWindow) {
     return (
       <div className="border-t bg-background px-[18px] py-3.5">
         <div className="mb-3 flex items-start gap-2 rounded-md border border-warning-soft bg-warning-tint p-3 text-sm text-warning-text">
@@ -373,6 +383,12 @@ export function Composer({
 
   return (
     <div className="border-t bg-background px-[18px] pb-3.5 pt-3">
+      {!conversation.windowOpen && directHint && (
+        <p className="mb-2 flex items-center gap-1.5 text-xs text-text-3" data-testid="composer-direct-hint">
+          <Clock3 className="h-3.5 w-3.5 shrink-0" strokeWidth={1.7} />
+          {WINDOW_CLOSED_DIRECT_HINT}
+        </p>
+      )}
       {templates.length > 0 && !file && panel === null && (
         <div className="mb-2.5 flex flex-wrap gap-1.5">
           {templates.slice(0, 4).map((t) => (

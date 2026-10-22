@@ -8,7 +8,7 @@ import { m } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { ContactAvatar } from "@/components/avatar";
 import { ChatModeDot } from "./chat-mode-dot";
-import type { InboxDirectContext } from "@/lib/direct-connection";
+import { freeTextOutsideWindow, type InboxDirectContext } from "@/lib/direct-connection";
 import type { ConversationDto, MessageDto } from "@/lib/types";
 import { type Channel } from "@/lib/channels";
 import { ChannelBadge } from "@/components/channel-badge";
@@ -678,7 +678,7 @@ export function InboxClient({
           onSeeded={onSeeded}
           onPatchRow={patchRow}
           onRemoved={onRemoved}
-          directDefaultMode={direct?.defaultMode ?? null}
+          directDefaultMode={direct && !direct.metaless ? direct.defaultMode : null}
         />
       </section>
 
@@ -712,7 +712,7 @@ export function InboxClient({
                   <ChevronLeft className="h-5 w-5" strokeWidth={1.8} />
                 </button>
                 <div className="flex min-w-0 flex-1 items-center gap-3 px-1">
-                  {direct ? (
+                  {direct && !direct.metaless ? (
                     <ChatModeDot
                       conversation={selected}
                       ctx={direct}
@@ -767,6 +767,8 @@ export function InboxClient({
             </m.div>
             <Composer
               conversation={selected}
+              freeTextOutsideWindow={freeTextOutsideWindow(direct, selected)}
+              directHint={!direct?.metaless}
               onSend={sendText}
               onSent={() => {
                 const id = selectedIdRef.current;

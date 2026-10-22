@@ -70,6 +70,8 @@ export const DIRECT_TEXT = {
   disconnected:
     "El dispositivo vinculado se desconectó. Vuelve a vincularlo para seguir enviando por conexión directa.",
   emergencyPause: "Pausamos la conexión directa por 24 h para proteger tu número.",
+  metalessNote:
+    "Esta empresa usa solo el dispositivo vinculado: todos los chats entran y salen por conexión directa, sin ventana de 24 horas.",
   limitsHint: "Enviar despacio, como una persona, reduce la probabilidad de que WhatsApp desconecte el dispositivo.",
   activationNotice:
     "La conexión directa vincula tu WhatsApp como un dispositivo más, igual que WhatsApp Web. No forma parte de la plataforma de Meta para empresas, así que WhatsApp puede desconectarlo o restringir el número si detecta envíos masivos. Te recomendamos usarla para conversaciones uno a uno.",
@@ -221,4 +223,28 @@ export type InboxDirectContext = {
   /** ¿Hay un dispositivo vinculado y conectado, y no en pausa? Sin eso solo se puede Oficial. */
   deviceReady: boolean;
   paused: boolean;
+  /**
+   * PR 6: la empresa no tiene conexión de Meta (solo el dispositivo). Todo
+   * chat es Directa, sin punto de color, sin selector y sin ventana de 24 h.
+   */
+  metaless: boolean;
 };
+
+/**
+ * ¿Se puede escribir texto libre en este chat aunque la ventana de 24 h esté
+ * cerrada? Sí cuando sale por el dispositivo: en una empresa sin Meta, o en un
+ * chat Directa/Automática con el dispositivo listo. Lo demás, como siempre
+ * (plantilla).
+ */
+export function freeTextOutsideWindow(
+  ctx: InboxDirectContext | null | undefined,
+  conversation: { channel: string; connectionMode: string | null }
+): boolean {
+  if (!ctx || conversation.channel !== "whatsapp") return false;
+  if (ctx.metaless) return true;
+  const mode = effectiveMode(isConnectionMode(conversation.connectionMode) ? conversation.connectionMode : null, ctx.defaultMode);
+  return mode !== "meta" && ctx.deviceReady;
+}
+
+/** Lo que se ve bajo el compositor cuando la ventana está cerrada y se escribe por el dispositivo. */
+export const WINDOW_CLOSED_DIRECT_HINT = "La ventana de 24 horas está cerrada: este mensaje sale por conexión directa.";

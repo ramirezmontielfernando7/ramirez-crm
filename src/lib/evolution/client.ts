@@ -155,3 +155,31 @@ export async function sendMediaFile(target: EvolutionTarget, number: string, med
     )
   );
 }
+
+/* ───────── Archivos que ENTRAN (PR 6) ───────── */
+
+/**
+ * El archivo de un mensaje que llegó al dispositivo (empresa sin Meta), en
+ * base64. El servidor lo busca por su `key.id` y lo descarga de WhatsApp. Lo
+ * usa solo `src/server/direct-connection/inbound-media.ts`.
+ */
+export async function fetchMediaBase64(
+  target: EvolutionTarget,
+  key: { id: string; remoteJid?: string | null; fromMe?: boolean }
+): Promise<{ data: Buffer; mimeType: string | null; fileName: string | null }> {
+  const res = await evolutionRequest<{ base64?: unknown; mimetype?: unknown; mimeType?: unknown; fileName?: unknown }>(
+    target,
+    "chat/getBase64FromMediaMessage",
+    { message: { key: { id: key.id, ...(key.remoteJid ? { remoteJid: key.remoteJid } : {}), ...(key.fromMe !== undefined ? { fromMe: key.fromMe } : {}) } }, convertToMp4: false },
+    // Un archivo grande tarda: el mismo tope que subir uno de 100 MB.
+    EVOLUTION_TIMEOUT_MS + 10 * 60_000
+  );
+  const raw = typeof res?.base64 === "string" ? res.base64.replace(/^data:[^,]*,/, "") : "";
+  if (!raw) throw new EvolutionApiError("respuesta sin base64", { status: 200 });
+  const mime = typeof res.mimetype === "string" ? res.mimetype : typeof res.mimeType === "string" ? res.mimeType : null;
+  return {
+    data: Buffer.from(raw, "base64"),
+    mimeType: mime ? mime.split(";")[0]!.trim() || null : null,
+    fileName: typeof res.fileName === "string" && res.fileName ? res.fileName : null,
+  };
+}

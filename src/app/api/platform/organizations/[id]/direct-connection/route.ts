@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { parseBody } from "@/lib/api";
-import { assignOrganizationServer, organizationDirect } from "@/server/platform-admin/direct-servers";
+import { assignOrganizationServer, organizationDirect, setOrganizationAiViaDirect } from "@/server/platform-admin/direct-servers";
 import { actorOf, withPlatformAdmin } from "@/server/platform-admin/http";
 
 export const dynamic = "force-dynamic";
@@ -21,4 +21,14 @@ export const PUT = withPlatformAdmin(async (admin, ip, req, { params }: Params) 
   const body = await parseBody(req, schema);
   if (!body.ok) return body.response;
   return Response.json({ connection: await assignOrganizationServer(id, body.data.serverId, actorOf(admin), ip) });
+});
+
+const aiSchema = z.object({ aiViaDirect: z.boolean() }).strict();
+
+/** PR 6 — «IA por conexión directa» (solo cuenta en una empresa sin Meta). */
+export const PATCH = withPlatformAdmin(async (admin, ip, req, { params }: Params) => {
+  const { id } = await params;
+  const body = await parseBody(req, aiSchema);
+  if (!body.ok) return body.response;
+  return Response.json({ connection: await setOrganizationAiViaDirect(id, body.data.aiViaDirect, actorOf(admin), ip) });
 });

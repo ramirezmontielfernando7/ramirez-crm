@@ -29,7 +29,8 @@ export type AuditAction =
   | "direct_server.added"
   | "direct_server.changed"
   | "direct_server.removed"
-  | "direct_connection.server_assigned";
+  | "direct_connection.server_assigned"
+  | "direct_connection.ai_changed";
 
 export type AuditActor = { userId: string; email: string } | null;
 

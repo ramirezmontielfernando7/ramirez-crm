@@ -29,11 +29,19 @@ export type RouteInput = {
   allowDirect: boolean;
   channel: string;
   chatMode: ConnectionMode | null;
-  settings: Pick<DirectSettings, "defaultMode" | "preferMetaInWindow">;
+  settings: Pick<DirectSettings, "defaultMode" | "preferMetaInWindow"> & Partial<Pick<DirectSettings, "aiViaDirect">>;
   /** null = la organización nunca vinculó un dispositivo. */
   connection: DirectConnectionState | null;
   windowOpen: boolean;
   now: Date;
+  /**
+   * PR 6: ¿la empresa tiene conexión de Meta? Sin ella (solo dispositivo
+   * vinculado) todo chat de WhatsApp es Directa, sin ventana de 24 h.
+   * Ausente = sí la tiene (lo de siempre).
+   */
+  hasMeta?: boolean;
+  /** PR 6: es un texto de la IA (sale por la directa solo sin Meta y con «IA por conexión directa»). */
+  ai?: boolean;
 };
 
 export type Route =
@@ -48,12 +56,30 @@ export type Route =
  * modo Meta o sin dispositivo vinculado: Meta, exactamente como antes.
  */
 export function routeFor(input: RouteInput): Route {
-  if (!input.moduleOn || !input.allowDirect || input.channel !== "whatsapp") return { via: "meta" };
+  if (!input.moduleOn || input.channel !== "whatsapp") return { via: "meta" };
+  if (input.hasMeta === false) return routeWithoutMeta(input);
+  if (!input.allowDirect) return { via: "meta" };
   const mode = effectiveMode(input.chatMode, input.settings.defaultMode);
   if (outboundTransportOf(mode) === "meta") return { via: "meta" };
   if (!input.connection || input.connection.status === "pending") return { via: "meta" };
   // «Usar Meta mientras la ventana de 24 h esté abierta» (encendido de fábrica).
   if (input.settings.preferMetaInWindow && input.windowOpen) return { via: "meta" };
+  if (isPaused(input.connection, input.now)) return { via: "unavailable", reason: "paused" };
+  if (input.connection.status !== "connected") return { via: "unavailable", reason: "disconnected" };
+  return { via: "directa" };
+}
+
+/**
+ * PR 6 — Empresa sin Meta: el dispositivo es la ÚNICA salida. Una persona
+ * desde la Bandeja, y la IA si la plataforma encendió «IA por conexión
+ * directa». Campañas, plantillas, cerebro externo y bajas automáticas siguen
+ * por Meta, que aquí no existe: fallan como hoy («no hay número conectado»).
+ * Sin dispositivo, falla claro (no hay Meta a dónde caer).
+ */
+function routeWithoutMeta(input: RouteInput): Route {
+  const aiAllowed = input.ai === true && input.settings.aiViaDirect === true;
+  if (!input.allowDirect && !aiAllowed) return { via: "meta" };
+  if (!input.connection || input.connection.status === "pending") return { via: "unavailable", reason: "disconnected" };
   if (isPaused(input.connection, input.now)) return { via: "unavailable", reason: "paused" };
   if (input.connection.status !== "connected") return { via: "unavailable", reason: "disconnected" };
   return { via: "directa" };
