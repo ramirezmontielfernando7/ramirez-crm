@@ -36,6 +36,8 @@ export type ConversationDto = {
   unreadCount: number;
   windowOpen: boolean;
   windowRemainingMs: number;
+  /** Conexión directa (0055): el modo propio del chat; null = el de la organización. Sin el complemento siempre null. */
+  connectionMode: "meta" | "directa" | "mixta" | null;
   preview: string | null;
   /** 018: el anuncio que abrió la conversación, para la marca de la lista. */
   anuncio: {

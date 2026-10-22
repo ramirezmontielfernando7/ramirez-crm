@@ -60,6 +60,10 @@ const PROTEGIDAS: [string, Method, Permission][] = [
   ["settings/direct-connection", "GET", "direct_connection.link"],
   ["settings/direct-connection", "POST", "direct_connection.link"],
   ["settings/direct-connection", "DELETE", "direct_connection.link"],
+  // PR 5: «Avanzado» y el modo de cada chat.
+  ["settings/direct-connection/advanced", "GET", "direct_connection.limits"],
+  ["settings/direct-connection/advanced", "PUT", "direct_connection.limits"],
+  ["conversations/[id]/mode", "PUT", "direct_connection.mode"],
   ["settings/messaging", "GET", "settings.manage"],
   ["settings/messaging", "PUT", "settings.manage"],
   ["settings/instagram", "GET", "settings.manage"],
