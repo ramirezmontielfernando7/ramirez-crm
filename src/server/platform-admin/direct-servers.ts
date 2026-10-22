@@ -1,13 +1,18 @@
 import { normalizeServerUrl } from "@/lib/direct-connection";
 import {
+  assignServer,
   deleteServer,
+  getConnection,
   getServer,
+  openServerKey,
   insertServer,
   listServers,
   patchServer,
   type ServerPatch,
   type ServerSummary,
 } from "@/server/credentials/direct";
+import { pingServer } from "@/server/direct-connection/evolution-api";
+import { instanceNameOf } from "@/server/direct-connection/link";
 import { recordPlatformAudit, type AuditActor } from "./audit";
 import { PlatformError } from "./organizations";
 
@@ -79,4 +84,49 @@ export async function removeServer(id: string, actor: AuditActor, ip: string | n
   if (r === "not_found") throw new PlatformError(404, "not_found", "Servidor no encontrado");
   if (r === "in_use") throw new PlatformError(409, "in_use", "El servidor tiene empresas conectadas: muévelas antes de borrarlo");
   await recordPlatformAudit({ actor, action: "direct_server.removed", detail: { servidor: id, nombre: server?.name ?? null }, ip });
+}
+
+/** Prueba de /platform: ¿la dirección responde y la llave sirve? Nunca devuelve la llave. */
+export async function testServer(id: string): Promise<{ ok: boolean; instances?: number; error?: string }> {
+  const key = await openServerKey(id);
+  if (!key.ok) {
+    if (key.error === "not_found") throw new PlatformError(404, "not_found", "Servidor no encontrado");
+    return { ok: false, error: "No se pudo abrir la llave guardada (revisa ENCRYPTION_KEY)" };
+  }
+  const r = await pingServer({ baseUrl: key.baseUrl, apiKey: key.apiKey });
+  if (r.ok) return { ok: true, instances: r.data.instances };
+  return {
+    ok: false,
+    error: r.error === "unreachable" ? "El servidor no responde" : r.error === "not_found" ? "La dirección no es de un servidor válido" : "El servidor rechazó la llave",
+  };
+}
+
+export type OrganizationDirect = {
+  serverId: string | null;
+  serverName: string | null;
+  status: "pending" | "connecting" | "connected" | "disconnected" | null;
+  phoneNumber: string | null;
+  /** Con instancia creada, el servidor ya no se puede cambiar. */
+  locked: boolean;
+};
+
+export async function organizationDirect(organizationId: string): Promise<OrganizationDirect> {
+  const row = await getConnection(organizationId);
+  if (!row) return { serverId: null, serverName: null, status: null, phoneNumber: null, locked: false };
+  const server = await getServer(row.serverId);
+  return {
+    serverId: row.serverId,
+    serverName: server?.name ?? null,
+    status: row.status,
+    phoneNumber: row.phoneNumber,
+    locked: row.instanceKeyCipher !== null,
+  };
+}
+
+export async function assignOrganizationServer(organizationId: string, serverId: string, actor: AuditActor, ip: string | null): Promise<OrganizationDirect> {
+  const r = await assignServer(organizationId, serverId, instanceNameOf(organizationId));
+  if (r === "server_not_found") throw new PlatformError(404, "not_found", "Servidor no encontrado");
+  if (r === "has_instance") throw new PlatformError(409, "has_instance", "La empresa ya vinculó su dispositivo: para cambiar de servidor, primero que lo desvincule");
+  await recordPlatformAudit({ actor, action: "direct_connection.server_assigned", org: { id: organizationId, name: organizationId }, detail: { servidor: serverId }, ip });
+  return organizationDirect(organizationId);
 }

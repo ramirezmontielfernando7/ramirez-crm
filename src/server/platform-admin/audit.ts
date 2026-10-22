@@ -28,7 +28,8 @@ export type AuditAction =
   | "admin.removed"
   | "direct_server.added"
   | "direct_server.changed"
-  | "direct_server.removed";
+  | "direct_server.removed"
+  | "direct_connection.server_assigned";
 
 export type AuditActor = { userId: string; email: string } | null;
 

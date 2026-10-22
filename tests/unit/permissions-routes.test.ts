@@ -53,6 +53,10 @@ const PROTEGIDAS: [string, Method, Permission][] = [
   ["settings/whatsapp", "PUT", "settings.manage"],
   ["settings/whatsapp/test", "POST", "settings.manage"],
   ["settings/webhook", "GET", "settings.manage"],
+  // Conexión directa (PR 2): vincular por QR (Propietario o quien él delegue).
+  ["settings/direct-connection", "GET", "direct_connection.link"],
+  ["settings/direct-connection", "POST", "direct_connection.link"],
+  ["settings/direct-connection", "DELETE", "direct_connection.link"],
   ["settings/messaging", "GET", "settings.manage"],
   ["settings/messaging", "PUT", "settings.manage"],
   ["settings/instagram", "GET", "settings.manage"],
@@ -347,6 +351,9 @@ const PLATAFORMA: [string, Method][] = [
   ["platform/direct-servers", "POST"],
   ["platform/direct-servers/[id]", "PATCH"],
   ["platform/direct-servers/[id]", "DELETE"],
+  ["platform/direct-servers/[id]/test", "POST"],
+  ["platform/organizations/[id]/direct-connection", "GET"],
+  ["platform/organizations/[id]/direct-connection", "PUT"],
 ];
 
 /**

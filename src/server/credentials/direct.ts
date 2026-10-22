@@ -1,6 +1,7 @@
-import { asc, count, eq, inArray } from "drizzle-orm";
+import { asc, count, eq, inArray, or } from "drizzle-orm";
 import { getSystemDb, schema } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
+import { scoped } from "@/lib/db/tenant";
 import { last4, pickServer } from "@/lib/direct-connection";
 import { open, seal, type OpenFailure } from "./vault";
 
@@ -11,8 +12,11 @@ import { open, seal, type OpenFailure } from "./vault";
  * organización no la puede leer). Aquí, y solo aquí, se cifra y descifra esa
  * llave; lo que sale hacia /platform lleva solo sus últimos 4.
  *
- * La llave de la instancia de cada organización (`direct_connection`) se
- * guardará con `sealForStorage` cuando el PR 2 la cree.
+ * PR 2: también la conexión de cada organización (`direct_connection`): se
+ * asigna un servidor, se guarda la llave de su instancia (cifrada) y el hash
+ * del token de su webhook, y se lleva su estado. Lo escribe Dashfort (vincular
+ * por QR, el webhook de estado y la revisión de cada 5 min); /platform solo
+ * asigna el servidor. Cada función recibe la organización a la que atiende.
  */
 
 /** Uno solo por archivo, para que el guardarraíl lo cuente una vez. */
@@ -165,4 +169,121 @@ export async function openServerKey(
 /** El servidor para una empresa nueva: el activo con más lugar libre (o null). */
 export async function serverForNewOrganization(): Promise<ServerSummary | null> {
   return pickServer(await listServers());
+}
+
+/* ───────── La conexión de cada organización (PR 2) ───────── */
+
+export type ConnectionRow = typeof schema.directConnection.$inferSelect;
+
+export async function getConnection(organizationId: string): Promise<ConnectionRow | null> {
+  const [row] = await sys()
+    .select()
+    .from(schema.directConnection)
+    .where(scoped(schema.directConnection.organizationId, organizationId))
+    .limit(1);
+  return row ?? null;
+}
+
+/** Asigna un servidor a la organización (fila nueva) o lo cambia mientras no haya instancia creada. */
+export async function assignServer(
+  organizationId: string,
+  serverId: string,
+  instanceName: string
+): Promise<"assigned" | "has_instance" | "server_not_found"> {
+  if (!(await getServer(serverId))) return "server_not_found";
+  const current = await getConnection(organizationId);
+  if (current?.instanceKeyCipher) return "has_instance";
+  if (current) {
+    await sys()
+      .update(schema.directConnection)
+      .set({ serverId, updatedAt: new Date() })
+      .where(scoped(schema.directConnection.organizationId, organizationId));
+    return "assigned";
+  }
+  await sys()
+    .insert(schema.directConnection)
+    .values({ id: newId("directConnection"), organizationId, serverId, instanceName })
+    .onConflictDoNothing({ target: schema.directConnection.organizationId });
+  return "assigned";
+}
+
+/** La instancia ya existe en el servidor: guarda su llave (cifrada) y el hash del token del webhook. */
+export async function saveInstance(organizationId: string, input: { instanceKey: string; webhookTokenHash: string }): Promise<void> {
+  const sealed = seal(input.instanceKey);
+  await sys()
+    .update(schema.directConnection)
+    .set({
+      instanceKeyCipher: sealed.cipher,
+      instanceKeyIv: sealed.iv,
+      instanceKeyTag: sealed.tag,
+      keyVersion: sealed.keyVersion,
+      webhookTokenHash: input.webhookTokenHash,
+      status: "connecting",
+      updatedAt: new Date(),
+    })
+    .where(scoped(schema.directConnection.organizationId, organizationId));
+}
+
+/** La instancia se borró del servidor: la fila queda lista para vincular de nuevo. */
+export async function clearInstance(organizationId: string): Promise<void> {
+  await sys()
+    .update(schema.directConnection)
+    .set({
+      instanceKeyCipher: null,
+      instanceKeyIv: null,
+      instanceKeyTag: null,
+      webhookTokenHash: null,
+      status: "pending",
+      phoneNumber: null,
+      connectedAt: null,
+      updatedAt: new Date(),
+    })
+    .where(scoped(schema.directConnection.organizationId, organizationId));
+}
+
+export type StatusPatch = Partial<
+  Pick<
+    typeof schema.directConnection.$inferInsert,
+    | "status"
+    | "phoneNumber"
+    | "connectedAt"
+    | "lastSeenAt"
+    | "lastCheckAt"
+    | "disconnectCount"
+    | "disconnectWindowStart"
+    | "pausedUntil"
+    | "pauseReason"
+  >
+>;
+
+export async function patchConnection(organizationId: string, patch: StatusPatch): Promise<void> {
+  await sys()
+    .update(schema.directConnection)
+    .set({ ...patch, updatedAt: new Date() })
+    .where(scoped(schema.directConnection.organizationId, organizationId));
+}
+
+/** Quién es el dueño de este token de webhook (se compara el hash, nunca el token). */
+export async function connectionByWebhookHash(hash: string): Promise<ConnectionRow | null> {
+  const [row] = await sys()
+    .select()
+    .from(schema.directConnection)
+    .where(eq(schema.directConnection.webhookTokenHash, hash))
+    .limit(1);
+  return row ?? null;
+}
+
+/** Conexiones con instancia viva: las que revisa la pasada de cada 5 minutos. */
+export async function connectionsToCheck(): Promise<ConnectionRow[]> {
+  return sys()
+    .select()
+    .from(schema.directConnection)
+    .where(or(eq(schema.directConnection.status, "connected"), eq(schema.directConnection.status, "connecting")));
+}
+
+/** La llave de la instancia en claro (PR 3 la usará para enviar). Nunca se registra. */
+export function openInstanceKey(row: ConnectionRow): string | null {
+  if (!row.instanceKeyCipher || !row.instanceKeyIv || !row.instanceKeyTag) return null;
+  const r = open(row.instanceKeyCipher, row.instanceKeyIv, row.instanceKeyTag, row.keyVersion);
+  return r.ok ? r.value : null;
 }

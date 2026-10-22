@@ -12,6 +12,7 @@ import { navForSession } from "@/server/navigation/resolve";
 import { toNavEntries } from "@/lib/modules/nav-layout";
 import { getUserPreferences } from "@/server/preferences";
 import { resolveNavMode } from "@/lib/preferences";
+import { DirectDisconnectNotice } from "@/components/direct-disconnect-notice";
 import { currentPlatformAdmin } from "@/server/platform-admin/admins";
 
 export default async function AppLayout({
@@ -55,6 +56,7 @@ export default async function AppLayout({
       platform={(await currentPlatformAdmin()) !== null}
       navMode={resolveNavMode(prefs, session.role)}
     >
+      <DirectDisconnectNotice session={session} />
       {children}
     </AppShell>
   );
