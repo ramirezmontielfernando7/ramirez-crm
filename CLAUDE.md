@@ -200,6 +200,12 @@ OPENROUTER_JUDGE_MODEL=anthropic/claude-haiku-4.5   # opcional: juez más barato
 OPENROUTER_ANALYSIS_MODEL=anthropic/claude-haiku-4.5  # opcional: análisis de conversaciones del asistente
 ```
 
+Claude en Amazon Bedrock (créditos de AWS): `OPENROUTER_BASE_URL=https://bedrock-runtime.us-east-1.amazonaws.com`,
+`OPENROUTER_API_TOKEN` = llave de API de Bedrock y modelos `global.anthropic.claude-…`
+(p. ej. `global.anthropic.claude-haiku-5-5`). Un modelo con ese nombre va por el
+formato Messages (`/anthropic/v1/messages`, `src/lib/ai/anthropic-messages.ts`);
+cualquier otro sigue por Chat Completions como siempre.
+
 Para el self-test local existe además el modo de pruebas interno (mocks) —
 ver `specs/001-vocero-core/quickstart.md`. Nunca actives mocks en producción.
 
