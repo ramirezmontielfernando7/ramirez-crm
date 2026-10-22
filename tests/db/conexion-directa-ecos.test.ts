@@ -9,7 +9,7 @@ import { insertServer } from "@/server/credentials/direct";
 import { ensureWebhookEvents, hashToken, resetWebhookEventsCheckForTests } from "@/server/direct-connection/link";
 import { resetDirectQueueForTests } from "@/server/direct-connection/send";
 import { saveDirectLimits } from "@/server/direct-connection/limits";
-import { processEchoesValue } from "@/server/inbox/ingest";
+import { ingestInboundMessage, processEchoesValue } from "@/server/inbox/ingest";
 import { sendText } from "@/server/inbox/send";
 import { forgetOrgModules } from "@/server/modules";
 import { POST as directWebhook } from "@/app/api/webhooks/direct/[token]/route";
@@ -288,6 +288,26 @@ describe("conexión directa — unir el eco de Meta", () => {
     const ms = await mensajes(B.id, c.id);
     expect(ms).toHaveLength(1);
     expect(ms[0]).toMatchObject({ origin: "manual", altMessageId: null, waMessageId: echoId });
+  });
+
+  it("regreso a Oficial: el eco unido y las palomitas NO lo disparan; un mensaje del contacto sí", async () => {
+    const c = await chat(A.id);
+    nextId = evoId();
+    const id = nextId;
+    await as(A.id, () => sendText({ organizationId: A.id, conversationId: c.id, text: "Hola", allowDirect: true }));
+    await eco(A, c.phone, wamid(`521${c.phone.slice(2)}`, id));
+    await webhook(TOKEN_A, { event: "messages.update", data: { keyId: id, fromMe: true, status: "READ" } });
+    expect((await conversacion(A.id, c.id)).connectionMode).toBe("directa");
+
+    await ingestInboundMessage({
+      organizationId: A.id,
+      identity: { identity: c.phone, phone: c.phone, waUserId: null, profileName: null },
+      waMessageId: `wamid.in-${newId("message")}`,
+      type: "text",
+      text: "Gracias",
+      timestamp: String(Math.floor(Date.now() / 1000)),
+    });
+    expect((await conversacion(A.id, c.id)).connectionMode).toBe("meta");
   });
 
   it("palomitas del dispositivo: entregado y leído, sin retroceder", async () => {
