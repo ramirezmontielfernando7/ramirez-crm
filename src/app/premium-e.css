@@ -1,0 +1,70 @@
+/*
+  Demfort Premium · Fase E (Estudio de IA y Ajustes): tarjetas, pestañas,
+  tablas, campos e insignias en el estilo de la ficha. SOLO visual y solo con
+  `[data-ui="premium"]` dentro de `[data-premium-area]` (Laboratorio y
+  Ajustes); «Clásico» no escribe nada. Sin sombras ni filtros en las listas
+  largas; la única animación es opacidad/transform en ≤ 320 ms y se apaga con
+  `prefers-reduced-motion`.
+*/
+[data-ui="premium"] [data-premium-area] .rounded-card {
+  border-radius: 16px;
+  border-color: var(--border);
+}
+/* Las tarjetas se ven planas como en la ficha: la sombra queda para paneles. */
+[data-ui="premium"] [data-premium-area] .shadow-card {
+  box-shadow: none;
+}
+[data-ui="premium"] [data-premium-area] .rounded-card h3 {
+  font-family: "Bricolage Grotesque Variable", var(--font-ui);
+  letter-spacing: -0.01em;
+}
+
+/* Sub-secciones (control segmentado) como píldoras sobre un riel suave. */
+[data-ui="premium"] [data-premium-area] nav[aria-label^="Secciones de"] {
+  border-radius: 9999px;
+  background-color: var(--surface-sunken);
+}
+[data-ui="premium"] [data-premium-area] nav[aria-label^="Secciones de"] a {
+  border-radius: 9999px;
+  padding-inline: 14px;
+}
+
+/* Tablas: encabezado en mono mayúsculas, filas con línea fina. */
+[data-ui="premium"] [data-premium-area] table th {
+  font-family: var(--font-mono), ui-monospace, Menlo, monospace;
+  font-size: 11.5px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+[data-ui="premium"] [data-premium-area] table td,
+[data-ui="premium"] [data-premium-area] table th {
+  border-color: var(--border);
+}
+
+/* Campos de texto y selectores: esquinas amplias y borde azulado. */
+[data-ui="premium"] [data-premium-area] :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), textarea, select) {
+  border-radius: 10px;
+  border-color: var(--border-strong);
+  background-color: var(--surface);
+}
+
+/* Insignias: píldora en mono, como las «Disponible / En pruebas» de la ficha. */
+[data-ui="premium"] [data-premium-area] .rounded-full.border.text-xs.font-medium {
+  font-family: var(--font-mono), ui-monospace, Menlo, monospace;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+}
+
+/* Entrada suave de las tarjetas (una sola vez, solo opacidad/transform). */
+[data-ui="premium"] [data-premium-area] > .space-y-6 > .rounded-card,
+[data-ui="premium"] [data-premium-area] > .rounded-card {
+  animation: pm-enter 0.28s cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-ui="premium"] [data-premium-area] > .space-y-6 > .rounded-card,
+  [data-ui="premium"] [data-premium-area] > .rounded-card {
+    animation: none;
+  }
+}

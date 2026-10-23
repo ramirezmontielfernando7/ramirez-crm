@@ -24,7 +24,9 @@ export function LabShell({ children, documents = false }: { children: React.Reac
       hideSections={documents ? undefined : SIN_DOCUMENTOS}
     >
       <AgentPauseBar />
-      <div className="min-h-0 flex-1">{children}</div>
+      <div className="min-h-0 flex-1" data-premium-area="lab">
+        {children}
+      </div>
     </PageShell>
   );
 }
