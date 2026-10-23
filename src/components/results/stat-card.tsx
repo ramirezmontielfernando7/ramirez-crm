@@ -7,8 +7,8 @@ import { cn } from "@/lib/utils";
 /** El marco común de las tarjetas de indicador. */
 function Tile({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="min-w-0 rounded-md border bg-subtle px-3 py-2.5">
-      <p className="text-xs font-medium text-text-2">{label}</p>
+    <div data-pm="tile" className="min-w-0 rounded-md border bg-subtle px-3 py-2.5">
+      <p data-pm="tile-label" className="text-xs font-medium text-text-2">{label}</p>
       {children}
     </div>
   );
@@ -40,7 +40,7 @@ export function StatCard({
 
   return (
     <Tile label={label}>
-      <p className="mt-0.5 truncate text-xl font-semibold">{value}</p>
+      <p data-pm="tile-value" className="mt-0.5 truncate text-xl font-semibold">{value}</p>
       {compare && (
         <p
           className={cn(
@@ -76,7 +76,7 @@ export function RateCard({
 }) {
   return (
     <Tile label={label}>
-      <p className="mt-0.5 text-xl font-semibold">
+      <p data-pm="tile-value" className="mt-0.5 text-xl font-semibold">
         {rate.value === null ? "—" : `${rate.value}%`}
       </p>
       <p className="mt-1 text-xs">
