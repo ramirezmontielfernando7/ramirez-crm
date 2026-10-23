@@ -72,4 +72,4 @@ Ajustes → **Personalización**, con tres subpestañas (rutas, compartibles):
 - Tercer ajuste de Apariencia, **sin migración**: `uiStyle` (`classic` | `premium`) en `organization.metadata.appearance` y cookie personal `vocero-ui-style`; mismas reglas que letra y chat (cookie > organización > fábrica).
 - `<html data-ui>` lo escribe el layout raíz. `[data-ui="premium"]` (globals.css) solo redefine tokens de color y forma con la paleta de la ficha (azul marino, fondos azulados); «Clásico» no escribe CSS. No toca el acento white-label.
 - Selector «Estilo de interfaz» con maqueta de cada estilo; elegir pinta `data-ui` en todo el CRM (vista previa en vivo) y al salir sin guardar vuelve lo guardado.
-- Siguientes PRs: Premium en chat y Bandeja, luego en el resto de pantallas, luego pulido.
+- PR 2 hecho: burbujas, píldora de día y fondo del hilo Premium (solo si el chat es «Clásico»). Siguientes PRs: luego en el resto de pantallas, luego pulido.
