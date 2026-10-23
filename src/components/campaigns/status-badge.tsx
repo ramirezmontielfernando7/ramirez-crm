@@ -12,7 +12,7 @@ const VARIANT: Record<CampaignStatus, "secondary" | "warning" | "success" | "des
 };
 
 export function CampaignStatusBadge({ status }: { status: CampaignStatus }) {
-  return <Badge variant={VARIANT[status]}>{CAMPAIGN_STATUS_LABEL[status]}</Badge>;
+  return <Badge data-pm="status" variant={VARIANT[status]}>{CAMPAIGN_STATUS_LABEL[status]}</Badge>;
 }
 
 /** Barra de progreso: enviados (acento) + fallidos (rojo) sobre el total. */
@@ -28,7 +28,7 @@ export function CampaignProgress({
   const pct = (n: number) => (total > 0 ? `${(n / total) * 100}%` : "0%");
   return (
     <div
-      className="flex h-2 w-full overflow-hidden rounded-full bg-muted"
+      data-pm="bar" className="flex h-2 w-full overflow-hidden rounded-full bg-muted"
       role="progressbar"
       aria-valuemin={0}
       aria-valuemax={total}

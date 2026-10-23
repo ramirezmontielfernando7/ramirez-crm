@@ -278,6 +278,7 @@ export function ContactsClient() {
             {contacts.map((c) => (
               <li
                 key={c.id}
+                data-pm="row"
                 className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border bg-card px-3 py-3 sm:flex-nowrap sm:gap-x-4 sm:px-4"
               >
                 <ContactAvatar name={c.name} seed={c.id} />

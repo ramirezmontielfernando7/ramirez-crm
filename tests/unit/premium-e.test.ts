@@ -7,9 +7,10 @@ const read = (...p: string[]) => readFileSync(path.join(SRC, ...p), "utf8");
 const css = read("app", "premium-e.css");
 
 describe("Demfort Premium · Fase E", () => {
-  it("se importa con una sola línea desde globals.css, antes de todo", () => {
+  it("se importa con una sola línea desde globals.css, antes de las reglas", () => {
     const globals = read("app", "globals.css");
-    expect(globals.startsWith('@import "./premium-e.css";')).toBe(true);
+    expect(globals).toContain('@import "./premium-e.css";');
+    expect(globals.indexOf('@import "./premium-e.css";')).toBeLessThan(globals.indexOf("@tailwind base;"));
     expect(globals.match(/premium-e\.css/g)).toHaveLength(1);
   });
 
