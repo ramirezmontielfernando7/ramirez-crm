@@ -727,6 +727,45 @@
   letter-spacing: -0.02em;
 }
 
+/*
+  Demfort Premium · Fase A (base y encabezado): título en la letra de display,
+  pestañas del pilar en píldora completa, entrada suave del contenido y
+  barras de desplazamiento finas. Solo con [data-ui="premium"]; «Clásico» no
+  escribe nada. Las animaciones se apagan con `prefers-reduced-motion`.
+*/
+[data-ui="premium"][data-font="inter"] [data-page-header] h1 {
+  font-family: "Bricolage Grotesque Variable", var(--font-ui);
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+[data-ui="premium"] [data-page-header] nav a {
+  border-radius: 9999px;
+  padding-inline: 12px;
+}
+[data-ui="premium"] [data-page-header] ~ div {
+  animation: pm-enter 0.32s cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+@keyframes pm-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+[data-ui="premium"] * {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-ui="premium"] [data-page-header] ~ div {
+    animation: none;
+  }
+}
+
 /* «Premium» (diseño propio del producto): esquinas muy redondeadas, cola
    curva, tonos de la marca de la organización y resortes cortos. */
 [data-chat="premium"] {

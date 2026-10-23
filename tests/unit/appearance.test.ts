@@ -279,3 +279,12 @@ describe("Demfort Premium — letras de la ficha (PR 4)", () => {
     expect(css).toContain('"Bricolage Grotesque Variable"');
   });
 });
+
+describe("Demfort Premium — Fase A: base y encabezado", () => {
+  it("el encabezado Premium usa la letra de display, pestañas en píldora y entrada suave que respeta reduced-motion", () => {
+    expect(css).toContain('[data-ui="premium"][data-font="inter"] [data-page-header] h1');
+    expect(css).toContain('[data-ui="premium"] [data-page-header] nav a');
+    expect(css).toContain("@keyframes pm-enter");
+    expect(css).toMatch(/prefers-reduced-motion[\s\S]*\[data-page-header\] ~ div[\s\S]*animation: none/);
+  });
+});
