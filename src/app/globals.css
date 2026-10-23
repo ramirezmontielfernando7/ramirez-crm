@@ -624,6 +624,9 @@
   --chat-bg: #e9eef7;
   --bubble-in: #ffffff;
   --bubble-in-border: #dde3ee;
+  --bubble-out: #dcecff;
+  --bubble-out-border: #c3dbfb;
+  --bubble-out-text: #121a2c;
   /* Derivados: se repiten aquí porque una tarjeta de vista previa hereda el
      valor ya resuelto de :root, no la regla. */
   --bg: var(--surface);
@@ -652,11 +655,40 @@
   --chat-bg: #111a2e;
   --bubble-in: #1e2840;
   --bubble-in-border: #2c3a5c;
+  --bubble-out: #1d3966;
+  --bubble-out-border: #2a4d85;
+  --bubble-out-text: #e7ecf7;
   --bg: var(--surface);
   --bg-subtle: var(--surface-sunken);
   --bg-raised: #1c2740;
   --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4), 0 6px 18px -8px rgba(0, 0, 0, 0.55);
   --shadow-panel: 0 1px 2px rgba(0, 0, 0, 0.4), 0 12px 32px -12px rgba(0, 0, 0, 0.65);
+}
+
+/*
+  Demfort Premium en el chat (PR 2): burbujas suaves de la maqueta de la ficha
+  (esquinas amplias, sin sombra, hora en mono). Solo cuando el estilo de chat
+  es «Clásico»: si alguien eligió «WhatsApp» o «Premium» de chat, ese gana.
+*/
+[data-ui="premium"]:not([data-chat="whatsapp"]):not([data-chat="premium"]) .bubble {
+  border-radius: 16px;
+  box-shadow: none;
+  line-height: 1.5;
+}
+[data-ui="premium"]:not([data-chat="whatsapp"]):not([data-chat="premium"]) .bubble.bubble-in.bubble-first {
+  border-top-left-radius: 5px;
+}
+[data-ui="premium"]:not([data-chat="whatsapp"]):not([data-chat="premium"]) .bubble.bubble-out.bubble-first {
+  border-top-right-radius: 5px;
+}
+[data-ui="premium"]:not([data-chat="whatsapp"]):not([data-chat="premium"]) .thread-bg {
+  background-color: var(--chat-bg);
+}
+[data-ui="premium"]:not([data-chat="whatsapp"]):not([data-chat="premium"]) .day-pill {
+  background-color: var(--surface);
+  border-color: var(--border);
+  font-family: var(--font-mono), ui-monospace, Menlo, monospace;
+  letter-spacing: 0.06em;
 }
 
 /* «Premium» (diseño propio del producto): esquinas muy redondeadas, cola

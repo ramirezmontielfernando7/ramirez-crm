@@ -249,3 +249,16 @@ describe("Demfort Premium — estilo de interfaz", () => {
     expect(html).toContain('data-ui="premium"');
   });
 });
+
+describe("Demfort Premium — chat y Bandeja (PR 2)", () => {
+  it("las burbujas Premium salen de la paleta de la ficha, en claro y en oscuro", () => {
+    expect(css).toContain("--bubble-out: #dcecff;");
+    expect(css).toContain("--bubble-out: #1d3966;");
+  });
+
+  it("el estilo de burbuja solo aplica si el chat no eligió WhatsApp ni Premium, y sin tocar «Clásico»", () => {
+    const regla = '[data-ui="premium"]:not([data-chat="whatsapp"]):not([data-chat="premium"]) .bubble {';
+    expect(css).toContain(regla);
+    expect(css).not.toContain('[data-chat="classic"]');
+  });
+});
