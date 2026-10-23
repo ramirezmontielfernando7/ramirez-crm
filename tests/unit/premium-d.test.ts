@@ -21,7 +21,7 @@ describe("Demfort Premium · Fase D (Marketing e Inteligencia)", () => {
 
   it("es solo visual y ligero: sin sombras, filtros ni animaciones nuevas", () => {
     expect(css).not.toMatch(/filter\s*:|backdrop|@keyframes|animation\s*:/);
-    expect(css).not.toMatch(/box-shadow:\s*(?!none)/);
+    for (const m of css.matchAll(/box-shadow:\s*([^;]+);/g)) expect(m[1]).toBe("none");
   });
 
   it("los ganchos data-pm existen en los componentes", () => {
