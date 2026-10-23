@@ -1,0 +1,86 @@
+/*
+  Demfort Premium · Fase C (CRM Comercial): columnas del pipeline, tarjetas de
+  lead y lista de contactos con el aspecto de la maqueta. Solo CSS y solo con
+  [data-ui="premium"]; «Clásico» no escribe nada. Se engancha a los atributos
+  `data-pm` (no cambian el funcionamiento). Sin sombras ni filtros en las
+  listas largas: las tarjetas solo se elevan con `transform` (≤ 200 ms) y todo
+  se apaga con `prefers-reduced-motion`.
+*/
+
+/* Columna: sin caja, encabezado en mono mayúsculas con regla gruesa. */
+[data-ui="premium"] [data-pm="col"]:not(.border-brand) {
+  background: transparent;
+  border-color: transparent;
+}
+[data-ui="premium"] [data-pm="col-head"] {
+  margin: 0 8px;
+  padding: 0 0 8px;
+  border-bottom: 2px solid var(--text);
+}
+[data-ui="premium"] [data-pm="col-head"] > span:first-child {
+  font-family: var(--font-mono), ui-monospace, Menlo, monospace;
+  font-size: 11.5px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+[data-ui="premium"] [data-pm="col-count"] {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  font-size: 11.5px;
+  color: var(--text-3);
+}
+
+/* Tarjeta de lead: 14 px, borde fino, sin sombra; el monto en letra de display. */
+[data-ui="premium"] [data-pm="card"],
+[data-ui="premium"] [data-pm="card-overlay"] {
+  border-radius: 14px;
+  border-color: var(--border);
+  background: var(--surface);
+  box-shadow: none;
+  padding: 12px;
+}
+[data-ui="premium"] [data-pm="card"] {
+  transition: transform 0.2s cubic-bezier(0.32, 0.72, 0, 1);
+}
+@media (hover: hover) {
+  [data-ui="premium"] [data-pm="card"]:hover {
+    transform: translateY(-2px);
+    box-shadow: none;
+  }
+}
+[data-ui="premium"] [data-pm="amount"] {
+  text-align: left;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  padding-inline: 0;
+}
+[data-ui="premium"][data-font="inter"] [data-pm="amount"] {
+  font-family: "Bricolage Grotesque Variable", var(--font-ui);
+}
+
+/* Lista de contactos: mismas esquinas y borde; el hover solo cambia el fondo. */
+[data-ui="premium"] [data-pm="row"] {
+  border-radius: 14px;
+  border-color: var(--border);
+  background: var(--surface);
+  transition: background-color 0.2s;
+}
+@media (hover: hover) {
+  [data-ui="premium"] [data-pm="row"]:hover {
+    background: var(--row-hover);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-ui="premium"] [data-pm="card"],
+  [data-ui="premium"] [data-pm="row"] {
+    transition: none;
+  }
+  [data-ui="premium"] [data-pm="card"]:hover {
+    transform: none;
+  }
+}
