@@ -64,8 +64,9 @@ const fuente = (p) => p.evaluate(() => getComputedStyle(document.body).fontFamil
  * compila la página al pedirla (10 s o más) y un clic antes de que React
  * hidrate se pierde en silencio: se vuelve a tocar hasta que quede marcada.
  */
-async function elegir(p, name) {
-  const radio = p.getByRole("radio", { name }).first();
+async function elegir(p, name, group) {
+  const scope = group ? p.getByRole("radiogroup", { name: group }) : p;
+  const radio = scope.getByRole("radio", { name }).first();
   for (let i = 0; i < 20; i++) {
     await radio.click();
     if ((await radio.getAttribute("aria-checked")) === "true") return;
@@ -161,17 +162,27 @@ async function main() {
   await sa.p.getByRole("button", { name: "Usar la de la organización" }).click();
   ok("«Usar la de la organización» quita su cookie", (await html(sa.p, "data-font")) === "geist" && (await cookie(S.ctx, "vocero-font")) === undefined);
 
+  console.log("\n== 3b · Estilo de interfaz ==");
+  await ap.p.goto(`${BASE}/settings/personalization`);
+  ok("el CRM arranca en «Clásico» (data-ui)", (await html(ap.p, "data-ui")) === "classic");
+  await elegir(ap.p, "Demfort Premium", "Estilo de interfaz");
+  ok("al elegir Demfort Premium cambia TODO el CRM antes de guardar", (await html(ap.p, "data-ui")) === "premium");
+  const fondoPm = await ap.p.evaluate(() => getComputedStyle(document.body).backgroundColor);
+  ok("…y pinta el fondo azulado de la ficha (#f5f7fb)", fondoPm === "rgb(245, 247, 251)", fondoPm);
+  await elegir(ap.p, "Clásico", "Estilo de interfaz");
+  ok("volver a Clásico lo devuelve (sin guardar nada)", (await html(ap.p, "data-ui")) === "classic");
+
   console.log("\n== 4 · Estilo del chat ==");
   const antes = await ap.p.goto(`${BASE}/settings/personalization`);
   void antes;
-  await elegir(ap.p, /^Clásico/);
+  await elegir(ap.p, /^Clásico/, "Estilo del chat en la Bandeja");
   const cola = (q) => ap.p.evaluate((s) => {
     const el = document.querySelector(s);
     return el ? getComputedStyle(el, "::before").content : null;
   }, q);
   ok("Clásico: las burbujas no llevan cola", (await cola("[data-testid=chat-preview] .bubble-first")) === "none");
   const fondoClasico = await ap.p.evaluate(() => getComputedStyle(document.querySelector("[data-testid=chat-preview]")).backgroundColor);
-  await elegir(ap.p, /^WhatsApp/);
+  await elegir(ap.p, /^WhatsApp/, "Estilo del chat en la Bandeja");
   ok("WhatsApp: la burbuja del primer mensaje lleva cola", (await cola("[data-testid=chat-preview] .bubble-first")) === '""');
   const fondoWa = await ap.p.evaluate(() => getComputedStyle(document.querySelector("[data-testid=chat-preview]")).backgroundColor);
   ok("WhatsApp: el fondo cambia (verde/gris)", fondoWa !== fondoClasico, `${fondoClasico} → ${fondoWa}`);
@@ -198,7 +209,7 @@ async function main() {
   await ap.p.getByRole("button", { name: "Oscuro" }).click();
 
   // Premium: esquinas muy redondeadas, cola curva, hora al pasar el cursor, «escribiendo…».
-  await elegir(ap.p, /Premium$/);
+  await elegir(ap.p, /Premium$/, "Estilo del chat en la Bandeja");
   const pm = await ap.p.evaluate(() => {
     const b = document.querySelector("[data-testid=chat-preview] .bubble-out:not(.bubble-first)");
     const t = b.querySelector(".bubble-time");
@@ -219,7 +230,7 @@ async function main() {
   await ap.p.emulateMedia({ reducedMotion: "no-preference" });
 
   await ap.p.getByRole("tab", { name: "Toda la organización" }).click();
-  await elegir(ap.p, /^Clásico/);
+  await elegir(ap.p, /^Clásico/, "Estilo del chat en la Bandeja");
   await ap.p.getByRole("button", { name: "Guardar para todos" }).click();
   await ap.p.getByText("Toda la organización lo verá así").waitFor();
   const [{ metadata: m3 }] = await sql`select metadata from organization where id = ${org}`;

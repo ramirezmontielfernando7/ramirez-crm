@@ -7,6 +7,7 @@ import "@fontsource-variable/dm-sans";
 import {
   CHAT_STYLE_COOKIE,
   FONT_COOKIE,
+  UI_STYLE_COOKIE,
   readPersonalAppearance,
   resolveAppearance,
 } from "@/lib/appearance";
@@ -72,6 +73,7 @@ export default async function RootLayout({
     readPersonalAppearance({
       font: jar.get(FONT_COOKIE)?.value,
       chatStyle: jar.get(CHAT_STYLE_COOKIE)?.value,
+      uiStyle: jar.get(UI_STYLE_COOKIE)?.value,
     })
   );
   return (
@@ -83,6 +85,7 @@ export default async function RootLayout({
       data-theme={theme}
       data-font={look.font}
       data-chat={look.chatStyle}
+      data-ui={look.uiStyle}
     >
       <head>
         {/* Acento white-label y color de la barra lateral, inyectados en

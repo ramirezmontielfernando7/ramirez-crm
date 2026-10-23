@@ -600,6 +600,65 @@
   box-shadow: 0 1px 0.5px rgba(11, 20, 26, 0.13);
 }
 
+/*
+  «Demfort Premium» (estilo de interfaz de TODO el CRM): la paleta de la ficha
+  comercial (azul marino, fondos azulados, burbujas suaves). Cuelga de
+  `[data-ui="premium"]` —en <html> o en una tarjeta de vista previa—, solo
+  redefine tokens y «Clásico» no escribe nada. No toca el acento: el
+  white-label de la organización (--accent*) sigue mandando.
+*/
+[data-ui="premium"] {
+  --surface-base: #f5f7fb;
+  --surface: #ffffff;
+  --surface-sunken: #eef2f9;
+  --bg-panel: #e9eef7;
+  --bg-hover: #e1e8f4;
+  --row-hover: #f1f4fa;
+  --cal-off: #eef2f9;
+  --text: #121a2c;
+  --text-2: #3d475f;
+  --text-3: #56607a;
+  --text-4: #8c96ae;
+  --border: #dde3ee;
+  --border-strong: #c9d2e3;
+  --chat-bg: #e9eef7;
+  --bubble-in: #ffffff;
+  --bubble-in-border: #dde3ee;
+  /* Derivados: se repiten aquí porque una tarjeta de vista previa hereda el
+     valor ya resuelto de :root, no la regla. */
+  --bg: var(--surface);
+  --bg-subtle: var(--surface-sunken);
+  --bg-raised: var(--surface);
+  --radius-card: 14px;
+  --radius-panel: 18px;
+  --shadow-card: 0 1px 2px rgba(15, 29, 58, 0.05), 0 6px 18px -8px rgba(15, 29, 58, 0.12);
+  --shadow-panel: 0 1px 2px rgba(15, 29, 58, 0.05), 0 12px 32px -14px rgba(15, 29, 58, 0.18);
+}
+:root[data-theme="dark"][data-ui="premium"],
+:root[data-theme="dark"] [data-ui="premium"] {
+  --surface-base: #0b1530;
+  --surface: #151d31;
+  --surface-sunken: #0e1424;
+  --bg-panel: #1c2740;
+  --bg-hover: #243252;
+  --row-hover: #1a2440;
+  --cal-off: #0e1424;
+  --text: #e7ecf7;
+  --text-2: #bcc7e0;
+  --text-3: #9aa6c2;
+  --text-4: #7684a6;
+  --border: #26304a;
+  --border-strong: #3a4868;
+  --chat-bg: #111a2e;
+  --bubble-in: #1e2840;
+  --bubble-in-border: #2c3a5c;
+  --bg: var(--surface);
+  --bg-subtle: var(--surface-sunken);
+  --bg-raised: #1c2740;
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4), 0 6px 18px -8px rgba(0, 0, 0, 0.55);
+  --shadow-panel: 0 1px 2px rgba(0, 0, 0, 0.4), 0 12px 32px -12px rgba(0, 0, 0, 0.65);
+}
+
 /* «Premium» (diseño propio del producto): esquinas muy redondeadas, cola
    curva, tonos de la marca de la organización y resortes cortos. */
 [data-chat="premium"] {

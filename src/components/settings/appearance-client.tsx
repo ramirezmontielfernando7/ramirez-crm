@@ -11,6 +11,9 @@ import {
   chatStyleLabel,
   CHAT_STYLES,
   FONT_COOKIE,
+  UI_STYLE_COOKIE,
+  UI_STYLE_LABELS,
+  UI_STYLES,
   FONT_KEYS,
   FONT_LABELS,
   resolveAppearance,
@@ -19,6 +22,7 @@ import {
   type FontKey,
   type OrgAppearance,
   type PersonalAppearance,
+  type UiStyle,
 } from "@/lib/appearance";
 import type { MessageDto } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -35,10 +39,12 @@ type Scope = "me" | "org";
 function paint(look: OrgAppearance) {
   document.documentElement.setAttribute("data-font", look.font);
   document.documentElement.setAttribute("data-chat", "classic");
+  document.documentElement.setAttribute("data-ui", look.uiStyle);
 }
 function restore(look: OrgAppearance) {
   document.documentElement.setAttribute("data-font", look.font);
   document.documentElement.setAttribute("data-chat", look.chatStyle);
+  document.documentElement.setAttribute("data-ui", look.uiStyle);
 }
 
 function sample(id: string, direction: "in" | "out", text: string, minutesAgo: number): MessageDto {
@@ -69,6 +75,35 @@ const STYLE_HINTS: Record<ChatStyle, string> = {
   whatsapp: "Burbujas con cola, hora dentro y fondo beige u oscuro, como en el celular.",
   premium: "Esquinas muy redondeadas, tonos de tu marca y movimiento suave.",
 };
+
+const UI_HINTS: Record<UiStyle, string> = {
+  classic: "El aspecto de siempre.",
+  premium: "Azul marino, burbujas suaves y esquinas amplias, como en la web de Demfort.",
+};
+
+/**
+ * Maqueta de pantalla (menú, tarjeta y dos burbujas) de un estilo de
+ * interfaz. `data-ui` va en el propio contenedor: se ve en SU estilo sin
+ * cambiar el del resto de la pantalla.
+ */
+function UiPreview({ style, testId }: { style: UiStyle; testId?: string }) {
+  return (
+    <div data-ui={style} data-testid={testId} aria-hidden className="flex h-32 overflow-hidden rounded-md border bg-canvas">
+      <div className="w-10 shrink-0" style={{ background: style === "premium" ? "#0f1d3a" : undefined }} />
+      <div className="flex min-w-0 flex-1 flex-col gap-2 p-2.5">
+        <div className="h-2 w-16 rounded-full bg-border-strong" />
+        <div className="flex flex-1 flex-col justify-center gap-1.5 rounded-card border bg-surface p-2 shadow-sm">
+          <div className="max-w-[70%] self-start rounded-lg border px-2 py-1 text-[10.5px]" style={{ background: "var(--bubble-in)", borderColor: "var(--border)" }}>
+            Hola, ¿hay lugar?
+          </div>
+          <div className="max-w-[70%] self-end rounded-lg border px-2 py-1 text-[10.5px]" style={{ background: "var(--bubble-out)", borderColor: "var(--border-strong)" }}>
+            ¡Claro!
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 /**
  * Mensajes de ejemplo de un estilo. `data-chat` va en el propio contenedor,
@@ -180,6 +215,7 @@ export function AppearanceClient({
 
   const [font, setFont] = useState<FontKey>(base.font);
   const [chatStyle, setChatStyle] = useState<ChatStyle>(base.chatStyle);
+  const [uiStyle, setUiStyle] = useState<UiStyle>(base.uiStyle);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
@@ -188,7 +224,7 @@ export function AppearanceClient({
   committed.current = effective;
   useEffect(() => () => restore(committed.current), []);
   // Vista previa en vivo: el borrador se pinta en todo el CRM.
-  useLayoutEffect(() => paint({ font, chatStyle }), [font, chatStyle]);
+  useLayoutEffect(() => paint({ font, chatStyle, uiStyle }), [font, chatStyle, uiStyle]);
 
   // Probar en claro u oscuro SIN guardar: solo cambia el atributo del <html>
   // mientras estás aquí; al salir vuelve el tema que tenías.
@@ -203,13 +239,14 @@ export function AppearanceClient({
     };
   }, [tryTheme]);
 
-  const dirty = font !== base.font || chatStyle !== base.chatStyle;
+  const dirty = font !== base.font || chatStyle !== base.chatStyle || uiStyle !== base.uiStyle;
 
   function changeScope(next: Scope) {
     const b = next === "org" ? savedOrg : resolveAppearance(savedOrg, savedPersonal);
     setScope(next);
     setFont(b.font);
     setChatStyle(b.chatStyle);
+    setUiStyle(b.uiStyle);
     setMsg(null);
   }
 
@@ -220,16 +257,17 @@ export function AppearanceClient({
       if (scope === "me") {
         writeAppearanceCookie(FONT_COOKIE, font);
         writeAppearanceCookie(CHAT_STYLE_COOKIE, chatStyle);
-        setSavedPersonal({ font, chatStyle });
+        writeAppearanceCookie(UI_STYLE_COOKIE, uiStyle);
+        setSavedPersonal({ font, chatStyle, uiStyle });
         setMsg({ ok: true, text: "Listo. Se guardó solo en este navegador." });
       } else {
         const res = await fetch("/api/settings/appearance", {
           method: "PUT",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ font, chatStyle }),
+          body: JSON.stringify({ font, chatStyle, uiStyle }),
         });
         if (!res.ok) throw new Error(String(res.status));
-        setSavedOrg({ font, chatStyle });
+        setSavedOrg({ font, chatStyle, uiStyle });
         setMsg({ ok: true, text: "Listo. Toda la organización lo verá así." });
         router.refresh();
       }
@@ -243,14 +281,17 @@ export function AppearanceClient({
   function followOrg() {
     writeAppearanceCookie(FONT_COOKIE, null);
     writeAppearanceCookie(CHAT_STYLE_COOKIE, null);
-    const none = { font: null, chatStyle: null };
+    writeAppearanceCookie(UI_STYLE_COOKIE, null);
+    const none = { font: null, chatStyle: null, uiStyle: null };
     setSavedPersonal(none);
     setFont(savedOrg.font);
     setChatStyle(savedOrg.chatStyle);
+    setUiStyle(savedOrg.uiStyle);
     setMsg({ ok: true, text: "Ahora ves lo que eligió la organización." });
   }
 
-  const hasPersonal = savedPersonal.font !== null || savedPersonal.chatStyle !== null;
+  const hasPersonal =
+    savedPersonal.font !== null || savedPersonal.chatStyle !== null || savedPersonal.uiStyle !== null;
 
   return (
     <div>
@@ -274,6 +315,39 @@ export function AppearanceClient({
             ))}
           </div>
         )}
+
+        <section aria-labelledby="ap-ui" className="min-w-0 space-y-3">
+          <h3 id="ap-ui" className="text-[14px] font-semibold">Estilo de interfaz</h3>
+          <p className="text-[12.5px] text-text-3">
+            Cambia el aspecto de todo el CRM mientras eliges. Si sales sin guardar, todo vuelve como estaba.
+          </p>
+          <div role="radiogroup" aria-labelledby="ap-ui" className="grid gap-3 md:grid-cols-2">
+            {UI_STYLES.map((k) => {
+              const checked = uiStyle === k;
+              return (
+                <button
+                  key={k}
+                  type="button"
+                  role="radio"
+                  aria-checked={checked}
+                  aria-label={UI_STYLE_LABELS[k]}
+                  onClick={() => setUiStyle(k)}
+                  className={cn(
+                    "flex min-w-0 flex-col gap-2 rounded-md border p-2.5 text-left transition-colors",
+                    checked ? "border-brand bg-brand-tint" : "border-border hover:bg-accent"
+                  )}
+                >
+                  <span className="flex items-center justify-between text-[14px] font-semibold">
+                    {UI_STYLE_LABELS[k]}
+                    {checked && <Check className="h-4 w-4 text-brand-text" strokeWidth={2} />}
+                  </span>
+                  <span className="text-[12px] font-normal text-text-3">{UI_HINTS[k]}</span>
+                  <UiPreview style={k} testId={checked ? "ui-preview" : undefined} />
+                </button>
+              );
+            })}
+          </div>
+        </section>
 
         <section aria-labelledby="ap-font" className="max-w-sm space-y-2">
           <h3 id="ap-font" className="text-[14px] font-semibold">Tipografía</h3>
