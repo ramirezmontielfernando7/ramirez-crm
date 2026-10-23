@@ -22,14 +22,17 @@
 }
 
 /* Cuadros de diálogo y panel lateral del trato: entran suave; el velo, en fundido. */
-[data-ui="premium"] [role="dialog"] {
-  animation: pmf-pop 0.22s var(--pmf-ease) both;
+/* Solo los que no traen `style` en línea: los que ya animan con framer-motion
+   (menciones, mensaje directo…) no se tocan. `backwards` y no `both`: al
+   terminar, la animación suelta el elemento y no pisa ningún transform. */
+[data-ui="premium"] [role="dialog"]:not([style]) {
+  animation: pmf-pop 0.22s var(--pmf-ease) backwards;
 }
-[data-ui="premium"] aside[role="dialog"] {
-  animation: pmf-slide-in 0.28s var(--pmf-ease) both;
+[data-ui="premium"] aside[role="dialog"]:not([style]) {
+  animation: pmf-slide-in 0.28s var(--pmf-ease) backwards;
 }
 [data-ui="premium"] .bg-overlay {
-  animation: pmf-fade 0.2s ease-out both;
+  animation: pmf-fade 0.2s ease-out backwards;
 }
 
 /* Tarjetas que son enlaces o botones: se levantan un pelo al pasar el cursor. */
@@ -57,12 +60,21 @@
   to { opacity: 1; }
 }
 [data-ui="premium"] body {
-  animation: pmf-theme 0.3s ease-out both;
+  animation: pmf-theme 0.3s ease-out backwards;
+}
+
+/* Pulido de la fase E: su regla de campos (más específica) tapaba el borde de
+   foco y el de deshabilitado; se devuelven. El anillo de foco no se toca. */
+[data-ui="premium"] [data-premium-area] :is(input, textarea, select):focus-visible {
+  border-color: var(--accent);
+}
+[data-ui="premium"] [data-premium-area] :is(input, textarea, select):disabled {
+  background-color: var(--surface-sunken);
 }
 
 @media (prefers-reduced-motion: reduce) {
-  [data-ui="premium"] [role="dialog"],
-  [data-ui="premium"] aside[role="dialog"],
+  [data-ui="premium"] [role="dialog"]:not([style]),
+  [data-ui="premium"] aside[role="dialog"]:not([style]),
   [data-ui="premium"] .bg-overlay,
   [data-ui="premium"] body {
     animation: none;
