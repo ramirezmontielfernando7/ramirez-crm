@@ -262,3 +262,11 @@ describe("Demfort Premium — chat y Bandeja (PR 2)", () => {
     expect(css).not.toContain('[data-chat="classic"]');
   });
 });
+
+describe("Demfort Premium — menú lateral (PR 3)", () => {
+  it("la barra lateral Premium usa el azul marino de la ficha y solo cuelga de [data-ui]", () => {
+    expect(css).toContain('[data-ui="premium"] .nav-dark {');
+    expect(css).toContain("--bg-subtle: #0f1d3a;");
+    expect(css).toContain("--bg-panel: #182a50;");
+  });
+});
