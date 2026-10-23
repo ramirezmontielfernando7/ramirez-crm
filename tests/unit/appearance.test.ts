@@ -270,3 +270,12 @@ describe("Demfort Premium — menú lateral (PR 3)", () => {
     expect(css).toContain("--bg-panel: #182a50;");
   });
 });
+
+describe("Demfort Premium — letras de la ficha (PR 4)", () => {
+  it("Premium usa Instrument Sans y Bricolage empaquetadas, solo con la letra de fábrica", () => {
+    expect(layout).toContain("@fontsource-variable/instrument-sans");
+    expect(layout).toContain("@fontsource-variable/bricolage-grotesque");
+    expect(css).toContain('[data-ui="premium"][data-font="inter"] {');
+    expect(css).toContain('"Bricolage Grotesque Variable"');
+  });
+});
