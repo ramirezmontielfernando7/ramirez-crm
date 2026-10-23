@@ -691,6 +691,28 @@
   letter-spacing: 0.06em;
 }
 
+/*
+  Demfort Premium en el menú lateral (PR 3): la barra azul
+  marino de la ficha (#0f1d3a) con paneles #182a50. Redeclara los mismos
+  neutros que `.nav-dark`; el color de barra de la Marca (sidebarCssVariables,
+  en línea) y el acento white-label siguen mandando.
+*/
+[data-ui="premium"] .nav-dark {
+  --bg: #132446;
+  --bg-subtle: #0f1d3a;
+  --bg-panel: #182a50;
+  --bg-raised: #182a50;
+  --bg-hover: #1e3363;
+  --text: #eef2fb;
+  --text-2: #c3cde6;
+  --text-3: #a9b6d3;
+  --text-4: #7d8bb0;
+  --border: #243a6b;
+  --border-strong: #324d8a;
+  --chip-bg: #182a50;
+  --row-hover: #15264a;
+}
+
 /* «Premium» (diseño propio del producto): esquinas muy redondeadas, cola
    curva, tonos de la marca de la organización y resortes cortos. */
 [data-chat="premium"] {
