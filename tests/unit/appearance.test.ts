@@ -5,6 +5,8 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import {
   CHAT_STYLES,
+  UI_STYLES,
+  UI_STYLE_LABELS,
   chatStyleLabel,
   DEFAULT_APPEARANCE,
   FONT_KEYS,
@@ -56,13 +58,13 @@ describe("Fase D — selector de tipografía", () => {
   it("valores desconocidos o manipulados caen al de fábrica sin lanzar", () => {
     expect(normalizeOrgAppearance(null)).toEqual(DEFAULT_APPEARANCE);
     expect(normalizeOrgAppearance({ font: "comic-sans", chatStyle: 7 })).toEqual(DEFAULT_APPEARANCE);
-    expect(normalizeOrgAppearance({ font: "geist", chatStyle: "whatsapp" })).toEqual({ font: "geist", chatStyle: "whatsapp" });
+    expect(normalizeOrgAppearance({ font: "geist", chatStyle: "whatsapp" })).toEqual({ font: "geist", chatStyle: "whatsapp", uiStyle: "classic" });
   });
 
   it("la preferencia personal pisa a la de la organización, solo para esa persona", () => {
-    const org = { font: "geist", chatStyle: "classic" } as const;
+    const org = { font: "geist", chatStyle: "classic", uiStyle: "classic" } as const;
     expect(resolveAppearance(org, readPersonalAppearance({}))).toEqual(org);
-    expect(resolveAppearance(org, readPersonalAppearance({ font: "dmsans" }))).toEqual({ font: "dmsans", chatStyle: "classic" });
+    expect(resolveAppearance(org, readPersonalAppearance({ font: "dmsans" }))).toEqual({ font: "dmsans", chatStyle: "classic", uiStyle: "classic" });
     // Una cookie inválida se ignora y se sigue a la organización.
     expect(resolveAppearance(org, readPersonalAppearance({ font: "zzz", chatStyle: "zzz" }))).toEqual(org);
   });
@@ -73,14 +75,14 @@ describe("Fase D — selector de tipografía", () => {
     expect(normalizeOrgAppearance({ font: "system" }).font).toBe("system");
     expect(readPersonalAppearance({ font: "system" }).font).toBe("system");
     // La personal gana sobre la de la organización (también «Sistema»).
-    const org = { font: "geist", chatStyle: "whatsapp" } as const;
-    expect(resolveAppearance(org, readPersonalAppearance({ font: "system", chatStyle: "premium" }))).toEqual({ font: "system", chatStyle: "premium" });
-    expect(resolveAppearance({ font: "system", chatStyle: "premium" }, readPersonalAppearance({}))).toEqual({ font: "system", chatStyle: "premium" });
+    const org = { font: "geist", chatStyle: "whatsapp", uiStyle: "classic" } as const;
+    expect(resolveAppearance(org, readPersonalAppearance({ font: "system", chatStyle: "premium", uiStyle: "classic" }))).toEqual({ font: "system", chatStyle: "premium", uiStyle: "classic" });
+    expect(resolveAppearance({ font: "system", chatStyle: "premium", uiStyle: "classic" }, readPersonalAppearance({}))).toEqual({ font: "system", chatStyle: "premium", uiStyle: "classic" });
   });
 
   it("la pantalla muestra las cinco letras, el aviso del navegador y el nivel de organización solo a quien administra", () => {
     const org = DEFAULT_APPEARANCE;
-    const none = { font: null, chatStyle: null };
+    const none = { font: null, chatStyle: null, uiStyle: null };
     const soloYo = renderToStaticMarkup(createElement(AppearanceClient, { org, personal: none, canManageOrg: false }));
     for (const label of Object.values(FONT_LABELS)) expect(soloYo).toContain(label);
     expect(soloYo).toContain("solo en este navegador por ahora");
@@ -198,7 +200,7 @@ describe("Fase D — estilo del chat", () => {
 
   it("Apariencia muestra los tres estilos como tarjetas con mensajes de ejemplo, separador de día y probar en claro/oscuro", () => {
     const html = renderToStaticMarkup(
-      createElement(AppearanceClient, { org: DEFAULT_APPEARANCE, personal: { font: null, chatStyle: null }, canManageOrg: false, brandName: "Dashfort" })
+      createElement(AppearanceClient, { org: DEFAULT_APPEARANCE, personal: { font: null, chatStyle: null, uiStyle: null }, canManageOrg: false, brandName: "Dashfort" })
     );
     for (const nombre of ["Clásico", "WhatsApp", "Dashfort Premium"]) expect(html).toContain(`aria-label="${nombre}"`);
     expect(html.match(/data-chat="(classic|whatsapp|premium)"/g)).toHaveLength(3);
@@ -209,9 +211,41 @@ describe("Fase D — estilo del chat", () => {
 
   it("la vista previa usa los mismos mensajes de ejemplo y la misma burbuja de la Bandeja", () => {
     const html = renderToStaticMarkup(
-      createElement(AppearanceClient, { org: DEFAULT_APPEARANCE, personal: { font: null, chatStyle: null }, canManageOrg: false })
+      createElement(AppearanceClient, { org: DEFAULT_APPEARANCE, personal: { font: null, chatStyle: null, uiStyle: null }, canManageOrg: false })
     );
     expect(html).toContain('data-testid="chat-preview"');
     expect((html.match(/bubble-in|bubble-out/g) ?? []).length).toBeGreaterThanOrEqual(4);
+  });
+});
+
+describe("Demfort Premium — estilo de interfaz", () => {
+  it("hay dos estilos, «Clásico» es el de fábrica y valores ajenos caen a él", () => {
+    expect([...UI_STYLES]).toEqual(["classic", "premium"]);
+    expect(UI_STYLE_LABELS.premium).toBe("Demfort Premium");
+    expect(DEFAULT_APPEARANCE.uiStyle).toBe("classic");
+    expect(normalizeOrgAppearance({ uiStyle: "neon" }).uiStyle).toBe("classic");
+    expect(normalizeOrgAppearance({ uiStyle: "premium" }).uiStyle).toBe("premium");
+  });
+
+  it("la preferencia personal pisa a la de la organización", () => {
+    const org = { ...DEFAULT_APPEARANCE, uiStyle: "classic" } as const;
+    expect(resolveAppearance(org, readPersonalAppearance({ uiStyle: "premium" })).uiStyle).toBe("premium");
+    expect(resolveAppearance(org, readPersonalAppearance({ uiStyle: "zzz" })).uiStyle).toBe("classic");
+  });
+
+  it("el layout escribe data-ui y el CSS solo redefine tokens bajo [data-ui=\"premium\"]", () => {
+    expect(layout).toContain("data-ui={look.uiStyle}");
+    expect(css).toContain('[data-ui="premium"] {');
+    expect(css).toContain(':root[data-theme="dark"][data-ui="premium"]');
+    expect(css).not.toContain('[data-ui="classic"]');
+  });
+
+  it("la pantalla ofrece el selector con vista previa de cada estilo", () => {
+    const html = renderToStaticMarkup(
+      createElement(AppearanceClient, { org: DEFAULT_APPEARANCE, personal: { font: null, chatStyle: null, uiStyle: null }, canManageOrg: false })
+    );
+    expect(html).toContain("Estilo de interfaz");
+    expect(html).toContain("Demfort Premium");
+    expect(html).toContain('data-ui="premium"');
   });
 });

@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { parseBody, withAuth } from "@/lib/api";
-import { CHAT_STYLES, FONT_KEYS } from "@/lib/appearance";
+import { CHAT_STYLES, FONT_KEYS, UI_STYLES } from "@/lib/appearance";
 import { saveOrgAppearance } from "@/server/appearance";
 
 export const dynamic = "force-dynamic";
@@ -9,8 +9,12 @@ const putSchema = z
   .object({
     font: z.enum(FONT_KEYS).optional(),
     chatStyle: z.enum(CHAT_STYLES).optional(),
+    uiStyle: z.enum(UI_STYLES).optional(),
   })
-  .refine((v) => v.font !== undefined || v.chatStyle !== undefined, "Nada que guardar");
+  .refine(
+    (v) => v.font !== undefined || v.chatStyle !== undefined || v.uiStyle !== undefined,
+    "Nada que guardar"
+  );
 
 /**
  * Fase D — La apariencia de TODA la organización (letra y estilo del chat).

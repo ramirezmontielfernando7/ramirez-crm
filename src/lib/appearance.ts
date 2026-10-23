@@ -47,9 +47,25 @@ export function chatStyleLabel(style: ChatStyle, brandName?: string | null): str
 
 export const DEFAULT_CHAT_STYLE: ChatStyle = "classic";
 
+/**
+ * Estilo de interfaz de TODO el CRM (menús, tarjetas, tablas, chat). «Clásico»
+ * es el de siempre y no escribe CSS; «Demfort Premium» redefine los tokens de
+ * color y forma con `[data-ui="premium"]` (globals.css).
+ */
+export const UI_STYLES = ["classic", "premium"] as const;
+export type UiStyle = (typeof UI_STYLES)[number];
+
+export const UI_STYLE_LABELS: Record<UiStyle, string> = {
+  classic: "Clásico",
+  premium: "Demfort Premium",
+};
+
+export const DEFAULT_UI_STYLE: UiStyle = "classic";
+
 /** Cookies de la preferencia PERSONAL. Ausente = seguir a la organización. */
 export const FONT_COOKIE = "vocero-font";
 export const CHAT_STYLE_COOKIE = "vocero-chat-style";
+export const UI_STYLE_COOKIE = "vocero-ui-style";
 export const APPEARANCE_COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
 
 export function isFontKey(value: unknown): value is FontKey {
@@ -60,12 +76,17 @@ export function isChatStyle(value: unknown): value is ChatStyle {
   return typeof value === "string" && (CHAT_STYLES as readonly string[]).includes(value);
 }
 
+export function isUiStyle(value: unknown): value is UiStyle {
+  return typeof value === "string" && (UI_STYLES as readonly string[]).includes(value);
+}
+
 /** Lo guardado en la organización, ya limpio. Nunca lanza (JSON ajeno o viejo). */
-export type OrgAppearance = { font: FontKey; chatStyle: ChatStyle };
+export type OrgAppearance = { font: FontKey; chatStyle: ChatStyle; uiStyle: UiStyle };
 
 export const DEFAULT_APPEARANCE: OrgAppearance = {
   font: DEFAULT_FONT,
   chatStyle: DEFAULT_CHAT_STYLE,
+  uiStyle: DEFAULT_UI_STYLE,
 };
 
 export function normalizeOrgAppearance(raw: unknown): OrgAppearance {
@@ -73,19 +94,26 @@ export function normalizeOrgAppearance(raw: unknown): OrgAppearance {
   return {
     font: isFontKey(r.font) ? r.font : DEFAULT_FONT,
     chatStyle: isChatStyle(r.chatStyle) ? r.chatStyle : DEFAULT_CHAT_STYLE,
+    uiStyle: isUiStyle(r.uiStyle) ? r.uiStyle : DEFAULT_UI_STYLE,
   };
 }
 
 /** Lo personal: `null` = "usar la de la organización". */
-export type PersonalAppearance = { font: FontKey | null; chatStyle: ChatStyle | null };
+export type PersonalAppearance = {
+  font: FontKey | null;
+  chatStyle: ChatStyle | null;
+  uiStyle: UiStyle | null;
+};
 
 export function readPersonalAppearance(cookie: {
   font?: string | null;
   chatStyle?: string | null;
+  uiStyle?: string | null;
 }): PersonalAppearance {
   return {
     font: isFontKey(cookie.font) ? cookie.font : null,
     chatStyle: isChatStyle(cookie.chatStyle) ? cookie.chatStyle : null,
+    uiStyle: isUiStyle(cookie.uiStyle) ? cookie.uiStyle : null,
   };
 }
 
@@ -97,6 +125,7 @@ export function resolveAppearance(
   return {
     font: personal.font ?? org.font,
     chatStyle: personal.chatStyle ?? org.chatStyle,
+    uiStyle: personal.uiStyle ?? org.uiStyle,
   };
 }
 
