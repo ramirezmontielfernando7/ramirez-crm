@@ -1,0 +1,90 @@
+/*
+  Demfort Premium · Fase F (animaciones). Solo con [data-ui="premium"];
+  «Clásico» no escribe nada. Únicamente opacidad y transform, todas ≤ 320 ms,
+  sin tocar listas largas (nada por fila) y apagadas con `prefers-reduced-motion`.
+  Es solo visual: no cambia ni el funcionamiento ni la carga de datos.
+*/
+:root {
+  --pmf-ease: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+@keyframes pmf-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes pmf-pop {
+  from { opacity: 0; transform: translateY(6px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes pmf-slide-in {
+  from { opacity: 0; transform: translateX(24px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* Cuadros de diálogo y panel lateral del trato: entran suave; el velo, en fundido. */
+/* Solo los que no traen `style` en línea: los que ya animan con framer-motion
+   (menciones, mensaje directo…) no se tocan. `backwards` y no `both`: al
+   terminar, la animación suelta el elemento y no pisa ningún transform. */
+[data-ui="premium"] [role="dialog"]:not([style]) {
+  animation: pmf-pop 0.22s var(--pmf-ease) backwards;
+}
+[data-ui="premium"] aside[role="dialog"]:not([style]) {
+  animation: pmf-slide-in 0.28s var(--pmf-ease) backwards;
+}
+[data-ui="premium"] .bg-overlay {
+  animation: pmf-fade 0.2s ease-out backwards;
+}
+
+/* Tarjetas que son enlaces o botones: se levantan un pelo al pasar el cursor. */
+[data-ui="premium"] :is(a, button).shadow-card {
+  transition: transform 0.18s var(--pmf-ease);
+}
+[data-ui="premium"] :is(a, button).shadow-card:hover {
+  transform: translateY(-2px);
+}
+[data-ui="premium"] :is(a, button).shadow-card:active {
+  transform: none;
+}
+
+/* Menú lateral: los íconos se mueven apenas al pasar el cursor. */
+[data-ui="premium"] .nav-dark a svg {
+  transition: transform 0.18s var(--pmf-ease);
+}
+[data-ui="premium"] .nav-dark a:hover svg {
+  transform: scale(1.08);
+}
+
+/* Cambio de modo claro/oscuro: fundido corto de toda la página. Solo opacidad. */
+@keyframes pmf-theme {
+  from { opacity: 0.86; }
+  to { opacity: 1; }
+}
+[data-ui="premium"] body {
+  animation: pmf-theme 0.3s ease-out backwards;
+}
+
+/* Pulido de la fase E: su regla de campos (más específica) tapaba el borde de
+   foco y el de deshabilitado; se devuelven. El anillo de foco no se toca. */
+[data-ui="premium"] [data-premium-area] :is(input, textarea, select):focus-visible {
+  border-color: var(--accent);
+}
+[data-ui="premium"] [data-premium-area] :is(input, textarea, select):disabled {
+  background-color: var(--surface-sunken);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-ui="premium"] [role="dialog"]:not([style]),
+  [data-ui="premium"] aside[role="dialog"]:not([style]),
+  [data-ui="premium"] .bg-overlay,
+  [data-ui="premium"] body {
+    animation: none;
+  }
+  [data-ui="premium"] :is(a, button).shadow-card,
+  [data-ui="premium"] .nav-dark a svg {
+    transition: none;
+  }
+  [data-ui="premium"] :is(a, button).shadow-card:hover,
+  [data-ui="premium"] .nav-dark a:hover svg {
+    transform: none;
+  }
+}
