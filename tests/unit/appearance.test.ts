@@ -288,3 +288,12 @@ describe("Demfort Premium — Fase A: base y encabezado", () => {
     expect(css).toMatch(/prefers-reduced-motion[\s\S]*\[data-page-header\] ~ div[\s\S]*animation: none/);
   });
 });
+
+describe("Demfort Premium — Fase B: Bandeja", () => {
+  it("la fila y el editor Premium solo cambian color y forma, sin tocar la lista virtual, y respetan reduced-motion", () => {
+    expect(css).toContain('[data-ui="premium"] .inbox-row:hover');
+    expect(css).toContain('[data-ui="premium"] [data-split-panels] textarea:focus');
+    expect(css).toMatch(/prefers-reduced-motion[\s\S]*\.inbox-row,[\s\S]*transition: none/);
+    expect(css).not.toMatch(/\[data-ui="premium"\] \.inbox-row\s*\{[^}]*(transform|filter|box-shadow)/);
+  });
+});
