@@ -1,6 +1,7 @@
 @import "./premium-c.css";
 @import "./premium-d.css";
 @import "./premium-f.css";
+@import "./premium-e.css";
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
