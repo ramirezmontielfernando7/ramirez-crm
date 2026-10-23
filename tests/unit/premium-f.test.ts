@@ -12,7 +12,7 @@ describe("Demfort Premium · animaciones (fase F)", () => {
   it("cuelga solo de [data-ui=\"premium\"] (Clásico intacto)", () => {
     const sinComentarios = css.replace(/\/\*[\s\S]*?\*\//g, "");
     const selectores = [...sinComentarios.matchAll(/([^{}]+)\{/g)]
-      .map((m) => m[1].trim())
+      .map((m) => (m[1] ?? "").trim())
       .filter((s) => !s.startsWith("@") && !/^(from|to)$/.test(s));
     for (const s of selectores) {
       if (s === ":root") continue;
