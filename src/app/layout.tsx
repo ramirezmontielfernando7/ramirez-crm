@@ -4,6 +4,8 @@ import localFont from "next/font/local";
 import "@fontsource-variable/geist";
 import "@fontsource-variable/plus-jakarta-sans";
 import "@fontsource-variable/dm-sans";
+import "@fontsource-variable/instrument-sans";
+import "@fontsource-variable/bricolage-grotesque";
 import {
   CHAT_STYLE_COOKIE,
   FONT_COOKIE,
