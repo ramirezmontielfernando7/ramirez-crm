@@ -316,12 +316,13 @@ function StageColumn({
   return (
     <div
       ref={setNodeRef}
+      data-pm="col"
       className={cn(
         "flex h-full w-64 shrink-0 snap-start flex-col rounded-lg border border-border-strong bg-subtle transition-[box-shadow,border-color]",
         isOver && "border-brand ring-[3px] ring-brand-soft"
       )}
     >
-      <div className="flex items-center justify-between px-3 py-2.5">
+      <div data-pm="col-head" className="flex items-center justify-between px-3 py-2.5">
         <span className="flex items-center gap-1.5 text-[13.5px] font-bold tracking-tight">
           {stage.kind === "won" && <Trophy className="h-3.5 w-3.5 text-primary" />}
           {stage.kind === "lost" && (
@@ -329,7 +330,7 @@ function StageColumn({
           )}
           {stage.name}
         </span>
-        <span className="rounded-full border border-border-strong bg-background px-2 py-0.5 font-mono text-[11px] text-text-3">
+        <span data-pm="col-count" className="rounded-full border border-border-strong bg-background px-2 py-0.5 font-mono text-[11px] text-text-3">
           {leads.length}
         </span>
       </div>
@@ -435,6 +436,7 @@ function LeadCard({
   const showAssignee = useViewer().can("scope.all");
   return (
     <div
+      data-pm={overlay ? "card-overlay" : "card"}
       className={cn(
         "cursor-grab rounded-md border border-border-strong bg-card p-3 shadow-sm transition-shadow hover:shadow-md",
         overlay && "rotate-2 shadow-pop"
@@ -478,6 +480,7 @@ function LeadCard({
             e.stopPropagation();
             onEditAmount(lead);
           }}
+          data-pm="amount"
           className={cn(
             "mt-1.5 w-full rounded px-1 py-0.5 text-right text-xs tabular-nums hover:bg-accent",
             lead.amountCents === null

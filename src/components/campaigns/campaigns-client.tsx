@@ -83,7 +83,7 @@ export function CampaignsClient() {
                 <li key={c.id}>
                   <Link
                     href={`/campaigns/${c.id}`}
-                    className="block rounded-lg border bg-card px-4 py-3 transition-colors hover:bg-accent"
+                    data-pm="row" className="block rounded-lg border bg-card px-4 py-3 transition-colors hover:bg-accent"
                   >
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div className="min-w-0">
