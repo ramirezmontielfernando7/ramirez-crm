@@ -40,6 +40,7 @@ export function Section({
   return (
     <section
       id={id}
+      data-pm="panel"
       aria-busy={loading}
       className="rounded-lg border border-border-strong bg-card shadow-sm"
     >
@@ -103,5 +104,5 @@ export function Rate({
 
 /** Subtítulo de un bloque dentro de una sección. */
 export function Subhead({ children }: { children: ReactNode }) {
-  return <h4 className="mb-2 text-[13px] font-semibold text-text-2">{children}</h4>;
+  return <h4 data-pm="subhead" className="mb-2 text-[13px] font-semibold text-text-2">{children}</h4>;
 }

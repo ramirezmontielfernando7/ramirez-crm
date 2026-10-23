@@ -31,7 +31,7 @@ export function Funnel({ steps }: { steps: FunnelStepDto[] }) {
               <span className="tabular-nums">{step.reached}</span>
             </div>
             <div
-              className="mt-1 h-2 w-full overflow-hidden rounded-[4px] bg-subtle"
+              data-pm="bar" className="mt-1 h-2 w-full overflow-hidden rounded-[4px] bg-subtle"
               role="img"
               aria-label={`${step.reached} prospectos llegaron a ${step.name}`}
             >
