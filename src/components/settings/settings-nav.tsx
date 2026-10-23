@@ -105,6 +105,7 @@ export function SettingsShell({
   const current = groups.find((g) => g.pages.some((page) => pathWithin(href(page.slug), pathname)));
   return (
     <PageShell title="Ajustes" icon={Settings} pillar={false} tabs={tabs} tabsLabel="Secciones de Ajustes">
+      <div data-premium-area="settings" className="contents">
       {current && current.pages.length > 1 && (
         // 039: sub-secciones como control segmentado dentro del contenido (nunca
         // una segunda barra bajo el encabezado de 56 px).
@@ -121,6 +122,7 @@ export function SettingsShell({
         </div>
       )}
       {children}
+      </div>
     </PageShell>
   );
 }
