@@ -14,7 +14,7 @@ import {
   resolveAppearance,
 } from "@/lib/appearance";
 import { getOrgAppearance } from "@/server/appearance";
-import { accentCssVariables, sidebarCssVariables } from "@/lib/branding";
+import { accentCssVariables, DEFAULT_BRANDING, sidebarCssVariables } from "@/lib/branding";
 import { faviconHref } from "@/lib/favicon";
 import { normalizeThemePreference, THEME_COOKIE } from "@/lib/theme";
 import { getViewerBrandingContext } from "@/server/branding";
@@ -63,6 +63,14 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
+/**
+ * Demfort Premium estrena el azul de la ficha como acento SOLO si la cuenta
+ * conserva el teal de fábrica; quien eligió su propio color lo conserva.
+ */
+function premiumAccent(accent: string, uiStyle: string): string {
+  return uiStyle === "premium" && accent.toLowerCase() === DEFAULT_BRANDING.accent ? "#2f6fe4" : accent;
+}
+
 export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
@@ -95,7 +103,7 @@ export default async function RootLayout({
             `.nav-dark` cuando es de color. */}
         <style
           dangerouslySetInnerHTML={{
-            __html: accentCssVariables(branding.accent) + sidebarCssVariables(branding.sidebar),
+            __html: accentCssVariables(premiumAccent(branding.accent, look.uiStyle)) + sidebarCssVariables(branding.sidebar),
           }}
         />
       </head>

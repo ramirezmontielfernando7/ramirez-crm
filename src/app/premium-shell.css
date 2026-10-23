@@ -1,0 +1,99 @@
+/*
+  Demfort Premium · Rediseño total, PR 1 (menú lateral y encabezado). Solo con
+  [data-ui="premium"]; «Clásico» no escribe nada. Es solo visual: no cambia el
+  funcionamiento ni la carga de datos, ni agrega sombras o filtros a las listas.
+
+  Antes de este PR el menú de Premium solo redefinía el color de las letras
+  (claras), pero el fondo salía de la Marca de la cuenta: con «Panel claro»
+  (el de fábrica) quedaba letra clara sobre blanco y el menú se leía vacío.
+  Aquí el menú es azul marino de la ficha siempre, como en la maqueta.
+*/
+[data-ui="premium"] {
+  --pm-navy: #0f1d3a;
+  --pm-navy-2: #182a50;
+  --pm-navy-3: #243a6b;
+}
+:root[data-theme="dark"][data-ui="premium"] {
+  --pm-navy: #0b1530;
+  --pm-navy-2: #13234a;
+  --pm-navy-3: #1e3363;
+}
+
+/* El fondo de la página es el azul marino; el menú se funde con él y el
+   contenido queda como un panel que flota encima (18 px, una sola sombra). */
+[data-ui="premium"] .shell-root {
+  background-color: var(--pm-navy);
+}
+[data-ui="premium"] .shell-content {
+  border-color: transparent;
+  box-shadow: var(--shadow-panel);
+}
+
+/* Menú: azul marino siempre (pisa «Panel claro» y los colores de Marca). */
+[data-ui="premium"] .nav-dark {
+  --nav-surface: var(--pm-navy);
+  --bg: var(--pm-navy);
+  --bg-subtle: var(--pm-navy);
+  --bg-panel: var(--pm-navy-2);
+  --bg-raised: var(--pm-navy-2);
+  --bg-hover: var(--pm-navy-2);
+  --border: var(--pm-navy-3);
+  --chip-bg: var(--pm-navy-2);
+  --row-hover: var(--pm-navy-2);
+  color-scheme: dark;
+}
+@media (min-width: 1024px) {
+  [data-ui="premium"] aside.nav-dark {
+    border-color: transparent;
+    box-shadow: none;
+    border-radius: 0;
+    background-color: transparent;
+  }
+}
+[data-ui="premium"] aside.nav-dark > nav {
+  gap: 4px;
+}
+[data-ui="premium"] aside.nav-dark > nav a,
+[data-ui="premium"] aside.nav-dark > a {
+  border-radius: 10px;
+  font-weight: 500;
+  position: relative;
+}
+[data-ui="premium"] aside.nav-dark > nav a:hover,
+[data-ui="premium"] aside.nav-dark > a:hover {
+  background-color: var(--pm-navy-2);
+}
+/* Renglón activo: panel #182a50 + barra del acento al borde, como la maqueta. */
+[data-ui="premium"] aside.nav-dark :is(nav a, > a).bg-brand-tint {
+  background-color: var(--pm-navy-2);
+  color: #eef2fb;
+}
+[data-ui="premium"] aside.nav-dark :is(nav a, > a).bg-brand-tint::before {
+  content: "";
+  position: absolute;
+  left: -12px;
+  top: 9px;
+  bottom: 9px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background-color: var(--accent);
+}
+/* Tarjeta del usuario al pie. */
+[data-ui="premium"] aside.nav-dark > div:not(.flex-1):not(:first-child):has(> span.rounded-full) {
+  background-color: var(--pm-navy-2);
+  border-radius: 12px;
+}
+
+/* Encabezado: una sola barra de 56 px sobre la superficie, título en display. */
+[data-ui="premium"] [data-page-header] {
+  background-color: var(--surface);
+}
+[data-ui="premium"] [data-page-header] h1 {
+  font-size: 20px;
+}
+
+/* Teléfono: la franja de arriba es del mismo azul marino y se lee. */
+[data-ui="premium"] header.nav-dark {
+  background-color: var(--pm-navy);
+  border-color: var(--pm-navy-3);
+}
