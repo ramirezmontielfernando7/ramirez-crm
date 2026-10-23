@@ -766,6 +766,37 @@
   }
 }
 
+/*
+  Demfort Premium · Fase B (Bandeja): fila con fondo suave al pasar el cursor
+  (solo color: la lista sigue virtual y sin sombras), paneles de la Bandeja con
+  esquinas amplias y editor de mensaje con aro de marca al enfocar.
+  Solo con [data-ui="premium"].
+*/
+[data-ui="premium"] .inbox-row {
+  transition: background-color 0.15s ease;
+}
+[data-ui="premium"] .inbox-row:hover {
+  background-color: var(--brand-tint);
+}
+[data-ui="premium"] [data-split-panels] > * {
+  border-radius: 18px;
+}
+[data-ui="premium"] [data-split-panels] textarea {
+  border-radius: 18px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+[data-ui="premium"] [data-split-panels] textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+  outline: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-ui="premium"] .inbox-row,
+  [data-ui="premium"] [data-split-panels] textarea {
+    transition: none;
+  }
+}
+
 /* «Premium» (diseño propio del producto): esquinas muy redondeadas, cola
    curva, tonos de la marca de la organización y resortes cortos. */
 [data-chat="premium"] {

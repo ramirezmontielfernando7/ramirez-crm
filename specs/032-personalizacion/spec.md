@@ -76,3 +76,5 @@ Ajustes → **Personalización**, con tres subpestañas (rutas, compartibles):
 - PR 4 hecho: letras de la ficha (Instrument Sans y Bricolage) en Premium con la letra de fábrica.
 - PR 3 hecho: menú lateral azul marino de la ficha.
 - PR 2 hecho: burbujas, píldora de día y fondo del hilo Premium (solo si el chat es «Clásico»). Siguientes PRs: luego en el resto de pantallas, luego pulido.
+
+- **Fase B (Bandeja)**: solo CSS bajo `[data-ui="premium"]`: fila con fondo de marca al pasar el cursor (sin sombras ni transform: la lista sigue virtual), paneles con esquinas de 18 px y editor con aro de marca al enfocar; se apaga con reduced-motion.
