@@ -64,11 +64,13 @@
   background-color: var(--pm-navy-2);
 }
 /* Renglón activo: panel #182a50 + barra del acento al borde, como la maqueta. */
-[data-ui="premium"] aside.nav-dark :is(nav a, > a).bg-brand-tint {
+[data-ui="premium"] aside.nav-dark nav a.bg-brand-tint,
+[data-ui="premium"] aside.nav-dark > a.bg-brand-tint {
   background-color: var(--pm-navy-2);
   color: #eef2fb;
 }
-[data-ui="premium"] aside.nav-dark :is(nav a, > a).bg-brand-tint::before {
+[data-ui="premium"] aside.nav-dark nav a.bg-brand-tint::before,
+[data-ui="premium"] aside.nav-dark > a.bg-brand-tint::before {
   content: "";
   position: absolute;
   left: -12px;
