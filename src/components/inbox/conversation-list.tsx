@@ -382,7 +382,7 @@ export const ConversationList = memo(function ConversationList({
           <InboxModeSwitch current="inbox" className={bajoBuscador} />
           {/* Una cápsula con el filtro en uso; al tocarla despliega el resto.
               La selección múltiple viaja pegada a ella. */}
-          <div className="flex items-center gap-1">
+          <div data-pm="list-tools" className="flex items-center gap-1">
             <div className={cn("flex items-center gap-1", bajoBuscador)}>
               <FilterMenu
                 filtros={filtros}
