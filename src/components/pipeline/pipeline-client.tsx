@@ -481,6 +481,7 @@ function LeadCard({
             onEditAmount(lead);
           }}
           data-pm="amount"
+          data-empty={lead.amountCents === null ? "" : undefined}
           className={cn(
             "mt-1.5 w-full rounded px-1 py-0.5 text-right text-xs tabular-nums hover:bg-accent",
             lead.amountCents === null
