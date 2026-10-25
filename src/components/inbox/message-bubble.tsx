@@ -158,6 +158,10 @@ function MediaBlock({ media }: { media: MessageMediaDto }) {
           alt={media.caption ?? mediaLabel(media.kind)}
           className="max-h-72 max-w-full rounded-md object-contain"
           loading="lazy"
+          // Premium: la foto reserva su caja (con brillo de carga) hasta que
+          // llega, así la burbuja nunca queda como un recuadro vacío.
+          onLoad={(e) => (e.currentTarget.dataset.loaded = "1")}
+          onError={(e) => (e.currentTarget.dataset.failed = "1")}
         />
       </a>
     );
@@ -228,6 +232,7 @@ export function MessageBubble({
   const out = m.direction === "out";
   return (
     <div
+      data-media={m.media ? (m.media.caption ? "caption" : "bare") : undefined}
       className={cn(
         // En el teléfono la burbuja necesita casi todo el renglón:
         // con 64% cada mensaje se parte en tres líneas.

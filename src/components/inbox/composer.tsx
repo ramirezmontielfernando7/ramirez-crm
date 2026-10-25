@@ -362,7 +362,7 @@ export function Composer({
 
   if (!conversation.windowOpen && !freeTextOutsideWindow) {
     return (
-      <div className="border-t bg-background px-[18px] py-3.5">
+      <div data-pm="composer" className="border-t bg-background px-[18px] py-3.5">
         <div className="mb-3 flex items-start gap-2 rounded-md border border-warning-soft bg-warning-tint p-3 text-sm text-warning-text">
           <Clock3 className="mt-0.5 h-4 w-4 shrink-0" strokeWidth={1.7} />
           <div>
@@ -382,7 +382,7 @@ export function Composer({
   const canSubmit = !rewriting && (file !== null || text.trim().length > 0);
 
   return (
-    <div className="border-t bg-background px-[18px] pb-3.5 pt-3">
+    <div data-pm="composer" className="border-t bg-background px-[18px] pb-3.5 pt-3">
       {!conversation.windowOpen && directHint && (
         <p className="mb-2 flex items-center gap-1.5 text-xs text-text-3" data-testid="composer-direct-hint">
           <Clock3 className="h-3.5 w-3.5 shrink-0" strokeWidth={1.7} />

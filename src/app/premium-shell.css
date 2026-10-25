@@ -1,53 +1,63 @@
 /*
-  Demfort Premium · Rediseño total, PR 1 (menú lateral y encabezado). Solo con
-  [data-ui="premium"]; «Clásico» no escribe nada. Es solo visual: no cambia el
-  funcionamiento ni la carga de datos, ni agrega sombras o filtros a las listas.
+  Demfort Premium v2 · escritorio de ventanas flotantes (menú, encabezado,
+  paneles). Solo con [data-ui="premium"]; «Clásico» no escribe nada. Es solo
+  visual: no cambia el funcionamiento ni la carga de datos. Las listas largas
+  no llevan sombras ni filtros; la única sombra es la de cada ventana.
 
-  Antes de este PR el menú de Premium solo redefinía el color de las letras
-  (claras), pero el fondo salía de la Marca de la cuenta: con «Panel claro»
-  (el de fábrica) quedaba letra clara sobre blanco y el menú se leía vacío.
-  Aquí el menú es azul marino de la ficha siempre, como en la maqueta.
+  El menú es azul marino siempre (pisa «Panel claro» y los colores de Marca:
+  antes salía letra clara sobre blanco y se leía vacío).
 */
 [data-ui="premium"] {
-  --pm-navy: #0f1d3a;
-  --pm-navy-2: #182a50;
-  --pm-navy-3: #243a6b;
+  --pm-navy: #14264b;
+  --pm-navy-2: #0d1a37;
+  --pm-active: rgba(255, 255, 255, 0.1);
+  --pm-page: #dfe7f5;
+  --pm-page-glow: #c9d6ee;
 }
 :root[data-theme="dark"][data-ui="premium"] {
-  --pm-navy: #0b1530;
-  --pm-navy-2: #13234a;
-  --pm-navy-3: #1e3363;
+  --pm-navy: #12234a;
+  --pm-navy-2: #0a1430;
+  --pm-page: #0a1226;
+  --pm-page-glow: #14214a;
 }
 
-/* El fondo de la página es el azul marino; el menú se funde con él y el
-   contenido queda como un panel que flota encima (18 px, una sola sombra). */
+/* Fondo vivo: la página es un lienzo suave y todo lo demás flota encima. */
 [data-ui="premium"] .shell-root {
-  background-color: var(--pm-navy);
+  background-color: var(--pm-page);
+  background-image: radial-gradient(1200px 700px at 85% -10%, var(--pm-page-glow), transparent 60%);
 }
+/* El contenido ya no es una sola hoja: cada pantalla trae sus propias
+   ventanas (encabezado, paneles) y la hoja de fondo desaparece. */
 [data-ui="premium"] .shell-content {
+  background-color: transparent;
   border-color: transparent;
-  box-shadow: var(--shadow-panel);
+  box-shadow: none;
 }
 
-/* Menú: azul marino siempre (pisa «Panel claro» y los colores de Marca). */
+/* Menú: ventana flotante azul marino. */
 [data-ui="premium"] .nav-dark {
   --nav-surface: var(--pm-navy);
   --bg: var(--pm-navy);
   --bg-subtle: var(--pm-navy);
   --bg-panel: var(--pm-navy-2);
   --bg-raised: var(--pm-navy-2);
-  --bg-hover: var(--pm-navy-2);
-  --border: var(--pm-navy-3);
-  --chip-bg: var(--pm-navy-2);
-  --row-hover: var(--pm-navy-2);
+  --bg-hover: var(--pm-active);
+  --text: #eef2fb;
+  --text-2: #c3cde6;
+  --text-3: #a9b6d3;
+  --text-4: #7d8bb0;
+  --border: rgba(255, 255, 255, 0.14);
+  --chip-bg: var(--pm-active);
+  --row-hover: var(--pm-active);
   color-scheme: dark;
 }
 @media (min-width: 1024px) {
   [data-ui="premium"] aside.nav-dark {
     border-color: transparent;
-    box-shadow: none;
-    border-radius: 0;
-    background-color: transparent;
+    border-radius: 22px;
+    box-shadow: var(--shadow-panel);
+    background-color: var(--pm-navy);
+    background-image: linear-gradient(170deg, var(--pm-navy), var(--pm-navy-2));
   }
 }
 [data-ui="premium"] aside.nav-dark > nav {
@@ -55,18 +65,18 @@
 }
 [data-ui="premium"] aside.nav-dark > nav a,
 [data-ui="premium"] aside.nav-dark > a {
-  border-radius: 10px;
+  border-radius: 12px;
   font-weight: 500;
   position: relative;
 }
 [data-ui="premium"] aside.nav-dark > nav a:hover,
 [data-ui="premium"] aside.nav-dark > a:hover {
-  background-color: var(--pm-navy-2);
+  background-color: var(--pm-active);
 }
-/* Renglón activo: panel #182a50 + barra del acento al borde, como la maqueta. */
+/* Renglón activo: panel translúcido + barra del acento al borde. */
 [data-ui="premium"] aside.nav-dark nav a.bg-brand-tint,
 [data-ui="premium"] aside.nav-dark > a.bg-brand-tint {
-  background-color: var(--pm-navy-2);
+  background-color: var(--pm-active);
   color: #eef2fb;
 }
 [data-ui="premium"] aside.nav-dark nav a.bg-brand-tint::before,
@@ -74,21 +84,25 @@
   content: "";
   position: absolute;
   left: -12px;
-  top: 9px;
-  bottom: 9px;
+  top: 10px;
+  bottom: 10px;
   width: 3px;
   border-radius: 0 3px 3px 0;
   background-color: var(--accent);
 }
 /* Tarjeta del usuario al pie. */
 [data-ui="premium"] aside.nav-dark > div:not(.flex-1):not(:first-child):has(> span.rounded-full) {
-  background-color: var(--pm-navy-2);
-  border-radius: 12px;
+  background-color: var(--pm-active);
+  border-radius: 14px;
 }
 
-/* Encabezado: una sola barra de 56 px sobre la superficie, título en display. */
+/* Encabezado de cada pantalla: una sola barra flotante de 56 px. */
 [data-ui="premium"] [data-page-header] {
   background-color: var(--surface);
+  border: 0;
+  border-radius: 16px;
+  box-shadow: var(--shadow-panel);
+  margin-bottom: 14px;
 }
 [data-ui="premium"] [data-page-header] h1 {
   font-size: 20px;
@@ -97,5 +111,5 @@
 /* Teléfono: la franja de arriba es del mismo azul marino y se lee. */
 [data-ui="premium"] header.nav-dark {
   background-color: var(--pm-navy);
-  border-color: var(--pm-navy-3);
+  border-color: var(--pm-active);
 }
