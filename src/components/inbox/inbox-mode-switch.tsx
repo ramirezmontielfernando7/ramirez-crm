@@ -104,7 +104,7 @@ export function InboxTabs({
               data-testid={`inbox-tab-${t.mode}`}
               title={t.aria}
               className={cn(
-                "flex h-[22px] shrink-0 items-center gap-1 whitespace-nowrap rounded-[4px] border px-2 text-[11px] font-semibold transition-colors",
+                "flex h-6 shrink-0 items-center gap-1 whitespace-nowrap rounded-[8px] border px-2.5 text-[11.5px] font-semibold transition-colors",
                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                 active
                   ? "border-brand/30 bg-brand-tint text-brand-text"
