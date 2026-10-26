@@ -457,6 +457,30 @@ export const ConversationList = memo(function ConversationList({
         </div>
       </header>
 
+      {/* Premium v2: atajos de dueño («Todos · Mis chats · Sin asignar»). Es el
+          mismo filtro de dueño del menú; en Clásico no se pinta (CSS). */}
+      {seesAll && (
+        <div data-pm="quick-owner" role="group" aria-label="Atajos de dueño" className="hidden shrink-0 items-center gap-1.5 px-4 pb-2">
+          {(
+            [
+              ["all", "Todos"],
+              ["mine", "Mis chats"],
+              ["unassigned", "Sin asignar"],
+            ] as const
+          ).map(([value, label]) => (
+            <button
+              key={value}
+              type="button"
+              aria-pressed={owner === value}
+              onClick={() => setOwner(owner === value ? "all" : value)}
+              className="rounded-full border px-2.5 py-0.5 text-[12px] font-medium transition-colors"
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
+
       {agentsPaused && (
         <p
           data-ai-paused-notice
@@ -783,6 +807,7 @@ const ConversationRow = memo(function ConversationRow({
       // columna de avatares queda limpia y el ojo baja por ella.
       ref={measureRef}
       data-index={index}
+      data-active={active ? "true" : undefined}
       style={{ transform: `translateY(${start}px)` }}
       className="inbox-row absolute left-0 top-0 w-full after:absolute after:bottom-0 after:left-[58px] after:right-0 after:h-px after:bg-border"
     >
@@ -916,7 +941,7 @@ const ConversationRow = memo(function ConversationRow({
           )}
           <div className="flex min-w-0 items-center gap-1.5">
             <StageCapsule conversation={c} stages={stages} onPatch={onPatchRow} onRefetch={onRefetch} onError={onError} />
-            <span aria-hidden className="shrink-0 text-[10.5px] text-text-3">·</span>
+            <span aria-hidden data-pm="cap-dot" className="shrink-0 text-[10.5px] text-text-3">·</span>
             <TagsCapsule
               conversation={c}
               catalog={tagCatalog}
@@ -926,7 +951,7 @@ const ConversationRow = memo(function ConversationRow({
               onRefetch={onRefetch}
               onError={onError}
             />
-            <span aria-hidden className="shrink-0 text-[10.5px] text-text-3">·</span>
+            <span aria-hidden data-pm="cap-dot" className="shrink-0 text-[10.5px] text-text-3">·</span>
             <AssigneeCapsule
               conversation={c}
               members={members}

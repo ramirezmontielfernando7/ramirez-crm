@@ -252,7 +252,7 @@ export function TagsCapsule({
       className={cn(
         "min-w-[3.5rem] shrink",
         // Teñida con el color de la primera etiqueta (gris si no tiene o no es válido).
-        first ? cn(tagColorClass(first.color), "hover:brightness-95 dark:hover:brightness-110") : "bg-transparent px-1 font-normal text-text-2 hover:bg-accent"
+        first ? cn(tagColorClass(first.color), "hover:brightness-95 dark:hover:brightness-110") : "pm-empty bg-transparent px-1 font-normal text-text-2 hover:bg-accent"
       )}
       menuClassName="w-60"
       trigger={
@@ -375,7 +375,7 @@ export function AssigneeCapsule({
   const label = c.assignee ? (c.assignee.id === viewerId ? "Tú" : c.assignee.name) : "Sin asignar";
   const tone = cn(
     "min-w-[3rem] shrink",
-    c.assignee ? "bg-secondary text-text-2" : "bg-transparent px-1 font-normal text-text-2"
+    c.assignee ? "bg-secondary text-text-2" : "pm-empty bg-transparent px-1 font-normal text-text-2"
   );
 
   if (!canAssign) {
