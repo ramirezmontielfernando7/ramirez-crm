@@ -63,3 +63,19 @@
   border-color: color-mix(in srgb, var(--border) 70%, transparent);
   box-shadow: 0 1px 2px rgb(16 24 40 / 0.05), 0 12px 28px -14px rgb(16 24 40 / 0.22);
 }
+
+/* Ajustes → Personalización: subpestañas planas (texto con subrayado de color),
+   sin la banda en cápsula, pegadas al contenido. */
+[data-ui="premium"] [data-pm="subtabs-host"] {
+  row-gap: 8px;
+}
+[data-ui="premium"] [data-pm="subtabs"] {
+  border: 0;
+  background: transparent;
+}
+[data-ui="premium"] [data-premium-area="settings"] nav[aria-label^="Secciones de"],
+[data-ui="premium"] [data-pm="subtabs"] nav {
+  background: transparent;
+  border-radius: 0;
+  padding-inline: 0;
+}
