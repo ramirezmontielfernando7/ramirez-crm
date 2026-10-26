@@ -90,6 +90,9 @@ export type ModulesDto = {
   asistente: boolean;
   /** Conexión directa — complemento oculto (no es de los 13 ni cuenta para el plan). */
   conexionDirecta: boolean;
+  /** 046 — «Mi número»: complemento oculto sobre la conexión directa, y su tope de números. */
+  miNumero: boolean;
+  miNumeroMax: number;
 };
 
 export function modulesDto(m: OrgModules): ModulesDto {
@@ -109,6 +112,8 @@ export function modulesDto(m: OrgModules): ModulesDto {
     trabajo: m.trabajo,
     asistente: m.asistente,
     conexionDirecta: m.conexionDirecta,
+    miNumero: m.miNumero,
+    miNumeroMax: m.miNumeroMax,
   };
 }
 
@@ -350,6 +355,8 @@ export async function changeOrganizationModules(
     trabajo: change.trabajo,
     asistente: change.asistente,
     conexionDirecta: change.conexionDirecta,
+    miNumero: change.miNumero,
+    miNumeroMax: change.miNumeroMax,
   };
   if (change.instagram !== undefined || change.messenger !== undefined) {
     const current = modulesDto(await getOrgModules(organizationId));

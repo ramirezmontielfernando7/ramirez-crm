@@ -13,6 +13,9 @@ export type Modules = Record<PlatformModuleToggle, boolean> & {
   campaignSendRate: number;
   /** Complemento oculto (no es de los 13 ni cuenta para el plan). */
   conexionDirecta: boolean;
+  /** 046 — «Mi número» (sobre la conexión directa) y su tope de números. */
+  miNumero: boolean;
+  miNumeroMax: number;
 };
 
 export type Limits = { turns: number | null; tokens: number | null };

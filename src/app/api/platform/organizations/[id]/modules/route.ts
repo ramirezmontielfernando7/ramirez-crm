@@ -30,6 +30,9 @@ const schema = z
     asistente: z.boolean().optional(),
     // Conexión directa: complemento oculto (fuera de los 13 y de los planes).
     conexionDirecta: z.boolean().optional(),
+    // 046: «Mi número» (requiere la conexión directa; 422 sin ella) y cuántos números caben.
+    miNumero: z.boolean().optional(),
+    miNumeroMax: z.number().int().min(0).max(200).optional(),
     // 040: aplicar la plantilla de un plan (los 13 a la vez); los
     // interruptores sueltos que vengan junto a ella la ajustan.
     plan: z.enum(["esencial", "pro", "ultra"]).optional(),
