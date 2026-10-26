@@ -3,9 +3,9 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
 /**
- * 039 — El título de la Bandeja / Chat de equipo: selector «Bandeja ▾» con el
- * módulo `team_chat`; texto fijo sin él; punto cuando hay no leídos en el
- * OTRO modo. Se dibuja a HTML estático; el menú abierto lo cubre el e2e.
+ * 039 — Las pestañas Empresa · Equipo de la Bandeja: siempre visibles con el
+ * módulo `team_chat`, con el conteo de no leídos de cada una; sin el módulo
+ * no se dibuja ninguna barra.
  */
 
 let modulos: string[] = ["team_chat"];
@@ -21,38 +21,43 @@ vi.mock("@/components/viewer-context", () => ({
 vi.mock("@/components/inbox/unread-store", () => ({ useInboxUnread: () => inbox }));
 vi.mock("@/components/team-chat/unread-store", () => ({ useTeamUnread: () => team }));
 
-const { InboxModeSwitch } = await import("@/components/inbox/inbox-mode-switch");
-const dibujar = (current: "inbox" | "chat") => renderToStaticMarkup(createElement(InboxModeSwitch, { current }));
+const { InboxModeSwitch, InboxTabs } = await import("@/components/inbox/inbox-mode-switch");
+const tabs = (current: "inbox" | "chat") => renderToStaticMarkup(createElement(InboxTabs, { current }));
 
-describe("InboxModeSwitch", () => {
-  it("sin `team_chat`: «Bandeja» como texto fijo, sin flecha ni menú", () => {
+describe("InboxTabs", () => {
+  it("sin `team_chat`: no dibuja pestañas", () => {
     modulos = [];
-    const html = dibujar("inbox");
-    expect(html).toContain(">Bandeja</h2>");
-    expect(html).not.toContain("inbox-mode-switch");
-    expect(html).not.toContain("<svg");
+    expect(tabs("inbox")).toBe("");
   });
 
-  it("con `team_chat`: el título es un botón que abre un menú", () => {
+  it("con `team_chat`: Empresa y Equipo a la vista, la actual marcada", () => {
     modulos = ["team_chat"];
     inbox = 0;
     team = 0;
-    const html = dibujar("inbox");
-    expect(html).toContain('data-testid="inbox-mode-switch"');
-    expect(html).toContain('aria-haspopup="menu"');
-    expect(html).toMatch(/Bandeja<svg/);
-    expect(dibujar("chat")).toMatch(/Chat de equipo<svg/);
+    const html = tabs("inbox");
+    expect(html).toContain("Empresa");
+    expect(html).toContain("Equipo");
+    expect(html).toContain('href="/chat"');
+    expect(html).toMatch(/aria-current="page"[^>]*data-testid="inbox-tab-inbox"|data-testid="inbox-tab-inbox"[^>]*aria-current="page"/);
+    expect(tabs("chat")).toMatch(/data-testid="inbox-tab-chat"[^>]*aria-current="page"|aria-current="page"[^>]*data-testid="inbox-tab-chat"/);
   });
 
-  it("punto solo si hay no leídos en el OTRO modo", () => {
+  it("cada pestaña lleva su propio conteo de no leídos", () => {
     modulos = ["team_chat"];
     inbox = 5;
-    team = 0;
-    expect(dibujar("inbox")).not.toContain("inbox-mode-dot");
-    expect(dibujar("chat")).toContain('aria-label="Sin leer en Bandeja de clientes"');
+    team = 120;
+    const html = tabs("inbox");
+    expect(html).toContain('aria-label="5 sin leer"');
+    expect(html).toContain("99+");
     inbox = 0;
-    team = 2;
-    expect(dibujar("inbox")).toContain('aria-label="Sin leer en Chat de equipo"');
-    expect(dibujar("chat")).not.toContain("inbox-mode-dot");
+    team = 0;
+    expect(tabs("inbox")).not.toContain("sin leer");
+  });
+});
+
+describe("InboxModeSwitch", () => {
+  it("es el título fijo de la columna", () => {
+    expect(renderToStaticMarkup(createElement(InboxModeSwitch, { current: "inbox" }))).toContain(">Chats</h2>");
+    expect(renderToStaticMarkup(createElement(InboxModeSwitch, { current: "chat" }))).toContain(">Chats</h2>");
   });
 });

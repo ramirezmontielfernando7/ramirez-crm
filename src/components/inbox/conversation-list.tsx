@@ -31,7 +31,7 @@ import { formatTime, previewText } from "./helpers";
 import { useViewer } from "@/components/viewer-context";
 import { assignContacts, useAssignees } from "@/components/assignment/use-assignees";
 import { NavRevealButton } from "@/components/nav-mode";
-import { InboxModeSwitch } from "./inbox-mode-switch";
+import { InboxModeSwitch, InboxTabs, useHasInboxTabs } from "./inbox-mode-switch";
 import { FilterMenu, type InboxFilter } from "./filter-menu";
 import { rowAiBadge } from "@/lib/agent-pause";
 import { useAgentsPaused } from "./use-agents-paused";
@@ -200,6 +200,7 @@ export const ConversationList = memo(function ConversationList({
   const [stage, setStage] = useState<string>("all");
   const [inbox, setInbox] = useState<Channel | "all">("all");
   const rowRef = useRef<HTMLDivElement>(null);
+  const hasTabs = useHasInboxTabs();
   // Con el buscador abierto, lo que cubre (título, filtros) se desvanece
   // mientras el campo se estira: un cruce, no dos capas encimadas.
   const [searchOpen, setSearchOpen] = useState(false);
@@ -369,35 +370,12 @@ export const ConversationList = memo(function ConversationList({
     onSeeded();
   }
 
-  return (
-    <div className="flex h-full flex-col">
-      {/* 56 px, el mismo alto que el encabezado del chat y el de Detalles: las
-          tres columnas comparten la línea de abajo. */}
-      <header className="flex h-14 shrink-0 flex-col justify-center border-b px-4">
-        {/* `relative`: el panel de filtros y el buscador abierto se anclan a
-            esta fila, no a su botón, para no salirse nunca de la columna. */}
-        <div ref={rowRef} className="relative flex items-center gap-1.5">
-          <NavRevealButton />
-          {/* 039: «Bandeja ▾» cambia al Chat de equipo (si la organización lo tiene). */}
-          <InboxModeSwitch current="inbox" className={bajoBuscador} />
-          {/* Una cápsula con el filtro en uso; al tocarla despliega el resto.
-              La selección múltiple viaja pegada a ella. */}
-          <div data-pm="list-tools" className="flex items-center gap-1">
-            <div className={cn("flex items-center gap-1", bajoBuscador)}>
-              <FilterMenu
-                filtros={filtros}
-                filter={filter}
-                onFilter={setFilter}
-                stages={stages}
-                stage={stage}
-                onStage={setStage}
-                tags={tagOptions}
-                tag={tag}
-                onTag={setTag}
-                owners={seesAll ? [...owners] : null}
-                owner={owner}
-                onOwner={setOwner}
-              />
+  // Seleccionar varios y buscar: dos botones redondos, a la derecha de las
+  // pestañas (o del título si no hay pestañas). La selección múltiple viaja
+  // pegada a la lupa.
+  const tools = (
+    <div data-pm="list-tools" className="ml-auto flex items-center gap-1">
+      <div className={cn("flex items-center gap-1", bajoBuscador)}>
               {canAssign && !selecting && (
                 <button
                   onClick={() => setSelecting(true)}
@@ -412,17 +390,46 @@ export const ConversationList = memo(function ConversationList({
                   <CheckSquare className="h-3.5 w-3.5" strokeWidth={1.8} />
                 </button>
               )}
-            </div>
-            <SearchPill
+      </div>
+      <SearchPill
               query={query}
               onQuery={setQuery}
               rowRef={rowRef}
               onOpenChange={setSearchOpen}
               hint={filtroPuesto}
             />
-          </div>
+    </div>
+  );
+
+  return (
+    <div className="flex h-full flex-col">
+      {/* 56 px, el mismo alto que el encabezado del chat y el de Detalles: las
+          tres columnas comparten la línea de abajo. */}
+      <header className="flex h-14 shrink-0 flex-col justify-center px-4">
+        {/* `relative`: el panel de filtros se ancla a esta fila, no a su botón,
+            para no salirse nunca de la columna. */}
+        <div ref={hasTabs ? undefined : rowRef} className="relative flex items-center gap-1.5">
+          <NavRevealButton />
+          {/* 039: las pestañas Empresa · Equipo van en la fila de abajo. */}
+          <InboxModeSwitch current="inbox" className={bajoBuscador} />
+          {/* «Todo» tenue a la derecha; con un filtro puesto se pinta del acento. */}
+          <div className={cn("ml-auto flex items-center gap-1", bajoBuscador)}>
+            <FilterMenu
+                filtros={filtros}
+                filter={filter}
+                onFilter={setFilter}
+                stages={stages}
+                stage={stage}
+                onStage={setStage}
+                tags={tagOptions}
+                tag={tag}
+                onTag={setTag}
+                owners={seesAll ? [...owners] : null}
+                owner={owner}
+                onOwner={setOwner}
+              />
           {multiChannel && (
-            <div className={cn("ml-auto flex items-center gap-1", bajoBuscador)}>
+            <div className={cn("flex items-center gap-1", bajoBuscador)}>
               {channels.map((ch) => {
                 const on = inbox === ch;
                 return (
@@ -454,8 +461,13 @@ export const ConversationList = memo(function ConversationList({
               })}
             </div>
           )}
+          </div>
+          {!hasTabs && tools}
         </div>
       </header>
+      <InboxTabs current="inbox" rowRef={rowRef} className={bajoBuscador}>
+        {tools}
+      </InboxTabs>
 
       {/* Premium v2: atajos de dueño («Todos · Mis chats · Sin asignar»). Es el
           mismo filtro de dueño del menú; en Clásico no se pinta (CSS). */}

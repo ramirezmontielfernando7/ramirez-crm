@@ -483,7 +483,7 @@ function NavLabel({ children }: { children: React.ReactNode }) {
  * vivía en `AppNav` y cada `message.new` lo re-renderizaba completo).
  */
 function InboxUnreadBadge() {
-  // 039: el mismo almacén que el selector «Bandeja ▾» (una sola consulta).
+  // 039: el mismo almacén que el las pestañas Empresa · Equipo (una sola consulta).
   const unread = useInboxUnread();
 
   if (unread <= 0) return null;

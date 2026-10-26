@@ -16,7 +16,7 @@ import { cn } from "@/lib/utils";
  * 039 — El cascarón de las pantallas de los pilares (CRM Comercial, Estudio
  * de IA, Marketing, Inteligencia), Ajustes y Plataforma. La Bandeja y el Chat
  * de equipo NO lo usan: conservan sus columnas a altura completa y cambian
- * entre sí con «Bandeja ▾» (`InboxModeSwitch`).
+ * entre sí con las pestañas Empresa · Equipo (`InboxTabs`).
  *
  * UNA sola barra de 56 px (h-14), alineada con la fila del logo del menú:
  * - izquierda: el botón que reabre el menú oculto, ícono y título del pilar;

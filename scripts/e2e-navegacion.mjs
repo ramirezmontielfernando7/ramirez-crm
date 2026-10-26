@@ -279,23 +279,18 @@ async function main() {
   ok("oculto ≠ prohibido: el Asesor sigue abriendo la Bandeja y el chat de equipo (API 200)", (await S.call("GET", "/api/team-chat/threads")).status === 200);
   const chat = await S.pagina("/chat");
   ok("…y la página /chat (200), sin barra de pantalla encima (columnas a altura completa)", chat.status === 200 && (await chat.p.locator("header[data-page-header]").count()) === 0, String(chat.status));
-  // 039: Bandeja ⇄ Chat de equipo con el selector del título («Chat de equipo ▾»).
-  const selector = chat.p.getByTestId("inbox-mode-switch");
-  await selector.waitFor({ timeout: 30000 });
-  ok("el título de /chat es el selector «Chat de equipo ▾»", /Chat de equipo/.test(await selector.innerText()) && (await selector.getAttribute("aria-haspopup")) === "menu");
-  await selector.click();
-  const menuModo = chat.p.getByRole("menu", { name: "Cambiar de bandeja" });
-  await menuModo.waitFor({ timeout: 10000 });
+  // 039: Bandeja ⇄ Chat de equipo con las pestañas Empresa · Equipo, siempre a la vista.
+  const tabEquipo = chat.p.getByTestId("inbox-tab-chat");
+  await tabEquipo.waitFor({ timeout: 30000 });
   ok(
-    "el menú ofrece «Bandeja de clientes» y «Chat de equipo» (el actual marcado)",
-    (await menuModo.getByRole("menuitem", { name: /Bandeja de clientes/ }).count()) === 1 &&
-      (await menuModo.getByRole("menuitem", { name: /Chat de equipo/ }).getAttribute("aria-current")) === "page"
+    "/chat muestra las pestañas «Empresa» y «Equipo» (la actual marcada), sin menú escondido",
+    (await tabEquipo.getAttribute("aria-current")) === "page" && (await chat.p.getByTestId("inbox-tab-inbox").count()) === 1
   );
-  await menuModo.getByRole("menuitem", { name: /Bandeja de clientes/ }).click();
-  ok("elegir «Bandeja de clientes» lleva a /inbox", await hasta(async () => new URL(chat.p.url()).pathname === "/inbox", 30000), chat.p.url());
-  const deVuelta = chat.p.getByTestId("inbox-mode-switch");
+  await chat.p.getByTestId("inbox-tab-inbox").click();
+  ok("tocar «Empresa» lleva a /inbox", await hasta(async () => new URL(chat.p.url()).pathname === "/inbox", 30000), chat.p.url());
+  const deVuelta = chat.p.getByTestId("inbox-tab-inbox");
   await deVuelta.waitFor({ timeout: 30000 });
-  ok("…donde el título es «Bandeja ▾», sin barra encima de la lista", /Bandeja/.test(await deVuelta.innerText()) && (await chat.p.locator("header[data-page-header]").count()) === 0);
+  ok("…donde «Empresa» queda marcada, sin barra encima de la lista", (await deVuelta.getAttribute("aria-current")) === "page" && (await chat.p.locator("header[data-page-header]").count()) === 0);
   await chat.p.close();
   ok("sin permiso sigue en 403 (Resultados)", (await S.call("GET", "/api/analytics/sales?from=2026-01-01&to=2026-01-31")).status === 403);
   const coordMenu = await C.pagina("/inbox");
@@ -312,12 +307,12 @@ async function main() {
   ok("el CRM Comercial del Asesor ya no tiene la pestaña Biblioteca", (await crmTabs.getByRole("link", { name: "Biblioteca" }).count()) === 0, (await crmTabs.getByRole("link").allInnerTexts()).join());
   await sinK.p.close();
   ok("y la API responde 404", (await S.call("GET", "/api/knowledge")).status === 404);
-  // 039: sin Chat de equipo, el título de la Bandeja vuelve a ser texto fijo.
+  // 039: sin Chat de equipo, la Bandeja no muestra pestañas.
   await A.call("POST", `/api/platform/organizations/${N.orgId}/modules`, { teamChat: false });
   await sleep(CACHE_MS);
   const sinChat = await S.pagina("/inbox");
-  await sinChat.p.getByRole("heading", { name: "Bandeja" }).waitFor({ timeout: 30000 });
-  ok("sin `team_chat`: «Bandeja» sin flecha ni menú", (await sinChat.p.getByTestId("inbox-mode-switch").count()) === 0);
+  await sinChat.p.getByRole("heading", { name: "Chats" }).waitFor({ timeout: 30000 });
+  ok("sin `team_chat`: «Bandeja» sin pestañas", (await sinChat.p.getByTestId("inbox-tabs").count()) === 0);
   await sinChat.p.close();
   await A.call("POST", `/api/platform/organizations/${N.orgId}/modules`, { teamChat: true });
   await sleep(CACHE_MS);

@@ -17,7 +17,7 @@ import { cn } from "@/lib/utils";
 import { ContactAvatar } from "@/components/avatar";
 import { ENTER, SPRING } from "@/components/motion";
 import { NavRevealButton } from "@/components/nav-mode";
-import { InboxModeSwitch } from "@/components/inbox/inbox-mode-switch";
+import { InboxModeSwitch, InboxTabs } from "@/components/inbox/inbox-mode-switch";
 import { useEvents } from "@/components/use-events";
 import { useViewer } from "@/components/viewer-context";
 import { formatTime } from "@/components/inbox/helpers";
@@ -375,9 +375,9 @@ function ThreadList({
 
   return (
     <div className="flex h-full flex-col">
-      <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4">
+      <header className="flex h-14 shrink-0 items-center gap-2 px-4">
         <NavRevealButton />
-        {/* 039: «Chat de equipo ▾» vuelve a la Bandeja de clientes. */}
+        {/* 039: las pestañas Empresa · Equipo van bajo el encabezado. */}
         <InboxModeSwitch current="chat" />
         <div className="relative ml-auto">
           <button
@@ -406,6 +406,7 @@ function ThreadList({
           </AnimatePresence>
         </div>
       </header>
+      <InboxTabs current="chat" />
 
       {list?.overseeing && (
         <div className="flex items-start gap-2 border-b bg-warning-tint px-4 py-2 text-[12px] leading-snug text-warning-text">
