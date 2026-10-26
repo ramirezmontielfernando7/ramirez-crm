@@ -1,4 +1,4 @@
-import { eq, inArray } from "drizzle-orm";
+import { and, count, eq, inArray, isNull, ne, or } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { scoped } from "@/lib/db/tenant";
 import { type ConnectionMode, type InboxDirectContext } from "@/lib/direct-connection";
@@ -69,6 +69,51 @@ export async function setChatMode(organizationId: string, conversationId: string
     .set({ connectionMode: mode, connectionModeChangedAt: new Date(), updatedAt: new Date() })
     .where(scoped(schema.conversation.organizationId, organizationId, eq(schema.conversation.id, conversationId)));
   return { ok: true, mode };
+}
+
+/** Cuántos chats de WhatsApp tiene la organización (lo que tocaría «Aplicar a todos»). */
+export async function countWhatsAppChats(organizationId: string): Promise<number> {
+  const [row] = await getDb()
+    .select({ n: count() })
+    .from(schema.conversation)
+    .where(scoped(schema.conversation.organizationId, organizationId, eq(schema.conversation.channel, "whatsapp")));
+  return Number(row?.n ?? 0);
+}
+
+export type ApplyAllResult = { ok: true; mode: ConnectionMode; changed: number } | { ok: false; error: "no_device" | "paused" };
+
+/**
+ * «Aplicar a todos los chats» de Ajustes: pone este modo en TODOS los chats de
+ * WhatsApp de la organización con una sola sentencia (los que ya lo tienen no
+ * se tocan). Mismas reglas que un chat: salir de Meta exige el dispositivo
+ * conectado y sin pausa. El permiso, el complemento y «sin Meta» los valida la
+ * ruta.
+ */
+export async function applyModeToAll(organizationId: string, mode: ConnectionMode): Promise<ApplyAllResult> {
+  if (mode !== "meta") {
+    const conn = await getConnection(organizationId);
+    const now = new Date();
+    if (conn?.pausedUntil && conn.pausedUntil > now) return { ok: false, error: "paused" };
+    if (!deviceReady(conn, now)) return { ok: false, error: "no_device" };
+  }
+  const now = new Date();
+  const changed = await getDb()
+    .update(schema.conversation)
+    .set({ connectionMode: mode, connectionModeChangedAt: now, updatedAt: now })
+    .where(
+      scoped(
+        schema.conversation.organizationId,
+        organizationId,
+        and(
+          eq(schema.conversation.channel, "whatsapp"),
+          or(isNull(schema.conversation.connectionMode), ne(schema.conversation.connectionMode, mode))
+        )
+      )
+    )
+    .returning({ id: schema.conversation.id });
+  // Sin id: la Bandeja de quien ve todo vuelve a pedir la lista entera.
+  if (changed.length > 0) publish(organizationId, { type: "conversation.updated", data: { conversation: {} } });
+  return { ok: true, mode, changed: changed.length };
 }
 
 /**
