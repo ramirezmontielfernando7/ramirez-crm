@@ -104,7 +104,7 @@ export function InboxTabs({
               data-testid={`inbox-tab-${t.mode}`}
               title={t.aria}
               className={cn(
-                "flex h-6 shrink-0 items-center gap-1 whitespace-nowrap rounded-[8px] border px-2.5 text-[11.5px] font-semibold transition-colors",
+                "flex h-6 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-[8px] border px-2.5 text-[11.5px] font-semibold leading-none antialiased transition-colors",
                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                 active
                   ? "border-brand/30 bg-brand-tint text-brand-text"
@@ -115,7 +115,7 @@ export function InboxTabs({
               {n > 0 && (
                 <span
                   aria-label={`${n} sin leer`}
-                  className="text-[11px] font-bold tabular-nums text-brand"
+                  className="text-[11.5px] font-semibold leading-none tabular-nums text-brand"
                 >
                   {count(n)}
                 </span>
