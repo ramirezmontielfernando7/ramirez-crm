@@ -1,16 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Switch } from "@/components/ui/switch";
 import type { ConversationDto } from "@/lib/types";
 import {
   CONNECTION_MODE_COLOR,
-  DIRECT_TEXT,
+  CONNECTION_MODES,
   effectiveMode,
   MODE_PICKER_TEXT,
   modeDotLabel,
-  modeFromDirectToggle,
-  receivesViaMeta,
   type ConnectionMode,
   type InboxDirectContext,
 } from "@/lib/direct-connection";
@@ -29,9 +26,9 @@ export function modeDotClass(mode: ConnectionMode): string {
 
 /**
  * Conexión directa (PR 5) — El punto de color en la esquina del avatar del
- * chat: Oficial (verde), Directa (azul) o Directa con «Recibir por Meta»
- * (morado). Con permiso, al pulsarlo se abre el selector. Solo existe si el
- * complemento está encendido (la Bandeja no pasa `ctx` si no).
+ * chat: Meta (verde), Conexión directa (azul) o Conexión híbrida (morado).
+ * Con permiso, al pulsarlo se abre el selector con las tres opciones. Solo
+ * existe si el complemento está encendido (la Bandeja no pasa `ctx` si no).
  */
 export function ChatModeDot({
   conversation,
@@ -84,10 +81,9 @@ export function ChatModeDot({
       return setError(body?.error?.message ?? "No se pudo cambiar.");
     }
     onChanged(conversation.id, next);
-    if (next === "meta") setOpen(false);
+    setOpen(false);
   }
 
-  const directOn = mode !== "meta";
   const blocked = !ctx.deviceReady;
   const dot = (
     <span
@@ -124,39 +120,19 @@ export function ChatModeDot({
           data-testid="chat-mode-picker"
         >
           <p className="text-xs font-medium text-text-3">{MODE_PICKER_TEXT.title}</p>
-          <ModeOption
-            active={mode === "meta"}
-            color={modeDotClass("meta")}
-            label={MODE_PICKER_TEXT.meta.label}
-            hint={MODE_PICKER_TEXT.meta.hint}
-            disabled={busy}
-            onPick={() => void choose("meta")}
-            testId="mode-option-meta"
-          />
-          <ModeOption
-            active={directOn}
-            color={modeDotClass("directa")}
-            label={MODE_PICKER_TEXT.directa.label}
-            hint={MODE_PICKER_TEXT.directa.hint}
-            disabled={busy || blocked}
-            onPick={() => void choose("directa")}
-            testId="mode-option-directa"
-          />
-          {directOn && (
-            <div className="flex items-center justify-between gap-3 rounded-md bg-muted/50 px-3 py-2">
-              <div className="min-w-0">
-                <p className="text-[13px] font-medium">{DIRECT_TEXT.receiveViaMeta}</p>
-                <p className="text-xs text-text-3">{MODE_PICKER_TEXT.receiveViaMetaHint}</p>
-              </div>
-              <Switch
-                size="sm"
-                label={DIRECT_TEXT.receiveViaMeta}
-                checked={receivesViaMeta(mode)}
-                disabled={busy}
-                onCheckedChange={(on) => void choose(modeFromDirectToggle(on))}
-              />
-            </div>
-          )}
+          {CONNECTION_MODES.map((m) => (
+            <ModeOption
+              key={m}
+              active={mode === m}
+              color={modeDotClass(m)}
+              label={MODE_PICKER_TEXT[m].label}
+              hint={MODE_PICKER_TEXT[m].hint}
+              // Salir de Meta pide el dispositivo listo; volver a Meta siempre se puede.
+              disabled={busy || (m !== "meta" && blocked)}
+              onPick={() => void choose(m)}
+              testId={`mode-option-${m}`}
+            />
+          ))}
           {blocked && (
             <p className="text-xs text-text-3" data-testid="mode-needs-device">
               {ctx.paused ? MODE_PICKER_TEXT.paused : MODE_PICKER_TEXT.needsDevice}

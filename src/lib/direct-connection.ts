@@ -5,8 +5,8 @@
  *
  * - `meta` (Oficial, verde): entra y sale por Meta. Lo de siempre.
  * - `directa` (azul): entra y sale por el dispositivo vinculado.
- * - `mixta` (morado, en pantalla «Automática»): entra por Meta y sale por el
- *   dispositivo. Es lo mismo que Directa con «Recibir por Meta» encendido.
+ * - `mixta` (morado, en pantalla «Conexión híbrida»): entra por Meta y sale
+ *   por el dispositivo.
  *
  * Textos discretos: ninguna pantalla dice «no oficial» ni el nombre del
  * servidor; se dice «Conexión directa» y «Dispositivo vinculado». El
@@ -38,16 +38,11 @@ export function outboundTransportOf(mode: ConnectionMode): OutboundTransport {
   return mode === "meta" ? "meta" : "directa";
 }
 
-/** El modo que resulta de Directa con «Recibir por Meta» encendido o apagado. */
-export function modeFromDirectToggle(receiveViaMeta: boolean): ConnectionMode {
-  return receiveViaMeta ? "mixta" : "directa";
-}
-
-/** Nombres de pantalla de cada modo (aprobados por Fer el 21 oct). */
+/** Nombres de pantalla de cada modo (Fer, 26 oct: tres opciones a la vista). */
 export const CONNECTION_MODE_LABEL: Record<ConnectionMode, string> = {
   meta: "Meta",
-  directa: "Directa",
-  mixta: "Automática",
+  directa: "Conexión directa",
+  mixta: "Conexión híbrida",
 };
 
 /** Color del punto en el avatar del chat. */
@@ -60,10 +55,10 @@ export const CONNECTION_MODE_COLOR: Record<ConnectionMode, "green" | "blue" | "p
 /** Textos de pantalla y avisos. Discretos: nunca «no oficial». */
 export const DIRECT_TEXT = {
   moduleName: "Conexión directa",
+  pageIntro: "Tu WhatsApp vinculado como un dispositivo más, igual que WhatsApp Web. Úsalo para conversaciones uno a uno.",
   metaName: "Conexión Meta",
   device: "Dispositivo vinculado",
   linkDevice: "Vincular dispositivo",
-  receiveViaMeta: "Recibir por Meta",
   continueDirect: "Continuar por conexión directa",
   outgoingMark: "Directo",
   queued: "En cola",
@@ -195,25 +190,24 @@ export function pickServer<T extends { id: string; status: string; maxInstances:
 
 /* ───────── Modo del chat (PR 5) ───────── */
 
-/** Textos del selector del punto de color del avatar. Discretos. */
+/**
+ * Textos del selector del punto de color del avatar y de Ajustes. Discretos.
+ * Las tres opciones a la vista (Fer, 26 oct): la híbrida ya no es un
+ * interruptor dentro de Directa.
+ */
 export const MODE_PICKER_TEXT = {
   title: "Conexión del chat",
-  meta: { label: "Oficial", hint: "Entra y sale por Meta." },
-  directa: { label: "Directa", hint: "Entra y sale por el dispositivo vinculado." },
-  receiveViaMetaHint: "Lo que escriba el contacto sigue entrando por Meta.",
+  meta: { label: CONNECTION_MODE_LABEL.meta, hint: "Recibe y responde por Meta." },
+  directa: { label: CONNECTION_MODE_LABEL.directa, hint: "Recibe y responde por el dispositivo vinculado." },
+  mixta: { label: CONNECTION_MODE_LABEL.mixta, hint: "Recibe por Meta y responde por el dispositivo vinculado." },
   needsDevice: "Vincula un dispositivo en Ajustes para usar la conexión directa.",
   paused: DIRECT_TEXT.emergencyPause,
-  autoReturn: "Vuelve a Oficial cuando el contacto escriba.",
+  autoReturn: "Si el cliente contesta, el chat vuelve solo a Meta.",
 } as const;
 
-/** Nombre de pantalla del punto: «Oficial» para Meta (el resto, como antes). */
+/** Nombre de pantalla del punto. */
 export function modeDotLabel(mode: ConnectionMode): string {
-  return mode === "meta" ? "Oficial" : mode === "directa" ? "Directa" : `Directa · ${DIRECT_TEXT.receiveViaMeta}`;
-}
-
-/** ¿Está encendido «Recibir por Meta»? (Mixta = Directa con el interruptor.) */
-export function receivesViaMeta(mode: ConnectionMode): boolean {
-  return mode === "mixta";
+  return CONNECTION_MODE_LABEL[mode];
 }
 
 /** Lo que el servidor le da a la Bandeja cuando el complemento está encendido. */
