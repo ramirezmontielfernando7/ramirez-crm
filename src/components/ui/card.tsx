@@ -6,6 +6,7 @@ export function Card({
 }: React.HTMLAttributes<HTMLDivElement>) {
   return (
     <div
+      data-pm="card-ui"
       className={cn(
         "rounded-card border border-border bg-card text-card-foreground shadow-card",
         className
