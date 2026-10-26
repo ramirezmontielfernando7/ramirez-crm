@@ -173,7 +173,7 @@ export function DirectAdvancedCard({ canApplyAll }: { canApplyAll: boolean }) {
                       data-testid={`default-mode-${m}`}
                       onClick={() => set("defaultMode", m)}
                       className={cn(
-                        "rounded-lg border p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                        "flex flex-col items-start justify-start rounded-lg border p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                         on ? "border-foreground bg-accent ring-1 ring-foreground" : "hover:bg-accent"
                       )}
                     >
@@ -187,7 +187,7 @@ export function DirectAdvancedCard({ canApplyAll }: { canApplyAll: boolean }) {
                 })}
               </div>
               {canApplyAll && (
-                <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-muted/50 px-4 py-3" data-testid="direct-apply-all">
+                <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-muted px-4 py-3" data-testid="direct-apply-all">
                   <div className="min-w-0">
                     <p className="text-sm font-semibold">Aplicar a todos los chats</p>
                     <p className="text-xs text-muted-foreground">
