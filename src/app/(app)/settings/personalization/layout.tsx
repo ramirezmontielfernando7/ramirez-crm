@@ -13,8 +13,8 @@ const TABS: readonly SectionTab[] = [
 
 export default function PersonalizationLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <div className="space-y-5">
-      <div className="border-b">
+    <div data-pm="subtabs-host" className="space-y-5">
+      <div data-pm="subtabs" className="border-b">
         <SectionTabs tabs={TABS} label="Secciones de Personalización" />
       </div>
       {children}
