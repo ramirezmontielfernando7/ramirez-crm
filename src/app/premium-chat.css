@@ -140,3 +140,41 @@
 [data-ui="premium"] [data-pm="list-tools"] {
   margin-left: auto;
 }
+
+/* Orden v2 · Bandeja: atajos de dueño visibles solo en Premium. */
+[data-ui="premium"] [data-pm="quick-owner"] {
+  display: flex;
+}
+[data-ui="premium"] [data-pm="quick-owner"] button {
+  border-color: var(--border);
+  color: var(--text-2);
+  background: transparent;
+}
+[data-ui="premium"] [data-pm="quick-owner"] button[aria-pressed="true"] {
+  border-color: transparent;
+  background: color-mix(in srgb, var(--accent, #12999d) 16%, transparent);
+  color: var(--text);
+}
+
+/* «Sin etiquetas» / «Sin asignar»: discretos hasta pasar el mouse o elegir el chat. */
+[data-ui="premium"] .inbox-row .pm-empty {
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+[data-ui="premium"] .inbox-row:hover .pm-empty,
+[data-ui="premium"] .inbox-row:focus-within .pm-empty,
+[data-ui="premium"] .inbox-row[data-active="true"] .pm-empty,
+[data-ui="premium"] .inbox-row .pm-empty:focus-visible {
+  opacity: 1;
+}
+@media (hover: none) {
+  [data-ui="premium"] .inbox-row .pm-empty {
+    opacity: 0.7;
+  }
+}
+[data-ui="premium"] .inbox-row [data-pm="cap-dot"] {
+  opacity: 0.45;
+}
+[data-ui="premium"] .inbox-row:not(:hover):not([data-active="true"]):not(:focus-within) [data-pm="cap-dot"] {
+  opacity: 0;
+}
