@@ -105,3 +105,37 @@
     bottom: 8px;
   }
 }
+
+/* Orden v2 · Contactos: buscador primero y ancho; filtros plegados tras «Filtros»;
+   solo «Abrir conversación» a la vista, el resto al pasar el mouse (en táctil, siempre). */
+[data-ui="premium"] [data-pm="filters-toggle"] {
+  display: inline-flex;
+  order: 1;
+}
+[data-ui="premium"] [data-pm="search"] {
+  order: 0;
+  flex: 1 1 18rem;
+}
+[data-ui="premium"] [data-pm="search"] input {
+  width: 100%;
+}
+[data-ui="premium"] [data-pm="filters-group"] {
+  display: none;
+}
+[data-ui="premium"] [data-pm="filters-group"][data-open] {
+  display: contents;
+  order: 2;
+}
+@media (hover: hover) {
+  [data-ui="premium"] [data-pm="row"] [data-pm="row-secondary"] {
+    opacity: 0;
+    transition: opacity 0.15s;
+  }
+  [data-ui="premium"] [data-pm="row"]:hover [data-pm="row-secondary"],
+  [data-ui="premium"] [data-pm="row"]:focus-within [data-pm="row-secondary"] {
+    opacity: 1;
+  }
+}
+[data-ui="premium"] [data-pm="filters-group"][data-open] > * {
+  order: 2;
+}

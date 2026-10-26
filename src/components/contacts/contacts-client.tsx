@@ -37,6 +37,7 @@ export function ContactsClient() {
   const router = useRouter();
   const [contacts, setContacts] = useState<ContactDto[]>([]);
   const [query, setQuery] = useState("");
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [stage, setStage] = useState("all");
   const [stages, setStages] = useState<string[]>([]);
   const [showArchived, setShowArchived] = useState(false);
@@ -162,6 +163,16 @@ export function ContactsClient() {
       {/* 039: los filtros, en su propia fila bajo las pestañas del pilar. */}
       <div className="border-b px-4 py-2.5 sm:px-6">
         <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:gap-3">
+          <button
+            type="button"
+            data-pm="filters-toggle"
+            aria-expanded={filtersOpen}
+            onClick={() => setFiltersOpen((v) => !v)}
+            className="hidden h-9 items-center gap-1.5 rounded-md border border-input bg-card px-3 text-sm"
+          >
+            Filtros
+          </button>
+          <div data-pm="filters-group" data-open={filtersOpen ? "" : undefined} className="contents">
           <label className="flex items-center gap-2 text-xs text-muted-foreground">
             <input
               type="checkbox"
@@ -227,7 +238,8 @@ export function ContactsClient() {
               </option>
             ))}
           </select>
-          <div className="relative w-full sm:w-auto">
+          </div>
+          <div data-pm="search" className="relative w-full sm:w-auto">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
               ref={inputRef}
@@ -317,6 +329,7 @@ export function ContactsClient() {
                 </div>
                 <div className="ml-auto flex shrink-0 items-center gap-1.5">
                   <Button
+                    data-pm="row-secondary"
                     variant="ghost"
                     size="sm"
                     onClick={() => setEditing(c)}
@@ -326,6 +339,7 @@ export function ContactsClient() {
                   {/* A quien nunca escribió hay que abrirle la conversación con
                       una plantilla: es regla de Meta, no del CRM. */}
                   <Button
+                    data-pm="row-secondary"
                     variant="ghost"
                     size="icon"
                     aria-label="Escribir primero"
@@ -340,6 +354,7 @@ export function ContactsClient() {
                     </Button>
                   </Link>
                   <Button
+                    data-pm="row-secondary"
                     variant="ghost"
                     size="icon"
                     aria-label={c.archivedAt ? "Desarchivar" : "Archivar"}
