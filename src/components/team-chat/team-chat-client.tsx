@@ -375,7 +375,7 @@ function ThreadList({
 
   return (
     <div className="flex h-full flex-col">
-      <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4">
+      <header className="flex h-14 shrink-0 items-center gap-2 px-4">
         <NavRevealButton />
         {/* 039: las pestañas Empresa · Equipo van bajo el encabezado. */}
         <InboxModeSwitch current="chat" />

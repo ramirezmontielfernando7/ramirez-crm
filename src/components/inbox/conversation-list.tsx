@@ -405,7 +405,7 @@ export const ConversationList = memo(function ConversationList({
     <div className="flex h-full flex-col">
       {/* 56 px, el mismo alto que el encabezado del chat y el de Detalles: las
           tres columnas comparten la línea de abajo. */}
-      <header className="flex h-14 shrink-0 flex-col justify-center border-b px-4">
+      <header className="flex h-14 shrink-0 flex-col justify-center px-4">
         {/* `relative`: el panel de filtros se ancla a esta fila, no a su botón,
             para no salirse nunca de la columna. */}
         <div ref={hasTabs ? undefined : rowRef} className="relative flex items-center gap-1.5">

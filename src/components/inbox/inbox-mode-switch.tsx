@@ -83,13 +83,13 @@ export function InboxTabs({
   return (
     <div
       ref={rowRef}
-      className="relative flex shrink-0 items-center gap-2 border-b px-4 pb-2.5 pt-0.5"
+      className="relative flex shrink-0 items-center gap-2 px-4 pb-2.5 pt-0.5"
     >
       <nav
         aria-label="Cambiar de bandeja"
         data-testid="inbox-tabs"
         className={cn(
-          "flex min-w-0 items-center gap-1.5 overflow-x-auto [scrollbar-width:none]",
+          "flex min-w-0 items-center gap-1 overflow-x-auto [scrollbar-width:none]",
           className,
         )}
       >
@@ -104,18 +104,18 @@ export function InboxTabs({
               data-testid={`inbox-tab-${t.mode}`}
               title={t.aria}
               className={cn(
-                "flex h-7 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-3 text-[12.5px] font-semibold transition-colors",
+                "flex h-6 shrink-0 items-center gap-1 whitespace-nowrap rounded-md border px-2.5 text-[11.5px] font-semibold transition-colors",
                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                 active
                   ? "border-brand/30 bg-brand-tint text-brand-text"
-                  : "border-transparent bg-chip text-text-2 hover:border-border-strong hover:text-foreground",
+                  : "border-transparent bg-secondary text-text-2 hover:bg-accent hover:text-foreground",
               )}
             >
               {t.label}
               {n > 0 && (
                 <span
                   aria-label={`${n} sin leer`}
-                  className="flex h-[17px] min-w-[17px] items-center justify-center rounded-full bg-brand px-1.5 text-[10.5px] font-bold text-brand-fg"
+                  className="flex h-[15px] min-w-[15px] items-center justify-center rounded-full bg-brand px-1 text-[10px] font-bold text-brand-fg"
                 >
                   {count(n)}
                 </span>
