@@ -64,6 +64,8 @@ const PROTEGIDAS: [string, Method, Permission][] = [
   ["settings/direct-connection/advanced", "GET", "direct_connection.limits"],
   ["settings/direct-connection/advanced", "PUT", "direct_connection.limits"],
   ["conversations/[id]/mode", "PUT", "direct_connection.mode"],
+  ["settings/direct-connection/apply-all", "GET", "direct_connection.mode"],
+  ["settings/direct-connection/apply-all", "POST", "direct_connection.mode"],
   ["settings/messaging", "GET", "settings.manage"],
   ["settings/messaging", "PUT", "settings.manage"],
   ["settings/instagram", "GET", "settings.manage"],
