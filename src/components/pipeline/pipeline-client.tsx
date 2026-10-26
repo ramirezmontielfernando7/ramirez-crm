@@ -356,7 +356,11 @@ function StageFooter({ leads, currency }: { leads: BoardLead[]; currency: string
   const conMonto = leads.length - sinMonto - otraMoneda;
 
   return (
-    <div className="border-t px-3 py-2 text-[11px]">
+    <div
+      data-pm="stage-footer"
+      data-empty={conMonto === 0 && otraMoneda === 0 ? "" : undefined}
+      className="border-t px-3 py-2 text-[11px]"
+    >
       {conMonto === 0 ? (
         // Un "$0.00" aquí se lee como un error del sistema, no como un dato.
         <p className="text-muted-foreground">Sin montos capturados</p>

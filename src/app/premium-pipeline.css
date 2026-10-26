@@ -79,3 +79,29 @@
   border-radius: 0;
   padding-inline: 0;
 }
+
+/* Orden v2 · Pipeline: sin «Sin montos capturados» ni «+ monto» a la vista
+   hasta pasar el mouse sobre la tarjeta (en táctil siguen visibles). */
+[data-ui="premium"] [data-pm="stage-footer"][data-empty] {
+  display: none;
+}
+@media (hover: hover) {
+  [data-ui="premium"] [data-pm="card"] [data-pm="amount"][data-empty] {
+    opacity: 0;
+    transition: opacity 0.15s;
+  }
+  [data-ui="premium"] [data-pm="card"]:hover [data-pm="amount"][data-empty],
+  [data-ui="premium"] [data-pm="card"] [data-pm="amount"][data-empty]:focus-visible {
+    opacity: 1;
+  }
+}
+@media (hover: hover) {
+  [data-ui="premium"] [data-pm="card"] {
+    position: relative;
+  }
+  [data-ui="premium"] [data-pm="card"] [data-pm="amount"][data-empty] {
+    position: absolute;
+    right: 10px;
+    bottom: 8px;
+  }
+}
