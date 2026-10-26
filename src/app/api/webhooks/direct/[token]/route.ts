@@ -44,14 +44,17 @@ export async function POST(req: Request, { params }: Params) {
     }
   }
   if (event === "messages.upsert") {
-    let organizationId: string | null;
+    let owner: Awaited<ReturnType<typeof organizationForWebhook>>;
     try {
-      organizationId = await organizationForWebhook(token);
+      owner = await organizationForWebhook(token);
     } catch (err) {
       log.error("no se pudo leer el aviso de mensajes del dispositivo vinculado", { err });
       return new Response(null, { status: 500 });
     }
-    if (!organizationId) return new Response(null, { status: 404 });
+    if (!owner) return new Response(null, { status: 404 });
+    // Mi número (046): los mensajes del número de una persona aún no entran.
+    if (owner.directNumberId) return new Response(null, { status: 200 });
+    const { organizationId } = owner;
     const messages = parseDeviceMessages(body.data);
     if (messages.length === 0) return new Response(null, { status: 200 });
     // Como el webhook de Meta: se responde ya y se registra después (unir la
