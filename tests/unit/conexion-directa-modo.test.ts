@@ -40,7 +40,7 @@ vi.mock("@/lib/db", () => ({
 }));
 
 import { autoReturnOnInbound, deviceReady } from "@/server/direct-connection/mode";
-import { modeDotLabel, receivesViaMeta, modeFromDirectToggle, MODE_PICKER_TEXT } from "@/lib/direct-connection";
+import { modeDotLabel, MODE_PICKER_TEXT } from "@/lib/direct-connection";
 import { modeDotClass } from "@/components/inbox/chat-mode-dot";
 
 const conv = (connectionMode: string | null, channel = "whatsapp") => ({ id: "cv_1", channel, connectionMode });
@@ -55,18 +55,16 @@ beforeEach(() => {
 });
 
 describe("conexión directa — punto de color", () => {
-  it("verde Oficial, azul Directa, morado Directa con «Recibir por Meta»", () => {
+  it("verde Meta, azul Conexión directa, morado Conexión híbrida", () => {
     expect(modeDotClass("meta")).toContain("success");
     expect(modeDotClass("directa")).toContain("info");
     expect(modeDotClass("mixta")).toContain("8b5cf6");
   });
 
-  it("los nombres son discretos y Mixta es Directa con el interruptor", () => {
-    expect(modeDotLabel("meta")).toBe("Oficial");
-    expect(modeDotLabel("directa")).toBe("Directa");
-    expect(modeDotLabel("mixta")).toContain("Recibir por Meta");
-    expect(receivesViaMeta(modeFromDirectToggle(true))).toBe(true);
-    expect(receivesViaMeta(modeFromDirectToggle(false))).toBe(false);
+  it("los nombres son discretos: tres opciones a la vista", () => {
+    expect(modeDotLabel("meta")).toBe("Meta");
+    expect(modeDotLabel("directa")).toBe("Conexión directa");
+    expect(modeDotLabel("mixta")).toBe("Conexión híbrida");
     expect(JSON.stringify(MODE_PICKER_TEXT)).not.toMatch(/no\s*oficial|evolution|baileys/i);
   });
 });

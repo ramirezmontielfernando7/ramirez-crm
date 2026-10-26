@@ -33,7 +33,6 @@ import {
   cleanRoles,
   effectiveMode,
   inboundSourceOf,
-  modeFromDirectToggle,
   normalizeServerUrl,
   outboundTransportOf,
   pickServer,
@@ -52,19 +51,14 @@ describe("conexión directa — los tres modos son UN dato", () => {
     expect([inboundSourceOf("mixta"), outboundTransportOf("mixta")]).toEqual(["meta", "directa"]);
   });
 
-  it("«Recibir por Meta» dentro de Directa es la Mixta", () => {
-    expect(modeFromDirectToggle(true)).toBe("mixta");
-    expect(modeFromDirectToggle(false)).toBe("directa");
-  });
-
   it("sin modo propio, el chat usa el de la organización", () => {
     expect(effectiveMode(null, "meta")).toBe("meta");
     expect(effectiveMode(undefined, "mixta")).toBe("mixta");
     expect(effectiveMode("directa", "meta")).toBe("directa");
   });
 
-  it("nombres aprobados: Meta, Directa y Automática", () => {
-    expect(CONNECTION_MODE_LABEL).toEqual({ meta: "Meta", directa: "Directa", mixta: "Automática" });
+  it("nombres aprobados: Meta, Conexión directa y Conexión híbrida", () => {
+    expect(CONNECTION_MODE_LABEL).toEqual({ meta: "Meta", directa: "Conexión directa", mixta: "Conexión híbrida" });
   });
 });
 
