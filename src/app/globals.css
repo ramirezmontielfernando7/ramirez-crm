@@ -3,6 +3,7 @@
 @import "./premium-f.css";
 @import "./premium-e.css";
 @import "./premium-shell.css";
+@import "./premium-chat.css";
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

@@ -1,0 +1,142 @@
+/*
+  Demfort Premium v2 · Bandeja: lista y detalles son ventanas flotantes; el
+  chat abierto NO es tarjeta: es un lienzo con punteado suave sobre el que
+  flotan el encabezado, los mensajes y la caja de escribir. Solo con
+  [data-ui="premium"]. Sin filtros en listas; sombras solo en las ventanas.
+*/
+/* Ventanas de lista y detalles */
+[data-ui="premium"] [data-split-panels] > section:not([data-pm="chat"]) {
+  border-color: transparent;
+}
+[data-ui="premium"] [data-split-panels] > section:first-of-type,
+[data-ui="premium"] [data-split-panels] > section:last-of-type > div {
+  border-radius: 22px;
+  box-shadow: var(--shadow-panel);
+}
+
+/* Chat: lienzo punteado */
+[data-ui="premium"] [data-pm="chat"] {
+  position: relative;
+  border-radius: 22px;
+  border-color: var(--border);
+  box-shadow: none;
+  background-color: var(--chat-bg);
+  background-image: radial-gradient(var(--border) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+[data-ui="premium"] [data-pm="chat"] .thread-bg {
+  background: transparent;
+}
+
+/* Encabezado flotante (cristal): sobre el lienzo, con los mensajes pasando por debajo. */
+[data-ui="premium"] [data-pm="chat-head"] {
+  position: absolute;
+  z-index: 3;
+  top: 12px;
+  left: 14px;
+  right: 14px;
+  height: 56px;
+  border: 0;
+  border-radius: 16px;
+  background-color: color-mix(in srgb, var(--surface) 90%, transparent);
+  box-shadow: var(--shadow-panel);
+}
+[data-ui="premium"] [data-pm="chat"] .thread-bg {
+  padding-top: 84px;
+  padding-bottom: 14px;
+}
+
+/* Caja de escribir flotante */
+[data-ui="premium"] [data-pm="composer"] {
+  border-top: 0;
+  background: transparent;
+  padding-inline: 14px;
+  padding-bottom: 12px;
+}
+[data-ui="premium"] [data-pm="composer"] > div.rounded-\[23px\] {
+  border-color: transparent;
+  background-color: color-mix(in srgb, var(--surface) 92%, transparent);
+  box-shadow: var(--shadow-panel);
+}
+
+/* Burbujas: grupos bien alineados, cola solo en la primera */
+[data-ui="premium"] .bubble {
+  border-radius: 18px;
+  box-shadow: 0 1px 2px rgba(15, 29, 58, 0.07);
+}
+[data-ui="premium"] .bubble.bubble-in.bubble-first {
+  border-top-left-radius: 6px;
+}
+[data-ui="premium"] .bubble.bubble-out.bubble-first {
+  border-top-right-radius: 6px;
+}
+
+/* Fotos y videos: la caja se reserva (con brillo de carga) hasta que llega la
+   imagen, la hora va sobre la foto y el texto, debajo. Nunca un recuadro vacío. */
+@keyframes pm-shimmer {
+  to { background-position: -200% 0; }
+}
+[data-ui="premium"] .bubble[data-media] {
+  padding: 4px;
+  position: relative;
+}
+[data-ui="premium"] .bubble[data-media] > span > a {
+  display: block;
+  overflow: hidden;
+  border-radius: 14px;
+}
+[data-ui="premium"] .bubble[data-media] img {
+  display: block;
+  width: min(300px, 100%);
+  aspect-ratio: 4 / 3;
+  max-height: 288px;
+  object-fit: cover;
+  border-radius: 14px;
+  background: linear-gradient(100deg, var(--surface-sunken) 30%, var(--border) 50%, var(--surface-sunken) 70%);
+  background-size: 200% 100%;
+  animation: pm-shimmer 1.3s linear infinite;
+}
+[data-ui="premium"] .bubble[data-media] img[data-loaded] {
+  width: auto;
+  max-width: 100%;
+  aspect-ratio: auto;
+  object-fit: contain;
+  background: none;
+  animation: none;
+}
+[data-ui="premium"] .bubble[data-media] img[data-failed] {
+  animation: none;
+}
+[data-ui="premium"] .bubble[data-media="caption"] > span > span {
+  display: block;
+  padding: 6px 8px 0;
+}
+[data-ui="premium"] .bubble[data-media="caption"] .bubble-meta {
+  margin-right: 6px;
+  margin-bottom: 2px;
+}
+/* Sin texto: la hora y las palomitas van sobre la foto. */
+[data-ui="premium"] .bubble[data-media="bare"] .bubble-meta {
+  position: absolute;
+  right: 12px;
+  bottom: 10px;
+  float: none;
+  margin: 0;
+  padding: 1px 7px;
+  border-radius: 99px;
+  background: rgba(8, 15, 32, 0.55);
+}
+[data-ui="premium"] .bubble[data-media="bare"] .bubble-meta,
+[data-ui="premium"] .bubble[data-media="bare"] .bubble-time {
+  color: #fff;
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-ui="premium"] .bubble[data-media] img {
+    animation: none;
+  }
+}
+
+/* Herramientas de la lista (filtro, seleccionar, buscar): pegadas a la derecha del encabezado. */
+[data-ui="premium"] [data-pm="list-tools"] {
+  margin-left: auto;
+}

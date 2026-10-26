@@ -683,6 +683,7 @@ export function InboxClient({
       </section>
 
       <section
+        data-pm="chat"
         className={cn(
           "flex min-w-0 flex-1 flex-col",
           "lg:overflow-hidden lg:rounded-panel lg:border lg:bg-surface lg:shadow-panel",
@@ -702,7 +703,7 @@ export function InboxClient({
             >
               {/* 56 px, como la Bandeja y Detalles. Solo el nombre: el teléfono
                   está en Detalles y la ventana de 24 h, bajo el compositor. */}
-              <header className="flex h-14 shrink-0 items-center justify-between gap-1 border-b bg-background px-2 md:px-4">
+              <header data-pm="chat-head" className="flex h-14 shrink-0 items-center justify-between gap-1 border-b bg-background px-2 md:px-4">
                 {/* Volver a la lista: en móvil el hilo ocupa toda la pantalla. */}
                 <button
                   onClick={() => setSelectedId(null)}
