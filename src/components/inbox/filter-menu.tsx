@@ -10,11 +10,11 @@ export type InboxFilter = "all" | "unread" | "anuncios" | "humano" | "archived" 
 
 /**
  * Los filtros de la Bandeja en UNA cápsula junto al título: dice qué se está
- * viendo ("Todas 26", "No leídas 4") y al tocarla despliega el resto —
+ * viendo («Todo», «No leídas 4») y al tocarla despliega el resto —
  * qué mostrar, la etapa, la etiqueta y quién atiende —. Antes era una fila entera de
  * cápsulas y selectores que envolvía a dos líneas en una columna de 360 px.
  *
- * En reposo la cápsula es neutra; con CUALQUIER filtro puesto se pinta del
+ * En reposo es solo la palabra «Todo», tenue y sin número; con CUALQUIER filtro puesto se pinta del
  * acento, así se nota de un vistazo que la lista no está completa.
  */
 export function FilterMenu({
@@ -101,26 +101,28 @@ export function FilterMenu({
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
           filtered
             ? "border-brand bg-brand text-brand-fg"
-            : "border-border-strong bg-chip text-text-2 hover:border-text-3"
+            : "border-transparent bg-transparent text-text-3 hover:bg-accent hover:text-text-2"
         )}
       >
         {/* Al cambiar de filtro, el nombre entra con un desliz corto. */}
-        <m.span
-          key={current?.id}
-          initial={{ opacity: 0, y: 3 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={SPRING}
-        >
-          {current?.label}
-        </m.span>
-        <span
-          className={cn(
-            "rounded-full px-1 py-[2px] text-[10.5px] leading-none",
-            filtered ? "bg-brand-veil" : "bg-secondary text-text-3"
-          )}
-        >
-          {current?.count}
-        </span>
+        {filtered ? (
+          <m.span
+            key={current?.id}
+            initial={{ opacity: 0, y: 3 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={SPRING}
+          >
+            {current?.label}
+          </m.span>
+        ) : (
+          <span>Todo</span>
+        )}
+        {/* Sin filtro no hay número: «Todo» queda tenue y limpio. */}
+        {filtered && (
+          <span className="rounded-full bg-brand-veil px-1 py-[2px] text-[10.5px] leading-none">
+            {current?.count}
+          </span>
+        )}
         {extra > 0 && (
           <span className="rounded-full bg-brand-veil px-1 py-[2px] text-[10.5px] leading-none">
             +{extra}

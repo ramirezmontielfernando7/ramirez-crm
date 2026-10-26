@@ -386,8 +386,8 @@ async function navegador({ A, B, D }) {
       })
     );
     ok(
-      "…y el punto junto a «Bandeja ▾» avisa de actividad en el Chat de equipo",
-      await aparece(pb.getByTestId("inbox-mode-dot"), 8000)
+      "…y la pestaña «Equipo» de la Bandeja muestra su conteo de no leídos",
+      await aparece(pb.getByTestId("inbox-tab-chat").locator("[aria-label$='sin leer']"), 8000)
     );
 
     await pb.goto(`${BASE}/chat?t=${D}`);

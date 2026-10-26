@@ -114,8 +114,8 @@ const enDom = await page.locator("[data-conversation-row]").count();
 ok(`pocas filas en el DOM (${enDom} de ${N})`, enDom > 0 && enDom <= 80);
 await page.waitForTimeout(500);
 ok(`al entrar se pide UNA página (${stats.paginas})`, stats.paginas === 1);
-const todas = page.getByRole("button", { name: /Todas/ }).first();
-ok("el contador «Todas» es el del servidor (3,000)", /3[,.]?000/.test((await todas.innerText().catch(() => "")) ?? ""), await todas.innerText().catch(() => "—"));
+const todas = page.getByRole("button", { name: /^Filtrar la bandeja/ }).first();
+ok("el contador «Todas» es el del servidor (3,000)", /3[,.]?000/.test((await todas.getAttribute("aria-label").catch(() => "")) ?? ""), await todas.getAttribute("aria-label").catch(() => "—"));
 
 // Las filas no se enciman: cada una empieza donde termina la anterior.
 await page.evaluate(() => {

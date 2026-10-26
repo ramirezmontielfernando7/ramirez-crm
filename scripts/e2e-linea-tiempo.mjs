@@ -247,9 +247,9 @@ ok("el tercer clic oculta el menú", !(await aside.isVisible()));
 const revelar = op.getByRole("button", { name: "Mostrar el menú" });
 await op.waitForTimeout(400); // que termine el deslizamiento de la columna
 const caja = await revelar.boundingBox();
-const titulo = await op.getByRole("heading", { name: "Bandeja" }).boundingBox();
+const titulo = await op.getByRole("heading", { name: "Chats" }).boundingBox();
 const columna = await op
-  .locator("header", { has: op.getByRole("heading", { name: "Bandeja" }) })
+  .locator("header", { has: op.getByRole("heading", { name: "Chats" }) })
   .boundingBox();
 ok(
   "oculto, el hamburguesa va en la fila del título, alineado con el texto",
@@ -284,7 +284,7 @@ await op
   })
   .catch(() => {});
 const capsula = op.getByRole("button", { name: /^Filtrar la bandeja/ });
-const tituloB = await op.getByRole("heading", { name: "Bandeja" }).boundingBox();
+const tituloB = await op.getByRole("heading", { name: "Chats" }).boundingBox();
 const cajaCap = await capsula.boundingBox();
 const cajaSel = await op.getByRole("button", { name: "Seleccionar varios" }).boundingBox();
 const cajaLupa = await op.getByRole("button", { name: /^Buscar conversación/ }).boundingBox();

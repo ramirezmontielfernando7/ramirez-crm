@@ -104,7 +104,7 @@ describe("039 — todas las pantallas usan PageShell", () => {
       "components/nav-mode.tsx",
       "components/app-nav.tsx",
       // La Bandeja y el Chat de equipo conservan sus columnas a altura completa
-      // y su encabezado compacto con el selector «Bandeja ▾».
+      // y su encabezado compacto con el las pestañas Empresa · Equipo.
       "components/inbox/conversation-list.tsx",
       "components/team-chat/team-chat-client.tsx",
     ]);

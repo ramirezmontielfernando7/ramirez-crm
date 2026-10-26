@@ -7,7 +7,7 @@ import { fetchJson } from "@/lib/fetch-json";
 /**
  * 039 — No leídos de la Bandeja de clientes, en UN almacén por pestaña (como
  * `team-chat/unread-store.ts`). Lo leen el globo del menú lateral y el
- * selector «Bandeja ▾» del encabezado de la lista y del chat de equipo: una
+ * las pestañas Empresa · Equipo de la tira de pestañas de la lista y del chat de equipo: una
  * sola consulta para los dos, con un respiro corto ante ráfagas de eventos.
  */
 
