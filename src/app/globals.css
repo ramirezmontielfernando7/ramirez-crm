@@ -4,6 +4,7 @@
 @import "./premium-e.css";
 @import "./premium-shell.css";
 @import "./premium-chat.css";
+@import "./premium-pipeline.css";
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

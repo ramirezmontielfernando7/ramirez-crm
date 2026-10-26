@@ -1,0 +1,65 @@
+/*
+  Demfort Premium v2 · CRM Comercial: cada etapa es una ventana flotante y las
+  tarjetas se elevan con sombra suave. Solo CSS, solo con [data-ui="premium"];
+  se carga después de premium-c.css y le gana por orden.
+*/
+[data-ui="premium"] [data-pm="col"]:not(.border-brand) {
+  background: color-mix(in srgb, var(--surface) 78%, transparent);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  box-shadow: var(--shadow-panel);
+}
+[data-ui="premium"] [data-pm="col-head"] {
+  margin: 0;
+  padding: 14px 16px 12px;
+  border-bottom: 0;
+  position: relative;
+}
+[data-ui="premium"] [data-pm="col-head"]::after {
+  content: "";
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: 0;
+  height: 3px;
+  border-radius: 3px;
+  background: linear-gradient(90deg, var(--accent, #12999d), color-mix(in srgb, var(--accent, #12999d) 18%, transparent));
+}
+[data-ui="premium"] [data-pm="col-count"] {
+  min-width: 22px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent, #12999d) 14%, transparent);
+  color: var(--text-2);
+  text-align: center;
+}
+[data-ui="premium"] [data-pm="card"],
+[data-ui="premium"] [data-pm="card-overlay"] {
+  border-radius: 16px;
+  border-color: color-mix(in srgb, var(--border) 70%, transparent);
+  box-shadow: 0 1px 2px rgb(16 24 40 / 0.06), 0 6px 16px -8px rgb(16 24 40 / 0.18);
+}
+@media (hover: hover) {
+  [data-ui="premium"] [data-pm="card"]:hover {
+    box-shadow: 0 2px 4px rgb(16 24 40 / 0.08), 0 14px 28px -12px rgb(16 24 40 / 0.28);
+  }
+}
+
+/* Contactos: filas como tarjetas flotantes, filtros en píldora. */
+[data-ui="premium"] [data-pm="row"] {
+  border-radius: 16px;
+  border-color: color-mix(in srgb, var(--border) 70%, transparent);
+  box-shadow: 0 1px 2px rgb(16 24 40 / 0.05), 0 6px 14px -9px rgb(16 24 40 / 0.18);
+}
+@media (hover: hover) {
+  [data-ui="premium"] [data-pm="row"]:hover {
+    box-shadow: 0 2px 4px rgb(16 24 40 / 0.07), 0 12px 24px -12px rgb(16 24 40 / 0.26);
+  }
+}
+
+/* Ajustes y demás pantallas con tarjetas: ventanas flotantes. */
+[data-ui="premium"] [data-pm="card-ui"] {
+  border-radius: 20px;
+  border-color: color-mix(in srgb, var(--border) 70%, transparent);
+  box-shadow: 0 1px 2px rgb(16 24 40 / 0.05), 0 12px 28px -14px rgb(16 24 40 / 0.22);
+}
