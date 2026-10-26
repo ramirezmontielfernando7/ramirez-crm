@@ -115,7 +115,7 @@ export function InboxTabs({
               {n > 0 && (
                 <span
                   aria-label={`${n} sin leer`}
-                  className="flex h-[15px] min-w-[15px] items-center justify-center rounded-full bg-brand px-1 text-[10px] font-bold text-brand-fg"
+                  className="text-[11px] font-bold tabular-nums text-brand"
                 >
                   {count(n)}
                 </span>
