@@ -1,6 +1,6 @@
 import { eq, gte, isNotNull, lt, sql } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
-import { scopedContacts, type Access } from "@/lib/db/tenant";
+import { companyChat, scopedContacts, type Access } from "@/lib/db/tenant";
 import {
   HANDOFF_LABEL,
   rate,
@@ -72,7 +72,7 @@ function cohorte(scope: Access, start: Date, end: Date) {
     schema.conversation.organizationId,
     scope,
     schema.conversation.contactId,
-    eq(schema.conversation.isTest, false),
+    companyChat(),
     gte(schema.conversation.createdAt, start),
     lt(schema.conversation.createdAt, end)
   );
@@ -151,7 +151,7 @@ async function escalamientos(
         schema.conversation.organizationId,
         scope,
         schema.conversation.contactId,
-        eq(schema.conversation.isTest, false),
+        companyChat(),
         gte(schema.conversation.createdAt, start),
         lt(schema.conversation.createdAt, end),
         isNotNull(schema.conversation.handoffAt)

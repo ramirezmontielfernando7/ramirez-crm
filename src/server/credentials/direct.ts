@@ -1,4 +1,4 @@
-import { asc, count, eq, inArray, or } from "drizzle-orm";
+import { and, asc, count, eq, inArray, isNull, or } from "drizzle-orm";
 import { getSystemDb, schema } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
 import { scoped } from "@/lib/db/tenant";
@@ -175,11 +175,20 @@ export async function serverForNewOrganization(): Promise<ServerSummary | null> 
 
 export type ConnectionRow = typeof schema.directConnection.$inferSelect;
 
+/**
+ * Mi número (046): todo lo de este archivo es la conexión de la EMPRESA
+ * (`direct_number_id` NULL). Las de los números de cada persona las leerá y
+ * escribirá su propio código; aquí jamás se mezclan.
+ */
+function company() {
+  return isNull(schema.directConnection.directNumberId);
+}
+
 export async function getConnection(organizationId: string): Promise<ConnectionRow | null> {
   const [row] = await sys()
     .select()
     .from(schema.directConnection)
-    .where(scoped(schema.directConnection.organizationId, organizationId))
+    .where(scoped(schema.directConnection.organizationId, organizationId, company()))
     .limit(1);
   return row ?? null;
 }
@@ -197,13 +206,13 @@ export async function assignServer(
     await sys()
       .update(schema.directConnection)
       .set({ serverId, updatedAt: new Date() })
-      .where(scoped(schema.directConnection.organizationId, organizationId));
+      .where(scoped(schema.directConnection.organizationId, organizationId, company()));
     return "assigned";
   }
   await sys()
     .insert(schema.directConnection)
     .values({ id: newId("directConnection"), organizationId, serverId, instanceName })
-    .onConflictDoNothing({ target: schema.directConnection.organizationId });
+    .onConflictDoNothing({ target: schema.directConnection.organizationId, where: company() });
   return "assigned";
 }
 
@@ -221,7 +230,7 @@ export async function saveInstance(organizationId: string, input: { instanceKey:
       status: "connecting",
       updatedAt: new Date(),
     })
-    .where(scoped(schema.directConnection.organizationId, organizationId));
+    .where(scoped(schema.directConnection.organizationId, organizationId, company()));
 }
 
 /** PR 4: el webhook se volvió a poner con un token nuevo (solo cambia su hash). */
@@ -229,7 +238,7 @@ export async function saveWebhookTokenHash(organizationId: string, webhookTokenH
   await sys()
     .update(schema.directConnection)
     .set({ webhookTokenHash, updatedAt: new Date() })
-    .where(scoped(schema.directConnection.organizationId, organizationId));
+    .where(scoped(schema.directConnection.organizationId, organizationId, company()));
 }
 
 /** La instancia se borró del servidor: la fila queda lista para vincular de nuevo. */
@@ -246,7 +255,7 @@ export async function clearInstance(organizationId: string): Promise<void> {
       connectedAt: null,
       updatedAt: new Date(),
     })
-    .where(scoped(schema.directConnection.organizationId, organizationId));
+    .where(scoped(schema.directConnection.organizationId, organizationId, company()));
 }
 
 export type StatusPatch = Partial<
@@ -268,7 +277,7 @@ export async function patchConnection(organizationId: string, patch: StatusPatch
   await sys()
     .update(schema.directConnection)
     .set({ ...patch, updatedAt: new Date() })
-    .where(scoped(schema.directConnection.organizationId, organizationId));
+    .where(scoped(schema.directConnection.organizationId, organizationId, company()));
 }
 
 /** Quién es el dueño de este token de webhook (se compara el hash, nunca el token). */
@@ -276,7 +285,7 @@ export async function connectionByWebhookHash(hash: string): Promise<ConnectionR
   const [row] = await sys()
     .select()
     .from(schema.directConnection)
-    .where(eq(schema.directConnection.webhookTokenHash, hash))
+    .where(and(eq(schema.directConnection.webhookTokenHash, hash), company()))
     .limit(1);
   return row ?? null;
 }
@@ -286,7 +295,7 @@ export async function connectionsToCheck(): Promise<ConnectionRow[]> {
   return sys()
     .select()
     .from(schema.directConnection)
-    .where(or(eq(schema.directConnection.status, "connected"), eq(schema.directConnection.status, "connecting")));
+    .where(and(or(eq(schema.directConnection.status, "connected"), eq(schema.directConnection.status, "connecting")), company()));
 }
 
 /** La llave de la instancia en claro (PR 3 la usará para enviar). Nunca se registra. */

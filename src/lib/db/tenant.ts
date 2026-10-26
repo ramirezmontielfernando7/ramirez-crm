@@ -1,6 +1,6 @@
-import { and, eq, getTableName, or, sql, type SQL } from "drizzle-orm";
+import { and, eq, getTableName, isNull, or, sql, type SQL } from "drizzle-orm";
 import type { PgColumn } from "drizzle-orm/pg-core";
-import { contact } from "@/lib/db/schema";
+import { contact, conversation } from "@/lib/db/schema";
 
 /**
  * 026 — "Este contacto lo veo": soy su asignado O participo en su chat
@@ -175,4 +175,15 @@ export function scopedMediaAssets(
         )`,
     ...conditions
   );
+}
+
+/**
+ * Mi número (046) — "Un chat real del número de la EMPRESA": no es del
+ * Laboratorio y no es de ningún «Mi número». Es lo que antes era solo
+ * `is_test = false`. Los chats de un «Mi número» son PRIVADOS de su dueño:
+ * ninguna lista, conteo, reporte ni búsqueda por contacto los toca hasta que
+ * su propio código los abra a quien corresponde (aislado por defecto).
+ */
+export function companyChat(): SQL {
+  return and(eq(conversation.isTest, false), isNull(conversation.directNumberId))!;
 }

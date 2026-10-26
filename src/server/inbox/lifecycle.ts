@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
-import { scopedContacts, type Access } from "@/lib/db/tenant";
+import { companyChat, scopedContacts, type Access } from "@/lib/db/tenant";
 import { logger } from "@/lib/log";
 
 const log = logger("bandeja");
@@ -32,7 +32,7 @@ export async function setConversationArchived(
         schema.conversation.contactId,
         eq(schema.conversation.id, conversationId),
         // Los chats del Laboratorio no viven en la Bandeja.
-        eq(schema.conversation.isTest, false)
+        companyChat()
       )
     )
     .returning();
@@ -57,7 +57,7 @@ export async function deleteConversation(
         access,
         schema.conversation.contactId,
         eq(schema.conversation.id, conversationId),
-        eq(schema.conversation.isTest, false)
+        companyChat()
       )
     )
     .returning({ id: schema.conversation.id });

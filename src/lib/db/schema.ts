@@ -313,11 +313,24 @@ export const contact = pgTable(
      * organización cuando existe.
      */
     waLid: text("wa_lid"),
+    /**
+     * Mi número (046, 0057) — el contacto nació en el chat PRIVADO de un
+     * «Mi número» (p. ej. un familiar del asesor) y no es del CRM: solo lo ve
+     * el dueño de ese número. Pasa a NULL (contacto normal) al marcarlo «Es
+     * cliente» o en cuanto tiene un chat con el número de la empresa.
+     */
+    privateToNumberId: text("private_to_number_id"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },
   (t) => [
     index("contact_org_assigned_idx").on(t.organizationId, t.assignedUserId),
+    // 046: un número no se borra con contactos privados suyos (NO ACTION).
+    foreignKey({
+      name: "contact_org_private_number_fk",
+      columns: [t.organizationId, t.privateToNumberId],
+      foreignColumns: [directNumber.organizationId, directNumber.id],
+    }).onDelete("no action"),
     // 0055: un `@lid` es de un solo contacto en la organización.
     uniqueIndex("contact_org_wa_lid_uq")
       .on(t.organizationId, t.waLid)
@@ -809,6 +822,20 @@ export const conversation = pgTable(
     connectionMode: text("connection_mode", { enum: ["meta", "directa", "mixta"] }),
     /** 0055 — cuándo se cambió el modo por última vez (para el regreso automático). */
     connectionModeChangedAt: timestamp("connection_mode_changed_at"),
+    /**
+     * Mi número (046, 0057) — el número de una persona por el que va este
+     * chat. NULL = un chat del número de la EMPRESA (todo lo de antes). Con
+     * valor, el chat es de ese número y es PRIVADO de su dueño: nadie más lo
+     * ve sin permiso (`conversation_access`). Un mismo cliente tiene un chat
+     * por número, pero una sola ficha (`contact`).
+     */
+    directNumberId: text("direct_number_id"),
+    /**
+     * 046 — «Es cliente»: el dueño de un número personal pasó este chat al
+     * CRM. NULL = privado. En los chats de la empresa no se usa.
+     */
+    clientMarkedAt: timestamp("client_marked_at"),
+    clientMarkedBy: text("client_marked_by").references(() => user.id, { onDelete: "set null" }),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },
@@ -821,10 +848,15 @@ export const conversation = pgTable(
     index("conversation_org_campaign_pending_idx")
       .on(t.organizationId, t.campaignPendingId)
       .where(sql`${t.campaignPendingId} is not null`),
-    // Una conversación real por contacto; las de prueba no compiten.
-    uniqueIndex("conversation_org_contact_real_uq")
+    // Una conversación real por contacto en el número de la empresa; las de
+    // prueba no compiten (046: antes `conversation_org_contact_real_uq`).
+    uniqueIndex("conversation_org_contact_company_uq")
       .on(t.organizationId, t.contactId)
-      .where(sql`${t.isTest} = false`),
+      .where(sql`${t.isTest} = false and ${t.directNumberId} is null`),
+    // 046: y una por contacto en cada «Mi número».
+    uniqueIndex("conversation_org_number_contact_uq")
+      .on(t.organizationId, t.directNumberId, t.contactId)
+      .where(sql`${t.directNumberId} is not null`),
     index("conversation_org_last_idx").on(t.organizationId, t.lastMessageAt),
     index("conversation_org_archived_idx").on(t.organizationId, t.archivedAt),
     // Fluidez PR 3 (0053): la Bandeja paginada ordena por ESTA llave y el id.
@@ -846,6 +878,14 @@ export const conversation = pgTable(
       columns: [t.organizationId, t.lastAgentId],
       foreignColumns: [agent.organizationId, agent.id],
     }).onDelete("set null"),
+    // 046: el número es de la MISMA organización. NO ACTION: un número con
+    // chats no se borra suelto (al irse la persona, sus chats de cliente se
+    // quedan con la empresa); borrar la organización borra todo junto.
+    foreignKey({
+      name: "conversation_org_direct_number_fk",
+      columns: [t.organizationId, t.directNumberId],
+      foreignColumns: [directNumber.organizationId, directNumber.id],
+    }).onDelete("no action"),
   ]
 );
 
@@ -2587,6 +2627,14 @@ export const organizationModule = pgTable(
    * `src/server/direct-connection/`.
    */
   conexionDirecta: boolean("conexion_directa").notNull().default(false),
+  /**
+   * Mi número (046, 0057) — complemento OCULTO como la conexión directa (y
+   * la requiere): cada persona autorizada vincula su propio WhatsApp. Solo
+   * /platform lo enciende y fija `mi_numero_max`, cuántos números puede
+   * tener la organización (además del de la empresa).
+   */
+  miNumero: boolean("mi_numero").notNull().default(false),
+  miNumeroMax: integer("mi_numero_max").notNull().default(0),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
   updatedBy: text("updated_by"),
 },
@@ -2598,6 +2646,9 @@ export const organizationModule = pgTable(
     check("organization_module_channels_chk", sql`${t.channels} <@ array['instagram', 'messenger']::text[]`),
     // 030 (PR 4): el Laboratorio evalúa al agente; sin agente no existe.
     check("organization_module_lab_requires_agent_chk", sql`not ${t.lab} or ${t.agent}`),
+    // 046: «Mi número» vive sobre la conexión directa.
+    check("organization_module_mi_numero_chk", sql`not ${t.miNumero} or ${t.conexionDirecta}`),
+    check("organization_module_mi_numero_max_chk", sql`${t.miNumeroMax} between 0 and 200`),
   ]
 );
 
@@ -2643,10 +2694,11 @@ export const evolutionServer = pgTable(
 );
 
 /**
- * La conexión directa de UNA organización: en qué servidor vive su
- * instancia, su llave (cifrada), su estado y su número. Una por organización
- * POR AHORA (índice único); para varios números por organización basta con
- * quitar ese índice. La crea el PR 2 al vincular; el PR 1 solo deja la tabla.
+ * Una conexión directa: en qué servidor vive su instancia, su llave
+ * (cifrada), su estado y su número. La de la EMPRESA (`direct_number_id`
+ * NULL) es una por organización; desde 046 cada «Mi número» tiene la suya.
+ * Todo el código de antes lee SOLO la de la empresa
+ * (`src/server/credentials/direct.ts`).
  */
 export const directConnection = pgTable(
   "direct_connection",
@@ -2682,11 +2734,26 @@ export const directConnection = pgTable(
     /** Freno de emergencia: hasta cuándo está en pausa la conexión directa. */
     pausedUntil: timestamp("paused_until"),
     pauseReason: text("pause_reason", { enum: ["ban", "disconnects", "manual"] }),
+    /**
+     * Mi número (046, 0057) — de qué número es esta instancia. NULL = la
+     * conexión de la EMPRESA (la de siempre, una por organización); con
+     * valor, la de una persona (una por número).
+     */
+    directNumberId: text("direct_number_id"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },
   (t) => [
-    uniqueIndex("direct_connection_org_uq").on(t.organizationId),
+    // 046: una de la empresa por organización (antes `direct_connection_org_uq`)
+    // y una por cada «Mi número».
+    uniqueIndex("direct_connection_org_company_uq").on(t.organizationId).where(sql`${t.directNumberId} is null`),
+    uniqueIndex("direct_connection_number_uq").on(t.directNumberId).where(sql`${t.directNumberId} is not null`),
+    unique("direct_connection_org_id_uq").on(t.organizationId, t.id),
+    foreignKey({
+      name: "direct_connection_org_direct_number_fk",
+      columns: [t.organizationId, t.directNumberId],
+      foreignColumns: [directNumber.organizationId, directNumber.id],
+    }).onDelete("cascade"),
     uniqueIndex("direct_connection_server_instance_uq").on(t.serverId, t.instanceName),
     uniqueIndex("direct_connection_webhook_uq").on(t.webhookTokenHash),
     check(
@@ -3811,6 +3878,127 @@ export const conversationInsight = pgTable(
     // De la MISMA organización (patrón H6); se borra con su conversación.
     foreignKey({
       name: "conversation_insight_org_conversation_fk",
+      columns: [t.organizationId, t.conversationId],
+      foreignColumns: [conversation.organizationId, conversation.id],
+    }).onDelete("cascade"),
+  ]
+);
+
+/* ============================================================
+ * Mi número (046, migración 0057) — el WhatsApp de cada persona
+ * ============================================================ */
+
+/**
+ * El «Mi número» de una persona de la organización: lo autoriza el
+ * Propietario o un Coordinador (hasta `organization_module.mi_numero_max`) y
+ * la persona lo vincula con su QR (`direct_connection.direct_number_id`).
+ *
+ * `kind`: `personal` = el número es de la persona: sus chats son SOLO suyos
+ * y solo ELLA cambia los cuatro interruptores; `empresa` = un chip de la
+ * empresa: el dueño y los coordinadores ven sus chats. Pasar de `personal`
+ * a `empresa` necesita el OK del dueño (lo cuida el servidor, no la BD).
+ *
+ * Los cuatro interruptores nacen APAGADOS («aislado por defecto»):
+ * - `share_clients`: aparece «Es cliente»; solo lo marcado pasa al CRM.
+ * - `overlap_notice`: «También habla con…» en chats de cliente (parejo:
+ *   apagado tampoco ve los avisos de otros).
+ * - `allow_view_requests`: otros pueden PEDIR ver un chat de cliente.
+ * - `ai_replies`: la IA contesta por este número (solo chats de cliente).
+ *
+ * `revoked_at`: la persona se fue o se le quitó el número; la fila se queda
+ * mientras tenga chats de cliente (que pasan a otra persona).
+ */
+export const directNumber = pgTable(
+  "direct_number",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    /** La persona dueña. NO ACTION: no se borra a alguien con un número vivo. */
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id),
+    kind: text("kind", { enum: ["personal", "empresa"] }).notNull().default("personal"),
+    /** Nombre para mostrar («Número de Ana»); NULL = el de la persona. */
+    label: text("label"),
+    shareClients: boolean("share_clients").notNull().default(false),
+    overlapNotice: boolean("overlap_notice").notNull().default(false),
+    allowViewRequests: boolean("allow_view_requests").notNull().default(false),
+    aiReplies: boolean("ai_replies").notNull().default(false),
+    /** Aviso aceptado por la persona al vincular (privacidad, bloqueos, salida). */
+    noticeAcceptedAt: timestamp("notice_accepted_at"),
+    authorizedBy: text("authorized_by").references(() => user.id, { onDelete: "set null" }),
+    revokedAt: timestamp("revoked_at"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => [
+    // Un número vivo por persona; uno revocado no estorba para darle otro.
+    uniqueIndex("direct_number_org_user_uq").on(t.organizationId, t.userId).where(sql`${t.revokedAt} is null`),
+    unique("direct_number_org_id_uq").on(t.organizationId, t.id),
+    check("direct_number_kind_chk", sql`${t.kind} in ('personal', 'empresa')`),
+    check("direct_number_label_chk", sql`${t.label} is null or char_length(${t.label}) between 1 and 60`),
+  ]
+);
+
+/**
+ * 046 — Permisos para VER un chat de «Mi número» que no es tuyo: la
+ * solicitud (`pending`) y su respuesta. Solo lectura, de un chat, y se
+ * retira cuando el dueño quiera (`revoked`). Solo existe para chats de
+ * cliente y si el dueño permite solicitudes (lo cuida el servidor).
+ */
+export const conversationAccess = pgTable(
+  "conversation_access",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    conversationId: text("conversation_id").notNull(),
+    /** Quién quiere ver (o ya puede ver) el chat. */
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    status: text("status", { enum: ["pending", "granted", "rejected", "revoked"] }).notNull().default("pending"),
+    requestedAt: timestamp("requested_at").notNull().defaultNow(),
+    decidedAt: timestamp("decided_at"),
+    decidedBy: text("decided_by").references(() => user.id, { onDelete: "set null" }),
+  },
+  (t) => [
+    // Una solicitud viva (pendiente o concedida) por persona y chat.
+    uniqueIndex("conversation_access_live_uq")
+      .on(t.conversationId, t.userId)
+      .where(sql`${t.status} in ('pending', 'granted')`),
+    index("conversation_access_org_user_idx").on(t.organizationId, t.userId),
+    check("conversation_access_status_chk", sql`${t.status} in ('pending', 'granted', 'rejected', 'revoked')`),
+    foreignKey({
+      name: "conversation_access_org_conversation_fk",
+      columns: [t.organizationId, t.conversationId],
+      foreignColumns: [conversation.organizationId, conversation.id],
+    }).onDelete("cascade"),
+  ]
+);
+
+/**
+ * 046 — «Quién ha visto tus chats»: cada vez que alguien abre con permiso un
+ * chat de «Mi número» que no es suyo. Lo lee el dueño del número.
+ */
+export const conversationAccessLog = pgTable(
+  "conversation_access_log",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    conversationId: text("conversation_id").notNull(),
+    userId: text("user_id").references(() => user.id, { onDelete: "set null" }),
+    viewedAt: timestamp("viewed_at").notNull().defaultNow(),
+  },
+  (t) => [
+    index("conversation_access_log_conversation_idx").on(t.organizationId, t.conversationId, t.viewedAt),
+    foreignKey({
+      name: "conversation_access_log_org_conversation_fk",
       columns: [t.organizationId, t.conversationId],
       foreignColumns: [conversation.organizationId, conversation.id],
     }).onDelete("cascade"),

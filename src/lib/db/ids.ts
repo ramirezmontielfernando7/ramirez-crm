@@ -80,6 +80,10 @@ const prefixes = {
   // Conexión directa (PR 1)
   evolutionServer: "evs",
   directConnection: "dcn",
+  // Mi número (046)
+  directNumber: "dnum",
+  conversationAccess: "cacc",
+  conversationAccessLog: "cavl",
   user: "usr",
   account: "acc",
 } as const;

@@ -1,10 +1,6 @@
 import { and, count, desc, eq, gt, inArray, isNotNull, isNull, or, sql, type SQL } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
-import {
-  scopedContacts,
-  scopedConversations,
-  type Access,
-} from "@/lib/db/tenant";
+import { companyChat, scopedContacts, scopedConversations, type Access } from "@/lib/db/tenant";
 import { isWindowOpen, windowRemainingMs } from "@/server/inbox/window";
 import type { ConversationDto } from "@/lib/types";
 import type { InboxView } from "@/lib/campaign-inbox";
@@ -118,7 +114,7 @@ export async function countCampaignPending(
         schema.conversation.organizationId,
         access,
         schema.conversation.contactId,
-        eq(schema.conversation.isTest, false),
+        companyChat(),
         viewCondition("campaigns"),
         access.seesAll ? assignmentCondition(access, filter) : undefined
       )
@@ -144,7 +140,7 @@ export async function countUnread(access: Access): Promise<number> {
         schema.conversation.organizationId,
         access,
         schema.conversation.contactId,
-        eq(schema.conversation.isTest, false),
+        companyChat(),
         viewCondition("main")
       )
     );
@@ -391,7 +387,7 @@ async function queryConversations(
         schema.conversation.organizationId,
         access,
         schema.conversation.contactId,
-        eq(schema.conversation.isTest, false),
+        companyChat(),
         viewCondition(view),
         since ? gt(schema.conversation.updatedAt, since) : undefined,
         access.seesAll ? assignmentCondition(access, filter) : undefined,
@@ -453,7 +449,7 @@ export async function countConversations(access: Access, f: ListFilters): Promis
     f.channel !== "all" ? eq(schema.conversation.channel, f.channel) : sql`true`;
   const n = (cond: SQL | undefined) => sql<number>`(count(*) filter (where ${cond ?? sql`true`}))::int`;
   const q = queryCondition(f.q);
-  const real = eq(schema.conversation.isTest, false);
+  const real = companyChat();
 
   const enLaPrincipal = and(main, filtros, enBandeja);
   const [totals] = await db
@@ -551,7 +547,9 @@ export async function getConversation(access: Access, conversationId: string) {
         schema.conversation.organizationId,
         access,
         schema.conversation.contactId,
-        eq(schema.conversation.id, conversationId)
+        eq(schema.conversation.id, conversationId),
+        // 046: un chat de «Mi número» no se abre por aquí (es privado de su dueño).
+        isNull(schema.conversation.directNumberId)
       )
     )
     .limit(1);
@@ -658,7 +656,8 @@ export async function updateConversation(
         schema.conversation.organizationId,
         access,
         schema.conversation.contactId,
-        eq(schema.conversation.id, conversationId)
+        eq(schema.conversation.id, conversationId),
+        isNull(schema.conversation.directNumberId)
       )
     )
     .returning();

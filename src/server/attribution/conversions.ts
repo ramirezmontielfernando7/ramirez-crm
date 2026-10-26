@@ -1,7 +1,7 @@
 import { and, desc, eq } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
-import { scoped } from "@/lib/db/tenant";
+import { companyChat, scoped } from "@/lib/db/tenant";
 import { sendBusinessMessagingEvent } from "@/lib/meta/capi";
 import { getCredentialsByOrg } from "@/server/whatsapp/credentials";
 import { atribucionEnabled } from "@/server/attribution/flag";
@@ -201,7 +201,7 @@ export async function reportStageChange(input: {
         and(
           eq(schema.conversation.organizationId, schema.lead.organizationId),
           eq(schema.conversation.contactId, schema.lead.contactId),
-          eq(schema.conversation.isTest, false)
+          companyChat()
         )
       )
       .where(
