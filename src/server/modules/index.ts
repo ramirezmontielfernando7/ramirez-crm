@@ -64,6 +64,11 @@ export async function conexionDirectaOff(organizationId: string): Promise<Respon
   return (await orgHasConexionDirecta(organizationId)) ? null : new Response(null, { status: 404 });
 }
 
+/** Mi número (046) — el complemento sobre la conexión directa. */
+export async function orgHasMiNumero(organizationId: string): Promise<boolean> {
+  return (await getOrgModules(organizationId)).miNumero;
+}
+
 /** 030 (PR 4) — ¿Puede el Propietario personalizar el menú? */
 export async function orgHasCustomNav(organizationId: string): Promise<boolean> {
   return (await getOrgModules(organizationId)).customNav;

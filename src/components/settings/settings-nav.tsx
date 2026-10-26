@@ -44,6 +44,14 @@ const GROUPS: readonly Group[] = [
       { slug: "team-chat", label: "Chat de equipo" },
     ],
   },
+  // 046: «Mi número» (el de quien mira) y los del equipo; solo con el complemento.
+  {
+    label: "Mi número",
+    pages: [
+      { slug: "my-number", label: "Mi número" },
+      { slug: "mi-numero", label: "Números del equipo" },
+    ],
+  },
   {
     label: "Operación CRM",
     pages: [
@@ -71,6 +79,7 @@ export function SettingsShell({
   atribucion = false,
   messenger = false,
   directConnection = false,
+  miNumero = false,
   templates = true,
   allowed,
   children,
@@ -80,6 +89,8 @@ export function SettingsShell({
   messenger?: boolean;
   /** Conexión directa (PR 2) — solo con el complemento encendido y el permiso de vincular. */
   directConnection?: boolean;
+  /** Mi número (046) — solo con el complemento encendido. */
+  miNumero?: boolean;
   /** 030 (PR 4) — con Campañas encendido, Plantillas vive en Marketing. */
   templates?: boolean;
   /** 020 — páginas que el rol puede abrir (`/settings/<clave>`); lo decide el servidor. */
@@ -93,6 +104,7 @@ export function SettingsShell({
     if (slug === "ads" && !atribucion) return false;
     if (slug === "messenger" && !messenger) return false;
     if (slug === "direct-connection" && !directConnection) return false;
+    if ((slug === "my-number" || slug === "mi-numero") && !miNumero) return false;
     if (slug === "templates" && !templates) return false;
     return !allowed || allowed.includes(slug);
   });

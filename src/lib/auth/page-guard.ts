@@ -25,6 +25,8 @@ export const SETTINGS_TAB_PERMISSION = {
   ads: "settings.manage",
   // Conexión directa (PR 2): el Propietario, o quien él delegue; solo con el complemento.
   "direct-connection": "direct_connection.link",
+  // 046: los «Mi número» del equipo (Propietario y Coordinador); solo con el complemento.
+  "mi-numero": "mi_numero.manage",
   // 025: grupos (Propietario, o Coordinador con la delegación); la
   // supervisión dentro de la pestaña es solo del Propietario.
   "team-chat": "team_chat.create_groups",
