@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { apiError, parseBody, withAuth } from "@/lib/api";
 import { getDb, schema } from "@/lib/db";
-import { scopedContacts } from "@/lib/db/tenant";
+import { companyChat, scopedContacts } from "@/lib/db/tenant";
 import { getContactById } from "@/server/contacts";
 import { getOrCreateConversation } from "@/server/inbox/ingest";
 import { SendError } from "@/server/inbox/send";
@@ -51,7 +51,7 @@ export const POST = withAuth(async (session, req: Request, ctx: Params) => {
         session.access,
         schema.conversation.contactId,
         eq(schema.conversation.contactId, id),
-        eq(schema.conversation.isTest, false)
+        companyChat()
       )
     )
     .limit(1);

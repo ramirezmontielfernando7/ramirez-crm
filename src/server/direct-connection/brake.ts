@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, isNull } from "drizzle-orm";
 import { schema, withTenant } from "@/lib/db";
 import { scoped } from "@/lib/db/tenant";
 import { brakeAfterFailure, type FailureKind } from "@/lib/direct-send";
@@ -20,7 +20,7 @@ export async function recordDirectFailure(organizationId: string, kind: FailureK
       const [row] = await tx
         .select()
         .from(schema.directConnection)
-        .where(scoped(schema.directConnection.organizationId, organizationId))
+        .where(scoped(schema.directConnection.organizationId, organizationId, isNull(schema.directConnection.directNumberId)))
         .for("update")
         .limit(1);
       if (!row) return { paused: false };

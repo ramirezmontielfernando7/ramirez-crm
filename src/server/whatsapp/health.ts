@@ -2,7 +2,7 @@ import { and, desc, eq, gte, sql } from "drizzle-orm";
 import type { AnyPgColumn } from "drizzle-orm/pg-core";
 import { getDb, schema, withTenant } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
-import { scoped } from "@/lib/db/tenant";
+import { companyChat, scoped } from "@/lib/db/tenant";
 import { logger } from "@/lib/log";
 import { graphRequest, MetaApiError } from "@/lib/meta/client";
 import {
@@ -239,7 +239,7 @@ export async function usageLast24h(organizationId: string): Promise<number> {
         organizationId,
         eq(schema.message.direction, "out"),
         eq(schema.message.origin, "template"),
-        eq(schema.conversation.isTest, false),
+        companyChat(),
         gte(schema.message.createdAt, since)
       )
     );

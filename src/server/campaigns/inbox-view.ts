@@ -1,6 +1,6 @@
 import { and, eq, isNull } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
-import { scoped } from "@/lib/db/tenant";
+import { companyChat, scoped } from "@/lib/db/tenant";
 
 /**
  * 041 — Marca el chat como «pendiente de la campaña» justo antes de enviarle
@@ -27,7 +27,7 @@ export async function markCampaignPending(
         organizationId,
         and(
           eq(schema.conversation.id, conversationId),
-          eq(schema.conversation.isTest, false),
+          companyChat(),
           isNull(schema.conversation.lastInboundAt)
         )
       )

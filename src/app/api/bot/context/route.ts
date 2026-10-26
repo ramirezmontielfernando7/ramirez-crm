@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
-import { scoped } from "@/lib/db/tenant";
+import { companyChat, scoped } from "@/lib/db/tenant";
 import { isBrainPaused } from "@/server/agents/store";
 import { apiError } from "@/lib/api";
 import { requireBotKey } from "@/server/bot/auth";
@@ -77,7 +77,7 @@ export async function GET(req: Request) {
           .where(
             scoped(schema.conversation.organizationId, organizationId,
               eq(schema.conversation.contactId, contact.id),
-              eq(schema.conversation.isTest, false)
+              companyChat()
             )
           )
           .limit(1);

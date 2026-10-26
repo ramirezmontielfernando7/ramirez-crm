@@ -74,6 +74,13 @@ export type OrgModules = {
    * el plan, y no tiene entrada en el menú.
    */
   conexionDirecta: boolean;
+  /**
+   * Mi número (046) — complemento OCULTO sobre la conexión directa: cada
+   * persona autorizada vincula su WhatsApp. `miNumeroMax` = cuántos números
+   * puede tener la organización. Solo /platform los cambia.
+   */
+  miNumero: boolean;
+  miNumeroMax: number;
 };
 
 export const DEFAULT_SEND_RATE = 10;
@@ -116,6 +123,9 @@ export const NEW_MODULE_DEFAULTS = {
   asistente: false,
   // Conexión directa: complemento oculto. Sin variable de entorno ni plan: solo /platform.
   conexionDirecta: false,
+  // Mi número (046): complemento oculto sobre la conexión directa; solo /platform.
+  miNumero: false,
+  miNumeroMax: 0,
 } as const;
 
 /**

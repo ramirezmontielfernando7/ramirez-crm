@@ -62,6 +62,9 @@ function fromRow(row: Row, defaults: OrgModules): OrgModules {
     trabajo: row.trabajo,
     asistente: row.asistente,
     conexionDirecta: row.conexionDirecta,
+    // El CHECK de la 0057 ya lo impide; se repite por si alguien escribe a mano.
+    miNumero: row.miNumero && row.conexionDirecta,
+    miNumeroMax: row.miNumeroMax,
   };
 }
 
@@ -159,6 +162,8 @@ function defaultsRow(organizationId: string) {
     trabajo: d.trabajo,
     asistente: d.asistente,
     conexionDirecta: d.conexionDirecta,
+    miNumero: d.miNumero,
+    miNumeroMax: d.miNumeroMax,
     updatedBy: "entorno",
   };
 }
@@ -231,6 +236,8 @@ export async function backfillOrgModules(): Promise<number> {
             trabajo: sql<boolean>`${d.trabajo}::boolean`.as("trabajo"),
             asistente: sql<boolean>`${d.asistente}::boolean`.as("asistente"),
             conexionDirecta: sql<boolean>`${d.conexionDirecta}::boolean`.as("conexion_directa"),
+            miNumero: sql<boolean>`${d.miNumero}::boolean`.as("mi_numero"),
+            miNumeroMax: sql<number>`${d.miNumeroMax}::integer`.as("mi_numero_max"),
             updatedAt: sql<Date>`now()`.as("updated_at"),
             updatedBy: sql<string>`${d.updatedBy}`.as("updated_by"),
           })
@@ -274,7 +281,25 @@ export type ModulesPatch = {
   trabajo?: boolean;
   asistente?: boolean;
   conexionDirecta?: boolean;
+  miNumero?: boolean;
+  miNumeroMax?: number;
 };
+
+/**
+ * 046 — «Mi número» vive sobre la conexión directa: apagar la conexión
+ * directa apaga «Mi número»; encender «Mi número» sin ella es un error.
+ */
+export function resolveMiNumero(
+  before: { conexionDirecta: boolean; miNumero: boolean },
+  patch: { conexionDirecta?: boolean; miNumero?: boolean }
+): { conexionDirecta: boolean; miNumero: boolean } {
+  const conexionDirecta = patch.conexionDirecta ?? before.conexionDirecta;
+  if (patch.miNumero === true && !conexionDirecta) {
+    throw new ModuleDependencyError("«Mi número» requiere la conexión directa: enciéndela primero");
+  }
+  const miNumero = conexionDirecta ? (patch.miNumero ?? before.miNumero) : false;
+  return { conexionDirecta, miNumero };
+}
 
 /**
  * 030 (PR 4) — El Laboratorio requiere al Agente. Apagar el Agente apaga
@@ -321,7 +346,8 @@ export async function updateOrgModules(
     customNav: patch.customNav ?? before.customNav,
     trabajo: patch.trabajo ?? before.trabajo,
     asistente: patch.asistente ?? before.asistente,
-    conexionDirecta: patch.conexionDirecta ?? before.conexionDirecta,
+    ...resolveMiNumero(before, patch),
+    miNumeroMax: patch.miNumeroMax ?? before.miNumeroMax,
     ...resolveLabAgent(before, patch),
     updatedBy: actor,
     updatedAt: new Date(),
@@ -353,6 +379,8 @@ export async function updateOrgModules(
         trabajo: values.trabajo,
         asistente: values.asistente,
         conexionDirecta: values.conexionDirecta,
+        miNumero: values.miNumero,
+        miNumeroMax: values.miNumeroMax,
         updatedBy: actor,
         updatedAt: values.updatedAt,
       },

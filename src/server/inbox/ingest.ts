@@ -1,6 +1,6 @@
 import { and, eq, sql } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
-import { scoped } from "@/lib/db/tenant";
+import { companyChat, scoped } from "@/lib/db/tenant";
 import { newId } from "@/lib/db/ids";
 import { normalizeMx } from "@/lib/meta/client";
 import { publish } from "@/server/events/bus";
@@ -204,7 +204,7 @@ export async function getOrCreateConversation(
     .where(
       scoped(schema.conversation.organizationId, organizationId,
         eq(schema.conversation.contactId, contactId),
-        eq(schema.conversation.isTest, false)
+        companyChat()
       )
     )
     .limit(1);

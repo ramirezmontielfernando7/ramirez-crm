@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { apiError, parseBody, withAuth } from "@/lib/api";
 import { getDb, schema } from "@/lib/db";
-import { scopedContacts } from "@/lib/db/tenant";
+import { companyChat, scopedContacts } from "@/lib/db/tenant";
 import { publish } from "@/server/events/bus";
 import { moveLeadToStage } from "@/server/leads/stage-history";
 import { getBranding } from "@/server/branding";
@@ -152,7 +152,7 @@ export const PATCH = withAuth(async (session, req: Request, ctx: Params) => {
         session.access,
         schema.conversation.contactId,
         eq(schema.conversation.contactId, res.lead.contactId),
-        eq(schema.conversation.isTest, false)
+        companyChat()
       )
     )
     .limit(1);

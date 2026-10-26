@@ -2,7 +2,7 @@ import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { apiError, parseBody, withAuth } from "@/lib/api";
 import { getDb, schema } from "@/lib/db";
-import { scoped } from "@/lib/db/tenant";
+import { companyChat, scoped } from "@/lib/db/tenant";
 import { getContactById } from "@/server/contacts";
 import { logActivity } from "@/server/activity/log";
 import { publish } from "@/server/events/bus";
@@ -46,7 +46,7 @@ export const POST = withAuth(async (session, req: Request, ctx: Params) => {
       scoped(
         schema.conversation.organizationId,
         session.organizationId,
-        and(eq(schema.conversation.contactId, id), eq(schema.conversation.isTest, false))
+        and(eq(schema.conversation.contactId, id), companyChat())
       )
     );
   for (const c of conversations) {

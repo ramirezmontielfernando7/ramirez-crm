@@ -3,7 +3,7 @@ import { z } from "zod";
 import { MAX_QUERIES_PER_QUESTION, quarantineString, type Masker } from "@/lib/assistant-engine";
 import { roleLabel } from "@/lib/auth/permissions";
 import { getDb, schema } from "@/lib/db";
-import { scoped, scopedContacts, type Access } from "@/lib/db/tenant";
+import { companyChat, scoped, scopedContacts, type Access } from "@/lib/db/tenant";
 import { AI_KIND_LABEL, formatStorage, STORAGE_CATEGORY_LABEL, type AiUsageKind, type StorageCategory } from "@/lib/usage";
 import { GAUGE_STATE_LABEL, type Gauge } from "@/lib/usage-visibility";
 import { PLATFORM_MODULE_LABEL, PLATFORM_MODULE_TOGGLES } from "@/lib/platform-modules";
@@ -353,7 +353,7 @@ const QUERIES = [
             schema.conversation.organizationId,
             ctx.access,
             schema.conversation.contactId,
-            and(eq(schema.conversation.isTest, false), isNull(schema.conversation.archivedAt))
+            and(companyChat(), isNull(schema.conversation.archivedAt))
           )
         )
         .orderBy(desc(sql`coalesce(${schema.conversation.lastMessageAt}, ${schema.conversation.createdAt})`))

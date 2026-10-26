@@ -1,7 +1,7 @@
 import { and, asc, eq, sql } from "drizzle-orm";
 import { withAuth } from "@/lib/api";
 import { getDb, schema } from "@/lib/db";
-import { scoped, scopedContacts } from "@/lib/db/tenant";
+import { companyChat, scoped, scopedContacts } from "@/lib/db/tenant";
 import { getBranding } from "@/server/branding";
 import { isTagColor } from "@/lib/tags";
 
@@ -32,7 +32,7 @@ export const GET = withAuth(async (session) => {
       schema.conversation,
       and(
         eq(schema.conversation.contactId, schema.contact.id),
-        eq(schema.conversation.isTest, false)
+        companyChat()
       )
     )
     // 020: el asesor ve SOLO sus tarjetas; las etapas son de todos.

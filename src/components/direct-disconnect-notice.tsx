@@ -1,3 +1,4 @@
+import { isNull } from "drizzle-orm";
 import Link from "next/link";
 import { can } from "@/lib/auth/permissions";
 import type { SessionContext } from "@/lib/auth/session";
@@ -21,7 +22,7 @@ export async function DirectDisconnectNotice({ session }: { session: SessionCont
       getDb()
         .select({ status: schema.directConnection.status })
         .from(schema.directConnection)
-        .where(scoped(schema.directConnection.organizationId, session.organizationId))
+        .where(scoped(schema.directConnection.organizationId, session.organizationId, isNull(schema.directConnection.directNumberId)))
         .limit(1)
     );
     if (row?.status !== "disconnected") return null;

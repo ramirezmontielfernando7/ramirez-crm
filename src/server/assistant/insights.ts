@@ -30,7 +30,7 @@ import {
 } from "@/lib/conversation-insight";
 import { getDb, schema } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
-import { scopedContacts, scopedConversations } from "@/lib/db/tenant";
+import { companyChat, scopedContacts, scopedConversations } from "@/lib/db/tenant";
 import { getEnv } from "@/lib/env";
 import { logger } from "@/lib/log";
 import { chatJsonForOrg } from "@/server/ai-quota/llm";
@@ -113,7 +113,7 @@ async function periodConversations(ctx: QueryContext, days: number): Promise<{ r
         schema.conversation.organizationId,
         ctx.access,
         schema.conversation.contactId,
-        eq(schema.conversation.isTest, false),
+        companyChat(),
         // Por columna (no sobre la expresión): así el driver convierte la fecha.
         or(
           gte(schema.conversation.lastMessageAt, since),

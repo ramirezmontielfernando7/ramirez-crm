@@ -87,7 +87,8 @@ describe("guardarraíles del reporte", () => {
 
   it("una conversación de prueba jamás puede producir un evento", () => {
     // Mismo guardrail que el sender: el Laboratorio no toca el mundo real.
-    expect(source).toContain("eq(schema.conversation.isTest, false)");
+    // 046: `companyChat()` (src/lib/db/tenant.ts) es `is_test = false` + número de la empresa.
+    expect(source).toMatch(/eq\(schema\.conversation\.isTest, false\)|companyChat\(\)/);
   });
 
   it("el dedup es el UNIQUE de la base, no un chequeo previo", () => {

@@ -1,10 +1,6 @@
 import { and, asc, desc, eq, gt, isNotNull, isNull, lt, sql } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
-import {
-  scopedContacts,
-  scopedConversations,
-  type Access,
-} from "@/lib/db/tenant";
+import { companyChat, scopedContacts, scopedConversations, type Access } from "@/lib/db/tenant";
 import { sumable } from "@/lib/money";
 import type { HygieneBlockDto } from "@/lib/analytics";
 import { notLabContact } from "@/server/analytics/shared";
@@ -84,7 +80,7 @@ async function leadsEnSilencio(scope: Access, businessCurrency: string, now: Dat
       schema.conversation,
       and(
         eq(schema.conversation.contactId, schema.lead.contactId),
-        eq(schema.conversation.isTest, false)
+        companyChat()
       )
     )
     .where(
@@ -142,7 +138,7 @@ async function mensajesFallidos(scope: Access, now: Date) {
       schema.conversation,
       and(
         eq(schema.conversation.id, schema.message.conversationId),
-        eq(schema.conversation.isTest, false)
+        companyChat()
       )
     )
     .where(
@@ -190,7 +186,7 @@ async function ventanasPorVencer(scope: Access, now: Date) {
         schema.conversation.organizationId,
         scope,
         schema.conversation.contactId,
-        eq(schema.conversation.isTest, false),
+        companyChat(),
         isNotNull(schema.conversation.lastInboundAt),
         lt(schema.conversation.lastInboundAt, limite),
         gt(schema.conversation.lastInboundAt, vencida),

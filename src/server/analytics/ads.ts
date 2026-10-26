@@ -1,6 +1,6 @@
 import { and, eq, gte, lt, sql } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
-import { scopedContacts, type Access } from "@/lib/db/tenant";
+import { companyChat, scopedContacts, type Access } from "@/lib/db/tenant";
 import {
   comparable,
   rate,
@@ -92,7 +92,7 @@ async function conversacionesPorFuente(
         schema.conversation.organizationId,
         scope,
         schema.conversation.contactId,
-        eq(schema.conversation.isTest, false),
+        companyChat(),
         gte(schema.conversation.createdAt, start),
         lt(schema.conversation.createdAt, end)
       )
@@ -113,7 +113,7 @@ async function contarConversaciones(
         schema.conversation.organizationId,
         scope,
         schema.conversation.contactId,
-        eq(schema.conversation.isTest, false),
+        companyChat(),
         gte(schema.conversation.createdAt, start),
         lt(schema.conversation.createdAt, end)
       )
@@ -193,7 +193,7 @@ async function conversacionesPorAnuncio(
       schema.conversation,
       and(
         eq(schema.conversation.id, schema.adAttribution.conversationId),
-        eq(schema.conversation.isTest, false)
+        companyChat()
       )
     )
     .where(

@@ -1,3 +1,4 @@
+import { isNull } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { scoped } from "@/lib/db/tenant";
 import type { DirectConnectionStatus } from "@/lib/direct-connection";
@@ -32,7 +33,7 @@ export async function getDirectConnection(organizationId: string): Promise<Direc
   const [row] = await getDb()
     .select()
     .from(schema.directConnection)
-    .where(scoped(schema.directConnection.organizationId, organizationId))
+    .where(scoped(schema.directConnection.organizationId, organizationId, isNull(schema.directConnection.directNumberId)))
     .limit(1);
   if (!row) return null;
   return {
@@ -56,7 +57,7 @@ export async function openDirectTarget(organizationId: string): Promise<DirectTa
   const [row] = await getDb()
     .select()
     .from(schema.directConnection)
-    .where(scoped(schema.directConnection.organizationId, organizationId))
+    .where(scoped(schema.directConnection.organizationId, organizationId, isNull(schema.directConnection.directNumberId)))
     .limit(1);
   if (!row) return { ok: false, error: "not_connected" };
   const server = await openServerKey(row.serverId);
