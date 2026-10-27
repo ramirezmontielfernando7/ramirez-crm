@@ -91,11 +91,20 @@ revierte el código, correr también la reversa.
 - Tipo: lo elige quien autoriza; ya aceptado el aviso, de personal a empresa
   solo con el OK del dueño.
 
+## PR 3b — Pantallas (aprobadas por Fer, 27 oct)
+
+- Ajustes → «Mi número» (`/settings/my-number`, `components/settings/my-number-client.tsx`):
+  aviso que se acepta antes del QR, estado, los cuatro interruptores con su
+  explicación (solo editables si el número es personal), «Quién ha visto tus
+  chats» y «Si dejas la empresa». La pestaña sale solo a quien tiene número.
+- Ajustes → «Números del equipo» (`/settings/mi-numero`,
+  `components/settings/team-numbers-client.tsx`, `mi_numero.manage`):
+  autorizar dentro del tope, tipo, ajustes de un número de empresa, revocar.
+- Textos en `src/lib/mi-numero.ts`.
+
 ## Siguientes PRs (sin migración)
 
 2. /platform: interruptor, tope y capacidad de los servidores.
-3b. Pantallas: Ajustes → «Mi número» (equipo) y los ajustes del asesor con
-   sus explicaciones (maqueta aprobada).
 4. Entrada: lo que llega a un número va a su chat y a contactos privados;
    «Es cliente».
 5. Salida: por el número correcto, límites y freno por número.

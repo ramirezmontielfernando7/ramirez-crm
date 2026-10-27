@@ -3,6 +3,7 @@ import { getDb, schema, withTenant } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
 import { scoped } from "@/lib/db/tenant";
 import { logger } from "@/lib/log";
+import { runWithOrganization } from "@/lib/request-context";
 import {
   deleteNumberConnection,
   type ConnectionRef,
@@ -431,4 +432,9 @@ export async function unlinkMine(
   userId: string,
 ): Promise<{ ok: true } | { ok: false; error: LinkError }> {
   return unlink(refOfNumber(await mine(organizationId, userId)));
+}
+
+/** Para el menú de Ajustes: ¿tiene esta persona un número vivo? (sin preguntar al servidor). */
+export async function hasMyNumber(organizationId: string, userId: string): Promise<boolean> {
+  return runWithOrganization(organizationId, async () => (await getLive(organizationId, eq(schema.directNumber.userId, userId))) !== null);
 }
