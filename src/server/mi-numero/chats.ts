@@ -6,7 +6,9 @@ import { assignContacts } from "@/server/assignment/assign";
 import { publish } from "@/server/events/bus";
 import { serializeMessage } from "@/server/inbox/ingest";
 import { createLeadForContact } from "@/server/inbox/lead-activity";
+import { numberAudience } from "./audience";
 import { MiNumeroFailure } from "./numbers";
+import { supervisedNumberAsset } from "./supervise";
 
 const log = logger("mi-numero");
 
@@ -21,11 +23,6 @@ const log = logger("mi-numero");
  */
 
 type NumberRow = typeof schema.directNumber.$inferSelect;
-
-/** Quién se entera de lo que pasa en los chats de un número: hoy, su dueño. */
-export function audienceOf(number: Pick<NumberRow, "userId">): string[] {
-  return [number.userId];
-}
 
 async function myLiveNumber(organizationId: string, userId: string): Promise<NumberRow> {
   const [row] = await getDb()
@@ -127,7 +124,7 @@ export async function myChatMessages(organizationId: string, userId: string, con
       .update(schema.conversation)
       .set({ unreadCount: 0 })
       .where(scoped(schema.conversation.organizationId, organizationId, eq(schema.conversation.id, conversation.id)));
-    publish(organizationId, { type: "number.conversation", data: { conversationId: conversation.id }, audience: audienceOf(number) });
+    publish(organizationId, { type: "number.conversation", data: { conversationId: conversation.id }, audience: await numberAudience(organizationId, number) });
   }
   return rows.map((r) => serializeMessage(r.message, r.media));
 }
@@ -172,15 +169,21 @@ export async function markClient(organizationId: string, userId: string, convers
     if (!r.ok) log.warn("no se pudo asignar el cliente marcado", { org: organizationId, reason: r.reason });
   }
   await createLeadForContact({ organizationId, contactId: contact.id, at: now, source: "dueno", actorUserId: userId });
-  publish(organizationId, { type: "number.conversation", data: { conversationId: conversation.id }, audience: audienceOf(number) });
+  publish(organizationId, { type: "number.conversation", data: { conversationId: conversation.id }, audience: await numberAudience(organizationId, number) });
 }
 
 /**
  * Un adjunto de uno de MIS chats, o (PR 6) de un chat que su dueño me dejó
- * leer (para servirlo); null si no.
+ * leer, o (PR 7) de un número de la empresa que superviso (para servirlo);
+ * null si no.
  */
 export async function myNumberAsset(organizationId: string, userId: string, assetId: string) {
-  return (await ownNumberAsset(organizationId, userId, assetId)) ?? (await sharedNumberAsset(organizationId, userId, assetId));
+  return (
+    (await ownNumberAsset(organizationId, userId, assetId)) ??
+    (await sharedNumberAsset(organizationId, userId, assetId)) ??
+    // PR 7: de un número de la empresa, para quien supervisa.
+    (await supervisedNumberAsset(organizationId, userId, assetId))
+  );
 }
 
 async function sharedNumberAsset(organizationId: string, userId: string, assetId: string) {

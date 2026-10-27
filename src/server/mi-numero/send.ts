@@ -5,7 +5,8 @@ import { numberMediaId } from "@/lib/direct-inbound";
 import { getDirectConnection } from "@/server/credentials/direct-instance";
 import { sendDirect, type DirectResult } from "@/server/direct-connection/send";
 import { saveMediaFile, validateOutgoing } from "@/server/whatsapp/media";
-import { audienceOf, myChat } from "./chats";
+import { numberAudience } from "./audience";
+import { myChat } from "./chats";
 import { MiNumeroFailure } from "./numbers";
 
 /**
@@ -33,7 +34,7 @@ export async function sendFromMyNumber(
   const connection = await getDirectConnection(organizationId, number.id);
   if (!connection || connection.status !== "connected") throw new MiNumeroFailure("not_linked");
   if (isPaused(connection, new Date())) throw new MiNumeroFailure("paused");
-  const scope = { directNumberId: number.id, audience: audienceOf(number) };
+  const scope = { directNumberId: number.id, audience: await numberAudience(organizationId, number) };
 
   if ("text" in input) {
     return sendDirect({ organizationId, conversationId: conversation.id, type: "text", text: input.text, number: scope });

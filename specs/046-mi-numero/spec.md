@@ -172,8 +172,23 @@ revierte el código, correr también la reversa.
 - UI: cápsula y solicitud en `components/inbox/my-number-access.tsx`
   (maqueta aprobada), «Compartidos contigo» en la lista, y en Ajustes →
   Mi número «Pueden ver tus chats» (quitar acceso) y «Quién ha visto tus chats».
-- Pendiente: que un Coordinador pida ver sin atender al cliente, que vea los
-  chats de un número «de la empresa», y la IA en los chats de un número.
+
+## PR 7 — Supervisar los números del equipo (Propietario y Coordinador)
+
+- `src/server/mi-numero/supervise.ts` (`mi_numero.manage`, y el rol se vuelve
+  a revisar en la base): los chats de los números `empresa` en SOLO LECTURA
+  (no los marca leídos; cada vista en `conversation_access_log`, la ve quien
+  lleva el número) y, de los números `personal`, solo los chats «Es cliente»
+  cuyo dueño permite solicitudes: se pueden PEDIR sin atender al cliente
+  (decide el dueño; la solicitud dice «es Coordinador/Propietario»). Lo
+  privado jamás aparece.
+- Avisos en vivo: `numberAudience` (`mi-numero/audience.ts`) = el dueño en un
+  personal; el dueño y quien supervisa en uno de la empresa.
+- Rutas `/api/my-number/team`, `/team/[id]/messages`, `/team/[id]/access`.
+- UI: la pestaña sale también a quien supervisa (sin número propio se llama
+  «Números»), con «Número de la empresa · …» y «Chats de cliente en números
+  personales» (`components/inbox/my-number-team.tsx`, `?e=` solo lectura).
+- Pendiente: la IA en los chats de un número.
 
 ## Siguientes PRs (sin migración)
 

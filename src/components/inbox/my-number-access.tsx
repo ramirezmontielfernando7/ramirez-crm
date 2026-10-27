@@ -21,7 +21,15 @@ export type Overlap = {
   canRequest: boolean;
   access: "none" | "pending" | "granted" | "rejected";
 };
-export type IncomingRequest = { id: string; requesterName: string; contactName: string; conversationId: string; requestedAt: string };
+export type IncomingRequest = {
+  id: string;
+  requesterName: string;
+  /** PR 7: «Coordinador» o «Propietario» cuando pide quien supervisa los números. */
+  requesterRole: string | null;
+  contactName: string;
+  conversationId: string;
+  requestedAt: string;
+};
 export type SharedChat = { conversationId: string; ownerName: string; contactName: string };
 export type AccessOverview = {
   incoming: IncomingRequest[];
@@ -176,7 +184,7 @@ export function AccessRequestDialog({ request, onDone }: { request: IncomingRequ
             {ACCESS_TEXT.requestTitle(request.requesterName, request.contactName)}
           </h2>
         </div>
-        <p className="text-[14px] leading-relaxed text-text-2">{ACCESS_TEXT.requestBody(request.requesterName)}</p>
+        <p className="text-[14px] leading-relaxed text-text-2">{ACCESS_TEXT.requestBody(request.requesterName, request.requesterRole)}</p>
         <ul className="space-y-1.5 rounded-xl bg-secondary px-4 py-3 text-[13.5px] leading-snug">
           {ACCESS_TEXT.requestRules.map((r) => (
             <li key={r} className="flex gap-2">
