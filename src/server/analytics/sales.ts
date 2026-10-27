@@ -13,6 +13,7 @@ import {
   type StageTimingDto,
 } from "@/lib/analytics";
 import { LOSS_REASON_LABEL, type LossReason } from "@/lib/types";
+import { lossReasonLabels } from "@/server/leads/loss-reasons";
 import type { ResolvedPeriod } from "@/server/analytics/period";
 import { localDateExpr, notLabContact } from "@/server/analytics/shared";
 
@@ -83,7 +84,7 @@ export async function salesBlock(
     timing: tiempos,
     timeToWinDays,
     completeFrom,
-    lossReasons: motivosDePerdida(desenlaces),
+    lossReasons: motivosDePerdida(desenlaces, await lossReasonLabels(scope.organizationId)),
     // "Vacío" habla del PERIODO, no del tablero: el embudo de hoy casi siempre
     // tiene algo, y si contara un rango de 2020 nunca podría declararse vacío.
     empty: nuevos === 0 && wonCount === 0 && lostCount === 0,
@@ -491,7 +492,10 @@ async function primerEventoReal(scope: Access): Promise<string | null> {
  * Motivos de pérdida del periodo. Sale del MISMO desenlace que los
  * indicadores: la tabla no puede contar un trato que arriba no es perdido.
  */
-export function motivosDePerdida(desenlaces: Desenlace[]): LossReasonRowDto[] {
+export function motivosDePerdida(
+  desenlaces: Desenlace[],
+  labels: Record<string, string> = LOSS_REASON_LABEL
+): LossReasonRowDto[] {
   const acc = new Map<LossReason | "sin_registro", LossReasonRowDto>();
 
   for (const d of desenlaces) {
@@ -499,7 +503,7 @@ export function motivosDePerdida(desenlaces: Desenlace[]): LossReasonRowDto[] {
     const reason = d.lossReason ?? "sin_registro";
     const row = acc.get(reason) ?? {
       reason,
-      label: d.lossReason ? LOSS_REASON_LABEL[d.lossReason] : "Sin motivo registrado",
+      label: d.lossReason ? labels[d.lossReason] ?? d.lossReason : "Sin motivo registrado",
       count: 0,
     };
     row.count += 1;

@@ -1,11 +1,10 @@
 ﻿"use client";
 
-import { useState } from "react";
-import { LOSS_REASON_LABEL, type LossReason } from "@/lib/types";
+import { useEffect, useState } from "react";
+import { fetchJson } from "@/lib/fetch-json";
+import { DEFAULT_LOSS_REASONS, type LossReason, type LossReasonDto } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-
-const REASONS = Object.keys(LOSS_REASON_LABEL) as LossReason[];
 
 /**
  * Motivo de pérdida. Se pide al ENTRAR a la etapa perdida y es
@@ -23,6 +22,16 @@ export function LossReasonDialog({
   onConfirm: (reason: LossReason, note: string) => void;
 }) {
   const [reason, setReason] = useState<LossReason | null>(null);
+  // Los motivos son de la organización (Ajustes → Operación CRM → Motivos de
+  // pérdida). Mientras llegan, los de siempre.
+  const [reasons, setReasons] = useState<{ key: string; label: string }[]>([...DEFAULT_LOSS_REASONS]);
+  useEffect(() => {
+    void fetchJson<{ reasons: LossReasonDto[] }>("/api/pipeline/loss-reasons").then((res) => {
+      if (!res.ok) return;
+      const active = res.data.reasons.filter((r) => r.active);
+      if (active.length > 0) setReasons(active);
+    });
+  }, []);
   const [note, setNote] = useState("");
 
   return (
@@ -43,19 +52,19 @@ export function LossReasonDialog({
         </p>
 
         <div className="space-y-2">
-          {REASONS.map((r) => (
+          {reasons.map((r) => (
             <button
-              key={r}
+              key={r.key}
               type="button"
-              onClick={() => setReason(r)}
-              aria-pressed={reason === r}
+              onClick={() => setReason(r.key)}
+              aria-pressed={reason === r.key}
               className={
-                reason === r
+                reason === r.key
                   ? "w-full rounded-md border border-brand bg-brand-tint px-3 py-2 text-left text-sm font-medium"
                   : "w-full rounded-md border px-3 py-2 text-left text-sm hover:bg-subtle"
               }
             >
-              {LOSS_REASON_LABEL[r]}
+              {r.label}
             </button>
           ))}
         </div>

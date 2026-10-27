@@ -1,3 +1,4 @@
+import { isActiveLossReason } from "@/server/leads/loss-reasons";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { apiError, parseBody, withAuth } from "@/lib/api";
@@ -25,16 +26,7 @@ const patchSchema = z.object({
    * puerta: la regla es del dominio, no de esta ruta, y hay más caminos que
    * mueven tarjetas.
    */
-  lossReason: z
-    .enum([
-      "precio",
-      "no_es_perfil",
-      "sin_presupuesto",
-      "eligio_otro",
-      "nunca_contesto",
-      "otro",
-    ])
-    .optional(),
+  lossReason: z.string().min(1).max(60).optional(),
   lossNote: z.string().max(500).optional(),
   /**
    * Monto en centavos enteros. `null` explícito lo borra; ausente lo deja como
@@ -110,6 +102,10 @@ export const PATCH = withAuth(async (session, req: Request, ctx: Params) => {
       .returning();
     if (!updated[0]) return apiError(404, "not_found", "Lead no encontrado");
     return Response.json({ lead: updated[0] });
+  }
+
+  if (body.data.lossReason && !(await isActiveLossReason(session.organizationId, body.data.lossReason))) {
+    return apiError(422, "invalid_loss_reason", "Ese motivo de pérdida ya no existe");
   }
 
   const res = await moveLeadToStage({
