@@ -4,6 +4,7 @@ import { resolveWaba } from "@/server/credentials/resolve";
 import { recordUnrouted, unroutedReasonFor } from "@/server/webhooks/unrouted";
 import { recordHealthEvent } from "@/server/whatsapp/health";
 import { applyTemplateCategoryEvent } from "@/server/whatsapp/templates";
+import { markReconnectRequired } from "@/server/whatsapp/credentials";
 
 const log = logger("webhook-waba");
 
@@ -51,8 +52,20 @@ export async function processWabaEvent(
     if (field === "template_category_update") {
       await applyTemplateCategoryEvent(org, value);
     } else {
+      if (field === "account_update" && isPartnerRemoved(value)) {
+        // Tech Provider, PR 4: el negocio quitó a Dashfort desde Meta. El token
+        // ya no sirve: la conexión queda «por reconectar» y los envíos se
+        // detienen con el aviso de siempre en Ajustes → WhatsApp.
+        await markReconnectRequired(org);
+        log.warn("el negocio quitó la app desde Meta: conexión por reconectar", { org, waba: wabaId });
+      }
       await recordHealthEvent(org, field, value);
     }
   });
   log.info("evento de la WABA aplicado", { org, campo: field });
+}
+
+/** `account_update` con `event: PARTNER_REMOVED` (el negocio desconectó la app). */
+export function isPartnerRemoved(value: Record<string, unknown>): boolean {
+  return typeof value.event === "string" && value.event.trim().toUpperCase() === "PARTNER_REMOVED";
 }
