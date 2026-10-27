@@ -60,7 +60,7 @@ export async function handleRpc(raw: unknown, caller: McpCaller): Promise<object
     case "ping":
       return rpcResult(id, {});
     case "tools/list": {
-      const tools = await runWithOrganization(org, () => toolsFor(org, caller.scopes));
+      const tools = await runWithOrganization(org, () => toolsFor(caller.session, caller.scopes));
       return rpcResult(id, { tools: tools.map(describeTool) });
     }
     case "tools/call":
@@ -76,7 +76,7 @@ async function callTool(id: RpcId, params: Record<string, unknown> | undefined, 
   const name = typeof params?.name === "string" ? params.name : "";
   const base = { organizationId: org, userId: session.userId, connectionId };
   return runWithOrganization(org, async () => {
-    const tool = (await toolsFor(org, scopes)).find((t) => t.name === name);
+    const tool = (await toolsFor(session, scopes)).find((t) => t.name === name);
     if (!tool) {
       await recordAction({ ...base, tool: name || "unknown", outcome: "denied", summary: "herramienta no disponible" });
       return rpcError(id, RPC_INVALID_PARAMS, `Herramienta no disponible: ${name || "(sin nombre)"}`);
@@ -86,23 +86,43 @@ async function callTool(id: RpcId, params: Record<string, unknown> | undefined, 
       const detail = parsed.error.issues.map((i) => `${i.path.join(".") || "argumentos"}: ${i.message}`).join("; ");
       return rpcResult(id, toolResult({ error: `Argumentos no válidos: ${detail}` }, true));
     }
-    try {
-      const out = await tool.run({ session, scopes }, parsed.data);
-      await recordAction({
-        ...base,
-        tool: tool.name,
-        outcome: out.isError ? "error" : "ok",
-        conversationId: out.conversationId,
-        contactId: out.contactId,
-        summary: out.summary,
-      });
-      return rpcResult(id, toolResult(out.data, out.isError ?? false));
-    } catch (err) {
-      log.error("falló una herramienta del conector", { org, tool: tool.name, err });
-      await recordAction({ ...base, tool: tool.name, outcome: "error", summary: "error interno" });
-      return rpcError(id, RPC_INTERNAL, "Error interno de Dashfort");
-    }
+    const run = async () => {
+      try {
+        const out = await tool.run({ session, scopes, connectionId }, parsed.data);
+        await recordAction({
+          ...base,
+          tool: tool.name,
+          outcome: out.outcome ?? (out.isError ? "error" : "ok"),
+          conversationId: out.conversationId,
+          contactId: out.contactId,
+          summary: out.summary,
+        });
+        return rpcResult(id, toolResult(out.data, out.isError ?? false));
+      } catch (err) {
+        log.error("falló una herramienta del conector", { org, tool: tool.name, err });
+        await recordAction({ ...base, tool: tool.name, outcome: "error", summary: "error interno" });
+        return rpcError(id, RPC_INTERNAL, "Error interno de Dashfort");
+      }
+    };
+    return tool.serial ? oneAtATime(`${org}:${session.userId}:${tool.name}`, run) : run();
   });
+}
+
+/**
+ * Una a la vez por persona y herramienta (en este proceso): el tope diario
+ * de envíos se cuenta con lo que ya quedó en la bitácora, así que el
+ * siguiente envío espera a que el anterior se anote.
+ */
+const queues = new Map<string, Promise<unknown>>();
+async function oneAtATime<T>(key: string, fn: () => Promise<T>): Promise<T> {
+  const prev = queues.get(key) ?? Promise.resolve();
+  const next = prev.catch(() => undefined).then(fn);
+  queues.set(key, next);
+  try {
+    return await next;
+  } finally {
+    if (queues.get(key) === next) queues.delete(key);
+  }
 }
 
 /** El cuerpo de la solicitud, o la respuesta de error de JSON-RPC lista. */

@@ -618,6 +618,8 @@ export function serializeMessage(
     error: m.error,
     aiGenerated: m.aiGenerated,
     origin: m.origin,
+    /** 047 — lo mandó la IA conectada de una persona (solo lo ve el equipo). */
+    viaAiConnector: m.aiConnectionId !== null,
     media: media
       ? {
           assetId: media.id,
