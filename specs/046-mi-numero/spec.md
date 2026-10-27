@@ -126,7 +126,6 @@ revierte el código, correr también la reversa.
 
 ## Siguientes PRs (sin migración)
 
-2. /platform: interruptor, tope y capacidad de los servidores.
 5. Salida: por el número correcto, límites y freno por número.
 6. Privacidad: «También habla con…», solicitudes, bitácora; salida de una
    persona.
