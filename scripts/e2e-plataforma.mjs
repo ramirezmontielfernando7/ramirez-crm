@@ -140,12 +140,13 @@ async function main() {
   await page.setViewportSize({ width: 1440, height: 900 });
   const r1 = await page.goto(`${BASE}/platform`);
   ok("ahora /platform → 200", r1?.status() === 200, String(r1?.status()));
-  // 040: /platform abre «Organizaciones y Planes».
-  await page.waitForURL(/\/platform\/organizaciones$/, { timeout: 30000 });
+  // 036 (PR 5): /platform abre «Mi panel».
+  await page.waitForURL(/\/platform\/panel$/, { timeout: 30000 });
+  ok("«Mi panel» muestra el resumen (solo metadatos)", await page.getByTestId("panel-orgs").waitFor({ timeout: 30000 }).then(() => true, () => false));
   ok("el menú muestra «Plataforma»", (await page.getByRole("link", { name: "Plataforma" }).count()) > 0);
   const pestanas = page.getByRole("navigation", { name: "Secciones de Plataforma" });
-  const nombres = ["Organizaciones y Planes", "Costos y Precios IA", "Webhooks sin ruta", "Administradores y auditoría"];
-  ok("040: cuatro pestañas de Plataforma", (await Promise.all(nombres.map((n) => pestanas.getByRole("link", { name: n, exact: true }).count()))).every((c) => c === 1));
+  const nombres = ["Mi panel", "Organizaciones y Planes", "Costos y Precios IA", "Webhooks sin ruta", "Administradores y auditoría"];
+  ok("040: las pestañas de Plataforma", (await Promise.all(nombres.map((n) => pestanas.getByRole("link", { name: n, exact: true }).count()))).every((c) => c === 1));
   // 040: la geometría del estándar (039): UNA barra de 56 px con las pestañas en píldora dentro.
   const geo = await page.evaluate(() => {
     const header = document.querySelector("[data-page-header]");
@@ -607,7 +608,7 @@ async function costosEnPlataforma(A, B, orgB) {
   const page = await A.ctx.newPage();
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto(`${BASE}/platform`);
-  await page.waitForURL(/\/platform\/organizaciones$/);
+  await page.waitForURL(/\/platform\/panel$/);
   await page.getByRole("navigation", { name: "Secciones de Plataforma" }).getByRole("link", { name: "Costos y Precios IA" }).click();
   await page.waitForURL(/\/platform\/costos$/);
   const form = page.getByTestId("platform-pricing");
