@@ -14,6 +14,11 @@ const prefixes = {
   leadStageEvent: "lse",
   lossReason: "lrs",
   quickReply: "qr",
+  // 047 — conector de IA
+  aiConnection: "aic",
+  aiToken: "ait",
+  aiOauthCode: "aoc",
+  aiActionLog: "aal",
   credentials: "cred",
   agentProfile: "agp",
   agent: "agt",

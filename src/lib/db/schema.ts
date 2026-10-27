@@ -949,6 +949,12 @@ export const message = pgTable(
     altMessageId: text("alt_message_id"),
     /** 0055 — saliente detenido por los límites de envío: sale a esta hora («En cola»). */
     queuedUntil: timestamp("queued_until"),
+    /**
+     * 047 (0060) — saliente que mandó la IA de una persona por el conector
+     * («enviado por IA», solo lo ve el equipo). NULL = no vino del conector.
+     * Sin FK: la conexión nunca se borra (se revoca) y la tabla es grande.
+     */
+    aiConnectionId: text("ai_connection_id"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
   (t) => [
@@ -2627,6 +2633,12 @@ export const organizationModule = pgTable(
    */
   miNumero: boolean("mi_numero").notNull().default(false),
   miNumeroMax: integer("mi_numero_max").notNull().default(0),
+  /**
+   * Conector de IA (047, 0060) — complemento OCULTO: DEFAULT false y solo
+   * /platform lo enciende. Con él, el Propietario decide en Ajustes si su
+   * equipo puede conectar su propia IA (`ai_connector_settings`).
+   */
+  conectorIa: boolean("conector_ia").notNull().default(false),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
   updatedBy: text("updated_by"),
 },
@@ -3918,6 +3930,12 @@ export const directNumber = pgTable(
     overlapNotice: boolean("overlap_notice").notNull().default(false),
     allowViewRequests: boolean("allow_view_requests").notNull().default(false),
     aiReplies: boolean("ai_replies").notNull().default(false),
+    /**
+     * 047 (0060) — quinto interruptor: la IA PROPIA del dueño (conector de
+     * IA) puede leer y contestar los chats que marcó «Es cliente». Los
+     * privados nunca. Apagado; solo el dueño lo cambia en un número personal.
+     */
+    aiConnector: boolean("ai_connector").notNull().default(false),
     /** Aviso aceptado por la persona al vincular (privacidad, bloqueos, salida). */
     noticeAcceptedAt: timestamp("notice_accepted_at"),
     authorizedBy: text("authorized_by").references(() => user.id, { onDelete: "set null" }),
@@ -4049,5 +4067,193 @@ export const quickReply = pgTable(
     unique("quick_reply_org_shortcut_uq").on(t.organizationId, t.shortcut),
     check("quick_reply_shortcut_chk", sql`${t.shortcut} ~ '^[a-z0-9_-]{1,30}$'`),
     check("quick_reply_body_chk", sql`char_length(${t.body}) between 1 and 4096`),
+  ]
+);
+
+/* ============================================================
+ * Conector de IA (047, migración 0060) — la IA de cada persona
+ * ============================================================ */
+
+/**
+ * Lo que decide el Propietario: si su equipo puede conectar su IA, qué roles
+ * (el Propietario siempre puede) y cuántos mensajes al día puede mandar la IA
+ * de cada persona. Sin fila = apagado. Además hace falta el complemento
+ * `organization_module.conector_ia`.
+ */
+export const aiConnectorSettings = pgTable(
+  "ai_connector_settings",
+  {
+    organizationId: text("organization_id")
+      .primaryKey()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    enabled: boolean("enabled").notNull().default(false),
+    /** Roles que pueden conectar su IA además del Propietario. */
+    allowedRoles: text("allowed_roles").array().notNull().default(sql`'{}'::text[]`),
+    /** Mensajes a clientes por persona en 24 h (0 = la IA solo lee). */
+    dailyMessageLimit: integer("daily_message_limit").notNull().default(100),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+    updatedBy: text("updated_by").references(() => user.id, { onDelete: "set null" }),
+  },
+  (t) => [
+    check("ai_connector_settings_roles_chk", sql`${t.allowedRoles} <@ array['coordinador', 'asesor']::text[]`),
+    check("ai_connector_settings_limit_chk", sql`${t.dailyMessageLimit} between 0 and 1000`),
+  ]
+);
+
+/**
+ * Una IA conectada por una persona («Claude de Ana»). Actúa SIEMPRE como esa
+ * persona: mismos permisos y mismo alcance. `kind`: `oauth` = la conectó
+ * Claude, ChatGPT u otra app con «Iniciar sesión»; `key` = llave personal
+ * pegada a mano (n8n, Cursor). Nunca se borra: se revoca (la bitácora y los
+ * mensajes la siguen nombrando).
+ */
+export const aiConnection = pgTable(
+  "ai_connection",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    kind: text("kind", { enum: ["oauth", "key"] }).notNull(),
+    name: text("name").notNull(),
+    /** OAuth: el `client_id` de la app (una URL con CIMD o el de registro). */
+    clientId: text("client_id"),
+    /** `read` = solo leer; `write` = además actuar (enviar, etiquetar…). */
+    scopes: text("scopes").array().notNull().default(sql`'{read}'::text[]`),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    lastUsedAt: timestamp("last_used_at"),
+    revokedAt: timestamp("revoked_at"),
+    revokedBy: text("revoked_by").references(() => user.id, { onDelete: "set null" }),
+  },
+  (t) => [
+    index("ai_connection_org_user_idx").on(t.organizationId, t.userId),
+    unique("ai_connection_org_id_uq").on(t.organizationId, t.id),
+    check("ai_connection_kind_chk", sql`${t.kind} in ('oauth', 'key')`),
+    check("ai_connection_name_chk", sql`char_length(${t.name}) between 1 and 80`),
+    check(
+      "ai_connection_scopes_chk",
+      sql`${t.scopes} <@ array['read', 'write']::text[] and 'read' = any(${t.scopes})`
+    ),
+  ]
+);
+
+/**
+ * Las llaves de una conexión. Solo se guarda el SHA-256 (32 bytes
+ * aleatorios). `access` caduca en 1 h y `refresh` en 30 días (OAuth); `key`
+ * no caduca (llave personal). La busca por hash el pool de sistema: es lo
+ * que dice de qué organización y persona es la llamada.
+ */
+export const aiToken = pgTable(
+  "ai_token",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    connectionId: text("connection_id").notNull(),
+    kind: text("kind", { enum: ["access", "refresh", "key"] }).notNull(),
+    tokenHash: text("token_hash").notNull(),
+    /** Los primeros caracteres, para reconocer una llave personal en la lista. */
+    tokenPrefix: text("token_prefix").notNull(),
+    expiresAt: timestamp("expires_at"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    revokedAt: timestamp("revoked_at"),
+  },
+  (t) => [
+    uniqueIndex("ai_token_hash_uq").on(t.tokenHash),
+    index("ai_token_connection_idx").on(t.organizationId, t.connectionId),
+    foreignKey({
+      columns: [t.organizationId, t.connectionId],
+      foreignColumns: [aiConnection.organizationId, aiConnection.id],
+      name: "ai_token_connection_fk",
+    }).onDelete("cascade"),
+    check("ai_token_kind_chk", sql`${t.kind} in ('access', 'refresh', 'key')`),
+    check("ai_token_expiry_chk", sql`(${t.kind} = 'key') = (${t.expiresAt} is null)`),
+  ]
+);
+
+/**
+ * Código de un solo uso del «Iniciar sesión» OAuth (PKCE S256): nace cuando
+ * la persona acepta en la pantalla de Dashfort y se cambia por llaves en
+ * menos de 10 minutos. Solo el hash.
+ */
+export const aiOauthCode = pgTable(
+  "ai_oauth_code",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    codeHash: text("code_hash").notNull(),
+    clientId: text("client_id").notNull(),
+    clientName: text("client_name").notNull(),
+    redirectUri: text("redirect_uri").notNull(),
+    codeChallenge: text("code_challenge").notNull(),
+    /** RFC 8707: la dirección del conector para la que vale la llave. */
+    resource: text("resource").notNull(),
+    scopes: text("scopes").array().notNull(),
+    expiresAt: timestamp("expires_at").notNull(),
+    usedAt: timestamp("used_at"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("ai_oauth_code_hash_uq").on(t.codeHash),
+    index("ai_oauth_code_org_user_idx").on(t.organizationId, t.userId),
+    check("ai_oauth_code_scopes_chk", sql`${t.scopes} <@ array['read', 'write']::text[]`),
+  ]
+);
+
+/**
+ * Apps de IA registradas por registro dinámico (RFC 7591, para las que aún
+ * no usan CIMD). Tabla de PLATAFORMA: el registro ocurre antes de saber de
+ * qué organización es la persona. Sin RLS y solo el pool de sistema
+ * (SOLO_SISTEMA en scripts/migrate.mjs).
+ */
+export const aiOauthClient = pgTable(
+  "ai_oauth_client",
+  {
+    clientId: text("client_id").primaryKey(),
+    clientName: text("client_name").notNull(),
+    redirectUris: text("redirect_uris").array().notNull(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    lastUsedAt: timestamp("last_used_at"),
+  },
+  (t) => [check("ai_oauth_client_name_chk", sql`char_length(${t.clientName}) between 1 and 100`)]
+);
+
+/**
+ * «Qué hizo tu IA»: cada herramienta que usó la IA de una persona, con su
+ * resultado. Nunca el texto de un mensaje ni datos del cliente: solo qué,
+ * cuándo, sobre qué chat o contacto y un resumen corto. También es lo que
+ * cuenta el tope diario de mensajes (`tool = 'send_message'`, `ok`).
+ */
+export const aiActionLog = pgTable(
+  "ai_action_log",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    userId: text("user_id").references(() => user.id, { onDelete: "set null" }),
+    connectionId: text("connection_id"),
+    tool: text("tool").notNull(),
+    outcome: text("outcome", { enum: ["ok", "denied", "limited", "error"] }).notNull(),
+    conversationId: text("conversation_id"),
+    contactId: text("contact_id"),
+    summary: text("summary"),
+    at: timestamp("at").notNull().defaultNow(),
+  },
+  (t) => [
+    index("ai_action_log_org_at_idx").on(t.organizationId, t.at),
+    index("ai_action_log_org_user_at_idx").on(t.organizationId, t.userId, t.at),
+    check("ai_action_log_outcome_chk", sql`${t.outcome} in ('ok', 'denied', 'limited', 'error')`),
+    check("ai_action_log_tool_chk", sql`${t.tool} ~ '^[a-z_]{1,40}$'`),
+    check("ai_action_log_summary_chk", sql`${t.summary} is null or char_length(${t.summary}) <= 200`),
   ]
 );
