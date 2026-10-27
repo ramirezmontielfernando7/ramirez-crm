@@ -35,6 +35,10 @@ const PERMITIDOS: Record<string, { usos: number; motivo: string }> = {
     usos: 1,
     motivo: "047: la llave del conector de IA decide la organización y la persona de /api/mcp (búsqueda por hash)",
   },
+  "src/server/ai-connector/oauth.ts": {
+    usos: 6,
+    motivo: "047 PR 3: OAuth del conector de IA antes de saber la organización: registro dinámico y lectura de apps (tabla de plataforma ai_oauth_client), y el código / la llave de renovación por hash deciden organización y persona (canje, rotación, cierre por reúso, revocación RFC 7009)",
+  },
   "src/server/credentials/resolve.ts": {
     usos: 1,
     motivo: "enrutamiento de webhooks: número / WABA / perfil / página / cuenta de Zernio → organización (sin descifrar tokens)",

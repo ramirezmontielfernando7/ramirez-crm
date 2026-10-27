@@ -47,6 +47,9 @@ const PROTEGIDAS: [string, Method, Permission][] = [
   ["settings/branding", "PUT", "settings.manage"],
   // Fase D: la apariencia de toda la organización (lo personal es una cookie).
   ["settings/appearance", "PUT", "settings.manage"],
+  // 047 PR 3: el Propietario decide si su equipo conecta su IA.
+  ["settings/ai-connector", "GET", "settings.manage"],
+  ["settings/ai-connector", "PUT", "settings.manage"],
   ["settings/branding/favicon", "PUT", "settings.manage"],
   ["settings/branding/favicon", "DELETE", "settings.manage"],
   ["settings/whatsapp", "GET", "settings.manage"],
@@ -366,6 +369,11 @@ const POR_AUTOR: [string, Method][] = [
   ["my-number/access", "POST"],
   ["my-number/access/[id]", "PATCH"],
   ["my-number/shared/[id]/messages", "GET"],
+  // 047 (PR 3): cada persona conecta SU IA; la conexión nace a nombre de la sesión.
+  ["oauth/authorize", "POST"],
+  ["ai-connector/connections", "GET"],
+  ["ai-connector/connections", "POST"],
+  ["ai-connector/connections/[id]", "DELETE"],
 ];
 
 /**
@@ -411,8 +419,10 @@ const PLATAFORMA: [string, Method][] = [
  * `account-link/` (Fase 3): el token de un solo uso ES la credencial.
  * `csp-report` (Fase 3): reportes del navegador, sin datos de nadie.
  * `mcp` (047): el conector de IA; la llave Bearer de la persona arma su sesión.
+ * `oauth/register|token|revoke` (047 PR 3): OAuth público por estándar; el
+ *   código de un solo uso y PKCE son la credencial.
  */
-const EXENTAS_PREFIJOS = ["auth/", "bot/", "mcp", "webhooks/", "dev/", "health", "branding/favicon", "account-link/", "csp-report"];
+const EXENTAS_PREFIJOS = ["auth/", "bot/", "mcp", "oauth/register", "oauth/token", "oauth/revoke", "webhooks/", "dev/", "health", "branding/favicon", "account-link/", "csp-report"];
 
 async function handler(route: string, method: Method): Promise<Handler> {
   const mod = (await import(`@/app/api/${route}/route`)) as Record<string, Handler>;

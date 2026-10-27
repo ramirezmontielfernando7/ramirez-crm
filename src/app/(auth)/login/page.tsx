@@ -9,6 +9,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
+/** Solo rutas propias («/…»), nunca otro sitio («//sitio», «/\\sitio»). */
+function safeNext(raw: string | null): string | null {
+  if (!raw || !raw.startsWith("/") || raw.startsWith("//") || raw.startsWith("/\\")) return null;
+  return raw;
+}
+
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
@@ -33,7 +39,8 @@ export default function LoginPage() {
       );
       return;
     }
-    router.push("/inbox");
+    // 047 PR 3: «Iniciar sesión» de una app de IA regresa a su pantalla de aceptar.
+    router.push(safeNext(new URLSearchParams(window.location.search).get("next")) ?? "/inbox");
     router.refresh();
   }
 
