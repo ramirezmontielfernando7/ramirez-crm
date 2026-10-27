@@ -127,9 +127,11 @@ describe("«Uso y plan» del Propietario", () => {
       expect(u.ai.total).toEqual({ state: "near", percent: 85 });
       expect(u.ai.embed).toEqual({ state: "available", percent: 25 });
       const json = JSON.stringify(u.ai);
+      // Los ids aleatorios (agt_…) pueden llevar «850» por azar: se ignoran.
+      const sinIds = json.replace(/"(agt|ct|org)_[a-z0-9]+"/g, '""');
       expect(json).not.toMatch(/"(used|limit|tokens|turns)"/);
-      expect(json).not.toContain("850");
-      expect(json).not.toContain("1234");
+      expect(sinIds).not.toContain("850");
+      expect(sinIds).not.toContain("1234");
       // El desglose es su parte del total, sin cifras.
       expect(u.ai.byKind?.find((l) => l.key === "agent")?.share).toBeCloseTo(800 / 850);
       expect(u.ai.byAgent?.[0]).toEqual(expect.objectContaining({ key: agenteA, share: 1 }));
