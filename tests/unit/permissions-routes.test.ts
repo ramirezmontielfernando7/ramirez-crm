@@ -410,8 +410,9 @@ const PLATAFORMA: [string, Method][] = [
  * Sin sesión de usuario: tienen su propia autenticación o son públicas.
  * `account-link/` (Fase 3): el token de un solo uso ES la credencial.
  * `csp-report` (Fase 3): reportes del navegador, sin datos de nadie.
+ * `mcp` (047): el conector de IA; la llave Bearer de la persona arma su sesión.
  */
-const EXENTAS_PREFIJOS = ["auth/", "bot/", "webhooks/", "dev/", "health", "branding/favicon", "account-link/", "csp-report"];
+const EXENTAS_PREFIJOS = ["auth/", "bot/", "mcp", "webhooks/", "dev/", "health", "branding/favicon", "account-link/", "csp-report"];
 
 async function handler(route: string, method: Method): Promise<Handler> {
   const mod = (await import(`@/app/api/${route}/route`)) as Record<string, Handler>;

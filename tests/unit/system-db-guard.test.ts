@@ -31,6 +31,10 @@ const PERMITIDOS: Record<string, { usos: number; motivo: string }> = {
     usos: 2,
     motivo: "la llave decide la organización de /api/bot/*; y ligar BOT_API_KEY a PLATFORM_ORG_ID al arrancar",
   },
+  "src/server/ai-connector/keys.ts": {
+    usos: 1,
+    motivo: "047: la llave del conector de IA decide la organización y la persona de /api/mcp (búsqueda por hash)",
+  },
   "src/server/credentials/resolve.ts": {
     usos: 1,
     motivo: "enrutamiento de webhooks: número / WABA / perfil / página / cuenta de Zernio → organización (sin descifrar tokens)",
