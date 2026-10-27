@@ -51,6 +51,8 @@ const PROTEGIDAS: [string, Method, Permission][] = [
   ["settings/branding/favicon", "DELETE", "settings.manage"],
   ["settings/whatsapp", "GET", "settings.manage"],
   ["settings/whatsapp", "PUT", "settings.manage"],
+  // Tech Provider (PR 1): cierre de «Conectar con Facebook».
+  ["settings/whatsapp/embedded-signup", "POST", "settings.manage"],
   // Conexión directa (PR 3): límites de envío (Propietario; delegable).
   ["settings/direct-connection/limits", "GET", "direct_connection.limits"],
   ["settings/direct-connection/limits", "PUT", "direct_connection.limits"],

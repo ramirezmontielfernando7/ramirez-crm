@@ -42,6 +42,17 @@ const envSchema = z.object({
     .string()
     .optional()
     .transform((v) => (v && /^\d+$/.test(v.trim()) ? v.trim() : undefined)),
+  /**
+   * Tech Provider, PR 1: ID de la configuración de «Registro insertado»
+   * (Embedded Signup) de la app de Meta (Facebook Login for Business →
+   * Configuraciones). Público. Con él y META_APP_ID + META_APP_SECRET, el
+   * cliente conecta su WhatsApp con «Conectar con Facebook». Un placeholder
+   * `REEMPLAZA_…` cuenta como ausente: queda solo la conexión manual.
+   */
+  META_EMBEDDED_SIGNUP_CONFIG_ID: z
+    .string()
+    .optional()
+    .transform((v) => (v && /^\d+$/.test(v.trim()) ? v.trim() : undefined)),
   META_GRAPH_BASE_URL: z.string().url().default("https://graph.facebook.com"),
   OPENROUTER_API_TOKEN: z.string().optional(),
   OPENROUTER_BASE_URL: z.string().url().default("https://openrouter.ai/api"),

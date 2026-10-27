@@ -78,6 +78,20 @@ export async function GET(req: Request, ctx: Params) {
   const token = bearerToken(req);
   if (token.endsWith("-invalid")) return invalidTokenResponse();
 
+  // Tech Provider — GET oauth/access_token?client_id&client_secret&code →
+  // token de negocio del cliente. Un código que empieza con `vencido` imita
+  // el que pasó de los 30 s (o ya se usó).
+  if (path.length === 2 && path[0] === "oauth" && path[1] === "access_token") {
+    const code = new URL(req.url).searchParams.get("code") ?? "";
+    if (!code || code.startsWith("vencido")) {
+      return Response.json(
+        { error: { message: "This authorization code has expired.", type: "OAuthException", code: 100, fbtrace_id: "mock" } },
+        { status: 400 }
+      );
+    }
+    return Response.json({ access_token: `es-token-${code}`, token_type: "bearer" });
+  }
+
   // GET {wabaId}/message_templates → lista para el sync. Campañas v2: solo
   // las de ESA WABA, y paginada como Meta (páginas de 2 para que la
   // paginación del cliente se ejercite siempre).
@@ -263,6 +277,13 @@ export async function GET(req: Request, ctx: Params) {
         ? { whatsapp_business_manager_messaging_limit: h.whatsapp_business_manager_messaging_limit }
         : {}),
     });
+  }
+
+  // Tech Provider — GET {phoneNumberId}?fields=platform_type → CLOUD_API si
+  // se registró con `POST {phone}/register` (como Meta), si no NOT_APPLICABLE.
+  if (path.length === 1 && fields.includes("platform_type")) {
+    const registered = (getWaMockState().registeredPhones ?? []).includes(path[0]!);
+    return Response.json({ id: path[0], platform_type: registered ? "CLOUD_API" : "NOT_APPLICABLE" });
   }
 
   // GET {phoneNumberId}?fields=... → validación del wizard
@@ -649,6 +670,28 @@ export async function POST(req: Request, ctx: Params) {
     };
     state.templates.push(tpl);
     return Response.json({ id: tpl.id, status: "PENDING", category: tpl.category });
+  }
+
+  // Tech Provider — POST {phoneNumberId}/register → número nuevo a la Cloud
+  // API con su PIN. El PIN 000000 imita un número con OTRO PIN (133005).
+  if (path.length === 2 && path[1] === "register") {
+    const pin = typeof body.pin === "string" ? body.pin : "";
+    if (pin === "000000") {
+      return Response.json(
+        { error: { message: "Two step verification PIN Mismatch", type: "OAuthException", code: 133005, fbtrace_id: "mock" } },
+        { status: 400 }
+      );
+    }
+    if (!/^\d{6}$/.test(pin) || body.messaging_product !== "whatsapp") {
+      return Response.json(
+        { error: { message: "(#100) Invalid parameter", type: "OAuthException", code: 100, fbtrace_id: "mock" } },
+        { status: 400 }
+      );
+    }
+    const state = getWaMockState();
+    state.registeredPhones ??= [];
+    if (!state.registeredPhones.includes(path[0]!)) state.registeredPhones.push(path[0]!);
+    return Response.json({ success: true });
   }
 
   // POST {wabaId}/subscribed_apps → suscribe la app. Como en Meta, el override

@@ -197,6 +197,8 @@ jobs:
             echo "MEDIA_DIR=./.dev-media"
             # Campañas v2: con App ID se prueba la plantilla con imagen.
             echo "META_APP_ID=1234567890"
+            # Tech Provider: «Conectar con Facebook» (Registro insertado).
+            echo "META_EMBEDDED_SIGNUP_CONFIG_ID=555444333"
           } > .env
       # Un solo build y `next start` (no `next dev`): todas las rutas ya
       # compiladas, memoria estable y velocidad de producción. Los mocks
@@ -274,6 +276,10 @@ jobs:
           # Responsividad: teléfono (cajón, maestro-detalle, detalles flotantes),
           # tableta y escritorio, interruptores y temas claro/oscuro (~1 min).
           node --env-file=.env scripts/e2e-responsive.mjs
+          # Tech Provider: «Conectar con Facebook» cambia el código por el
+          # token del negocio, registra el número y lo deja conectado. Va al final: su login cuenta
+          # contra el freno por IP (FR-062) que usan los guiones de arriba.
+          node --env-file=.env scripts/e2e-conectar-facebook.mjs
           kill -- -"$(cat app.pid)"; sleep 2
       # 035: Documentos del agente (RAG) ENCENDIDOS, con el mock de embeddings
       # (exige los prefijos e5). Las vueltas de arriba corren con KB_DOCS
