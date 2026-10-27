@@ -156,7 +156,7 @@ export function MyNumberInbox({ own = true, team = false }: { own?: boolean; tea
     <div data-split-panels className="flex h-full lg:gap-3">
       <section
         className={cn(
-          "w-full shrink-0 overflow-hidden border-r md:w-[300px] lg:w-[360px]",
+          "w-full shrink-0 overflow-hidden border-r md:w-[clamp(300px,32vw,340px)] lg:w-[clamp(340px,30vw,460px)]",
           "lg:rounded-panel lg:border lg:bg-surface lg:shadow-panel",
           selectedId && "max-md:hidden"
         )}
