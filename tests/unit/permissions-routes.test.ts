@@ -166,6 +166,8 @@ const PROTEGIDAS: [string, Method, Permission][] = [
   ["pipeline/stages", "POST", "pipeline.edit"],
   ["pipeline/stages/[id]", "PATCH", "pipeline.edit"],
   ["pipeline/stages/[id]", "DELETE", "pipeline.edit"],
+  ["pipeline/loss-reasons", "POST", "pipeline.edit"],
+  ["pipeline/loss-reasons/[id]", "PATCH", "pipeline.edit"],
   ["templates", "POST", "templates.manage"],
   ["templates/sync", "POST", "templates.manage"],
   ["templates/category-seen", "POST", "templates.manage"],
@@ -280,6 +282,7 @@ const FILTRADAS: [string, Method][] = [
 const DEL_NEGOCIO: [string, Method][] = [
   ["agent/brain-status", "GET"],
   ["pipeline/stages", "GET"],
+  ["pipeline/loss-reasons", "GET"],
   ["templates", "GET"],
   // 021: la lista de etiquetas es del negocio (filtrar y etiquetar).
   ["contact-tags", "GET"],

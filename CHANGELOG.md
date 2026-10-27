@@ -51,6 +51,16 @@ Sin migración. Al eliminar un chat de la Bandeja también se borran sus fotos,
 audios y documentos (fila y archivo en disco), salvo los que otro mensaje,
 plantilla o anuncio todavía use.
 
+### Motivos de pérdida editables
+
+Migración `0058_motivos_perdida` (solo agrega la tabla `loss_reason`; reversa en
+`scripts/sql/0058-reversa.sql`). Ajustes → Operación CRM → «Motivos de pérdida»:
+crear, renombrar, reordenar y quitar los motivos que se ofrecen al marcar un
+trato como perdido. Cada organización arranca con los seis de siempre; quitar
+un motivo solo lo archiva (el historial conserva su nombre) y «Otro» no se
+puede quitar. Los nombres editados salen también en la gráfica de pérdidas y
+en la bitácora del chat.
+
 ### Seguridad y mantenimiento
 
 - **Next.js 15.5.26** (antes 15.5.20): corrige el RCE sin autenticación del
