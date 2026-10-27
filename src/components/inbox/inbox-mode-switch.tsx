@@ -12,7 +12,8 @@ import { useNumberUnread } from "./number-unread-store";
  * chat interno). Siempre a la vista, cada una con su conteo de no leídos; son
  * rutas (/inbox y /chat). Sin el módulo `team_chat` solo queda «Empresa», y
  * con una sola pestaña no se dibuja ninguna barra. «Mi número» (046) sale
- * solo a quien tiene su propio número.
+ * a quien tiene su propio número y (PR 7) a quien supervisa los números del
+ * equipo; sin número propio se llama «Números».
  */
 export type InboxMode = "inbox" | "number" | "chat";
 
@@ -64,7 +65,10 @@ export function InboxModeSwitch({
 type Viewer = ReturnType<typeof useViewer>;
 
 const shows = (viewer: Viewer) => (t: (typeof TABS)[number]) =>
-  !t.needs || (t.needs === "my_number" ? viewer.hasMyNumber : viewer.hasModule(t.needs));
+  !t.needs || (t.needs === "my_number" ? viewer.hasMyNumber || viewer.seesTeamNumbers : viewer.hasModule(t.needs));
+
+const labelOf = (viewer: Viewer, t: (typeof TABS)[number]) =>
+  t.mode === "number" && !viewer.hasMyNumber ? "Números" : t.label;
 
 /** ¿Hay pestañas que mostrar? Con una sola no se dibuja ninguna. */
 export function useHasInboxTabs() {
@@ -125,7 +129,7 @@ export function InboxTabs({
                   : "border-transparent bg-secondary text-text-2 hover:bg-accent hover:text-foreground",
               )}
             >
-              {t.label}
+              {labelOf(viewer, t)}
               {n > 0 && (
                 <span
                   aria-label={`${n} sin leer`}

@@ -6,6 +6,7 @@ import { runWithOrganization } from "@/lib/request-context";
 import { connectionByWebhookHash } from "@/server/credentials/direct";
 import { publish } from "@/server/events/bus";
 import { ALLOWED_FROM } from "@/server/inbox/status";
+import { numberAudience } from "@/server/mi-numero/audience";
 import { getOrgModules, orgHasConexionDirecta } from "@/server/modules";
 import { hashToken } from "./link";
 
@@ -72,12 +73,13 @@ export async function handleWebhookStatuses(token: string, updates: DirectStatus
     // Mi número (046, PR 5): las palomitas de lo que sale por el número de una persona.
     if (!(await getOrgModules(row.organizationId)).miNumero) return 0;
     const [n] = await getDb()
-      .select({ userId: schema.directNumber.userId })
+      .select({ userId: schema.directNumber.userId, kind: schema.directNumber.kind })
       .from(schema.directNumber)
       .where(scoped(schema.directNumber.organizationId, row.organizationId, eq(schema.directNumber.id, numberId)))
       .limit(1);
     if (!n) return 0;
-    return applyDirectStatuses(row.organizationId, updates, { directNumberId: numberId, audience: [n.userId] });
+    const audience = await numberAudience(row.organizationId, n);
+    return applyDirectStatuses(row.organizationId, updates, { directNumberId: numberId, audience });
   });
   return true;
 }

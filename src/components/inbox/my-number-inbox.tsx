@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { ChevronLeft, Lock, Paperclip, SendHorizontal, UserCheck } from "lucide-react";
 import { fetchJson } from "@/lib/fetch-json";
-import { ACCESS_TEXT, MY_CHATS_TEXT } from "@/lib/mi-numero";
+import { ACCESS_TEXT, MY_CHATS_TEXT, TEAM_TEXT } from "@/lib/mi-numero";
 import type { MessageDto } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { ContactAvatar } from "@/components/avatar";
@@ -17,6 +17,7 @@ import { InboxModeSwitch, InboxTabs } from "./inbox-mode-switch";
 import { MessageBubble } from "./message-bubble";
 import { refreshNumberUnread } from "./number-unread-store";
 import { AccessRequestDialog, OverlapPills, PendingRequestsBanner, SharedChatsSection, useAccessOverview } from "./my-number-access";
+import { CompanyNumbersSection, findCompanyChat, RequestableSection, useTeamNumbers } from "./my-number-team";
 
 type MyChat = {
   id: string;
@@ -33,13 +34,17 @@ type MyChats = { numberId: string; shareClients: boolean; chats: MyChat[] };
  * número de quien mira (solo él los ve; la API lo decide por la sesión), sus
  * mensajes, «Es cliente» y (PR 5) contestar: sale por SU número. PR 6:
  * «También habla con…», las solicitudes para ver mis chats y, en solo
- * lectura, los chats que otros me dejaron ver (`?s=`).
+ * lectura, los chats que otros me dejaron ver (`?s=`). PR 7: quien supervisa
+ * (`team`) lee los números de la empresa (`?e=`, solo lectura) y pide ver
+ * chats de cliente de números personales; sin número propio (`own` false)
+ * solo ve eso.
  */
-export function MyNumberInbox() {
+export function MyNumberInbox({ own = true, team = false }: { own?: boolean; team?: boolean }) {
   const router = useRouter();
   const params = useSearchParams();
   const sharedId = params.get("s");
-  const selectedId = params.get("c") ?? sharedId;
+  const companyId = params.get("e");
+  const selectedId = params.get("c") ?? sharedId ?? companyId;
   const [list, setList] = useState<MyChats | null>(null);
   const [listError, setListError] = useState<string | null>(null);
   const [messages, setMessages] = useState<MessageDto[] | null>(null);
@@ -48,31 +53,42 @@ export function MyNumberInbox() {
   const [reviewing, setReviewing] = useState(false);
   const [version, setVersion] = useState(0);
   const { overview, reload: reloadAccess } = useAccessOverview();
+  const { team: teamData, reload: reloadTeam } = useTeamNumbers(team);
   const sharedRef = useRef(sharedId);
   sharedRef.current = sharedId;
+  const companyRef = useRef(companyId);
+  companyRef.current = companyId;
   const selectedRef = useRef(selectedId);
   selectedRef.current = selectedId;
 
   const refetchList = useCallback(async () => {
+    if (!own) return;
     const res = await fetchJson<MyChats>("/api/my-number/chats");
     if (res.ok) {
       setList(res.data);
       setListError(null);
     } else setListError(res.error);
-  }, []);
+  }, [own]);
 
   const listTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const scheduleList = useCallback(() => {
     if (listTimer.current) clearTimeout(listTimer.current);
-    listTimer.current = setTimeout(() => void refetchList(), 200);
-  }, [refetchList]);
+    listTimer.current = setTimeout(() => {
+      void refetchList();
+      void reloadTeam();
+    }, 200);
+  }, [refetchList, reloadTeam]);
 
   const loadThread = useCallback(async (id: string) => {
     // Un chat compartido se lee aparte (solo lectura, queda en la bitácora de su dueño).
+    // PR 7: uno de un número de la empresa, igual: solo lectura y anotado.
     const shared = sharedRef.current === id;
-    const res = await fetchJson<{ messages: MessageDto[] }>(shared ? `/api/my-number/shared/${id}/messages` : `/api/my-number/chats/${id}/messages`);
+    const company = companyRef.current === id;
+    const res = await fetchJson<{ messages: MessageDto[] }>(
+      shared ? `/api/my-number/shared/${id}/messages` : company ? `/api/my-number/team/${id}/messages` : `/api/my-number/chats/${id}/messages`
+    );
     if (selectedRef.current !== id) return;
-    if (res.ok && shared) {
+    if (res.ok && (shared || company)) {
       setMessages(res.data.messages);
       setThreadError(null);
     } else if (res.ok) {
@@ -100,8 +116,8 @@ export function MyNumberInbox() {
       if (conversationId !== selectedRef.current) return;
       const m = message as MessageDto;
       setMessages((prev) => (prev && !prev.some((x) => x.id === m.id) ? [...prev, m] : prev));
-      // Lo estoy viendo: que quede leído.
-      void loadThread(conversationId);
+      // Lo estoy viendo: que quede leído (uno ajeno no se marca: ya llegó el mensaje).
+      if (companyRef.current !== conversationId) void loadThread(conversationId);
     },
     onNumberConversation: ({ conversationId }) => {
       scheduleList();
@@ -109,7 +125,8 @@ export function MyNumberInbox() {
       void reloadAccess();
       setVersion((v) => v + 1);
       // Palomitas o un envío que falló en el chat abierto: se vuelve a leer.
-      if (conversationId === selectedRef.current && sharedRef.current !== conversationId) void loadThread(conversationId);
+      if (conversationId === selectedRef.current && sharedRef.current !== conversationId && companyRef.current !== conversationId)
+        void loadThread(conversationId);
     },
     onConnect: () => {
       scheduleList();
@@ -117,8 +134,8 @@ export function MyNumberInbox() {
     },
   });
 
-  const select = (id: string | null, shared = false) =>
-    router.replace(id ? `/inbox/mi-numero?${shared ? "s" : "c"}=${id}` : "/inbox/mi-numero", { scroll: false });
+  const select = (id: string | null, kind: "c" | "s" | "e" = "c") =>
+    router.replace(id ? `/inbox/mi-numero?${kind}=${id}` : "/inbox/mi-numero", { scroll: false });
 
   async function markClient(chat: MyChat) {
     if (!window.confirm(MY_CHATS_TEXT.markClientConfirm)) return;
@@ -129,7 +146,8 @@ export function MyNumberInbox() {
     await refetchList();
   }
 
-  const selected = sharedId ? null : (list?.chats.find((c) => c.id === selectedId) ?? null);
+  const selected = sharedId || companyId ? null : (list?.chats.find((c) => c.id === selectedId) ?? null);
+  const companyChat = findCompanyChat(teamData, companyId);
   const sharedChat = sharedId ? (overview?.sharedWithMe.find((c) => c.conversationId === sharedId) ?? null) : null;
   const request = reviewing ? (overview?.incoming[0] ?? null) : null;
 
@@ -150,7 +168,7 @@ export function MyNumberInbox() {
           <InboxTabs current="number" />
           <p className="flex items-start gap-2 border-y bg-secondary px-4 py-2 text-[12px] leading-snug text-text-2">
             <Lock className="mt-[1px] h-3.5 w-3.5 shrink-0" strokeWidth={2} aria-hidden />
-            <span>{MY_CHATS_TEXT.privacy}</span>
+            <span>{own ? MY_CHATS_TEXT.privacy : TEAM_TEXT.note}</span>
           </p>
           <PendingRequestsBanner requests={overview?.incoming ?? []} onReview={() => setReviewing(true)} />
           <div className="min-h-0 flex-1 overflow-y-auto" data-testid="my-number-chats">
@@ -162,12 +180,23 @@ export function MyNumberInbox() {
                 </button>
               </p>
             )}
-            {!list && !listError && <p className="px-4 py-6 text-center text-xs text-text-3">Cargando…</p>}
+            {own && !list && !listError && <p className="px-4 py-6 text-center text-xs text-text-3">Cargando…</p>}
             {list?.chats.length === 0 && <p className="px-6 py-10 text-center text-[13px] text-text-3">{MY_CHATS_TEXT.empty}</p>}
+            {!own && teamData && teamData.companyNumbers.length === 0 && teamData.requestable.length === 0 && !overview?.sharedWithMe.length && (
+              <p className="px-6 py-10 text-center text-[13px] text-text-3">{TEAM_TEXT.nothing}</p>
+            )}
             {list?.chats.map((c) => (
               <ChatRow key={c.id} chat={c} active={c.id === selectedId} onSelect={() => select(c.id)} />
             ))}
-            <SharedChatsSection chats={overview?.sharedWithMe ?? []} activeId={sharedId} onSelect={(id) => select(id, true)} />
+            {teamData && <CompanyNumbersSection numbers={teamData.companyNumbers} activeId={companyId} onSelect={(id) => select(id, "e")} />}
+            <SharedChatsSection chats={overview?.sharedWithMe ?? []} activeId={sharedId} onSelect={(id) => select(id, "s")} />
+            {teamData && (
+              <RequestableSection
+                chats={teamData.requestable}
+                onOpenShared={(id) => select(id, "s")}
+                onChanged={() => void reloadTeam()}
+              />
+            )}
           </div>
         </div>
       </section>
@@ -228,6 +257,18 @@ export function MyNumberInbox() {
                   )}
                 </div>
               )}
+              {companyChat && (
+                <div className="flex min-w-0 flex-1 items-center gap-3 px-1">
+                  <ContactAvatar name={companyChat.chat.contactName} size="list" />
+                  <div className="min-w-0">
+                    <p className="truncate text-[15px] font-semibold leading-tight tracking-tight">{companyChat.chat.contactName}</p>
+                    <p className="truncate text-[11.5px] text-text-3">
+                      {TEAM_TEXT.companyTitle(companyChat.number.ownerName, companyChat.number.label)}
+                      {companyChat.chat.phone ? ` · +${companyChat.chat.phone}` : ""}
+                    </p>
+                  </div>
+                </div>
+              )}
               {sharedChat && (
                 <div className="flex min-w-0 flex-1 items-center gap-3 px-1">
                   <ContactAvatar name={sharedChat.contactName} size="list" />
@@ -239,7 +280,7 @@ export function MyNumberInbox() {
               )}
             </header>
             {selected?.clientMarkedAt && (
-              <OverlapPills conversationId={selected.id} version={version} onOpenShared={(id) => select(id, true)} />
+              <OverlapPills conversationId={selected.id} version={version} onOpenShared={(id) => select(id, "s")} />
             )}
             {threadError && (
               <p role="alert" className="border-b border-danger-soft bg-danger-tint px-4 py-2 text-[12.5px] text-danger-text">
@@ -251,7 +292,11 @@ export function MyNumberInbox() {
             ) : (
               !threadError && <p className="thread-bg flex-1 p-6 text-center text-xs text-text-3">Cargando…</p>
             )}
-            {sharedId ? (
+            {companyId ? (
+              <p className="shrink-0 border-t bg-background px-4 py-3 text-center text-[12.5px] text-text-3">
+                {TEAM_TEXT.companyReadOnly(companyChat?.number.ownerName ?? "quien lleva el número")}
+              </p>
+            ) : sharedId ? (
               <p className="shrink-0 border-t bg-background px-4 py-3 text-center text-[12.5px] text-text-3">
                 {ACCESS_TEXT.readOnly(sharedChat?.ownerName ?? "tu compañero")}
               </p>
@@ -268,8 +313,8 @@ export function MyNumberInbox() {
           </>
         ) : (
           <div className="thread-bg flex flex-1 flex-col items-center justify-center gap-2 px-6 text-center">
-            <p className="text-[24px] font-semibold leading-tight text-text-2">{MY_CHATS_TEXT.pick}</p>
-            <p className="kicker">Mi número · privado</p>
+            <p className="text-[24px] font-semibold leading-tight text-text-2">{own ? MY_CHATS_TEXT.pick : TEAM_TEXT.pick}</p>
+            <p className="kicker">{own ? "Mi número · privado" : "Números del equipo"}</p>
           </div>
         )}
       </section>

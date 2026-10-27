@@ -16,6 +16,8 @@ import { DirectDisconnectNotice } from "@/components/direct-disconnect-notice";
 import { currentPlatformAdmin } from "@/server/platform-admin/admins";
 import { orgHasMiNumero } from "@/server/modules";
 import { hasMyNumber } from "@/server/mi-numero/numbers";
+import { seesTeamNumbers } from "@/server/mi-numero/supervise";
+import { can } from "@/lib/auth/permissions";
 
 export default async function AppLayout({
   children,
@@ -33,6 +35,7 @@ export default async function AppLayout({
   // permisos del rol y, con custom_nav, el menú del rol). Ocultar es solo
   // estético: cada ruta valida permiso y módulo por su cuenta.
   const nav = await navForSession(session);
+  const miNumero = await orgHasMiNumero(session.organizationId);
   const theme = normalizeThemePreference(
     (await cookies()).get(THEME_COOKIE)?.value
   );
@@ -57,8 +60,10 @@ export default async function AppLayout({
       modules={nav.modules}
       platform={(await currentPlatformAdmin()) !== null}
       navMode={resolveNavMode(prefs, session.role)}
-      // Mi número (046): la pestaña de la Bandeja solo para quien tiene número.
-      myNumber={(await orgHasMiNumero(session.organizationId)) && (await hasMyNumber(session.organizationId, session.userId))}
+      // Mi número (046): la pestaña de la Bandeja para quien tiene número y
+      // (PR 7) para quien supervisa los números del equipo.
+      myNumber={miNumero && (await hasMyNumber(session.organizationId, session.userId))}
+      teamNumbers={miNumero && can(session, "mi_numero.manage") && (await seesTeamNumbers(session.organizationId, session.userId))}
     >
       <DirectDisconnectNotice session={session} />
       {children}

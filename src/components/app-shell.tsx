@@ -47,6 +47,7 @@ export function AppShell({
   modules,
   navMode = "expanded",
   myNumber = false,
+  teamNumbers = false,
   children,
 }: {
   branding: Branding;
@@ -78,6 +79,8 @@ export function AppShell({
   navMode?: NavMode;
   /** Mi número (046) — ¿quien mira tiene su número? Lo decide el servidor. */
   myNumber?: boolean;
+  /** Mi número (046, PR 7) — ¿supervisa números del equipo? Lo decide el servidor. */
+  teamNumbers?: boolean;
   children: React.ReactNode;
 }) {
   // Los proveedores van POR ENCIMA del estado del menú: si vivieran dentro de
@@ -85,7 +88,7 @@ export function AppShell({
   // `LazyMotion` arrastra con él a cada `m.*` de la pantalla (ver
   // `MotionProvider`). Medido: 60 filas de la Bandeja por clic.
   return (
-    <ViewerProvider userId={userId} role={role} grants={grants} modules={modules} myNumber={myNumber}>
+    <ViewerProvider userId={userId} role={role} grants={grants} modules={modules} myNumber={myNumber} teamNumbers={teamNumbers}>
       <MotionProvider>
         <ShellFrame
           branding={branding}

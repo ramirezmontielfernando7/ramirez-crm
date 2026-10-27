@@ -33,6 +33,7 @@ import { getDirectConnection, openDirectTarget } from "@/server/credentials/dire
 import { publish } from "@/server/events/bus";
 import { serializeMessage } from "@/server/inbox/ingest";
 import { isWindowOpen } from "@/server/inbox/window";
+import { numberAudience } from "@/server/mi-numero/audience";
 import { getOrgModules, orgHasConexionDirecta } from "@/server/modules";
 import { isOrgActive } from "@/server/platform-admin/org-status";
 import { beginTask, isShuttingDown, onShutdown } from "@/server/shutdown";
@@ -288,11 +289,11 @@ function publishStatus(
 async function numberScopeOf(organizationId: string, directNumberId: string | null): Promise<NumberScope | null> {
   if (!directNumberId) return null;
   const [n] = await getDb()
-    .select({ userId: schema.directNumber.userId, revokedAt: schema.directNumber.revokedAt })
+    .select({ userId: schema.directNumber.userId, kind: schema.directNumber.kind })
     .from(schema.directNumber)
     .where(scoped(schema.directNumber.organizationId, organizationId, eq(schema.directNumber.id, directNumberId)))
     .limit(1);
-  return { directNumberId, audience: n ? [n.userId] : [] };
+  return { directNumberId, audience: n ? await numberAudience(organizationId, n) : [] };
 }
 
 type Outcome =

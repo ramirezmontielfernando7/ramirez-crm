@@ -61,6 +61,10 @@ const PROTEGIDAS: [string, Method, Permission][] = [
   ["settings/mi-numero", "POST", "mi_numero.manage"],
   ["settings/mi-numero/[id]", "PATCH", "mi_numero.manage"],
   ["settings/mi-numero/[id]", "DELETE", "mi_numero.manage"],
+  // 046 (PR 7): supervisar los números del equipo (solo lectura de los de la empresa; pedir ver).
+  ["my-number/team", "GET", "mi_numero.manage"],
+  ["my-number/team/[id]/messages", "GET", "mi_numero.manage"],
+  ["my-number/team/[id]/access", "POST", "mi_numero.manage"],
   // Conexión directa (PR 2): vincular por QR (Propietario o quien él delegue).
   ["settings/direct-connection", "GET", "direct_connection.link"],
   ["settings/direct-connection", "POST", "direct_connection.link"],

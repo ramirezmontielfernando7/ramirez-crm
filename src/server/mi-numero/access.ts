@@ -1,9 +1,11 @@
 import { and, desc, eq, inArray, isNotNull, isNull, ne } from "drizzle-orm";
+import { roleLabel } from "@/lib/auth/permissions";
 import { getDb, schema } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
 import { scoped } from "@/lib/db/tenant";
 import { publish } from "@/server/events/bus";
 import { serializeMessage } from "@/server/inbox/ingest";
+import { SUPERVISOR_ROLES } from "./audience";
 import { myChat } from "./chats";
 import { MiNumeroFailure } from "./numbers";
 
@@ -119,7 +121,15 @@ export async function requestAccess(organizationId: string, userId: string, from
   notify(organizationId, targetConversationId, [target.number.userId]);
 }
 
-export type IncomingRequestDto = { id: string; requesterName: string; contactName: string; conversationId: string; requestedAt: string };
+export type IncomingRequestDto = {
+  id: string;
+  requesterName: string;
+  /** PR 7: el rol de quien supervisa los números (puede pedir sin atender al cliente); null si no. */
+  requesterRole: string | null;
+  contactName: string;
+  conversationId: string;
+  requestedAt: string;
+};
 export type GrantDto = { id: string; userName: string; contactName: string; conversationId: string; since: string };
 export type ViewDto = { userName: string; contactName: string; viewedAt: string };
 export type SharedChatDto = { conversationId: string; ownerName: string; contactName: string };
@@ -140,11 +150,15 @@ export async function accessOverview(organizationId: string, userId: string): Pr
     .limit(1);
   const onMine = number
     ? await db
-        .select({ access: schema.conversationAccess, userName: schema.user.name, contactName: schema.contact.name })
+        .select({ access: schema.conversationAccess, userName: schema.user.name, contactName: schema.contact.name, role: schema.member.role })
         .from(schema.conversationAccess)
         .innerJoin(schema.conversation, eq(schema.conversation.id, schema.conversationAccess.conversationId))
         .innerJoin(schema.contact, eq(schema.contact.id, schema.conversation.contactId))
         .innerJoin(schema.user, eq(schema.user.id, schema.conversationAccess.userId))
+        .leftJoin(
+          schema.member,
+          and(eq(schema.member.userId, schema.conversationAccess.userId), eq(schema.member.organizationId, schema.conversationAccess.organizationId))
+        )
         .where(
           scoped(
             schema.conversationAccess.organizationId,
@@ -188,6 +202,7 @@ export async function accessOverview(organizationId: string, userId: string): Pr
       .map((r) => ({
         id: r.access.id,
         requesterName: r.userName,
+        requesterRole: r.role && SUPERVISOR_ROLES.includes(r.role) ? roleLabel(r.role) : null,
         contactName: r.contactName,
         conversationId: r.access.conversationId,
         requestedAt: r.access.requestedAt.toISOString(),

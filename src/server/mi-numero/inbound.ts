@@ -11,7 +11,7 @@ import { getOrCreateContactByIdentity } from "@/server/inbox/identity";
 import { attachMediaAsset, mediaInputFrom, serializeMessage } from "@/server/inbox/ingest";
 import { getOrgModules } from "@/server/modules";
 import { isOrgActive } from "@/server/platform-admin/org-status";
-import { audienceOf } from "./chats";
+import { numberAudience } from "./audience";
 
 const log = logger("mi-numero");
 
@@ -146,7 +146,7 @@ async function ingestOne(number: NumberRow, m: DeviceMessage): Promise<boolean> 
     )
     .where(scoped(schema.conversation.organizationId, organizationId, eq(schema.conversation.id, conversation.id)));
 
-  const audience = audienceOf(number);
+  const audience = await numberAudience(organizationId, number);
   publish(organizationId, {
     type: "number.message",
     data: { conversationId: conversation.id, message: serializeMessage(message, asset) },

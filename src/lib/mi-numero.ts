@@ -89,7 +89,10 @@ export const ACCESS_TEXT = {
   rejected: "No aceptó",
   open: "Ver su chat",
   requestTitle: (who: string, contact: string) => `${who} quiere ver tu chat con ${contact}`,
-  requestBody: (who: string) => `${who} también habla con este cliente y quiere ver tu conversación para darle seguimiento sin repetirle cosas.`,
+  requestBody: (who: string, role: string | null = null) =>
+    role
+      ? `${who} es ${role} y quiere ver tu conversación con este cliente para darle seguimiento.`
+      : `${who} también habla con este cliente y quiere ver tu conversación para darle seguimiento sin repetirle cosas.`,
   requestRules: [
     "Solo podrá leer, no escribir.",
     "Solo este chat, ninguno más.",
@@ -108,4 +111,18 @@ export const ACCESS_TEXT = {
   grantRow: (who: string, contact: string) => `${who} puede ver tu chat con ${contact}`,
   removeAccess: "Quitar acceso",
   viewRow: (who: string, contact: string) => `${who} vio tu chat con ${contact}`,
+} as const;
+
+/** Mi número (046), PR 7 — Lo que ve quien supervisa los números del equipo. */
+export const TEAM_TEXT = {
+  note: "Los números de la empresa los lees en solo lectura. Los personales son privados: solo puedes pedir ver los chats de cliente que su dueño permita.",
+  companyTitle: (owner: string, label: string | null) => `Número de la empresa · ${label ?? owner}`,
+  companyEmpty: "Este número aún no tiene chats.",
+  companyRow: (owner: string) => `Lo lleva ${owner}`,
+  companyReadOnly: (owner: string) => `Solo lectura: contesta ${owner} desde su número. Tu vista queda anotada.`,
+  requestTitle: "Chats de cliente en números personales",
+  requestHelp: "Su dueño los marcó «Es cliente» y acepta solicitudes. Decide él; solo podrías leer.",
+  requestRow: (owner: string, since: string) => `De ${owner} · ${since}`,
+  nothing: "Nadie del equipo tiene chats que puedas ver o pedir todavía.",
+  pick: "Elige un chat",
 } as const;
