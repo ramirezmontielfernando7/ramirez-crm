@@ -157,8 +157,6 @@ export function Composer({
   useDismiss(popover === "emoji", emojiRef, () => setPopover(null));
 
   useEffect(() => {
-    // Las plantillas son de Meta: por un número no salen.
-    if (numberChat) return;
     let cancelled = false;
     fetch("/api/quick-replies")
       .then((r) => (r.ok ? r.json() : { replies: [] }))
