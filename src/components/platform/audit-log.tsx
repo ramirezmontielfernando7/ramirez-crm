@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { api, fecha, type AuditEntry } from "./api";
 
-const ACTION_LABEL: Record<string, string> = {
+export const ACTION_LABEL: Record<string, string> = {
   "organization.created": "creó la organización",
   "organization.suspended": "suspendió la organización",
   "organization.reactivated": "reactivó la organización",
