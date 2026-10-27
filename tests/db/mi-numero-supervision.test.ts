@@ -112,7 +112,7 @@ describe("Mi número — supervisar los números del equipo (PR 7)", () => {
   it("lo que entra a un número de la empresa llega en vivo a quien supervisa; lo de un personal, solo a su dueño", () => {
     const audiencias = eventos
       .filter((e) => e.type === "number.message")
-      .map((e) => [...((e as { audience?: string[] }).audience ?? [])].sort());
+      .map((e) => [...((e as { audience?: readonly string[] }).audience ?? [])].sort());
     expect(audiencias[0]).toEqual([coord, fer, luis].sort());
     expect(audiencias[1]).toEqual([ana]);
     expect(audiencias[2]).toEqual([ana]);
