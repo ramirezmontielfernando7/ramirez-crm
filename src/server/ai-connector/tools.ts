@@ -1,19 +1,28 @@
 import { asc, desc, eq } from "drizzle-orm";
 import { z } from "zod";
 import { CLIENT_CONTENT_NOTICE, type Scope } from "@/lib/ai-connector";
+import { can, type Permission } from "@/lib/auth/permissions";
 import type { SessionContext } from "@/lib/auth/session";
 import { getDb, schema } from "@/lib/db";
 import { scoped, scopedConversations } from "@/lib/db/tenant";
 import { DEFAULT_FILTERS, MAX_QUERY_LENGTH, type ListStatus } from "@/lib/inbox-list";
 import type { ConversationDto } from "@/lib/types";
-import { TASK_FILTERS } from "@/lib/work";
+import { TASK_DESCRIPTION_MAX, TASK_FILTERS, TASK_TITLE_MAX } from "@/lib/work";
+import { logActivity } from "@/server/activity/log";
+import { getConnectorSettings } from "@/server/ai-connector/settings";
+import { messagesSentLastDay } from "@/server/ai-connector/log";
+import { assignContacts, listAssignees } from "@/server/assignment/assign";
 import { getContactStage } from "@/server/contacts";
+import { publish } from "@/server/events/bus";
 import { decodeCursor } from "@/server/inbox/cursor";
 import { getConversation, listConversationsPage } from "@/server/inbox/queries";
+import { SendError, sendText } from "@/server/inbox/send";
+import { listLossReasons } from "@/server/leads/loss-reasons";
+import { moveLeadToStage } from "@/server/leads/stage-history";
 import { orgHasModule } from "@/server/modules";
 import { listQuickReplies } from "@/server/quick-replies/store";
-import { listTags, tagsForContacts } from "@/server/tags/tags";
-import { listTasks, viewerOf } from "@/server/work/tasks";
+import { listTags, setContactTags, tagsForContacts } from "@/server/tags/tags";
+import { createTask, listTasks, TaskInputError, viewerOf } from "@/server/work/tasks";
 
 /**
  * 047 — CATÁLOGO CERRADO de herramientas del conector de IA. La IA pide una
@@ -23,11 +32,13 @@ import { listTasks, viewerOf } from "@/server/work/tasks";
  * que la persona ve en la Bandeja: los chats de «Mi número» no salen por
  * aquí (`getConversation` y la lista usan solo los de la empresa).
  *
- * PR 2: solo lectura. Las acciones (enviar, etiquetar…) llegan en el PR 4
- * con el alcance `write`. Nunca habrá exportar, campañas, borrar ni ajustes.
+ * PR 2: lectura. PR 4: las acciones con el alcance `write` (enviar,
+ * etiquetar, mover de etapa, notas, tareas, asignar), cada una por la MISMA
+ * puerta que usa la pantalla. Nunca habrá exportar, campañas, borrar ni
+ * ajustes.
  */
 
-export type ToolContext = { session: SessionContext; scopes: readonly Scope[] };
+export type ToolContext = { session: SessionContext; scopes: readonly Scope[]; connectionId: string };
 
 export type ToolOutcome = {
   data: Record<string, unknown>;
@@ -37,6 +48,8 @@ export type ToolOutcome = {
   contactId?: string | null;
   /** true = la herramienta respondió «no encontrado» o similar. */
   isError?: boolean;
+  /** Para la bitácora: `limited` = tope diario; `denied` = no le toca. */
+  outcome?: "limited" | "denied";
 };
 
 export type ToolSpec<A> = {
@@ -46,6 +59,13 @@ export type ToolSpec<A> = {
   inputSchema: Record<string, unknown>;
   parse: z.ZodType<A, z.ZodTypeDef, unknown>;
   scope: Scope;
+  /** La herramienta solo existe para quien tiene este permiso (la misma matriz del CRM). */
+  permission?: Permission;
+  /**
+   * Una a la vez por persona (enviar): el tope diario se cuenta con lo ya
+   * anotado, así que dos envíos simultáneos no pueden pasarse del tope.
+   */
+  serial?: boolean;
   /** La herramienta solo existe si la organización tiene el módulo. */
   available?: (organizationId: string) => Promise<boolean>;
   run: (ctx: ToolContext, args: A) => Promise<ToolOutcome>;
@@ -276,15 +296,384 @@ const listTasksTool: ToolSpec<z.infer<typeof listTasksArgs>> = {
   },
 };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- cada herramienta valida sus propios argumentos
-export const TOOLS: readonly ToolSpec<any>[] = [listChats, readChat, listStages, listTagsTool, listQuickRepliesTool, listTasksTool];
+const listPeople: ToolSpec<z.infer<typeof empty>> = {
+  name: "list_people",
+  title: "Ver el equipo",
+  description: "Las personas del equipo a quienes se les puede asignar un chat o una tarea (nombre y rol).",
+  inputSchema: emptySchema,
+  parse: empty,
+  scope: "read",
+  permission: "assignment.manage",
+  run: async ({ session }) => {
+    const people = await listAssignees(session.organizationId);
+    return { data: { people: people.map((p) => ({ name: p.name, role: p.role })) }, summary: `${people.length} personas` };
+  },
+};
 
-/** Las herramientas que ESTA conexión puede usar hoy (alcance y módulos). */
-export async function toolsFor(organizationId: string, scopes: readonly Scope[]) {
+/* ------------------------------------------------------------------ *
+ * Acciones (alcance `write`). Todas empiezan por `getConversation`: un
+ * chat que la persona no ve no existe para su IA.
+ * ------------------------------------------------------------------ */
+
+const NOT_FOUND: ToolOutcome = {
+  data: { error: "No existe o no tienes acceso a ese chat" },
+  summary: "chat no encontrado",
+  isError: true,
+};
+
+function fail(error: string, summary: string, extra: Partial<ToolOutcome> = {}): ToolOutcome {
+  return { data: { error }, summary, isError: true, ...extra };
+}
+
+/** Avisa a quien tenga el chat abierto (panel, lista) que algo cambió. */
+function touched(organizationId: string, conversationId: string) {
+  publish(organizationId, { type: "conversation.updated", data: { conversation: { id: conversationId } } });
+}
+
+const sendMessageArgs = z.object({
+  conversation_id: z.string().min(1).max(60),
+  text: z.string().trim().min(1).max(4096),
+});
+
+const sendMessage: ToolSpec<z.infer<typeof sendMessageArgs>> = {
+  name: "send_message",
+  title: "Enviar un mensaje",
+  description:
+    "Envía un WhatsApp de texto al cliente de un chat, como la persona. Solo con la ventana de 24 h abierta " +
+    "(window_open de read_chat): fuera de ella WhatsApp exige una plantilla y esta herramienta no las manda. " +
+    "Hay un tope diario de mensajes por persona. Lee el chat antes de contestar.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      conversation_id: { type: "string" },
+      text: { type: "string", minLength: 1, maxLength: 4096 },
+    },
+    required: ["conversation_id", "text"],
+    additionalProperties: false,
+  },
+  parse: sendMessageArgs,
+  scope: "write",
+  serial: true,
+  run: async ({ session, connectionId }, args) => {
+    const found = await getConversation(session.access, args.conversation_id);
+    if (!found) return NOT_FOUND;
+    const ids = { conversationId: found.conversation.id, contactId: found.contact.id };
+    const { dailyMessageLimit } = await getConnectorSettings(session.organizationId);
+    if (dailyMessageLimit === 0) {
+      return fail("En esta empresa la IA conectada solo puede leer: no envía mensajes", "envío apagado", {
+        ...ids,
+        outcome: "denied",
+      });
+    }
+    const sent = await messagesSentLastDay(session.organizationId, session.userId);
+    if (sent >= dailyMessageLimit) {
+      return fail(
+        `Llegaste al tope de ${dailyMessageLimit} mensajes en 24 horas para tu IA. Escríbelos desde la Bandeja o espera.`,
+        `tope diario (${dailyMessageLimit})`,
+        { ...ids, outcome: "limited" }
+      );
+    }
+    try {
+      const res = await sendText({
+        conversationId: found.conversation.id,
+        organizationId: session.organizationId,
+        text: args.text,
+        aiConnectionId: connectionId,
+      });
+      return {
+        data: { ok: true, message_id: res.messageId, sent_today: sent + 1, daily_limit: dailyMessageLimit },
+        summary: `envió ${args.text.length} caracteres`,
+        ...ids,
+      };
+    } catch (err) {
+      if (err instanceof SendError) return fail(err.message, `no se envió (${err.code})`, ids);
+      throw err;
+    }
+  },
+};
+
+const tagChatArgs = z
+  .object({
+    conversation_id: z.string().min(1).max(60),
+    add: z.array(z.string().trim().min(1).max(60)).max(20).default([]),
+    remove: z.array(z.string().trim().min(1).max(60)).max(20).default([]),
+  })
+  .refine((a) => a.add.length + a.remove.length > 0, "Indica al menos una etiqueta en add o remove");
+
+const tagChat: ToolSpec<z.infer<typeof tagChatArgs>> = {
+  name: "tag_chat",
+  title: "Etiquetar un chat",
+  description:
+    "Pone o quita etiquetas al contacto de un chat, por nombre (las de list_tags). No crea etiquetas nuevas.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      conversation_id: { type: "string" },
+      add: { type: "array", items: { type: "string" }, maxItems: 20 },
+      remove: { type: "array", items: { type: "string" }, maxItems: 20 },
+    },
+    required: ["conversation_id"],
+    additionalProperties: false,
+  },
+  parse: tagChatArgs,
+  scope: "write",
+  run: async ({ session }, args) => {
+    const found = await getConversation(session.access, args.conversation_id);
+    if (!found) return NOT_FOUND;
+    const ids = { conversationId: found.conversation.id, contactId: found.contact.id };
+    const all = await listTags(session.organizationId);
+    const byName = new Map(all.map((t) => [t.name.toLocaleLowerCase("es"), t]));
+    const unknown = [...args.add, ...args.remove].filter((n) => !byName.has(n.toLocaleLowerCase("es")));
+    if (unknown.length > 0) {
+      return fail(
+        `No existen estas etiquetas: ${unknown.join(", ")}. Las que hay: ${all.map((t) => t.name).join(", ") || "ninguna"}`,
+        "etiqueta desconocida",
+        ids
+      );
+    }
+    const pick = (names: string[]) => names.map((n) => byName.get(n.toLocaleLowerCase("es"))!.id);
+    const current = (await tagsForContacts(session.organizationId, [found.contact.id])).get(found.contact.id) ?? [];
+    const drop = new Set(pick(args.remove));
+    const next = new Set([...current.map((t) => t.id), ...pick(args.add)].filter((id) => !drop.has(id)));
+    const tags = await setContactTags(session.organizationId, found.contact.id, [...next], session.userId);
+    touched(session.organizationId, found.conversation.id);
+    return {
+      data: { ok: true, tags: tags.map((t) => t.name) },
+      summary: `+${args.add.length} −${args.remove.length} etiquetas`,
+      ...ids,
+    };
+  },
+};
+
+const moveStageArgs = z.object({
+  conversation_id: z.string().min(1).max(60),
+  stage: z.string().trim().min(1).max(80),
+  loss_reason: z.string().trim().min(1).max(60).optional(),
+});
+
+const moveStage: ToolSpec<z.infer<typeof moveStageArgs>> = {
+  name: "move_stage",
+  title: "Mover de etapa",
+  description:
+    "Mueve el lead del contacto de un chat a otra etapa del pipeline (nombre de list_stages). " +
+    "Para una etapa perdida (lost) pide loss_reason: si falta, la respuesta trae los motivos válidos.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      conversation_id: { type: "string" },
+      stage: { type: "string", description: "Nombre de la etapa" },
+      loss_reason: { type: "string", description: "Motivo de pérdida (solo etapas lost)" },
+    },
+    required: ["conversation_id", "stage"],
+    additionalProperties: false,
+  },
+  parse: moveStageArgs,
+  scope: "write",
+  run: async ({ session }, args) => {
+    const found = await getConversation(session.access, args.conversation_id);
+    if (!found) return NOT_FOUND;
+    const ids = { conversationId: found.conversation.id, contactId: found.contact.id };
+    const current = await getContactStage(session.access, found.contact.id);
+    if (!current) return fail("Este contacto no tiene lead en el pipeline", "sin lead", ids);
+    const stages = await getDb()
+      .select({ id: schema.pipelineStage.id, name: schema.pipelineStage.name, kind: schema.pipelineStage.kind })
+      .from(schema.pipelineStage)
+      .where(scoped(schema.pipelineStage.organizationId, session.organizationId))
+      .orderBy(asc(schema.pipelineStage.position));
+    const wanted = args.stage.toLocaleLowerCase("es");
+    const to = stages.find((st) => st.id === args.stage || st.name.toLocaleLowerCase("es") === wanted);
+    if (!to) {
+      return fail(`No existe la etapa «${args.stage}». Las que hay: ${stages.map((st) => st.name).join(", ")}`, "etapa desconocida", ids);
+    }
+    let lossKey: string | null = null;
+    if (to.kind === "lost") {
+      const reasons = (await listLossReasons(session.organizationId)).filter((r) => r.active);
+      const r = args.loss_reason?.toLocaleLowerCase("es");
+      const match = r ? reasons.find((x) => x.key === args.loss_reason || x.label.toLocaleLowerCase("es") === r) : undefined;
+      if (!match) {
+        return fail(
+          `Para «${to.name}» hace falta loss_reason. Los motivos válidos: ${reasons.map((x) => x.label).join(", ")}`,
+          "falta motivo de pérdida",
+          ids
+        );
+      }
+      lossKey = match.key;
+    }
+    const res = await moveLeadToStage({
+      organizationId: session.organizationId,
+      leadId: current.lead.id,
+      toStageId: to.id,
+      actorUserId: session.userId,
+      source: "dueno",
+      lossReason: lossKey,
+      lossNote: null,
+    });
+    if (!res.ok) return fail("No se pudo mover el lead", `no se movió (${res.reason})`, ids);
+    touched(session.organizationId, found.conversation.id);
+    return { data: { ok: true, from: current.stage.name, to: to.name }, summary: `etapa → ${to.name}`.slice(0, 200), ...ids };
+  },
+};
+
+const addNoteArgs = z.object({
+  conversation_id: z.string().min(1).max(60),
+  text: z.string().trim().min(1).max(4000),
+});
+
+const addNote: ToolSpec<z.infer<typeof addNoteArgs>> = {
+  name: "add_note",
+  title: "Añadir una nota",
+  description: "Añade una nota interna a la línea de tiempo del chat (el cliente nunca la ve). Queda a nombre de la persona.",
+  inputSchema: {
+    type: "object",
+    properties: { conversation_id: { type: "string" }, text: { type: "string", minLength: 1, maxLength: 4000 } },
+    required: ["conversation_id", "text"],
+    additionalProperties: false,
+  },
+  parse: addNoteArgs,
+  scope: "write",
+  run: async ({ session }, args) => {
+    const found = await getConversation(session.access, args.conversation_id);
+    if (!found) return NOT_FOUND;
+    await logActivity({
+      organizationId: session.organizationId,
+      contactId: found.contact.id,
+      kind: "note_added",
+      actorUserId: session.userId,
+      source: "usuario",
+      detail: { text: args.text },
+    });
+    touched(session.organizationId, found.conversation.id);
+    return {
+      data: { ok: true },
+      summary: `nota de ${args.text.length} caracteres`,
+      conversationId: found.conversation.id,
+      contactId: found.contact.id,
+    };
+  },
+};
+
+const createTaskArgs = z.object({
+  title: z.string().trim().min(1).max(TASK_TITLE_MAX),
+  description: z.string().trim().max(TASK_DESCRIPTION_MAX).optional(),
+  due_at: z.string().datetime({ offset: true }).optional(),
+  conversation_id: z.string().min(1).max(60).optional(),
+});
+
+const createTaskTool: ToolSpec<z.infer<typeof createTaskArgs>> = {
+  name: "create_task",
+  title: "Crear una tarea",
+  description:
+    "Crea una tarea para la persona (Tareas y notas del CRM), opcionalmente ligada a un chat. " +
+    "due_at en ISO 8601 con zona horaria, p. ej. 2026-11-03T10:00:00-06:00.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      title: { type: "string", maxLength: TASK_TITLE_MAX },
+      description: { type: "string", maxLength: TASK_DESCRIPTION_MAX },
+      due_at: { type: "string", format: "date-time" },
+      conversation_id: { type: "string" },
+    },
+    required: ["title"],
+    additionalProperties: false,
+  },
+  parse: createTaskArgs,
+  scope: "write",
+  available: (org) => orgHasModule(org, "trabajo"),
+  run: async ({ session }, args) => {
+    try {
+      const task = await createTask(viewerOf(session), {
+        title: args.title,
+        description: args.description ?? null,
+        dueAt: args.due_at ? new Date(args.due_at) : null,
+        conversationId: args.conversation_id ?? null,
+      });
+      return {
+        data: { ok: true, task_id: task.id },
+        summary: "creó una tarea",
+        conversationId: task.conversationId,
+        contactId: task.contact?.id ?? null,
+      };
+    } catch (err) {
+      if (err instanceof TaskInputError) return fail(err.message, "tarea no válida");
+      throw err;
+    }
+  },
+};
+
+const assignChatArgs = z.object({
+  conversation_id: z.string().min(1).max(60),
+  /** Nombre de list_people; null = sin asignar. */
+  to: z.string().trim().min(1).max(120).nullable(),
+});
+
+const assignChat: ToolSpec<z.infer<typeof assignChatArgs>> = {
+  name: "assign_chat",
+  title: "Asignar un chat",
+  description: "Asigna el chat (y su lead) a una persona del equipo por nombre (de list_people), o null para dejarlo sin asignar.",
+  inputSchema: {
+    type: "object",
+    properties: { conversation_id: { type: "string" }, to: { type: ["string", "null"] } },
+    required: ["conversation_id", "to"],
+    additionalProperties: false,
+  },
+  parse: assignChatArgs,
+  scope: "write",
+  permission: "assignment.manage",
+  run: async ({ session }, args) => {
+    const found = await getConversation(session.access, args.conversation_id);
+    if (!found) return NOT_FOUND;
+    const ids = { conversationId: found.conversation.id, contactId: found.contact.id };
+    let toUserId: string | null = null;
+    let toName = "sin asignar";
+    if (args.to !== null) {
+      const people = await listAssignees(session.organizationId);
+      const wanted = args.to.toLocaleLowerCase("es");
+      const matches = people.filter((p) => p.name.toLocaleLowerCase("es") === wanted);
+      if (matches.length !== 1) {
+        return fail(
+          matches.length > 1
+            ? `Hay ${matches.length} personas llamadas «${args.to}»: asígnalo desde la Bandeja`
+            : `No hay nadie llamado «${args.to}». El equipo: ${people.map((p) => p.name).join(", ")}`,
+          "persona no encontrada",
+          ids
+        );
+      }
+      toUserId = matches[0]!.id;
+      toName = matches[0]!.name;
+    }
+    const res = await assignContacts({
+      organizationId: session.organizationId,
+      contactIds: [found.contact.id],
+      toUserId,
+      actorUserId: session.userId,
+      source: "manual",
+    });
+    if (!res.ok) return fail("No se pudo asignar", `no se asignó (${res.reason})`, ids);
+    return { data: { ok: true, assigned_to: toUserId ? toName : null }, summary: "reasignó el chat", ...ids };
+  },
+};
+
+const WRITE_TOOLS = [sendMessage, tagChat, moveStage, addNote, createTaskTool, assignChat];
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- cada herramienta valida sus propios argumentos
+export const TOOLS: readonly ToolSpec<any>[] = [
+  listChats,
+  readChat,
+  listStages,
+  listTagsTool,
+  listQuickRepliesTool,
+  listTasksTool,
+  listPeople,
+  ...WRITE_TOOLS,
+];
+
+/** Las herramientas que ESTA conexión puede usar hoy (alcance, permisos y módulos). */
+export async function toolsFor(session: SessionContext, scopes: readonly Scope[]) {
   const out = [];
   for (const t of TOOLS) {
     if (!scopes.includes(t.scope)) continue;
-    if (t.available && !(await t.available(organizationId))) continue;
+    if (t.permission && !can(session, t.permission)) continue;
+    if (t.available && !(await t.available(session.organizationId))) continue;
     out.push(t);
   }
   return out;
@@ -297,6 +686,12 @@ export function describeTool(t: ToolSpec<unknown>) {
     title: t.title,
     description: t.description,
     inputSchema: t.inputSchema,
-    annotations: { title: t.title, readOnlyHint: t.scope === "read", destructiveHint: false, openWorldHint: false },
+    annotations: {
+      title: t.title,
+      readOnlyHint: t.scope === "read",
+      destructiveHint: false,
+      // Enviar un WhatsApp sale del CRM hacia una persona real.
+      openWorldHint: t.name === "send_message",
+    },
   };
 }

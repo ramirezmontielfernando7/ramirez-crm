@@ -2,6 +2,7 @@
 
 import {
   AlertTriangle,
+  Bot,
   Check,
   CheckCheck,
   Clock3,
@@ -292,6 +293,15 @@ export function MessageBubble({
             title="Respuesta generada por IA"
           >
             <Sparkles className="h-3 w-3" strokeWidth={1.7} /> IA
+          </span>
+        )}
+        {m.viaAiConnector && (
+          // 047 — solo lo ve el equipo: el cliente recibe un mensaje normal.
+          <span
+            className="inline-flex items-center gap-0.5 text-[10px] font-medium text-brand-ink"
+            title="Lo mandó la IA que conectó esta persona (Claude, ChatGPT…). El cliente no ve esta marca."
+          >
+            <Bot className="h-3 w-3" strokeWidth={1.7} /> Enviado por IA
           </span>
         )}
         {m.origin === "manual" && (

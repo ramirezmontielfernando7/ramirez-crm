@@ -102,6 +102,8 @@ export type MessageDto = {
   aiGenerated: boolean;
   /** 008 — Origen del saliente (en entrantes viene 'operator' y se ignora). */
   origin: "ai" | "operator" | "manual" | "template";
+  /** 047 — «Enviado por IA»: la IA conectada de una persona (conector MCP). */
+  viaAiConnector?: boolean;
   media: MessageMediaDto | null;
   createdAt: string;
 };

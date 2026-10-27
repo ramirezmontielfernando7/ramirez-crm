@@ -335,6 +335,8 @@ async function persistOutbound(input: {
   origin: "ai" | "operator";
   mediaAssetId?: string | null;
   media?: typeof schema.mediaAsset.$inferSelect | null;
+  /** 047 — la IA conectada de una persona lo mandó («enviado por IA»). */
+  aiConnectionId?: string | null;
 }): Promise<string> {
   const db = getDb();
   const inserted = await db
@@ -352,6 +354,7 @@ async function persistOutbound(input: {
       aiGenerated: input.aiGenerated ?? false,
       origin: input.origin,
       mediaAssetId: input.mediaAssetId ?? null,
+      aiConnectionId: input.aiConnectionId ?? null,
     })
     .returning();
   const message = inserted[0]!;
@@ -378,6 +381,12 @@ export async function sendText(input: {
   organizationId: string;
   text: string;
   aiGenerated?: boolean;
+  /**
+   * 047 — lo pidió la IA conectada de una persona (conector MCP). Sale como
+   * la persona (origen `operator`), siempre por Meta: nunca por el
+   * dispositivo vinculado, aunque alguien pasara `allowDirect`.
+   */
+  aiConnectionId?: string;
 } & SendOptions): Promise<SendResult> {
   // 046 (PR 8): la IA en un chat de cliente de un «Mi número» contesta por el
   // dispositivo de ESE número (con sus límites y su freno), nunca por Meta.
@@ -397,7 +406,7 @@ export async function sendText(input: {
   }
   const target = await prepareSend(input.conversationId, input.organizationId, {
     // La IA nunca: aunque alguien lo pidiera, un texto generado sale por Meta.
-    allowDirect: input.allowDirect === true && !input.aiGenerated,
+    allowDirect: input.allowDirect === true && !input.aiGenerated && !input.aiConnectionId,
     aiDirect: input.aiGenerated === true,
   });
   if (target.direct) {
@@ -436,6 +445,7 @@ export async function sendText(input: {
       : "sent",
     aiGenerated: input.aiGenerated,
     origin: input.aiGenerated ? "ai" : "operator",
+    aiConnectionId: input.aiConnectionId ?? null,
   });
 
   return { messageId };
