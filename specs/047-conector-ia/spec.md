@@ -100,13 +100,36 @@ RLS con la política de siempre en las cinco tablas con organización. Prueba:
   `tests/db/conector-ia-lectura.test.ts` (alcance por rol, otra
   organización, revocar, apagar, salir).
 
+## PR 4 — Acciones (alcance `write`)
+
+- Herramientas en `tools.ts`, cada una por la MISMA puerta que la pantalla y
+  empezando por `getConversation` (chat ajeno = no existe):
+  `send_message` (`sendText({ aiConnectionId })`: origen `operator`, SIEMPRE
+  por Meta, nunca por el dispositivo; ventana de 24 h; tope diario
+  `daily_message_limit` contado en `ai_action_log`, 0 = solo lee; una a la
+  vez por persona en el proceso para que dos envíos simultáneos no pasen el
+  tope), `tag_chat` (por nombre, nunca crea etiquetas; `setContactTags`),
+  `move_stage` (`moveLeadToStage`; a una etapa perdida exige motivo activo),
+  `add_note` (`logActivity`, a nombre de la persona), `create_task` (módulo
+  `trabajo`, para la persona), `assign_chat` y `list_people` (solo con
+  `assignment.manage`: `ToolSpec.permission`).
+- Marca «Enviado por IA» en la burbuja (`message.ai_connection_id` →
+  `MessageDto.viaAiConnector`), solo para el equipo.
+- Prueba: `tests/db/conector-ia-acciones.test.ts`.
+
 ## PRs siguientes
 
-3. «Iniciar sesión» OAuth + Ajustes → «Conecta tu IA» (maquetas en Clásico
-   claro ANTES de programar).
-4. Acciones (enviar, etiquetar, etapa, perdido con motivo, tareas, notas,
-   asignar) con topes y distintivo.
+4b. Quinto interruptor de «Mi número» (solo chats «Es cliente»).
 5. «Qué hizo tu IA», vista del Propietario, contador en /platform y prueba
    con Claude real en el piloto.
+6. «Funciones avanzadas» (Fer, 2026-10-27): apagadas; las enciende el
+   Propietario para sí y, si quiere, para el Coordinador (nunca Asesor);
+   siempre sujetas al permiso de la persona en el CRM. Crear/editar
+   etiquetas, configurar agentes de IA, importar y exportar contactos
+   (exportar marcado aparte en la bitácora) y preparar campañas: de fábrica
+   la IA deja la campaña LISTA y una persona la envía con un clic; un
+   interruptor aparte «Puede lanzar campañas» (apagado) le deja lanzarla.
+   Siguen prohibidos: borrar chats, conexión de WhatsApp, roles y llaves, y
+   chats personales ajenos de «Mi número».
 
 Después: asistente dentro del CRM sobre las mismas herramientas (Bedrock).
