@@ -1,6 +1,6 @@
-import { and, eq, inArray, isNotNull, sql } from "drizzle-orm";
+import { eq, inArray, isNotNull, sql } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
-import { companyChat, scopedContacts, type Access } from "@/lib/db/tenant";
+import { companyChat, scoped, scopedContacts, type Access } from "@/lib/db/tenant";
 import { logger } from "@/lib/log";
 import { deleteMediaFile } from "@/server/whatsapp/media";
 
@@ -58,8 +58,9 @@ export async function deleteConversation(
     .select({ id: schema.message.mediaAssetId })
     .from(schema.message)
     .where(
-      and(
-        eq(schema.message.organizationId, access.organizationId),
+      scoped(
+        schema.message.organizationId,
+        access.organizationId,
         eq(schema.message.conversationId, conversationId),
         isNotNull(schema.message.mediaAssetId)
       )
@@ -68,8 +69,9 @@ export async function deleteConversation(
     .select({ id: schema.adAttribution.imageAssetId })
     .from(schema.adAttribution)
     .where(
-      and(
-        eq(schema.adAttribution.organizationId, access.organizationId),
+      scoped(
+        schema.adAttribution.organizationId,
+        access.organizationId,
         eq(schema.adAttribution.conversationId, conversationId),
         isNotNull(schema.adAttribution.imageAssetId)
       )
@@ -112,8 +114,9 @@ async function borrarArchivosHuerfanos(organizationId: string, ids: string[]): P
   const borrados = await getDb()
     .delete(a)
     .where(
-      and(
-        eq(a.organizationId, organizationId),
+      scoped(
+        a.organizationId,
+        organizationId,
         inArray(a.id, ids),
         sql`not exists (select 1 from message m where m.organization_id = ${a.organizationId} and m.media_asset_id = ${a.id})`,
         sql`not exists (select 1 from template t where t.organization_id = ${a.organizationId} and t.header_media_asset_id = ${a.id})`,
