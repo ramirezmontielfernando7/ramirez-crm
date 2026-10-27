@@ -16,6 +16,7 @@ import postgres from "postgres";
 
 const BASE = process.env.APP_BASE_URL ?? "http://localhost:3000";
 const RUN = Math.random().toString(36).slice(2, 8);
+const IP = `10.97.${Math.floor(Math.random() * 256)}.${1 + Math.floor(Math.random() * 254)}`;
 const N = () => String(Math.floor(1e8 + Math.random() * 9e8));
 const WABA_NUEVO = `7${N()}`;
 const PN_NUEVO = `8${N()}`;
@@ -40,6 +41,9 @@ function client() {
       ...opts,
       headers: {
         "content-type": "application/json",
+        // IP propia del guion: el freno de login por IP (FR-062) no se
+        // comparte con los demás guiones del mismo job.
+        "x-forwarded-for": IP,
         origin: BASE,
         ...(cookie ? { cookie } : {}),
         ...(opts.headers ?? {}),
@@ -55,8 +59,7 @@ function client() {
   };
 }
 
-// Login primero (una sola llamada): el freno por IP de login/registro
-// (FR-062, 10 por 10 min) es compartido con los guiones que corren después.
+// Login primero (una sola llamada) y, por si acaso, espera ante un 429.
 async function signIn(api, email) {
   const password = "password-e2e-123";
   let su;
