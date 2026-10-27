@@ -40,3 +40,10 @@ nuevo, un `pin` de 6 dígitos. Ruta: `POST /api/settings/whatsapp/embedded-signu
     (mismo `wamid`, sin duplicar). Lotes repetidos no duplican.
 12. Si el negocio no comparte su historial (error 2593109) el webhook
     responde 200 y no pasa nada más.
+
+## Desconexión desde Meta (PR 4)
+
+13. Webhook `account_update` con `event: PARTNER_REMOVED` (el negocio quitó
+    la app en Meta) → la conexión queda `reconnect_required`: los envíos se
+    detienen y Ajustes → WhatsApp muestra el aviso de reconectar.
+14. Volver a «Conectar con Facebook» la deja `connected` otra vez.

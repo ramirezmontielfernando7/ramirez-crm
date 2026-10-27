@@ -238,6 +238,17 @@ st = await webhookWa("history", { messaging_product: "whatsapp", metadata: meta,
 await new Promise((res) => setTimeout(res, 1000));
 ok("un lote repetido no duplica mensajes", (await sql`select count(*)::int n from message where wa_message_id like ${`wamid.hist.${RUN}.%`}`)[0].n === 3);
 
+console.log("\n== El negocio quita a Dashfort desde Meta (PR 4) ==");
+st = await webhookWa("account_update", { event: "PARTNER_REMOVED", waba_info: { waba_id: WABA_CEL, owner_business_id: "999" } });
+ok("webhook account_update → 200", st === 200, String(st));
+const estado = await hasta(async () => {
+  const c = (await a("/api/settings/whatsapp")).json?.connection;
+  return c?.status === "reconnect_required" ? c : null;
+});
+ok("la conexión queda «por reconectar» (los envíos se detienen)", estado?.status === "reconnect_required", JSON.stringify(estado));
+r = await post(a, { code: `cod-vuelta-${RUN}`, wabaId: WABA_CEL, phoneNumberId: PN_CEL, flow: "business_app" });
+ok("volver a conectar con Facebook la deja conectada otra vez", r.res.status === 200 && (await a("/api/settings/whatsapp")).json?.connection?.status === "connected", JSON.stringify(r.json));
+
 await sql.end();
 console.log(`\n${checks - failures}/${checks} comprobaciones OK`);
 process.exit(failures ? 1 : 0);
