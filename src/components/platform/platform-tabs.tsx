@@ -10,6 +10,7 @@ import { PageShell } from "@/components/ui/page-shell";
  * cada organización, que dibuja su propio `PageShell` (volver + sus pestañas).
  */
 export const PLATFORM_TABS = [
+  { href: "/platform/panel", label: "Mi panel" },
   { href: "/platform/organizaciones", label: "Organizaciones y Planes" },
   { href: "/platform/costos", label: "Costos y Precios IA" },
   { href: "/platform/webhooks", label: "Webhooks sin ruta" },

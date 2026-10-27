@@ -92,8 +92,7 @@ Sin migración. Lo que depende de límites nuevos (campo Plan, editar topes,
 tope de almacenamiento y de módulos) queda para el PR 3: el almacenamiento se
 muestra «sin tope».
 
-- Pestañas: «Mi panel» (`/platform`, por ahora la bitácora; el resumen es el
-  PR 5) y «Organizaciones» (`/platform/organizaciones`). El layout da 404 a
+- Pestañas: «Mi panel» (`/platform/panel`, el resumen del PR 5: organizaciones por estado, IA del mes contra lo asignado, almacenamiento aprox., cerca del tope, más consumo y bitácora reciente; sin ruta nueva ni migración, reglas puras en `src/lib/platform-panel.ts`) y «Organizaciones» (`/platform/organizaciones`). El layout da 404 a
   quien no es administrador de plataforma; cada página y cada ruta lo vuelven
   a comprobar.
 - Fila cerrada: punto de estado + nombre, IA del mes contra su tope
