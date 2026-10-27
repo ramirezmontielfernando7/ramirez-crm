@@ -11,9 +11,11 @@ import { openDirectTarget } from "@/server/credentials/direct-instance";
 export async function downloadDeviceMedia(
   organizationId: string,
   keyId: string,
-  maxBytes: number
+  maxBytes: number,
+  /** 046: lo que entró por un «Mi número» se descarga de SU dispositivo. */
+  directNumberId: string | null = null
 ): Promise<{ data: Buffer; mimeType: string | null; fileSize: number }> {
-  const opened = await openDirectTarget(organizationId);
+  const opened = await openDirectTarget(organizationId, directNumberId);
   if (!opened.ok) throw new Error("El dispositivo vinculado no está disponible para descargar el archivo");
   let file: Awaited<ReturnType<typeof fetchMediaBase64>>;
   try {

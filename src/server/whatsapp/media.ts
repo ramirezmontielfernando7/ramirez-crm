@@ -8,7 +8,7 @@ import {
   getCredentialsByOrg,
   type Credentials,
 } from "@/server/whatsapp/credentials";
-import { deviceMediaKeyId } from "@/lib/direct-inbound";
+import { deviceMediaKeyId, numberMediaRef } from "@/lib/direct-inbound";
 import { logger } from "@/lib/log";
 import { downloadDeviceMedia } from "@/server/direct-connection/inbound-media";
 import { checkOutgoing, kindFromMime, WA_MEDIA_RULES } from "@/lib/upload-limits";
@@ -186,9 +186,13 @@ export async function ensureAssetAvailable(
   // Conexión directa (PR 6): lo que entró por el dispositivo se descarga de
   // él, no de Meta (la empresa puede no tener Meta).
   const deviceKeyId = deviceMediaKeyId(asset.waMediaId);
+  // 046: lo que entró por un «Mi número», de SU dispositivo.
+  const numberRef = numberMediaRef(asset.waMediaId);
   const waMediaId = asset.waMediaId;
   let download: () => Promise<{ data: Buffer; mimeType: string | null; fileSize: number }>;
-  if (deviceKeyId) {
+  if (numberRef) {
+    download = () => downloadDeviceMedia(organizationId, numberRef.keyId, MEDIA_LIMITS.document.maxBytes, numberRef.directNumberId);
+  } else if (deviceKeyId) {
     download = () => downloadDeviceMedia(organizationId, deviceKeyId, MEDIA_LIMITS.document.maxBytes);
   } else {
     const creds = await getCredentialsByOrg(organizationId);

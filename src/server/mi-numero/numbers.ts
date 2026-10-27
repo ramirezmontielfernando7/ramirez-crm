@@ -64,6 +64,7 @@ export type MiNumeroError =
   | "owner_only"
   | "company_decides"
   | "notice_required"
+  | "share_off"
   | LinkError;
 
 export class MiNumeroFailure extends Error {

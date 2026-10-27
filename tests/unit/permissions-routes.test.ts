@@ -341,6 +341,10 @@ const POR_AUTOR: [string, Method][] = [
   ["settings/my-number/link", "GET"],
   ["settings/my-number/link", "POST"],
   ["settings/my-number/link", "DELETE"],
+  // 046 (PR 4): los chats de MI número y «Es cliente».
+  ["my-number/chats", "GET"],
+  ["my-number/chats/[id]/messages", "GET"],
+  ["my-number/chats/[id]/client", "POST"],
 ];
 
 /**

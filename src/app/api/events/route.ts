@@ -1,7 +1,7 @@
 import { requireSession, UnauthorizedError } from "@/lib/auth/session";
 import { logger } from "@/lib/log";
 import { runWithOrganization } from "@/lib/request-context";
-import { isTeamEvent, subscribe, type SseEvent } from "@/server/events/bus";
+import { isAudienceEvent, subscribe, type SseEvent } from "@/server/events/bus";
 import { canSeeEvent, canSeeTeamEvent } from "@/server/events/visibility";
 
 /**
@@ -54,8 +54,9 @@ export async function GET(req: Request) {
       let queue = Promise.resolve();
       const unsubscribe = subscribe(organizationId, (event) => {
         // 025: el chat de equipo va por audiencia, también para quien ve
-        // todo (el atajo de abajo NO aplica). Se decide en memoria.
-        if (isTeamEvent(event)) {
+        // todo (el atajo de abajo NO aplica). Se decide en memoria. 046: lo
+        // de un «Mi número», igual.
+        if (isAudienceEvent(event)) {
           if (canSeeTeamEvent(access, event)) write(event);
           return;
         }
