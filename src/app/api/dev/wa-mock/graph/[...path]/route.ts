@@ -279,6 +279,11 @@ export async function GET(req: Request, ctx: Params) {
     });
   }
 
+  // Solo mock: qué sincronizaciones de coexistencia se pidieron para el número.
+  if (path.length === 2 && path[1] === "smb_app_data") {
+    return Response.json({ data: getWaMockState().coexistenceSyncs?.[path[0]!] ?? [] });
+  }
+
   // Tech Provider — GET {phoneNumberId}?fields=platform_type → CLOUD_API si
   // se registró con `POST {phone}/register` (como Meta), si no NOT_APPLICABLE.
   if (path.length === 1 && fields.includes("platform_type")) {
@@ -670,6 +675,23 @@ export async function POST(req: Request, ctx: Params) {
     };
     state.templates.push(tpl);
     return Response.json({ id: tpl.id, status: "PENDING", category: tpl.category });
+  }
+
+  // Tech Provider (coexistencia) — POST {phoneNumberId}/smb_app_data: pide
+  // los contactos o el historial del celular. Se anota para que el guion E2E
+  // compruebe que se pidieron (GET del mismo camino, solo en el mock).
+  if (path.length === 2 && path[1] === "smb_app_data") {
+    const syncType = String(body.sync_type ?? "");
+    if (!["smb_app_state_sync", "history"].includes(syncType)) {
+      return Response.json(
+        { error: { message: "(#100) Invalid parameter", type: "OAuthException", code: 100, fbtrace_id: "mock" } },
+        { status: 400 }
+      );
+    }
+    const state = getWaMockState();
+    state.coexistenceSyncs ??= {};
+    (state.coexistenceSyncs[path[0]!] ??= []).push(syncType);
+    return Response.json({ messaging_product: "whatsapp", request_id: `req-${nextN()}` });
   }
 
   // Tech Provider — POST {phoneNumberId}/register → número nuevo a la Cloud

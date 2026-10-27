@@ -92,6 +92,8 @@ type WaMockState = {
   wabaSubscriptions: Record<string, MockWabaSubscription>;
   /** Tech Provider — números registrados con `POST {phone}/register`. */
   registeredPhones?: string[];
+  /** Tech Provider — sincronizaciones de coexistencia pedidas, por número. */
+  coexistenceSyncs?: Record<string, string[]>;
   /**
    * H25 — Qué números validó cada token (`GET {phone}?fields=…`). El mock no
    * conoce el árbol real de WABAs: un token "posee" en cualquier WABA los

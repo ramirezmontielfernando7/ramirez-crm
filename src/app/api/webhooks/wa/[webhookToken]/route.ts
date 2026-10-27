@@ -8,6 +8,12 @@ import {
 } from "@/server/inbox/webhook";
 import { processEchoesValue, processMessagesValue } from "@/server/inbox/ingest";
 import { processTemplateStatusValue } from "@/server/whatsapp/template-events";
+import {
+  processHistoryValue,
+  processStateSyncValue,
+  type HistoryValue,
+  type StateSyncValue,
+} from "@/server/whatsapp/coexistence";
 import { isWabaField, processWabaEvent } from "@/server/whatsapp/waba-events";
 import { logger } from "@/lib/log";
 import { acceptsWebhooks, beginTask } from "@/server/shutdown";
@@ -112,6 +118,12 @@ async function processPayload(payload: WebhookPayload): Promise<void> {
       } else if (change.field === "smb_message_echoes") {
         // 008: mensajes enviados a mano desde la app del teléfono (coexistence)
         await processEchoesValue(change.value);
+      } else if (change.field === "history") {
+        // Tech Provider (coexistencia): chats de los últimos 6 meses.
+        await processHistoryValue(change.value as HistoryValue);
+      } else if (change.field === "smb_app_state_sync") {
+        // Tech Provider (coexistencia): contactos del celular.
+        await processStateSyncValue(change.value as StateSyncValue);
       } else if (change.field === "message_template_status_update") {
         await processTemplateStatusValue(entry.id ?? null, change.value);
       } else if (isWabaField(change.field)) {

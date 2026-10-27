@@ -35,6 +35,9 @@ const MEDIA_LABELS: Record<string, string> = {
   location: "Ubicación",
   contacts: "Contacto compartido",
   template: "Plantilla",
+  // Tech Provider (coexistencia): archivo del historial que Meta no comparte
+  // (solo manda los de los últimos 14 días).
+  media_placeholder: "Archivo del historial",
 };
 
 export function mediaLabel(type: string): string {

@@ -3,6 +3,7 @@ import { apiError, parseBody, withAuth } from "@/lib/api";
 import { isValidPhoneNumberId, isValidWabaId } from "@/server/whatsapp/credentials";
 import { exchangeCodeForToken, registerPhoneNumber } from "@/server/whatsapp/embedded-signup";
 import { storeConnection, validateConnection } from "@/server/whatsapp/save-connection";
+import { requestCoexistenceSync } from "@/server/whatsapp/coexistence";
 
 export const dynamic = "force-dynamic";
 
@@ -66,5 +67,14 @@ export const POST = withAuth(async (session, req: Request) => {
   });
   if (!stored.ok) return apiError(stored.status, stored.code, stored.message);
 
-  return Response.json({ ok: true, displayPhoneNumber: valid.displayPhoneNumber, verifiedName: valid.verifiedName });
+  // PR 3 — Coexistencia: pedir YA (Meta da 24 h, una sola vez) los contactos
+  // y los chats de 6 meses del celular; llegan por el webhook. Best-effort.
+  const synced = flow === "business_app" ? await requestCoexistenceSync(phoneNumberId, token) : null;
+
+  return Response.json({
+    ok: true,
+    displayPhoneNumber: valid.displayPhoneNumber,
+    verifiedName: valid.verifiedName,
+    historyRequested: synced?.history ?? false,
+  });
 }, { permission: "settings.manage" });
