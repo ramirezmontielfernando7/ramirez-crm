@@ -55,14 +55,21 @@ function client() {
   };
 }
 
+// Login primero (una sola llamada): el freno por IP de login/registro
+// (FR-062, 10 por 10 min) es compartido con los guiones que corren después.
 async function signIn(api, email) {
   const password = "password-e2e-123";
-  let su = await api("/api/auth/sign-up/email", {
-    method: "POST",
-    body: JSON.stringify({ email, password, name: "Operador E2E" }),
-  });
-  if (!su.res.ok) {
+  let su;
+  for (let intento = 0; intento < 10; intento++) {
     su = await api("/api/auth/sign-in/email", { method: "POST", body: JSON.stringify({ email, password }) });
+    if (su.res.status !== 429) break;
+    await new Promise((r) => setTimeout(r, 3000));
+  }
+  if (!su.res.ok) {
+    su = await api("/api/auth/sign-up/email", {
+      method: "POST",
+      body: JSON.stringify({ email, password, name: "Operador E2E" }),
+    });
   }
   return su.res.ok;
 }
