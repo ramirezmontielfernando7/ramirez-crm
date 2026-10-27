@@ -24,7 +24,14 @@ if (!url) {
 }
 
 /** Tablas de plataforma que solo usa `vocero_system` (sin permisos para `vocero_app`). */
-const SOLO_SISTEMA = ["webhook_unrouted", "platform_admin", "platform_audit_log", "account_link_token", "evolution_server"];
+const SOLO_SISTEMA = [
+  "webhook_unrouted",
+  "platform_admin",
+  "platform_audit_log",
+  "account_link_token",
+  "evolution_server",
+  "ai_oauth_client",
+];
 
 /** Roles de la 0026 y la variable que trae la contraseña de cada uno. */
 const ROLES = [

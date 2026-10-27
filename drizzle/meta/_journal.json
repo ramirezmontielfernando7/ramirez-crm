@@ -414,6 +414,13 @@
       "when": 1793116968531,
       "tag": "0059_respuestas_rapidas",
       "breakpoints": true
+    },
+    {
+      "idx": 59,
+      "version": "7",
+      "when": 1793133972767,
+      "tag": "0060_conector_ia",
+      "breakpoints": true
     }
   ]
 }

@@ -65,6 +65,7 @@ function fromRow(row: Row, defaults: OrgModules): OrgModules {
     // El CHECK de la 0057 ya lo impide; se repite por si alguien escribe a mano.
     miNumero: row.miNumero && row.conexionDirecta,
     miNumeroMax: row.miNumeroMax,
+    conectorIa: row.conectorIa,
   };
 }
 
@@ -164,6 +165,7 @@ function defaultsRow(organizationId: string) {
     conexionDirecta: d.conexionDirecta,
     miNumero: d.miNumero,
     miNumeroMax: d.miNumeroMax,
+    conectorIa: d.conectorIa,
     updatedBy: "entorno",
   };
 }
@@ -238,6 +240,7 @@ export async function backfillOrgModules(): Promise<number> {
             conexionDirecta: sql<boolean>`${d.conexionDirecta}::boolean`.as("conexion_directa"),
             miNumero: sql<boolean>`${d.miNumero}::boolean`.as("mi_numero"),
             miNumeroMax: sql<number>`${d.miNumeroMax}::integer`.as("mi_numero_max"),
+            conectorIa: sql<boolean>`${d.conectorIa}::boolean`.as("conector_ia"),
             updatedAt: sql<Date>`now()`.as("updated_at"),
             updatedBy: sql<string>`${d.updatedBy}`.as("updated_by"),
           })
@@ -283,6 +286,7 @@ export type ModulesPatch = {
   conexionDirecta?: boolean;
   miNumero?: boolean;
   miNumeroMax?: number;
+  conectorIa?: boolean;
 };
 
 /**
@@ -348,6 +352,7 @@ export async function updateOrgModules(
     asistente: patch.asistente ?? before.asistente,
     ...resolveMiNumero(before, patch),
     miNumeroMax: patch.miNumeroMax ?? before.miNumeroMax,
+    conectorIa: patch.conectorIa ?? before.conectorIa,
     ...resolveLabAgent(before, patch),
     updatedBy: actor,
     updatedAt: new Date(),
@@ -381,6 +386,7 @@ export async function updateOrgModules(
         conexionDirecta: values.conexionDirecta,
         miNumero: values.miNumero,
         miNumeroMax: values.miNumeroMax,
+        conectorIa: values.conectorIa,
         updatedBy: actor,
         updatedAt: values.updatedAt,
       },

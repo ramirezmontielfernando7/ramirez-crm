@@ -69,6 +69,11 @@ export async function orgHasMiNumero(organizationId: string): Promise<boolean> {
   return (await getOrgModules(organizationId)).miNumero;
 }
 
+/** Conector de IA (047) — el complemento oculto. */
+export async function orgHasConectorIa(organizationId: string): Promise<boolean> {
+  return (await getOrgModules(organizationId)).conectorIa;
+}
+
 /** 030 (PR 4) — ¿Puede el Propietario personalizar el menú? */
 export async function orgHasCustomNav(organizationId: string): Promise<boolean> {
   return (await getOrgModules(organizationId)).customNav;

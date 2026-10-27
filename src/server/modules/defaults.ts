@@ -81,6 +81,11 @@ export type OrgModules = {
    */
   miNumero: boolean;
   miNumeroMax: number;
+  /**
+   * Conector de IA (047) — complemento OCULTO: cada persona conecta su propia
+   * IA (Claude, ChatGPT…) para que actúe como ella. Solo /platform lo cambia.
+   */
+  conectorIa: boolean;
 };
 
 export const DEFAULT_SEND_RATE = 10;
@@ -126,6 +131,8 @@ export const NEW_MODULE_DEFAULTS = {
   // Mi número (046): complemento oculto sobre la conexión directa; solo /platform.
   miNumero: false,
   miNumeroMax: 0,
+  // Conector de IA (047): complemento oculto; solo /platform.
+  conectorIa: false,
 } as const;
 
 /**
