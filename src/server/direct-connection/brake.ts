@@ -14,13 +14,25 @@ const log = logger("direct-connection");
  * fallos simultáneos cuentan dos. Nunca lanza: un freno que no se pudo
  * anotar no tumba el envío que ya falló.
  */
-export async function recordDirectFailure(organizationId: string, kind: FailureKind, now = new Date()): Promise<{ paused: boolean }> {
+export async function recordDirectFailure(
+  organizationId: string,
+  kind: FailureKind,
+  now = new Date(),
+  directNumberId: string | null = null
+): Promise<{ paused: boolean }> {
   try {
     return await withTenant(organizationId, async (tx) => {
       const [row] = await tx
         .select()
         .from(schema.directConnection)
-        .where(scoped(schema.directConnection.organizationId, organizationId, isNull(schema.directConnection.directNumberId)))
+        .where(
+          scoped(
+            schema.directConnection.organizationId,
+            organizationId,
+            // 046: el freno de un «Mi número» es solo suyo; el de la empresa, solo de ella.
+            directNumberId ? eq(schema.directConnection.directNumberId, directNumberId) : isNull(schema.directConnection.directNumberId)
+          )
+        )
         .for("update")
         .limit(1);
       if (!row) return { paused: false };
@@ -31,7 +43,7 @@ export async function recordDirectFailure(organizationId: string, kind: FailureK
         .set({ ...next, updatedAt: now })
         .where(scoped(schema.directConnection.organizationId, organizationId, eq(schema.directConnection.id, row.id)));
       const paused = next.pausedUntil !== null && next.pausedUntil > now && next.pausedUntil !== row.pausedUntil;
-      if (paused) log.warn("conexión directa en pausa 24 h", { org: organizationId, reason: next.pauseReason });
+      if (paused) log.warn("conexión directa en pausa 24 h", { org: organizationId, number: directNumberId, reason: next.pauseReason });
       return { paused };
     });
   } catch (err) {

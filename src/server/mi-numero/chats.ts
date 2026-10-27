@@ -94,7 +94,7 @@ export async function listMyChats(organizationId: string, userId: string): Promi
   };
 }
 
-async function myChat(organizationId: string, userId: string, conversationId: string) {
+export async function myChat(organizationId: string, userId: string, conversationId: string) {
   const number = await myLiveNumber(organizationId, userId);
   const [conversation] = await getDb()
     .select()

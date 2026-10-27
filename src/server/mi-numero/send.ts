@@ -1,0 +1,63 @@
+import { getDb, schema } from "@/lib/db";
+import { newId } from "@/lib/db/ids";
+import { isPaused } from "@/lib/direct-send";
+import { numberMediaId } from "@/lib/direct-inbound";
+import { getDirectConnection } from "@/server/credentials/direct-instance";
+import { sendDirect, type DirectResult } from "@/server/direct-connection/send";
+import { saveMediaFile, validateOutgoing } from "@/server/whatsapp/media";
+import { audienceOf, myChat } from "./chats";
+import { MiNumeroFailure } from "./numbers";
+
+/**
+ * Mi número (046), PR 5 — La persona contesta uno de SUS chats desde
+ * Dashfort: sale por el dispositivo de su número (nunca por Meta ni por el de
+ * la empresa), con sus propios límites, fila y freno
+ * (`src/server/direct-connection/send.ts`). Solo su dueño (la sesión decide;
+ * nunca un id del navegador). La IA, las campañas y el cerebro externo nunca
+ * llegan aquí (guardarraíl `tests/unit/conexion-directa-envio.test.ts`).
+ *
+ * Errores: `MiNumeroFailure` (sin número, no conectado, en pausa),
+ * `MediaValidationError` (archivo) y `DirectSendFailure` (el envío).
+ */
+export type NumberOutgoing =
+  | { text: string }
+  | { file: { data: Buffer; mimeType: string; fileName?: string }; caption?: string };
+
+export async function sendFromMyNumber(
+  organizationId: string,
+  userId: string,
+  conversationId: string,
+  input: NumberOutgoing
+): Promise<DirectResult> {
+  const { number, conversation } = await myChat(organizationId, userId, conversationId);
+  const connection = await getDirectConnection(organizationId, number.id);
+  if (!connection || connection.status !== "connected") throw new MiNumeroFailure("not_linked");
+  if (isPaused(connection, new Date())) throw new MiNumeroFailure("paused");
+  const scope = { directNumberId: number.id, audience: audienceOf(number) };
+
+  if ("text" in input) {
+    return sendDirect({ organizationId, conversationId: conversation.id, type: "text", text: input.text, number: scope });
+  }
+
+  // El archivo queda en disco antes de salir (también si espera en la fila).
+  const kind = validateOutgoing(input.file.mimeType, input.file.data.byteLength, input.file.fileName);
+  const assetId = newId("mediaAsset");
+  const storagePath = await saveMediaFile(organizationId, assetId, input.file.data);
+  const [asset] = await getDb()
+    .insert(schema.mediaAsset)
+    .values({
+      id: assetId,
+      organizationId,
+      kind,
+      // Marca de «Mi número»: los filtros de siempre (`scopedMediaAssets`) no lo sirven a nadie más.
+      waMediaId: numberMediaId(number.id, `out-${assetId}`),
+      mimeType: input.file.mimeType,
+      fileName: input.file.fileName ?? null,
+      fileSize: input.file.data.byteLength,
+      caption: input.caption ?? null,
+      storagePath,
+      fetchStatus: "available",
+    })
+    .returning();
+  return sendDirect({ organizationId, conversationId: conversation.id, type: kind, text: null, mediaAsset: asset!, number: scope });
+}

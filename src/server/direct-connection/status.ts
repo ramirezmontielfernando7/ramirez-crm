@@ -6,7 +6,7 @@ import { runWithOrganization } from "@/lib/request-context";
 import { connectionByWebhookHash } from "@/server/credentials/direct";
 import { publish } from "@/server/events/bus";
 import { ALLOWED_FROM } from "@/server/inbox/status";
-import { orgHasConexionDirecta } from "@/server/modules";
+import { getOrgModules, orgHasConexionDirecta } from "@/server/modules";
 import { hashToken } from "./link";
 
 /**
@@ -22,12 +22,20 @@ import { hashToken } from "./link";
 
 const TIME_KEY = { sent: "sentAt", delivered: "deliveredAt", read: "readAt" } as const;
 
-export async function applyDirectStatuses(organizationId: string, updates: DirectStatusUpdate[]): Promise<number> {
+export async function applyDirectStatuses(
+  organizationId: string,
+  updates: DirectStatusUpdate[],
+  number: { directNumberId: string; audience: string[] } | null = null
+): Promise<number> {
   const db = getDb();
   let changed = 0;
+  // 046: las palomitas de un «Mi número» tocan solo sus chats (y solo su dueño se entera); las de la empresa, nunca esos.
+  const whose = number
+    ? sql`${schema.message.conversationId} in (select c_num.id from conversation c_num where c_num.organization_id = ${organizationId} and c_num.direct_number_id = ${number.directNumberId})`
+    : sql`not exists (select 1 from conversation c_num where c_num.id = ${schema.message.conversationId} and c_num.direct_number_id is not null)`;
   for (const u of updates) {
     const at = u.at ?? new Date();
-    const byAlt = [eq(schema.message.altMessageId, u.id), eq(schema.message.direction, "out")] as const;
+    const byAlt = [eq(schema.message.altMessageId, u.id), eq(schema.message.direction, "out"), whose] as const;
     const rows = await db
       .update(schema.message)
       .set({ status: u.status })
@@ -40,6 +48,10 @@ export async function applyDirectStatuses(organizationId: string, updates: Direc
       .where(scoped(schema.message.organizationId, organizationId, ...byAlt));
     for (const r of rows) {
       changed++;
+      if (number) {
+        publish(organizationId, { type: "number.conversation", data: { conversationId: r.conversationId }, audience: number.audience });
+        continue;
+      }
       publish(organizationId, {
         type: "message.status",
         data: { conversationId: r.conversationId, messageId: r.id, status: u.status },
@@ -53,9 +65,19 @@ export async function applyDirectStatuses(organizationId: string, updates: Direc
 export async function handleWebhookStatuses(token: string, updates: DirectStatusUpdate[]): Promise<boolean> {
   const row = await connectionByWebhookHash(hashToken(token));
   if (!row) return false;
-  // Mi número (046): lo que sale por el número de una persona aún no existe.
-  if (row.directNumberId) return true;
   if (updates.length === 0 || !(await orgHasConexionDirecta(row.organizationId))) return true;
-  await runWithOrganization(row.organizationId, () => applyDirectStatuses(row.organizationId, updates));
+  const numberId = row.directNumberId;
+  await runWithOrganization(row.organizationId, async () => {
+    if (!numberId) return applyDirectStatuses(row.organizationId, updates);
+    // Mi número (046, PR 5): las palomitas de lo que sale por el número de una persona.
+    if (!(await getOrgModules(row.organizationId)).miNumero) return 0;
+    const [n] = await getDb()
+      .select({ userId: schema.directNumber.userId })
+      .from(schema.directNumber)
+      .where(scoped(schema.directNumber.organizationId, row.organizationId, eq(schema.directNumber.id, numberId)))
+      .limit(1);
+    if (!n) return 0;
+    return applyDirectStatuses(row.organizationId, updates, { directNumberId: numberId, audience: [n.userId] });
+  });
   return true;
 }

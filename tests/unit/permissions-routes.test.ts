@@ -344,6 +344,8 @@ const POR_AUTOR: [string, Method][] = [
   // 046 (PR 4): los chats de MI número y «Es cliente».
   ["my-number/chats", "GET"],
   ["my-number/chats/[id]/messages", "GET"],
+  ["my-number/chats/[id]/messages", "POST"],
+  ["my-number/chats/[id]/messages/media", "POST"],
   ["my-number/chats/[id]/client", "POST"],
 ];
 

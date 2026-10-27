@@ -5,28 +5,36 @@ import { cn } from "@/lib/utils";
 import { useViewer } from "@/components/viewer-context";
 import { useTeamUnread } from "@/components/team-chat/unread-store";
 import { useInboxUnread } from "./unread-store";
+import { useNumberUnread } from "./number-unread-store";
 
 /**
  * 039 — Las pestañas de la Bandeja: «Empresa» (los clientes) y «Equipo» (el
  * chat interno). Siempre a la vista, cada una con su conteo de no leídos; son
  * rutas (/inbox y /chat). Sin el módulo `team_chat` solo queda «Empresa», y
- * con una sola pestaña no se dibuja ninguna barra. El hueco para «Mi número»
- * es agregar una entrada más a TABS.
+ * con una sola pestaña no se dibuja ninguna barra. «Mi número» (046) sale
+ * solo a quien tiene su propio número.
  */
-export type InboxMode = "inbox" | "chat";
+export type InboxMode = "inbox" | "number" | "chat";
 
 const TABS: readonly {
   mode: InboxMode;
   href: string;
   label: string;
   aria: string;
-  needs?: "team_chat";
+  needs?: "team_chat" | "my_number";
 }[] = [
   {
     mode: "inbox",
     href: "/inbox",
     label: "Empresa",
     aria: "Bandeja de clientes",
+  },
+  {
+    mode: "number",
+    href: "/inbox/mi-numero",
+    label: "Mi número",
+    aria: "Los chats de tu número",
+    needs: "my_number",
   },
   {
     mode: "chat",
@@ -53,10 +61,15 @@ export function InboxModeSwitch({
   );
 }
 
+type Viewer = ReturnType<typeof useViewer>;
+
+const shows = (viewer: Viewer) => (t: (typeof TABS)[number]) =>
+  !t.needs || (t.needs === "my_number" ? viewer.hasMyNumber : viewer.hasModule(t.needs));
+
 /** ¿Hay pestañas que mostrar? Con una sola no se dibuja ninguna. */
 export function useHasInboxTabs() {
   const viewer = useViewer();
-  return TABS.filter((t) => !t.needs || viewer.hasModule(t.needs)).length > 1;
+  return TABS.filter(shows(viewer)).length > 1;
 }
 
 /**
@@ -77,7 +90,8 @@ export function InboxTabs({
   const viewer = useViewer();
   const inboxUnread = useInboxUnread();
   const teamUnread = useTeamUnread(viewer.userId);
-  const tabs = TABS.filter((t) => !t.needs || viewer.hasModule(t.needs));
+  const numberUnread = useNumberUnread(viewer.hasMyNumber);
+  const tabs = TABS.filter(shows(viewer));
   if (tabs.length < 2) return null;
 
   return (
@@ -95,7 +109,7 @@ export function InboxTabs({
       >
         {tabs.map((t) => {
           const active = t.mode === current;
-          const n = t.mode === "inbox" ? inboxUnread : teamUnread;
+          const n = t.mode === "inbox" ? inboxUnread : t.mode === "number" ? numberUnread : teamUnread;
           return (
             <Link
               key={t.mode}

@@ -28,12 +28,21 @@ export type DirectConnectionInfo = {
   disconnectWindowStart: Date | null;
 };
 
-/** La conexión de la organización, sin llaves. null = nunca vinculó. */
-export async function getDirectConnection(organizationId: string): Promise<DirectConnectionInfo | null> {
+/**
+ * La conexión de la organización, sin llaves. null = nunca vinculó. 046: con
+ * `directNumberId`, la de ese «Mi número».
+ */
+export async function getDirectConnection(organizationId: string, directNumberId: string | null = null): Promise<DirectConnectionInfo | null> {
   const [row] = await getDb()
     .select()
     .from(schema.directConnection)
-    .where(scoped(schema.directConnection.organizationId, organizationId, isNull(schema.directConnection.directNumberId)))
+    .where(
+      scoped(
+        schema.directConnection.organizationId,
+        organizationId,
+        directNumberId ? eq(schema.directConnection.directNumberId, directNumberId) : isNull(schema.directConnection.directNumberId)
+      )
+    )
     .limit(1);
   if (!row) return null;
   return {

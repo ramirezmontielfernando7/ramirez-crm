@@ -104,8 +104,9 @@ describe("039 — todas las pantallas usan PageShell", () => {
       "components/nav-mode.tsx",
       "components/app-nav.tsx",
       // La Bandeja y el Chat de equipo conservan sus columnas a altura completa
-      // y su encabezado compacto con el las pestañas Empresa · Equipo.
+      // y su encabezado compacto con las pestañas Empresa · Mi número · Equipo.
       "components/inbox/conversation-list.tsx",
+      "components/inbox/my-number-inbox.tsx",
       "components/team-chat/team-chat-client.tsx",
     ]);
     // Citas sin incrustar (nadie lo usa así hoy) conserva su título propio.

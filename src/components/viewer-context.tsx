@@ -19,6 +19,8 @@ export type Viewer = {
    * apagado, sus rutas ya responden 404 en el servidor.
    */
   hasModule: (key: ModuleKey) => boolean;
+  /** Mi número (046) — ¿quien mira tiene su propio número? (la pestaña de la Bandeja). */
+  hasMyNumber: boolean;
 };
 
 const ViewerContext = createContext<Viewer>({
@@ -27,6 +29,7 @@ const ViewerContext = createContext<Viewer>({
   roleLabel: "",
   can: () => false,
   hasModule: () => true,
+  hasMyNumber: false,
 });
 
 export function ViewerProvider({
@@ -34,6 +37,7 @@ export function ViewerProvider({
   role,
   grants = NO_GRANTS,
   modules,
+  myNumber = false,
   children,
 }: {
   userId: string;
@@ -42,6 +46,8 @@ export function ViewerProvider({
   grants?: readonly Permission[];
   /** 030 (PR 4) — módulos encendidos de la organización; sin la lista, todos. */
   modules?: readonly ModuleKey[];
+  /** Mi número (046) — lo decide el servidor (complemento y número vivo). */
+  myNumber?: boolean;
   children: React.ReactNode;
 }) {
   const value = useMemo<Viewer>(
@@ -51,8 +57,9 @@ export function ViewerProvider({
       roleLabel: roleLabel(role),
       can: (permission) => can({ role, grants }, permission),
       hasModule: (key) => !modules || modules.includes(key),
+      hasMyNumber: myNumber,
     }),
-    [userId, role, grants, modules]
+    [userId, role, grants, modules, myNumber]
   );
   return <ViewerContext.Provider value={value}>{children}</ViewerContext.Provider>;
 }

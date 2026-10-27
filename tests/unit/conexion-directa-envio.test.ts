@@ -236,9 +236,10 @@ const rel = (f: string) => path.relative(ROOT, f).split(path.sep).join("/");
 const todos = archivos(SRC).map((f) => ({ rel: rel(f), src: readFileSync(f, "utf8") }));
 
 describe("conexión directa — guardarraíles del envío", () => {
-  it("solo src/server/inbox/send.ts usa la vía directa", () => {
+  it("solo la Bandeja (src/server/inbox/send.ts) y «Mi número» de una persona usan la vía directa", () => {
     const quien = todos.filter((f) => /from\s+["']@\/server\/direct-connection\/send["']/.test(f.src)).map((f) => f.rel);
-    expect(quien).toEqual(["src/server/inbox/send.ts"]);
+    // 046 (PR 5): una persona contesta SUS chats por su número; `send-http.ts` solo traduce el error.
+    expect(quien.sort()).toEqual(["src/server/inbox/send.ts", "src/server/mi-numero/send-http.ts", "src/server/mi-numero/send.ts"]);
     // instrumentation.ts la importa dinámicamente, solo para retomar la fila.
     const dinamico = todos.filter((f) => /import\(\s*["']@\/server\/direct-connection\/send["']\s*\)/.test(f.src)).map((f) => f.rel);
     expect(dinamico).toEqual(["src/instrumentation.ts"]);
@@ -251,6 +252,14 @@ describe("conexión directa — guardarraíles del envío", () => {
       "src/server/credentials/direct-instance.ts",
       "src/server/direct-connection/inbound-media.ts",
       "src/server/direct-connection/send.ts",
+    ]);
+  });
+
+  it("046: el envío por «Mi número» solo lo piden las rutas de MIS chats (una persona, nunca la IA)", () => {
+    const quien = todos.filter((f) => /from\s+["']@\/server\/mi-numero\/send["']/.test(f.src)).map((f) => f.rel);
+    expect(quien.sort()).toEqual([
+      "src/app/api/my-number/chats/[id]/messages/media/route.ts",
+      "src/app/api/my-number/chats/[id]/messages/route.ts",
     ]);
   });
 
