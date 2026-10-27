@@ -2,6 +2,8 @@ import { redirect } from "next/navigation";
 import { can } from "@/lib/auth/permissions";
 import { getSessionOrNull } from "@/lib/auth/session";
 import { campaignsEnabled } from "@/server/campaigns/flag";
+import { hasMyNumber } from "@/server/mi-numero/numbers";
+import { orgHasMiNumero } from "@/server/modules";
 
 export const dynamic = "force-dynamic";
 
@@ -15,5 +17,9 @@ export default async function SettingsPage() {
     redirect("/settings/templates");
   }
   if (can(session, "users.read")) redirect("/settings/team");
+  // 046: quien solo tiene un «Mi número» autorizado aterriza en él.
+  if ((await orgHasMiNumero(session.organizationId)) && (await hasMyNumber(session.organizationId, session.userId))) {
+    redirect("/settings/my-number");
+  }
   redirect("/inbox");
 }
