@@ -101,8 +101,9 @@ export function Composer({
   onSent,
   freeTextOutsideWindow = false,
   directHint = true,
+  numberChat = false,
 }: {
-  conversation: ConversationDto;
+  conversation: Pick<ConversationDto, "id" | "contact" | "windowOpen" | "windowRemainingMs">;
   onSend: (text: string) => Promise<string | null>;
   onSent: () => void;
   /**
@@ -112,6 +113,12 @@ export function Composer({
   freeTextOutsideWindow?: boolean;
   /** Avisar que sale por conexión directa (en una empresa sin Meta no hace falta). */
   directHint?: boolean;
+  /**
+   * 046 — Un chat de «Mi número»: sale por el teléfono de quien escribe (sin
+   * ventana de 24 h ni plantillas) y el dispositivo solo manda texto y
+   * archivos (ni ubicación ni tarjeta de contacto).
+   */
+  numberChat?: boolean;
 }) {
   // 030 (PR 4): sin el módulo Conocimientos no se ofrece (la API ya da 404).
   const knowledgeOn = useViewer().hasModule("knowledge");
@@ -141,6 +148,8 @@ export function Composer({
   useDismiss(popover === "emoji", emojiRef, () => setPopover(null));
 
   useEffect(() => {
+    // Las plantillas son de Meta: por un número no salen.
+    if (numberChat) return;
     let cancelled = false;
     fetch("/api/templates")
       .then((r) => (r.ok ? r.json() : { templates: [] }))
@@ -152,7 +161,7 @@ export function Composer({
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [numberChat]);
 
   // La URL del preview de imagen se libera al reemplazar/limpiar el archivo.
   useEffect(() => {
@@ -245,7 +254,9 @@ export function Composer({
       const caption = text.trim();
       if (caption) form.set("caption", caption);
       const err = await apiSend(
-        `/api/conversations/${conversation.id}/messages/media`,
+        numberChat
+          ? `/api/my-number/chats/${conversation.id}/messages/media`
+          : `/api/conversations/${conversation.id}/messages/media`,
         { method: "POST", body: form }
       );
       setSending(false);
@@ -346,7 +357,8 @@ export function Composer({
       return;
     }
     setSending(true);
-    const err = await apiSend(`/api/conversations/${conversation.id}/messages/knowledge`, {
+    // Por un número sale el texto de la entrada (su adjunto no).
+    const err = numberChat ? await onSend(entry.body) : await apiSend(`/api/conversations/${conversation.id}/messages/knowledge`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ entryId: entry.id, mode: action }),
@@ -360,7 +372,7 @@ export function Composer({
     onSent();
   }
 
-  if (!conversation.windowOpen && !freeTextOutsideWindow) {
+  if (!conversation.windowOpen && !freeTextOutsideWindow && !numberChat) {
     return (
       <div data-pm="composer" className="border-t bg-background px-[18px] py-3.5">
         <div className="mb-3 flex items-start gap-2 rounded-md border border-warning-soft bg-warning-tint p-3 text-sm text-warning-text">
@@ -383,7 +395,7 @@ export function Composer({
 
   return (
     <div data-pm="composer" className="border-t bg-background px-[18px] pb-3.5 pt-3">
-      {!conversation.windowOpen && directHint && (
+      {!conversation.windowOpen && directHint && !numberChat && (
         <p className="mb-2 flex items-center gap-1.5 text-xs text-text-3" data-testid="composer-direct-hint">
           <Clock3 className="h-3.5 w-3.5 shrink-0" strokeWidth={1.7} />
           {WINDOW_CLOSED_DIRECT_HINT}
@@ -588,7 +600,9 @@ export function Composer({
                         Icon: MapPin,
                       },
                     ] as const
-                  ).map(({ id, label, hint, Icon }) => (
+                  )
+                    .filter(({ id }) => !numberChat || id === "file")
+                    .map(({ id, label, hint, Icon }) => (
                     <button
                       key={id}
                       type="button"
@@ -747,7 +761,9 @@ export function Composer({
           <span />
         )}
         <p className="font-mono text-[10.5px] tracking-[0.04em] text-text-3">
-          Ventana abierta · quedan {formatRemaining(conversation.windowRemainingMs)}
+          {numberChat
+            ? "Sale por tu número"
+            : `Ventana abierta · quedan ${formatRemaining(conversation.windowRemainingMs)}`}
         </p>
       </div>
     </div>

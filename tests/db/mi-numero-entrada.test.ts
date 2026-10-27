@@ -185,6 +185,17 @@ describe("Mi número — lo que entra a cada número (PR 4)", () => {
     const otraVez = (await as(A.id, () => listMyChats(A.id, ana))).chats.find((c) => c.id === chat.id)!;
     expect(otraVez.clientMarkedAt).not.toBeNull();
     expect(otraVez.contact.inCrm).toBe(true);
+    // Como en la Bandeja de Empresa: el chat de cliente trae su etapa, etiquetas y quién atiende…
+    const conCrm = (await as(A.id, () => listMyChats(A.id, ana, comoAna))).chats;
+    expect(conCrm.find((c) => c.id === chat.id)!.crm).toMatchObject({
+      id: chat.id,
+      contact: { id: contacto!.id },
+      assignee: { id: ana },
+      leadId: expect.any(String),
+      stageId: expect.any(String),
+    });
+    // …y los privados nada (su contacto no está en el CRM).
+    expect(conCrm.filter((c) => !c.clientMarkedAt).every((c) => c.crm === null)).toBe(true);
     // Ahora Ana lo ve en Contactos (asignado), pero el chat sigue fuera de la Bandeja de la empresa.
     const contactos = await as(A.id, () =>
       getDb().select({ id: schema.contact.id }).from(schema.contact).where(scopedContacts(schema.contact.organizationId, comoAna, schema.contact.id))
