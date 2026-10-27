@@ -197,6 +197,8 @@ jobs:
             echo "MEDIA_DIR=./.dev-media"
             # Campañas v2: con App ID se prueba la plantilla con imagen.
             echo "META_APP_ID=1234567890"
+            # Tech Provider: «Conectar con Facebook» (Registro insertado).
+            echo "META_EMBEDDED_SIGNUP_CONFIG_ID=555444333"
           } > .env
       # Un solo build y `next start` (no `next dev`): todas las rutas ya
       # compiladas, memoria estable y velocidad de producción. Los mocks
@@ -262,6 +264,9 @@ jobs:
           # «Número no registrado» de la Bandeja: buscar un teléfono nuevo,
           # registrar, abrir chat y enviar plantilla (con el wa-mock).
           node --env-file=.env scripts/e2e-numero-nuevo.mjs
+          # Tech Provider: «Conectar con Facebook» cambia el código por el
+          # token del negocio, registra el número y lo deja conectado.
+          node --env-file=.env scripts/e2e-conectar-facebook.mjs
           # 034: cápsulas de la fila, punto de IA, filtro por etiqueta,
           # archivar y eliminar (clic derecho y pulsación larga).
           node --env-file=.env scripts/e2e-bandeja-capsulas.mjs
