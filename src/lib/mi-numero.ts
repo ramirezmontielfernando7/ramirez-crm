@@ -3,13 +3,18 @@
  * aprobada por Fer). Jamás nombran el servidor ni la tecnología de debajo.
  */
 
-export type NumberSwitch = "shareClients" | "overlapNotice" | "allowViewRequests" | "aiReplies";
+export type NumberSwitch = "shareClients" | "overlapNotice" | "allowViewRequests" | "aiReplies" | "clientByDefault";
 
 export const SWITCH_TEXT: Record<NumberSwitch, { title: string; on: string; off: string }> = {
   shareClients: {
     title: "Compartir mis clientes con la empresa",
     on: "Te aparece el botón «Es cliente» en tus chats. Solo los chats que marques pasan al CRM (ficha del cliente y embudo) y tu coordinador puede verlos.",
     off: "Apagado: todos tus chats se quedan privados. Nada sale de aquí.",
+  },
+  clientByDefault: {
+    title: "Marcar chats nuevos como cliente por defecto",
+    on: "Los chats nuevos que lleguen a tu número aparecen ya como cliente (con ficha y embudo), sin tocar «Es cliente». Siempre puedes quitarlo chat por chat. Los chats que ya tienes no cambian. Necesita «Compartir mis clientes con la empresa» encendido.",
+    off: "Apagado: los chats nuevos nacen privados y tú decides uno por uno.",
   },
   overlapNotice: {
     title: "Avisar que también hablo con este cliente",
@@ -28,7 +33,7 @@ export const SWITCH_TEXT: Record<NumberSwitch, { title: string; on: string; off:
   },
 };
 
-export const SWITCH_ORDER: readonly NumberSwitch[] = ["shareClients", "overlapNotice", "allowViewRequests", "aiReplies"];
+export const SWITCH_ORDER: readonly NumberSwitch[] = ["shareClients", "clientByDefault", "overlapNotice", "allowViewRequests", "aiReplies"];
 
 export const KIND_LABEL = { personal: "Personal", empresa: "De la empresa" } as const;
 
@@ -76,6 +81,21 @@ export const MY_CHATS_TEXT = {
     "¿Marcar como cliente? El contacto pasa al CRM (ficha y embudo). Tu coordinador podrá verlo como cliente; tus demás chats siguen privados.",
   shareOff: "Para marcar clientes, enciende «Compartir mis clientes con la empresa» en Ajustes → Mi número.",
   client: "Cliente",
+  isClient: "Es cliente",
+  notClient: "No es cliente",
+  unmarkHelp: "Toca para quitarlo de clientes: el chat vuelve a ser privado. No se borra nada; lo tuyo del CRM se guarda y reaparece si lo vuelves a marcar.",
+  unmarkConfirm:
+    "¿Quitar de clientes? El chat vuelve a ser privado y deja de verse en el CRM. No se borra nada: etapa, etiquetas y ficha se guardan y reaparecen si lo vuelves a marcar.",
+  askClient: "¿Es cliente?",
+  askYes: "Sí",
+  askNo: "No",
+  askNoHelp: "No cambia nada: solo oculta esta pregunta en este chat.",
+  search: "Buscar por nombre o teléfono…",
+  notFound: "Ningún chat con eso.",
+  newTitle: "Este número no está registrado",
+  newOpen: "Abrir chat",
+  newRegister: "Registrar contacto",
+  newHelp: "El chat nace privado (solo tú). Si tienes «Marcar chats nuevos como cliente por defecto», nace como cliente.",
   private: "Privado",
   placeholder: "Escribe por tu número…",
   queued: "En cola: sale en unos segundos para cuidar tu número.",

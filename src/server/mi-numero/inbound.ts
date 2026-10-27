@@ -1,4 +1,4 @@
-import { and, eq, isNotNull, isNull, sql } from "drizzle-orm";
+import { eq, isNull, sql } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
 import { scoped } from "@/lib/db/tenant";
@@ -14,6 +14,8 @@ import { isOrgActive } from "@/server/platform-admin/org-status";
 import { maybeRunAgentTurn } from "@/server/ai/trigger";
 import { aiShouldAnswer, pauseAiOnHumanReply } from "./ai";
 import { numberAudience } from "./audience";
+import { applyNewChatDefault } from "./chats";
+import { numberConversation } from "./conversation";
 
 const log = logger("mi-numero");
 
@@ -87,7 +89,9 @@ async function ingestOne(number: NumberRow, m: DeviceMessage): Promise<boolean> 
       .where(scoped(schema.contact.organizationId, organizationId, eq(schema.contact.id, contact.id)))
       .catch((err: unknown) => log.warn("no se guardó el ID privado del contacto", { org: organizationId, err }));
   }
-  const conversation = await numberConversation(organizationId, number.id, contact.id);
+  const { conversation: found, created } = await numberConversation(organizationId, number.id, contact.id);
+  // «Marcar chats nuevos como cliente por defecto»: solo al nacer el chat.
+  const conversation = created ? await applyNewChatDefault(number, found) : found;
   const at = new Date(Number(m.timestamp) * 1000 || Date.now());
 
   // PR 5: lo que Dashfort mandó por este número vuelve como `fromMe` con el
@@ -183,31 +187,4 @@ async function sendInFlight(organizationId: string, conversationId: string): Pro
     )
     .limit(1);
   return !!row;
-}
-
-/** El chat de este número con este contacto (uno solo; la IA nace apagada). */
-async function numberConversation(organizationId: string, directNumberId: string, contactId: string) {
-  const db = getDb();
-  const [created] = await db
-    .insert(schema.conversation)
-    .values({ id: newId("conversation"), organizationId, contactId, directNumberId, aiEnabled: false })
-    .onConflictDoNothing({
-      target: [schema.conversation.organizationId, schema.conversation.directNumberId, schema.conversation.contactId],
-      where: isNotNull(schema.conversation.directNumberId),
-    })
-    .returning();
-  if (created) return created;
-  const [existing] = await db
-    .select()
-    .from(schema.conversation)
-    .where(
-      scoped(
-        schema.conversation.organizationId,
-        organizationId,
-        and(eq(schema.conversation.directNumberId, directNumberId), eq(schema.conversation.contactId, contactId))
-      )
-    )
-    .limit(1);
-  if (!existing) throw new Error("chat del número no encontrado tras upsert");
-  return existing;
 }

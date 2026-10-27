@@ -24,6 +24,7 @@ const MESSAGE: Record<MiNumeroError, [number, string]> = {
     "Este número es de la empresa: sus ajustes los decide el Coordinador o el Propietario.",
   ],
   notice_required: [409, "Antes de vincular, lee y acepta el aviso."],
+  bad_phone: [422, "Ese teléfono no parece válido. Revisa los dígitos."],
   requests_off: [409, "Esa persona no recibe solicitudes para ver sus chats."],
   not_linked: [409, "Tu número no está conectado. Vuelve a escanear el código en Ajustes → Mi número."],
   ai_off: [409, "La IA solo contesta chats de cliente, con «La IA contesta mis chats» encendido en Ajustes → Mi número."],

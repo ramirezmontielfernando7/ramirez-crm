@@ -119,7 +119,7 @@ describe("Mi número — autorizar personas y sus ajustes (PR 3)", () => {
     await as(A.id, () => updateMyNumber(A.id, ana, { aiReplies: true, shareClients: true }));
     const mio = await as(A.id, () => myNumber(A.id, ana));
     expect(mio).toMatchObject({ kind: "personal", canEditSwitches: true });
-    expect(mio!.switches).toEqual({ shareClients: true, overlapNotice: false, allowViewRequests: false, aiReplies: true });
+    expect(mio!.switches).toEqual({ shareClients: true, overlapNotice: false, allowViewRequests: false, aiReplies: true, clientByDefault: false });
     expect(mio).not.toHaveProperty("userEmail");
     // Quien no tiene número no tiene nada que ver.
     expect(await as(A.id, () => myNumber(A.id, rosa))).toBeNull();
