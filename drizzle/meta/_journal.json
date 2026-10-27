@@ -407,6 +407,13 @@
       "when": 1793109177813,
       "tag": "0058_motivos_perdida",
       "breakpoints": true
+    },
+    {
+      "idx": 58,
+      "version": "7",
+      "when": 1793116968531,
+      "tag": "0059_respuestas_rapidas",
+      "breakpoints": true
     }
   ]
 }

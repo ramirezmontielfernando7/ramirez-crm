@@ -21,6 +21,7 @@ export const SETTINGS_TAB_PERMISSION = {
   templates: "templates.manage",
   tags: "tags.manage",
   "loss-reasons": "pipeline.edit",
+  "quick-replies": "templates.manage",
   team: "users.read",
   calendar: "settings.manage",
   ads: "settings.manage",

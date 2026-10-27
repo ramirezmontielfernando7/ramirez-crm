@@ -13,6 +13,7 @@ import {
   Smile,
   UserRound,
   X,
+  Zap,
 } from "lucide-react";
 import { SPRING } from "@/components/motion";
 import { WINDOW_CLOSED_DIRECT_HINT } from "@/lib/direct-connection";
@@ -27,12 +28,15 @@ import {
 import type { KnowledgeEntryDto } from "@/lib/knowledge";
 import { checkOutgoing, uploadHttpMessage } from "@/lib/upload-limits";
 import { useViewer } from "@/components/viewer-context";
+import { fillQuickReply, filterQuickReplies, slashQuery, type QuickReplyDto } from "@/lib/quick-replies";
+import { QuickReplyPicker } from "./quick-reply-picker";
 
 /**
  * 008 — Panel secundario del clip: formulario de ubicación o contacto.
- * 024 — `knowledge`: el buscador de Conocimientos (botón de libro o `/`).
+ * 024 — `knowledge`: el buscador de Conocimientos (botón de libro).
+ * `quick`: las respuestas rápidas (botón del rayo o `/atajo` en el editor).
  */
-type AttachPanel = "location" | "contact" | "knowledge" | null;
+type AttachPanel = "location" | "contact" | "knowledge" | "quick" | null;
 
 /** Qué menú flotante del compositor está abierto (uno a la vez). */
 type Popover = "attach" | "emoji" | null;
@@ -121,7 +125,12 @@ export function Composer({
   numberChat?: boolean;
 }) {
   // 030 (PR 4): sin el módulo Conocimientos no se ofrece (la API ya da 404).
-  const knowledgeOn = useViewer().hasModule("knowledge");
+  const viewer = useViewer();
+  const knowledgeOn = viewer.hasModule("knowledge");
+  // Respuestas rápidas: `quickSlash` = abiertas por `/` (el editor maneja el teclado).
+  const [quickReplies, setQuickReplies] = useState<QuickReplyDto[]>([]);
+  const [quickSlash, setQuickSlash] = useState(false);
+  const [quickActive, setQuickActive] = useState(0);
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -146,6 +155,19 @@ export function Composer({
 
   useDismiss(popover === "attach", attachRef, () => setPopover(null));
   useDismiss(popover === "emoji", emojiRef, () => setPopover(null));
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/quick-replies")
+      .then((r) => (r.ok ? r.json() : { replies: [] }))
+      .then((d: { replies?: QuickReplyDto[] }) => {
+        if (!cancelled) setQuickReplies(d.replies ?? []);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     // Las plantillas son de Meta: por un número no salen.
@@ -372,6 +394,38 @@ export function Composer({
     onSent();
   }
 
+  /** Respuesta rápida al editor (con `{nombre}` ya cambiado), lista para revisar y enviar. */
+  function insertQuick(reply: QuickReplyDto) {
+    setText(fillQuickReply(reply.body, conversation.contact.name));
+    setUndoText(null);
+    setPanel(null);
+    setQuickSlash(false);
+    requestAnimationFrame(() => {
+      const el = taRef.current;
+      if (!el) return;
+      el.focus();
+      el.setSelectionRange(el.value.length, el.value.length);
+      autogrow();
+    });
+  }
+
+  /** «Enviar» desde la lista: sale tal cual, sin pasar por el editor. */
+  async function sendQuick(reply: QuickReplyDto) {
+    setError(null);
+    setPanel(null);
+    setQuickSlash(false);
+    // Si el editor tenía `/atajo`, ese texto no era un mensaje.
+    if (slashQuery(text) !== null) setText("");
+    setSending(true);
+    const err = await onSend(fillQuickReply(reply.body, conversation.contact.name));
+    setSending(false);
+    if (err) setError(err);
+    else onSent();
+  }
+
+  const slash = quickSlash && panel === "quick" ? slashQuery(text) : null;
+  const slashMatches = slash !== null ? filterQuickReplies(quickReplies, slash) : [];
+
   if (!conversation.windowOpen && !freeTextOutsideWindow && !numberChat) {
     return (
       <div data-pm="composer" className="border-t bg-background px-[18px] py-3.5">
@@ -457,6 +511,33 @@ export function Composer({
             setPanel(null);
             taRef.current?.focus();
           }}
+        />
+      )}
+
+      {panel === "quick" && (
+        <QuickReplyPicker
+          replies={quickReplies}
+          query={quickSlash ? (slash ?? "") : undefined}
+          active={quickActive}
+          onActive={setQuickActive}
+          busy={sending}
+          onInsert={insertQuick}
+          onSend={(r) => void sendQuick(r)}
+          onClose={() => {
+            setPanel(null);
+            setQuickSlash(false);
+            taRef.current?.focus();
+          }}
+          onKnowledge={
+            knowledgeOn
+              ? () => {
+                  if (slashQuery(text) !== null) setText("");
+                  setQuickSlash(false);
+                  setPanel("knowledge");
+                }
+              : undefined
+          }
+          canManage={viewer.can("templates.manage")}
         />
       )}
 
@@ -555,7 +636,7 @@ export function Composer({
               title="Adjuntar archivo, contacto o ubicación"
               className={cn(
                 "rounded p-1.5 text-text-3 transition-[color,background-color,transform] duration-150 hover:bg-secondary hover:text-foreground active:scale-90",
-                (popover === "attach" || (panel !== null && panel !== "knowledge")) &&
+                (popover === "attach" || panel === "location" || panel === "contact") &&
                   "bg-secondary text-brand"
               )}
             >
@@ -671,6 +752,24 @@ export function Composer({
               )}
             </AnimatePresence>
           </div>
+          <button
+            type="button"
+            onClick={() => {
+              setPopover(null);
+              setQuickSlash(false);
+              setQuickActive(0);
+              setPanel(panel === "quick" ? null : "quick");
+            }}
+            aria-label="Respuestas rápidas"
+            title="Respuestas rápidas (o escribe / en el editor vacío)"
+            data-testid="quick-reply-button"
+            className={cn(
+              "rounded p-1.5 text-text-3 transition-[color,background-color,transform] duration-150 hover:bg-secondary hover:text-foreground active:scale-90",
+              panel === "quick" && "bg-secondary text-brand"
+            )}
+          >
+            <Zap className="h-[18px] w-[18px]" strokeWidth={1.7} />
+          </button>
           {knowledgeOn && (
           <button
             type="button"
@@ -679,7 +778,7 @@ export function Composer({
               setPanel(panel === "knowledge" ? null : "knowledge");
             }}
             aria-label="Conocimientos"
-            title="Enviar algo de Conocimientos (o escribe / en el editor vacío)"
+            title="Enviar algo de Conocimientos"
             className={cn(
               "rounded p-1.5 text-text-3 transition-[color,background-color,transform] duration-150 hover:bg-secondary hover:text-foreground active:scale-90",
               panel === "knowledge" && "bg-secondary text-brand"
@@ -697,18 +796,55 @@ export function Composer({
           readOnly={rewriting}
           aria-busy={rewriting}
           onChange={(e) => {
-            // 024 — `/` en el editor vacío abre Conocimientos (el `/` no se escribe).
-            if (knowledgeOn && e.target.value === "/" && text === "" && !file) {
+            const value = e.target.value;
+            // 024 — Sin respuestas rápidas, `/` en el editor vacío abre
+            // Conocimientos como siempre (el `/` no se escribe).
+            if (knowledgeOn && quickReplies.length === 0 && value === "/" && text === "" && !file) {
               setPanel("knowledge");
               return;
             }
-            setText(e.target.value);
+            setText(value);
+            // `/atajo`: la lista de respuestas rápidas se filtra mientras escribes.
+            if (!file && quickReplies.length > 0 && slashQuery(value) !== null) {
+              if (!quickSlash || panel !== "quick") {
+                setPopover(null);
+                setPanel("quick");
+                setQuickSlash(true);
+              }
+              setQuickActive(0);
+            } else if (quickSlash) {
+              setQuickSlash(false);
+              if (panel === "quick") setPanel(null);
+            }
             // Si el asesor retoca el resultado, "Deshacer" ya no aplica.
             setUndoText(null);
             autogrow();
           }}
           onPaste={onPaste}
           onKeyDown={(e) => {
+            // `/atajo`: ↑ ↓ eligen, Enter o Tab la ponen, Esc cierra.
+            if (slash !== null) {
+              if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+                e.preventDefault();
+                const last = Math.max(slashMatches.length - 1, 0);
+                setQuickActive((i) => (e.key === "ArrowDown" ? Math.min(i + 1, last) : Math.max(i - 1, 0)));
+                return;
+              }
+              if ((e.key === "Enter" && !e.shiftKey) || e.key === "Tab") {
+                const pick = slashMatches[quickActive];
+                if (pick) {
+                  e.preventDefault();
+                  insertQuick(pick);
+                  return;
+                }
+              }
+              if (e.key === "Escape") {
+                e.preventDefault();
+                setPanel(null);
+                setQuickSlash(false);
+                return;
+              }
+            }
             // 024 — Esc desde el editor también cierra Conocimientos.
             if (e.key === "Escape" && panel === "knowledge") {
               e.preventDefault();

@@ -13,7 +13,8 @@ import { pathWithin } from "@/lib/modules/nav-layout";
  * 1. Canales y Meta: WhatsApp, Messenger, Plantillas (sin Campañas) y
  *    Anuncios (Atribución / CAPI).
  * 2. Equipo y permisos: Miembros y roles, Chat de equipo.
- * 3. Operación CRM: Etiquetas, Motivos de pérdida y Conectores de agenda.
+ * 3. Operación CRM: Etiquetas, Motivos de pérdida, Respuestas rápidas y
+ *    Conectores de agenda.
  * 4. Marca y apariencia: Personalización (Apariencia, Marca y Navegación).
  * 5. Uso y plan: el consumo del mes contra los topes (solo el Propietario).
  *
@@ -57,6 +58,7 @@ const GROUPS: readonly Group[] = [
     pages: [
       { slug: "tags", label: "Etiquetas" },
       { slug: "loss-reasons", label: "Motivos de pérdida" },
+      { slug: "quick-replies", label: "Respuestas rápidas" },
       { slug: "calendar", label: "Conectores de agenda" },
     ],
   },
