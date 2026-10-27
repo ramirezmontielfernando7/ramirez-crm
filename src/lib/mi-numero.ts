@@ -58,6 +58,8 @@ export const MI_NUMERO_TEXT = {
     personal: "Personal: el número es de la persona. Solo ella ve sus chats y decide qué comparte.",
     empresa: "De la empresa: un chip de la empresa. Tú y los coordinadores deciden sus ajustes y pueden ver sus chats.",
   },
+  revokeConfirm: (name: string) =>
+    `¿Revocar el número de ${name}? Se desvincula de Dashfort. Los chats que marcó como cliente pasan a la Bandeja de la empresa; sus chats privados se borran. Su WhatsApp en el celular no cambia.`,
   becomeCompany: "Pasar este número a la empresa",
   becomeCompanyConfirm:
     "¿Pasar tu número a la empresa? Tu coordinador y el propietario podrán ver sus chats y decidir sus ajustes. Solo ellos lo pueden volver a hacer personal.",

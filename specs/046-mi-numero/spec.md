@@ -149,6 +149,15 @@ revierte el código, correr también la reversa.
   en `my-number-inbox.tsx`. La IA nunca: guardarraíl
   `tests/unit/conexion-directa-envio.test.ts`.
 
+## PR 6a — Cuando una persona deja su número (revocar)
+
+- `src/server/mi-numero/offboard.ts` (`settleNumberChats`, lo llama
+  `revokeNumber`, en una transacción): los chats «Es cliente» pasan a la
+  empresa (a la Bandeja, o sus mensajes se juntan con el chat que la empresa
+  ya tenía con ese cliente); los privados se borran con sus archivos; un
+  contacto privado sin chats se borra y uno que sigue en otro número queda
+  privado de ese. El aviso de «Revocar» lo dice.
+
 ## Siguientes PRs (sin migración)
 
 6. Privacidad: «También habla con…», solicitudes, bitácora; salida de una

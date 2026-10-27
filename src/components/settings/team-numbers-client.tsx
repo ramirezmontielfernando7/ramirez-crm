@@ -197,7 +197,7 @@ export function TeamNumbersClient() {
                   variant="ghost"
                   disabled={busy}
                   onClick={() => {
-                    if (window.confirm(`¿Revocar el número de ${n.userName}? Se desvincula y deja de funcionar en Dashfort.`)) void send(url, "DELETE");
+                    if (window.confirm(MI_NUMERO_TEXT.revokeConfirm(n.userName))) void send(url, "DELETE");
                   }}
                 >
                   Revocar

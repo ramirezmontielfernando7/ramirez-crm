@@ -18,6 +18,8 @@ import {
 } from "@/server/direct-connection/link";
 import { getOrgModules } from "@/server/modules";
 
+import { settleNumberChats } from "./offboard";
+
 const log = logger("mi-numero");
 
 /**
@@ -328,6 +330,8 @@ export async function revokeNumber(
       error: off.error,
     });
   await deleteNumberConnection(ref);
+  // PR 6: lo que aceptó la persona: los clientes se quedan, lo privado se borra.
+  await settleNumberChats(organizationId, id);
   await getDb()
     .update(schema.directNumber)
     .set({ revokedAt: new Date(), updatedAt: new Date() })
