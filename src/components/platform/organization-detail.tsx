@@ -313,7 +313,91 @@ export function PlanModulesSection() {
           <span className="min-w-0">Conexión directa (dispositivo vinculado)</span>
         </label>
         {modules.conexionDirecta && <DirectServerPicker orgId={org.id} disabled={disabled} />}
+        {modules.conexionDirecta && (
+          <MiNumeroControls orgId={org.id} orgName={org.name} modules={modules} disabled={disabled} save={save} />
+        )}
       </Section>
+    </div>
+  );
+}
+
+/**
+ * Mi número (046, PR 2) — Encender «Mi número» (cada persona vincula su
+ * WhatsApp) y cuántos números caben. Muestra cuántos están en uso; bajar el
+ * tope por debajo del uso no quita ninguno, solo impide autorizar más.
+ */
+function MiNumeroControls({
+  orgId,
+  orgName,
+  modules,
+  disabled,
+  save,
+}: {
+  orgId: string;
+  orgName: string;
+  modules: Modules;
+  disabled: boolean;
+  save: (change: Partial<Modules>) => Promise<void>;
+}) {
+  const [max, setMax] = useState(String(modules.miNumeroMax));
+  const [inUse, setInUse] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => setMax(String(modules.miNumeroMax)), [modules.miNumeroMax]);
+  useEffect(() => {
+    void api<{ connection: { numbersInUse: number } }>(`/api/platform/organizations/${orgId}/direct-connection`).then(
+      (r) => r.data && setInUse(r.data.connection.numbersInUse)
+    );
+  }, [orgId, modules.miNumero]);
+
+  return (
+    <div className="space-y-2" data-testid="platform-addon-miNumero">
+      <label className="flex items-center gap-2 text-sm">
+        <Switch
+          size="sm"
+          checked={modules.miNumero}
+          disabled={disabled}
+          label={`Mi número en ${orgName}`}
+          onCheckedChange={(next) => void save({ miNumero: next })}
+        />
+        <span className="min-w-0">Mi número (un WhatsApp por persona)</span>
+      </label>
+      {modules.miNumero && (
+        <form
+          className="ml-10 flex flex-wrap items-center gap-2 text-xs"
+          onSubmit={(e) => {
+            e.preventDefault();
+            setError(null);
+            const n = Number(max);
+            if (!Number.isInteger(n) || n < 0 || n > 200) {
+              setError("El tope va de 0 a 200 números");
+              return;
+            }
+            void save({ miNumeroMax: n });
+          }}
+        >
+          <Label htmlFor={`mi-numero-max-${orgId}`} className="text-xs text-text-2">
+            Números máximos
+          </Label>
+          <Input
+            id={`mi-numero-max-${orgId}`}
+            className="h-8 w-20"
+            inputMode="numeric"
+            value={max}
+            onChange={(e) => setMax(e.target.value)}
+            disabled={disabled}
+          />
+          <Button size="sm" variant="outline" type="submit" disabled={disabled}>
+            Guardar
+          </Button>
+          {inUse !== null && (
+            <span className="text-text-3" data-testid="platform-mi-numero-in-use">
+              En uso: {inUse} de {modules.miNumeroMax}
+            </span>
+          )}
+          {error && <span className="text-destructive">{error}</span>}
+        </form>
+      )}
     </div>
   );
 }

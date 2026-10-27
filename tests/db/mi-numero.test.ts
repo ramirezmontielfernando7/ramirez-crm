@@ -9,6 +9,8 @@ import { getOrCreateContact, getOrCreateConversation } from "@/server/inbox/inge
 import { countUnread, getConversation, listConversations } from "@/server/inbox/queries";
 import { forgetOrgModules, getOrgModules } from "@/server/modules";
 import { updateOrgModules } from "@/server/modules/store";
+import { organizationDirect } from "@/server/platform-admin/direct-servers";
+import { changeOrganizationModules, PlatformError } from "@/server/platform-admin/organizations";
 import { borrarOrganizaciones, crearOrganizacion } from "./fixtures";
 
 /**
@@ -255,6 +257,23 @@ describe("Mi número — datos (0057)", () => {
     expect(await codigo(mano)).toBe("23514");
     const tope = getSystemSql()`update organization_module set mi_numero_max = 500 where organization_id = ${A.id}`;
     expect(await codigo(tope)).toBe("23514");
+  });
+
+  it("/platform (PR 2): «Mi número» sin conexión directa es 422; con ella guarda el tope y cuenta los números vivos", async () => {
+    const actor = { userId: ana, email: "fer@plataforma.test" };
+    await expect(changeOrganizationModules(B.id, { miNumero: true }, actor, null)).rejects.toMatchObject(
+      new PlatformError(422, "module_dependency", "«Mi número» requiere la conexión directa: enciéndela primero")
+    );
+    const m = await changeOrganizationModules(B.id, { conexionDirecta: true, miNumero: true, miNumeroMax: 3 }, actor, null);
+    expect(m).toMatchObject({ conexionDirecta: true, miNumero: true, miNumeroMax: 3 });
+    // B tiene un número vivo (el de Luis, de la prueba de FK); uno revocado no cuenta.
+    const revocado = await crearNumero(B.id, ana);
+    await sys().update(schema.directNumber).set({ revokedAt: new Date() }).where(eq(schema.directNumber.id, revocado));
+    expect((await organizationDirect(B.id)).numbersInUse).toBe(1);
+    const bitacora = await getSystemSql()<{ detail: Record<string, unknown> }[]>`
+      select detail from platform_audit_log where target_org_id = ${B.id} and action = 'organization.modules_changed'
+      order by at desc limit 1`;
+    expect(bitacora[0]?.detail).toMatchObject({ miNumero: { de: false, a: true }, miNumeroMax: { de: 0, a: 3 } });
   });
 
   it("borrar la organización borra números, chats, conexiones y contactos privados juntos", async () => {

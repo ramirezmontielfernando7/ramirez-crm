@@ -1,4 +1,6 @@
+import { count, isNull } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
+import { scoped } from "@/lib/db/tenant";
 import { normalizeServerUrl } from "@/lib/direct-connection";
 import { runWithOrganization } from "@/lib/request-context";
 import { orgHasWhatsAppConnection } from "@/server/credentials";
@@ -116,14 +118,29 @@ export type OrganizationDirect = {
   metaless: boolean;
   /** PR 6: «IA por conexión directa» (solo cuenta en una empresa sin Meta). */
   aiViaDirect: boolean;
+  /** 046 — «Mi número» autorizados y vivos (no revocados): lo que cuenta contra el tope. */
+  numbersInUse: number;
 };
+
+/** 046 — Cuántos «Mi número» vivos tiene la organización. */
+async function numbersInUse(organizationId: string): Promise<number> {
+  const [row] = await getDb()
+    .select({ n: count() })
+    .from(schema.directNumber)
+    .where(scoped(schema.directNumber.organizationId, organizationId, isNull(schema.directNumber.revokedAt)));
+  return row?.n ?? 0;
+}
 
 export async function organizationDirect(organizationId: string): Promise<OrganizationDirect> {
   const [row, extra] = await Promise.all([
     getConnection(organizationId),
     runWithOrganization(organizationId, async () => {
-      const [hasMeta, settings] = await Promise.all([orgHasWhatsAppConnection(organizationId), getDirectSettings(organizationId)]);
-      return { metaless: !hasMeta, aiViaDirect: settings.aiViaDirect };
+      const [hasMeta, settings, enUso] = await Promise.all([
+        orgHasWhatsAppConnection(organizationId),
+        getDirectSettings(organizationId),
+        numbersInUse(organizationId),
+      ]);
+      return { metaless: !hasMeta, aiViaDirect: settings.aiViaDirect, numbersInUse: enUso };
     }),
   ]);
   if (!row) return { serverId: null, serverName: null, status: null, phoneNumber: null, locked: false, ...extra };
