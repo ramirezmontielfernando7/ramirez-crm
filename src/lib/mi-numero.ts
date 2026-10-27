@@ -75,5 +75,6 @@ export const MY_CHATS_TEXT = {
   shareOff: "Para marcar clientes, enciende «Compartir mis clientes con la empresa» en Ajustes → Mi número.",
   client: "Cliente",
   private: "Privado",
-  replySoon: "Por ahora contesta desde tu celular. Pronto podrás hacerlo desde aquí.",
+  placeholder: "Escribe por tu número…",
+  queued: "En cola: sale en unos segundos para cuidar tu número.",
 } as const;

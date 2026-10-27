@@ -58,7 +58,10 @@ export default async function InboxPage() {
 
   // Conexión directa (PR 5): solo si el complemento está encendido; si algo
   // falla, la Bandeja abre sin el punto de color.
-  const direct = await inboxDirectContext(session.organizationId, can(session, "direct_connection.mode")).catch((err) => {
+  // Dentro del contexto de la organización: fuera de él, la base no devuelve nada (RLS).
+  const direct = await runWithOrganization(session.organizationId, () =>
+    inboxDirectContext(session.organizationId, can(session, "direct_connection.mode"))
+  ).catch((err) => {
     log.error("contexto de la conexión directa", { err });
     return null;
   });

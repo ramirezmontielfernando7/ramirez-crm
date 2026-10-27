@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { ChevronLeft, Lock, UserCheck } from "lucide-react";
+import { ChevronLeft, Lock, Paperclip, SendHorizontal, UserCheck } from "lucide-react";
 import { fetchJson } from "@/lib/fetch-json";
 import { MY_CHATS_TEXT } from "@/lib/mi-numero";
 import type { MessageDto } from "@/lib/types";
@@ -30,7 +30,7 @@ type MyChats = { numberId: string; shareClients: boolean; chats: MyChat[] };
 /**
  * Mi número (046), PR 4 — La pestaña «Mi número» de la Bandeja: los chats del
  * número de quien mira (solo él los ve; la API lo decide por la sesión), sus
- * mensajes y «Es cliente». Contestar desde aquí llega en el PR 5.
+ * mensajes, «Es cliente» y (PR 5) contestar: sale por SU número.
  */
 export function MyNumberInbox() {
   const router = useRouter();
@@ -89,7 +89,11 @@ export function MyNumberInbox() {
       // Lo estoy viendo: que quede leído.
       void loadThread(conversationId);
     },
-    onNumberConversation: () => scheduleList(),
+    onNumberConversation: ({ conversationId }) => {
+      scheduleList();
+      // Palomitas o un envío que falló en el chat abierto: se vuelve a leer.
+      if (conversationId === selectedRef.current) void loadThread(conversationId);
+    },
     onConnect: () => {
       scheduleList();
       if (selectedRef.current) void loadThread(selectedRef.current);
@@ -213,7 +217,14 @@ export function MyNumberInbox() {
             ) : (
               !threadError && <p className="thread-bg flex-1 p-6 text-center text-xs text-text-3">Cargando…</p>
             )}
-            <p className="shrink-0 border-t bg-background px-4 py-3 text-center text-[12.5px] text-text-3">{MY_CHATS_TEXT.replySoon}</p>
+            <Composer
+              key={selectedId}
+              conversationId={selectedId}
+              onSent={() => {
+                scheduleList();
+                void loadThread(selectedId);
+              }}
+            />
           </>
         ) : (
           <div className="thread-bg flex flex-1 flex-col items-center justify-center gap-2 px-6 text-center">
@@ -294,6 +305,106 @@ function Messages({ messages }: { messages: MessageDto[] }) {
         );
       })}
       <div ref={end} />
+    </div>
+  );
+}
+
+function Composer({ conversationId, onSent }: { conversationId: string; onSent: () => void }) {
+  const [text, setText] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState<{ error: boolean; text: string } | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  async function after(res: Awaited<ReturnType<typeof fetchJson<{ queuedUntil?: string }>>>) {
+    if (!res.ok) {
+      setNote({ error: true, text: res.error });
+      return false;
+    }
+    setNote(res.data.queuedUntil ? { error: false, text: MY_CHATS_TEXT.queued } : null);
+    onSent();
+    return true;
+  }
+
+  async function sendText() {
+    const body = text.trim();
+    if (!body || busy) return;
+    setBusy(true);
+    setText("");
+    const res = await fetchJson<{ queuedUntil?: string }>(`/api/my-number/chats/${conversationId}/messages`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ text: body }),
+    });
+    // Lo que no salió vuelve al cuadro, como en la Bandeja.
+    if (!(await after(res))) setText(body);
+    setBusy(false);
+  }
+
+  async function sendFile(file: File) {
+    setBusy(true);
+    const form = new FormData();
+    form.set("file", file);
+    await after(await fetchJson<{ queuedUntil?: string }>(`/api/my-number/chats/${conversationId}/messages/media`, { method: "POST", body: form }));
+    setBusy(false);
+  }
+
+  return (
+    <div className="shrink-0 border-t bg-background px-3 py-2.5 md:px-4">
+      {note && (
+        <p role={note.error ? "alert" : "status"} className={cn("mb-1.5 text-[12px]", note.error ? "text-danger-text" : "text-text-3")}>
+          {note.text}
+        </p>
+      )}
+      <div className="flex items-end gap-2">
+        <input
+          ref={fileRef}
+          type="file"
+          className="hidden"
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            e.target.value = "";
+            if (f) void sendFile(f);
+          }}
+        />
+        <button
+          type="button"
+          onClick={() => fileRef.current?.click()}
+          disabled={busy}
+          aria-label="Adjuntar archivo"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-text-2 hover:bg-accent hover:text-foreground disabled:opacity-50"
+        >
+          <Paperclip className="h-4 w-4" strokeWidth={1.8} />
+        </button>
+        <label htmlFor="my-number-text" className="sr-only">
+          Mensaje
+        </label>
+        <textarea
+          id="my-number-text"
+          rows={1}
+          value={text}
+          maxLength={4096}
+          placeholder={MY_CHATS_TEXT.placeholder}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              void sendText();
+            }
+          }}
+          data-testid="my-number-composer"
+          className="max-h-32 min-h-9 flex-1 resize-none rounded-[18px] border border-input bg-card px-3.5 py-2 text-[13.5px] leading-[1.4] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        />
+        <button
+          type="button"
+          onClick={() => void sendText()}
+          disabled={busy || !text.trim()}
+          aria-label="Enviar por mi número"
+          data-testid="my-number-send"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground hover:bg-brand-hover disabled:opacity-50"
+        >
+          <SendHorizontal className="h-4 w-4" strokeWidth={2} />
+        </button>
+      </div>
     </div>
   );
 }

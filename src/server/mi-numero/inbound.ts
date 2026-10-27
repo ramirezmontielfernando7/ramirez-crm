@@ -1,4 +1,4 @@
-import { and, eq, isNotNull, sql } from "drizzle-orm";
+import { and, eq, isNotNull, isNull, sql } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
 import { scoped } from "@/lib/db/tenant";
@@ -24,7 +24,8 @@ const log = logger("mi-numero");
  *   ficha); uno nuevo nace PRIVADO del número (fuera del CRM).
  * - Nada de lo de la empresa: ni lead, ni reparto, ni bajas, ni IA, ni
  *   campañas. Solo el dueño se entera (eventos con su audiencia).
- * - Idempotente: `wa_message_id` = `direct.<número>.<key.id>`.
+ * - Idempotente: `wa_message_id` = `direct.<número>.<key.id>`. Lo que
+ *   Dashfort envió por el número (PR 5) no vuelve a entrar como `fromMe`.
  * - Un número revocado, un complemento apagado o una organización no activa:
  *   se descarta (el webhook ya respondió 200).
  */
@@ -84,6 +85,26 @@ async function ingestOne(number: NumberRow, m: DeviceMessage): Promise<boolean> 
   }
   const conversation = await numberConversation(organizationId, number.id, contact.id);
   const at = new Date(Number(m.timestamp) * 1000 || Date.now());
+
+  // PR 5: lo que Dashfort mandó por este número vuelve como `fromMe` con el
+  // mismo ID del dispositivo: ya está en el hilo, no se registra otra vez.
+  if (m.fromMe) {
+    const [own] = await db
+      .select({ id: schema.message.id })
+      .from(schema.message)
+      .where(
+        scoped(
+          schema.message.organizationId,
+          organizationId,
+          eq(schema.message.conversationId, conversation.id),
+          eq(schema.message.altMessageId, m.keyId),
+          eq(schema.message.direction, "out"),
+          isNull(schema.message.waMessageId)
+        )
+      )
+      .limit(1);
+    if (own) return false;
+  }
 
   const [message] = await db
     .insert(schema.message)

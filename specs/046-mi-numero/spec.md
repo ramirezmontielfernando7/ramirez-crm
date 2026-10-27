@@ -134,8 +134,22 @@ revierte el código, correr también la reversa.
   camino a Ajustes si «Compartir mis clientes» está apagado), en vivo con
   `number.*`. Contestar desde aquí es del PR 5. 404 sin complemento o sin número.
 
+## PR 5 — Contestar por el número
+
+- `src/server/mi-numero/send.ts` (`sendFromMyNumber`): solo el dueño, solo
+  con su número conectado y sin pausa; sale por SU instancia con la vía
+  directa de siempre (`direct-connection/send.ts`, `number`): límites, fila,
+  «escribiendo…» y freno propios (no gastan ni pausan los de la empresa, y
+  los de la empresa no cuentan los suyos). Avisos en vivo solo `number.*`.
+- Archivos: `wa_media_id` = `dnum:<número>:out-<asset>`, fuera de los filtros
+  de siempre. Palomitas del dispositivo (`status.ts`) solo en sus chats.
+- El aviso `fromMe` del dispositivo de lo que salió no entra dos veces
+  (`inbound.ts` + `dropNumberEcho`). Lo escrito en el celular sí entra.
+- Rutas `POST /api/my-number/chats/[id]/messages` (+ `/media`); compositor
+  en `my-number-inbox.tsx`. La IA nunca: guardarraíl
+  `tests/unit/conexion-directa-envio.test.ts`.
+
 ## Siguientes PRs (sin migración)
 
-5. Salida: por el número correcto, límites y freno por número.
 6. Privacidad: «También habla con…», solicitudes, bitácora; salida de una
    persona.

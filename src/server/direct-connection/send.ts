@@ -33,10 +33,11 @@ import { getDirectConnection, openDirectTarget } from "@/server/credentials/dire
 import { publish } from "@/server/events/bus";
 import { serializeMessage } from "@/server/inbox/ingest";
 import { isWindowOpen } from "@/server/inbox/window";
-import { orgHasConexionDirecta } from "@/server/modules";
+import { getOrgModules, orgHasConexionDirecta } from "@/server/modules";
 import { isOrgActive } from "@/server/platform-admin/org-status";
 import { beginTask, isShuttingDown, onShutdown } from "@/server/shutdown";
 import { readMediaFile } from "@/server/whatsapp/media";
+import { numberMessageId } from "@/lib/direct-inbound";
 import { recordDirectFailure } from "./brake";
 import { getDirectSettings } from "./settings";
 
@@ -63,6 +64,11 @@ import { getDirectSettings } from "./settings";
  * 4. Mal: `failed` con el motivo en palabras discretas; si fue el
  *    dispositivo (no el número del contacto), cuenta para el freno de
  *    emergencia (`recordDirectFailure`).
+ *
+ * Mi número (046, PR 5): un chat de un «Mi número» (`direct_number_id`) sale
+ * por el dispositivo de ESE número (lo pide solo `src/server/mi-numero/send.ts`).
+ * Sus límites, su fila y su freno son solo suyos (no gastan los de la
+ * empresa) y sus avisos en vivo van solo a su dueño (`number.*`).
  */
 
 const log = logger("direct-connection");
@@ -137,12 +143,21 @@ export type DirectOutgoing = {
   mediaAsset?: typeof schema.mediaAsset.$inferSelect | null;
   /** PR 6: un texto de la IA en una empresa sin Meta (se ve como de la IA en el hilo). */
   aiGenerated?: boolean;
+  /** 046: el chat es de este «Mi número»; `audience` = quién se entera (su dueño). */
+  number?: NumberScope;
 };
+
+/** 046 — Un chat de un «Mi número»: su id y quién se entera de lo que pasa en él. */
+export type NumberScope = { directNumberId: string; audience: string[] };
 
 export type DirectResult = { messageId: string; queuedUntil: Date | null };
 
-/** Los envíos por la directa de la última hora, con su hora de salida (la agendada si está en fila). */
-async function recentDirectSends(organizationId: string, now: Date): Promise<RecentSend[]> {
+/**
+ * Los envíos por la directa de la última hora, con su hora de salida (la
+ * agendada si está en fila). 046: los de un «Mi número» cuentan solo para
+ * ese número; los de la empresa, solo para la empresa.
+ */
+async function recentDirectSends(organizationId: string, now: Date, directNumberId: string | null): Promise<RecentSend[]> {
   const at = sql<Date>`coalesce(${schema.message.queuedUntil}, ${schema.message.sentAt}, ${schema.message.createdAt})`;
   const rows = await getDb()
     .select({ conversationId: schema.message.conversationId, at })
@@ -154,7 +169,10 @@ async function recentDirectSends(organizationId: string, now: Date): Promise<Rec
         eq(schema.message.transport, "directa"),
         eq(schema.message.direction, "out"),
         ne(schema.message.status, "failed"),
-        sql`${at} > ${new Date(now.getTime() - 60 * 60_000).toISOString()}::timestamp`
+        sql`${at} > ${new Date(now.getTime() - 60 * 60_000).toISOString()}::timestamp`,
+        directNumberId
+          ? sql`${schema.message.conversationId} in (select c_num.id from conversation c_num where c_num.organization_id = ${organizationId} and c_num.direct_number_id = ${directNumberId})`
+          : sql`not exists (select 1 from conversation c_num where c_num.id = ${schema.message.conversationId} and c_num.direct_number_id is not null)`
       )
     );
   return rows.map((r) => ({ conversationId: r.conversationId, at: new Date(r.at) }));
@@ -170,12 +188,14 @@ export async function sendDirect(input: DirectOutgoing): Promise<DirectResult> {
   const { organizationId, conversationId } = input;
   const settings = await getDirectSettings(organizationId);
   const now = new Date();
+  const scope = input.number ?? null;
+  const lockKey = scope ? `direct_send:${organizationId}:${scope.directNumberId}` : `direct_send:${organizationId}`;
 
   const { message, queuedUntil } = await withTenant(organizationId, async (tx) => {
     // Un envío a la vez por organización mientras se elige la hora: dos
     // personas escribiendo al mismo tiempo no pueden tomar el mismo hueco.
-    await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`direct_send:${organizationId}`}))`);
-    const recent = await recentDirectSends(organizationId, now);
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${lockKey}))`);
+    const recent = await recentDirectSends(organizationId, now, scope?.directNumberId ?? null);
     const slot = nextSlot(now, conversationId, recent, {
       enabled: settings.limitsEnabled,
       minIntervalSeconds: settings.minIntervalSeconds,
@@ -218,14 +238,14 @@ export async function sendDirect(input: DirectOutgoing): Promise<DirectResult> {
   });
 
   if (queuedUntil) {
-    publishNew(message, input.mediaAsset ?? null);
+    publishNew(message, input.mediaAsset ?? null, scope);
     scheduleDispatch(organizationId, message.id, queuedUntil);
     return { messageId: message.id, queuedUntil };
   }
 
   const outcome = await deliver(organizationId, message.id);
   if (outcome.ok) {
-    publishNew({ ...message, status: "sent", altMessageId: outcome.altId }, input.mediaAsset ?? null);
+    publishNew({ ...message, status: "sent", altMessageId: outcome.altId }, input.mediaAsset ?? null, scope);
     return { messageId: message.id, queuedUntil: null };
   }
   // Texto que no salió (y se sabe que no salió): fuera del hilo, como por Meta.
@@ -233,15 +253,46 @@ export async function sendDirect(input: DirectOutgoing): Promise<DirectResult> {
     await getDb().delete(schema.message).where(scoped(schema.message.organizationId, organizationId, eq(schema.message.id, message.id)));
     throw new DirectSendFailure(outcome.code, outcome.error, { timedOut: false });
   }
-  publishNew({ ...message, status: "failed", error: outcome.error }, input.mediaAsset ?? null);
+  publishNew({ ...message, status: "failed", error: outcome.error }, input.mediaAsset ?? null, scope);
   throw new DirectSendFailure(outcome.code, outcome.error, { timedOut: outcome.timedOut, messageId: message.id });
 }
 
-function publishNew(m: typeof schema.message.$inferSelect, media: typeof schema.mediaAsset.$inferSelect | null) {
-  publish(m.organizationId, {
-    type: "message.new",
-    data: { conversationId: m.conversationId, message: serializeMessage(m, media) },
-  });
+function publishNew(m: typeof schema.message.$inferSelect, media: typeof schema.mediaAsset.$inferSelect | null, scope: NumberScope | null) {
+  const data = { conversationId: m.conversationId, message: serializeMessage(m, media) };
+  if (scope) {
+    // 046: lo de un «Mi número» solo lo ve su dueño.
+    publish(m.organizationId, { type: "number.message", data, audience: scope.audience });
+    publish(m.organizationId, { type: "number.conversation", data: { conversationId: m.conversationId }, audience: scope.audience });
+    return;
+  }
+  publish(m.organizationId, { type: "message.new", data });
+}
+
+/** El cambio de estado de un mensaje: a todos los que ven el chat, o (046) solo al dueño del número. */
+function publishStatus(
+  organizationId: string,
+  scope: NumberScope | null,
+  data: { conversationId: string; messageId: string; status: "sent" | "failed"; error?: string },
+  message?: typeof schema.message.$inferSelect,
+  media?: typeof schema.mediaAsset.$inferSelect | null
+) {
+  if (scope) {
+    if (message) publish(organizationId, { type: "number.message", data: { conversationId: data.conversationId, message: serializeMessage(message, media ?? null) }, audience: scope.audience });
+    publish(organizationId, { type: "number.conversation", data: { conversationId: data.conversationId }, audience: scope.audience });
+    return;
+  }
+  publish(organizationId, { type: "message.status", data });
+}
+
+/** 046 — De quién es el «Mi número» de un chat (para sus avisos), o null si es de la empresa. */
+async function numberScopeOf(organizationId: string, directNumberId: string | null): Promise<NumberScope | null> {
+  if (!directNumberId) return null;
+  const [n] = await getDb()
+    .select({ userId: schema.directNumber.userId, revokedAt: schema.directNumber.revokedAt })
+    .from(schema.directNumber)
+    .where(scoped(schema.directNumber.organizationId, organizationId, eq(schema.directNumber.id, directNumberId)))
+    .limit(1);
+  return { directNumberId, audience: n ? [n.userId] : [] };
 }
 
 type Outcome =
@@ -256,6 +307,7 @@ type Outcome =
  */
 async function deliver(organizationId: string, messageId: string): Promise<Outcome> {
   const task = beginTask(`direct-send:${messageId}`);
+  let scope: NumberScope | null = null;
   try {
     const db = getDb();
     const [row] = await db
@@ -267,9 +319,11 @@ async function deliver(organizationId: string, messageId: string): Promise<Outco
       .where(scoped(schema.message.organizationId, organizationId, eq(schema.message.id, messageId)))
       .limit(1);
     if (!row) return { ok: false, code: "meta_error", error: "El mensaje ya no existe", timedOut: false };
+    const numberId = row.conversation.directNumberId;
+    scope = await numberScopeOf(organizationId, numberId);
 
     const fail = async (code: DirectSendFailure["code"], error: string, timedOut = false): Promise<Outcome> => {
-      await markFailed(organizationId, row.message.conversationId, messageId, error);
+      await markFailed(organizationId, row.message.conversationId, messageId, error, scope);
       return { ok: false, code, error, timedOut };
     };
 
@@ -277,7 +331,17 @@ async function deliver(organizationId: string, messageId: string): Promise<Outco
     if (row.conversation.isTest) return fail("meta_error", "Conversación de prueba del Laboratorio: el envío real está prohibido");
     if (!(await isOrgActive(organizationId))) return fail("not_connected", "La organización no está activa");
     if (!(await orgHasConexionDirecta(organizationId))) return fail("not_connected", unavailableText("module_off"));
-    const connection = await getDirectConnection(organizationId);
+    if (numberId) {
+      // 046: el complemento y el número tienen que seguir vivos al salir.
+      if (!(await getOrgModules(organizationId)).miNumero) return fail("not_connected", unavailableText("module_off"));
+      const [live] = await getDb()
+        .select({ id: schema.directNumber.id })
+        .from(schema.directNumber)
+        .where(scoped(schema.directNumber.organizationId, organizationId, eq(schema.directNumber.id, numberId), isNull(schema.directNumber.revokedAt)))
+        .limit(1);
+      if (!live) return fail("not_connected", unavailableText("disconnected"));
+    }
+    const connection = await getDirectConnection(organizationId, numberId);
     if (!connection || connection.status === "pending") return fail("not_connected", unavailableText("disconnected"));
     if (isPaused(connection, new Date())) return fail("not_connected", unavailableText("paused"));
     if (connection.status !== "connected") return fail("not_connected", unavailableText("disconnected"));
@@ -285,7 +349,7 @@ async function deliver(organizationId: string, messageId: string): Promise<Outco
     const number = directNumber(row.contact.phone);
     if (!number) return fail("meta_error", "Este contacto no tiene teléfono: no se puede enviar por conexión directa.");
 
-    const opened = await openDirectTarget(organizationId);
+    const opened = await openDirectTarget(organizationId, numberId);
     if (!opened.ok) {
       log.error("no se pudo abrir la llave de la conexión directa", { org: organizationId, motivo: opened.error });
       return fail("not_connected", unavailableText("disconnected"));
@@ -310,26 +374,25 @@ async function deliver(organizationId: string, messageId: string): Promise<Outco
 
     try {
       const altId = await send(opened.target, number, row.message.text, media);
-      await getDb()
+      const [sent] = await getDb()
         .update(schema.message)
         .set({ status: "sent", altMessageId: altId, sentAt: row.message.sentAt ?? new Date(), error: null })
-        .where(scoped(schema.message.organizationId, organizationId, eq(schema.message.id, messageId)));
-      publish(organizationId, {
-        type: "message.status",
-        data: { conversationId: row.message.conversationId, messageId, status: "sent" },
-      });
+        .where(scoped(schema.message.organizationId, organizationId, eq(schema.message.id, messageId)))
+        .returning();
+      if (numberId) await dropNumberEcho(organizationId, numberId, altId, messageId);
+      publishStatus(organizationId, scope, { conversationId: row.message.conversationId, messageId, status: "sent" }, sent, row.media);
       return { ok: true, altId };
     } catch (err) {
       if (!(err instanceof EvolutionApiError)) throw err;
       const kind = classifyFailure(err);
       log.warn("el dispositivo vinculado rechazó un envío", { org: organizationId, msg: messageId, status: err.status, tipo: kind });
-      if (kind === "ban" || kind === "connection") await recordDirectFailure(organizationId, kind);
+      if (kind === "ban" || kind === "connection") await recordDirectFailure(organizationId, kind, new Date(), numberId);
       if (err.timedOut) return fail("meta_unavailable", DIRECT_TIMEOUT_TEXT, true);
       return fail(kind === "connection" || kind === "ban" ? "meta_unavailable" : "meta_error", failureText(kind));
     }
   } catch (err) {
     log.error("falló el envío por conexión directa", { org: organizationId, msg: messageId, err });
-    await markFailed(organizationId, null, messageId, failureText("connection")).catch(() => undefined);
+    await markFailed(organizationId, null, messageId, failureText("connection"), scope).catch(() => undefined);
     return { ok: false, code: "meta_unavailable", error: failureText("connection"), timedOut: false };
   } finally {
     task.end();
@@ -348,16 +411,39 @@ async function send(target: EvolutionTarget, number: string, text: string | null
   return sendTextMessage(target, number, text ?? "");
 }
 
-async function markFailed(organizationId: string, conversationId: string | null, messageId: string, error: string): Promise<void> {
+/**
+ * 046 — El dispositivo también avisa lo que acaba de salir (`messages.upsert`
+ * con `fromMe`). Si ese aviso llegó antes de que este envío guardara su ID,
+ * ya se registró como un mensaje aparte: se quita para no verlo dos veces.
+ */
+async function dropNumberEcho(organizationId: string, directNumberId: string, altId: string, keepId: string): Promise<void> {
+  await getDb()
+    .delete(schema.message)
+    .where(
+      scoped(
+        schema.message.organizationId,
+        organizationId,
+        eq(schema.message.waMessageId, numberMessageId(directNumberId, altId)),
+        ne(schema.message.id, keepId)
+      )
+    )
+    .catch((err: unknown) => log.warn("no se pudo quitar el aviso repetido de un envío", { org: organizationId, err }));
+}
+
+async function markFailed(
+  organizationId: string,
+  conversationId: string | null,
+  messageId: string,
+  error: string,
+  scope: NumberScope | null = null
+): Promise<void> {
   const [row] = await getDb()
     .update(schema.message)
     .set({ status: "failed", error, failedAt: new Date(), queuedUntil: null })
     .where(scoped(schema.message.organizationId, organizationId, eq(schema.message.id, messageId), eq(schema.message.status, "pending")))
     .returning({ conversationId: schema.message.conversationId });
   const conv = row?.conversationId ?? conversationId;
-  if (row && conv) {
-    publish(organizationId, { type: "message.status", data: { conversationId: conv, messageId, status: "failed", error } });
-  }
+  if (row && conv) publishStatus(organizationId, scope, { conversationId: conv, messageId, status: "failed", error });
 }
 
 /* ───────── La fila: timers, arranque y apagado ───────── */
