@@ -124,6 +124,16 @@ revierte el código, correr también la reversa.
 - Pendiente: un número `empresa` aún solo lo ve su dueño (PR 6 abre a
   coordinadores); lo que sale es del PR 5.
 
+## PR 4b — La pestaña «Mi número» de la Bandeja
+
+- Pestañas Empresa · Mi número · Equipo (`inbox-mode-switch.tsx`): «Mi número»
+  sale solo a quien tiene número (`hasMyNumber` en el layout → `useViewer().hasMyNumber`),
+  con sus no leídos (`number-unread-store.ts`).
+- `/inbox/mi-numero` (`components/inbox/my-number-inbox.tsx`): lista con
+  «Privado» o «Cliente», mensajes con `MessageBubble`, «Es cliente» (o el
+  camino a Ajustes si «Compartir mis clientes» está apagado), en vivo con
+  `number.*`. Contestar desde aquí es del PR 5. 404 sin complemento o sin número.
+
 ## Siguientes PRs (sin migración)
 
 5. Salida: por el número correcto, límites y freno por número.

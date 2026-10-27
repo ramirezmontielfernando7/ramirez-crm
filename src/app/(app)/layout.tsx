@@ -14,6 +14,8 @@ import { getUserPreferences } from "@/server/preferences";
 import { resolveNavMode } from "@/lib/preferences";
 import { DirectDisconnectNotice } from "@/components/direct-disconnect-notice";
 import { currentPlatformAdmin } from "@/server/platform-admin/admins";
+import { orgHasMiNumero } from "@/server/modules";
+import { hasMyNumber } from "@/server/mi-numero/numbers";
 
 export default async function AppLayout({
   children,
@@ -55,6 +57,8 @@ export default async function AppLayout({
       modules={nav.modules}
       platform={(await currentPlatformAdmin()) !== null}
       navMode={resolveNavMode(prefs, session.role)}
+      // Mi número (046): la pestaña de la Bandeja solo para quien tiene número.
+      myNumber={(await orgHasMiNumero(session.organizationId)) && (await hasMyNumber(session.organizationId, session.userId))}
     >
       <DirectDisconnectNotice session={session} />
       {children}
