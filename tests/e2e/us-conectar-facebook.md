@@ -24,3 +24,19 @@ nuevo, un `pin` de 6 dígitos. Ruta: `POST /api/settings/whatsapp/embedded-signu
 7. Otro negocio no puede quedarse con un número ya conectado → 409: es el
    mismo camino que la conexión manual (`validateConnection`), cubierto en
    `scripts/e2e-credenciales.mjs`.
+
+## Coexistencia (PR 3)
+
+8. Al conectar con `business_app` se piden a Meta, una vez cada uno,
+   `POST {phone}/smb_app_data` con `smb_app_state_sync` y `history`
+   (`historyRequested: true` en la respuesta).
+9. Webhook `smb_app_state_sync`: cada `add` crea el contacto con su nombre
+   del celular; `remove` no borra nada del CRM.
+10. Webhook `history`: cada mensaje entra al chat del cliente (entrante o
+    saliente «a mano», con su estado de Meta) SIN no leídos, sin abrir la
+    ventana de 24 h, sin pausar la IA y sin crear lead; el chat toma la hora
+    del último mensaje y se ve en la Bandeja.
+11. Un `media_placeholder` se completa cuando Meta manda después su archivo
+    (mismo `wamid`, sin duplicar). Lotes repetidos no duplican.
+12. Si el negocio no comparte su historial (error 2593109) el webhook
+    responde 200 y no pasa nada más.
