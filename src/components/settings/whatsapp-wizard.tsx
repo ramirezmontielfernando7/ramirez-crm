@@ -14,6 +14,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import type { WebhookSettingsDto } from "@/lib/webhook-settings";
 import { Label } from "@/components/ui/label";
+import { EmbeddedSignupCard, type EmbeddedSignupConfig } from "@/components/settings/embedded-signup-card";
 
 type Connection = {
   wabaId: string;
@@ -30,6 +31,7 @@ type PlatformWebhookInfo = Extract<WebhookSettingsDto, { managedByPlatform: fals
 export function WhatsappWizard() {
   const [connection, setConnection] = useState<Connection | null>(null);
   const [webhook, setWebhook] = useState<WebhookInfo | null>(null);
+  const [embeddedSignup, setEmbeddedSignup] = useState<EmbeddedSignupConfig | null>(null);
   const [loaded, setLoaded] = useState(false);
 
   const refetch = useCallback(async () => {
@@ -41,7 +43,10 @@ export function WhatsappWizard() {
       console.error("[ajustes/whatsapp] no se pudo cargar la conexión o el webhook:", err);
       return [null, null];
     });
-    if (c) setConnection(c.connection);
+    if (c) {
+      setConnection(c.connection);
+      setEmbeddedSignup(c.embeddedSignup ?? null);
+    }
     if (w) setWebhook(w);
     setLoaded(true);
   }, []);
@@ -87,7 +92,29 @@ export function WhatsappWizard() {
         </div>
       )}
 
-      <ConnectForm existing={connection} onSaved={() => void refetch()} />
+      {embeddedSignup ? (
+        <>
+          <EmbeddedSignupCard
+            config={embeddedSignup}
+            connected={connection?.status === "connected"}
+            onConnected={() => void refetch()}
+          />
+          {/* Tech Provider: la conexión manual queda como opción avanzada. */}
+          <details className="group rounded-lg border bg-card" data-testid="conexion-manual">
+            <summary className="cursor-pointer select-none px-5 py-4 text-sm font-medium">
+              Conexión manual (avanzado)
+              <span className="ml-2 font-normal text-muted-foreground">
+                Para agencias o si ya tienes tus IDs y token de Meta
+              </span>
+            </summary>
+            <div className="border-t p-4">
+              <ConnectForm existing={connection} onSaved={() => void refetch()} />
+            </div>
+          </details>
+        </>
+      ) : (
+        <ConnectForm existing={connection} onSaved={() => void refetch()} />
+      )}
 
       {webhook &&
         (webhook.managedByPlatform ? (
