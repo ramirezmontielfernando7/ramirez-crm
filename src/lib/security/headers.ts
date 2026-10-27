@@ -18,12 +18,14 @@ export const HSTS_MAX_AGE_SECONDS = 86_400;
 export function cspReportOnly(dev: boolean): string {
   return [
     "default-src 'self'",
-    `script-src 'self' 'unsafe-inline'${dev ? " 'unsafe-eval'" : ""}`,
+    // Tech Provider: el SDK de Facebook abre «Conectar con Facebook».
+    `script-src 'self' 'unsafe-inline' https://connect.facebook.net${dev ? " 'unsafe-eval'" : ""}`,
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob:",
     "media-src 'self' data: blob:",
     "font-src 'self' data:",
-    "connect-src 'self'",
+    "connect-src 'self' https://*.facebook.com",
+    "frame-src https://*.facebook.com",
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",
