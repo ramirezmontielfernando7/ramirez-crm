@@ -12,9 +12,11 @@ import {
   Sparkles,
   UserRound,
 } from "lucide-react";
+import { useState } from "react";
 import type { MessageDto, MessageMediaDto } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { formatBytes, mediaLabel } from "./helpers";
+import { ImageLightbox } from "./image-lightbox";
 
 /**
  * El color vive en el contenedor (`tick-<estado>`) y el icono lo hereda: así el
@@ -59,6 +61,7 @@ type ContactPayload = {
 
 /** 008 — Previsualización del adjunto de un mensaje, por tipo. */
 function MediaBlock({ media }: { media: MessageMediaDto }) {
+  const [viewing, setViewing] = useState(false);
   const src = `/api/media/${media.assetId}`;
 
   if (media.kind === "location") {
@@ -146,24 +149,38 @@ function MediaBlock({ media }: { media: MessageMediaDto }) {
 
   if (media.kind === "image" || media.kind === "sticker") {
     return (
-      <a
-        href={src}
-        target="_blank"
-        rel="noreferrer noopener"
-        title="Ver completa"
-      >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={src}
-          alt={media.caption ?? mediaLabel(media.kind)}
-          className="max-h-72 max-w-full rounded-md object-contain"
-          loading="lazy"
-          // Premium: la foto reserva su caja (con brillo de carga) hasta que
-          // llega, así la burbuja nunca queda como un recuadro vacío.
-          onLoad={(e) => (e.currentTarget.dataset.loaded = "1")}
-          onError={(e) => (e.currentTarget.dataset.failed = "1")}
-        />
-      </a>
+      <>
+        <a
+          href={src}
+          title="Ver completa"
+          onClick={(e) => {
+            // Ctrl/Cmd+clic sigue abriendo otra pestaña, como cualquier enlace.
+            if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
+            e.preventDefault();
+            setViewing(true);
+          }}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={src}
+            alt={media.caption ?? mediaLabel(media.kind)}
+            className="max-h-72 max-w-full rounded-md object-contain"
+            loading="lazy"
+            // Premium: la foto reserva su caja (con brillo de carga) hasta que
+            // llega, así la burbuja nunca queda como un recuadro vacío.
+            onLoad={(e) => (e.currentTarget.dataset.loaded = "1")}
+            onError={(e) => (e.currentTarget.dataset.failed = "1")}
+          />
+        </a>
+        {viewing && (
+          <ImageLightbox
+            src={src}
+            alt={media.caption ?? mediaLabel(media.kind)}
+            fileName={media.fileName}
+            onClose={() => setViewing(false)}
+          />
+        )}
+      </>
     );
   }
   if (media.kind === "video") {
