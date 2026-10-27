@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { publish } from "@/server/events/bus";
+import { notifyNumberChat } from "@/server/mi-numero/ai";
 import { logger } from "@/lib/log";
 
 const log = logger("handoff");
@@ -32,12 +33,19 @@ export async function announceHandoff(
         contactId: schema.contact.id,
         contactName: schema.contact.name,
         assignedUserId: schema.contact.assignedUserId,
+        directNumberId: schema.conversation.directNumberId,
       })
       .from(schema.conversation)
       .innerJoin(schema.contact, eq(schema.contact.id, schema.conversation.contactId))
       .where(eq(schema.conversation.id, conversationId))
       .limit(1);
     if (!row) return;
+    // 046 (PR 8): en un chat de un «Mi número», solo se entera quien lleva el
+    // número (y quien supervisa uno de la empresa): el chat no está en la Bandeja.
+    if (row.directNumberId) {
+      await notifyNumberChat(organizationId, conversationId);
+      return;
+    }
     publish(organizationId, {
       type: "handoff.requested",
       data: {

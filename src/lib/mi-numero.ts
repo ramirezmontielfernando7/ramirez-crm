@@ -79,6 +79,12 @@ export const MY_CHATS_TEXT = {
   private: "Privado",
   placeholder: "Escribe por tu número…",
   queued: "En cola: sale en unos segundos para cuidar tu número.",
+  aiOn: "IA activa",
+  aiPaused: "IA en pausa",
+  aiPause: "Pausar",
+  aiResume: "Reanudar",
+  aiOnHelp: "La IA contesta este chat por tu número. Si tú escribes, se pausa sola.",
+  aiPausedHelp: "La IA no contesta este chat hasta que la reanudes.",
 } as const;
 
 /** Mi número (046), PR 6 — «También habla con…», solicitudes y bitácora. */

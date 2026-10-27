@@ -32,6 +32,7 @@ import {
 } from "@/server/channels/capabilities";
 import { isChannelEnabled } from "@/server/channels/enabled";
 import { serializeMessage } from "@/server/inbox/ingest";
+import { numberAiRoute } from "@/server/mi-numero/ai";
 import {
   saveMediaFile,
   uploadGraphMedia,
@@ -154,6 +155,12 @@ async function prepareSend(
       "sandbox_violation",
       "Conversación de prueba del Laboratorio: el envío real está prohibido"
     );
+  }
+
+  // 046: un chat de un «Mi número» jamás sale por aquí (ni por Meta ni por el
+  // dispositivo de la empresa): solo su propio código lo contesta.
+  if (row.conversation.directNumberId) {
+    throw new SendError("meta_error", "Conversación no encontrada");
   }
 
   // 014: Instagram tiene su propio transporte, su propia ventana y NO tiene
@@ -372,6 +379,22 @@ export async function sendText(input: {
   text: string;
   aiGenerated?: boolean;
 } & SendOptions): Promise<SendResult> {
+  // 046 (PR 8): la IA en un chat de cliente de un «Mi número» contesta por el
+  // dispositivo de ESE número (con sus límites y su freno), nunca por Meta.
+  if (input.aiGenerated) {
+    const route = await numberAiRoute(input.organizationId, input.conversationId);
+    if (route.kind === "blocked") throw new SendError("not_connected", route.message);
+    if (route.kind === "number") {
+      return viaDirect({
+        organizationId: input.organizationId,
+        conversationId: input.conversationId,
+        type: "text",
+        text: input.text,
+        aiGenerated: true,
+        number: route.scope,
+      });
+    }
+  }
   const target = await prepareSend(input.conversationId, input.organizationId, {
     // La IA nunca: aunque alguien lo pidiera, un texto generado sale por Meta.
     allowDirect: input.allowDirect === true && !input.aiGenerated,

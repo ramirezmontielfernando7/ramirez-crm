@@ -6,6 +6,7 @@ import { assignContacts } from "@/server/assignment/assign";
 import { publish } from "@/server/events/bus";
 import { serializeMessage } from "@/server/inbox/ingest";
 import { createLeadForContact } from "@/server/inbox/lead-activity";
+import { syncNumberAi } from "./ai";
 import { numberAudience } from "./audience";
 import { MiNumeroFailure } from "./numbers";
 import { supervisedNumberAsset } from "./supervise";
@@ -48,6 +49,8 @@ export type MyChatDto = {
   unreadCount: number;
   lastMessageAt: string | null;
   clientMarkedAt: string | null;
+  /** PR 8: la IA en este chat: contesta, en pausa, o no aplica (privado o interruptor apagado). */
+  ai: "on" | "paused" | null;
 };
 
 export type MyChats = { numberId: string; shareClients: boolean; chats: MyChatDto[] };
@@ -87,8 +90,31 @@ export async function listMyChats(organizationId: string, userId: string): Promi
       unreadCount: r.conversation.unreadCount,
       lastMessageAt: r.conversation.lastMessageAt?.toISOString() ?? null,
       clientMarkedAt: r.conversation.clientMarkedAt?.toISOString() ?? null,
+      ai: aiStateOf(number, r.conversation),
     })),
   };
+}
+
+function aiStateOf(
+  number: Pick<NumberRow, "aiReplies">,
+  conversation: Pick<typeof schema.conversation.$inferSelect, "clientMarkedAt" | "aiEnabled" | "handoffAt">
+): MyChatDto["ai"] {
+  if (!number.aiReplies || !conversation.clientMarkedAt || !conversation.aiEnabled) return null;
+  return conversation.handoffAt ? "paused" : "on";
+}
+
+/**
+ * PR 8: la persona pausa o reanuda la IA en uno de SUS chats. Reanudar solo
+ * donde la IA aplica (chat de cliente con «La IA contesta mis chats»).
+ */
+export async function setChatAi(organizationId: string, userId: string, conversationId: string, on: boolean): Promise<void> {
+  const { number, conversation } = await myChat(organizationId, userId, conversationId);
+  if (on && aiStateOf(number, conversation) === null) throw new MiNumeroFailure("ai_off");
+  await getDb()
+    .update(schema.conversation)
+    .set(on ? { handoffAt: null, handoffReason: null, updatedAt: new Date() } : { handoffAt: conversation.handoffAt ?? new Date(), handoffReason: conversation.handoffReason ?? "manual_reply", updatedAt: new Date() })
+    .where(scoped(schema.conversation.organizationId, organizationId, eq(schema.conversation.id, conversation.id)));
+  publish(organizationId, { type: "number.conversation", data: { conversationId: conversation.id }, audience: await numberAudience(organizationId, number) });
 }
 
 export async function myChat(organizationId: string, userId: string, conversationId: string) {
@@ -169,6 +195,8 @@ export async function markClient(organizationId: string, userId: string, convers
     if (!r.ok) log.warn("no se pudo asignar el cliente marcado", { org: organizationId, reason: r.reason });
   }
   await createLeadForContact({ organizationId, contactId: contact.id, at: now, source: "dueno", actorUserId: userId });
+  // PR 8: si «La IA contesta mis chats» está encendido, desde ahora contesta aquí.
+  await syncNumberAi(organizationId, number.id);
   publish(organizationId, { type: "number.conversation", data: { conversationId: conversation.id }, audience: await numberAudience(organizationId, number) });
 }
 

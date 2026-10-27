@@ -263,6 +263,14 @@ describe("conexión directa — guardarraíles del envío", () => {
     ]);
   });
 
+  it("046 (PR 8): la IA sale por un «Mi número» solo desde el envío de texto de la Bandeja (`numberAiRoute`)", () => {
+    const quien = todos.filter((f) => /\bnumberAiRoute\b/.test(f.src)).map((f) => f.rel);
+    expect(quien.sort()).toEqual(["src/server/inbox/send.ts", "src/server/mi-numero/ai.ts"]);
+    // Y solo cuando el texto es de la IA: `sendText` lo consulta dentro de `if (input.aiGenerated)`.
+    const send = todos.find((f) => f.rel === "src/server/inbox/send.ts")!.src;
+    expect(send).toMatch(/if \(input\.aiGenerated\) \{\s*const route = await numberAiRoute\(/);
+  });
+
   it("allowDirect: true solo en las rutas de la Bandeja (texto y archivos de una persona)", () => {
     const quien = todos.filter((f) => /allowDirect:\s*true/.test(f.src)).map((f) => f.rel);
     expect(quien.sort()).toEqual([

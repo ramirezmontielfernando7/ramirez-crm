@@ -5,6 +5,7 @@ import { numberMediaId } from "@/lib/direct-inbound";
 import { getDirectConnection } from "@/server/credentials/direct-instance";
 import { sendDirect, type DirectResult } from "@/server/direct-connection/send";
 import { saveMediaFile, validateOutgoing } from "@/server/whatsapp/media";
+import { notifyNumberChat, pauseAiOnHumanReply } from "./ai";
 import { numberAudience } from "./audience";
 import { myChat } from "./chats";
 import { MiNumeroFailure } from "./numbers";
@@ -35,6 +36,8 @@ export async function sendFromMyNumber(
   if (!connection || connection.status !== "connected") throw new MiNumeroFailure("not_linked");
   if (isPaused(connection, new Date())) throw new MiNumeroFailure("paused");
   const scope = { directNumberId: number.id, audience: await numberAudience(organizationId, number) };
+  // PR 8: la persona contesta → la IA se hace a un lado en este chat (la reanuda ella).
+  if (await pauseAiOnHumanReply(organizationId, conversation.id)) await notifyNumberChat(organizationId, conversation.id);
 
   if ("text" in input) {
     return sendDirect({ organizationId, conversationId: conversation.id, type: "text", text: input.text, number: scope });

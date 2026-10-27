@@ -188,7 +188,25 @@ revierte el código, correr también la reversa.
 - UI: la pestaña sale también a quien supervisa (sin número propio se llama
   «Números»), con «Número de la empresa · …» y «Chats de cliente en números
   personales» (`components/inbox/my-number-team.tsx`, `?e=` solo lectura).
-- Pendiente: la IA en los chats de un número.
+
+## PR 8 — «La IA contesta mis chats»
+
+- `src/server/mi-numero/ai.ts`: la IA solo en chats «Es cliente» de un número
+  con el interruptor encendido. `conversation.ai_enabled` de un chat de
+  número es un REFLEJO (`syncNumberAi`, al mover el interruptor y al marcar
+  «Es cliente»): el turno del agente (`pipeline.ts`, sin cambios) lo lee como
+  siempre. Lo que entra a un chat así llama al turno (`inbound.ts`).
+- Sale por el dispositivo de ESE número: `sendText` con `aiGenerated`
+  consulta `numberAiRoute` y manda por la vía directa con su alcance (límites
+  y freno del número). Guardarraíl en `conexion-directa-envio.test.ts`. Y el
+  envío de siempre (`prepareSend`) rechaza todo chat de número.
+- Si la persona escribe (Dashfort o su celular) la IA se pausa en ese chat
+  (`handoff_at`, `manual_reply`); el aviso de un envío de Dashfort que aún no
+  tiene ID del dispositivo no cuenta. Ella la reanuda con «IA activa / en
+  pausa» en el encabezado del chat (`PUT /api/my-number/chats/[id]/ai`).
+- «Necesita a una persona» (`announceHandoff`) en un chat de número solo le
+  llega a quien lo lleva (y a quien supervisa uno de la empresa).
+- Requiere el agente de la organización encendido, como cualquier chat.
 
 ## Siguientes PRs (sin migración)
 
