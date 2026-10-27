@@ -1,6 +1,6 @@
 {
-  "id": "143d356e-1520-44c7-b479-4a01b44c6da1",
-  "prevId": "fd2597d5-c50b-43db-bc62-c1ec8fdc374c",
+  "id": "f689d2d7-5ae6-4755-ac1c-e2ff49fb66a5",
+  "prevId": "34346be5-9137-4697-9314-87aee0cf1df2",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -1346,6 +1346,633 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.ai_action_log": {
+      "name": "ai_action_log",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "organization_id": {
+          "name": "organization_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "connection_id": {
+          "name": "connection_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "tool": {
+          "name": "tool",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "outcome": {
+          "name": "outcome",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "conversation_id": {
+          "name": "conversation_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "contact_id": {
+          "name": "contact_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "summary": {
+          "name": "summary",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "at": {
+          "name": "at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "ai_action_log_org_at_idx": {
+          "name": "ai_action_log_org_at_idx",
+          "columns": [
+            {
+              "expression": "organization_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "ai_action_log_org_user_at_idx": {
+          "name": "ai_action_log_org_user_at_idx",
+          "columns": [
+            {
+              "expression": "organization_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "ai_action_log_organization_id_organization_id_fk": {
+          "name": "ai_action_log_organization_id_organization_id_fk",
+          "tableFrom": "ai_action_log",
+          "tableTo": "organization",
+          "columnsFrom": [
+            "organization_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "ai_action_log_user_id_user_id_fk": {
+          "name": "ai_action_log_user_id_user_id_fk",
+          "tableFrom": "ai_action_log",
+          "tableTo": "user",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "ai_action_log_outcome_chk": {
+          "name": "ai_action_log_outcome_chk",
+          "value": "\"ai_action_log\".\"outcome\" in ('ok', 'denied', 'limited', 'error')"
+        },
+        "ai_action_log_tool_chk": {
+          "name": "ai_action_log_tool_chk",
+          "value": "\"ai_action_log\".\"tool\" ~ '^[a-z_]{1,40}$'"
+        },
+        "ai_action_log_summary_chk": {
+          "name": "ai_action_log_summary_chk",
+          "value": "\"ai_action_log\".\"summary\" is null or char_length(\"ai_action_log\".\"summary\") <= 200"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.ai_connection": {
+      "name": "ai_connection",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "organization_id": {
+          "name": "organization_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "kind": {
+          "name": "kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "client_id": {
+          "name": "client_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "scopes": {
+          "name": "scopes",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{read}'::text[]"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "last_used_at": {
+          "name": "last_used_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "revoked_at": {
+          "name": "revoked_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "revoked_by": {
+          "name": "revoked_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "ai_connection_org_user_idx": {
+          "name": "ai_connection_org_user_idx",
+          "columns": [
+            {
+              "expression": "organization_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "ai_connection_organization_id_organization_id_fk": {
+          "name": "ai_connection_organization_id_organization_id_fk",
+          "tableFrom": "ai_connection",
+          "tableTo": "organization",
+          "columnsFrom": [
+            "organization_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "ai_connection_user_id_user_id_fk": {
+          "name": "ai_connection_user_id_user_id_fk",
+          "tableFrom": "ai_connection",
+          "tableTo": "user",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "ai_connection_revoked_by_user_id_fk": {
+          "name": "ai_connection_revoked_by_user_id_fk",
+          "tableFrom": "ai_connection",
+          "tableTo": "user",
+          "columnsFrom": [
+            "revoked_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "ai_connection_org_id_uq": {
+          "name": "ai_connection_org_id_uq",
+          "nullsNotDistinct": false,
+          "columns": [
+            "organization_id",
+            "id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "ai_connection_kind_chk": {
+          "name": "ai_connection_kind_chk",
+          "value": "\"ai_connection\".\"kind\" in ('oauth', 'key')"
+        },
+        "ai_connection_name_chk": {
+          "name": "ai_connection_name_chk",
+          "value": "char_length(\"ai_connection\".\"name\") between 1 and 80"
+        },
+        "ai_connection_scopes_chk": {
+          "name": "ai_connection_scopes_chk",
+          "value": "\"ai_connection\".\"scopes\" <@ array['read', 'write']::text[] and 'read' = any(\"ai_connection\".\"scopes\")"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.ai_connector_settings": {
+      "name": "ai_connector_settings",
+      "schema": "",
+      "columns": {
+        "organization_id": {
+          "name": "organization_id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "enabled": {
+          "name": "enabled",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "allowed_roles": {
+          "name": "allowed_roles",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::text[]"
+        },
+        "daily_message_limit": {
+          "name": "daily_message_limit",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 100
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_by": {
+          "name": "updated_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "ai_connector_settings_organization_id_organization_id_fk": {
+          "name": "ai_connector_settings_organization_id_organization_id_fk",
+          "tableFrom": "ai_connector_settings",
+          "tableTo": "organization",
+          "columnsFrom": [
+            "organization_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "ai_connector_settings_updated_by_user_id_fk": {
+          "name": "ai_connector_settings_updated_by_user_id_fk",
+          "tableFrom": "ai_connector_settings",
+          "tableTo": "user",
+          "columnsFrom": [
+            "updated_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "ai_connector_settings_roles_chk": {
+          "name": "ai_connector_settings_roles_chk",
+          "value": "\"ai_connector_settings\".\"allowed_roles\" <@ array['coordinador', 'asesor']::text[]"
+        },
+        "ai_connector_settings_limit_chk": {
+          "name": "ai_connector_settings_limit_chk",
+          "value": "\"ai_connector_settings\".\"daily_message_limit\" between 0 and 1000"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.ai_oauth_client": {
+      "name": "ai_oauth_client",
+      "schema": "",
+      "columns": {
+        "client_id": {
+          "name": "client_id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "client_name": {
+          "name": "client_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "redirect_uris": {
+          "name": "redirect_uris",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "last_used_at": {
+          "name": "last_used_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "ai_oauth_client_name_chk": {
+          "name": "ai_oauth_client_name_chk",
+          "value": "char_length(\"ai_oauth_client\".\"client_name\") between 1 and 100"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.ai_oauth_code": {
+      "name": "ai_oauth_code",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "organization_id": {
+          "name": "organization_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "code_hash": {
+          "name": "code_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "client_id": {
+          "name": "client_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "client_name": {
+          "name": "client_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "redirect_uri": {
+          "name": "redirect_uri",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "code_challenge": {
+          "name": "code_challenge",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "resource": {
+          "name": "resource",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "scopes": {
+          "name": "scopes",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "used_at": {
+          "name": "used_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "ai_oauth_code_hash_uq": {
+          "name": "ai_oauth_code_hash_uq",
+          "columns": [
+            {
+              "expression": "code_hash",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "ai_oauth_code_org_user_idx": {
+          "name": "ai_oauth_code_org_user_idx",
+          "columns": [
+            {
+              "expression": "organization_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "ai_oauth_code_organization_id_organization_id_fk": {
+          "name": "ai_oauth_code_organization_id_organization_id_fk",
+          "tableFrom": "ai_oauth_code",
+          "tableTo": "organization",
+          "columnsFrom": [
+            "organization_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "ai_oauth_code_user_id_user_id_fk": {
+          "name": "ai_oauth_code_user_id_user_id_fk",
+          "tableFrom": "ai_oauth_code",
+          "tableTo": "user",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "ai_oauth_code_scopes_chk": {
+          "name": "ai_oauth_code_scopes_chk",
+          "value": "\"ai_oauth_code\".\"scopes\" <@ array['read', 'write']::text[]"
+        }
+      },
+      "isRLSEnabled": false
+    },
     "public.ai_quota": {
       "name": "ai_quota",
       "schema": "",
@@ -1405,6 +2032,149 @@
         "ai_quota_assistant_tokens_chk": {
           "name": "ai_quota_assistant_tokens_chk",
           "value": "\"ai_quota\".\"assistant_monthly_token_limit\" is null or \"ai_quota\".\"assistant_monthly_token_limit\" >= 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.ai_token": {
+      "name": "ai_token",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "organization_id": {
+          "name": "organization_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "connection_id": {
+          "name": "connection_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "kind": {
+          "name": "kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "token_hash": {
+          "name": "token_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "token_prefix": {
+          "name": "token_prefix",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "revoked_at": {
+          "name": "revoked_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "ai_token_hash_uq": {
+          "name": "ai_token_hash_uq",
+          "columns": [
+            {
+              "expression": "token_hash",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "ai_token_connection_idx": {
+          "name": "ai_token_connection_idx",
+          "columns": [
+            {
+              "expression": "organization_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "connection_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "ai_token_organization_id_organization_id_fk": {
+          "name": "ai_token_organization_id_organization_id_fk",
+          "tableFrom": "ai_token",
+          "tableTo": "organization",
+          "columnsFrom": [
+            "organization_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "ai_token_connection_fk": {
+          "name": "ai_token_connection_fk",
+          "tableFrom": "ai_token",
+          "tableTo": "ai_connection",
+          "columnsFrom": [
+            "organization_id",
+            "connection_id"
+          ],
+          "columnsTo": [
+            "organization_id",
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "ai_token_kind_chk": {
+          "name": "ai_token_kind_chk",
+          "value": "\"ai_token\".\"kind\" in ('access', 'refresh', 'key')"
+        },
+        "ai_token_expiry_chk": {
+          "name": "ai_token_expiry_chk",
+          "value": "(\"ai_token\".\"kind\" = 'key') = (\"ai_token\".\"expires_at\" is null)"
         }
       },
       "isRLSEnabled": false
@@ -4871,12 +5641,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "client_prompt_dismissed_at": {
-          "name": "client_prompt_dismissed_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": false
-        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp",
@@ -4890,6 +5654,12 @@
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
+        },
+        "client_prompt_dismissed_at": {
+          "name": "client_prompt_dismissed_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {
@@ -6324,8 +7094,8 @@
           "notNull": true,
           "default": false
         },
-        "client_by_default": {
-          "name": "client_by_default",
+        "ai_connector": {
+          "name": "ai_connector",
           "type": "boolean",
           "primaryKey": false,
           "notNull": true,
@@ -6362,6 +7132,13 @@
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
+        },
+        "client_by_default": {
+          "name": "client_by_default",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
         }
       },
       "indexes": {
@@ -7048,7 +7825,7 @@
           "primaryKey": false,
           "notNull": false,
           "generated": {
-            "as": "to_tsvector('spanish'::regconfig, translate(\"content\", 'ÁÉÍÓÚÜáéíóúü', 'AEIOUUaeiouu'))",
+            "as": "to_tsvector('spanish'::regconfig, translate(\"content\", '\u00c1\u00c9\u00cd\u00d3\u00da\u00dc\u00e1\u00e9\u00ed\u00f3\u00fa\u00fc', 'AEIOUUaeiouu'))",
             "type": "stored"
           }
         },
@@ -8938,6 +9715,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "ai_connection_id": {
+          "name": "ai_connection_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp",
@@ -10180,6 +10963,13 @@
           "primaryKey": false,
           "notNull": true,
           "default": 0
+        },
+        "conector_ia": {
+          "name": "conector_ia",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
         },
         "updated_at": {
           "name": "updated_at",
