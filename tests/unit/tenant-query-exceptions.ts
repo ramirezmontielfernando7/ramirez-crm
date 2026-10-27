@@ -63,6 +63,11 @@ export const TENANT_QUERY_EXCEPTIONS: Record<string, { max: number; motivo: stri
     motivo:
       "Ruteo del cerebro externo: el hash de la llave (único) DESCUBRE la organización; y el arranque liga la BOT_API_KEY a PLATFORM_ORG_ID (filas source='env', de la plataforma).",
   },
+  "server/ai-connector/keys.ts": {
+    max: 1,
+    motivo:
+      "047: el hash de la llave del conector de IA (único) DESCUBRE la organización y la persona de /api/mcp (como el cerebro externo).",
+  },
   "server/auth/on-signup.ts": {
     max: 1,
     motivo:

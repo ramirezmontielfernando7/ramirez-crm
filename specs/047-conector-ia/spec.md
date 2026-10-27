@@ -71,10 +71,37 @@ Migración `0060_conector_ia` (solo aditiva, idempotente; reversa
 RLS con la política de siempre en las cinco tablas con organización. Prueba:
 `tests/db/conector-ia-datos.test.ts`.
 
+## PR 2 — Conector que solo lee (sin pantallas)
+
+- `POST /api/mcp` (`src/app/api/mcp/route.ts`): JSON-RPC 2.0 sin sesión,
+  responde JSON (sin streams; `GET`/`DELETE` → 405). `initialize` y
+  `server/discover` negocian versión (`2026-07-28`, `2025-11-25`,
+  `2025-06-18`, `2025-03-26`); notificaciones → 202; lotes → error.
+- Autenticación `src/server/ai-connector/auth.ts`: `Authorization: Bearer`
+  con llave `dfk_` (personal) o `dfa_` (acceso OAuth, PR 3); `dfr_` nunca
+  abre. La llave dice organización y persona; el rol sale de la membresía de
+  HOY (`resolveMembership`) + delegaciones y se arma `sessionContext`. No
+  abre si: revocada/caducada, la persona salió, organización suspendida,
+  complemento apagado, conector apagado o rol fuera (403 `connector_off`).
+  401 con `WWW-Authenticate: Bearer resource_metadata=…`. Topes: 120/min
+  por conexión, 30 fallos/min por IP.
+- Metadatos RFC 9728: `/.well-known/oauth-protected-resource[/api/mcp]`.
+- Catálogo cerrado `src/server/ai-connector/tools.ts` (Zod en cada
+  argumento): `list_chats`, `read_chat` (no marca leído; avisa que el texto
+  de clientes son datos), `list_stages`, `list_tags`, `list_quick_replies`,
+  `list_tasks` (solo con `trabajo`). Usan `listConversationsPage`,
+  `getConversation`, `scopedConversations`: chats de «Mi número» fuera.
+- Llaves `src/server/ai-connector/keys.ts` (ÚNICA puerta de `ai_connection`
+  y `ai_token`): `createPersonalKey`, `listMyConnections`,
+  `revokeConnection`, `resolveToken` (pool de sistema, por hash). Ajustes
+  del Propietario `settings.ts`. Bitácora `log.ts` (ÚNICA puerta de
+  `ai_action_log`; también lo inventado o negado).
+- Pruebas: `tests/unit/conector-ia.test.ts`,
+  `tests/db/conector-ia-lectura.test.ts` (alcance por rol, otra
+  organización, revocar, apagar, salir).
+
 ## PRs siguientes
 
-2. Conector que solo lee (`/mcp`, llave personal, metadatos RFC 9728) con
-   herramientas de lectura sobre las consultas del CRM y pruebas de alcance.
 3. «Iniciar sesión» OAuth + Ajustes → «Conecta tu IA» (maquetas en Clásico
    claro ANTES de programar).
 4. Acciones (enviar, etiquetar, etapa, perdido con motivo, tareas, notas,
