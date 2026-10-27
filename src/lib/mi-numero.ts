@@ -62,3 +62,18 @@ export const MI_NUMERO_TEXT = {
   becomeCompanyConfirm:
     "¿Pasar tu número a la empresa? Tu coordinador y el propietario podrán ver sus chats y decidir sus ajustes. Solo ellos lo pueden volver a hacer personal.",
 } as const;
+
+/** Mi número (046), PR 4 — La pestaña «Mi número» de la Bandeja. */
+export const MY_CHATS_TEXT = {
+  privacy: "Solo tú ves estos chats. Nada pasa al CRM hasta que marques «Es cliente».",
+  empty: "Aún no hay chats. Lo que te escriban a tu número aparece aquí.",
+  pick: "Elige un chat de tu número",
+  markClient: "Es cliente",
+  markClientHelp: "Pasa este contacto al CRM (ficha y embudo) y queda a tu cargo si nadie lo atiende. El chat sigue siendo tuyo.",
+  markClientConfirm:
+    "¿Marcar como cliente? El contacto pasa al CRM (ficha y embudo). Tu coordinador podrá verlo como cliente; tus demás chats siguen privados.",
+  shareOff: "Para marcar clientes, enciende «Compartir mis clientes con la empresa» en Ajustes → Mi número.",
+  client: "Cliente",
+  private: "Privado",
+  replySoon: "Por ahora contesta desde tu celular. Pronto podrás hacerlo desde aquí.",
+} as const;
