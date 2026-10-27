@@ -45,6 +45,12 @@ Sin migraciones ni variables nuevas.
 - **Letras locales (#89).** Inter e IBM Plex Mono con `next/font/local` en
   `src/app/fonts`: el build ya no depende de Google Fonts.
 
+### Eliminar un chat borra sus archivos
+
+Sin migración. Al eliminar un chat de la Bandeja también se borran sus fotos,
+audios y documentos (fila y archivo en disco), salvo los que otro mensaje,
+plantilla o anuncio todavía use.
+
 ### Seguridad y mantenimiento
 
 - **Next.js 15.5.26** (antes 15.5.20): corrige el RCE sin autenticación del

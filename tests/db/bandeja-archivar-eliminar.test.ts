@@ -262,6 +262,41 @@ describe("eliminar", () => {
     }
   });
 
+  it("borra también los archivos del chat (fila y disco), pero respeta los que otro mensaje o plantilla aún usa", async () => {
+    const { mkdir, writeFile, access } = await import("node:fs/promises");
+    const { mediaFilePath } = await import("@/server/whatsapp/media");
+    const c = await chat(A.id);
+    const otro = await chat(A.id);
+    const existe = (f: string) => access(f).then(() => true, () => false);
+    const asset = async (conversationId: string, extra?: Partial<typeof schema.mediaAsset.$inferInsert>) => {
+      const id = newId("mediaAsset");
+      await sys().insert(schema.mediaAsset).values({ id, organizationId: A.id, kind: "image", fetchStatus: "available", ...extra });
+      const file = mediaFilePath(A.id, id);
+      await mkdir(file.replace(/[^/]+$/, ""), { recursive: true });
+      await writeFile(file, "x");
+      await sys().insert(schema.message).values({
+        id: newId("message"), organizationId: A.id, conversationId, direction: "in", type: "image",
+        status: "delivered", waMessageId: `wamid.${newId("message")}`, mediaAssetId: id,
+      });
+      return { id, file };
+    };
+    const propio = await asset(c.conversationId);
+    const compartido = await asset(c.conversationId);
+    // El mismo archivo lo usa también un mensaje de otro chat.
+    await sys().insert(schema.message).values({
+      id: newId("message"), organizationId: A.id, conversationId: otro.conversationId, direction: "in", type: "image",
+      status: "delivered", waMessageId: `wamid.${newId("message")}`, mediaAssetId: compartido.id,
+    });
+    como(A.id, u.owner, "owner");
+
+    expect((await llamar("DELETE", c.conversationId)).status).toBe(200);
+    const filas = (id: string) => sys().select().from(schema.mediaAsset).where(eq(schema.mediaAsset.id, id));
+    expect(await filas(propio.id)).toHaveLength(0);
+    expect(await existe(propio.file)).toBe(false);
+    expect(await filas(compartido.id)).toHaveLength(1);
+    expect(await existe(compartido.file)).toBe(true);
+  });
+
   it("un ASESOR recibe 403 (aunque sea SU chat) y no se borra nada", async () => {
     const c = await chat(A.id, u.ana);
     como(A.id, u.ana, "asesor");
