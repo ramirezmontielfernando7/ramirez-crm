@@ -1,4 +1,4 @@
-import { desc, eq, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, ne, sql } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { scoped, type Access } from "@/lib/db/tenant";
 import type { ConversationDto } from "@/lib/types";
@@ -8,6 +8,9 @@ import { publish } from "@/server/events/bus";
 import { serializeMessage } from "@/server/inbox/ingest";
 import { createLeadForContact } from "@/server/inbox/lead-activity";
 import { numberClientChats } from "@/server/inbox/queries";
+import { normalizeTypedPhone } from "@/lib/phone-search";
+import { getOrCreateContactByIdentity } from "@/server/inbox/identity";
+import { numberConversation } from "./conversation";
 import { syncNumberAi } from "./ai";
 import { numberAudience } from "./audience";
 import { MiNumeroFailure } from "./numbers";
@@ -51,6 +54,8 @@ export type MyChatDto = {
   unreadCount: number;
   lastMessageAt: string | null;
   clientMarkedAt: string | null;
+  /** La persona ya contestó «No» a «¿Es cliente?» en este chat: la barra no sale. */
+  clientAsked: boolean;
   /** PR 8: la IA en este chat: contesta, en pausa, o no aplica (privado o interruptor apagado). */
   ai: "on" | "paused" | null;
   /**
@@ -106,6 +111,7 @@ export async function listMyChats(
       unreadCount: r.conversation.unreadCount,
       lastMessageAt: r.conversation.lastMessageAt?.toISOString() ?? null,
       clientMarkedAt: r.conversation.clientMarkedAt?.toISOString() ?? null,
+      clientAsked: r.conversation.clientPromptDismissedAt !== null,
       ai: aiStateOf(number, r.conversation),
       crm: crm.get(r.conversation.id) ?? null,
     })),
@@ -182,11 +188,29 @@ export async function myChatMessages(organizationId: string, userId: string, con
 export async function markClient(organizationId: string, userId: string, conversationId: string): Promise<void> {
   const { number, conversation } = await myChat(organizationId, userId, conversationId);
   if (!number.shareClients) throw new MiNumeroFailure("share_off");
+  await applyClientMark(number, conversation, userId);
+}
+
+/**
+ * El cuerpo de «Es cliente», también para los chats que nacen ya como cliente
+ * (`clientByDefault`): quien llama decidió que corresponde.
+ */
+export async function applyClientMark(
+  number: NumberRow,
+  conversation: typeof schema.conversation.$inferSelect,
+  userId: string
+): Promise<void> {
+  const { organizationId } = number;
   const db = getDb();
   const now = new Date();
   await db
     .update(schema.conversation)
-    .set({ clientMarkedAt: conversation.clientMarkedAt ?? now, clientMarkedBy: conversation.clientMarkedBy ?? userId, updatedAt: now })
+    .set({
+      clientMarkedAt: conversation.clientMarkedAt ?? now,
+      clientMarkedBy: conversation.clientMarkedBy ?? userId,
+      clientPromptDismissedAt: null,
+      updatedAt: now,
+    })
     .where(scoped(schema.conversation.organizationId, organizationId, eq(schema.conversation.id, conversation.id)));
   const [contact] = await db
     .select()
@@ -215,6 +239,114 @@ export async function markClient(organizationId: string, userId: string, convers
   // PR 8: si «La IA contesta mis chats» está encendido, desde ahora contesta aquí.
   await syncNumberAi(organizationId, number.id);
   publish(organizationId, { type: "number.conversation", data: { conversationId: conversation.id }, audience: await numberAudience(organizationId, number) });
+}
+
+/** Un chat recién nacido: con «Marcar chats nuevos como cliente por defecto» (y «Compartir mis clientes») nace como cliente. */
+export async function applyNewChatDefault(
+  number: NumberRow,
+  conversation: typeof schema.conversation.$inferSelect
+): Promise<typeof schema.conversation.$inferSelect> {
+  if (!number.shareClients || !number.clientByDefault) return conversation;
+  await applyClientMark(number, conversation, number.userId);
+  const [fresh] = await getDb()
+    .select()
+    .from(schema.conversation)
+    .where(scoped(schema.conversation.organizationId, number.organizationId, eq(schema.conversation.id, conversation.id)))
+    .limit(1);
+  return fresh ?? conversation;
+}
+
+/**
+ * «No es cliente»: el chat vuelve a ser privado. NO se borra nada: la etapa, las
+ * etiquetas, la ficha y el lead se quedan guardados (escondidos mientras el
+ * contacto sea privado) y reaparecen si se vuelve a marcar.
+ * - Si el contacto tiene otro chat vivo (p. ej. con la empresa), sigue en el
+ *   CRM; solo este chat deja de ser de cliente.
+ * - Se quitan los permisos de ver este chat que otros tenían o pedían.
+ * - La IA deja de contestar aquí.
+ */
+export async function unmarkClient(organizationId: string, userId: string, conversationId: string): Promise<void> {
+  const { number, conversation } = await myChat(organizationId, userId, conversationId);
+  if (!conversation.clientMarkedAt) return;
+  const db = getDb();
+  const now = new Date();
+  await db
+    .update(schema.conversation)
+    .set({ clientMarkedAt: null, clientMarkedBy: null, clientPromptDismissedAt: now, updatedAt: now })
+    .where(scoped(schema.conversation.organizationId, organizationId, eq(schema.conversation.id, conversation.id)));
+  await db
+    .update(schema.conversationAccess)
+    .set({ status: "revoked" })
+    .where(
+      scoped(
+        schema.conversationAccess.organizationId,
+        organizationId,
+        eq(schema.conversationAccess.conversationId, conversation.id),
+        inArray(schema.conversationAccess.status, ["pending", "granted"])
+      )
+    );
+  const [other] = await db
+    .select({ id: schema.conversation.id })
+    .from(schema.conversation)
+    .where(
+      scoped(
+        schema.conversation.organizationId,
+        organizationId,
+        and(
+          eq(schema.conversation.contactId, conversation.contactId),
+          ne(schema.conversation.id, conversation.id),
+          isNull(schema.conversation.archivedAt)
+        )
+      )
+    )
+    .limit(1);
+  if (!other) {
+    await db
+      .update(schema.contact)
+      .set({ privateToNumberId: number.id, updatedAt: now })
+      .where(scoped(schema.contact.organizationId, organizationId, eq(schema.contact.id, conversation.contactId)));
+  }
+  await syncNumberAi(organizationId, number.id);
+  publish(organizationId, { type: "number.conversation", data: { conversationId: conversation.id }, audience: await numberAudience(organizationId, number) });
+}
+
+/** «¿Es cliente?» → «No»: solo esconde la pregunta en este chat; no cambia nada más. */
+export async function dismissClientPrompt(organizationId: string, userId: string, conversationId: string): Promise<void> {
+  const { conversation } = await myChat(organizationId, userId, conversationId);
+  await getDb()
+    .update(schema.conversation)
+    .set({ clientPromptDismissedAt: new Date() })
+    .where(scoped(schema.conversation.organizationId, organizationId, eq(schema.conversation.id, conversation.id)));
+}
+
+/**
+ * Buscar un teléfono nuevo y abrir su chat: el contacto (si no existe) nace
+ * PRIVADO de este número, igual que cuando alguien escribe primero. Con
+ * «Marcar chats nuevos como cliente por defecto» el chat nace como cliente.
+ */
+export async function openNumberChat(
+  organizationId: string,
+  userId: string,
+  input: { phone: string; name?: string }
+): Promise<{ conversationId: string }> {
+  const number = await myLiveNumber(organizationId, userId);
+  const typed = normalizeTypedPhone(input.phone);
+  if (!typed.valid) throw new MiNumeroFailure("bad_phone");
+  const { contact, isNew } = await getOrCreateContactByIdentity(
+    organizationId,
+    { identity: typed.phone, phone: typed.phone, waUserId: null, profileName: input.name?.trim() || null },
+    { privateTo: number.id }
+  );
+  const name = input.name?.trim();
+  if (name && (isNew || contact.nameSource === "perfil") && name !== contact.name) {
+    await getDb()
+      .update(schema.contact)
+      .set({ name, nameSource: "manual", updatedAt: new Date() })
+      .where(scoped(schema.contact.organizationId, organizationId, eq(schema.contact.id, contact.id)));
+  }
+  const { conversation, created } = await numberConversation(organizationId, number.id, contact.id);
+  if (created) await applyNewChatDefault(number, conversation);
+  return { conversationId: conversation.id };
 }
 
 /**

@@ -828,6 +828,8 @@ export const conversation = pgTable(
      */
     clientMarkedAt: timestamp("client_marked_at"),
     clientMarkedBy: text("client_marked_by").references(() => user.id, { onDelete: "set null" }),
+    /** 0061: la persona ya contestó «¿Es cliente?» con «No» en este chat: la barra no vuelve a salir. */
+    clientPromptDismissedAt: timestamp("client_prompt_dismissed_at"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },
@@ -3936,6 +3938,8 @@ export const directNumber = pgTable(
      * privados nunca. Apagado; solo el dueño lo cambia en un número personal.
      */
     aiConnector: boolean("ai_connector").notNull().default(false),
+    /** 0061: los chats NUEVOS de este número nacen «Es cliente» (requiere `share_clients`). */
+    clientByDefault: boolean("client_by_default").notNull().default(false),
     /** Aviso aceptado por la persona al vincular (privacidad, bloqueos, salida). */
     noticeAcceptedAt: timestamp("notice_accepted_at"),
     authorizedBy: text("authorized_by").references(() => user.id, { onDelete: "set null" }),

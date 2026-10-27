@@ -23,6 +23,7 @@ const body = z
     overlapNotice: z.boolean().optional(),
     allowViewRequests: z.boolean().optional(),
     aiReplies: z.boolean().optional(),
+    clientByDefault: z.boolean().optional(),
   })
   .strict();
 

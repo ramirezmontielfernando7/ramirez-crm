@@ -28,6 +28,7 @@ const body = z
     overlapNotice: z.boolean().optional(),
     allowViewRequests: z.boolean().optional(),
     aiReplies: z.boolean().optional(),
+    clientByDefault: z.boolean().optional(),
     acceptNotice: z.literal(true).optional(),
     becomeCompany: z.literal(true).optional(),
   })

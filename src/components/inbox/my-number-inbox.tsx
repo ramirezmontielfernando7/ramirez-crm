@@ -3,9 +3,10 @@
 import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Bot, ChevronLeft, ChevronRight, Lock, PanelRight, UserCheck } from "lucide-react";
+import { Bot, Check, ChevronLeft, ChevronRight, Lock, PanelRight, UserCheck } from "lucide-react";
 import { fetchJson } from "@/lib/fetch-json";
 import { ACCESS_TEXT, MY_CHATS_TEXT, TEAM_TEXT } from "@/lib/mi-numero";
+import { looksLikePhone, stripPhoneAdornments } from "@/lib/phone-search";
 import type { ConversationDto, MessageDto } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { ContactAvatar } from "@/components/avatar";
@@ -21,6 +22,8 @@ import { useInboxCatalogs } from "./use-inbox-catalogs";
 import { formatTime, previewText } from "./helpers";
 import { InboxModeSwitch, InboxTabs } from "./inbox-mode-switch";
 import { MessageBubble } from "./message-bubble";
+import { NumberNewChatCard } from "./my-number-new-chat";
+import { SearchPill } from "./search-pill";
 import { refreshNumberUnread } from "./number-unread-store";
 import { AccessRequestDialog, OverlapPills, PendingRequestsBanner, SharedChatsSection, useAccessOverview } from "./my-number-access";
 import { CompanyNumbersSection, findCompanyChat, RequestableSection, useTeamNumbers } from "./my-number-team";
@@ -32,6 +35,7 @@ type MyChat = {
   unreadCount: number;
   lastMessageAt: string | null;
   clientMarkedAt: string | null;
+  clientAsked: boolean;
   ai: "on" | "paused" | null;
   /** Lo de CRM (etapa, etiquetas, quién atiende) en un chat de cliente; null en los privados. */
   crm: ConversationDto | null;
@@ -65,6 +69,8 @@ export function MyNumberInbox({ own = true, team = false }: { own?: boolean; tea
   const { overview, reload: reloadAccess } = useAccessOverview();
   const { team: teamData, reload: reloadTeam } = useTeamNumbers(team);
   const [rowError, setRowError] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
+  const rowRef = useRef<HTMLDivElement>(null);
   const catalogs = useInboxCatalogs();
   const members = useAssignees();
   const capsuleCatalogs = useMemo(() => ({ catalogs, members }), [catalogs, members]);
@@ -185,8 +191,27 @@ export function MyNumberInbox({ own = true, team = false }: { own?: boolean; tea
       scroll: false,
     });
 
-  async function markClient(chat: MyChat) {
-    if (!window.confirm(MY_CHATS_TEXT.markClientConfirm)) return;
+  /** «No es cliente»: vuelve a privado; no se borra nada. */
+  async function unmarkClient(chat: MyChat) {
+    if (!window.confirm(MY_CHATS_TEXT.unmarkConfirm)) return;
+    setBusy(true);
+    const res = await fetchJson<null>(`/api/my-number/chats/${chat.id}/client`, { method: "DELETE" });
+    setBusy(false);
+    if (!res.ok) return setThreadError(res.error);
+    await refetchList();
+  }
+
+  /** «¿Es cliente?» → «No»: solo esconde la pregunta en este chat. */
+  async function dismissAsk(chat: MyChat) {
+    setBusy(true);
+    const res = await fetchJson<null>(`/api/my-number/chats/${chat.id}/client`, { method: "PUT" });
+    setBusy(false);
+    if (!res.ok) return setThreadError(res.error);
+    await refetchList();
+  }
+
+  async function markClient(chat: MyChat, confirm = true) {
+    if (confirm && !window.confirm(MY_CHATS_TEXT.markClientConfirm)) return;
     setBusy(true);
     const res = await fetchJson<null>(`/api/my-number/chats/${chat.id}/client`, { method: "POST" });
     setBusy(false);
@@ -207,6 +232,18 @@ export function MyNumberInbox({ own = true, team = false }: { own?: boolean; tea
     return null;
   }
 
+  // Buscar entre mis chats por nombre o teléfono (solo dígitos si parece teléfono).
+  const q = query.trim().toLowerCase();
+  const qDigits = looksLikePhone(query) ? stripPhoneAdornments(query) : "";
+  const shown = !q
+    ? (list?.chats ?? [])
+    : (list?.chats ?? []).filter(
+        (c) =>
+          c.contact.name.toLowerCase().includes(q) ||
+          (c.contact.phone ?? "").includes(qDigits || q.replace(/\D/g, "") || "\u0000"),
+      );
+  const sinRegistrar = own && !!list && looksLikePhone(query) && shown.length === 0;
+
   const selected = sharedId || companyId ? null : (list?.chats.find((c) => c.id === selectedId) ?? null);
   const companyChat = findCompanyChat(teamData, companyId);
   const sharedChat = sharedId ? (overview?.sharedWithMe.find((c) => c.conversationId === sharedId) ?? null) : null;
@@ -226,7 +263,9 @@ export function MyNumberInbox({ own = true, team = false }: { own?: boolean; tea
             <NavRevealButton />
             <InboxModeSwitch current="number" />
           </header>
-          <InboxTabs current="number" />
+          <InboxTabs current="number" rowRef={own ? rowRef : undefined}>
+            {own && <SearchPill query={query} onQuery={setQuery} rowRef={rowRef} />}
+          </InboxTabs>
           <p className="flex items-start gap-2 border-y bg-secondary px-4 py-2 text-[12px] leading-snug text-text-2">
             <Lock className="mt-[1px] h-3.5 w-3.5 shrink-0" strokeWidth={2} aria-hidden />
             <span>{own ? MY_CHATS_TEXT.privacy : TEAM_TEXT.note}</span>
@@ -242,7 +281,7 @@ export function MyNumberInbox({ own = true, team = false }: { own?: boolean; tea
               </p>
             )}
             {own && !list && !listError && <p className="px-4 py-6 text-center text-xs text-text-3">Cargando…</p>}
-            {list?.chats.length === 0 && <p className="px-6 py-10 text-center text-[13px] text-text-3">{MY_CHATS_TEXT.empty}</p>}
+            {list?.chats.length === 0 && !query && <p className="px-6 py-10 text-center text-[13px] text-text-3">{MY_CHATS_TEXT.empty}</p>}
             {!own && teamData && teamData.companyNumbers.length === 0 && teamData.requestable.length === 0 && !overview?.sharedWithMe.length && (
               <p className="px-6 py-10 text-center text-[13px] text-text-3">{TEAM_TEXT.nothing}</p>
             )}
@@ -255,7 +294,7 @@ export function MyNumberInbox({ own = true, team = false }: { own?: boolean; tea
               </p>
             )}
             <CapsuleCatalogs.Provider value={capsuleCatalogs}>
-              {list?.chats.map((c) => (
+              {shown.map((c) => (
                 <ChatRow
                   key={c.id}
                   chat={c}
@@ -267,6 +306,19 @@ export function MyNumberInbox({ own = true, team = false }: { own?: boolean; tea
                 />
               ))}
             </CapsuleCatalogs.Provider>
+            {sinRegistrar && (
+              <NumberNewChatCard
+                query={query}
+                onOpened={(id) => {
+                  setQuery("");
+                  void refetchList();
+                  select(id);
+                }}
+              />
+            )}
+            {q && !sinRegistrar && list && list.chats.length > 0 && shown.length === 0 && (
+              <p className="px-6 py-10 text-center text-[13px] text-text-3">{MY_CHATS_TEXT.notFound}</p>
+            )}
             {teamData && <CompanyNumbersSection numbers={teamData.companyNumbers} activeId={companyId} onSelect={(id) => select(id, "e")} />}
             <SharedChatsSection chats={overview?.sharedWithMe ?? []} activeId={sharedId} onSelect={(id) => select(id, "s")} />
             {teamData && (
@@ -311,21 +363,15 @@ export function MyNumberInbox({ own = true, team = false }: { own?: boolean; tea
                       <AiToggle chat={selected} onChanged={() => void refetchList()} onError={setThreadError} />
                     </div>
                   )}
-                  {!selected.clientMarkedAt && (
-                    <div className="ml-auto shrink-0">
-                      {list?.shareClients ? (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          disabled={busy}
-                          title={MY_CHATS_TEXT.markClientHelp}
-                          onClick={() => void markClient(selected)}
-                          data-testid="my-number-mark-client"
-                        >
-                          <UserCheck className="mr-1.5 h-3.5 w-3.5" strokeWidth={2} aria-hidden />
-                          {MY_CHATS_TEXT.markClient}
-                        </Button>
-                      ) : (
+                  <div className="ml-auto shrink-0">
+                    {list?.shareClients ? (
+                      <ClientToggle
+                        isClient={!!selected.clientMarkedAt}
+                        busy={busy}
+                        onToggle={() => void (selected.clientMarkedAt ? unmarkClient(selected) : markClient(selected))}
+                      />
+                    ) : (
+                      !selected.clientMarkedAt && (
                         <Link
                           href="/settings/my-number"
                           title={MY_CHATS_TEXT.shareOff}
@@ -333,9 +379,9 @@ export function MyNumberInbox({ own = true, team = false }: { own?: boolean; tea
                         >
                           ¿Es cliente? Actívalo en tus ajustes
                         </Link>
-                      )}
-                    </div>
-                  )}
+                      )
+                    )}
+                  </div>
                 </div>
               )}
               {companyChat && (
@@ -394,6 +440,9 @@ export function MyNumberInbox({ own = true, team = false }: { own?: boolean; tea
                   <p role="status" className="shrink-0 border-t bg-background px-4 pt-2 text-[12px] text-text-3">
                     {MY_CHATS_TEXT.queued}
                   </p>
+                )}
+                {selected && !selected.clientMarkedAt && !selected.clientAsked && list?.shareClients && (
+                  <ClientAskBar busy={busy} onYes={() => void markClient(selected, false)} onNo={() => void dismissAsk(selected)} />
                 )}
                 <Composer
                   key={selectedId}
@@ -522,6 +571,48 @@ function AiToggle({ chat, onChanged, onError }: { chat: MyChat; onChanged: () =>
         {on ? MY_CHATS_TEXT.aiPause : MY_CHATS_TEXT.aiResume}
       </button>
     </span>
+  );
+}
+
+/** El botón del encabezado, como switch: resaltado = es cliente; tenue = no lo es. */
+function ClientToggle({ isClient, busy, onToggle }: { isClient: boolean; busy: boolean; onToggle: () => void }) {
+  return (
+    <button
+      type="button"
+      aria-pressed={isClient}
+      disabled={busy}
+      onClick={onToggle}
+      title={isClient ? MY_CHATS_TEXT.unmarkHelp : MY_CHATS_TEXT.markClientHelp}
+      data-testid="my-number-client-toggle"
+      className={cn(
+        "flex items-center gap-1.5 whitespace-nowrap rounded-full border px-3.5 py-1.5 text-[13px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50",
+        isClient
+          ? "border-brand bg-brand-tint font-semibold text-brand-text"
+          : "border-border-strong font-medium text-text-3 opacity-60 hover:opacity-100",
+      )}
+    >
+      <Check className="h-3.5 w-3.5" strokeWidth={2.2} aria-hidden />
+      {isClient ? MY_CHATS_TEXT.isClient : MY_CHATS_TEXT.notClient}
+    </button>
+  );
+}
+
+/** La pregunta sobre el cuadro de texto, en chats que aún no son cliente ni se ha contestado «No». */
+function ClientAskBar({ busy, onYes, onNo }: { busy: boolean; onYes: () => void; onNo: () => void }) {
+  return (
+    <div
+      className="flex shrink-0 items-center gap-2 border-t bg-secondary px-4 py-2 text-[12.5px]"
+      data-testid="my-number-client-ask"
+    >
+      <UserCheck className="h-3.5 w-3.5 shrink-0 text-text-3" strokeWidth={2} aria-hidden />
+      <span className="font-medium">{MY_CHATS_TEXT.askClient}</span>
+      <Button size="sm" variant="outline" disabled={busy} onClick={onYes} data-testid="my-number-ask-yes" className="ml-auto h-7 px-3">
+        {MY_CHATS_TEXT.askYes}
+      </Button>
+      <Button size="sm" variant="ghost" disabled={busy} onClick={onNo} title={MY_CHATS_TEXT.askNoHelp} data-testid="my-number-ask-no" className="h-7 px-3">
+        {MY_CHATS_TEXT.askNo}
+      </Button>
+    </div>
   );
 }
 

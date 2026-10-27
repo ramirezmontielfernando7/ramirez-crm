@@ -1,5 +1,6 @@
 "use client";
 
+import { cn } from "@/lib/utils";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -225,7 +226,11 @@ export function MyNumberClient() {
             const on = mine.switches[key];
             const t = SWITCH_TEXT[key];
             return (
-              <div key={key} className="flex items-start justify-between gap-4 py-3 first:pt-0 last:pb-0" data-testid={`my-number-switch-${key}`}>
+              <div
+                key={key}
+                className={cn("flex items-start justify-between gap-4 py-3 first:pt-0 last:pb-0", key === "clientByDefault" && "ml-4 border-l-[3px] border-brand-soft pl-4")}
+                data-testid={`my-number-switch-${key}`}
+              >
                 <div className="min-w-0 space-y-1">
                   <p className="text-sm font-medium">{t.title}</p>
                   <p className="text-sm text-muted-foreground">{t.on}</p>
@@ -234,7 +239,7 @@ export function MyNumberClient() {
                 <Switch
                   checked={on}
                   label={t.title}
-                  disabled={busy || !mine.canEditSwitches}
+                  disabled={busy || !mine.canEditSwitches || (key === "clientByDefault" && !mine.switches.shareClients)}
                   onCheckedChange={(next) => void patch({ [key]: next })}
                 />
               </div>

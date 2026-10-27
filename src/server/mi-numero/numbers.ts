@@ -49,6 +49,7 @@ export type Switches = {
   overlapNotice: boolean;
   allowViewRequests: boolean;
   aiReplies: boolean;
+  clientByDefault: boolean;
 };
 
 const SWITCH_KEYS = [
@@ -56,6 +57,7 @@ const SWITCH_KEYS = [
   "overlapNotice",
   "allowViewRequests",
   "aiReplies",
+  "clientByDefault",
 ] as const;
 
 export type MiNumeroError =
@@ -71,6 +73,7 @@ export type MiNumeroError =
   | "ai_off"
   | "not_linked"
   | "requests_off"
+  | "bad_phone"
   | LinkError;
 
 export class MiNumeroFailure extends Error {
@@ -99,6 +102,7 @@ function switchesOf(row: Row): Switches {
     overlapNotice: row.overlapNotice,
     allowViewRequests: row.allowViewRequests,
     aiReplies: row.aiReplies,
+    clientByDefault: row.clientByDefault,
   };
 }
 
