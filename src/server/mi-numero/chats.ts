@@ -1,11 +1,13 @@
 import { desc, eq, isNull, sql } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
-import { scoped } from "@/lib/db/tenant";
+import { scoped, type Access } from "@/lib/db/tenant";
+import type { ConversationDto } from "@/lib/types";
 import { logger } from "@/lib/log";
 import { assignContacts } from "@/server/assignment/assign";
 import { publish } from "@/server/events/bus";
 import { serializeMessage } from "@/server/inbox/ingest";
 import { createLeadForContact } from "@/server/inbox/lead-activity";
+import { numberClientChats } from "@/server/inbox/queries";
 import { syncNumberAi } from "./ai";
 import { numberAudience } from "./audience";
 import { MiNumeroFailure } from "./numbers";
@@ -51,11 +53,22 @@ export type MyChatDto = {
   clientMarkedAt: string | null;
   /** PR 8: la IA en este chat: contesta, en pausa, o no aplica (privado o interruptor apagado). */
   ai: "on" | "paused" | null;
+  /**
+   * Lo de CRM del chat (etapa, etiquetas, quién atiende), igual que en la
+   * Bandeja de la empresa. Solo en chats de cliente cuyo contacto puede ver
+   * quien pide; null en los privados.
+   */
+  crm: ConversationDto | null;
 };
 
 export type MyChats = { numberId: string; shareClients: boolean; chats: MyChatDto[] };
 
-export async function listMyChats(organizationId: string, userId: string): Promise<MyChats> {
+export async function listMyChats(
+  organizationId: string,
+  userId: string,
+  // Lo que la sesión ve del CRM (para `crm`); sin él, como un asesor.
+  access: Access = { organizationId, userId, seesAll: false }
+): Promise<MyChats> {
   const number = await myLiveNumber(organizationId, userId);
   const preview = sql<string | null>`(
     select coalesce(m.text, m.type) from message m
@@ -75,6 +88,9 @@ export async function listMyChats(organizationId: string, userId: string): Promi
       )
     )
     .orderBy(desc(sql`coalesce(${schema.conversation.lastMessageAt}, ${schema.conversation.createdAt})`));
+  const crm = new Map(
+    (await numberClientChats(access, rows.filter((r) => r.conversation.clientMarkedAt).map((r) => r.conversation.id))).map((c) => [c.id, c])
+  );
   return {
     numberId: number.id,
     shareClients: number.shareClients,
@@ -91,6 +107,7 @@ export async function listMyChats(organizationId: string, userId: string): Promi
       lastMessageAt: r.conversation.lastMessageAt?.toISOString() ?? null,
       clientMarkedAt: r.conversation.clientMarkedAt?.toISOString() ?? null,
       ai: aiStateOf(number, r.conversation),
+      crm: crm.get(r.conversation.id) ?? null,
     })),
   };
 }

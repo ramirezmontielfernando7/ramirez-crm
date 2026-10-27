@@ -176,6 +176,12 @@ export type ListOptions = {
   list?: ListFilters & { status: ListStatus };
   /** Sin `page`: la lista entera, como siempre (globo, menciones, guiones). */
   page?: { limit: number; cursor: Cursor | null };
+  /**
+   * 046 — En vez de los chats de la empresa, los chats de «Mi número» ya
+   * marcados «Es cliente» (siempre con `only.ids`: los del número de quien
+   * pide). Ver `numberClientChats`.
+   */
+  numberClients?: boolean;
 };
 
 /** La llave de orden de la lista (y de su índice, migración 0053). */
@@ -292,6 +298,18 @@ export async function listConversations(
 }
 
 /**
+ * 046 — Lo de CRM (etapa, etiquetas, quién atiende) de los chats de «Mi
+ * número» que ya son de cliente, como lo ve la Bandeja de la empresa. Solo
+ * los `ids` que se piden (los del número de quien pide: `listMyChats`) y con
+ * el mismo filtro de asignación: un cliente que atiende otro no trae nada.
+ * Los privados jamás salen de aquí (su contacto no está en el CRM).
+ */
+export async function numberClientChats(access: Access, ids: string[]): Promise<ConversationDto[]> {
+  if (ids.length === 0) return [];
+  return (await queryConversations(access, undefined, { kind: "all" }, "main", { ids }, { numberClients: true })).conversations;
+}
+
+/**
  * Fluidez PR 3 — Una página de la Bandeja con los filtros de la pantalla.
  * `nextCursor` null = no hay más.
  */
@@ -318,7 +336,7 @@ async function queryConversations(
   filter: AssignmentFilter,
   view: InboxView,
   only: ConversationSubset | undefined,
-  { list, page }: ListOptions
+  { list, page, numberClients }: ListOptions
 ): Promise<{ conversations: ConversationDto[]; nextCursor: string | null }> {
   const db = getDb();
   // La organización va explícita (no solo por RLS): así el índice
@@ -387,8 +405,14 @@ async function queryConversations(
         schema.conversation.organizationId,
         access,
         schema.conversation.contactId,
-        companyChat(),
-        viewCondition(view),
+        numberClients
+          ? and(
+              eq(schema.conversation.isTest, false),
+              isNotNull(schema.conversation.directNumberId),
+              isNotNull(schema.conversation.clientMarkedAt)
+            )
+          : companyChat(),
+        numberClients ? undefined : viewCondition(view),
         since ? gt(schema.conversation.updatedAt, since) : undefined,
         access.seesAll ? assignmentCondition(access, filter) : undefined,
         subsetCondition(only),
