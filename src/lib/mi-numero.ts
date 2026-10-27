@@ -58,6 +58,8 @@ export const MI_NUMERO_TEXT = {
     personal: "Personal: el número es de la persona. Solo ella ve sus chats y decide qué comparte.",
     empresa: "De la empresa: un chip de la empresa. Tú y los coordinadores deciden sus ajustes y pueden ver sus chats.",
   },
+  revokeConfirm: (name: string) =>
+    `¿Revocar el número de ${name}? Se desvincula de Dashfort. Los chats que marcó como cliente pasan a la Bandeja de la empresa; sus chats privados se borran. Su WhatsApp en el celular no cambia.`,
   becomeCompany: "Pasar este número a la empresa",
   becomeCompanyConfirm:
     "¿Pasar tu número a la empresa? Tu coordinador y el propietario podrán ver sus chats y decidir sus ajustes. Solo ellos lo pueden volver a hacer personal.",
@@ -77,4 +79,33 @@ export const MY_CHATS_TEXT = {
   private: "Privado",
   placeholder: "Escribe por tu número…",
   queued: "En cola: sale en unos segundos para cuidar tu número.",
+} as const;
+
+/** Mi número (046), PR 6 — «También habla con…», solicitudes y bitácora. */
+export const ACCESS_TEXT = {
+  alsoTalks: (name: string, since: string) => `También habla con ${name} · desde el ${since}`,
+  ask: "Pedir ver el chat",
+  asked: "Solicitud enviada",
+  rejected: "No aceptó",
+  open: "Ver su chat",
+  requestTitle: (who: string, contact: string) => `${who} quiere ver tu chat con ${contact}`,
+  requestBody: (who: string) => `${who} también habla con este cliente y quiere ver tu conversación para darle seguimiento sin repetirle cosas.`,
+  requestRules: [
+    "Solo podrá leer, no escribir.",
+    "Solo este chat, ninguno más.",
+    "Le quitas el acceso cuando quieras, desde «Mi número».",
+    "Queda anotado en «Quién ha visto tus chats».",
+  ],
+  accept: "Aceptar, solo lectura",
+  reject: "Rechazar",
+  requestFoot: "Si apagas «Permitir solicitudes para ver mis chats», nadie podrá pedírtelo.",
+  pendingBanner: (n: number) => (n === 1 ? "1 persona quiere ver un chat tuyo" : `${n} personas quieren ver chats tuyos`),
+  review: "Revisar",
+  sharedTitle: "Compartidos contigo",
+  sharedRow: (owner: string) => `Chat de ${owner} · solo lectura`,
+  readOnly: (owner: string) => `Chat de ${owner}. Solo lectura: tu vista queda anotada para ${owner}.`,
+  grantsTitle: "Pueden ver tus chats",
+  grantRow: (who: string, contact: string) => `${who} puede ver tu chat con ${contact}`,
+  removeAccess: "Quitar acceso",
+  viewRow: (who: string, contact: string) => `${who} vio tu chat con ${contact}`,
 } as const;

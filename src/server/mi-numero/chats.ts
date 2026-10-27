@@ -175,8 +175,34 @@ export async function markClient(organizationId: string, userId: string, convers
   publish(organizationId, { type: "number.conversation", data: { conversationId: conversation.id }, audience: audienceOf(number) });
 }
 
-/** Un adjunto de uno de MIS chats (para servirlo); null si no es mío. */
+/**
+ * Un adjunto de uno de MIS chats, o (PR 6) de un chat que su dueño me dejó
+ * leer (para servirlo); null si no.
+ */
 export async function myNumberAsset(organizationId: string, userId: string, assetId: string) {
+  return (await ownNumberAsset(organizationId, userId, assetId)) ?? (await sharedNumberAsset(organizationId, userId, assetId));
+}
+
+async function sharedNumberAsset(organizationId: string, userId: string, assetId: string) {
+  const [row] = await getDb()
+    .select({ asset: schema.mediaAsset })
+    .from(schema.mediaAsset)
+    .innerJoin(schema.message, eq(schema.message.mediaAssetId, schema.mediaAsset.id))
+    .innerJoin(schema.conversationAccess, eq(schema.conversationAccess.conversationId, schema.message.conversationId))
+    .where(
+      scoped(
+        schema.mediaAsset.organizationId,
+        organizationId,
+        eq(schema.mediaAsset.id, assetId),
+        eq(schema.conversationAccess.userId, userId),
+        eq(schema.conversationAccess.status, "granted")
+      )
+    )
+    .limit(1);
+  return row?.asset ?? null;
+}
+
+async function ownNumberAsset(organizationId: string, userId: string, assetId: string) {
   const [number] = await getDb()
     .select({ id: schema.directNumber.id })
     .from(schema.directNumber)
