@@ -34,6 +34,8 @@ export const SETTINGS_TAB_PERMISSION = {
   "team-chat": "team_chat.create_groups",
   // 039: «Uso y plan» (antes /uso) es la 5.ª pestaña de Ajustes; solo el Propietario.
   uso: "usage.read",
+  // 047 PR 3: el Propietario enciende el conector de IA; solo con el complemento.
+  "conector-ia": "settings.manage",
 } as const satisfies Record<string, Permission>;
 
 /**

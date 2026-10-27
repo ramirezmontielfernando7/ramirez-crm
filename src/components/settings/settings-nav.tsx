@@ -53,6 +53,14 @@ const GROUPS: readonly Group[] = [
       { slug: "mi-numero", label: "Números del equipo" },
     ],
   },
+  // 047: la IA propia de cada quien y lo que decide el Propietario; solo con el complemento.
+  {
+    label: "IA conectada",
+    pages: [
+      { slug: "mi-ia", label: "Mi IA" },
+      { slug: "conector-ia", label: "Ajustes del conector" },
+    ],
+  },
   {
     label: "Operación CRM",
     pages: [
@@ -83,6 +91,7 @@ export function SettingsShell({
   messenger = false,
   directConnection = false,
   miNumero = false,
+  conectorIa = false,
   templates = true,
   allowed,
   children,
@@ -94,6 +103,8 @@ export function SettingsShell({
   directConnection?: boolean;
   /** Mi número (046) — solo con el complemento encendido. */
   miNumero?: boolean;
+  /** 047 — IA conectada, solo con el complemento. */
+  conectorIa?: boolean;
   /** 030 (PR 4) — con Campañas encendido, Plantillas vive en Marketing. */
   templates?: boolean;
   /** 020 — páginas que el rol puede abrir (`/settings/<clave>`); lo decide el servidor. */
@@ -108,6 +119,7 @@ export function SettingsShell({
     if (slug === "messenger" && !messenger) return false;
     if (slug === "direct-connection" && !directConnection) return false;
     if ((slug === "my-number" || slug === "mi-numero") && !miNumero) return false;
+    if ((slug === "mi-ia" || slug === "conector-ia") && !conectorIa) return false;
     if (slug === "templates" && !templates) return false;
     return !allowed || allowed.includes(slug);
   });

@@ -74,6 +74,11 @@ export async function orgHasConectorIa(organizationId: string): Promise<boolean>
   return (await getOrgModules(organizationId)).conectorIa;
 }
 
+/** Conector de IA (047) — como `conexionDirectaOff`: 404 listo sin el complemento. */
+export async function conectorIaOff(organizationId: string): Promise<Response | null> {
+  return (await orgHasConectorIa(organizationId)) ? null : new Response(null, { status: 404 });
+}
+
 /** 030 (PR 4) — ¿Puede el Propietario personalizar el menú? */
 export async function orgHasCustomNav(organizationId: string): Promise<boolean> {
   return (await getOrgModules(organizationId)).customNav;
