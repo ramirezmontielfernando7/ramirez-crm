@@ -4025,3 +4025,29 @@ export const lossReason = pgTable(
     check("loss_reason_label_chk", sql`char_length(${t.label}) between 1 and 60`),
   ]
 );
+
+/**
+ * Respuestas rápidas: mensajes que el equipo guarda en Ajustes y manda desde
+ * el chat con el botón del rayo o escribiendo `/atajo` (Empresa y Mi número).
+ * `shortcut` es único por organización (minúsculas, sin espacios). `body`
+ * puede llevar `{nombre}` (el primer nombre del contacto al insertarla).
+ */
+export const quickReply = pgTable(
+  "quick_reply",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    shortcut: text("shortcut").notNull(),
+    body: text("body").notNull(),
+    createdBy: text("created_by").references(() => user.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => [
+    unique("quick_reply_org_shortcut_uq").on(t.organizationId, t.shortcut),
+    check("quick_reply_shortcut_chk", sql`${t.shortcut} ~ '^[a-z0-9_-]{1,30}$'`),
+    check("quick_reply_body_chk", sql`char_length(${t.body}) between 1 and 4096`),
+  ]
+);
