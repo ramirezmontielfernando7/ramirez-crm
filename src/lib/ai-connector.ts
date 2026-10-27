@@ -141,3 +141,64 @@ export function protectedResourceMetadata(baseUrl: string) {
 export function resourceMetadataUrl(baseUrl: string): string {
   return `${baseUrl.replace(/\/+$/, "")}/.well-known/oauth-protected-resource/api/mcp`;
 }
+
+/* ============================================================
+ * OAuth 2.1 (Dashfort es su propio servidor de autorización)
+ * ============================================================ */
+
+/** El código de «Iniciar sesión» vale 10 minutos y una sola vez. */
+export const CODE_TTL_MS = 10 * 60 * 1000;
+export const CODE_PREFIX = "dfc_";
+/** Prefijo del `client_id` del registro dinámico. */
+export const CLIENT_PREFIX = "dfapp_";
+
+/**
+ * Una `redirect_uri` aceptable: https, o http solo hacia la propia máquina
+ * (apps de escritorio como Claude Code). Sin fragmento ni credenciales.
+ */
+export function isAllowedRedirectUri(raw: string): boolean {
+  let u: URL;
+  try {
+    u = new URL(raw);
+  } catch {
+    return false;
+  }
+  if (u.hash || u.username || u.password) return false;
+  if (u.protocol === "https:") return true;
+  return u.protocol === "http:" && (u.hostname === "localhost" || u.hostname === "127.0.0.1" || u.hostname === "[::1]");
+}
+
+/** Un `client_id` que es una URL https = documento de metadatos del cliente (CIMD). */
+export function isCimdClientId(clientId: string): boolean {
+  try {
+    const u = new URL(clientId);
+    return u.protocol === "https:" && u.pathname !== "/" && !u.hash && !u.username && !u.password;
+  } catch {
+    return false;
+  }
+}
+
+/** Metadatos del servidor de autorización (RFC 8414). */
+export function authorizationServerMetadata(baseUrl: string) {
+  const base = baseUrl.replace(/\/+$/, "");
+  return {
+    issuer: base,
+    authorization_endpoint: `${base}/oauth/authorize`,
+    token_endpoint: `${base}/api/oauth/token`,
+    registration_endpoint: `${base}/api/oauth/register`,
+    revocation_endpoint: `${base}/api/oauth/revoke`,
+    response_types_supported: ["code"],
+    grant_types_supported: ["authorization_code", "refresh_token"],
+    code_challenge_methods_supported: ["S256"],
+    token_endpoint_auth_methods_supported: ["none"],
+    revocation_endpoint_auth_methods_supported: ["none"],
+    scopes_supported: [...SCOPES],
+    client_id_metadata_document_supported: true,
+    authorization_response_iss_parameter_supported: true,
+  };
+}
+
+/** `scope` de OAuth («read write») → alcances válidos. */
+export function parseScopeParam(raw: string | null | undefined): Scope[] {
+  return normalizeScopes((raw ?? "").split(/\s+/).filter(Boolean));
+}

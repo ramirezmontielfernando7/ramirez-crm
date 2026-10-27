@@ -68,6 +68,11 @@ export const TENANT_QUERY_EXCEPTIONS: Record<string, { max: number; motivo: stri
     motivo:
       "047: el hash de la llave del conector de IA (único) DESCUBRE la organización y la persona de /api/mcp (como el cerebro externo).",
   },
+  "server/ai-connector/oauth.ts": {
+    max: 6,
+    motivo:
+      "047 PR 3: OAuth del conector de IA: apps del registro dinámico (tabla de plataforma) y el hash del código o de la llave de renovación DESCUBRE la organización (canje, rotación, cierre de la conexión por reúso y revocación).",
+  },
   "server/auth/on-signup.ts": {
     max: 1,
     motivo:
