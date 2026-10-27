@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { ChevronLeft, Lock, Paperclip, SendHorizontal, UserCheck } from "lucide-react";
+import { Bot, ChevronLeft, Lock, Paperclip, SendHorizontal, UserCheck } from "lucide-react";
 import { fetchJson } from "@/lib/fetch-json";
 import { ACCESS_TEXT, MY_CHATS_TEXT, TEAM_TEXT } from "@/lib/mi-numero";
 import type { MessageDto } from "@/lib/types";
@@ -26,6 +26,7 @@ type MyChat = {
   unreadCount: number;
   lastMessageAt: string | null;
   clientMarkedAt: string | null;
+  ai: "on" | "paused" | null;
 };
 type MyChats = { numberId: string; shareClients: boolean; chats: MyChat[] };
 
@@ -230,6 +231,11 @@ export function MyNumberInbox({ own = true, team = false }: { own?: boolean; tea
                       Por tu número{selected.contact.phone ? ` · +${selected.contact.phone}` : ""}
                     </p>
                   </div>
+                  {selected.ai && (
+                    <div className="ml-auto shrink-0">
+                      <AiToggle chat={selected} onChanged={() => void refetchList()} onError={setThreadError} />
+                    </div>
+                  )}
                   {!selected.clientMarkedAt && (
                     <div className="ml-auto shrink-0">
                       {list?.shareClients ? (
@@ -329,6 +335,45 @@ export function MyNumberInbox({ own = true, team = false }: { own?: boolean; tea
         />
       )}
     </div>
+  );
+}
+
+/** PR 8: la IA en este chat de cliente: activa (pausar) o en pausa (reanudar). */
+function AiToggle({ chat, onChanged, onError }: { chat: MyChat; onChanged: () => void; onError: (e: string) => void }) {
+  const [busy, setBusy] = useState(false);
+  const on = chat.ai === "on";
+  async function toggle() {
+    setBusy(true);
+    const res = await fetchJson<null>(`/api/my-number/chats/${chat.id}/ai`, {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ on: !on }),
+    });
+    setBusy(false);
+    if (!res.ok) return onError(res.error);
+    onChanged();
+  }
+  return (
+    <span
+      className={cn(
+        "flex items-center gap-2 rounded-full py-1 pl-2.5 pr-1 text-[12px] font-semibold",
+        on ? "bg-brand-tint text-brand-text" : "bg-warning-tint text-warning-text"
+      )}
+      data-testid="my-number-ai"
+      title={on ? MY_CHATS_TEXT.aiOnHelp : MY_CHATS_TEXT.aiPausedHelp}
+    >
+      <Bot className="h-3.5 w-3.5 shrink-0" strokeWidth={2} aria-hidden />
+      {on ? MY_CHATS_TEXT.aiOn : MY_CHATS_TEXT.aiPaused}
+      <button
+        type="button"
+        disabled={busy}
+        onClick={() => void toggle()}
+        className="rounded-full bg-background px-2.5 py-0.5 text-[11.5px] font-semibold text-foreground hover:bg-accent disabled:opacity-50"
+        data-testid="my-number-ai-toggle"
+      >
+        {on ? MY_CHATS_TEXT.aiPause : MY_CHATS_TEXT.aiResume}
+      </button>
+    </span>
   );
 }
 

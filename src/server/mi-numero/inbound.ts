@@ -11,6 +11,8 @@ import { getOrCreateContactByIdentity } from "@/server/inbox/identity";
 import { attachMediaAsset, mediaInputFrom, serializeMessage } from "@/server/inbox/ingest";
 import { getOrgModules } from "@/server/modules";
 import { isOrgActive } from "@/server/platform-admin/org-status";
+import { maybeRunAgentTurn } from "@/server/ai/trigger";
+import { aiShouldAnswer, pauseAiOnHumanReply } from "./ai";
 import { numberAudience } from "./audience";
 
 const log = logger("mi-numero");
@@ -22,8 +24,10 @@ const log = logger("mi-numero");
  * - Va al chat de ESE número con el cliente (uno por número y contacto),
  *   nunca al de la empresa. Un contacto que ya existe se usa (una sola
  *   ficha); uno nuevo nace PRIVADO del número (fuera del CRM).
- * - Nada de lo de la empresa: ni lead, ni reparto, ni bajas, ni IA, ni
- *   campañas. Solo el dueño se entera (eventos con su audiencia).
+ * - Nada de lo de la empresa: ni lead, ni reparto, ni bajas, ni campañas.
+ *   Solo el dueño se entera (eventos con su audiencia). La IA (PR 8) solo
+ *   en chats «Es cliente» con «La IA contesta mis chats» encendido; si la
+ *   persona escribe desde su celular, se pausa en ese chat (`./ai.ts`).
  * - Idempotente: `wa_message_id` = `direct.<número>.<key.id>`. Lo que
  *   Dashfort envió por el número (PR 5) no vuelve a entrar como `fromMe`.
  * - Un número revocado, un complemento apagado o una organización no activa:
@@ -152,8 +156,33 @@ async function ingestOne(number: NumberRow, m: DeviceMessage): Promise<boolean> 
     data: { conversationId: conversation.id, message: serializeMessage(message, asset) },
     audience,
   });
+  // PR 8: la persona escribió desde su celular → la IA se hace a un lado en
+  // este chat. El aviso de algo que Dashfort está mandando ahora mismo (llegó
+  // antes de que el envío guardara su ID) no cuenta: no lo escribió ella.
+  const paused = m.fromMe && !(await sendInFlight(organizationId, conversation.id)) && (await pauseAiOnHumanReply(organizationId, conversation.id));
   publish(organizationId, { type: "number.conversation", data: { conversationId: conversation.id }, audience });
+  if (!m.fromMe && !paused && aiShouldAnswer(number, conversation)) await maybeRunAgentTurn(conversation.id);
   return true;
+}
+
+/** ¿Hay un envío de Dashfort por este chat saliendo justo ahora (aún sin ID del dispositivo)? */
+async function sendInFlight(organizationId: string, conversationId: string): Promise<boolean> {
+  const [row] = await getDb()
+    .select({ id: schema.message.id })
+    .from(schema.message)
+    .where(
+      scoped(
+        schema.message.organizationId,
+        organizationId,
+        eq(schema.message.conversationId, conversationId),
+        eq(schema.message.direction, "out"),
+        eq(schema.message.status, "pending"),
+        isNull(schema.message.altMessageId),
+        sql`${schema.message.createdAt} > now() - interval '2 minutes'`
+      )
+    )
+    .limit(1);
+  return !!row;
 }
 
 /** El chat de este número con este contacto (uno solo; la IA nace apagada). */

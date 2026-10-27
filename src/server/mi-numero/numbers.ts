@@ -18,6 +18,7 @@ import {
 } from "@/server/direct-connection/link";
 import { getOrgModules } from "@/server/modules";
 
+import { syncNumberAi } from "./ai";
 import { settleNumberChats } from "./offboard";
 
 const log = logger("mi-numero");
@@ -67,6 +68,7 @@ export type MiNumeroError =
   | "company_decides"
   | "notice_required"
   | "share_off"
+  | "ai_off"
   | "not_linked"
   | "requests_off"
   | LinkError;
@@ -313,6 +315,8 @@ export async function updateTeamNumber(
         eq(schema.directNumber.id, id),
       ),
     );
+  // PR 8: «La IA contesta…» se refleja en sus chats de cliente.
+  if (switches.aiReplies !== undefined) await syncNumberAi(organizationId, id);
 }
 
 /** Revocar: se desvincula el dispositivo (si se puede) y el número deja de existir para todos. */
@@ -406,6 +410,8 @@ export async function updateMyNumber(
         eq(schema.directNumber.id, row.id),
       ),
     );
+  // PR 8: «La IA contesta mis chats» se refleja en mis chats de cliente.
+  if (switches.aiReplies !== undefined) await syncNumberAi(organizationId, row.id);
 }
 
 async function mine(organizationId: string, userId: string): Promise<Row> {

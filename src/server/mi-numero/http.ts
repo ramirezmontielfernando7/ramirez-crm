@@ -26,6 +26,7 @@ const MESSAGE: Record<MiNumeroError, [number, string]> = {
   notice_required: [409, "Antes de vincular, lee y acepta el aviso."],
   requests_off: [409, "Esa persona no recibe solicitudes para ver sus chats."],
   not_linked: [409, "Tu número no está conectado. Vuelve a escanear el código en Ajustes → Mi número."],
+  ai_off: [409, "La IA solo contesta chats de cliente, con «La IA contesta mis chats» encendido en Ajustes → Mi número."],
   share_off: [409, "Para marcar clientes, enciende «Compartir mis clientes con la empresa» en tu «Mi número»."],
   no_server: [
     503,
