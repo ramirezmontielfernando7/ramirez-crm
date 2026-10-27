@@ -5,14 +5,18 @@ import {
   assignServer,
   clearInstance,
   connectionByWebhookHash,
+  connectionRefOf,
   connectionsToCheck,
   getConnection,
   openServerKey,
   patchConnection,
   saveInstance,
   saveWebhookTokenHash,
+  refOf,
   serverForNewOrganization,
+  type ConnectionRef,
   type ConnectionRow,
+  type ConnectionTarget,
   type StatusPatch,
 } from "@/server/credentials/direct";
 import {
@@ -36,6 +40,10 @@ const log = logger("direct-connection");
  * Conexión directa (PR 2) — Vincular el número de una organización por QR.
  * Dashfort crea y administra la instancia en el servidor que /platform le
  * asignó; la organización solo ve «Dispositivo vinculado» y su estado.
+ *
+ * Mi número (046): lo mismo sirve para el número de una persona. Cada función
+ * recibe la organización (la conexión de la empresa) o un `ConnectionRef` con
+ * el número; cada número tiene su propia instancia, webhook y freno.
  */
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -44,8 +52,18 @@ const DISCONNECTS_BEFORE_PAUSE = 2;
 
 export type LinkError = "no_server" | "server_unreachable" | "server_key_unreadable" | "paused" | "failed";
 
-export function instanceNameOf(organizationId: string): string {
-  return `df-${organizationId.toLowerCase().replace(/[^a-z0-9]/g, "")}`.slice(0, 60);
+function slug(id: string): string {
+  return id.toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+/** `df-<org>` la de la empresa; `df-<org>-<número>` la de un «Mi número». */
+export function instanceNameOf(organizationId: string, directNumberId: string | null = null): string {
+  const base = `df-${slug(organizationId)}`;
+  return (directNumberId ? `${base}-${slug(directNumberId)}` : base).slice(0, 60);
+}
+
+function logCtx(ref: ConnectionRef) {
+  return ref.directNumberId ? { org: ref.organizationId, number: ref.directNumberId } : { org: ref.organizationId };
 }
 
 export function hashToken(token: string): string {
@@ -102,7 +120,7 @@ async function ensureInstance(row: ConnectionRow, server: EvolutionServerRef): P
     await deleteInstance(server, row.instanceName);
     return hook.error === "unreachable" ? "server_unreachable" : "failed";
   }
-  await saveInstance(row.organizationId, { instanceKey, webhookTokenHash: hashToken(token) });
+  await saveInstance(connectionRefOf(row), { instanceKey, webhookTokenHash: hashToken(token) });
   return null;
 }
 
@@ -112,13 +130,14 @@ export type LinkStart = { ok: true; status: "connected" | "connecting"; qr: Qr |
  * Vincular o reconectar: devuelve el QR para escanear (o «connected» si ya
  * está vinculado). Sin servidor asignado, toma el que tenga más lugar.
  */
-export async function startLink(organizationId: string): Promise<LinkStart> {
-  let row = await getConnection(organizationId);
+export async function startLink(target: ConnectionTarget): Promise<LinkStart> {
+  const ref = refOf(target);
+  let row = await getConnection(ref);
   if (!row) {
     const server = await serverForNewOrganization();
     if (!server) return { ok: false, error: "no_server" };
-    await assignServer(organizationId, server.id, instanceNameOf(organizationId));
-    row = await getConnection(organizationId);
+    await assignServer(ref, server.id, instanceNameOf(ref.organizationId, ref.directNumberId));
+    row = await getConnection(ref);
     if (!row) return { ok: false, error: "failed" };
   }
   if (row.pausedUntil && row.pausedUntil > new Date()) return { ok: false, error: "paused" };
@@ -142,29 +161,30 @@ export async function startLink(organizationId: string): Promise<LinkStart> {
   // Si el servidor ya no pide QR, el dispositivo está vinculado.
   const state = await connectionState(s.server, row.instanceName);
   if (state.ok && state.data === "open") {
-    await refreshFromState(row.organizationId, "open");
+    await refreshFromState(ref, "open");
     return { ok: true, status: "connected", qr: null };
   }
-  if (row.status !== "connecting") await patchConnection(organizationId, { status: "connecting" });
+  if (row.status !== "connecting") await patchConnection(ref, { status: "connecting" });
   return { ok: true, status: "connecting", qr: qr.data };
 }
 
 /** Desvincular: cierra la sesión del dispositivo y borra la instancia. */
-export async function unlink(organizationId: string): Promise<{ ok: true } | { ok: false; error: LinkError }> {
-  const row = await getConnection(organizationId);
+export async function unlink(target: ConnectionTarget): Promise<{ ok: true } | { ok: false; error: LinkError }> {
+  const row = await getConnection(target);
   if (!row || !row.instanceKeyCipher) return { ok: true };
   const s = await serverOf(row);
   if (!s.ok) return s;
   await logoutInstance(s.server, row.instanceName);
   const del = await deleteInstance(s.server, row.instanceName);
   if (!del.ok && del.error !== "not_found") return { ok: false, error: del.error === "unreachable" ? "server_unreachable" : "failed" };
-  await clearInstance(organizationId);
+  await clearInstance(target);
   return { ok: true };
 }
 
 /** Aplica el estado que dijo el servidor (webhook o revisión). Devuelve el estado nuevo. */
-export async function refreshFromState(organizationId: string, state: InstanceState, now = new Date()): Promise<ConnectionRow | null> {
-  const row = await getConnection(organizationId);
+export async function refreshFromState(target: ConnectionTarget, state: InstanceState, now = new Date()): Promise<ConnectionRow | null> {
+  const ref = refOf(target);
+  const row = await getConnection(ref);
   if (!row) return null;
   const patch = patchForState(row, state, now);
   if (!patch) return row;
@@ -172,16 +192,16 @@ export async function refreshFromState(organizationId: string, state: InstanceSt
     const s = await serverOf(row);
     if (s.ok) patch.phoneNumber = await linkedPhone(s.server, row.instanceName);
   }
-  await patchConnection(organizationId, patch);
-  if (patch.status === "disconnected") log.warn("el dispositivo vinculado se desconectó", { org: organizationId });
-  return getConnection(organizationId);
+  await patchConnection(ref, patch);
+  if (patch.status === "disconnected") log.warn("el dispositivo vinculado se desconectó", logCtx(ref));
+  return getConnection(ref);
 }
 
-/** El webhook del servidor: el token de la URL decide la organización. */
+/** El webhook del servidor: el token de la URL decide la organización (y el número, si es de uno). */
 export async function handleWebhookState(token: string, state: InstanceState): Promise<boolean> {
   const row = await connectionByWebhookHash(hashToken(token));
   if (!row) return false;
-  await refreshFromState(row.organizationId, state);
+  await refreshFromState(connectionRefOf(row), state);
   return true;
 }
 
@@ -207,11 +227,11 @@ export async function ensureWebhookEvents(row: ConnectionRow, server: EvolutionS
     const token = randomBytes(24).toString("hex");
     const hook = await setWebhook(server, row.instanceName, webhookUrl(token));
     if (!hook.ok) return;
-    await saveWebhookTokenHash(row.organizationId, hashToken(token));
+    await saveWebhookTokenHash(connectionRefOf(row), hashToken(token));
     done.add(row.instanceName);
-    log.info("webhook del dispositivo vinculado al día (palomitas y mensajes)", { org: row.organizationId });
+    log.info("webhook del dispositivo vinculado al día (palomitas y mensajes)", logCtx(connectionRefOf(row)));
   } catch (err) {
-    log.warn("no se pudo revisar el webhook del dispositivo vinculado", { org: row.organizationId, err });
+    log.warn("no se pudo revisar el webhook del dispositivo vinculado", { ...logCtx(connectionRefOf(row)), err });
   }
 }
 
@@ -227,6 +247,7 @@ export async function checkAllConnections(): Promise<{ checked: number; failed: 
   let checked = 0;
   let failed = 0;
   for (const row of rows) {
+    const ref = connectionRefOf(row);
     try {
       let s = servers.get(row.serverId);
       if (!s) {
@@ -240,17 +261,17 @@ export async function checkAllConnections(): Promise<{ checked: number; failed: 
       const state = await connectionState(s.server, row.instanceName);
       if (!state.ok) {
         // Instancia desaparecida del servidor: se ve como desconectada. Servidor caído: no se cambia nada.
-        if (state.error === "not_found") await refreshFromState(row.organizationId, "close");
+        if (state.error === "not_found") await refreshFromState(ref, "close");
         else failed++;
         continue;
       }
-      await patchConnection(row.organizationId, { lastCheckAt: new Date() });
-      await refreshFromState(row.organizationId, state.data);
+      await patchConnection(ref, { lastCheckAt: new Date() });
+      await refreshFromState(ref, state.data);
       await ensureWebhookEvents(row, s.server);
       checked++;
     } catch (err) {
       failed++;
-      log.error("la revisión de una conexión directa falló", { org: row.organizationId, err });
+      log.error("la revisión de una conexión directa falló", { ...logCtx(ref), err });
     }
   }
   return { checked, failed };
@@ -284,13 +305,13 @@ export type DirectStatusDto = {
 };
 
 /** Lo que ve la organización de su conexión: nada del servidor. Mientras espera el QR, pregunta en vivo. */
-export async function statusFor(organizationId: string): Promise<DirectStatusDto> {
-  let row = await getConnection(organizationId);
+export async function statusFor(target: ConnectionTarget): Promise<DirectStatusDto> {
+  let row = await getConnection(target);
   if (row?.status === "connecting" && row.instanceKeyCipher) {
     const s = await serverOf(row);
     if (s.ok) {
       const state = await connectionState(s.server, row.instanceName);
-      if (state.ok) row = (await refreshFromState(organizationId, state.data)) ?? row;
+      if (state.ok) row = (await refreshFromState(target, state.data)) ?? row;
     }
   }
   const now = new Date();

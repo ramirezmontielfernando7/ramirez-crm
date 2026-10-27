@@ -53,6 +53,8 @@ export async function applyDirectStatuses(organizationId: string, updates: Direc
 export async function handleWebhookStatuses(token: string, updates: DirectStatusUpdate[]): Promise<boolean> {
   const row = await connectionByWebhookHash(hashToken(token));
   if (!row) return false;
+  // Mi número (046): lo que sale por el número de una persona aún no existe.
+  if (row.directNumberId) return true;
   if (updates.length === 0 || !(await orgHasConexionDirecta(row.organizationId))) return true;
   await runWithOrganization(row.organizationId, () => applyDirectStatuses(row.organizationId, updates));
   return true;

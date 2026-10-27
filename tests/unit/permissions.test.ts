@@ -50,6 +50,7 @@ const MATRIZ: Record<Permission, Record<Role, boolean>> = {
   "direct_connection.mode": { owner: true, coordinador: false, asesor: false },
   "direct_connection.link": { owner: true, coordinador: false, asesor: false },
   "direct_connection.limits": { owner: true, coordinador: false, asesor: false },
+  "mi_numero.manage": { owner: true, coordinador: true, asesor: false },
 };
 
 describe("matriz de permisos (020)", () => {

@@ -91,6 +91,13 @@ const statements = {
    * Ajustes (DELEGABLE, abajo). De fábrica, el Coordinador cambia el modo.
    */
   direct_connection: ["mode", "link", "limits"],
+  /**
+   * 046 — «Mi número» (solo si la plataforma encendió el complemento):
+   * autorizar a una persona, su tipo (personal/empresa), los ajustes de un
+   * número de empresa y revocarlo. Propietario y Coordinador. Lo de un número
+   * personal (sus interruptores, su QR) es solo de su dueño: no es permiso.
+   */
+  mi_numero: ["manage"],
 } as const;
 
 export const ac = createAccessControl(statements);
@@ -115,6 +122,7 @@ const owner = ac.newRole({
   usage: ["read"],
   assistant: ["use"],
   direct_connection: ["mode", "link", "limits"],
+  mi_numero: ["manage"],
 });
 
 /** Operación: reparte, ve todo, edita etapas y plantillas. No configura. */
@@ -139,6 +147,8 @@ const coordinador = ac.newRole({
   number_health: ["read"],
   work: ["manage"],
   conversation: ["delete"],
+  // 046: autoriza los «Mi número» del equipo (decisión de Fer, 2026-10-26).
+  mi_numero: ["manage"],
 });
 
 /** Solo lo suyo: sus chats y sus leads (que sí puede mover). Sin Resultados (022). */
@@ -186,7 +196,8 @@ export type Permission =
   | "assistant.use"
   | "direct_connection.mode"
   | "direct_connection.link"
-  | "direct_connection.limits";
+  | "direct_connection.limits"
+  | "mi_numero.manage";
 
 /**
  * 025 — Permisos que el Propietario puede DELEGAR por organización, desde

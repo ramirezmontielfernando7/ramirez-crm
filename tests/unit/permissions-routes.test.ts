@@ -56,6 +56,11 @@ const PROTEGIDAS: [string, Method, Permission][] = [
   ["settings/direct-connection/limits", "PUT", "direct_connection.limits"],
   ["settings/whatsapp/test", "POST", "settings.manage"],
   ["settings/webhook", "GET", "settings.manage"],
+  // 046 (PR 3): autorizar los «Mi número» del equipo (Propietario y Coordinador).
+  ["settings/mi-numero", "GET", "mi_numero.manage"],
+  ["settings/mi-numero", "POST", "mi_numero.manage"],
+  ["settings/mi-numero/[id]", "PATCH", "mi_numero.manage"],
+  ["settings/mi-numero/[id]", "DELETE", "mi_numero.manage"],
   // Conexión directa (PR 2): vincular por QR (Propietario o quien él delegue).
   ["settings/direct-connection", "GET", "direct_connection.link"],
   ["settings/direct-connection", "POST", "direct_connection.link"],
@@ -330,6 +335,12 @@ const POR_AUTOR: [string, Method][] = [
   ["work/notes/[id]", "GET"],
   ["work/notes/[id]", "PATCH"],
   ["work/notes/[id]", "DELETE"],
+  // 046 (PR 3): «Mi número» de quien pide (la sesión decide de quién; nunca el de otro).
+  ["settings/my-number", "GET"],
+  ["settings/my-number", "PATCH"],
+  ["settings/my-number/link", "GET"],
+  ["settings/my-number/link", "POST"],
+  ["settings/my-number/link", "DELETE"],
 ];
 
 /**

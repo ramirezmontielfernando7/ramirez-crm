@@ -72,12 +72,30 @@ Riesgo conocido: la imagen ANTERIOR no puede vincular una conexión de empresa
 nueva con este esquema (su ON CONFLICT buscaba el índice viejo). Si se
 revierte el código, correr también la reversa.
 
+## PR 3a — Autorizar personas y su QR (servidor; nada visible)
+
+- `ConnectionRef` (`src/server/credentials/direct.ts`): la organización sola
+  es la conexión de la empresa (lo de siempre); con `directNumberId`, la de
+  ese número. `link.ts` (QR, desvincular, estado, webhook, revisión de cada 5
+  min) sirve para ambas; instancia `df-<org>-<número>`.
+- El webhook reconoce el token de un número: su estado se aplica a SU
+  conexión; sus mensajes y palomitas se ignoran (200) hasta el PR 4/5.
+- `src/server/mi-numero/numbers.ts` + permiso `mi_numero.manage`
+  (Propietario y Coordinador):
+  - `/api/settings/mi-numero` (lista y autorizar: miembro, tope, uno vivo por
+    persona) y `/[id]` (tipo, nombre, interruptores solo si es de empresa;
+    revocar = desvincular y borrar su conexión).
+  - `/api/settings/my-number` (lo de quien pide: interruptores si es
+    personal, aceptar el aviso, aceptar ser de la empresa) y `/link` (QR solo
+    con el aviso aceptado).
+- Tipo: lo elige quien autoriza; ya aceptado el aviso, de personal a empresa
+  solo con el OK del dueño.
+
 ## Siguientes PRs (sin migración)
 
 2. /platform: interruptor, tope y capacidad de los servidores.
-3. «Mi número»: autorizar personas (Coordinador/Propietario), QR, tipo,
-   estado, desvincular, aviso aceptado, los cuatro interruptores con su
-   explicación; pestaña «Mi número» en la Bandeja.
+3b. Pantallas: Ajustes → «Mi número» (equipo) y los ajustes del asesor con
+   sus explicaciones (maqueta aprobada).
 4. Entrada: lo que llega a un número va a su chat y a contactos privados;
    «Es cliente».
 5. Salida: por el número correcto, límites y freno por número.

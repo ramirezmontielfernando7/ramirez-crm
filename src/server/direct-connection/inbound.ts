@@ -26,10 +26,13 @@ const log = logger("direct-connection");
  *   servidor no duplica).
  */
 
-/** La organización dueña del token del webhook, o null si no existe. */
-export async function organizationForWebhook(token: string): Promise<string | null> {
+/**
+ * De quién es el token del webhook (o null si no existe). Mi número (046):
+ * `directNumberId` dice si es el de una persona; lo suyo aún no entra.
+ */
+export async function organizationForWebhook(token: string): Promise<{ organizationId: string; directNumberId: string | null } | null> {
   const row = await connectionByWebhookHash(hashToken(token));
-  return row?.organizationId ?? null;
+  return row ? { organizationId: row.organizationId, directNumberId: row.directNumberId } : null;
 }
 
 /** Nunca lanza: un mensaje malo se registra y sigue con el siguiente. */
