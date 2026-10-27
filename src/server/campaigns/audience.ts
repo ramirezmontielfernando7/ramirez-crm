@@ -93,6 +93,8 @@ function eligibleBase(): SQL[] {
     isNull(schema.contact.archivedAt),
     notLabContact(schema.contact.id),
     or(isNotNull(schema.contact.phone), isNotNull(schema.contact.waUserId))!,
+    // 046: un contacto privado de un «Mi número» no es del CRM: jamás recibe campañas.
+    isNull(schema.contact.privateToNumberId),
   ];
 }
 
@@ -157,6 +159,7 @@ export async function audienceBreakdown(
         organizationId,
         eq(schema.contact.channel, "whatsapp"),
         notLabContact(schema.contact.id),
+        isNull(schema.contact.privateToNumberId),
         ...filterConditions(audience)
       )
     )

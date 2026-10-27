@@ -165,7 +165,14 @@ export async function findContactByIdentity(
  */
 export async function getOrCreateContactByIdentity(
   organizationId: string,
-  resolved: ResolvedIdentity
+  resolved: ResolvedIdentity,
+  /**
+   * 046 — `privateTo`: escribió al «Mi número» de una persona. Un contacto
+   * nuevo nace PRIVADO de ese número (no es del CRM); uno que ya existe se
+   * usa tal cual (un cliente, una sola ficha). Sin `privateTo` (lo de la
+   * empresa), un contacto privado que escribe a la empresa pasa al CRM.
+   */
+  opts: { privateTo?: string } = {}
 ) {
   const db = getDb();
 
@@ -257,6 +264,7 @@ export async function getOrCreateContactByIdentity(
       patch.name = delPerfil;
     }
     if (existing.archivedAt) patch.archivedAt = null;
+    if (existing.privateToNumberId && !opts.privateTo) patch.privateToNumberId = null;
     if (Object.keys(patch).length > 0) {
       patch.updatedAt = new Date();
       await db
@@ -277,6 +285,7 @@ export async function getOrCreateContactByIdentity(
       phone: resolved.phone,
       waUserId: resolved.waUserId,
       name: resolved.profileName?.trim() || displayFallback(resolved),
+      privateToNumberId: opts.privateTo ?? null,
     })
     .onConflictDoNothing({
       target: [
@@ -300,6 +309,13 @@ export async function getOrCreateContactByIdentity(
     .limit(1);
   const contact = raced[0];
   if (!contact) throw new Error("contacto no encontrado tras upsert");
+  if (contact.privateToNumberId && !opts.privateTo) {
+    await db
+      .update(schema.contact)
+      .set({ privateToNumberId: null, updatedAt: new Date() })
+      .where(scoped(schema.contact.organizationId, organizationId, eq(schema.contact.id, contact.id)));
+    contact.privateToNumberId = null;
+  }
   return { contact, isNew: false };
 }
 

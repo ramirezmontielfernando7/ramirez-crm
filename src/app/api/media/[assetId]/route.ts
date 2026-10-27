@@ -3,6 +3,7 @@ import { apiError, withAuth } from "@/lib/api";
 import { safeAttachmentHeaders } from "@/lib/attachment-headers";
 import { getDb, schema } from "@/lib/db";
 import { scopedMediaAssets } from "@/lib/db/tenant";
+import { myNumberAsset } from "@/server/mi-numero/chats";
 import {
   ensureAssetAvailable,
   readMediaFile,
@@ -38,7 +39,8 @@ export const GET = withAuth(async (session, _req: Request, ctx: Params) => {
       )
     )
     .limit(1);
-  let asset = rows[0];
+  // 046: el adjunto de un chat de MI número (los filtros de siempre lo esconden).
+  let asset = rows[0] ?? (await myNumberAsset(session.organizationId, session.userId, assetId));
   if (!asset) return apiError(404, "not_found", "Adjunto no encontrado");
 
   if (asset.kind === "location" || asset.kind === "contacts") {

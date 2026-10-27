@@ -74,7 +74,8 @@ export type SseEvent =
         score?: number | null;
       };
     }
-  | TeamSseEvent;
+  | TeamSseEvent
+  | NumberSseEvent;
 
 /**
  * 025 — Eventos del chat de EQUIPO. Llevan su `audience` (quién puede
@@ -103,6 +104,32 @@ export type TeamSseEvent =
 
 export function isTeamEvent(event: SseEvent): event is TeamSseEvent {
   return event.type === "team.message" || event.type === "team.thread";
+}
+
+/**
+ * 046 — Lo de un chat de «Mi número»: va SOLO a su `audience` (el dueño del
+ * número; con permiso, quien él decida), fuera de `data` como el chat de
+ * equipo. Tampoco pasa por el atajo de `seesAll`.
+ */
+export type NumberSseEvent =
+  | {
+      type: "number.message";
+      data: { conversationId: string; message: unknown };
+      audience: readonly string[];
+    }
+  | {
+      type: "number.conversation";
+      data: { conversationId: string };
+      audience: readonly string[];
+    };
+
+export function isNumberEvent(event: SseEvent): event is NumberSseEvent {
+  return event.type === "number.message" || event.type === "number.conversation";
+}
+
+/** Eventos que se reparten por audiencia en memoria (chat de equipo y «Mi número»). */
+export function isAudienceEvent(event: SseEvent): event is TeamSseEvent | NumberSseEvent {
+  return isTeamEvent(event) || isNumberEvent(event);
 }
 
 const globalForBus = globalThis as unknown as { __voceroBus?: EventEmitter };

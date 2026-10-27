@@ -274,6 +274,8 @@ export async function importValidated(input: {
         }
         const set: Partial<typeof schema.contact.$inferInsert> = {};
         if (!current.phone) set.phone = row.phone;
+        // 046: importarlo lo vuelve del CRM (deja de ser privado de un «Mi número»).
+        if (current.privateToNumberId) set.privateToNumberId = null;
         if (!current.source && row.source) set.source = row.source;
         if (!current.email && row.email) set.email = row.email;
         let next: WaConsent = current.waConsent;

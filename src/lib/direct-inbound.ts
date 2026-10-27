@@ -9,6 +9,7 @@
  * contacto, mismo lead, misma IA, mismas bajas.
  */
 
+import { NUMBER_MEDIA_PREFIX } from "@/lib/db/tenant";
 import { phoneFromDirect } from "@/lib/direct-send";
 import type { WebhookMessage } from "@/server/inbox/webhook";
 
@@ -213,4 +214,29 @@ export function deviceMediaKeyId(waMediaId: string | null | undefined): string |
   if (!waMediaId?.startsWith(DEVICE_MEDIA_PREFIX)) return null;
   const id = waMediaId.slice(DEVICE_MEDIA_PREFIX.length);
   return id && id.length <= MAX_ID ? id : null;
+}
+
+/**
+ * 046 — Un mensaje de un «Mi número» lleva el número en sus ids: el mismo
+ * `key.id` lo ven los dos teléfonos de una conversación (la empresa y Ana,
+ * o Ana y Luis), y `wa_message_id` es único en toda la base.
+ */
+export function numberMessageId(directNumberId: string, keyId: string): string {
+  return `${DEVICE_MESSAGE_PREFIX}${directNumberId}.${keyId}`;
+}
+
+/** El `wa_media_id` de un adjunto de un «Mi número»: `dnum:<número>:<key.id>`. */
+export function numberMediaId(directNumberId: string, keyId: string): string {
+  return `${NUMBER_MEDIA_PREFIX}${directNumberId}:${keyId}`;
+}
+
+/** El número y el `key.id` de un `wa_media_id` de un «Mi número», o null. */
+export function numberMediaRef(waMediaId: string | null | undefined): { directNumberId: string; keyId: string } | null {
+  if (!waMediaId?.startsWith(NUMBER_MEDIA_PREFIX)) return null;
+  const rest = waMediaId.slice(NUMBER_MEDIA_PREFIX.length);
+  const cut = rest.indexOf(":");
+  if (cut <= 0) return null;
+  const directNumberId = rest.slice(0, cut);
+  const keyId = rest.slice(cut + 1);
+  return keyId && keyId.length <= MAX_ID ? { directNumberId, keyId } : null;
 }

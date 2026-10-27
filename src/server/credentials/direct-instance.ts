@@ -1,4 +1,4 @@
-import { isNull } from "drizzle-orm";
+import { eq, isNull } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { scoped } from "@/lib/db/tenant";
 import type { DirectConnectionStatus } from "@/lib/direct-connection";
@@ -52,12 +52,18 @@ export type DirectTargetResult =
   | { ok: true; target: EvolutionTarget }
   | { ok: false; error: "not_connected" | "not_found" | OpenFailure };
 
-/** A dónde y con qué llave mandar. Solo para el envío; nunca al log ni al navegador. */
-export async function openDirectTarget(organizationId: string): Promise<DirectTargetResult> {
+/**
+ * A dónde y con qué llave mandar. Solo para el envío; nunca al log ni al
+ * navegador. 046: con `directNumberId`, la instancia de ese «Mi número».
+ */
+export async function openDirectTarget(organizationId: string, directNumberId: string | null = null): Promise<DirectTargetResult> {
+  const which = directNumberId
+    ? eq(schema.directConnection.directNumberId, directNumberId)
+    : isNull(schema.directConnection.directNumberId);
   const [row] = await getDb()
     .select()
     .from(schema.directConnection)
-    .where(scoped(schema.directConnection.organizationId, organizationId, isNull(schema.directConnection.directNumberId)))
+    .where(scoped(schema.directConnection.organizationId, organizationId, which))
     .limit(1);
   if (!row) return { ok: false, error: "not_connected" };
   const server = await openServerKey(row.serverId);

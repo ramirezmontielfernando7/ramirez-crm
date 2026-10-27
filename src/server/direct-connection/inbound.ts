@@ -88,7 +88,7 @@ async function ingestOne(organizationId: string, m: DeviceMessage): Promise<bool
 }
 
 /** El teléfono del contacto que ya tiene guardado este `@lid`. */
-async function phoneByLid(organizationId: string, lid: string): Promise<string | null> {
+export async function phoneByLid(organizationId: string, lid: string): Promise<string | null> {
   const [row] = await getDb()
     .select({ phone: schema.contact.phone })
     .from(schema.contact)

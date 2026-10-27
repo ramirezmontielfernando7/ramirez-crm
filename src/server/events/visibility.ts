@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { scopedContacts, type Access } from "@/lib/db/tenant";
-import { isTeamEvent, type SseEvent, type TeamSseEvent } from "@/server/events/bus";
+import { isAudienceEvent, type NumberSseEvent, type SseEvent, type TeamSseEvent } from "@/server/events/bus";
 
 /**
  * 020 — ¿Le llega este evento a esta sesión?
@@ -16,7 +16,8 @@ import { isTeamEvent, type SseEvent, type TeamSseEvent } from "@/server/events/b
 export async function canSeeEvent(access: Access, event: SseEvent): Promise<boolean> {
   // 025: ANTES del atajo de `seesAll` — el Coordinador ve todos los chats de
   // clientes, pero no los directos del equipo.
-  if (isTeamEvent(event)) return canSeeTeamEvent(access, event);
+  // 046: lo de un «Mi número», igual: solo su audiencia.
+  if (isAudienceEvent(event)) return canSeeTeamEvent(access, event);
   if (access.seesAll) return true;
   switch (event.type) {
     case "message.new":
@@ -56,7 +57,7 @@ export async function canSeeEvent(access: Access, event: SseEvent): Promise<bool
  * suscriptor. Quien salió de la organización ya no está en ninguna
  * audiencia, aunque su conexión siga abierta.
  */
-export function canSeeTeamEvent(access: Pick<Access, "userId">, event: TeamSseEvent): boolean {
+export function canSeeTeamEvent(access: Pick<Access, "userId">, event: TeamSseEvent | NumberSseEvent): boolean {
   return event.audience.includes(access.userId);
 }
 

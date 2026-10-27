@@ -10,10 +10,12 @@ import { contact, conversation } from "@/lib/db/schema";
  * suma visibilidad.
  */
 function contactVisibleTo(alias: SQL, userId: string): SQL {
-  return sql`(${alias}."assigned_user_id" = ${userId} or exists (
+  // 046: un contacto privado de un «Mi número» no es del CRM (ni asignado ni
+  // participante lo ven por aquí; su dueño lo ve por su propio código).
+  return sql`(${alias}."private_to_number_id" is null and (${alias}."assigned_user_id" = ${userId} or exists (
     select 1 from "contact_participant" participa
     where participa."contact_id" = ${alias}."id" and participa."user_id" = ${userId}
-  ))`;
+  )))`;
 }
 
 /**
@@ -84,20 +86,26 @@ export function assignedTo(
   access: Access,
   contactIdColumn: PgColumn
 ): SQL | undefined {
-  if (access.seesAll) return undefined;
+  const onContact = getTableName(contactIdColumn.table) === getTableName(contact);
+  // 046: la lista de contactos (y lo que se lee de la tabla misma) nunca trae
+  // los privados de un «Mi número», ni a quien ve todo.
+  if (access.seesAll) return onContact ? isNull(contact.privateToNumberId) : undefined;
   if (!access.userId) {
     throw new Error("assignedTo(): userId vacío — filtro sin dueño");
   }
   // Sobre la propia tabla de contactos la condición es directa: una
   // subconsulta correlacionada con `contact.id` se podría resolver contra su
   // propio alias y dejar pasar todo.
-  if (getTableName(contactIdColumn.table) === getTableName(contact)) {
-    return or(
-      eq(contact.assignedUserId, access.userId),
-      sql`exists (
-        select 1 from "contact_participant" participa
-        where participa."contact_id" = ${contact.id} and participa."user_id" = ${access.userId}
-      )`
+  if (onContact) {
+    return and(
+      isNull(contact.privateToNumberId),
+      or(
+        eq(contact.assignedUserId, access.userId),
+        sql`exists (
+          select 1 from "contact_participant" participa
+          where participa."contact_id" = ${contact.id} and participa."user_id" = ${access.userId}
+        )`
+      )
     )!;
   }
   return sql`exists (
@@ -121,9 +129,22 @@ export function scopedConversations(
   return scoped(
     organizationColumn,
     access.organizationId,
+    notNumberChat(conversationIdColumn),
     conversationAssignedTo(access, conversationIdColumn),
     ...conditions
   );
+}
+
+/**
+ * 046 — Lo que cuelga de un chat de «Mi número» (mensajes, adjuntos) no sale
+ * por los filtros de siempre, ni a quien ve todo: lo abre solo su propio
+ * código (`src/server/mi-numero/`).
+ */
+function notNumberChat(conversationIdColumn: PgColumn): SQL {
+  return sql`not exists (
+    select 1 from "conversation" cv_numero
+    where cv_numero."id" = ${conversationIdColumn} and cv_numero."direct_number_id" is not null
+  )`;
 }
 
 function conversationAssignedTo(
@@ -156,6 +177,13 @@ export function scopedMediaAssets(
   return scoped(
     organizationColumn,
     access.organizationId,
+    // 046: ni a quien ve todo, el adjunto de un chat de «Mi número» (lo marca
+    // su `wa_media_id`, `dnum:<número>:<id>`; búsqueda por llave, sin recorrer
+    // mensajes).
+    sql`not exists (
+      select 1 from "media_asset" ma_num
+      where ma_num."id" = ${assetIdColumn} and ma_num."wa_media_id" like ${NUMBER_MEDIA_PREFIX + "%"}
+    )`,
     access.seesAll
       ? undefined
       : sql`(
@@ -176,6 +204,9 @@ export function scopedMediaAssets(
     ...conditions
   );
 }
+
+/** 046 — `wa_media_id` de un adjunto de un chat de «Mi número»: `dnum:<número>:<id del dispositivo>`. */
+export const NUMBER_MEDIA_PREFIX = "dnum:";
 
 /**
  * Mi número (046) — "Un chat real del número de la EMPRESA": no es del

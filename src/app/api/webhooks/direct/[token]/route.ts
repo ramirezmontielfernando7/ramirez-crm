@@ -6,6 +6,7 @@ import { handleWebhookState } from "@/server/direct-connection/link";
 import { parseState } from "@/server/direct-connection/evolution-api";
 import { handleWebhookStatuses } from "@/server/direct-connection/status";
 import { parseDirectStatusUpdates } from "@/lib/direct-echo";
+import { ingestNumberMessages } from "@/server/mi-numero/inbound";
 import { acceptsWebhooks, beginTask } from "@/server/shutdown";
 
 export const dynamic = "force-dynamic";
@@ -52,11 +53,23 @@ export async function POST(req: Request, { params }: Params) {
       return new Response(null, { status: 500 });
     }
     if (!owner) return new Response(null, { status: 404 });
-    // Mi número (046): los mensajes del número de una persona aún no entran.
-    if (owner.directNumberId) return new Response(null, { status: 200 });
-    const { organizationId } = owner;
+    const { organizationId, directNumberId } = owner;
     const messages = parseDeviceMessages(body.data);
     if (messages.length === 0) return new Response(null, { status: 200 });
+    // Mi número (046): lo del número de una persona va a SUS chats.
+    if (directNumberId) {
+      const task = beginTask("webhook:direct");
+      after(async () => {
+        try {
+          await ingestNumberMessages({ organizationId, directNumberId }, messages);
+        } catch (err) {
+          log.error("error registrando mensajes de un «Mi número»", { err });
+        } finally {
+          task.end();
+        }
+      });
+      return new Response(null, { status: 200 });
+    }
     // Como el webhook de Meta: se responde ya y se registra después (unir la
     // copia de un envío puede esperar a que el dispositivo conteste).
     const task = beginTask("webhook:direct");

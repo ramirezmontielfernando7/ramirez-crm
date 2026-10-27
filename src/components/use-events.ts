@@ -53,6 +53,10 @@ export type EventHandlers = {
     threadId: string | null;
     change: "created" | "updated" | "deleted" | "read" | "settings";
   }) => void;
+  /** 046 — «Mi número»: un mensaje nuevo en uno de MIS chats (solo me llega a mí). */
+  onNumberMessage?: (data: { conversationId: string; message: unknown }) => void;
+  /** 046 — «Mi número»: cambió uno de mis chats (refetch de la lista). */
+  onNumberConversation?: (data: { conversationId: string }) => void;
   /**
    * 025 — Cada vez que la conexión queda abierta, INCLUIDA la primera. Quien
    * cargó datos antes de que el SSE terminara de conectarse se pone al día
@@ -76,6 +80,8 @@ const EVENT_TYPES = {
   "handoff.requested": "onHandoffRequested",
   "team.message": "onTeamMessage",
   "team.thread": "onTeamThread",
+  "number.message": "onNumberMessage",
+  "number.conversation": "onNumberConversation",
 } as const satisfies Record<string, keyof EventHandlers>;
 
 type Subscriber = { current: EventHandlers };

@@ -120,7 +120,7 @@ export function mediaInputFrom(msg: WebhookMessage): MediaInput | null {
  * Crea el media_asset de un mensaje recién insertado y dispara la descarga en
  * segundo plano si hay binario. Jamás lanza hacia el webhook (FR-013).
  */
-async function attachMediaAsset(
+export async function attachMediaAsset(
   organizationId: string,
   messageId: string,
   media: MediaInput

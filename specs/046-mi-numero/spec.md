@@ -102,11 +102,30 @@ revierte el código, correr también la reversa.
   autorizar dentro del tope, tipo, ajustes de un número de empresa, revocar.
 - Textos en `src/lib/mi-numero.ts`.
 
+## PR 4a — Lo que entra a cada número (servidor)
+
+- El webhook de un número manda `messages.upsert` a `src/server/mi-numero/inbound.ts`:
+  chat de ESE número con el contacto (uno por número y contacto, IA apagada),
+  `wa_message_id` = `direct.<número>.<key.id>` (el mismo `key.id` lo ven los
+  dos teléfonos), adjuntos con `wa_media_id` = `dnum:<número>:<key.id>` que se
+  descargan de SU dispositivo. Sin lead, reparto, bajas, IA ni campañas.
+- Contacto: uno que ya existe se usa (una sola ficha); uno nuevo nace
+  privado (`private_to_number_id`). Un privado que escribe a la empresa (o se
+  importa) pasa al CRM.
+- Blindaje central (`src/lib/db/tenant.ts`), también para quien ve todo:
+  `scopedContacts()` sobre `contact` esconde los privados; `scopedConversations()`
+  esconde lo que cuelga de un chat de número; `scopedMediaAssets()` sus
+  adjuntos. Campañas excluyen privados. Eventos en vivo `number.*` van solo a
+  su audiencia (el dueño), como el chat de equipo.
+- `src/server/mi-numero/chats.ts` + `/api/my-number/chats*`: lista, mensajes
+  (abrir = leído) y «Es cliente» (solo con «Compartir mis clientes»: el
+  contacto pasa al CRM, se asigna a la persona si nadie lo atiende y entra su
+  lead). `/api/media/[id]` sirve al dueño los adjuntos de sus chats.
+- Pendiente: un número `empresa` aún solo lo ve su dueño (PR 6 abre a
+  coordinadores); lo que sale es del PR 5.
+
 ## Siguientes PRs (sin migración)
 
-2. /platform: interruptor, tope y capacidad de los servidores.
-4. Entrada: lo que llega a un número va a su chat y a contactos privados;
-   «Es cliente».
 5. Salida: por el número correcto, límites y freno por número.
 6. Privacidad: «También habla con…», solicitudes, bitácora; salida de una
    persona.
