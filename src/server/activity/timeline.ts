@@ -1,3 +1,4 @@
+import { lossReasonLabels } from "@/server/leads/loss-reasons";
 import { desc, eq } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { scoped } from "@/lib/db/tenant";
@@ -90,6 +91,7 @@ export async function contactTimeline(
     });
   }
 
+  const lossLabels = stages.some((s) => s.event.lossReason) ? await lossReasonLabels(organizationId) : {};
   for (const { event: e, actorName } of stages) {
     items.push({
       id: e.id,
@@ -102,6 +104,7 @@ export async function contactTimeline(
         to: e.toStageName,
         toKind: e.toStageKind,
         lossReason: e.lossReason,
+        lossReasonLabel: e.lossReason ? lossLabels[e.lossReason] ?? null : null,
         lossNote: e.lossNote,
       },
     });

@@ -544,16 +544,8 @@ export const leadStageEvent = pgTable(
     /** true = fecha SEMBRADA en la migración, no observada. Cuenta para los
      *  totales pero jamás para promedios de tiempo. */
     approximate: boolean("approximate").notNull().default(false),
-    lossReason: text("loss_reason", {
-      enum: [
-        "precio",
-        "no_es_perfil",
-        "sin_presupuesto",
-        "eligio_otro",
-        "nunca_contesto",
-        "otro",
-      ],
-    }),
+    /** Clave de un `loss_reason` de la organización (editables). */
+    lossReason: text("loss_reason"),
     lossNote: text("loss_note"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
@@ -4002,5 +3994,34 @@ export const conversationAccessLog = pgTable(
       columns: [t.organizationId, t.conversationId],
       foreignColumns: [conversation.organizationId, conversation.id],
     }).onDelete("cascade"),
+  ]
+);
+
+/**
+ * Motivos de pérdida editables del Pipeline. `key` es lo que se guarda en
+ * `lead_stage_event.loss_reason` (estable: los seis de siempre conservan su
+ * clave; los nuevos nacen como `m_xxxx`). Editar el nombre cambia cómo se ve
+ * en todo el historial; «quitar» solo lo archiva (`active = false`), así que
+ * lo ya registrado sigue teniendo nombre. Una organización sin filas usa los
+ * seis por defecto (se siembran la primera vez que se leen).
+ */
+export const lossReason = pgTable(
+  "loss_reason",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    key: text("key").notNull(),
+    label: text("label").notNull(),
+    position: integer("position").notNull().default(0),
+    active: boolean("active").notNull().default(true),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => [
+    unique("loss_reason_org_key_uq").on(t.organizationId, t.key),
+    index("loss_reason_org_pos_idx").on(t.organizationId, t.position),
+    check("loss_reason_label_chk", sql`char_length(${t.label}) between 1 and 60`),
   ]
 );

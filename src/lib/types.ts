@@ -176,24 +176,28 @@ export type ContactDto = {
  * Bitácora de etapas
  * ============================================================ */
 
-/** Por qué se perdió un trato. Lista corta a propósito: una taxonomía larga
- *  se responde "otro" y deja de informar. */
-export type LossReason =
-  | "precio"
-  | "no_es_perfil"
-  | "sin_presupuesto"
-  | "eligio_otro"
-  | "nunca_contesto"
-  | "otro";
+/** Por qué se perdió un trato: la CLAVE de un motivo de la organización
+ *  (`loss_reason.key`; editables en Ajustes → Operación CRM). Los seis de
+ *  siempre conservan su clave. */
+export type LossReason = string;
 
-export const LOSS_REASON_LABEL: Record<LossReason, string> = {
-  precio: "Le pareció caro",
-  no_es_perfil: "No era el perfil",
-  sin_presupuesto: "Sin presupuesto ahora",
-  eligio_otro: "Se fue con otro",
-  nunca_contesto: "Nunca contestó",
-  otro: "Otro",
-};
+/** Los motivos con los que nace toda organización. «otro» no se puede quitar:
+ *  el sistema lo usa al reubicar tratos. */
+export const DEFAULT_LOSS_REASONS: readonly { key: string; label: string }[] = [
+  { key: "precio", label: "Le pareció caro" },
+  { key: "no_es_perfil", label: "No era el perfil" },
+  { key: "sin_presupuesto", label: "Sin presupuesto ahora" },
+  { key: "eligio_otro", label: "Se fue con otro" },
+  { key: "nunca_contesto", label: "Nunca contestó" },
+  { key: "otro", label: "Otro" },
+];
+
+export const LOSS_REASON_LABEL: Record<string, string> = Object.fromEntries(
+  DEFAULT_LOSS_REASONS.map((r) => [r.key, r.label])
+);
+
+/** Un motivo de pérdida tal como lo ve la pantalla. */
+export type LossReasonDto = { id: string; key: string; label: string; active: boolean };
 
 /** Quién provocó un movimiento de etapa. */
 export type StageChangeSource = "dueno" | "bot" | "sistema" | "migracion";
