@@ -23,12 +23,14 @@ alta-manual, anuncio-origen-ui, bandeja-campanas, bandeja-colores,
 bitacora-etapas, calendario, campanas (v1), chat-equipo, compositor,
 conocimientos, envio-instantaneo, favicon, ficha-lead, firma-webhook,
 linea-tiempo, messenger, monto-pipeline, panel-perdido,
-participantes-menciones, prioridad, redaccion, responsive, resultados,
+participantes-menciones, prioridad, redaccion, resultados,
 roles, search-filters, selftest, send-failure, templates-multivar,
 templates-sync.
 
-Candidatos razonables para el siguiente paso: `responsive` (cubre teléfono y
-tableta, hoy nadie lo vigila) y `bandeja-campanas`.
+`responsive` ya corre en CI (teléfono, tableta, escritorio y temas; ~1 min).
+Sus comprobaciones de colores y anchos se actualizaron al diseño actual
+(barra lateral clara de 216 px, lista de 30 vw). Candidato razonable para el
+siguiente paso: `bandeja-campanas`.
 
 ## E2E inestables en contenedor
 

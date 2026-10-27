@@ -9,9 +9,9 @@
  *  - ninguna pantalla recorta contenido a lo ancho (main no desborda);
  *  - los campos de texto miden ≥16px (si no, iOS hace zoom y descuadra todo);
  *  - en escritorio NADA de lo anterior cambia (el lateral sigue fijo);
- *  - la barra lateral es azul marino también con el tema claro, y el pomo de
- *    los interruptores queda dentro de su pista, encendido y apagado (#53);
- *  - con el tema oscuro la barra sigue más oscura que la página, lo que flota
+ *  - la barra lateral es clara con el tema claro, y el pomo de los
+ *    interruptores queda dentro de su pista, encendido y apagado (#53);
+ *  - con el tema oscuro la barra se despega de la página, lo que flota
  *    se despega y la franja del teléfono es la misma pieza que la barra (R8).
  *
  * Uso: node scripts/e2e-responsive.mjs
@@ -211,7 +211,8 @@ ok(
   "al elegir una conversación se abre el hilo",
   await until(async () => await composer.isVisible(), 15000)
 );
-ok("la lista cede la pantalla al hilo", !(await fila.isVisible()));
+// `fila` ya no sirve: el nombre también sale en el encabezado del hilo.
+ok("la lista cede la pantalla al hilo", !(await phone.locator("main > div > section").first().isVisible()));
 const volver = phone.getByRole("button", { name: "Volver a las conversaciones" });
 ok("aparece el botón de volver", await volver.isVisible());
 await phone.screenshot({ path: `${SHOTS}/phone-hilo.png` });
@@ -312,11 +313,12 @@ const medirColumnas = () =>
 // El panel abre con transición de 220 ms: medir apenas aparece el compositor
 // atraparía un ancho a medio camino.
 const columnasOk = (t) =>
-  t.aside === 224 && t.secs[0] === 360 && t.secs.at(-1) === 320;
+  // Lista = clamp(340px, 30vw, 460px): a 1440 de ancho son 432.
+  t.aside === 216 && t.secs[0] === 432 && t.secs.at(-1) === 320;
 await until(async () => columnasOk(await medirColumnas()), 8000);
 const tres = await medirColumnas();
 ok(
-  "escritorio conserva lateral 224px + lista 360px + hilo + detalles 320px",
+  "escritorio conserva lateral 216px + lista 432px (30vw) + hilo + detalles 320px",
   columnasOk(tres),
   JSON.stringify(tres)
 );
@@ -344,10 +346,10 @@ const barra = await desk.evaluate(() => {
   };
 });
 ok(
-  "con el tema claro, la barra lateral es azul marino y su texto claro",
+  "con el tema claro, la barra lateral es clara y su texto oscuro",
   barra.tema === "light" &&
-    luminancia(barra.fondo) < 0.05 &&
-    luminancia(barra.tinta) > 0.6 &&
+    luminancia(barra.fondo) > 0.8 &&
+    luminancia(barra.tinta) < 0.2 &&
     luminancia(barra.pagina) > 0.8,
   JSON.stringify(barra)
 );
@@ -454,10 +456,10 @@ const oscuro = await desk.evaluate(() => {
   };
 });
 ok(
-  "en oscuro, la barra es más oscura que la página (≥ 1.25:1)",
+  "en oscuro, la barra se despega de la página (≥ 1.1:1) y sigue siendo oscura",
   oscuro.tema === "dark" &&
-    luminancia(oscuro.barra) < luminancia(oscuro.pagina) &&
-    contraste(oscuro.barra, oscuro.pagina) >= 1.25,
+    luminancia(oscuro.barra) < 0.1 &&
+    contraste(oscuro.barra, oscuro.pagina) >= 1.1,
   JSON.stringify(oscuro)
 );
 ok(
