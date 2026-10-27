@@ -50,8 +50,15 @@ export function ContactPanel({
   refreshKey = 0,
   onPatchConversation,
   onClose,
+  numberAi,
 }: {
   conversation: ConversationDto;
+  /**
+   * 046 — Chat de cliente de «Mi número»: la IA de ese chat va por su número
+   * (pausar/reanudar propio, o nada) y no por el agente de la empresa. Con
+   * esto el panel no pregunta al agente ni pinta su caja: pinta esto.
+   */
+  numberAi?: React.ReactNode;
   /** Aumenta con cada evento SSE relevante: dispara un refetch en vivo. */
   refreshKey?: number;
   onPatchConversation: (patch: {
@@ -108,7 +115,9 @@ export function ContactPanel({
 
   // Aparte del resto: consultar el /health del cerebro externo puede tardar
   // hasta 2 s, y eso no debe demorar la etapa ni la ficha.
+  const numberChat = numberAi !== undefined;
   const loadBrain = useCallback(async () => {
+    if (numberChat) return;
     const res = await fetchJson<BrainStatusDto>("/api/agent/brain-status");
     if (!res.ok) {
       setBrainError(`No se pudo consultar quién responde: ${res.error}`);
@@ -116,7 +125,7 @@ export function ContactPanel({
     }
     setBrainError(null);
     setBrain(res.data);
-  }, []);
+  }, [numberChat]);
 
   // Carga inicial: se re-ejecuta al cambiar de contacto.
   const refetch = useCallback(async () => {
@@ -174,6 +183,7 @@ export function ContactPanel({
 
   // Depende de la etapa: se vuelve a preguntar cuando el lead se mueve.
   useEffect(() => {
+    if (numberChat) return;
     let alive = true;
     void fetchJson<{ agent: { label: string; stageName: string } | null }>(
       `/api/conversations/${conversation.id}/agent`
@@ -183,7 +193,7 @@ export function ContactPanel({
     return () => {
       alive = false;
     };
-  }, [conversation.id, currentStageId, refreshKey]);
+  }, [conversation.id, currentStageId, refreshKey, numberChat]);
 
   useEffect(() => {
     if (!loaded) return; // la carga inicial ya trae el estado fresco
@@ -297,6 +307,10 @@ export function ContactPanel({
             </div>
           </div>
 
+          {numberChat ? (
+            numberAi && <div className="mt-3">{numberAi}</div>
+          ) : (
+          <>
           {conversation.handoffAt && (
             <div className="mt-3 rounded-md border border-warning-soft bg-warning-tint p-3">
               <p className="flex items-center gap-1.5 text-[13px] font-medium text-warning-text">
@@ -421,6 +435,8 @@ export function ContactPanel({
             <p role="alert" className="mt-2 text-[11px] text-danger-text">
               {brainError}
             </p>
+          )}
+          </>
           )}
 
           {anuncio && (

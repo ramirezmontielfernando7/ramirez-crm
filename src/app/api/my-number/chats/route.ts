@@ -12,5 +12,5 @@ export const dynamic = "force-dynamic";
 export const GET = withAuth(async (session) => {
   const off = await miNumeroOff(session.organizationId);
   if (off) return off;
-  return answer(async () => Response.json(await listMyChats(session.organizationId, session.userId)));
+  return answer(async () => Response.json(await listMyChats(session.organizationId, session.userId, session.access)));
 });

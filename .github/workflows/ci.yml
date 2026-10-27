@@ -271,6 +271,9 @@ jobs:
           # Fluidez PR 3: la Bandeja paginada con 180 chats reales en la BD
           # (más de tres páginas): contadores, bajar, búsqueda, en vivo.
           node --env-file=.env scripts/e2e-bandeja-paginada.mjs
+          # Responsividad: teléfono (cajón, maestro-detalle, detalles flotantes),
+          # tableta y escritorio, interruptores y temas claro/oscuro (~1 min).
+          node --env-file=.env scripts/e2e-responsive.mjs
           kill -- -"$(cat app.pid)"; sleep 2
       # 035: Documentos del agente (RAG) ENCENDIDOS, con el mock de embeddings
       # (exige los prefijos e5). Las vueltas de arriba corren con KB_DOCS

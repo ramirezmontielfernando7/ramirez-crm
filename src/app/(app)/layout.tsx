@@ -13,6 +13,7 @@ import { toNavEntries } from "@/lib/modules/nav-layout";
 import { getUserPreferences } from "@/server/preferences";
 import { resolveNavMode } from "@/lib/preferences";
 import { DirectDisconnectNotice } from "@/components/direct-disconnect-notice";
+import { MyNumberSetupNotice } from "@/components/my-number-setup-notice";
 import { currentPlatformAdmin } from "@/server/platform-admin/admins";
 import { orgHasMiNumero } from "@/server/modules";
 import { hasMyNumber } from "@/server/mi-numero/numbers";
@@ -36,6 +37,7 @@ export default async function AppLayout({
   // estético: cada ruta valida permiso y módulo por su cuenta.
   const nav = await navForSession(session);
   const miNumero = await orgHasMiNumero(session.organizationId);
+  const ownNumber = miNumero && (await hasMyNumber(session.organizationId, session.userId));
   const theme = normalizeThemePreference(
     (await cookies()).get(THEME_COOKIE)?.value
   );
@@ -56,16 +58,19 @@ export default async function AppLayout({
       // prop, igual que los canales de la Bandeja. El nav es un componente de
       // cliente: no puede —ni debe— leer variables de entorno.
       campaigns={await campaignsEnabled(session.organizationId)}
-      nav={toNavEntries(nav)}
+      // Quien tiene un «Mi número» autorizado ve el botón de Ajustes aunque su rol
+      // no tenga ninguna otra pestaña: ahí solo verá «Mi número».
+      nav={{ ...toNavEntries(nav), settings: nav.settings || ownNumber }}
       modules={nav.modules}
       platform={(await currentPlatformAdmin()) !== null}
       navMode={resolveNavMode(prefs, session.role)}
       // Mi número (046): la pestaña de la Bandeja para quien tiene número y
       // (PR 7) para quien supervisa los números del equipo.
-      myNumber={miNumero && (await hasMyNumber(session.organizationId, session.userId))}
+      myNumber={ownNumber}
       teamNumbers={miNumero && can(session, "mi_numero.manage") && (await seesTeamNumbers(session.organizationId, session.userId))}
     >
       <DirectDisconnectNotice session={session} />
+      <MyNumberSetupNotice session={session} />
       {children}
     </AppShell>
   );

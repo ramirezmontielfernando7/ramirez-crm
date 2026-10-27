@@ -85,6 +85,9 @@ export const MY_CHATS_TEXT = {
   aiResume: "Reanudar",
   aiOnHelp: "La IA contesta este chat por tu número. Si tú escribes, se pausa sola.",
   aiPausedHelp: "La IA no contesta este chat hasta que la reanudes.",
+  panelPrivate:
+    "Este chat es privado: nadie más lo ve. La etapa del embudo, las etiquetas, quién lo atiende y la ficha aparecen cuando lo marcas «Es cliente».",
+  panelOther: "Este cliente lo atiende otra persona del equipo: su etapa, etiquetas y ficha las ve quien lo atiende.",
 } as const;
 
 /** Mi número (046), PR 6 — «También habla con…», solicitudes y bitácora. */
