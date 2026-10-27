@@ -2,7 +2,6 @@
 
 import {
   AlertTriangle,
-  Bot,
   Check,
   CheckCheck,
   Clock3,
@@ -14,6 +13,7 @@ import {
   UserRound,
 } from "lucide-react";
 import { useState } from "react";
+import { DEFAULT_ASSISTANT_NAME } from "@/lib/ai-connector";
 import type { MessageDto, MessageMediaDto } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { formatBytes, mediaLabel } from "./helpers";
@@ -296,12 +296,15 @@ export function MessageBubble({
           </span>
         )}
         {m.viaAiConnector && (
-          // 047 — solo lo ve el equipo: el cliente recibe un mensaje normal.
+          // 047 — la IA conectada de una persona: su nombre («Joe») en azul,
+          // para no confundirla con el agente interno («IA», color de marca).
+          // Solo la ve el equipo: el cliente recibe un mensaje normal.
           <span
-            className="inline-flex items-center gap-0.5 text-[10px] font-medium text-brand-ink"
-            title="Lo mandó la IA que conectó esta persona (Claude, ChatGPT…). El cliente no ve esta marca."
+            className="inline-flex max-w-[12rem] items-center gap-0.5 text-[10px] font-medium text-info-text"
+            title={`Enviado por ${m.aiSenderName ?? DEFAULT_ASSISTANT_NAME}, la IA conectada de una persona del equipo. El cliente no ve esta marca.`}
           >
-            <Bot className="h-3 w-3" strokeWidth={1.7} /> Enviado por IA
+            <Sparkles className="h-3 w-3 shrink-0" strokeWidth={1.7} />
+            <span className="truncate">{m.aiSenderName ?? DEFAULT_ASSISTANT_NAME}</span>
           </span>
         )}
         {m.origin === "manual" && (

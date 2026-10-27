@@ -27,7 +27,7 @@ export const MCP_BUDGET = { windowMs: 60_000, max: 120 };
 export const MCP_AUTH_FAILURES = { windowMs: 60_000, max: 30 };
 
 export type McpAuth =
-  | { ok: true; session: SessionContext; connectionId: string; scopes: Scope[] }
+  | { ok: true; session: SessionContext; connectionId: string; scopes: Scope[]; assistantName: string | null }
   | { ok: false; response: Response };
 
 function jsonError(status: number, code: string, message: string, headers: Record<string, string> = {}): Response {
@@ -82,5 +82,6 @@ export async function requireMcpToken(req: Request): Promise<McpAuth> {
     session: sessionContext(userId, organizationId, membership.role, grants),
     connectionId,
     scopes,
+    assistantName: resolved.assistantName,
   };
 }

@@ -957,6 +957,12 @@ export const message = pgTable(
      * Sin FK: la conexión nunca se borra (se revoca) y la tabla es grande.
      */
     aiConnectionId: text("ai_connection_id"),
+    /**
+     * 047 PR 4 — El nombre que tenía esa IA al enviar («Joe»), copiado: la
+     * burbuja dice «Joe» sin consultar la conexión. NULL con conexión =
+     * «Asistente».
+     */
+    aiSenderName: text("ai_sender_name"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
   (t) => [
@@ -4123,6 +4129,11 @@ export const aiConnection = pgTable(
       .references(() => user.id, { onDelete: "cascade" }),
     kind: text("kind", { enum: ["oauth", "key"] }).notNull(),
     name: text("name").notNull(),
+    /**
+     * 047 PR 4 — Cómo se llama esta IA en el equipo («Joe»), opcional: es lo
+     * que dice la burbuja de lo que envía. NULL = «Asistente».
+     */
+    assistantName: text("assistant_name"),
     /** OAuth: el `client_id` de la app (una URL con CIMD o el de registro). */
     clientId: text("client_id"),
     /** `read` = solo leer; `write` = además actuar (enviar, etiquetar…). */
@@ -4137,6 +4148,10 @@ export const aiConnection = pgTable(
     unique("ai_connection_org_id_uq").on(t.organizationId, t.id),
     check("ai_connection_kind_chk", sql`${t.kind} in ('oauth', 'key')`),
     check("ai_connection_name_chk", sql`char_length(${t.name}) between 1 and 80`),
+    check(
+      "ai_connection_assistant_name_chk",
+      sql`${t.assistantName} is null or char_length(${t.assistantName}) between 1 and 30`
+    ),
     check(
       "ai_connection_scopes_chk",
       sql`${t.scopes} <@ array['read', 'write']::text[] and 'read' = any(${t.scopes})`

@@ -113,8 +113,13 @@ RLS con la política de siempre en las cinco tablas con organización. Prueba:
   `add_note` (`logActivity`, a nombre de la persona), `create_task` (módulo
   `trabajo`, para la persona), `assign_chat` y `list_people` (solo con
   `assignment.manage`: `ToolSpec.permission`).
-- Marca «Enviado por IA» en la burbuja (`message.ai_connection_id` →
-  `MessageDto.viaAiConnector`), solo para el equipo.
+- Marca en la burbuja (`message.ai_connection_id` →
+  `MessageDto.viaAiConnector`), solo para el equipo. Fer (2026-10-27): cada
+  persona puede ponerle nombre a su IA («Joe», opcional, hasta 30 letras) en
+  Mi IA o al crear su llave; la burbuja dice ese nombre con estrellitas en
+  azul, y sin nombre «Asistente». El agente interno sigue con «IA» y su
+  color. El nombre se copia al mensaje al enviar (`ai_sender_name`, migración
+  0062): renombrar no cambia lo ya enviado.
 - Prueba: `tests/db/conector-ia-acciones.test.ts`.
 
 ## PRs siguientes

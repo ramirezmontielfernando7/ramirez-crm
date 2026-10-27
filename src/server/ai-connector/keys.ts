@@ -3,7 +3,14 @@ import { and, eq, gt, isNull, or } from "drizzle-orm";
 import { getDb, getSystemDb, schema } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
 import { scoped } from "@/lib/db/tenant";
-import { KEY_PREFIX, normalizeScopes, roleMayConnect, tokenPrefix, type Scope } from "@/lib/ai-connector";
+import {
+  KEY_PREFIX,
+  normalizeAssistantName,
+  normalizeScopes,
+  roleMayConnect,
+  tokenPrefix,
+  type Scope,
+} from "@/lib/ai-connector";
 import type { SessionContext } from "@/lib/auth/session";
 import { orgHasConectorIa } from "@/server/modules";
 import { getConnectorSettings } from "@/server/ai-connector/settings";
@@ -31,6 +38,7 @@ export type ResolvedToken = {
   organizationId: string;
   userId: string;
   scopes: Scope[];
+  assistantName: string | null;
 };
 
 /**
@@ -47,6 +55,7 @@ export async function resolveToken(token: string, now = new Date()): Promise<Res
       organizationId: schema.aiConnection.organizationId,
       userId: schema.aiConnection.userId,
       scopes: schema.aiConnection.scopes,
+      assistantName: schema.aiConnection.assistantName,
     })
     .from(schema.aiToken)
     .innerJoin(
@@ -80,6 +89,8 @@ export type ConnectionDto = {
   id: string;
   kind: "oauth" | "key";
   name: string;
+  /** «Joe»: cómo firma esta IA en la Bandeja; null = «Asistente». */
+  assistantName: string | null;
   scopes: Scope[];
   tokenPrefix: string | null;
   createdAt: string;
@@ -92,12 +103,13 @@ export type ConnectionDto = {
  */
 export async function createPersonalKey(
   session: SessionContext,
-  input: { name: string; scopes: readonly string[] }
+  input: { name: string; scopes: readonly string[]; assistantName?: string | null }
 ): Promise<{ key: string; connection: ConnectionDto } | null> {
   if (!(await mayConnect(session))) return null;
   const key = generateToken(KEY_PREFIX);
   const id = newId("aiConnection");
   const scopes = normalizeScopes(input.scopes);
+  const assistantName = normalizeAssistantName(input.assistantName);
   const now = new Date();
   await getDb().transaction(async (tx) => {
     await tx.insert(schema.aiConnection).values({
@@ -106,6 +118,7 @@ export async function createPersonalKey(
       userId: session.userId,
       kind: "key",
       name: input.name.trim().slice(0, 80),
+      assistantName,
       scopes,
       createdAt: now,
     });
@@ -125,6 +138,7 @@ export async function createPersonalKey(
       id,
       kind: "key",
       name: input.name.trim().slice(0, 80),
+      assistantName,
       scopes,
       tokenPrefix: tokenPrefix(key),
       createdAt: now.toISOString(),
@@ -140,6 +154,7 @@ export async function listMyConnections(session: SessionContext): Promise<Connec
       id: schema.aiConnection.id,
       kind: schema.aiConnection.kind,
       name: schema.aiConnection.name,
+      assistantName: schema.aiConnection.assistantName,
       scopes: schema.aiConnection.scopes,
       createdAt: schema.aiConnection.createdAt,
       lastUsedAt: schema.aiConnection.lastUsedAt,
@@ -167,6 +182,7 @@ export async function listMyConnections(session: SessionContext): Promise<Connec
     id: r.id,
     kind: r.kind,
     name: r.name,
+    assistantName: r.assistantName,
     scopes: normalizeScopes(r.scopes),
     tokenPrefix: r.tokenPrefix,
     createdAt: r.createdAt.toISOString(),
@@ -208,6 +224,31 @@ export async function revokeConnection(session: SessionContext, connectionId: st
       );
     return true;
   });
+}
+
+/**
+ * Le pone (o quita, con null) nombre a una IA de quien pide: lo que firme
+ * desde ahora dice ese nombre; lo ya enviado conserva el que tenía.
+ */
+export async function renameAssistant(
+  session: SessionContext,
+  connectionId: string,
+  name: string | null
+): Promise<boolean> {
+  const done = await getDb()
+    .update(schema.aiConnection)
+    .set({ assistantName: normalizeAssistantName(name) })
+    .where(
+      scoped(
+        schema.aiConnection.organizationId,
+        session.organizationId,
+        eq(schema.aiConnection.id, connectionId),
+        eq(schema.aiConnection.userId, session.userId),
+        isNull(schema.aiConnection.revokedAt)
+      )
+    )
+    .returning({ id: schema.aiConnection.id });
+  return done.length > 0;
 }
 
 /**

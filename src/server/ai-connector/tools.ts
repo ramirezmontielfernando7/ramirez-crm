@@ -38,7 +38,13 @@ import { createTask, listTasks, TaskInputError, viewerOf } from "@/server/work/t
  * ajustes.
  */
 
-export type ToolContext = { session: SessionContext; scopes: readonly Scope[]; connectionId: string };
+export type ToolContext = {
+  session: SessionContext;
+  scopes: readonly Scope[];
+  connectionId: string;
+  /** Cómo firma esta IA en la Bandeja («Joe»); null = «Asistente». */
+  assistantName: string | null;
+};
 
 export type ToolOutcome = {
   data: Record<string, unknown>;
@@ -354,7 +360,7 @@ const sendMessage: ToolSpec<z.infer<typeof sendMessageArgs>> = {
   parse: sendMessageArgs,
   scope: "write",
   serial: true,
-  run: async ({ session, connectionId }, args) => {
+  run: async ({ session, connectionId, assistantName }, args) => {
     const found = await getConversation(session.access, args.conversation_id);
     if (!found) return NOT_FOUND;
     const ids = { conversationId: found.conversation.id, contactId: found.contact.id };
@@ -379,6 +385,7 @@ const sendMessage: ToolSpec<z.infer<typeof sendMessageArgs>> = {
         organizationId: session.organizationId,
         text: args.text,
         aiConnectionId: connectionId,
+        aiSenderName: assistantName,
       });
       return {
         data: { ok: true, message_id: res.messageId, sent_today: sent + 1, daily_limit: dailyMessageLimit },
