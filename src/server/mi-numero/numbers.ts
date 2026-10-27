@@ -68,6 +68,7 @@ export type MiNumeroError =
   | "notice_required"
   | "share_off"
   | "not_linked"
+  | "requests_off"
   | LinkError;
 
 export class MiNumeroFailure extends Error {

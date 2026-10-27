@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { ChevronLeft, Lock, Paperclip, SendHorizontal, UserCheck } from "lucide-react";
 import { fetchJson } from "@/lib/fetch-json";
-import { MY_CHATS_TEXT } from "@/lib/mi-numero";
+import { ACCESS_TEXT, MY_CHATS_TEXT } from "@/lib/mi-numero";
 import type { MessageDto } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { ContactAvatar } from "@/components/avatar";
@@ -16,6 +16,7 @@ import { formatTime, previewText } from "./helpers";
 import { InboxModeSwitch, InboxTabs } from "./inbox-mode-switch";
 import { MessageBubble } from "./message-bubble";
 import { refreshNumberUnread } from "./number-unread-store";
+import { AccessRequestDialog, OverlapPills, PendingRequestsBanner, SharedChatsSection, useAccessOverview } from "./my-number-access";
 
 type MyChat = {
   id: string;
@@ -30,17 +31,25 @@ type MyChats = { numberId: string; shareClients: boolean; chats: MyChat[] };
 /**
  * Mi número (046), PR 4 — La pestaña «Mi número» de la Bandeja: los chats del
  * número de quien mira (solo él los ve; la API lo decide por la sesión), sus
- * mensajes, «Es cliente» y (PR 5) contestar: sale por SU número.
+ * mensajes, «Es cliente» y (PR 5) contestar: sale por SU número. PR 6:
+ * «También habla con…», las solicitudes para ver mis chats y, en solo
+ * lectura, los chats que otros me dejaron ver (`?s=`).
  */
 export function MyNumberInbox() {
   const router = useRouter();
   const params = useSearchParams();
-  const selectedId = params.get("c");
+  const sharedId = params.get("s");
+  const selectedId = params.get("c") ?? sharedId;
   const [list, setList] = useState<MyChats | null>(null);
   const [listError, setListError] = useState<string | null>(null);
   const [messages, setMessages] = useState<MessageDto[] | null>(null);
   const [threadError, setThreadError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [reviewing, setReviewing] = useState(false);
+  const [version, setVersion] = useState(0);
+  const { overview, reload: reloadAccess } = useAccessOverview();
+  const sharedRef = useRef(sharedId);
+  sharedRef.current = sharedId;
   const selectedRef = useRef(selectedId);
   selectedRef.current = selectedId;
 
@@ -59,9 +68,14 @@ export function MyNumberInbox() {
   }, [refetchList]);
 
   const loadThread = useCallback(async (id: string) => {
-    const res = await fetchJson<{ messages: MessageDto[] }>(`/api/my-number/chats/${id}/messages`);
+    // Un chat compartido se lee aparte (solo lectura, queda en la bitácora de su dueño).
+    const shared = sharedRef.current === id;
+    const res = await fetchJson<{ messages: MessageDto[] }>(shared ? `/api/my-number/shared/${id}/messages` : `/api/my-number/chats/${id}/messages`);
     if (selectedRef.current !== id) return;
-    if (res.ok) {
+    if (res.ok && shared) {
+      setMessages(res.data.messages);
+      setThreadError(null);
+    } else if (res.ok) {
       setMessages(res.data.messages);
       setThreadError(null);
       // Abrirlo lo deja leído: la lista y el globo de la pestaña se ponen al día.
@@ -91,8 +105,11 @@ export function MyNumberInbox() {
     },
     onNumberConversation: ({ conversationId }) => {
       scheduleList();
+      // Solicitudes, accesos y avisos de «También habla con…».
+      void reloadAccess();
+      setVersion((v) => v + 1);
       // Palomitas o un envío que falló en el chat abierto: se vuelve a leer.
-      if (conversationId === selectedRef.current) void loadThread(conversationId);
+      if (conversationId === selectedRef.current && sharedRef.current !== conversationId) void loadThread(conversationId);
     },
     onConnect: () => {
       scheduleList();
@@ -100,7 +117,8 @@ export function MyNumberInbox() {
     },
   });
 
-  const select = (id: string | null) => router.replace(id ? `/inbox/mi-numero?c=${id}` : "/inbox/mi-numero", { scroll: false });
+  const select = (id: string | null, shared = false) =>
+    router.replace(id ? `/inbox/mi-numero?${shared ? "s" : "c"}=${id}` : "/inbox/mi-numero", { scroll: false });
 
   async function markClient(chat: MyChat) {
     if (!window.confirm(MY_CHATS_TEXT.markClientConfirm)) return;
@@ -111,7 +129,9 @@ export function MyNumberInbox() {
     await refetchList();
   }
 
-  const selected = list?.chats.find((c) => c.id === selectedId) ?? null;
+  const selected = sharedId ? null : (list?.chats.find((c) => c.id === selectedId) ?? null);
+  const sharedChat = sharedId ? (overview?.sharedWithMe.find((c) => c.conversationId === sharedId) ?? null) : null;
+  const request = reviewing ? (overview?.incoming[0] ?? null) : null;
 
   return (
     <div data-split-panels className="flex h-full lg:gap-3">
@@ -132,6 +152,7 @@ export function MyNumberInbox() {
             <Lock className="mt-[1px] h-3.5 w-3.5 shrink-0" strokeWidth={2} aria-hidden />
             <span>{MY_CHATS_TEXT.privacy}</span>
           </p>
+          <PendingRequestsBanner requests={overview?.incoming ?? []} onReview={() => setReviewing(true)} />
           <div className="min-h-0 flex-1 overflow-y-auto" data-testid="my-number-chats">
             {listError && (
               <p role="alert" className="px-4 py-3 text-[12.5px] text-danger-text">
@@ -146,6 +167,7 @@ export function MyNumberInbox() {
             {list?.chats.map((c) => (
               <ChatRow key={c.id} chat={c} active={c.id === selectedId} onSelect={() => select(c.id)} />
             ))}
+            <SharedChatsSection chats={overview?.sharedWithMe ?? []} activeId={sharedId} onSelect={(id) => select(id, true)} />
           </div>
         </div>
       </section>
@@ -206,7 +228,19 @@ export function MyNumberInbox() {
                   )}
                 </div>
               )}
+              {sharedChat && (
+                <div className="flex min-w-0 flex-1 items-center gap-3 px-1">
+                  <ContactAvatar name={sharedChat.contactName} size="list" />
+                  <div className="min-w-0">
+                    <p className="truncate text-[15px] font-semibold leading-tight tracking-tight">{sharedChat.contactName}</p>
+                    <p className="truncate text-[11.5px] text-text-3">{ACCESS_TEXT.sharedRow(sharedChat.ownerName)}</p>
+                  </div>
+                </div>
+              )}
             </header>
+            {selected?.clientMarkedAt && (
+              <OverlapPills conversationId={selected.id} version={version} onOpenShared={(id) => select(id, true)} />
+            )}
             {threadError && (
               <p role="alert" className="border-b border-danger-soft bg-danger-tint px-4 py-2 text-[12.5px] text-danger-text">
                 {threadError}
@@ -217,14 +251,20 @@ export function MyNumberInbox() {
             ) : (
               !threadError && <p className="thread-bg flex-1 p-6 text-center text-xs text-text-3">Cargando…</p>
             )}
-            <Composer
-              key={selectedId}
-              conversationId={selectedId}
-              onSent={() => {
-                scheduleList();
-                void loadThread(selectedId);
-              }}
-            />
+            {sharedId ? (
+              <p className="shrink-0 border-t bg-background px-4 py-3 text-center text-[12.5px] text-text-3">
+                {ACCESS_TEXT.readOnly(sharedChat?.ownerName ?? "tu compañero")}
+              </p>
+            ) : (
+              <Composer
+                key={selectedId}
+                conversationId={selectedId}
+                onSent={() => {
+                  scheduleList();
+                  void loadThread(selectedId);
+                }}
+              />
+            )}
           </>
         ) : (
           <div className="thread-bg flex flex-1 flex-col items-center justify-center gap-2 px-6 text-center">
@@ -233,6 +273,16 @@ export function MyNumberInbox() {
           </div>
         )}
       </section>
+      {request && (
+        <AccessRequestDialog
+          key={request.id}
+          request={request}
+          onDone={() => {
+            setReviewing(false);
+            void reloadAccess();
+          }}
+        />
+      )}
     </div>
   );
 }

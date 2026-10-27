@@ -24,6 +24,7 @@ const MESSAGE: Record<MiNumeroError, [number, string]> = {
     "Este número es de la empresa: sus ajustes los decide el Coordinador o el Propietario.",
   ],
   notice_required: [409, "Antes de vincular, lee y acepta el aviso."],
+  requests_off: [409, "Esa persona no recibe solicitudes para ver sus chats."],
   not_linked: [409, "Tu número no está conectado. Vuelve a escanear el código en Ajustes → Mi número."],
   share_off: [409, "Para marcar clientes, enciende «Compartir mis clientes con la empresa» en tu «Mi número»."],
   no_server: [

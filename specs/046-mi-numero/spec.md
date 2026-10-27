@@ -158,6 +158,23 @@ revierte el código, correr también la reversa.
   contacto privado sin chats se borra y uno que sigue en otro número queda
   privado de ese. El aviso de «Revocar» lo dice.
 
+## PR 6b — «También habla con…», pedir ver un chat y la bitácora
+
+- `src/server/mi-numero/access.ts`: el aviso solo entre chats «Es cliente»
+  de números con «Avisar que también hablo…» encendido (parejo; solo nombre
+  y fecha). Pedir ver: solo quien también atiende al cliente (su chat
+  marcado y su aviso encendido) y si el dueño permite solicitudes; el dueño
+  acepta, rechaza o quita (`conversation_access`). Con acceso: solo lectura,
+  no marca leído, cada vista en `conversation_access_log`. Adjuntos por
+  acceso concedido en `myNumberAsset`.
+- Rutas `/api/my-number/chats/[id]/overlaps`, `/api/my-number/access`
+  (+ `/[id]`), `/api/my-number/shared/[id]/messages`.
+- UI: cápsula y solicitud en `components/inbox/my-number-access.tsx`
+  (maqueta aprobada), «Compartidos contigo» en la lista, y en Ajustes →
+  Mi número «Pueden ver tus chats» (quitar acceso) y «Quién ha visto tus chats».
+- Pendiente: que un Coordinador pida ver sin atender al cliente, que vea los
+  chats de un número «de la empresa», y la IA en los chats de un número.
+
 ## Siguientes PRs (sin migración)
 
 6. Privacidad: «También habla con…», solicitudes, bitácora; salida de una

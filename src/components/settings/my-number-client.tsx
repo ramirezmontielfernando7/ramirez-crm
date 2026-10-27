@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { CONNECTION_STATUS_LABEL, DIRECT_TEXT, type DirectConnectionStatus } from "@/lib/direct-connection";
-import { KIND_LABEL, MI_NUMERO_TEXT, SWITCH_ORDER, SWITCH_TEXT, type NumberSwitch } from "@/lib/mi-numero";
+import { useAccessOverview } from "@/components/inbox/my-number-access";
+import { ACCESS_TEXT, KIND_LABEL, MI_NUMERO_TEXT, SWITCH_ORDER, SWITCH_TEXT, type NumberSwitch } from "@/lib/mi-numero";
 
 type Connection = { status: DirectConnectionStatus; phoneNumber: string | null; pausedUntil: string | null; canLink?: boolean };
 type MyNumber = {
@@ -39,6 +40,7 @@ export function MyNumberClient() {
   const [qr, setQr] = useState<Qr | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { overview, reload: reloadAccess } = useAccessOverview();
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const load = useCallback(async () => {
@@ -260,8 +262,49 @@ export function MyNumberClient() {
           <CardTitle>3 · Quién ha visto tus chats</CardTitle>
           <CardDescription>{MI_NUMERO_TEXT.viewsIntro}</CardDescription>
         </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground">{MI_NUMERO_TEXT.noViews}</p>
+        <CardContent className="space-y-4">
+          {overview && overview.granted.length > 0 && (
+            <div className="space-y-2" data-testid="my-number-grants">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{ACCESS_TEXT.grantsTitle}</p>
+              {overview.granted.map((g) => (
+                <div key={g.id} className="flex items-center justify-between gap-3 rounded-md border px-3 py-2 text-sm">
+                  <span>{ACCESS_TEXT.grantRow(g.userName, g.contactName)}</span>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={busy}
+                    onClick={async () => {
+                      setBusy(true);
+                      const r = await fetch(`/api/my-number/access/${g.id}`, {
+                        method: "PATCH",
+                        headers: { "content-type": "application/json" },
+                        body: JSON.stringify({ action: "revoke" }),
+                      }).catch(() => null);
+                      setBusy(false);
+                      if (!r?.ok) setError("No se pudo quitar el acceso. Intenta de nuevo.");
+                      await reloadAccess();
+                    }}
+                  >
+                    {ACCESS_TEXT.removeAccess}
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+          {overview && overview.views.length > 0 ? (
+            <ul className="divide-y rounded-md border text-sm" data-testid="my-number-views">
+              {overview.views.map((v, i) => (
+                <li key={i} className="flex items-center justify-between gap-3 px-3 py-2">
+                  <span>{ACCESS_TEXT.viewRow(v.userName, v.contactName)}</span>
+                  <span className="shrink-0 text-xs text-muted-foreground">
+                    {new Date(v.viewedAt).toLocaleString("es-MX", { dateStyle: "medium", timeStyle: "short" })}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-muted-foreground">{MI_NUMERO_TEXT.noViews}</p>
+          )}
         </CardContent>
       </Card>
 
