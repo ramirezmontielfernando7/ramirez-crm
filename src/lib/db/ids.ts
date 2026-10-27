@@ -12,6 +12,7 @@ const prefixes = {
   lead: "ld",
   stage: "stg",
   leadStageEvent: "lse",
+  lossReason: "lrs",
   credentials: "cred",
   agentProfile: "agp",
   agent: "agt",

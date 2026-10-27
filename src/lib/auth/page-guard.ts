@@ -20,6 +20,7 @@ export const SETTINGS_TAB_PERMISSION = {
   messenger: "settings.manage",
   templates: "templates.manage",
   tags: "tags.manage",
+  "loss-reasons": "pipeline.edit",
   team: "users.read",
   calendar: "settings.manage",
   ads: "settings.manage",

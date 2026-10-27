@@ -1,6 +1,6 @@
 import { HANDOFF_LABEL } from "@/lib/analytics";
 import { WA_CONSENT_LABEL, type WaConsent } from "@/lib/tags";
-import { LOSS_REASON_LABEL, type LossReason } from "@/lib/types";
+import { LOSS_REASON_LABEL } from "@/lib/types";
 
 /**
  * 022 — Línea de tiempo del chat: contrato entre `GET
@@ -83,7 +83,7 @@ export function describeTimelineItem(item: TimelineItemDto): TimelineLine {
       if (!d.from) {
         return { title: `Lead creado en ${d.to ?? "el pipeline"}${actor}`, body: null };
       }
-      const reason = d.lossReason ? LOSS_REASON_LABEL[d.lossReason as LossReason] ?? d.lossReason : null;
+      const reason = d.lossReason ? d.lossReasonLabel ?? LOSS_REASON_LABEL[d.lossReason] ?? d.lossReason : null;
       const body = [reason && `Motivo: ${reason}`, d.lossNote].filter(Boolean).join("\n");
       return { title: `Etapa cambiada a ${d.to}${actor}`, body: body || null };
     }
