@@ -69,7 +69,10 @@ export default async function AppLayout({
       // (PR 7) para quien supervisa los números del equipo.
       myNumber={ownNumber}
       teamNumbers={miNumero && can(session, "mi_numero.manage") && (await seesTeamNumbers(session.organizationId, session.userId))}
-      newChatsBlocked={session.role === "asesor" && (await getAdvisorNewChatsBlocked(session.organizationId))}
+      newChatsBlocked={
+        session.role === "asesor" &&
+        (await runWithOrganization(session.organizationId, () => getAdvisorNewChatsBlocked(session.organizationId)))
+      }
     >
       <DirectDisconnectNotice session={session} />
       <MyNumberSetupNotice session={session} />
