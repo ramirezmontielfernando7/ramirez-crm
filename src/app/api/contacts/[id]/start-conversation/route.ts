@@ -6,6 +6,7 @@ import { companyChat, scopedContacts } from "@/lib/db/tenant";
 import { getContactById } from "@/server/contacts";
 import { getOrCreateConversation } from "@/server/inbox/ingest";
 import { SendError } from "@/server/inbox/send";
+import { assertMayStartChat, NewNumberError } from "@/server/inbox/new-number";
 import { isWindowOpen } from "@/server/inbox/window";
 import {
   sendTemplate,
@@ -55,6 +56,14 @@ export const POST = withAuth(async (session, req: Request, ctx: Params) => {
       )
     )
     .limit(1);
+
+  // 048: sin chat previo, abrirlo es «chat nuevo» (un Asesor puede tenerlo vedado).
+  try {
+    await assertMayStartChat(session, existing.length > 0);
+  } catch (err) {
+    if (err instanceof NewNumberError) return apiError(err.status, err.code, err.message);
+    throw err;
+  }
 
   // Gastar una plantilla teniendo la ventana abierta es tirar dinero y
   // reputación de plantilla: se avisa en vez de enviarla.

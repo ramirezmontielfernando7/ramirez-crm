@@ -1,3 +1,4 @@
+import { getAdvisorNewChatsBlocked } from "@/server/messaging-settings";
 import { redirect } from "next/navigation";
 import { runWithOrganization } from "@/lib/request-context";
 import { cookies, headers } from "next/headers";
@@ -68,6 +69,10 @@ export default async function AppLayout({
       // (PR 7) para quien supervisa los números del equipo.
       myNumber={ownNumber}
       teamNumbers={miNumero && can(session, "mi_numero.manage") && (await seesTeamNumbers(session.organizationId, session.userId))}
+      newChatsBlocked={
+        session.role === "asesor" &&
+        (await runWithOrganization(session.organizationId, () => getAdvisorNewChatsBlocked(session.organizationId)))
+      }
     >
       <DirectDisconnectNotice session={session} />
       <MyNumberSetupNotice session={session} />

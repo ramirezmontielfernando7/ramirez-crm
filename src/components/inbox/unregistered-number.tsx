@@ -8,6 +8,7 @@ import { useAssignees } from "@/components/assignment/use-assignees";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { NEW_CHATS_BLOCKED_TEXT as NEW_CHATS_BLOCKED_MESSAGE } from "@/lib/new-chats";
 import { TemplateSender } from "./template-sender";
 
 type Mode = "register" | "send";
@@ -43,6 +44,7 @@ export function UnregisteredNumberCard({
   onOpenChat: (conversationId: string) => void;
 }) {
   const typed = normalizeTypedPhone(query);
+  const { newChatsBlocked } = useViewer();
   const [mode, setMode] = useState<Mode | null>(null);
   const [opening, setOpening] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -82,7 +84,16 @@ export function UnregisteredNumberCard({
           </div>
         ) : null}
 
-        <div className="mt-3 flex flex-col gap-2">
+        {newChatsBlocked && (
+          <p
+            className="mt-3 rounded-xl bg-warning-tint p-3 text-left text-[12.5px] text-warning-text"
+            data-testid="new-chats-blocked-notice"
+          >
+            🔒 {NEW_CHATS_BLOCKED_MESSAGE}
+          </p>
+        )}
+
+        <div className={newChatsBlocked ? "hidden" : "mt-3 flex flex-col gap-2"}>
           {!registered && (
             <Button
               variant="outline"

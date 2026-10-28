@@ -3241,6 +3241,12 @@ export const messagingSettings = pgTable(
     stopReplyEnabled: boolean("stop_reply_enabled").notNull().default(false),
     stopReplyText: text("stop_reply_text"),
     usageAlertPercent: integer("usage_alert_percent").notNull().default(80),
+    /**
+     * 048 — «Chats nuevos de los asesores»: encendido, un Asesor no abre chats
+     * ni le escribe primero a un contacto nuevo con el número de la empresa
+     * (solo atiende los que ya existen). APAGADO por defecto.
+     */
+    advisorNewChatsBlocked: boolean("advisor_new_chats_blocked").notNull().default(false),
     updatedBy: text("updated_by").references(() => user.id, { onDelete: "set null" }),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },
