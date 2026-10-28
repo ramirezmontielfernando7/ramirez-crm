@@ -248,7 +248,7 @@ const addDocumentTool: ToolSpec<z.infer<typeof addDocArgs>> = {
   name: "add_document",
   title: "Cargar un documento",
   description:
-    "Carga un documento de texto para que los agentes lo consulten (por ejemplo, el contenido de un PDF o Word que te pasó la persona, ya en texto). Va al grupo indicado por nombre (sin group, a General) o, con agent_id, como exclusivo de ese agente. Queda listo en unos minutos.",
+    "Carga un documento de texto para que los agentes lo consulten (por ejemplo, el contenido de un PDF o Word que te pasó la persona, ya en texto). Va al grupo indicado por nombre (sin group, a General) o, con agent_id, como exclusivo de ese agente. Queda listo en unos minutos. Solo lo lee la IA del CRM: para que aparezca en la Biblioteca con etiquetas (y se pueda mandar en el chat), usa add_to_library con rag=true.",
   inputSchema: {
     type: "object",
     properties: {

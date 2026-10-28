@@ -246,6 +246,21 @@ Resultados con `results.read` y la regla de `resultsScope`) y
 por `createTemplate`: va a aprobación de Meta; solo encabezado de texto).
 Pruebas en `tests/db/conector-ia-material.test.ts`.
 
+## Ajuste 2026-10-28 — la Biblioteca completa
+
+Fer probó con Claude real y le faltaba la Biblioteca: etiquetas, grupos y
+destinos. `src/server/ai-connector/library-tools.ts` (área `agents`):
+`list_library`, `add_to_library` (título, texto, etiquetas, «Envío en chat»
+y «Lectura IA» en un grupo), `update_library_entry` (texto, etiquetas
+—reemplazar, agregar o quitar— y destinos; un destino al menos), con
+`knowledge.manage` y, para la lectura de la IA, `libraryAccess(...).rag`;
+`create_document_group`, `rename_document_group` y `move_document` con
+`agent.manage`. Por las puertas de la pantalla (`knowledge/store.ts`,
+`library/bridge.ts`, `kb-docs/store.ts`). Nada borra. Los archivos ORIGINALES
+(PDF/Word) no viajan por el conector: un modelo no puede mandar los bytes de
+un archivo como argumento; la IA manda el texto. Pruebas en
+`tests/db/conector-ia-biblioteca.test.ts`.
+
 ## PRs siguientes
 
 5b. Prueba con Claude real en el piloto.
