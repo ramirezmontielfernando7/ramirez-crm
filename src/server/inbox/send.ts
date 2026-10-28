@@ -385,8 +385,9 @@ export async function sendText(input: {
   aiGenerated?: boolean;
   /**
    * 047 — lo pidió la IA conectada de una persona (conector MCP). Sale como
-   * la persona (origen `operator`), siempre por Meta: nunca por el
-   * dispositivo vinculado, aunque alguien pasara `allowDirect`.
+   * la persona (origen `operator`) y por la MISMA vía que su chat en la
+   * Bandeja (Meta, Directa o Automática), con los límites del dispositivo y
+   * el tope diario del conector (decisión de Fer, 2026-10-28).
    */
   aiConnectionId?: string;
   /** El nombre de esa IA («Joe»), copiado en el mensaje; null = «Asistente». */
@@ -409,8 +410,9 @@ export async function sendText(input: {
     }
   }
   const target = await prepareSend(input.conversationId, input.organizationId, {
-    // La IA nunca: aunque alguien lo pidiera, un texto generado sale por Meta.
-    allowDirect: input.allowDirect === true && !input.aiGenerated && !input.aiConnectionId,
+    // El agente interno nunca: aunque alguien lo pidiera, un texto generado
+    // sale por Meta. La IA conectada de una persona sí, como esa persona.
+    allowDirect: input.allowDirect === true && !input.aiGenerated,
     aiDirect: input.aiGenerated === true,
   });
   if (target.direct) {
@@ -420,6 +422,8 @@ export async function sendText(input: {
       type: "text",
       text: input.text,
       aiGenerated: input.aiGenerated === true,
+      aiConnectionId: input.aiConnectionId ?? null,
+      aiSenderName: input.aiSenderName ?? null,
     });
   }
   const { credentials } = target;
