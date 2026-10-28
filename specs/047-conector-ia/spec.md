@@ -207,6 +207,20 @@ sigue sin salir por el dispositivo (salvo «Mi número» y empresa sin Meta,
 como antes). Pruebas en `tests/db/conexion-directa-envio.test.ts` y el
 guardarraíl `tests/unit/conexion-directa-envio.test.ts`.
 
+## Ajuste 2026-10-28 — conocimiento y documentos de los agentes
+
+Fer pidió herramientas «de todo lo que se pueda». Primera parte: el
+conocimiento del Estudio de IA (`src/server/ai-connector/knowledge-tools.ts`),
+dentro del área «Ajustar agentes de IA» de Funciones avanzadas y con
+`agent.manage` (hoy solo el Propietario), como la pantalla:
+`list_knowledge`/`add_knowledge`/`update_knowledge` (preguntas y bloques,
+compartido o de un agente, por `agents/kb.ts`; aplican al momento, no tienen
+borrador) y `list_documents`/`read_document` (páginas de 20,000
+caracteres)/`add_document` (texto ya extraído, a un grupo por nombre o
+exclusivo de un agente, por `kb-docs/store.ts`, con el tope de almacenamiento
+y el indexador de siempre; solo con `KB_DOCS` y Laboratorio). Ninguna borra.
+Pruebas en `tests/db/conector-ia-conocimiento.test.ts`.
+
 ## PRs siguientes
 
 5b. Prueba con Claude real en el piloto.

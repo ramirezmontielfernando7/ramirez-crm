@@ -57,7 +57,7 @@ export const ADVANCED_AREA_TEXT: Record<AdvancedArea, { label: string; hint: str
   contacts: { label: "Exportar e importar contactos", hint: "Cada exportación queda anotada aparte." },
   campaigns: { label: "Preparar campañas", hint: "La deja lista; una persona la lanza con un clic." },
   tags: { label: "Crear y editar etiquetas", hint: "Y ponerlas o quitarlas en varios contactos a la vez." },
-  agents: { label: "Ajustar agentes de IA", hint: "Edita el borrador; publicarlo sigue siendo de una persona." },
+  agents: { label: "Ajustar agentes de IA", hint: "Edita el borrador, su conocimiento y sus documentos; publicarlo sigue siendo de una persona." },
   settings: { label: "Algunos ajustes", hint: "Respuestas rápidas y motivos de pérdida." },
 };
 
@@ -287,6 +287,12 @@ export const ACTION_LABEL: Record<string, string> = {
   update_quick_reply: "Editó una respuesta rápida",
   create_loss_reason: "Agregó un motivo de pérdida",
   rename_loss_reason: "Renombró un motivo de pérdida",
+  list_knowledge: "Revisó el conocimiento de un agente",
+  add_knowledge: "Agregó conocimiento a un agente",
+  update_knowledge: "Editó conocimiento de un agente",
+  list_documents: "Revisó los documentos de la IA",
+  read_document: "Leyó un documento de la IA",
+  add_document: "Subió un documento para la IA",
 };
 
 /** PR 6 — Acciones que se resaltan en «Qué hizo tu IA» (salen del CRM o llegan a muchos). */

@@ -10,6 +10,7 @@ import type { ConversationDto } from "@/lib/types";
 import { TASK_DESCRIPTION_MAX, TASK_FILTERS, TASK_TITLE_MAX } from "@/lib/work";
 import { logActivity } from "@/server/activity/log";
 import { ADVANCED_TOOLS } from "@/server/ai-connector/advanced-tools";
+import { KNOWLEDGE_TOOLS } from "@/server/ai-connector/knowledge-tools";
 import { getConnectorSettings } from "@/server/ai-connector/settings";
 import { messagesSentLastDay } from "@/server/ai-connector/log";
 import {
@@ -795,6 +796,7 @@ export const TOOLS: readonly ToolSpec<any>[] = [
   listPeople,
   ...WRITE_TOOLS,
   ...ADVANCED_TOOLS,
+  ...KNOWLEDGE_TOOLS,
 ];
 
 /** Las herramientas que ESTA conexión puede usar hoy (alcance, permisos, módulos y funciones avanzadas). */
