@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, countDistinct, eq, gte, isNull, sql } from "drizzle-orm";
 import { getSystemDb, schema, type Db } from "@/lib/db";
 import { getEnv } from "@/lib/env";
 import { runWithOrganization } from "@/lib/request-context";
@@ -37,6 +37,11 @@ export type OrgUsageSummary = {
   };
   /** 036 (PR 3a) — Avisos del mes: el umbral más alto de cada medida. */
   alerts: { metric: string; threshold: number }[];
+  /**
+   * 047 PR 5 — Conector de IA: personas con una IA conectada hoy, y en el
+   * mes (UTC) cuántas acciones pidió y cuántos mensajes mandó. Solo números.
+   */
+  aiConnector: { people: number; actions: number; sent: number };
 };
 
 /** Uno solo por archivo, para que el guardarraíl lo cuente una vez. */
@@ -53,13 +58,14 @@ function withEnvDefaults(row: { turns: number | null; tokens: number | null } | 
   };
 }
 
-/** El resumen de consumo de cada organización de `ids` (cinco lecturas agrupadas en total). */
+/** El resumen de consumo de cada organización de `ids` (siete lecturas agrupadas en total). */
 export async function listOrgsUsage(ids: string[], now = new Date()): Promise<Map<string, OrgUsageSummary>> {
   const out = new Map<string, OrgUsageSummary>();
   if (ids.length === 0) return out;
   const period = currentPeriod(now);
   const db = sys();
-  const [totales, topes, almacen, planes, avisos] = await Promise.all([
+  const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+  const [totales, topes, almacen, planes, avisos, conectadas, acciones] = await Promise.all([
     db
       .select({
         org: schema.aiUsage.organizationId,
@@ -91,7 +97,23 @@ export async function listOrgsUsage(ids: string[], now = new Date()): Promise<Ma
       .select({ org: schema.usageAlert.organizationId, metric: schema.usageAlert.metric, threshold: schema.usageAlert.threshold })
       .from(schema.usageAlert)
       .where(eq(schema.usageAlert.period, period)),
+    db
+      .select({ org: schema.aiConnection.organizationId, people: countDistinct(schema.aiConnection.userId) })
+      .from(schema.aiConnection)
+      .where(isNull(schema.aiConnection.revokedAt))
+      .groupBy(schema.aiConnection.organizationId),
+    db
+      .select({
+        org: schema.aiActionLog.organizationId,
+        actions: sql<number>`count(*)::int`,
+        sent: sql<number>`count(*) filter (where ${schema.aiActionLog.tool} = 'send_message' and ${schema.aiActionLog.outcome} = 'ok')::int`,
+      })
+      .from(schema.aiActionLog)
+      .where(gte(schema.aiActionLog.at, monthStart))
+      .groupBy(schema.aiActionLog.organizationId),
   ]);
+  const conectadasPorOrg = new Map(conectadas.map((r) => [r.org, Number(r.people)]));
+  const accionesPorOrg = new Map(acciones.map((r) => [r.org, r]));
   const total = new Map(totales.map((r) => [r.org, r]));
   const tope = new Map(topes.map((r) => [r.org, r]));
   const plan = new Map(planes.map((r) => [r.org, r]));
@@ -115,6 +137,11 @@ export async function listOrgsUsage(ids: string[], now = new Date()): Promise<Ma
         maxMembers: plan.get(id)?.maxMembers ?? null,
       },
       alerts: [...(avisosPorOrg.get(id) ?? new Map<string, number>())].map(([metric, threshold]) => ({ metric, threshold })),
+      aiConnector: {
+        people: conectadasPorOrg.get(id) ?? 0,
+        actions: Number(accionesPorOrg.get(id)?.actions ?? 0),
+        sent: Number(accionesPorOrg.get(id)?.sent ?? 0),
+      },
     });
   }
   return out;

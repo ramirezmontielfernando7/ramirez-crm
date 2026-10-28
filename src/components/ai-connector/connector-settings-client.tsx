@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ActionsLog } from "./actions-log";
 import { Switch } from "@/components/ui/switch";
 import { fetchJson, jsonInit } from "@/lib/fetch-json";
 
@@ -119,6 +120,13 @@ export function ConnectorSettingsClient() {
           </CardDescription>
         </CardHeader>
       </Card>
+
+      <ActionsLog
+        team
+        url="/api/settings/ai-connector/activity"
+        title="Qué hizo la IA del equipo"
+        description="Lo que pidió la IA de cada persona, la más reciente primero. Nunca el texto de los mensajes; los chats privados de «Mi número» salen sin nombre."
+      />
     </div>
   );
 }

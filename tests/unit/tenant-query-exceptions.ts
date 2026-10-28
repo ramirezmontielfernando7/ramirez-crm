@@ -89,9 +89,9 @@ export const TENANT_QUERY_EXCEPTIONS: Record<string, { max: number; motivo: stri
       "035 — Al arrancar (documentsToResume): ids de los documentos del agente por (re)indexar en TODAS las organizaciones, pool de sistema. El indexado de cada uno corre luego a nombre de la suya con scoped().",
   },
   "server/platform-admin/usage.ts": {
-    max: 4,
+    max: 6,
     motivo:
-      "036 PR 4 — listOrgsUsage: el consumo de IA del mes (ai_usage, fila total) y los topes (ai_quota) de TODAS las organizaciones para la lista de /platform, una lectura agrupada de cada tabla con el pool de sistema. 036 PR 3a: también el plan y topes propios (organization_plan) y los avisos del mes (usage_alert), igual: solo números. Solo números; detrás de withPlatformAdmin. El detalle de UNA organización va con scoped() y RLS (runWithOrganization).",
+      "036 PR 4 — listOrgsUsage: el consumo de IA del mes (ai_usage, fila total) y los topes (ai_quota) de TODAS las organizaciones para la lista de /platform, una lectura agrupada de cada tabla con el pool de sistema. 036 PR 3a: también el plan y topes propios (organization_plan) y los avisos del mes (usage_alert), igual: solo números. 047 PR 5: personas con IA conectada (ai_connection vivas) y acciones/mensajes del mes (ai_action_log), contadas por organización. Solo números; detrás de withPlatformAdmin. El detalle de UNA organización va con scoped() y RLS (runWithOrganization).",
   },
   "server/costs/report.ts": {
     max: 1,

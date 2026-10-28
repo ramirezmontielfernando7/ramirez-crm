@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { ASSISTANT_NAME_MAX, DEFAULT_ASSISTANT_NAME } from "@/lib/ai-connector";
 import { fetchJson, jsonInit } from "@/lib/fetch-json";
+import { ActionsLog } from "./actions-log";
 
 type Connection = {
   id: string;
@@ -236,6 +237,12 @@ export function MyAiClient() {
           )}
         </CardContent>
       </Card>
+
+      <ActionsLog
+        url="/api/ai-connector/activity"
+        title="Qué hizo tu IA"
+        description="Cada cosa que tu IA pidió en Dashfort, la más reciente primero. Aquí nunca se guarda el texto de los mensajes."
+      />
     </div>
   );
 }

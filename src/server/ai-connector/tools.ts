@@ -114,6 +114,9 @@ function chatSummary(c: ConversationDto) {
   };
 }
 
+/** Para «Qué hizo tu IA»: el filtro en palabras de la pantalla. */
+const STATUS_WORD = { all: "todos", unread: "sin leer", archived: "archivados", humano: "esperan a una persona" } as const;
+
 const listChatsArgs = z.object({
   inbox: z.enum(["empresa", "mi_numero"]).default("empresa"),
   status: z.enum(["all", "unread", "archived", "humano"]).default("all"),
@@ -156,7 +159,7 @@ const listChats: ToolSpec<z.infer<typeof listChatsArgs>> = {
     );
     return {
       data: { chats: page.conversations.map(chatSummary), next_cursor: page.nextCursor },
-      summary: `${page.conversations.length} chats (${args.status})`,
+      summary: `${page.conversations.length} chats (${STATUS_WORD[args.status]})`,
     };
   },
 };
@@ -198,7 +201,7 @@ async function listNumberChats(session: SessionContext, args: z.infer<typeof lis
   });
   return {
     data: { chats: chats.map(numberChatSummary), next_cursor: null },
-    summary: `${chats.length} chats de mi número (${args.status})`,
+    summary: `${chats.length} chats de mi número (${STATUS_WORD[args.status]})`,
   };
 }
 

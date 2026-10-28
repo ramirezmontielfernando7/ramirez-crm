@@ -214,3 +214,38 @@ export function normalizeAssistantName(name: string | null | undefined): string 
   const clean = (name ?? "").replace(/\s+/g, " ").trim().slice(0, ASSISTANT_NAME_MAX).trim();
   return clean.length > 0 ? clean : null;
 }
+
+/** 047 PR 5 — «Qué hizo tu IA»: cada herramienta en palabras de la pantalla. */
+export const ACTION_LABEL: Record<string, string> = {
+  list_chats: "Revisó la lista de chats",
+  read_chat: "Leyó un chat",
+  list_stages: "Revisó las etapas",
+  list_tags: "Revisó las etiquetas",
+  list_quick_replies: "Revisó las respuestas rápidas",
+  list_tasks: "Revisó tareas",
+  list_people: "Revisó el equipo",
+  send_message: "Envió un mensaje",
+  tag_chat: "Etiquetó un chat",
+  move_stage: "Movió de etapa",
+  add_note: "Agregó una nota",
+  create_task: "Creó una tarea",
+  assign_chat: "Asignó un chat",
+};
+
+export function actionLabel(tool: string): string {
+  return ACTION_LABEL[tool] ?? "Pidió algo que no existe";
+}
+
+export const OUTCOME_LABEL = {
+  ok: null,
+  denied: "No le tocaba",
+  limited: "Llegó al tope diario",
+  error: "No se pudo",
+} as const;
+
+/** `?before=` (ISO) para la página siguiente de «Qué hizo tu IA»; algo que no es fecha se ignora. */
+export function beforeOf(req: Request): Date | null {
+  const raw = new URL(req.url).searchParams.get("before");
+  const d = raw ? new Date(raw) : null;
+  return d && !Number.isNaN(d.getTime()) ? d : null;
+}

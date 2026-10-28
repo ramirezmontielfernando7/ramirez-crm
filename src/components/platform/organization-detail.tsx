@@ -316,6 +316,23 @@ export function PlanModulesSection() {
         {modules.conexionDirecta && (
           <MiNumeroControls orgId={org.id} orgName={org.name} modules={modules} disabled={disabled} save={save} />
         )}
+        <label className="flex items-center gap-2 text-sm" data-testid="platform-addon-conectorIa">
+          <Switch
+            size="sm"
+            checked={modules.conectorIa}
+            disabled={disabled}
+            label={`Conector de IA en ${org.name}`}
+            onCheckedChange={(next) => void save({ conectorIa: next })}
+          />
+          <span className="min-w-0">Conector de IA (cada persona conecta su Claude o ChatGPT)</span>
+        </label>
+        {modules.conectorIa && org.usage?.aiConnector && (
+          <p className="pl-10 text-xs text-text-3" data-testid="platform-ai-connector-usage">
+            {org.usage.aiConnector.people === 1 ? "1 persona conectada" : `${org.usage.aiConnector.people} personas conectadas`} ·{" "}
+            {org.usage.aiConnector.actions === 1 ? "1 acción" : `${org.usage.aiConnector.actions} acciones`} este mes ·{" "}
+            {org.usage.aiConnector.sent === 1 ? "1 mensaje enviado" : `${org.usage.aiConnector.sent} mensajes enviados`} por IA
+          </p>
+        )}
       </Section>
     </div>
   );
