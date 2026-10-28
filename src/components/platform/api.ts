@@ -16,6 +16,8 @@ export type Modules = Record<PlatformModuleToggle, boolean> & {
   /** 046 — «Mi número» (sobre la conexión directa) y su tope de números. */
   miNumero: boolean;
   miNumeroMax: number;
+  /** 047 — Conector de IA (complemento oculto). */
+  conectorIa: boolean;
 };
 
 export type Limits = { turns: number | null; tokens: number | null };
@@ -35,6 +37,8 @@ export type OrgUsage = {
   };
   /** 036 (PR 3a) — Avisos del mes (el umbral más alto de cada medida). */
   alerts: { metric: string; threshold: number }[];
+  /** 047 PR 5 — Conector de IA: personas conectadas hoy; acciones y mensajes del mes. */
+  aiConnector?: { people: number; actions: number; sent: number };
 };
 
 export type Org = {

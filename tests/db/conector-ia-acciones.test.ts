@@ -6,6 +6,8 @@ import { newId } from "@/lib/db/ids";
 import { sessionContext } from "@/lib/auth/session";
 import { runWithOrganization } from "@/lib/request-context";
 import { createPersonalKey, renameAssistant } from "@/server/ai-connector/keys";
+import { listActions } from "@/server/ai-connector/log";
+import { listOrgsUsage } from "@/server/platform-admin/usage";
 import { saveConnectorSettings } from "@/server/ai-connector/settings";
 import { forgetOrgModules } from "@/server/modules/store";
 import { POST } from "@/app/api/mcp/route";
@@ -257,5 +259,44 @@ describe("047 PR 4 — acciones de la IA conectada", () => {
     // Ana ya no lo ve: su IA tampoco.
     const ana = await llave(u.ana, "asesor");
     expect((await herramienta(ana, "add_note", { conversation_id: chats.deAna, text: "x" })).isError).toBe(true);
+  });
+
+  it("«Qué hizo tu IA»: cada quien lo suyo; el equipo con la persona; el contacto solo si quien mira lo ve", async () => {
+    const delOwner = await herramienta(await llave(u.owner, "owner"), "read_chat", { conversation_id: chats.deBeto });
+    expect(delOwner.isError).toBe(false);
+    const mias = await runWithOrganization(A.id, () => listActions(sessionContext(u.ana, A.id, "asesor"), { scope: "mine" }));
+    expect(mias.actions.length).toBeGreaterThan(0);
+    expect(mias.actions.every((a) => a.person === null)).toBe(true);
+    // Lo de la Dueña no aparece en lo de Ana.
+    expect(mias.actions.some((a) => a.tool === "read_chat" && a.contactId !== null && a.contactId !== contactos.deAna)).toBe(false);
+    // El chat que mandó ya se le asignó a Beto: Ana ve que envió, pero ya no a quién.
+    const envio = mias.actions.find((a) => a.tool === "send_message" && a.outcome === "ok")!;
+    expect(envio).toMatchObject({ contactId: null, contactName: null });
+    // Nunca el texto de un mensaje.
+    expect(JSON.stringify(mias)).not.toMatch(/Hola desde la IA|precio/i);
+
+    const equipo = await runWithOrganization(A.id, () => listActions(sessionContext(u.owner, A.id, "owner"), { scope: "team" }));
+    const personas = new Set(equipo.actions.map((a) => a.person));
+    expect([...personas]).toEqual(expect.arrayContaining(["Ana Pérez", "Dueña"]));
+    // La Dueña ve todo: lo que mandó la IA de Ana, con el contacto.
+    const envioEquipo = equipo.actions.find((a) => a.tool === "send_message" && a.outcome === "ok" && a.person === "Ana Pérez")!;
+    expect(envioEquipo.contactId).toBe(contactos.deAna);
+    expect(envioEquipo.contactName).toMatch(/^Cliente /);
+
+    // Paginación: de uno en uno, sin repetir.
+    const p1 = await runWithOrganization(A.id, () => listActions(sessionContext(u.owner, A.id, "owner"), { scope: "team", limit: 1 }));
+    expect(p1.actions).toHaveLength(1);
+    expect(p1.nextBefore).not.toBeNull();
+    const p2 = await runWithOrganization(A.id, () =>
+      listActions(sessionContext(u.owner, A.id, "owner"), { scope: "team", limit: 1, before: new Date(p1.nextBefore!) })
+    );
+    expect(p2.actions[0]!.id).not.toBe(p1.actions[0]!.id);
+  });
+
+  it("/platform solo ve números: personas conectadas, acciones y mensajes del mes", async () => {
+    const usage = (await listOrgsUsage([A.id])).get(A.id)!;
+    expect(usage.aiConnector.people).toBeGreaterThanOrEqual(2);
+    expect(usage.aiConnector.actions).toBeGreaterThan(usage.aiConnector.sent);
+    expect(usage.aiConnector.sent).toBeGreaterThan(0);
   });
 });

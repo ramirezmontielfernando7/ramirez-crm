@@ -142,10 +142,26 @@ RLS con la política de siempre en las cinco tablas con organización. Prueba:
   es el único otro llamador de `mi-numero/send`) y prueba
   `tests/db/conector-ia-mi-numero.test.ts`.
 
+## PR 5 — «Qué hizo tu IA» (sin migración)
+
+- `listActions` en `log.ts` (`mine` / `team`, de 50 en 50 con `before`): la
+  herramienta en palabras (`ACTION_LABEL`), el resultado («No le tocaba»,
+  «Llegó al tope diario»), la IA (su nombre o «Asistente») y la conexión.
+  Nunca texto de mensajes. El contacto (nombre y enlace a la Bandeja) solo
+  si quien mira lo ve HOY (`scopedContacts`): un chat privado de «Mi
+  número» o uno reasignado salen sin nombre.
+- Mi IA → «Qué hizo tu IA» (`GET /api/ai-connector/activity`, lo de quien
+  pide). Ajustes del conector → «Qué hizo la IA del equipo»
+  (`GET /api/settings/ai-connector/activity`, `settings.manage`).
+- /platform → Complementos ocultos: el interruptor «Conector de IA» (antes
+  no había forma de encenderlo desde la pantalla) y, encendido, «N personas
+  conectadas · N acciones este mes · N mensajes enviados por IA»
+  (`OrgUsageSummary.aiConnector`, solo números).
+- Pruebas en `tests/db/conector-ia-acciones.test.ts`.
+
 ## PRs siguientes
 
-5. «Qué hizo tu IA», vista del Propietario, contador en /platform y prueba
-   con Claude real en el piloto.
+5b. Prueba con Claude real en el piloto.
 6. «Funciones avanzadas» (Fer, 2026-10-27): apagadas; las enciende el
    Propietario para sí y, si quiere, para el Coordinador (nunca Asesor);
    siempre sujetas al permiso de la persona en el CRM. Crear/editar

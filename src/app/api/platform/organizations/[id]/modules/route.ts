@@ -33,6 +33,8 @@ const schema = z
     // 046: «Mi número» (requiere la conexión directa; 422 sin ella) y cuántos números caben.
     miNumero: z.boolean().optional(),
     miNumeroMax: z.number().int().min(0).max(200).optional(),
+    // 047: Conector de IA (complemento oculto; apagado por defecto).
+    conectorIa: z.boolean().optional(),
     // 040: aplicar la plantilla de un plan (los 13 a la vez); los
     // interruptores sueltos que vengan junto a ella la ajustan.
     plan: z.enum(["esencial", "pro", "ultra"]).optional(),
