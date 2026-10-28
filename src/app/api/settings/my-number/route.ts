@@ -29,6 +29,7 @@ const body = z
     allowViewRequests: z.boolean().optional(),
     aiReplies: z.boolean().optional(),
     clientByDefault: z.boolean().optional(),
+    aiConnector: z.boolean().optional(),
     acceptNotice: z.literal(true).optional(),
     becomeCompany: z.literal(true).optional(),
   })

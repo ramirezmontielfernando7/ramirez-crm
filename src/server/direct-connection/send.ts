@@ -146,6 +146,9 @@ export type DirectOutgoing = {
   aiGenerated?: boolean;
   /** 046: el chat es de este «Mi número»; `audience` = quién se entera (su dueño). */
   number?: NumberScope;
+  /** 047: lo mandó la IA conectada de la persona (y cómo firma, «Joe»). */
+  aiConnectionId?: string | null;
+  aiSenderName?: string | null;
 };
 
 /** 046 — Un chat de un «Mi número»: su id y quién se entera de lo que pasa en él. */
@@ -224,6 +227,8 @@ export async function sendDirect(input: DirectOutgoing): Promise<DirectResult> {
         status: "pending",
         origin: input.aiGenerated ? "ai" : "operator",
         aiGenerated: input.aiGenerated === true,
+        aiConnectionId: input.aiConnectionId ?? null,
+        aiSenderName: input.aiConnectionId ? (input.aiSenderName ?? null) : null,
         mediaAssetId: input.mediaAsset?.id ?? null,
         transport: "directa",
         queuedUntil: queued,

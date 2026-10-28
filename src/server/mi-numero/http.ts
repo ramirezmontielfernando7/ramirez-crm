@@ -45,6 +45,11 @@ const MESSAGE: Record<MiNumeroError, [number, string]> = {
   failed: [502, "No se pudo completar la acción. Intenta de nuevo."],
 };
 
+/** Las palabras de un error, sin respuesta HTTP (047: el conector de IA). */
+export function miNumeroMessage(code: MiNumeroError): string {
+  return MESSAGE[code][1];
+}
+
 export function miNumeroError(code: MiNumeroError): Response {
   const [status, message] = MESSAGE[code];
   return apiError(status, code, message);

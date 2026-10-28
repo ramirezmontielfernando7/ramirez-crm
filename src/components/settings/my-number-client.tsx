@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Switch } from "@/components/ui/switch";
 import { CONNECTION_STATUS_LABEL, DIRECT_TEXT, type DirectConnectionStatus } from "@/lib/direct-connection";
 import { useAccessOverview } from "@/components/inbox/my-number-access";
-import { ACCESS_TEXT, KIND_LABEL, MI_NUMERO_TEXT, SWITCH_ORDER, SWITCH_TEXT, type NumberSwitch } from "@/lib/mi-numero";
+import { ACCESS_TEXT, KIND_LABEL, MI_NUMERO_TEXT, SWITCH_TEXT, visibleSwitches, type NumberSwitch } from "@/lib/mi-numero";
 
 type Connection = { status: DirectConnectionStatus; phoneNumber: string | null; pausedUntil: string | null; canLink?: boolean };
 type MyNumber = {
@@ -19,6 +19,7 @@ type MyNumber = {
   noticeAcceptedAt: string | null;
   connection: Connection;
   canEditSwitches: boolean;
+  aiConnectorOffered: boolean;
 };
 type Qr = { image: string | null; pairingCode: string | null };
 
@@ -222,7 +223,7 @@ export function MyNumberClient() {
           <CardDescription>{mine.canEditSwitches ? MI_NUMERO_TEXT.personalOnly : MI_NUMERO_TEXT.companyDecides}</CardDescription>
         </CardHeader>
         <CardContent className="divide-y">
-          {SWITCH_ORDER.map((key) => {
+          {visibleSwitches(mine.aiConnectorOffered).map((key) => {
             const on = mine.switches[key];
             const t = SWITCH_TEXT[key];
             return (
@@ -239,7 +240,7 @@ export function MyNumberClient() {
                 <Switch
                   checked={on}
                   label={t.title}
-                  disabled={busy || !mine.canEditSwitches || (key === "clientByDefault" && !mine.switches.shareClients)}
+                  disabled={busy || !mine.canEditSwitches || ((key === "clientByDefault" || key === "aiConnector") && !mine.switches.shareClients)}
                   onCheckedChange={(next) => void patch({ [key]: next })}
                 />
               </div>

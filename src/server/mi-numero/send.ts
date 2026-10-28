@@ -17,6 +17,9 @@ import { MiNumeroFailure } from "./numbers";
  * (`src/server/direct-connection/send.ts`). Solo su dueño (la sesión decide;
  * nunca un id del navegador). La IA, las campañas y el cerebro externo nunca
  * llegan aquí (guardarraíl `tests/unit/conexion-directa-envio.test.ts`).
+ * 047: la IA conectada del DUEÑO sí, en sus chats de cliente con el quinto
+ * interruptor encendido (`src/server/ai-connector/my-number.ts`): actúa
+ * como él.
  *
  * Errores: `MiNumeroFailure` (sin número, no conectado, en pausa),
  * `MediaValidationError` (archivo) y `DirectSendFailure` (el envío).
@@ -29,7 +32,9 @@ export async function sendFromMyNumber(
   organizationId: string,
   userId: string,
   conversationId: string,
-  input: NumberOutgoing
+  input: NumberOutgoing,
+  /** 047: lo manda la IA conectada del dueño (solo texto, solo chats de cliente: lo revisa quien llama). */
+  via?: { aiConnectionId: string; aiSenderName: string | null }
 ): Promise<DirectResult> {
   const { number, conversation } = await myChat(organizationId, userId, conversationId);
   const connection = await getDirectConnection(organizationId, number.id);
@@ -40,7 +45,7 @@ export async function sendFromMyNumber(
   if (await pauseAiOnHumanReply(organizationId, conversation.id)) await notifyNumberChat(organizationId, conversation.id);
 
   if ("text" in input) {
-    return sendDirect({ organizationId, conversationId: conversation.id, type: "text", text: input.text, number: scope });
+    return sendDirect({ organizationId, conversationId: conversation.id, type: "text", text: input.text, number: scope, ...via });
   }
 
   // El archivo queda en disco antes de salir (también si espera en la fila).
