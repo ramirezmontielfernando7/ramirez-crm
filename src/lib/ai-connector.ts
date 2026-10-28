@@ -304,6 +304,12 @@ export const ACTION_LABEL: Record<string, string> = {
   list_materials: "Revisó el material para enviar",
   get_results: "Revisó los resultados",
   create_template: "Mandó a aprobación una plantilla",
+  list_library: "Revisó la Biblioteca",
+  add_to_library: "Agregó algo a la Biblioteca",
+  update_library_entry: "Editó una entrada de la Biblioteca",
+  create_document_group: "Creó un grupo de documentos",
+  rename_document_group: "Renombró un grupo de documentos",
+  move_document: "Movió un documento de grupo",
 };
 
 /** PR 6 — Acciones que se resaltan en «Qué hizo tu IA» (salen del CRM o llegan a muchos). */

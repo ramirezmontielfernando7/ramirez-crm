@@ -13,6 +13,7 @@ import { ADVANCED_TOOLS } from "@/server/ai-connector/advanced-tools";
 import { CRM_TOOLS } from "@/server/ai-connector/crm-tools";
 import { EXTRA_TOOLS } from "@/server/ai-connector/extra-tools";
 import { KNOWLEDGE_TOOLS } from "@/server/ai-connector/knowledge-tools";
+import { LIBRARY_TOOLS } from "@/server/ai-connector/library-tools";
 import { getConnectorSettings } from "@/server/ai-connector/settings";
 import { messagesSentLastDay } from "@/server/ai-connector/log";
 import {
@@ -801,6 +802,7 @@ export const TOOLS: readonly ToolSpec<any>[] = [
   ...EXTRA_TOOLS,
   ...ADVANCED_TOOLS,
   ...KNOWLEDGE_TOOLS,
+  ...LIBRARY_TOOLS,
 ];
 
 /** Las herramientas que ESTA conexión puede usar hoy (alcance, permisos, módulos y funciones avanzadas). */
