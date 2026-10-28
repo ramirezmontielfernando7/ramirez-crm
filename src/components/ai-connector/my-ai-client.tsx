@@ -1,18 +1,20 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Copy, KeyRound, Plug, Trash2 } from "lucide-react";
+import { Copy, KeyRound, Pencil, Plug, Sparkles, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { ASSISTANT_NAME_MAX, DEFAULT_ASSISTANT_NAME } from "@/lib/ai-connector";
 import { fetchJson, jsonInit } from "@/lib/fetch-json";
 
 type Connection = {
   id: string;
   kind: "oauth" | "key";
   name: string;
+  assistantName: string | null;
   scopes: ("read" | "write")[];
   tokenPrefix: string | null;
   createdAt: string;
@@ -31,6 +33,7 @@ export function MyAiClient() {
   const [data, setData] = useState<Data | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [name, setName] = useState("");
+  const [assistantName, setAssistantName] = useState("");
   const [write, setWrite] = useState(false);
   const [newKey, setNewKey] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
@@ -57,11 +60,21 @@ export function MyAiClient() {
   }
 
   async function createKey() {
-    const res = await fetchJson<{ key: string }>("/api/ai-connector/connections", jsonInit("POST", { name, write }));
+    const res = await fetchJson<{ key: string }>("/api/ai-connector/connections", jsonInit("POST", { name, write, assistantName: assistantName.trim() || null }));
     if (!res.ok) return setError(res.error);
     setNewKey(res.data.key);
     setName("");
+    setAssistantName("");
     setWrite(false);
+    void refetch();
+  }
+
+  async function rename(c: Connection, next: string) {
+    const res = await fetchJson(
+      `/api/ai-connector/connections/${c.id}`,
+      jsonInit("PATCH", { assistantName: next.trim() || null })
+    );
+    if (!res.ok) return setError(res.error);
     void refetch();
   }
 
@@ -154,6 +167,7 @@ export function MyAiClient() {
                       {" · "}
                       {c.lastUsedAt ? `usada ${fmt.format(new Date(c.lastUsedAt))}` : "sin usar todavía"}
                     </p>
+                    <AssistantNameRow connection={c} onSave={(next) => rename(c, next)} />
                   </div>
                   <Button variant="ghost" size="sm" onClick={() => void disconnect(c)}>
                     <Trash2 className="mr-1.5 h-4 w-4" aria-hidden />
@@ -196,6 +210,16 @@ export function MyAiClient() {
                 <Label htmlFor="ai-key-name">Nombre</Label>
                 <Input id="ai-key-name" placeholder="Ej.: n8n de seguimiento" value={name} maxLength={80} onChange={(e) => setName(e.target.value)} />
               </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="ai-key-assistant">Nombre de tu IA en la Bandeja (opcional)</Label>
+                <Input
+                  id="ai-key-assistant"
+                  placeholder={`Ej.: Joe · sin nombre dirá «${DEFAULT_ASSISTANT_NAME}»`}
+                  value={assistantName}
+                  maxLength={ASSISTANT_NAME_MAX}
+                  onChange={(e) => setAssistantName(e.target.value)}
+                />
+              </div>
               <label className="flex items-center justify-between gap-3 text-sm">
                 <span>Permitir que también actúe (enviar, etiquetar, crear tareas)</span>
                 <Switch checked={write} onCheckedChange={setWrite} label="Permitir que también actúe" size="sm" />
@@ -213,6 +237,62 @@ export function MyAiClient() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+/**
+ * Cómo firma esta IA lo que envía («Joe» con estrellitas azules en la
+ * burbuja). Opcional: sin nombre, «Asistente».
+ */
+function AssistantNameRow({ connection: c, onSave }: { connection: Connection; onSave: (next: string) => Promise<void> }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(c.assistantName ?? "");
+  if (!editing) {
+    return (
+      <p className="mt-1 flex items-center gap-1.5 text-xs">
+        <span className="inline-flex items-center gap-0.5 font-medium text-info-text">
+          <Sparkles className="h-3 w-3" strokeWidth={1.7} aria-hidden />
+          {c.assistantName ?? DEFAULT_ASSISTANT_NAME}
+        </span>
+        <span className="text-text-3">· así firma en la Bandeja</span>
+        <button
+          type="button"
+          className="inline-flex items-center gap-0.5 text-brand-text hover:underline"
+          onClick={() => {
+            setDraft(c.assistantName ?? "");
+            setEditing(true);
+          }}
+        >
+          <Pencil className="h-3 w-3" aria-hidden />
+          {c.assistantName ? "Cambiar nombre" : "Ponerle nombre"}
+        </button>
+      </p>
+    );
+  }
+  return (
+    <form
+      className="mt-1.5 flex items-center gap-2"
+      onSubmit={(e) => {
+        e.preventDefault();
+        void onSave(draft).then(() => setEditing(false));
+      }}
+    >
+      <Input
+        autoFocus
+        aria-label="Nombre de tu IA"
+        placeholder={`Ej.: Joe · vacío = «${DEFAULT_ASSISTANT_NAME}»`}
+        value={draft}
+        maxLength={ASSISTANT_NAME_MAX}
+        onChange={(e) => setDraft(e.target.value)}
+        className="h-8 max-w-[14rem] text-sm"
+      />
+      <Button type="submit" size="sm">
+        Guardar
+      </Button>
+      <Button type="button" variant="ghost" size="sm" onClick={() => setEditing(false)}>
+        Cancelar
+      </Button>
+    </form>
   );
 }
 

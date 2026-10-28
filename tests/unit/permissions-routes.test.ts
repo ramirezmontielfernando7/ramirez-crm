@@ -377,6 +377,7 @@ const POR_AUTOR: [string, Method][] = [
   ["ai-connector/connections", "GET"],
   ["ai-connector/connections", "POST"],
   ["ai-connector/connections/[id]", "DELETE"],
+  ["ai-connector/connections/[id]", "PATCH"],
 ];
 
 /**

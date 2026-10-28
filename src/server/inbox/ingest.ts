@@ -620,6 +620,8 @@ export function serializeMessage(
     origin: m.origin,
     /** 047 — lo mandó la IA conectada de una persona (solo lo ve el equipo). */
     viaAiConnector: m.aiConnectionId !== null,
+    /** «Joe»; null con `viaAiConnector` = «Asistente». */
+    aiSenderName: m.aiConnectionId !== null ? m.aiSenderName : null,
     media: media
       ? {
           assetId: media.id,

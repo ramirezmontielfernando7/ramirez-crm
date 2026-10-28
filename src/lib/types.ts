@@ -104,6 +104,8 @@ export type MessageDto = {
   origin: "ai" | "operator" | "manual" | "template";
   /** 047 — «Enviado por IA»: la IA conectada de una persona (conector MCP). */
   viaAiConnector?: boolean;
+  /** El nombre de esa IA («Joe»); null = «Asistente». */
+  aiSenderName?: string | null;
   media: MessageMediaDto | null;
   createdAt: string;
 };

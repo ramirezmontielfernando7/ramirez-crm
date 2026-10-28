@@ -5,7 +5,7 @@ import { getSystemDb, schema } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
 import { sessionContext } from "@/lib/auth/session";
 import { runWithOrganization } from "@/lib/request-context";
-import { createPersonalKey } from "@/server/ai-connector/keys";
+import { createPersonalKey, renameAssistant } from "@/server/ai-connector/keys";
 import { saveConnectorSettings } from "@/server/ai-connector/settings";
 import { forgetOrgModules } from "@/server/modules/store";
 import { POST } from "@/app/api/mcp/route";
@@ -160,6 +160,28 @@ describe("047 PR 4 — acciones de la IA conectada", () => {
       .where(and(eq(schema.aiActionLog.organizationId, A.id), eq(schema.aiActionLog.tool, "send_message")));
     expect(log.map((l) => l.outcome).sort()).toEqual(["limited", "ok", "ok"]);
     expect(JSON.stringify(log)).not.toContain("precio");
+  });
+
+  it("firma con su nombre («Joe») o «Asistente»; renombrar no cambia lo ya enviado", async () => {
+    await ajustes(100);
+    const made = await runWithOrganization(A.id, () =>
+      createPersonalKey(sessionContext(u.ana, A.id, "asesor"), { name: "Claude", scopes: ["read", "write"], assistantName: "  Joe  " })
+    );
+    const joe = await herramienta(made!.key, "send_message", { conversation_id: chats.deAna, text: "de Joe" });
+    const [m1] = await sys().select().from(schema.message).where(eq(schema.message.id, joe.structuredContent.message_id));
+    expect(m1!.aiSenderName).toBe("Joe");
+    const { serializeMessage } = await import("@/server/inbox/ingest");
+    expect(serializeMessage(m1!)).toMatchObject({ viaAiConnector: true, aiSenderName: "Joe" });
+
+    const ana = sessionContext(u.ana, A.id, "asesor");
+    expect(await runWithOrganization(A.id, () => renameAssistant(sessionContext(u.beto, A.id, "asesor"), made!.connection.id, "Robo"))).toBe(false);
+    expect(await runWithOrganization(A.id, () => renameAssistant(ana, made!.connection.id, "   "))).toBe(true);
+    const sinNombre = await herramienta(made!.key, "send_message", { conversation_id: chats.deAna, text: "sin nombre" });
+    const [m2] = await sys().select().from(schema.message).where(eq(schema.message.id, sinNombre.structuredContent.message_id));
+    expect(m2!.aiSenderName).toBeNull();
+    const [antes] = await sys().select().from(schema.message).where(eq(schema.message.id, m1!.id));
+    expect(antes!.aiSenderName).toBe("Joe");
+    await ajustes(2);
   });
 
   it("el tope cuenta aunque la IA mande dos a la vez", async () => {

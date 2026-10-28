@@ -27,7 +27,13 @@ const log = logger("ai-connector");
  * para clientes de revisiones anteriores.
  */
 
-export type McpCaller = { session: SessionContext; connectionId: string; scopes: Scope[] };
+export type McpCaller = {
+  session: SessionContext;
+  connectionId: string;
+  scopes: Scope[];
+  /** «Joe»; null = «Asistente». */
+  assistantName: string | null;
+};
 
 const SERVER_INFO = { name: "dashfort", title: "Dashfort", version: "1.0.0" };
 
@@ -71,7 +77,7 @@ export async function handleRpc(raw: unknown, caller: McpCaller): Promise<object
 }
 
 async function callTool(id: RpcId, params: Record<string, unknown> | undefined, caller: McpCaller) {
-  const { session, connectionId, scopes } = caller;
+  const { session, connectionId, scopes, assistantName } = caller;
   const org = session.organizationId;
   const name = typeof params?.name === "string" ? params.name : "";
   const base = { organizationId: org, userId: session.userId, connectionId };
@@ -88,7 +94,7 @@ async function callTool(id: RpcId, params: Record<string, unknown> | undefined, 
     }
     const run = async () => {
       try {
-        const out = await tool.run({ session, scopes, connectionId }, parsed.data);
+        const out = await tool.run({ session, scopes, connectionId, assistantName }, parsed.data);
         await recordAction({
           ...base,
           tool: tool.name,

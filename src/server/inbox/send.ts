@@ -337,6 +337,7 @@ async function persistOutbound(input: {
   media?: typeof schema.mediaAsset.$inferSelect | null;
   /** 047 — la IA conectada de una persona lo mandó («enviado por IA»). */
   aiConnectionId?: string | null;
+  aiSenderName?: string | null;
 }): Promise<string> {
   const db = getDb();
   const inserted = await db
@@ -355,6 +356,7 @@ async function persistOutbound(input: {
       origin: input.origin,
       mediaAssetId: input.mediaAssetId ?? null,
       aiConnectionId: input.aiConnectionId ?? null,
+      aiSenderName: input.aiConnectionId ? (input.aiSenderName ?? null) : null,
     })
     .returning();
   const message = inserted[0]!;
@@ -387,6 +389,8 @@ export async function sendText(input: {
    * dispositivo vinculado, aunque alguien pasara `allowDirect`.
    */
   aiConnectionId?: string;
+  /** El nombre de esa IA («Joe»), copiado en el mensaje; null = «Asistente». */
+  aiSenderName?: string | null;
 } & SendOptions): Promise<SendResult> {
   // 046 (PR 8): la IA en un chat de cliente de un «Mi número» contesta por el
   // dispositivo de ESE número (con sus límites y su freno), nunca por Meta.
@@ -446,6 +450,7 @@ export async function sendText(input: {
     aiGenerated: input.aiGenerated,
     origin: input.aiGenerated ? "ai" : "operator",
     aiConnectionId: input.aiConnectionId ?? null,
+    aiSenderName: input.aiSenderName ?? null,
   });
 
   return { messageId };

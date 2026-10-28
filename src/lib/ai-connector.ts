@@ -202,3 +202,15 @@ export function authorizationServerMetadata(baseUrl: string) {
 export function parseScopeParam(raw: string | null | undefined): Scope[] {
   return normalizeScopes((raw ?? "").split(/\s+/).filter(Boolean));
 }
+
+/** 047 PR 4 — Tope del nombre de la IA («Joe»), igual que el CHECK de la BD. */
+export const ASSISTANT_NAME_MAX = 30;
+
+/** Lo que firma una IA conectada sin nombre. */
+export const DEFAULT_ASSISTANT_NAME = "Asistente";
+
+/** Nombre limpio para guardar: espacios de más fuera; vacío = null. */
+export function normalizeAssistantName(name: string | null | undefined): string | null {
+  const clean = (name ?? "").replace(/\s+/g, " ").trim().slice(0, ASSISTANT_NAME_MAX).trim();
+  return clean.length > 0 ? clean : null;
+}
