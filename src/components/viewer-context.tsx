@@ -23,6 +23,8 @@ export type Viewer = {
   hasMyNumber: boolean;
   /** Mi número (046, PR 7) — ¿supervisa números del equipo? (Propietario o Coordinador, y hay alguno). */
   seesTeamNumbers: boolean;
+  /** 048 — ¿La empresa le veda abrir chats nuevos con su número? (solo Asesor; cosmético, el servidor lo exige). */
+  newChatsBlocked: boolean;
 };
 
 const ViewerContext = createContext<Viewer>({
@@ -33,6 +35,7 @@ const ViewerContext = createContext<Viewer>({
   hasModule: () => true,
   hasMyNumber: false,
   seesTeamNumbers: false,
+  newChatsBlocked: false,
 });
 
 export function ViewerProvider({
@@ -42,6 +45,7 @@ export function ViewerProvider({
   modules,
   myNumber = false,
   teamNumbers = false,
+  newChatsBlocked = false,
   children,
 }: {
   userId: string;
@@ -54,6 +58,8 @@ export function ViewerProvider({
   myNumber?: boolean;
   /** Mi número (046, PR 7) — lo decide el servidor (permiso y números del equipo). */
   teamNumbers?: boolean;
+  /** 048 — lo decide el servidor (Asesor y el interruptor de Ajustes encendido). */
+  newChatsBlocked?: boolean;
   children: React.ReactNode;
 }) {
   const value = useMemo<Viewer>(
@@ -65,8 +71,9 @@ export function ViewerProvider({
       hasModule: (key) => !modules || modules.includes(key),
       hasMyNumber: myNumber,
       seesTeamNumbers: teamNumbers,
+      newChatsBlocked,
     }),
-    [userId, role, grants, modules, myNumber, teamNumbers]
+    [userId, role, grants, modules, myNumber, teamNumbers, newChatsBlocked]
   );
   return <ViewerContext.Provider value={value}>{children}</ViewerContext.Provider>;
 }

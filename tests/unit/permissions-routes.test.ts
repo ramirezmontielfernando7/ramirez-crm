@@ -83,6 +83,8 @@ const PROTEGIDAS: [string, Method, Permission][] = [
   ["settings/direct-connection/apply-all", "POST", "direct_connection.mode"],
   ["settings/messaging", "GET", "settings.manage"],
   ["settings/messaging", "PUT", "settings.manage"],
+  ["settings/advisor-new-chats", "GET", "settings.manage"],
+  ["settings/advisor-new-chats", "PUT", "settings.manage"],
   ["settings/instagram", "GET", "settings.manage"],
   ["settings/instagram", "PUT", "settings.manage"],
   ["settings/messenger", "GET", "settings.manage"],

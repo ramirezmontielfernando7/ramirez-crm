@@ -60,3 +60,38 @@ export async function saveMessagingSettings(
     .onConflictDoUpdate({ target: schema.messagingSettings.organizationId, set: values });
   return getMessagingSettings(organizationId);
 }
+
+/**
+ * 048 — «Chats nuevos de los asesores»: ¿los Asesores solo atienden los chats
+ * que ya existen? Va aparte de `MessagingSettings` para que guardar las bajas
+ * por palabra clave nunca lo pise. Sin fila = apagado.
+ */
+export async function getAdvisorNewChatsBlocked(organizationId: string): Promise<boolean> {
+  const [row] = await getDb()
+    .select({ blocked: schema.messagingSettings.advisorNewChatsBlocked })
+    .from(schema.messagingSettings)
+    .where(scoped(schema.messagingSettings.organizationId, organizationId))
+    .limit(1);
+  return row?.blocked ?? false;
+}
+
+export async function setAdvisorNewChatsBlocked(
+  organizationId: string,
+  blocked: boolean,
+  userId: string | null
+): Promise<void> {
+  const now = new Date();
+  await getDb()
+    .insert(schema.messagingSettings)
+    .values({
+      organizationId,
+      stopKeywords: [...DEFAULT_MESSAGING_SETTINGS.stopKeywords],
+      advisorNewChatsBlocked: blocked,
+      updatedBy: userId,
+      updatedAt: now,
+    })
+    .onConflictDoUpdate({
+      target: schema.messagingSettings.organizationId,
+      set: { advisorNewChatsBlocked: blocked, updatedBy: userId, updatedAt: now },
+    });
+}

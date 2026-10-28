@@ -1,4 +1,5 @@
 import { PhoneHealthCard } from "@/components/number-health";
+import { AdvisorNewChatsCard } from "@/components/settings/advisor-new-chats-card";
 import { OptOutSettings } from "@/components/settings/opt-out-settings";
 import { WhatsappWizard } from "@/components/settings/whatsapp-wizard";
 import { requirePagePermission } from "@/lib/auth/page-guard";
@@ -13,6 +14,7 @@ export default async function WhatsappSettingsPage() {
       <WhatsappWizard />
       <PhoneHealthCard />
       <OptOutSettings />
+      <AdvisorNewChatsCard />
     </div>
   );
 }

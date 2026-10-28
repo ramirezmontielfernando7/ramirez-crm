@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
-import { scoped, scopedContacts, type Access } from "@/lib/db/tenant";
+import { companyChat, scoped, scopedContacts, type Access } from "@/lib/db/tenant";
 import { can } from "@/lib/auth/permissions";
 import type { SessionContext } from "@/lib/auth/session";
 import { normalizeTypedPhone } from "@/lib/phone-search";
@@ -9,6 +9,8 @@ import { logActivity } from "@/server/activity/log";
 import { getOrCreateConversation } from "@/server/inbox/ingest";
 import { sendTemplate } from "@/server/whatsapp/templates";
 import { assertOrgActive } from "@/server/platform-admin/org-status";
+import { NEW_CHATS_BLOCKED_TEXT } from "@/lib/new-chats";
+import { getAdvisorNewChatsBlocked } from "@/server/messaging-settings";
 
 /**
  * «Número no registrado» (búsqueda de la Bandeja): registrar el contacto,
@@ -32,7 +34,8 @@ export class NewNumberError extends Error {
     | "bad_assignee"
     | "consent_required"
     | "opted_out"
-    | "not_found";
+    | "not_found"
+    | "new_chats_blocked";
   status: number;
   constructor(code: NewNumberError["code"], message: string, status: number) {
     super(message);
@@ -40,6 +43,42 @@ export class NewNumberError extends Error {
     this.code = code;
     this.status = status;
   }
+}
+
+export const NEW_CHATS_BLOCKED_MESSAGE = NEW_CHATS_BLOCKED_TEXT;
+
+/**
+ * 048 — «Chats nuevos de los asesores»: con el interruptor encendido, un
+ * Asesor no abre chats nuevos ni escribe primero a un contacto nuevo con el
+ * número de la empresa. Propietario y Coordinador, nunca. `hasChat`: el chat
+ * que quiere abrir ya existe y él puede verlo (asignado o participante): eso
+ * es atender, no abrir. «Mi número» no pasa por aquí.
+ */
+export async function assertMayStartChat(
+  session: Pick<SessionContext, "organizationId" | "role">,
+  hasChat: boolean
+): Promise<void> {
+  if (session.role !== "asesor" || hasChat) return;
+  if (!(await getAdvisorNewChatsBlocked(session.organizationId))) return;
+  throw new NewNumberError("new_chats_blocked", NEW_CHATS_BLOCKED_MESSAGE, 403);
+}
+
+/** ¿Ya hay un chat de la empresa con ese contacto (que la sesión puede ver)? */
+async function chatExists(session: Who, contactId: string): Promise<boolean> {
+  const rows = await getDb()
+    .select({ id: schema.conversation.id })
+    .from(schema.conversation)
+    .where(
+      scopedContacts(
+        schema.conversation.organizationId,
+        session.access,
+        schema.conversation.contactId,
+        eq(schema.conversation.contactId, contactId),
+        companyChat()
+      )
+    )
+    .limit(1);
+  return rows.length > 0;
 }
 
 /** Lo que un asesor sin acceso al contacto de otro ve: igual que `POST /api/contacts`. */
@@ -86,6 +125,7 @@ export async function registerContact(
   }
   const existing = await visibleByPhone(session.access, typed.phone);
   if (existing) return { contact: existing, created: false };
+  await assertMayStartChat(session, false);
 
   // Quien no reparte no puede elegir a quién se lo asigna: se lo queda.
   const assignTo = can(session, "assignment.manage") ? (input.assignToUserId ?? null) : null;
@@ -124,6 +164,9 @@ export async function openChat(
   phone: string
 ): Promise<{ contact: ContactRow; conversationId: string; created: boolean }> {
   await assertOrgActive(session.organizationId);
+  const typedPhone = normalizeTypedPhone(phone);
+  const known = typedPhone.valid ? await visibleByPhone(session.access, typedPhone.phone) : null;
+  await assertMayStartChat(session, known ? await chatExists(session, known.id) : false);
   const { contact, created } = await registerContact(session, { phone });
   const conversation = await getOrCreateConversation(session.organizationId, contact.id);
   return { contact, conversationId: conversation.id, created };
@@ -164,6 +207,7 @@ export async function sendFirstTemplate(
   // Revisa el consentimiento ANTES de crear nada: sin él no se registra ni el
   // contacto desde aquí (para registrar sin enviar está «Registrar contacto»).
   const existing = await visibleByPhone(session.access, typed.phone);
+  await assertMayStartChat(session, existing ? await chatExists(session, existing.id) : false);
   if (existing?.waConsent === "opt_out" && !can(session, "contacts.consent_override")) {
     throw new NewNumberError(
       "opted_out",
