@@ -293,6 +293,14 @@ export const ACTION_LABEL: Record<string, string> = {
   list_documents: "Revisó los documentos de la IA",
   read_document: "Leyó un documento de la IA",
   add_document: "Subió un documento para la IA",
+  read_contact: "Revisó la ficha de un contacto",
+  update_contact: "Corrigió la ficha de un contacto",
+  list_pipeline: "Revisó el embudo",
+  update_lead: "Puso monto o prioridad a un lead",
+  update_task: "Editó una tarea",
+  list_work_notes: "Revisó notas de trabajo",
+  create_work_note: "Creó una nota de trabajo",
+  update_work_note: "Editó una nota de trabajo",
 };
 
 /** PR 6 — Acciones que se resaltan en «Qué hizo tu IA» (salen del CRM o llegan a muchos). */

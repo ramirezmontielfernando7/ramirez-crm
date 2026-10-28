@@ -221,6 +221,20 @@ exclusivo de un agente, por `kb-docs/store.ts`, con el tope de almacenamiento
 y el indexador de siempre; solo con `KB_DOCS` y Laboratorio). Ninguna borra.
 Pruebas en `tests/db/conector-ia-conocimiento.test.ts`.
 
+## Ajuste 2026-10-28 — ficha, embudo, tareas y notas
+
+Segunda parte (`src/server/ai-connector/crm-tools.ts`), SIN Funciones
+avanzadas porque la pantalla ya lo deja a cualquier rol, con la misma
+visibilidad (el asesor solo lo suyo): `read_contact` (ficha, notas, datos,
+consentimiento, etapa, monto, prioridad, etiquetas y línea de tiempo),
+`update_contact` (nombre, notas y parche de la ficha por `upsertFicha`; el
+consentimiento NO), `list_pipeline` (leads por etapa con totales),
+`update_lead` (monto y prioridad por `src/server/leads/fields.ts`, la misma
+regla que `PATCH /api/pipeline/leads/[id]`), `update_task` (editar y marcar
+hecha) y `list_work_notes`/`create_work_note`/`update_work_note` (por
+`work/notes.ts`; archivar sí, borrar no). Pruebas en
+`tests/db/conector-ia-crm.test.ts`.
+
 ## PRs siguientes
 
 5b. Prueba con Claude real en el piloto.
