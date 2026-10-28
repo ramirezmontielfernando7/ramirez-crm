@@ -194,6 +194,19 @@ así que esto solo quita, nunca da.
 - UI: tarjeta «Funciones avanzadas» en Ajustes → Conector de IA.
 - Pruebas en `tests/db/conector-ia-avanzadas.test.ts`.
 
+## Ajuste 2026-10-28 — la IA envía por la vía del chat
+
+En la prueba con Claude real, `send_message` rechazaba los chats con la
+ventana de 24 h cerrada aunque el chat estuviera en Conexión directa o
+híbrida: la IA conectada salía SIEMPRE por Meta. Fer pidió que mande igual
+que él desde la Bandeja. Ahora `send_message` llama `sendText` con
+`allowDirect: true`: la misma vía de la persona (Meta, Directa o
+Automática), con los límites y la fila del dispositivo, el tope diario del
+conector y la marca de la IA en el mensaje. Solo texto. El agente interno
+sigue sin salir por el dispositivo (salvo «Mi número» y empresa sin Meta,
+como antes). Pruebas en `tests/db/conexion-directa-envio.test.ts` y el
+guardarraíl `tests/unit/conexion-directa-envio.test.ts`.
+
 ## PRs siguientes
 
 5b. Prueba con Claude real en el piloto.

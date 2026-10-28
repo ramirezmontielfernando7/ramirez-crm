@@ -279,12 +279,16 @@ describe("conexión directa — guardarraíles del envío", () => {
     expect(send).toMatch(/if \(input\.aiGenerated\) \{\s*const route = await numberAiRoute\(/);
   });
 
-  it("allowDirect: true solo en las rutas de la Bandeja (texto y archivos de una persona)", () => {
+  it("allowDirect: true solo en las rutas de la Bandeja y en la IA conectada de una persona (047, Fer 2026-10-28)", () => {
     const quien = todos.filter((f) => /allowDirect:\s*true/.test(f.src)).map((f) => f.rel);
     expect(quien.sort()).toEqual([
       "src/app/api/conversations/[id]/messages/media/route.ts",
       "src/app/api/conversations/[id]/messages/route.ts",
+      "src/server/ai-connector/tools.ts",
     ]);
+    // La IA conectada solo manda TEXTO por esa vía (con su tope diario), nunca archivos.
+    const tools = todos.find((f) => f.rel === "src/server/ai-connector/tools.ts")!.src;
+    expect(tools).not.toMatch(/sendMedia|sendFile/);
   });
 
   it("la IA, las campañas, el cerebro externo y las bajas nunca piden la vía directa", () => {

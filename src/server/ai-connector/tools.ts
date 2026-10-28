@@ -435,9 +435,10 @@ const sendMessage: ToolSpec<z.infer<typeof sendMessageArgs>> = {
   name: "send_message",
   title: "Enviar un mensaje",
   description:
-    "Envía un WhatsApp de texto al cliente de un chat, como la persona. Solo con la ventana de 24 h abierta " +
-    "(window_open de read_chat): fuera de ella WhatsApp exige una plantilla y esta herramienta no las manda. " +
-    "Hay un tope diario de mensajes por persona. Lee el chat antes de contestar. " +
+    "Envía un WhatsApp de texto al cliente de un chat, como la persona y por la misma vía que usa la Bandeja: " +
+    "si el chat está en Conexión directa o híbrida, sale por el dispositivo vinculado aunque la ventana de 24 h " +
+    "esté cerrada (con sus límites y, si toca, en fila). Si el chat solo sale por Meta, necesita la ventana " +
+    "abierta (window_open de read_chat). Hay un tope diario de mensajes por persona. Lee el chat antes de contestar. " +
     "En un chat de mi_numero sale por el WhatsApp propio de la persona.",
   inputSchema: {
     type: "object",
@@ -499,9 +500,17 @@ const sendMessage: ToolSpec<z.infer<typeof sendMessageArgs>> = {
         text: args.text,
         aiConnectionId: connectionId,
         aiSenderName: assistantName,
+        // La misma vía que la persona en la Bandeja (Meta, Directa o Automática).
+        allowDirect: true,
       });
       return {
-        data: { ok: true, message_id: res.messageId, sent_today: sent + 1, daily_limit: dailyMessageLimit },
+        data: {
+          ok: true,
+          message_id: res.messageId,
+          queued_until: res.queuedUntil?.toISOString() ?? null,
+          sent_today: sent + 1,
+          daily_limit: dailyMessageLimit,
+        },
         summary: `envió ${args.text.length} caracteres`,
         ...ids,
       };

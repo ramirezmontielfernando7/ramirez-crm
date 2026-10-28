@@ -210,6 +210,22 @@ describe("conexión directa — envío por el dispositivo vinculado", () => {
     expect(evo()).toHaveLength(0);
   });
 
+  it("047: la IA conectada de una persona sale por la misma vía que su chat (Directa con ventana cerrada), marcada como de la IA", async () => {
+    const cv = await chat(A.id, { mode: "directa", phone: "525512349999" });
+    await as(A.id, () =>
+      sendText({ organizationId: A.id, conversationId: cv, text: "Hola de Joe", aiConnectionId: "aic_prueba", aiSenderName: "Joe", allowDirect: true })
+    );
+    expect(evo().filter((c) => c.url.includes("sendText"))).toHaveLength(1);
+    expect(meta()).toHaveLength(0);
+    const [m] = await mensajes(A.id, cv);
+    expect(m).toMatchObject({ transport: "directa", origin: "operator", aiConnectionId: "aic_prueba", aiSenderName: "Joe", aiGenerated: false });
+    // Sin `allowDirect` (o en modo Meta) sigue la regla de Meta: ventana cerrada = no se envía.
+    const soloMeta = await chat(A.id, { mode: "meta" });
+    await expect(
+      as(A.id, () => sendText({ organizationId: A.id, conversationId: soloMeta, text: "x", aiConnectionId: "aic_prueba", allowDirect: true }))
+    ).rejects.toMatchObject({ code: "window_closed" });
+  }, 15_000);
+
   it("modo Meta, sin modo propio (la organización: Meta) o sin dispositivo vinculado: por Meta, como siempre", async () => {
     const abierta = new Date();
     for (const [org, mode] of [[A.id, "meta"], [A.id, null], [B.id, "directa"]] as const) {
