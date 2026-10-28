@@ -235,6 +235,17 @@ hecha) y `list_work_notes`/`create_work_note`/`update_work_note` (por
 `work/notes.ts`; archivar sí, borrar no). Pruebas en
 `tests/db/conector-ia-crm.test.ts`.
 
+## Ajuste 2026-10-28 — material, resultados y plantillas
+
+Tercera parte (`src/server/ai-connector/extra-tools.ts`): `list_materials`
+(los Conocimientos que aparecen en la Bandeja, con el módulo; la IA manda su
+texto con `send_message`, así cuentan el tope y la marca; los archivos siguen
+saliendo desde la Bandeja), `get_results` (ventas, agente e higiene de
+Resultados con `results.read` y la regla de `resultsScope`) y
+`create_template` (función avanzada del área de campañas, `templates.manage`,
+por `createTemplate`: va a aprobación de Meta; solo encabezado de texto).
+Pruebas en `tests/db/conector-ia-material.test.ts`.
+
 ## PRs siguientes
 
 5b. Prueba con Claude real en el piloto.

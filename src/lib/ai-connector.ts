@@ -55,7 +55,7 @@ export type AdvancedArea = (typeof ADVANCED_AREAS)[number];
 
 export const ADVANCED_AREA_TEXT: Record<AdvancedArea, { label: string; hint: string }> = {
   contacts: { label: "Exportar e importar contactos", hint: "Cada exportación queda anotada aparte." },
-  campaigns: { label: "Preparar campañas", hint: "La deja lista; una persona la lanza con un clic." },
+  campaigns: { label: "Preparar campañas", hint: "Prepara campañas y crea plantillas; una persona lanza la campaña con un clic." },
   tags: { label: "Crear y editar etiquetas", hint: "Y ponerlas o quitarlas en varios contactos a la vez." },
   agents: { label: "Ajustar agentes de IA", hint: "Edita el borrador, su conocimiento y sus documentos; publicarlo sigue siendo de una persona." },
   settings: { label: "Algunos ajustes", hint: "Respuestas rápidas y motivos de pérdida." },
@@ -301,6 +301,9 @@ export const ACTION_LABEL: Record<string, string> = {
   list_work_notes: "Revisó notas de trabajo",
   create_work_note: "Creó una nota de trabajo",
   update_work_note: "Editó una nota de trabajo",
+  list_materials: "Revisó el material para enviar",
+  get_results: "Revisó los resultados",
+  create_template: "Mandó a aprobación una plantilla",
 };
 
 /** PR 6 — Acciones que se resaltan en «Qué hizo tu IA» (salen del CRM o llegan a muchos). */
@@ -308,6 +311,7 @@ export const HIGHLIGHT_ACTIONS: Record<string, string> = {
   export_contacts: "Exportación",
   import_contacts: "Importación",
   launch_campaign: "Campaña lanzada",
+  create_template: "Plantilla a Meta",
 };
 
 export function actionLabel(tool: string): string {
