@@ -255,12 +255,20 @@ describe("conexión directa — guardarraíles del envío", () => {
     ]);
   });
 
-  it("046: el envío por «Mi número» solo lo piden las rutas de MIS chats (una persona, nunca la IA)", () => {
+  it("046: el envío por «Mi número» solo lo piden las rutas de MIS chats y la IA conectada del dueño (047 PR 4b)", () => {
     const quien = todos.filter((f) => /from\s+["']@\/server\/mi-numero\/send["']/.test(f.src)).map((f) => f.rel);
     expect(quien.sort()).toEqual([
       "src/app/api/my-number/chats/[id]/messages/media/route.ts",
       "src/app/api/my-number/chats/[id]/messages/route.ts",
+      "src/server/ai-connector/my-number.ts",
     ]);
+    // La IA conectada solo manda TEXTO, solo a chats de cliente de SU número
+    // (`aiNumberChat` lo revisa justo antes) y con el quinto interruptor.
+    const ia = todos.find((f) => f.rel === "src/server/ai-connector/my-number.ts")!.src;
+    expect(ia).toMatch(/const chat = await aiNumberChat\(session, conversationId\);\s*if \(!chat\) return null;/);
+    expect(ia).toMatch(/sendFromMyNumber\([^)]*\{ text \}, via\)/);
+    expect(ia).toMatch(/!row\.aiConnector \|\| !row\.shareClients/);
+    expect(ia).toMatch(/isNotNull\(schema\.conversation\.clientMarkedAt\)/);
   });
 
   it("046 (PR 8): la IA sale por un «Mi número» solo desde el envío de texto de la Bandeja (`numberAiRoute`)", () => {

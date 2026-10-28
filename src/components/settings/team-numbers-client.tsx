@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { roleLabel } from "@/lib/auth/permissions";
 import { CONNECTION_STATUS_LABEL, type DirectConnectionStatus } from "@/lib/direct-connection";
-import { KIND_LABEL, MI_NUMERO_TEXT, SWITCH_ORDER, SWITCH_TEXT, type NumberSwitch } from "@/lib/mi-numero";
+import { KIND_LABEL, MI_NUMERO_TEXT, SWITCH_TEXT, visibleSwitches, type NumberSwitch } from "@/lib/mi-numero";
 
 type Kind = "personal" | "empresa";
 type TeamNumber = {
@@ -26,6 +26,7 @@ type TeamNumber = {
 };
 type Team = {
   max: number;
+  aiConnectorOffered: boolean;
   inUse: number;
   numbers: TeamNumber[];
   candidates: { userId: string; name: string; email: string; role: string }[];
@@ -208,7 +209,7 @@ export function TeamNumbersClient() {
               </div>
               {n.kind === "empresa" && (
                 <div className="divide-y rounded-md border px-3">
-                  {SWITCH_ORDER.map((key) => (
+                  {visibleSwitches(team.aiConnectorOffered).map((key) => (
                     <div key={key} className="flex items-center justify-between gap-4 py-2">
                       <span className="text-sm">{SWITCH_TEXT[key].title}</span>
                       <Switch

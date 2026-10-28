@@ -11,6 +11,14 @@ import { TASK_DESCRIPTION_MAX, TASK_FILTERS, TASK_TITLE_MAX } from "@/lib/work";
 import { logActivity } from "@/server/activity/log";
 import { getConnectorSettings } from "@/server/ai-connector/settings";
 import { messagesSentLastDay } from "@/server/ai-connector/log";
+import {
+  aiNumberChat,
+  aiNumberMessages,
+  aiNumberOf,
+  listAiNumberChats,
+  sendAsMyNumberAi,
+  type AiNumberChat,
+} from "@/server/ai-connector/my-number";
 import { assignContacts, listAssignees } from "@/server/assignment/assign";
 import { getContactStage } from "@/server/contacts";
 import { publish } from "@/server/events/bus";
@@ -30,7 +38,11 @@ import { createTask, listTasks, TaskInputError, viewerOf } from "@/server/work/t
  * Cada una corre con la sesión de la persona y las consultas del CRM
  * (`scopedContacts()`/`scopedConversations()`), así que ve exactamente lo
  * que la persona ve en la Bandeja: los chats de «Mi número» no salen por
- * aquí (`getConversation` y la lista usan solo los de la empresa).
+ * aquí (`getConversation` y la lista usan solo los de la empresa). PR 4b:
+ * salvo los chats de cliente del número PROPIO con el quinto interruptor
+ * encendido (`my-number.ts`): `list_chats` con `inbox: "mi_numero"`, y
+ * `read_chat`/`send_message` los aceptan. Nada más (etiquetas, etapas,
+ * notas…) los toca.
  *
  * PR 2: lectura. PR 4: las acciones con el alcance `write` (enviar,
  * etiquetar, mover de etapa, notas, tareas, asignar), cada una por la MISMA
@@ -103,6 +115,7 @@ function chatSummary(c: ConversationDto) {
 }
 
 const listChatsArgs = z.object({
+  inbox: z.enum(["empresa", "mi_numero"]).default("empresa"),
   status: z.enum(["all", "unread", "archived", "humano"]).default("all"),
   query: z.string().trim().max(MAX_QUERY_LENGTH).default(""),
   limit: z.number().int().min(1).max(50).default(20),
@@ -115,10 +128,13 @@ const listChats: ToolSpec<z.infer<typeof listChatsArgs>> = {
   description:
     "Lista los chats de WhatsApp que la persona puede ver en la Bandeja, del más reciente al más viejo. " +
     "status: all (todos los no archivados), unread (con mensajes sin leer), archived, humano (esperan a una persona). " +
-    "query busca por nombre o teléfono del contacto. Devuelve next_cursor para pedir la siguiente página.",
+    "query busca por nombre o teléfono del contacto. Devuelve next_cursor para pedir la siguiente página. " +
+    "inbox: empresa (la Bandeja, por defecto) o mi_numero (los chats de cliente del WhatsApp propio de la persona, " +
+    "solo si ella lo permitió en «Mi número»).",
   inputSchema: {
     type: "object",
     properties: {
+      inbox: { type: "string", enum: ["empresa", "mi_numero"], default: "empresa" },
       status: { type: "string", enum: ["all", "unread", "archived", "humano"], default: "all" },
       query: { type: "string", maxLength: MAX_QUERY_LENGTH, description: "Nombre o teléfono a buscar" },
       limit: { type: "integer", minimum: 1, maximum: 50, default: 20 },
@@ -129,6 +145,7 @@ const listChats: ToolSpec<z.infer<typeof listChatsArgs>> = {
   parse: listChatsArgs,
   scope: "read",
   run: async ({ session }, args) => {
+    if (args.inbox === "mi_numero") return listNumberChats(session, args);
     const cursor = decodeCursor(args.cursor ?? null);
     if (cursor === "invalid") return { data: { error: "cursor no válido" }, summary: "cursor no válido", isError: true };
     const page = await listConversationsPage(
@@ -143,6 +160,75 @@ const listChats: ToolSpec<z.infer<typeof listChatsArgs>> = {
     };
   },
 };
+
+const NUMBER_OFF: ToolOutcome = {
+  data: {
+    error:
+      "Tu IA no puede ver chats de tu número. Para permitirlo, enciende «Mi IA puede ver y contestar mis chats de cliente» en Ajustes → Mi número.",
+  },
+  summary: "mi número apagado para la IA",
+  isError: true,
+  outcome: "denied",
+};
+
+function numberChatSummary({ conversation: c, contact, preview }: AiNumberChat) {
+  return {
+    conversation_id: c.id,
+    inbox: "mi_numero",
+    contact: { id: contact.id, name: contact.name, phone: contact.phone },
+    unread: c.unreadCount,
+    last_message_at: c.lastMessageAt?.toISOString() ?? null,
+    last_inbound_at: c.lastInboundAt?.toISOString() ?? null,
+    preview: clip(preview, 200),
+    // Por el número de la persona no hay ventana de 24 h.
+    window_open: true,
+    archived: c.archivedAt !== null,
+  };
+}
+
+async function listNumberChats(session: SessionContext, args: z.infer<typeof listChatsArgs>): Promise<ToolOutcome> {
+  const number = await aiNumberOf(session);
+  if (!number) return NUMBER_OFF;
+  if (args.cursor) return { data: { error: "cursor no válido" }, summary: "cursor no válido", isError: true };
+  const chats = await listAiNumberChats(session, number, {
+    query: args.query,
+    limit: args.limit,
+    archived: args.status === "archived",
+    unread: args.status === "unread",
+  });
+  return {
+    data: { chats: chats.map(numberChatSummary), next_cursor: null },
+    summary: `${chats.length} chats de mi número (${args.status})`,
+  };
+}
+
+function messageView({ message: m, mediaKind }: { message: typeof schema.message.$inferSelect; mediaKind: string | null }) {
+  return {
+    id: m.id,
+    from: m.direction === "in" ? "cliente" : m.origin === "ai" || m.aiGenerated ? "ia" : "equipo",
+    type: m.type,
+    text: clip(m.text),
+    attachment: mediaKind ?? null,
+    at: (m.waTimestamp ?? m.createdAt).toISOString(),
+    status: m.direction === "out" ? m.status : undefined,
+  };
+}
+
+async function readNumberChat(session: SessionContext, conversationId: string, limit: number): Promise<ToolOutcome | null> {
+  const chat = await aiNumberChat(session, conversationId);
+  if (!chat) return null;
+  const rows = await aiNumberMessages(session, chat.conversation.id, limit);
+  return {
+    data: {
+      notice: CLIENT_CONTENT_NOTICE,
+      ...numberChatSummary(chat),
+      messages: rows.map(messageView),
+    },
+    summary: `leyó ${rows.length} mensajes de mi número`,
+    conversationId: chat.conversation.id,
+    contactId: chat.contact.id,
+  };
+}
 
 const readChatArgs = z.object({
   conversation_id: z.string().min(1).max(60),
@@ -169,6 +255,8 @@ const readChat: ToolSpec<z.infer<typeof readChatArgs>> = {
   run: async ({ session }, args) => {
     const found = await getConversation(session.access, args.conversation_id);
     if (!found) {
+      const fromNumber = await readNumberChat(session, args.conversation_id, args.limit);
+      if (fromNumber) return fromNumber;
       return { data: { error: "No existe o no tienes acceso a ese chat" }, summary: "chat no encontrado", isError: true };
     }
     const { conversation: c, contact } = found;
@@ -200,15 +288,7 @@ const readChat: ToolSpec<z.infer<typeof readChatArgs>> = {
         tags: (tags.get(contact.id) ?? []).map((t) => t.name),
         assigned_to_me: contact.assignedUserId === session.userId,
         window_open: lastInbound > 0 && Date.now() - lastInbound < 24 * 60 * 60 * 1000,
-        messages: rows.reverse().map(({ message: m, mediaKind }) => ({
-          id: m.id,
-          from: m.direction === "in" ? "cliente" : m.origin === "ai" || m.aiGenerated ? "ia" : "equipo",
-          type: m.type,
-          text: clip(m.text),
-          attachment: mediaKind ?? null,
-          at: (m.waTimestamp ?? m.createdAt).toISOString(),
-          status: m.direction === "out" ? m.status : undefined,
-        })),
+        messages: rows.reverse().map(messageView),
       },
       summary: `leyó ${rows.length} mensajes`,
       conversationId: c.id,
@@ -347,7 +427,8 @@ const sendMessage: ToolSpec<z.infer<typeof sendMessageArgs>> = {
   description:
     "Envía un WhatsApp de texto al cliente de un chat, como la persona. Solo con la ventana de 24 h abierta " +
     "(window_open de read_chat): fuera de ella WhatsApp exige una plantilla y esta herramienta no las manda. " +
-    "Hay un tope diario de mensajes por persona. Lee el chat antes de contestar.",
+    "Hay un tope diario de mensajes por persona. Lee el chat antes de contestar. " +
+    "En un chat de mi_numero sale por el WhatsApp propio de la persona.",
   inputSchema: {
     type: "object",
     properties: {
@@ -362,8 +443,11 @@ const sendMessage: ToolSpec<z.infer<typeof sendMessageArgs>> = {
   serial: true,
   run: async ({ session, connectionId, assistantName }, args) => {
     const found = await getConversation(session.access, args.conversation_id);
-    if (!found) return NOT_FOUND;
-    const ids = { conversationId: found.conversation.id, contactId: found.contact.id };
+    const numberChat = found ? null : await aiNumberChat(session, args.conversation_id);
+    if (!found && !numberChat) return NOT_FOUND;
+    const ids = found
+      ? { conversationId: found.conversation.id, contactId: found.contact.id }
+      : { conversationId: numberChat!.conversation.id, contactId: numberChat!.contact.id };
     const { dailyMessageLimit } = await getConnectorSettings(session.organizationId);
     if (dailyMessageLimit === 0) {
       return fail("En esta empresa la IA conectada solo puede leer: no envía mensajes", "envío apagado", {
@@ -379,9 +463,28 @@ const sendMessage: ToolSpec<z.infer<typeof sendMessageArgs>> = {
         { ...ids, outcome: "limited" }
       );
     }
+    if (numberChat) {
+      const res = await sendAsMyNumberAi(session, numberChat.conversation.id, args.text, {
+        aiConnectionId: connectionId,
+        aiSenderName: assistantName,
+      });
+      if (!res) return NOT_FOUND;
+      if (!res.ok) return fail(res.message, `no se envió (${res.code})`, ids);
+      return {
+        data: {
+          ok: true,
+          message_id: res.messageId,
+          queued_until: res.queuedUntil?.toISOString() ?? null,
+          sent_today: sent + 1,
+          daily_limit: dailyMessageLimit,
+        },
+        summary: `envió ${args.text.length} caracteres por mi número`,
+        ...ids,
+      };
+    }
     try {
       const res = await sendText({
-        conversationId: found.conversation.id,
+        conversationId: found!.conversation.id,
         organizationId: session.organizationId,
         text: args.text,
         aiConnectionId: connectionId,

@@ -50,6 +50,8 @@ export type Switches = {
   allowViewRequests: boolean;
   aiReplies: boolean;
   clientByDefault: boolean;
+  /** 047: la IA conectada del dueño ve y contesta sus chats de cliente. */
+  aiConnector: boolean;
 };
 
 const SWITCH_KEYS = [
@@ -58,6 +60,7 @@ const SWITCH_KEYS = [
   "allowViewRequests",
   "aiReplies",
   "clientByDefault",
+  "aiConnector",
 ] as const;
 
 export type MiNumeroError =
@@ -103,6 +106,7 @@ function switchesOf(row: Row): Switches {
     allowViewRequests: row.allowViewRequests,
     aiReplies: row.aiReplies,
     clientByDefault: row.clientByDefault,
+    aiConnector: row.aiConnector,
   };
 }
 
@@ -161,6 +165,8 @@ export type TeamNumbers = {
   max: number;
   inUse: number;
   numbers: NumberDto[];
+  /** 047: la empresa tiene el conector de IA (se muestra su interruptor). */
+  aiConnectorOffered: boolean;
   /** Miembros sin número, para autorizar. */
   candidates: { userId: string; name: string; email: string; role: string }[];
 };
@@ -192,9 +198,10 @@ export async function listTeamNumbers(
     .where(scoped(schema.member.organizationId, organizationId))
     .orderBy(asc(schema.user.name));
   const taken = new Set(rows.map((r) => r.n.userId));
-  const { miNumeroMax } = await getOrgModules(organizationId);
+  const { miNumeroMax, conectorIa } = await getOrgModules(organizationId);
   return {
     max: miNumeroMax,
+    aiConnectorOffered: conectorIa,
     inUse: rows.length,
     numbers: await Promise.all(rows.map((r) => toDto(r.n, r))),
     candidates: members.filter((m) => !taken.has(m.userId)),
@@ -359,6 +366,8 @@ export async function revokeNumber(
 export type MyNumberDto = Omit<NumberDto, "userName" | "userEmail"> & {
   /** Solo en un número personal la persona mueve sus interruptores. */
   canEditSwitches: boolean;
+  /** 047: la empresa tiene el conector de IA (se muestra su interruptor). */
+  aiConnectorOffered: boolean;
 };
 
 export async function myNumber(
@@ -373,7 +382,11 @@ export async function myNumber(
   const dto: Partial<NumberDto> = await toDto(row, { name: "", email: "" });
   delete dto.userName;
   delete dto.userEmail;
-  return { ...(dto as MyNumberDto), canEditSwitches: row.kind === "personal" };
+  return {
+    ...(dto as MyNumberDto),
+    canEditSwitches: row.kind === "personal",
+    aiConnectorOffered: (await getOrgModules(organizationId)).conectorIa,
+  };
 }
 
 export type MyPatch = Partial<Switches> & {

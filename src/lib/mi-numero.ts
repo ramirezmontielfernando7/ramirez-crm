@@ -3,7 +3,7 @@
  * aprobada por Fer). Jamás nombran el servidor ni la tecnología de debajo.
  */
 
-export type NumberSwitch = "shareClients" | "overlapNotice" | "allowViewRequests" | "aiReplies" | "clientByDefault";
+export type NumberSwitch = "shareClients" | "overlapNotice" | "allowViewRequests" | "aiReplies" | "clientByDefault" | "aiConnector";
 
 export const SWITCH_TEXT: Record<NumberSwitch, { title: string; on: string; off: string }> = {
   shareClients: {
@@ -31,9 +31,22 @@ export const SWITCH_TEXT: Record<NumberSwitch, { title: string; on: string; off:
     on: "La IA responde por tu número, solo en chats que marcaste como cliente. Cuando tú escribes, la IA se pausa en ese chat.",
     off: "Apagado: solo tú contestas.",
   },
+  aiConnector: {
+    title: "Mi IA puede ver y contestar mis chats de cliente",
+    on: "Tu IA conectada (Claude, ChatGPT…) puede leer y contestar por tu número, solo en los chats que marcaste como cliente. Tus chats privados nunca le llegan. Lo que mande dice el nombre de tu IA.",
+    off: "Apagado: tu IA no ve ningún chat de tu número.",
+  },
 };
 
-export const SWITCH_ORDER: readonly NumberSwitch[] = ["shareClients", "clientByDefault", "overlapNotice", "allowViewRequests", "aiReplies"];
+export const SWITCH_ORDER: readonly NumberSwitch[] = ["shareClients", "clientByDefault", "overlapNotice", "allowViewRequests", "aiReplies", "aiConnector"];
+
+/**
+ * 047 — Los interruptores que se muestran: el de la IA conectada solo si la
+ * empresa tiene el conector de IA (complemento oculto: sin él, ni rastro).
+ */
+export function visibleSwitches(aiConnectorOffered: boolean): readonly NumberSwitch[] {
+  return aiConnectorOffered ? SWITCH_ORDER : SWITCH_ORDER.filter((k) => k !== "aiConnector");
+}
 
 export const KIND_LABEL = { personal: "Personal", empresa: "De la empresa" } as const;
 

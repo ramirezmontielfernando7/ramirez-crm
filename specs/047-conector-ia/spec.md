@@ -122,9 +122,28 @@ RLS con la política de siempre en las cinco tablas con organización. Prueba:
   0062): renombrar no cambia lo ya enviado.
 - Prueba: `tests/db/conector-ia-acciones.test.ts`.
 
+## PR 4b — Los chats de cliente de «Mi número» (sin migración)
+
+- Quinto interruptor `direct_number.ai_connector` en Ajustes → Mi número
+  («Mi IA puede ver y contestar mis chats de cliente», APAGADO; solo se
+  muestra si la empresa tiene el conector: `visibleSwitches`,
+  `aiConnectorOffered`). En un número de la empresa lo deciden quienes
+  autorizan, como los demás.
+- `src/server/ai-connector/my-number.ts`: solo el número VIVO de quien
+  conectó la IA, con «Compartir mis clientes» y el interruptor encendidos, y
+  solo chats con `client_marked_at`. Los privados y los números de otros no
+  existen para la IA.
+- `list_chats` con `inbox: "mi_numero"`; `read_chat` y `send_message`
+  aceptan esos chats (nada más los toca: etiquetas, etapas, notas siguen
+  siendo de la Bandeja). Enviar sale por el dispositivo del número
+  (`sendFromMyNumber` con `aiConnectionId`/`aiSenderName`, sus límites y su
+  fila), cuenta en el mismo tope diario y lleva la firma de la IA.
+- Guardarraíl `tests/unit/conexion-directa-envio.test.ts` (la IA conectada
+  es el único otro llamador de `mi-numero/send`) y prueba
+  `tests/db/conector-ia-mi-numero.test.ts`.
+
 ## PRs siguientes
 
-4b. Quinto interruptor de «Mi número» (solo chats «Es cliente»).
 5. «Qué hizo tu IA», vista del Propietario, contador en /platform y prueba
    con Claude real en el piloto.
 6. «Funciones avanzadas» (Fer, 2026-10-27): apagadas; las enciende el
