@@ -207,6 +207,45 @@ sigue sin salir por el dispositivo (salvo «Mi número» y empresa sin Meta,
 como antes). Pruebas en `tests/db/conexion-directa-envio.test.ts` y el
 guardarraíl `tests/unit/conexion-directa-envio.test.ts`.
 
+## Ajuste 2026-10-28 — conocimiento y documentos de los agentes
+
+Fer pidió herramientas «de todo lo que se pueda». Primera parte: el
+conocimiento del Estudio de IA (`src/server/ai-connector/knowledge-tools.ts`),
+dentro del área «Ajustar agentes de IA» de Funciones avanzadas y con
+`agent.manage` (hoy solo el Propietario), como la pantalla:
+`list_knowledge`/`add_knowledge`/`update_knowledge` (preguntas y bloques,
+compartido o de un agente, por `agents/kb.ts`; aplican al momento, no tienen
+borrador) y `list_documents`/`read_document` (páginas de 20,000
+caracteres)/`add_document` (texto ya extraído, a un grupo por nombre o
+exclusivo de un agente, por `kb-docs/store.ts`, con el tope de almacenamiento
+y el indexador de siempre; solo con `KB_DOCS` y Laboratorio). Ninguna borra.
+Pruebas en `tests/db/conector-ia-conocimiento.test.ts`.
+
+## Ajuste 2026-10-28 — ficha, embudo, tareas y notas
+
+Segunda parte (`src/server/ai-connector/crm-tools.ts`), SIN Funciones
+avanzadas porque la pantalla ya lo deja a cualquier rol, con la misma
+visibilidad (el asesor solo lo suyo): `read_contact` (ficha, notas, datos,
+consentimiento, etapa, monto, prioridad, etiquetas y línea de tiempo),
+`update_contact` (nombre, notas y parche de la ficha por `upsertFicha`; el
+consentimiento NO), `list_pipeline` (leads por etapa con totales),
+`update_lead` (monto y prioridad por `src/server/leads/fields.ts`, la misma
+regla que `PATCH /api/pipeline/leads/[id]`), `update_task` (editar y marcar
+hecha) y `list_work_notes`/`create_work_note`/`update_work_note` (por
+`work/notes.ts`; archivar sí, borrar no). Pruebas en
+`tests/db/conector-ia-crm.test.ts`.
+
+## Ajuste 2026-10-28 — material, resultados y plantillas
+
+Tercera parte (`src/server/ai-connector/extra-tools.ts`): `list_materials`
+(los Conocimientos que aparecen en la Bandeja, con el módulo; la IA manda su
+texto con `send_message`, así cuentan el tope y la marca; los archivos siguen
+saliendo desde la Bandeja), `get_results` (ventas, agente e higiene de
+Resultados con `results.read` y la regla de `resultsScope`) y
+`create_template` (función avanzada del área de campañas, `templates.manage`,
+por `createTemplate`: va a aprobación de Meta; solo encabezado de texto).
+Pruebas en `tests/db/conector-ia-material.test.ts`.
+
 ## PRs siguientes
 
 5b. Prueba con Claude real en el piloto.

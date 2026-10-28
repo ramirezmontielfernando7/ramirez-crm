@@ -6,7 +6,7 @@ import { getDb, schema } from "@/lib/db";
 import { companyChat, scopedContacts } from "@/lib/db/tenant";
 import { publish } from "@/server/events/bus";
 import { moveLeadToStage } from "@/server/leads/stage-history";
-import { getBranding } from "@/server/branding";
+import { leadFieldsPatch, updateLeadFields } from "@/server/leads/fields";
 
 export const dynamic = "force-dynamic";
 
@@ -62,23 +62,7 @@ export const PATCH = withAuth(async (session, req: Request, ctx: Params) => {
   // El monto viaja en el MISMO update que el movimiento: capturarlo mientras
   // se arrastra la tarjeta no debe costar dos viajes ni dejar un estado a
   // medias si el segundo falla.
-  const extra: Record<string, unknown> = {};
-  if (body.data.amountCents !== undefined) {
-    extra.amountCents = body.data.amountCents;
-    // Sin monto no hay moneda que guardar: dejarla apuntando a un importe
-    // borrado haría que el tablero contara un lead que ya no tiene número.
-    extra.currency =
-      body.data.amountCents === null
-        ? null
-        : (body.data.currency ?? (await getBranding(session.organizationId)).currency);
-  }
-
-  if (body.data.priority !== undefined) {
-    extra.priority = body.data.priority;
-    // La fecha acompaña al valor: sirve para saber si la decisión es de hoy o
-    // de hace tres semanas, que es lo que vuelve útil mirarla.
-    extra.priorityUpdatedAt = body.data.priority === null ? null : new Date();
-  }
+  const extra = await leadFieldsPatch(session.organizationId, body.data);
 
   // Sin etapa: solo se actualizan los campos del lead. No pasa por la puerta
   // de la bitácora porque no hay movimiento que registrar — y el guardarraíl
@@ -87,21 +71,9 @@ export const PATCH = withAuth(async (session, req: Request, ctx: Params) => {
     if (Object.keys(extra).length === 0) {
       return apiError(422, "nothing_to_update", "No hay nada que actualizar");
     }
-    const db = getDb();
-    const updated = await db
-      .update(schema.lead)
-      .set({ ...extra, updatedAt: new Date() })
-      .where(
-        scopedContacts(
-          schema.lead.organizationId,
-          session.access,
-          schema.lead.contactId,
-          eq(schema.lead.id, id)
-        )
-      )
-      .returning();
-    if (!updated[0]) return apiError(404, "not_found", "Lead no encontrado");
-    return Response.json({ lead: updated[0] });
+    const updated = await updateLeadFields(session.access, id, extra);
+    if (!updated) return apiError(404, "not_found", "Lead no encontrado");
+    return Response.json({ lead: updated });
   }
 
   if (body.data.lossReason && !(await isActiveLossReason(session.organizationId, body.data.lossReason))) {
