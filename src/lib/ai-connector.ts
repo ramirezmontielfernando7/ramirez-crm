@@ -45,17 +45,57 @@ export function normalizeScopes(raw: readonly string[]): Scope[] {
   return SCOPES.filter((s) => set.has(s));
 }
 
+/**
+ * PR 6 — «Funciones avanzadas»: áreas de administración que el Propietario
+ * le abre a la IA. Cada herramienta pide además el permiso de la persona en
+ * el CRM (`can()`), así que esto solo QUITA, nunca da.
+ */
+export const ADVANCED_AREAS = ["contacts", "campaigns", "tags", "agents", "settings"] as const;
+export type AdvancedArea = (typeof ADVANCED_AREAS)[number];
+
+export const ADVANCED_AREA_TEXT: Record<AdvancedArea, { label: string; hint: string }> = {
+  contacts: { label: "Exportar e importar contactos", hint: "Cada exportación queda anotada aparte." },
+  campaigns: { label: "Preparar campañas", hint: "La deja lista; una persona la lanza con un clic." },
+  tags: { label: "Crear y editar etiquetas", hint: "Y ponerlas o quitarlas en varios contactos a la vez." },
+  agents: { label: "Ajustar agentes de IA", hint: "Edita el borrador; publicarlo sigue siendo de una persona." },
+  settings: { label: "Algunos ajustes", hint: "Respuestas rápidas y motivos de pérdida." },
+};
+
+export type AdvancedSettings = {
+  enabled: boolean;
+  /** Además del Propietario. Solo `coordinador`: el Asesor nunca. */
+  roles: readonly string[];
+  areas: readonly AdvancedArea[];
+  launchCampaigns: boolean;
+};
+
 export type ConnectorSettings = {
   enabled: boolean;
   allowedRoles: readonly string[];
   dailyMessageLimit: number;
+  advanced: AdvancedSettings;
+};
+
+export const DEFAULT_ADVANCED_SETTINGS: AdvancedSettings = {
+  enabled: false,
+  roles: [],
+  areas: [],
+  launchCampaigns: false,
 };
 
 export const DEFAULT_CONNECTOR_SETTINGS: ConnectorSettings = {
   enabled: false,
   allowedRoles: [],
   dailyMessageLimit: 100,
+  advanced: DEFAULT_ADVANCED_SETTINGS,
 };
+
+/** ¿La IA de este rol puede usar esta área avanzada? (falta además `can()`). */
+export function advancedAllows(role: string, settings: ConnectorSettings, area: AdvancedArea): boolean {
+  const a = settings.advanced;
+  if (!settings.enabled || !a.enabled || !a.areas.includes(area)) return false;
+  return role === "owner" || (role === "coordinador" && a.roles.includes("coordinador"));
+}
 
 /**
  * ¿Puede esta persona usar su IA? El Propietario enciende el conector y
@@ -230,6 +270,30 @@ export const ACTION_LABEL: Record<string, string> = {
   add_note: "Agregó una nota",
   create_task: "Creó una tarea",
   assign_chat: "Asignó un chat",
+  // PR 6 — Funciones avanzadas
+  export_contacts: "Exportó contactos",
+  import_contacts: "Importó contactos",
+  list_templates: "Revisó las plantillas",
+  list_campaigns: "Revisó las campañas",
+  prepare_campaign: "Preparó una campaña",
+  launch_campaign: "Lanzó una campaña",
+  create_tag: "Creó una etiqueta",
+  update_tag: "Editó una etiqueta",
+  tag_contacts: "Etiquetó varios contactos",
+  list_agents: "Revisó los agentes de IA",
+  read_agent: "Leyó un agente de IA",
+  update_agent_draft: "Editó el borrador de un agente",
+  create_quick_reply: "Creó una respuesta rápida",
+  update_quick_reply: "Editó una respuesta rápida",
+  create_loss_reason: "Agregó un motivo de pérdida",
+  rename_loss_reason: "Renombró un motivo de pérdida",
+};
+
+/** PR 6 — Acciones que se resaltan en «Qué hizo tu IA» (salen del CRM o llegan a muchos). */
+export const HIGHLIGHT_ACTIONS: Record<string, string> = {
+  export_contacts: "Exportación",
+  import_contacts: "Importación",
+  launch_campaign: "Campaña lanzada",
 };
 
 export function actionLabel(tool: string): string {
