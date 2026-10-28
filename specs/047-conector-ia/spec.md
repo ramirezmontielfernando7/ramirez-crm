@@ -159,17 +159,43 @@ RLS con la política de siempre en las cinco tablas con organización. Prueba:
   (`OrgUsageSummary.aiConnector`, solo números).
 - Pruebas en `tests/db/conector-ia-acciones.test.ts`.
 
+## PR 6 — Funciones avanzadas (migración 0063)
+
+Decisiones de Fer (2026-10-27/28): apagadas de fábrica; el Propietario
+siempre, el Coordinador solo si el Propietario se lo da, el Asesor nunca;
+cada herramienta pide ADEMÁS el permiso de la persona en el CRM (`can()`),
+así que esto solo quita, nunca da.
+
+- `ai_connector_settings`: `advanced_enabled`, `advanced_roles` (solo
+  `coordinador`, CHECK), `advanced_areas` (`contacts`, `campaigns`, `tags`,
+  `agents`, `settings`, CHECK) y `advanced_launch_campaigns`. Reversa
+  `scripts/sql/0063-reversa.sql`. `saveConnectorSettings` sin `advanced`
+  no las toca.
+- Regla pura `advancedAllows(role, settings, area)` en
+  `src/lib/ai-connector.ts`; `ToolSpec.area` y `ToolSpec.launch` los aplica
+  `toolsFor` (lista Y llamada).
+- Herramientas en `src/server/ai-connector/advanced-tools.ts`, por las
+  puertas de siempre:
+  - Contactos (`contacts.export` / `contacts.import`): `export_contacts`
+    (CSV por `exportContactsCsv`, la misma función de la ruta de exportar,
+    hasta 2,000; resaltada «Exportación» en «Qué hizo tu IA»),
+    `import_contacts` (hasta 500, pregunta de consentimiento OBLIGATORIA,
+    las bajas se respetan siempre).
+  - Campañas (`campaigns.manage`, módulo Campañas): `list_templates`,
+    `list_campaigns`, `prepare_campaign` (BORRADOR: una persona la lanza con
+    «Enviar ahora») y `launch_campaign` (solo con «Puede lanzar campañas»).
+  - Etiquetas (`tags.manage`): `create_tag`, `update_tag`, `tag_contacts`
+    (`tagContactsInBulk`, solo contactos que la persona ve, nunca de
+    sistema). Sin borrar.
+  - Agentes (`agent.manage`, Laboratorio): `list_agents`, `read_agent`,
+    `update_agent_draft` (solo el borrador; publicar es de una persona).
+  - Algunos ajustes: respuestas rápidas (`templates.manage`) y motivos de
+    pérdida (`pipeline.edit`); crear y editar, sin borrar.
+- UI: tarjeta «Funciones avanzadas» en Ajustes → Conector de IA.
+- Pruebas en `tests/db/conector-ia-avanzadas.test.ts`.
+
 ## PRs siguientes
 
 5b. Prueba con Claude real en el piloto.
-6. «Funciones avanzadas» (Fer, 2026-10-27): apagadas; las enciende el
-   Propietario para sí y, si quiere, para el Coordinador (nunca Asesor);
-   siempre sujetas al permiso de la persona en el CRM. Crear/editar
-   etiquetas, configurar agentes de IA, importar y exportar contactos
-   (exportar marcado aparte en la bitácora) y preparar campañas: de fábrica
-   la IA deja la campaña LISTA y una persona la envía con un clic; un
-   interruptor aparte «Puede lanzar campañas» (apagado) le deja lanzarla.
-   Siguen prohibidos: borrar chats, conexión de WhatsApp, roles y llaves, y
-   chats personales ajenos de «Mi número».
 
 Después: asistente dentro del CRM sobre las mismas herramientas (Bedrock).

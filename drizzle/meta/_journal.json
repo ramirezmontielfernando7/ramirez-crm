@@ -435,6 +435,13 @@
       "when": 1793140200043,
       "tag": "0062_nombre_ia",
       "breakpoints": true
+    },
+    {
+      "idx": 63,
+      "version": "7",
+      "when": 1793197197518,
+      "tag": "0063_funciones_avanzadas",
+      "breakpoints": true
     }
   ]
 }

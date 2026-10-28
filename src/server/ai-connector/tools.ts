@@ -1,6 +1,6 @@
 import { asc, desc, eq } from "drizzle-orm";
 import { z } from "zod";
-import { CLIENT_CONTENT_NOTICE, type Scope } from "@/lib/ai-connector";
+import { advancedAllows, CLIENT_CONTENT_NOTICE, type AdvancedArea, type Scope } from "@/lib/ai-connector";
 import { can, type Permission } from "@/lib/auth/permissions";
 import type { SessionContext } from "@/lib/auth/session";
 import { getDb, schema } from "@/lib/db";
@@ -9,6 +9,7 @@ import { DEFAULT_FILTERS, MAX_QUERY_LENGTH, type ListStatus } from "@/lib/inbox-
 import type { ConversationDto } from "@/lib/types";
 import { TASK_DESCRIPTION_MAX, TASK_FILTERS, TASK_TITLE_MAX } from "@/lib/work";
 import { logActivity } from "@/server/activity/log";
+import { ADVANCED_TOOLS } from "@/server/ai-connector/advanced-tools";
 import { getConnectorSettings } from "@/server/ai-connector/settings";
 import { messagesSentLastDay } from "@/server/ai-connector/log";
 import {
@@ -46,8 +47,10 @@ import { createTask, listTasks, TaskInputError, viewerOf } from "@/server/work/t
  *
  * PR 2: lectura. PR 4: las acciones con el alcance `write` (enviar,
  * etiquetar, mover de etapa, notas, tareas, asignar), cada una por la MISMA
- * puerta que usa la pantalla. Nunca habrá exportar, campañas, borrar ni
- * ajustes.
+ * puerta que usa la pantalla. PR 6: las «Funciones avanzadas» viven en
+ * `advanced-tools.ts` (exportar/importar, campañas, etiquetas, agentes y
+ * algunos ajustes), cada una con su `area`. Nunca habrá borrar, conexión de
+ * WhatsApp, roles, equipo ni llaves.
  */
 
 export type ToolContext = {
@@ -86,6 +89,10 @@ export type ToolSpec<A> = {
   serial?: boolean;
   /** La herramienta solo existe si la organización tiene el módulo. */
   available?: (organizationId: string) => Promise<boolean>;
+  /** PR 6: función avanzada; solo existe si el Propietario abrió esta área a este rol. */
+  area?: AdvancedArea;
+  /** PR 6: además, «Puede lanzar campañas» encendido. */
+  launch?: boolean;
   run: (ctx: ToolContext, args: A) => Promise<ToolOutcome>;
 };
 
@@ -778,14 +785,18 @@ export const TOOLS: readonly ToolSpec<any>[] = [
   listTasksTool,
   listPeople,
   ...WRITE_TOOLS,
+  ...ADVANCED_TOOLS,
 ];
 
-/** Las herramientas que ESTA conexión puede usar hoy (alcance, permisos y módulos). */
+/** Las herramientas que ESTA conexión puede usar hoy (alcance, permisos, módulos y funciones avanzadas). */
 export async function toolsFor(session: SessionContext, scopes: readonly Scope[]) {
+  const settings = await getConnectorSettings(session.organizationId);
   const out = [];
   for (const t of TOOLS) {
     if (!scopes.includes(t.scope)) continue;
     if (t.permission && !can(session, t.permission)) continue;
+    if (t.area && !advancedAllows(session.role, settings, t.area)) continue;
+    if (t.launch && !settings.advanced.launchCampaigns) continue;
     if (t.available && !(await t.available(session.organizationId))) continue;
     out.push(t);
   }
@@ -803,8 +814,8 @@ export function describeTool(t: ToolSpec<unknown>) {
       title: t.title,
       readOnlyHint: t.scope === "read",
       destructiveHint: false,
-      // Enviar un WhatsApp sale del CRM hacia una persona real.
-      openWorldHint: t.name === "send_message",
+      // Enviar un WhatsApp (o una campaña) sale del CRM hacia personas reales.
+      openWorldHint: t.name === "send_message" || t.name === "launch_campaign",
     },
   };
 }

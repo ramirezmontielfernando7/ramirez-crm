@@ -4101,12 +4101,27 @@ export const aiConnectorSettings = pgTable(
     allowedRoles: text("allowed_roles").array().notNull().default(sql`'{}'::text[]`),
     /** Mensajes a clientes por persona en 24 h (0 = la IA solo lee). */
     dailyMessageLimit: integer("daily_message_limit").notNull().default(100),
+    /**
+     * PR 6 «Funciones avanzadas» (APAGADAS): exportar/importar contactos,
+     * preparar campañas, etiquetas, agentes y algunos ajustes. El Propietario
+     * siempre; el Coordinador solo si está en `advanced_roles`. Nunca el Asesor.
+     */
+    advancedEnabled: boolean("advanced_enabled").notNull().default(false),
+    advancedRoles: text("advanced_roles").array().notNull().default(sql`'{}'::text[]`),
+    advancedAreas: text("advanced_areas").array().notNull().default(sql`'{}'::text[]`),
+    /** Sin esto la IA deja la campaña LISTA y una persona la lanza con un clic. */
+    advancedLaunchCampaigns: boolean("advanced_launch_campaigns").notNull().default(false),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
     updatedBy: text("updated_by").references(() => user.id, { onDelete: "set null" }),
   },
   (t) => [
     check("ai_connector_settings_roles_chk", sql`${t.allowedRoles} <@ array['coordinador', 'asesor']::text[]`),
     check("ai_connector_settings_limit_chk", sql`${t.dailyMessageLimit} between 0 and 1000`),
+    check("ai_connector_settings_advanced_roles_chk", sql`${t.advancedRoles} <@ array['coordinador']::text[]`),
+    check(
+      "ai_connector_settings_advanced_areas_chk",
+      sql`${t.advancedAreas} <@ array['contacts', 'campaigns', 'tags', 'agents', 'settings']::text[]`
+    ),
   ]
 );
 

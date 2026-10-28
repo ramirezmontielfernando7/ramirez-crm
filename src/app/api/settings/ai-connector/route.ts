@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { parseBody, withAuth } from "@/lib/api";
+import { ADVANCED_AREAS } from "@/lib/ai-connector";
 import { conectorIaOff } from "@/server/modules";
 import { getConnectorSettings, saveConnectorSettings } from "@/server/ai-connector/settings";
 
@@ -7,7 +8,8 @@ export const dynamic = "force-dynamic";
 
 /**
  * 047 PR 3 — Ajustes → IA conectada → Ajustes del conector: lo decide el
- * Propietario (encendido, roles, tope diario). Sin el complemento: 404.
+ * Propietario (encendido, roles, tope diario y, desde el PR 6, las
+ * funciones avanzadas). Sin el complemento: 404.
  */
 export const GET = withAuth(
   async (session) => {
@@ -22,6 +24,14 @@ const putSchema = z.object({
   enabled: z.boolean(),
   allowedRoles: z.array(z.enum(["coordinador", "asesor"])).max(2),
   dailyMessageLimit: z.number().int().min(0).max(1000),
+  advanced: z
+    .object({
+      enabled: z.boolean(),
+      roles: z.array(z.enum(["coordinador"])).max(1),
+      areas: z.array(z.enum(ADVANCED_AREAS)).max(ADVANCED_AREAS.length),
+      launchCampaigns: z.boolean(),
+    })
+    .optional(),
 });
 
 export const PUT = withAuth(

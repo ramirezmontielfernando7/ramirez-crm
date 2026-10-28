@@ -278,6 +278,65 @@ export async function setContactTags(
   return after;
 }
 
+/**
+ * 047 PR 6 — Pone o quita UNA etiqueta (normal, nunca de sistema) en muchos
+ * contactos a la vez, con su renglón en la línea de tiempo. Quien llama ya
+ * revisó que la sesión ve esos contactos. Devuelve a cuántos les cambió.
+ */
+export async function tagContactsInBulk(
+  organizationId: string,
+  tagId: string,
+  contactIds: string[],
+  mode: "add" | "remove",
+  actorUserId: string | null
+): Promise<number> {
+  const db = getDb();
+  const [tag] = await db
+    .select()
+    .from(schema.contactTag)
+    .where(scoped(schema.contactTag.organizationId, organizationId, eq(schema.contactTag.id, tagId)))
+    .limit(1);
+  if (!tag) throw new TagError("not_found", "Etiqueta no encontrada");
+  if (tag.systemOrigin) throw new TagError("system_target", "Las etiquetas automáticas de importación no se ponen a mano");
+  const unique = [...new Set(contactIds)];
+  if (unique.length === 0) return 0;
+  const changed: string[] = [];
+  for (let i = 0; i < unique.length; i += 500) {
+    const chunk = unique.slice(i, i + 500);
+    if (mode === "add") {
+      const rows = await db
+        .insert(schema.contactTagAssignment)
+        .values(chunk.map((contactId) => ({ organizationId, contactId, tagId })))
+        .onConflictDoNothing()
+        .returning({ contactId: schema.contactTagAssignment.contactId });
+      changed.push(...rows.map((r) => r.contactId));
+    } else {
+      const rows = await db
+        .delete(schema.contactTagAssignment)
+        .where(
+          scoped(
+            schema.contactTagAssignment.organizationId,
+            organizationId,
+            eq(schema.contactTagAssignment.tagId, tagId),
+            inArray(schema.contactTagAssignment.contactId, chunk)
+          )
+        )
+        .returning({ contactId: schema.contactTagAssignment.contactId });
+      changed.push(...rows.map((r) => r.contactId));
+    }
+  }
+  await logActivities(
+    changed.map((contactId) => ({
+      organizationId,
+      contactId,
+      kind: mode === "add" ? ("tag_added" as const) : ("tag_removed" as const),
+      actorUserId,
+      detail: { tag: tag.name },
+    }))
+  ).catch(() => undefined);
+  return changed.length;
+}
+
 /** Agrega (sin quitar) una etiqueta a muchos contactos: la usa la importación. */
 export async function addTagToContacts(
   organizationId: string,

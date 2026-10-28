@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  advancedAllows,
   bearerToken,
+  DEFAULT_ADVANCED_SETTINGS,
   negotiateProtocolVersion,
   normalizeScopes,
   parseRpc,
@@ -27,11 +29,25 @@ describe("conector de IA — reglas puras", () => {
   });
 
   it("decisión 1: el Propietario siempre puede; los demás si él encendió su rol", () => {
-    const on = { enabled: true, allowedRoles: ["asesor"], dailyMessageLimit: 100 };
+    const on = { enabled: true, allowedRoles: ["asesor"], dailyMessageLimit: 100, advanced: DEFAULT_ADVANCED_SETTINGS };
     expect(roleMayConnect("owner", on)).toBe(true);
     expect(roleMayConnect("asesor", on)).toBe(true);
     expect(roleMayConnect("coordinador", on)).toBe(false);
     expect(roleMayConnect("owner", { ...on, enabled: false })).toBe(false);
+  });
+
+  it("PR 6: funciones avanzadas = Propietario siempre, Coordinador si se le dio, Asesor nunca", () => {
+    const base = { enabled: true, allowedRoles: ["coordinador", "asesor"], dailyMessageLimit: 100 };
+    const off = { ...base, advanced: DEFAULT_ADVANCED_SETTINGS };
+    expect(advancedAllows("owner", off, "tags")).toBe(false);
+    const on = { ...base, advanced: { enabled: true, roles: [], areas: ["tags" as const], launchCampaigns: false } };
+    expect(advancedAllows("owner", on, "tags")).toBe(true);
+    expect(advancedAllows("owner", on, "contacts")).toBe(false);
+    expect(advancedAllows("coordinador", on, "tags")).toBe(false);
+    const coord = { ...on, advanced: { ...on.advanced, roles: ["coordinador", "asesor"] } };
+    expect(advancedAllows("coordinador", coord, "tags")).toBe(true);
+    expect(advancedAllows("asesor", coord, "tags")).toBe(false);
+    expect(advancedAllows("owner", { ...on, enabled: false }, "tags")).toBe(false);
   });
 
   it("negocia la versión de MCP del cliente o responde con la más nueva", () => {
