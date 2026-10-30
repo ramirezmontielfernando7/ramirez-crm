@@ -144,7 +144,7 @@ describe("047 PR 2 — conector de IA (solo lectura)", () => {
     expect(init.body!.result.protocolVersion).toBe("2025-06-18");
     expect((await rpc(key, "initialize", { protocolVersion: "1999-01-01" })).body!.result.protocolVersion).toBe("2026-07-28");
     const names = ((await rpc(key, "tools/list")).body!.result.tools as { name: string }[]).map((t) => t.name);
-    expect(names).toEqual(["list_chats", "read_chat", "list_stages", "list_tags", "list_quick_replies", "read_contact", "list_pipeline", "list_materials"]);
+    expect(names).toEqual(["list_chats", "read_chat", "list_stages", "list_tags", "list_quick_replies", "list_chat_templates", "read_contact", "list_pipeline", "list_materials"]);
     const notif = await POST(
       new Request("http://localhost/api/mcp", {
         method: "POST",

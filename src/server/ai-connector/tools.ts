@@ -10,6 +10,7 @@ import type { ConversationDto } from "@/lib/types";
 import { TASK_DESCRIPTION_MAX, TASK_FILTERS, TASK_TITLE_MAX } from "@/lib/work";
 import { logActivity } from "@/server/activity/log";
 import { ADVANCED_TOOLS } from "@/server/ai-connector/advanced-tools";
+import { CHAT_TOOLS } from "@/server/ai-connector/chat-tools";
 import { CRM_TOOLS } from "@/server/ai-connector/crm-tools";
 import { EXTRA_TOOLS } from "@/server/ai-connector/extra-tools";
 import { KNOWLEDGE_TOOLS } from "@/server/ai-connector/knowledge-tools";
@@ -798,6 +799,7 @@ export const TOOLS: readonly ToolSpec<any>[] = [
   listTasksTool,
   listPeople,
   ...WRITE_TOOLS,
+  ...CHAT_TOOLS,
   ...CRM_TOOLS,
   ...EXTRA_TOOLS,
   ...ADVANCED_TOOLS,
@@ -832,7 +834,7 @@ export function describeTool(t: ToolSpec<unknown>) {
       readOnlyHint: t.scope === "read",
       destructiveHint: false,
       // Enviar un WhatsApp (o una campaña) sale del CRM hacia personas reales.
-      openWorldHint: t.name === "send_message" || t.name === "launch_campaign",
+      openWorldHint: t.name === "send_message" || t.name === "send_template" || t.name === "launch_campaign",
     },
   };
 }

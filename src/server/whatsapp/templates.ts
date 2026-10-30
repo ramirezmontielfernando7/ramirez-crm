@@ -788,6 +788,9 @@ export async function sendTemplate(input: {
    * igual; la pestaña la lee al abrirse.
    */
   silent?: boolean;
+  /** 047: la mandó la IA conectada de una persona (sello «enviado por IA»). */
+  aiConnectionId?: string | null;
+  aiSenderName?: string | null;
 }): Promise<{ messageId: string }> {
   // Fase 3, PR 2: nada sale de una organización suspendida o dada de baja.
   await assertOrgActive(input.organizationId);
@@ -971,6 +974,8 @@ export async function sendTemplate(input: {
         text: renderBody(template.body, values),
         status: "pending",
         origin: "template",
+        aiConnectionId: input.aiConnectionId ?? null,
+        aiSenderName: input.aiConnectionId ? (input.aiSenderName ?? null) : null,
       })
       .returning();
     message = inserted[0]!;

@@ -270,6 +270,10 @@ export const ACTION_LABEL: Record<string, string> = {
   add_note: "Agregó una nota",
   create_task: "Creó una tarea",
   assign_chat: "Asignó un chat",
+  open_chat: "Abrió un chat",
+  list_chat_templates: "Revisó las plantillas",
+  send_template: "Envió una plantilla",
+  update_chat: "Archivó, marcó leído o pausó la IA de un chat",
   // PR 6 — Funciones avanzadas
   export_contacts: "Exportó contactos",
   import_contacts: "Importó contactos",
