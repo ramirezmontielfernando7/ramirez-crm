@@ -449,6 +449,13 @@
       "when": 1793213414480,
       "tag": "0064_asesores_chats_nuevos",
       "breakpoints": true
+    },
+    {
+      "idx": 65,
+      "version": "7",
+      "when": 1793373214751,
+      "tag": "0065_enlace_subida_ia",
+      "breakpoints": true
     }
   ]
 }

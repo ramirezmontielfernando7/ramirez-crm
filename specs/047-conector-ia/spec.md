@@ -261,6 +261,21 @@ y «Lectura IA» en un grupo), `update_library_entry` (texto, etiquetas
 un archivo como argumento; la IA manda el texto. Pruebas en
 `tests/db/conector-ia-biblioteca.test.ts`.
 
+## Ajuste 2026-10-30 — enlace de subida de un solo uso
+
+Fer eligió esta vía para subir los originales. `create_upload_link` (área
+`agents`, `knowledge.manage`; con «Lectura IA» además `libraryAccess(...).rag`)
+crea una fila en `ai_upload_link` (migración `0065`, RLS; solo el SHA-256 del
+token) con la nota, las etiquetas y los destinos, y devuelve
+`APP_BASE_URL/subir/<token>`. La PERSONA lo abre con su sesión: solo quien lo
+pidió (otra persona: 404), vive 24 h y recibe hasta 30 archivos. Cada archivo
+va por `POST /api/ai-connector/upload-links/[token]/files` con las reglas de la
+Biblioteca (tipos y tamaños de 044, `assertCanUpload`, `createKnowledge`,
+`enableRagForEntry`; si la lectura de la IA falla, la entrada se queda en la
+Bandeja). El título sale del nombre del archivo. «Listo» (`…/close`) lo cierra;
+`check_upload_link` dice qué se subió. Pruebas en
+`tests/db/conector-ia-enlace-subida.test.ts`.
+
 ## PRs siguientes
 
 5b. Prueba con Claude real en el piloto.

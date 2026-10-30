@@ -4268,6 +4268,44 @@ export const aiOauthClient = pgTable(
 );
 
 /**
+ * 047 — Enlace de subida de un solo uso: la IA conectada prepara a dónde van
+ * los archivos (etiquetas, «Envío en chat», «Lectura IA» y su grupo) y la
+ * persona los sube en el CRM. Solo lo abre quien lo pidió, con su sesión; se
+ * guarda el SHA-256 del enlace, vence y se usa una vez.
+ */
+export const aiUploadLink = pgTable(
+  "ai_upload_link",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    connectionId: text("connection_id"),
+    tokenHash: text("token_hash").notNull(),
+    /** Lo que la IA dice que va aquí («Los 19 planes de la UG»). */
+    note: text("note"),
+    tags: text("tags").array().notNull().default(sql`'{}'::text[]`),
+    inChat: boolean("in_chat").notNull().default(true),
+    rag: boolean("rag").notNull().default(false),
+    /** Grupo de documentos de la «Lectura IA»; NULL = General. */
+    ragGroupId: text("rag_group_id"),
+    expiresAt: timestamp("expires_at").notNull(),
+    usedAt: timestamp("used_at"),
+    /** Las entradas de la Biblioteca que se crearon al usarlo. */
+    entryIds: text("entry_ids").array().notNull().default(sql`'{}'::text[]`),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("ai_upload_link_hash_uq").on(t.tokenHash),
+    index("ai_upload_link_user_idx").on(t.organizationId, t.userId),
+    check("ai_upload_link_destino_chk", sql`${t.inChat} or ${t.rag}`),
+  ]
+);
+
+/**
  * «Qué hizo tu IA»: cada herramienta que usó la IA de una persona, con su
  * resultado. Nunca el texto de un mensaje ni datos del cliente: solo qué,
  * cuándo, sobre qué chat o contacto y un resumen corto. También es lo que

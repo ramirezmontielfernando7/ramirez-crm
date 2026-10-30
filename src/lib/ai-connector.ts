@@ -310,6 +310,8 @@ export const ACTION_LABEL: Record<string, string> = {
   create_document_group: "Creó un grupo de documentos",
   rename_document_group: "Renombró un grupo de documentos",
   move_document: "Movió un documento de grupo",
+  create_upload_link: "Te pidió subir archivos con un enlace",
+  check_upload_link: "Revisó los archivos que subiste",
 };
 
 /** PR 6 — Acciones que se resaltan en «Qué hizo tu IA» (salen del CRM o llegan a muchos). */
@@ -337,3 +339,32 @@ export function beforeOf(req: Request): Date | null {
   const d = raw ? new Date(raw) : null;
   return d && !Number.isNaN(d.getTime()) ? d : null;
 }
+
+/* ============================ Enlace de subida ============================ */
+
+/**
+ * 047 — Enlace de subida de un solo uso: la IA no puede pasar los bytes de un
+ * PDF por una herramienta, así que pide un enlace y la PERSONA sube ahí sus
+ * archivos, con su sesión del CRM. Vive un día y recibe a lo más 30 archivos.
+ */
+export const UPLOAD_LINK_TTL_MS = 24 * 60 * 60 * 1000;
+export const UPLOAD_LINK_MAX_FILES = 30;
+export const UPLOAD_LINK_NOTE_MAX = 300;
+
+export type UploadLinkState = "open" | "closed" | "expired" | "full";
+
+export function uploadLinkState(
+  link: { expiresAt: Date | string; usedAt: Date | string | null; entryCount: number },
+  now = new Date()
+): UploadLinkState {
+  if (link.usedAt) return "closed";
+  if (new Date(link.expiresAt).getTime() <= now.getTime()) return "expired";
+  if (link.entryCount >= UPLOAD_LINK_MAX_FILES) return "full";
+  return "open";
+}
+
+export const UPLOAD_LINK_STATE_TEXT: Record<Exclude<UploadLinkState, "open">, string> = {
+  closed: "Este enlace ya se usó. Pídele a tu IA uno nuevo si quieres subir más archivos.",
+  expired: "Este enlace venció (dura un día). Pídele a tu IA uno nuevo.",
+  full: `Este enlace ya recibió ${UPLOAD_LINK_MAX_FILES} archivos, su máximo. Pídele a tu IA uno nuevo.`,
+};

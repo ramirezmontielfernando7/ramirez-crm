@@ -19,6 +19,7 @@ const prefixes = {
   aiToken: "ait",
   aiOauthCode: "aoc",
   aiActionLog: "aal",
+  aiUploadLink: "aul",
   credentials: "cred",
   agentProfile: "agp",
   agent: "agt",
