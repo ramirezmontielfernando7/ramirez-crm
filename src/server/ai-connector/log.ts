@@ -44,7 +44,7 @@ export async function recordAction(e: ActionEntry): Promise<void> {
   }
 }
 
-/** Mensajes que mandó la IA de esta persona en las últimas 24 h (tope diario). */
+/** Mensajes (texto y plantillas) que mandó la IA de esta persona en las últimas 24 h (tope diario). */
 export async function messagesSentLastDay(organizationId: string, userId: string, now = new Date()): Promise<number> {
   const [row] = await getDb()
     .select({ n: count() })
@@ -55,7 +55,7 @@ export async function messagesSentLastDay(organizationId: string, userId: string
         organizationId,
         and(
           eq(schema.aiActionLog.userId, userId),
-          eq(schema.aiActionLog.tool, "send_message"),
+          inArray(schema.aiActionLog.tool, ["send_message", "send_template"]),
           eq(schema.aiActionLog.outcome, "ok"),
           gt(schema.aiActionLog.at, new Date(now.getTime() - 24 * 60 * 60 * 1000))
         )
