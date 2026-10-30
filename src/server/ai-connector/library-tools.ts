@@ -18,6 +18,8 @@ import { withRag } from "@/server/library/view";
 import { LimitError } from "@/server/limits";
 import { orgHasModule } from "@/server/modules";
 import { MediaValidationError } from "@/server/whatsapp/media";
+import { UPLOAD_LINK_MAX_FILES, UPLOAD_LINK_NOTE_MAX } from "@/lib/ai-connector";
+import { createUploadLink, getUploadLink, stateOf } from "@/server/ai-connector/upload-links";
 
 /**
  * 047 — La Biblioteca para la IA conectada: lo que la pantalla deja hacer con
@@ -30,8 +32,9 @@ import { MediaValidationError } from "@/server/whatsapp/media";
  * «Ajustar agentes de IA» (`area: "agents"`). Nada borra: quitar una entrada
  * o un grupo sigue siendo de una persona en la pantalla.
  *
- * Archivos: la IA manda TEXTO (lo que ya leyó del PDF); el archivo original
- * se sube desde la pantalla.
+ * Archivos: la IA no puede mandar los bytes de un PDF. Pide un enlace de
+ * subida de un solo uso (`create_upload_link`) y la persona sube ahí los
+ * originales con su sesión; `check_upload_link` dice qué subió.
  */
 
 function fail(error: string, summary: string): ToolOutcome {
@@ -126,7 +129,7 @@ const addToLibrary: ToolSpec<z.infer<typeof addArgs>> = {
   description:
     "Crea una entrada de la Biblioteca con título, texto y etiquetas (p. ej. [\"Planes\", \"UG\"]; una etiqueta nueva se crea al usarla). " +
     "in_chat: aparece en la Bandeja para enviarla (por defecto sí). rag: la IA del CRM también la lee, en el grupo rag_group " +
-    "(nombre de list_documents; sin él, General). Es texto: el archivo original (PDF, Word) se sube desde la pantalla.",
+    "(nombre de list_documents; sin él, General). Es texto: para subir el archivo original (PDF, Word), usa create_upload_link.",
   inputSchema: {
     type: "object",
     properties: {
@@ -364,5 +367,128 @@ const moveDocumentTool: ToolSpec<z.infer<typeof moveArgs>> = {
   },
 };
 
-export const LIBRARY_TOOLS = [listLibrary, addToLibrary, updateLibraryEntry, createDocumentGroup, renameDocumentGroup, moveDocumentTool];
+/* ============================== Enlace de subida ============================== */
+
+const linkArgs = z
+  .object({
+    note: z.string().trim().max(UPLOAD_LINK_NOTE_MAX).optional(),
+    tags: tagsSchema.default([]),
+    in_chat: z.boolean().default(true),
+    rag: z.boolean().default(false),
+    rag_group: z.string().trim().min(1).max(60).optional(),
+  })
+  .refine((a) => a.in_chat || a.rag, "Al menos un destino: in_chat o rag");
+
+const createUploadLinkTool: ToolSpec<z.infer<typeof linkArgs>> = {
+  name: "create_upload_link",
+  title: "Pedir archivos con un enlace de subida",
+  description:
+    "Para subir archivos (PDF, Word, texto, imagen) a la Biblioteca: crea un enlace de un solo uso que la persona abre con su sesión " +
+    `del CRM y ahí sube hasta ${UPLOAD_LINK_MAX_FILES} archivos (dura un día). Dale el enlace tal cual. note: lo que verá arriba (p. ej. ` +
+    "«Sube los PDF de las carreras»). tags, in_chat y rag (en rag_group) se aplican a cada archivo. Después, check_upload_link dice qué subió.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      note: { type: "string", maxLength: UPLOAD_LINK_NOTE_MAX },
+      tags: { type: "array", items: { type: "string" }, maxItems: KNOWLEDGE_TAGS_MAX },
+      in_chat: { type: "boolean", default: true },
+      rag: { type: "boolean", default: false },
+      rag_group: { type: "string" },
+    },
+    additionalProperties: false,
+  },
+  parse: linkArgs,
+  scope: "write",
+  permission: "knowledge.manage",
+  area: "agents",
+  serial: true,
+  available: libraryOn,
+  run: async ({ session, connectionId }, args) => {
+    const org = session.organizationId;
+    if (args.rag && !(await ragAllowed(session))) return fail("No puedes entrenar a la IA del CRM desde aquí", "sin lectura IA");
+    let groupId: string | null = null;
+    if (args.rag) {
+      const g = await groupByName(org, args.rag_group);
+      if ("missing" in g) return fail(`No existe el grupo «${args.rag_group}». Los que hay: ${g.missing.join(", ")}`, "grupo desconocido");
+      groupId = g.id;
+    }
+    const link = await createUploadLink({
+      organizationId: org,
+      userId: session.userId,
+      connectionId,
+      note: args.note || null,
+      tags: parseTags(args.tags),
+      inChat: args.in_chat,
+      rag: args.rag,
+      ragGroupId: groupId,
+    });
+    return {
+      data: {
+        ok: true,
+        link_id: link.id,
+        url: link.url,
+        expires_at: link.expiresAt.toISOString(),
+        max_files: UPLOAD_LINK_MAX_FILES,
+        instructions: "Comparte el enlace con la persona; solo ella lo abre, con su sesión del CRM.",
+      },
+      summary: "creó un enlace para subir archivos",
+    };
+  },
+};
+
+const checkLinkArgs = z.object({ link_id: z.string().min(1).max(60) });
+
+const checkUploadLinkTool: ToolSpec<z.infer<typeof checkLinkArgs>> = {
+  name: "check_upload_link",
+  title: "Ver lo que se subió por un enlace",
+  description:
+    "Qué archivos subió la persona por un enlace de create_upload_link (link_id): estado del enlace (open, closed, expired, full) " +
+    "y cada entrada de la Biblioteca con su id, título, archivo y destinos. Para editarlas usa update_library_entry.",
+  inputSchema: {
+    type: "object",
+    properties: { link_id: { type: "string" } },
+    required: ["link_id"],
+    additionalProperties: false,
+  },
+  parse: checkLinkArgs,
+  scope: "read",
+  permission: "knowledge.manage",
+  area: "agents",
+  available: libraryOn,
+  run: async ({ session }, args) => {
+    const org = session.organizationId;
+    const link = await getUploadLink(org, session.userId, args.link_id);
+    if (!link) return fail("No existe ese enlace (o no es tuyo)", "enlace desconocido");
+    const rows = (await Promise.all(link.entryIds.map((id) => getKnowledge(org, id)))).filter(
+      (r): r is NonNullable<typeof r> => r !== null
+    );
+    const entries = await withRag(org, rows);
+    return {
+      data: {
+        state: stateOf(link),
+        expires_at: link.expiresAt.toISOString(),
+        files: entries.map((e) => ({
+          id: e.id,
+          title: e.title,
+          file: e.file?.name ?? null,
+          tags: e.tags,
+          in_chat: e.showInChat,
+          rag: e.rag ? { document_id: e.rag.documentId, status: e.rag.status } : null,
+        })),
+      },
+      summary: `${entries.length} archivos subidos por el enlace`,
+    };
+  },
+};
+
+export const LIBRARY_TOOLS = [
+  listLibrary,
+  addToLibrary,
+  updateLibraryEntry,
+  createDocumentGroup,
+  renameDocumentGroup,
+  moveDocumentTool,
+  createUploadLinkTool,
+  checkUploadLinkTool,
+];
 

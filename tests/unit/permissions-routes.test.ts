@@ -51,6 +51,9 @@ const PROTEGIDAS: [string, Method, Permission][] = [
   ["settings/ai-connector", "GET", "settings.manage"],
   ["settings/ai-connector", "PUT", "settings.manage"],
   ["settings/ai-connector/activity", "GET", "settings.manage"],
+  // 047: el enlace de subida que pide la IA sube a la Biblioteca como la pantalla.
+  ["ai-connector/upload-links/[token]/files", "POST", "knowledge.manage"],
+  ["ai-connector/upload-links/[token]/close", "POST", "knowledge.manage"],
   ["settings/branding/favicon", "PUT", "settings.manage"],
   ["settings/branding/favicon", "DELETE", "settings.manage"],
   ["settings/whatsapp", "GET", "settings.manage"],
