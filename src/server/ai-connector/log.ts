@@ -55,7 +55,7 @@ export async function messagesSentLastDay(organizationId: string, userId: string
         organizationId,
         and(
           eq(schema.aiActionLog.userId, userId),
-          inArray(schema.aiActionLog.tool, ["send_message", "send_template"]),
+          inArray(schema.aiActionLog.tool, ["send_message", "send_template", "send_material"]),
           eq(schema.aiActionLog.outcome, "ok"),
           gt(schema.aiActionLog.at, new Date(now.getTime() - 24 * 60 * 60 * 1000))
         )

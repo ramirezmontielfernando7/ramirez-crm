@@ -261,6 +261,7 @@ describe("conexión directa — guardarraíles del envío", () => {
       "src/app/api/my-number/chats/[id]/messages/media/route.ts",
       "src/app/api/my-number/chats/[id]/messages/route.ts",
       "src/server/ai-connector/my-number.ts",
+      "src/server/mi-numero/knowledge.ts",
     ]);
     // La IA conectada solo manda TEXTO, solo a chats de cliente de SU número
     // (`aiNumberChat` lo revisa justo antes) y con el quinto interruptor.

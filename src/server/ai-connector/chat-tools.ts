@@ -13,7 +13,16 @@ import { getOrCreateConversation } from "@/server/inbox/ingest";
 import { setConversationArchived } from "@/server/inbox/lifecycle";
 import { assertMayStartChat, NewNumberError, openChat } from "@/server/inbox/new-number";
 import { getConversation, updateConversation } from "@/server/inbox/queries";
+import { aiNumberChat, aiNumberOf } from "@/server/ai-connector/my-number";
+import { applyClientMark, openNumberChat } from "@/server/mi-numero/chats";
+import { miNumeroMessage } from "@/server/mi-numero/http";
+import { MiNumeroFailure } from "@/server/mi-numero/numbers";
 import { SendError } from "@/server/inbox/send";
+import { deliverKnowledgeEntry, KnowledgeDeliveryError } from "@/server/knowledge/deliver";
+import { deliverKnowledgeToMyNumber } from "@/server/mi-numero/knowledge";
+import { getKnowledgeForChat } from "@/server/knowledge/store";
+import { orgHasModule } from "@/server/modules";
+import { MediaValidationError } from "@/server/whatsapp/media";
 import { isWindowOpen } from "@/server/inbox/window";
 import { countVariables } from "@/lib/templates";
 import { sendTemplate, templateSendability, TemplateError } from "@/server/whatsapp/templates";
@@ -25,7 +34,7 @@ import { sendTemplate, templateSendability, TemplateError } from "@/server/whats
  * del chat. Cada una por la MISMA puerta que la pantalla
  * (`openChat`/`assertMayStartChat`, `sendTemplate`, `updateConversation`),
  * así que el asesor solo abre lo suyo y respeta «Chats nuevos de los
- * asesores». Solo chats de la empresa: «Mi número» no se abre desde aquí.
+ * asesores». Con inbox=mi_numero abre en el WhatsApp propio (nunca cae a la empresa).
  */
 
 function fail(error: string, summary: string, extra: Partial<ToolOutcome> = {}): ToolOutcome {
@@ -62,8 +71,60 @@ const openChatArgs = z
     contact_id: z.string().min(1).max(60).optional(),
     phone: z.string().trim().min(1).max(40).optional(),
     name: z.string().trim().min(1).max(120).optional(),
+    inbox: z.enum(["empresa", "mi_numero"]).default("empresa"),
   })
   .refine((a) => Boolean(a.contact_id) !== Boolean(a.phone), "Indica contact_id o phone (solo uno)");
+
+/** Abre el chat en el WhatsApp propio de la persona. Nunca cae a la empresa: si no se puede, error claro. */
+async function openInMyNumber(
+  session: SessionContext,
+  args: { contact_id?: string; phone?: string; name?: string }
+): Promise<ToolOutcome> {
+  const number = await aiNumberOf(session);
+  if (!number) {
+    return fail(
+      "Tu IA no puede usar «Mi número»: necesitas tu número conectado y encender «Compartir mis clientes» y «Mi IA puede ver y contestar mis chats» en Ajustes → Mi número. No se abrió nada en la empresa.",
+      "mi número no disponible"
+    );
+  }
+  let phone = args.phone;
+  if (!phone) {
+    const contact = await getContactById(session.access, args.contact_id!);
+    if (!contact || contact.privateToNumberId) return CONTACT_NOT_FOUND;
+    phone = contact.phone ?? contact.waIdentity ?? undefined;
+    if (!phone) return fail("Este contacto no tiene un WhatsApp a dónde escribir", "sin WhatsApp", { contactId: contact.id });
+  }
+  try {
+    const { conversationId } = await openNumberChat(session.organizationId, session.userId, { phone, name: args.name });
+    const chat = await aiNumberChat(session, conversationId);
+    if (!chat) {
+      // La IA solo toca chats de cliente: al pedirlo la persona, el chat se marca como cliente.
+      const [row] = await getDb()
+        .select()
+        .from(schema.conversation)
+        .where(scoped(schema.conversation.organizationId, session.organizationId, eq(schema.conversation.id, conversationId)))
+        .limit(1);
+      if (row) await applyClientMark(number, row, session.userId);
+    }
+    const fresh = chat ?? (await aiNumberChat(session, conversationId));
+    if (!fresh) return fail("No se pudo dejar el chat listo para la IA", "no se abrió");
+    return {
+      data: {
+        ok: true,
+        inbox: "mi_numero",
+        conversation_id: conversationId,
+        contact: { id: fresh.contact.id, name: fresh.contact.name, phone: fresh.contact.phone },
+        window_open: true,
+      },
+      summary: "abrió un chat en mi número",
+      conversationId,
+      contactId: fresh.contact.id,
+    };
+  } catch (err) {
+    if (err instanceof MiNumeroFailure) return fail(miNumeroMessage(err.code), `no se abrió (${err.code})`);
+    throw err;
+  }
+}
 
 const openChatTool: ToolSpec<z.infer<typeof openChatArgs>> = {
   name: "open_chat",
@@ -72,19 +133,23 @@ const openChatTool: ToolSpec<z.infer<typeof openChatArgs>> = {
     "Abre (o crea, vacío) el chat de WhatsApp de la empresa con un contacto, igual que «Abrir chat» en la Bandeja: " +
     "por contact_id (por ejemplo, uno recién importado) o por phone (si el número no existe, registra el contacto con name). " +
     "No envía nada. Devuelve conversation_id y window_open: con la ventana cerrada, el primer mensaje por Meta " +
-    "tiene que ser una plantilla (send_template); en Conexión directa o híbrida también sirve send_message.",
+    "tiene que ser una plantilla (send_template); en Conexión directa o híbrida también sirve send_message. " +
+    "Con inbox=mi_numero lo abre en el WhatsApp PROPIO de la persona (su número conectado, sin ventana de 24 h) y lo marca como cliente " +
+    "para que send_message funcione; si no puede, da error y nunca abre el chat de la empresa.",
   inputSchema: {
     type: "object",
     properties: {
       contact_id: { type: "string", description: "Id del contacto (de list_chats, read_contact o una importación)" },
       phone: { type: "string", description: "Teléfono con lada, por ejemplo 5215512345678" },
       name: { type: "string", description: "Nombre, solo si el teléfono es nuevo" },
+      inbox: { type: "string", enum: ["empresa", "mi_numero"], default: "empresa" },
     },
     additionalProperties: false,
   },
   parse: openChatArgs,
   scope: "write",
   run: async ({ session }, args) => {
+    if (args.inbox === "mi_numero") return openInMyNumber(session, args);
     try {
       if (args.phone) {
         const opened = await openChat(session, args.phone);
@@ -360,5 +425,82 @@ const updateChatTool: ToolSpec<z.infer<typeof updateChatArgs>> = {
   },
 };
 
+const sendMaterialArgs = z.object({
+  conversation_id: z.string().min(1).max(60),
+  material_id: z.string().min(1).max(64),
+  mode: z.enum(["file", "text"]).default("file"),
+});
+
+const sendMaterialTool: ToolSpec<z.infer<typeof sendMaterialArgs>> = {
+  name: "send_material",
+  title: "Enviar material (archivo o texto)",
+  description:
+    "Envía una entrada de Conocimientos (id de list_materials) a un chat, igual que «Enviar archivo» / «Enviar texto» en la Bandeja: " +
+    "mode=file manda la imagen o PDF de la entrada con su texto como pie (si cabe); mode=text solo el texto. Funciona en chats de la empresa " +
+    "y de mi_numero (por tu WhatsApp propio). Cuenta para el tope diario de mensajes.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      conversation_id: { type: "string" },
+      material_id: { type: "string", description: "Id de list_materials" },
+      mode: { type: "string", enum: ["file", "text"], default: "file" },
+    },
+    required: ["conversation_id", "material_id"],
+    additionalProperties: false,
+  },
+  parse: sendMaterialArgs,
+  scope: "write",
+  serial: true,
+  available: (org) => orgHasModule(org, "knowledge"),
+  run: async ({ session, connectionId, assistantName }: ToolContext, args) => {
+    const found = await getConversation(session.access, args.conversation_id);
+    const numberChat = found ? null : await aiNumberChat(session, args.conversation_id);
+    if (!found && !numberChat) return CHAT_NOT_FOUND;
+    const ids = found
+      ? { conversationId: found.conversation.id, contactId: found.contact.id }
+      : { conversationId: numberChat!.conversation.id, contactId: numberChat!.contact.id };
+    const entry = await getKnowledgeForChat(session.organizationId, args.material_id);
+    if (!entry) return fail("No existe ese material (mira list_materials)", "material no encontrado", ids);
+    const { dailyMessageLimit } = await getConnectorSettings(session.organizationId);
+    if (dailyMessageLimit === 0) {
+      return fail("En esta empresa la IA conectada solo puede leer: no envía mensajes", "envío apagado", { ...ids, outcome: "denied" });
+    }
+    const sent = await messagesSentLastDay(session.organizationId, session.userId);
+    if (sent >= dailyMessageLimit) {
+      return fail(
+        `Llegaste al tope de ${dailyMessageLimit} mensajes en 24 horas para tu IA. Escríbelos desde la Bandeja o espera.`,
+        `tope diario (${dailyMessageLimit})`,
+        { ...ids, outcome: "limited" }
+      );
+    }
+    const via = { aiConnectionId: connectionId, aiSenderName: assistantName };
+    try {
+      const res = numberChat
+        ? await deliverKnowledgeToMyNumber(
+            { organizationId: session.organizationId, userId: session.userId, conversationId: ids.conversationId, via },
+            entry,
+            args.mode
+          )
+        : await deliverKnowledgeEntry(
+            { kind: "whatsapp_conversation", organizationId: session.organizationId, conversationId: ids.conversationId, via },
+            entry,
+            args.mode
+          );
+      return {
+        data: { ok: true, message_id: res.messageId, sent_today: sent + 1, daily_limit: dailyMessageLimit },
+        summary: `envió el material «${entry.title}» (${args.mode === "file" ? "archivo" : "texto"})`,
+        ...ids,
+      };
+    } catch (err) {
+      if (err instanceof KnowledgeDeliveryError || err instanceof MediaValidationError || err instanceof SendError) {
+        return fail(err.message, "no se envió", ids);
+      }
+      if (err instanceof MiNumeroFailure) return fail(miNumeroMessage(err.code), `no se envió (${err.code})`, ids);
+      if (err instanceof Error && err.name === "DirectSendFailure") return fail(err.message, "no se envió", ids);
+      throw err;
+    }
+  },
+};
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- cada herramienta valida sus propios argumentos
-export const CHAT_TOOLS: readonly ToolSpec<any>[] = [openChatTool, listChatTemplates, sendTemplateTool, updateChatTool];
+export const CHAT_TOOLS: readonly ToolSpec<any>[] = [openChatTool, listChatTemplates, sendTemplateTool, sendMaterialTool, updateChatTool];

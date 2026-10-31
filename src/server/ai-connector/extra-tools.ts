@@ -41,7 +41,7 @@ const listMaterials: ToolSpec<z.infer<typeof listMaterialsArgs>> = {
   title: "Ver el material para enviar",
   description:
     "El material que el equipo envía en los chats (Conocimientos de la Bandeja): título, texto, etiquetas y si trae archivo. " +
-    "Para mandarlo, usa send_message con su texto (puedes adaptarlo). Los archivos se envían desde la Bandeja.",
+    "Para mandarlo tal cual (con su imagen/PDF), usa send_material con su id; para adaptar el texto, send_message.",
   inputSchema: {
     type: "object",
     properties: { query: { type: "string", maxLength: 120 }, tag: { type: "string" } },

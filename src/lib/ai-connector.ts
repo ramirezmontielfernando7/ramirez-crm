@@ -273,6 +273,7 @@ export const ACTION_LABEL: Record<string, string> = {
   open_chat: "Abrió un chat",
   list_chat_templates: "Revisó las plantillas",
   send_template: "Envió una plantilla",
+  send_material: "Envió material (texto o archivo)",
   update_chat: "Archivó, marcó leído o pausó la IA de un chat",
   // PR 6 — Funciones avanzadas
   export_contacts: "Exportó contactos",

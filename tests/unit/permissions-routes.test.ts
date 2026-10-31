@@ -368,6 +368,7 @@ const POR_AUTOR: [string, Method][] = [
   ["my-number/chats/[id]/messages", "GET"],
   ["my-number/chats/[id]/messages", "POST"],
   ["my-number/chats/[id]/messages/media", "POST"],
+  ["my-number/chats/[id]/messages/knowledge", "POST"],
   ["my-number/chats/[id]/client", "POST"],
   ["my-number/chats/[id]/client", "DELETE"],
   ["my-number/chats/[id]/client", "PUT"],

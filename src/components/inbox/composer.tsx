@@ -379,12 +379,16 @@ export function Composer({
       return;
     }
     setSending(true);
-    // Por un número sale el texto de la entrada (su adjunto no).
-    const err = numberChat ? await onSend(entry.body) : await apiSend(`/api/conversations/${conversation.id}/messages/knowledge`, {
+    const err = await apiSend(
+      numberChat
+        ? `/api/my-number/chats/${conversation.id}/messages/knowledge`
+        : `/api/conversations/${conversation.id}/messages/knowledge`,
+      {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ entryId: entry.id, mode: action }),
-    });
+      }
+    );
     setSending(false);
     if (err) {
       setError(err);

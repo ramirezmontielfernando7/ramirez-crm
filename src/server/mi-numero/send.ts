@@ -68,5 +68,5 @@ export async function sendFromMyNumber(
       fetchStatus: "available",
     })
     .returning();
-  return sendDirect({ organizationId, conversationId: conversation.id, type: kind, text: null, mediaAsset: asset!, number: scope });
+  return sendDirect({ organizationId, conversationId: conversation.id, type: kind, text: null, mediaAsset: asset!, number: scope, ...via });
 }
