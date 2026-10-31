@@ -471,6 +471,9 @@ export async function sendMediaMessage(input: {
   organizationId: string;
   file: { data: Buffer; mimeType: string; fileName?: string };
   caption?: string;
+  /** 047 — lo pidió la IA conectada de una persona (se firma como en el texto). */
+  aiConnectionId?: string;
+  aiSenderName?: string | null;
 } & SendOptions): Promise<SendResult> {
   // Validación previa (FR-007): tipo y tamaño antes de tocar disco o red.
   const kind = validateOutgoing(input.file.mimeType, input.file.data.byteLength, input.file.fileName);
@@ -519,6 +522,8 @@ export async function sendMediaMessage(input: {
       type: kind,
       text: null,
       mediaAsset: asset,
+      aiConnectionId: input.aiConnectionId ?? null,
+      aiSenderName: input.aiSenderName ?? null,
     });
   }
 
@@ -551,6 +556,8 @@ export async function sendMediaMessage(input: {
       origin: "operator",
       mediaAssetId: assetId,
       media: asset,
+      aiConnectionId: input.aiConnectionId ?? null,
+      aiSenderName: input.aiSenderName ?? null,
     });
     return { messageId };
   } catch (err) {

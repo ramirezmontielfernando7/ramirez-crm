@@ -22,6 +22,7 @@ export type KnowledgeTarget =
       kind: "whatsapp_conversation";
       organizationId: string;
       conversationId: string;
+      via?: { aiConnectionId: string; aiSenderName: string | null };
     }
   | {
       kind: "internal_chat";
@@ -59,6 +60,7 @@ export async function deliverKnowledgeEntry(
           conversationId: target.conversationId,
           organizationId: target.organizationId,
           text,
+          ...target.via,
         });
       }
       if (!entry.filePath || !entry.fileMime) {
@@ -74,6 +76,7 @@ export async function deliverKnowledgeEntry(
           fileName: entry.fileName ?? undefined,
         },
         caption: body && body.length <= CAPTION_MAX ? body : undefined,
+        ...target.via,
       });
     }
     case "internal_chat": {
