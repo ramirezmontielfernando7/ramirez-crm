@@ -482,7 +482,7 @@ const sendMaterialTool: ToolSpec<z.infer<typeof sendMaterialArgs>> = {
             args.mode
           )
         : await deliverKnowledgeEntry(
-            { kind: "whatsapp_conversation", organizationId: session.organizationId, conversationId: ids.conversationId, allowDirect: true, via },
+            { kind: "whatsapp_conversation", organizationId: session.organizationId, conversationId: ids.conversationId, via },
             entry,
             args.mode
           );

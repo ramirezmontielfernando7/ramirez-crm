@@ -95,7 +95,7 @@ type SendResult = {
  * IA, las campañas, el cerebro externo, las bajas automáticas y las
  * plantillas no lo pasan: salen por Meta, siempre.
  */
-type SendOptions = { allowDirect?: boolean };
+export type SendOptions = { allowDirect?: boolean };
 
 /**
  * PR 6 — Solo para `prepareSend`: un texto de la IA. Sale por el dispositivo

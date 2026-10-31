@@ -1,4 +1,4 @@
-import { sendMediaMessage, sendText } from "@/server/inbox/send";
+import { sendMediaMessage, sendText, type SendOptions } from "@/server/inbox/send";
 import type { SessionContext } from "@/lib/auth/session";
 import { TEAM_MESSAGE_MAX } from "@/lib/team-chat";
 import { postMessage } from "@/server/team-chat/messages";
@@ -22,8 +22,8 @@ export type KnowledgeTarget =
       kind: "whatsapp_conversation";
       organizationId: string;
       conversationId: string;
-      /** Misma vía que el chat en la Bandeja (Meta, Directa o Híbrida). */
-      allowDirect?: boolean;
+      /** Opciones de envío de la ruta que llama (la Bandeja pide la misma vía que el chat). */
+      sendOptions?: SendOptions;
       via?: { aiConnectionId: string; aiSenderName: string | null };
     }
   | {
@@ -62,7 +62,7 @@ export async function deliverKnowledgeEntry(
           conversationId: target.conversationId,
           organizationId: target.organizationId,
           text,
-          allowDirect: target.allowDirect,
+          ...target.sendOptions,
           ...target.via,
         });
       }
@@ -79,7 +79,7 @@ export async function deliverKnowledgeEntry(
           fileName: entry.fileName ?? undefined,
         },
         caption: body && body.length <= CAPTION_MAX ? body : undefined,
-        allowDirect: target.allowDirect,
+        ...target.sendOptions,
         ...target.via,
       });
     }

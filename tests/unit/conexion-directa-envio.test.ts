@@ -283,6 +283,7 @@ describe("conexión directa — guardarraíles del envío", () => {
   it("allowDirect: true solo en las rutas de la Bandeja y en la IA conectada de una persona (047, Fer 2026-10-28)", () => {
     const quien = todos.filter((f) => /allowDirect:\s*true/.test(f.src)).map((f) => f.rel);
     expect(quien.sort()).toEqual([
+      "src/app/api/conversations/[id]/messages/knowledge/route.ts",
       "src/app/api/conversations/[id]/messages/media/route.ts",
       "src/app/api/conversations/[id]/messages/route.ts",
       "src/server/ai-connector/tools.ts",
