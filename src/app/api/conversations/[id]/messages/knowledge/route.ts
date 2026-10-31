@@ -46,7 +46,7 @@ export const POST = withAuth(async (session, req: Request, ctx: Params) => {
 
   try {
     const result = await deliverKnowledgeEntry(
-      { kind: "whatsapp_conversation", organizationId: session.organizationId, conversationId: id },
+      { kind: "whatsapp_conversation", organizationId: session.organizationId, conversationId: id, sendOptions: { allowDirect: true } },
       entry,
       body.data.mode
     );
