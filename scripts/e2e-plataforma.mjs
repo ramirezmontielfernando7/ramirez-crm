@@ -956,7 +956,7 @@ async function costoAsistente(orgId) {
   const [r] = await sql`
     select coalesce(sum(prompt_tokens), 0)::int as p, coalesce(sum(completion_tokens), 0)::int as c,
            coalesce(sum(cost_usd), 0)::float as usd, coalesce(sum(turns), 0)::int as turnos
-    from ai_usage where organization_id = ${orgId} and kind = 'assistant'`;
+    from ai_usage where organization_id = ${orgId} and kind in ('assistant', 'analysis')`;
   return r;
 }
 
@@ -1203,20 +1203,24 @@ async function asistenteAnalisis(A, B, orgB) {
   await page.screenshot({ path: "scratch/e2e-asistente-analisis.png", fullPage: true }).catch(() => null);
   await page.close();
 
-  // 6. Se acaba el crédito a media pregunta: dice cuántas alcanzó, sin inventar.
+  // 6. Crédito casi agotado. DF-04: cada llamada RESERVA su peor caso antes de
+  // salir; si no cabe, no se llama (antes se dejaba pasar una y se pasaba del
+  // tope). El camino «Alcancé a revisar X de Y» cuando se corta a media
+  // pregunta lo cubre tests/unit/asistente-motor.test.ts.
   for (let i = 0; i < 3; i++) {
     await sembrarChat(orgB, `Cliente Tope ${i} ${RUN}`, [
       { d: "in", t: `Buenas, ¿qué horarios tienen para la clase ${i}? Me interesa la de la tarde` },
       { d: "out", t: "Tenemos de 4 a 6" },
     ], 1);
   }
-  const usado = (await costoAsistente(orgB)).p + (await costoAsistente(orgB)).c;
-  await A.call("PUT", `/api/platform/organizations/${orgB}/limits`, { assistantTokens: usado + 1 });
+  const antes6 = await costoAsistente(orgB);
+  await A.call("PUT", `/api/platform/organizations/${orgB}/limits`, { assistantTokens: antes6.p + antes6.c + 1 });
   const r6 = await preguntar(B, "Dame el análisis de mis conversaciones");
-  ok("crédito agotado a media pregunta: responde con lo que alcanzó", r6.status === 200 && /^Alcancé a revisar \d+ de \d+ conversaciones/.test(r6.json?.answer?.content ?? "") && /faltan \d+/.test(r6.json?.answer?.content ?? ""), `${r6.status} ${JSON.stringify(r6.json).slice(0, 300)}`);
-  ok("…sin inventar el resto (cobertura con faltantes y aviso)", r6.json?.answer?.meta?.coverage?.faltan >= 3 && r6.json?.answer?.meta?.flags?.includes("analysis_partial"), JSON.stringify(r6.json?.answer?.meta));
+  const d6 = await costoAsistente(orgB);
+  ok("crédito sin espacio para una llamada segura: no pregunta (409) y lo dice", r6.status === 409 && /agotó su crédito/.test(r6.json?.error?.message ?? ""), `${r6.status} ${JSON.stringify(r6.json).slice(0, 300)}`);
+  ok("…sin llamar al modelo ni pasarse del tope", d6.turnos === antes6.turnos && d6.p + d6.c === antes6.p + antes6.c, JSON.stringify({ antes6, d6 }));
   const r7 = await preguntar(B, "¿y ahora?");
-  ok("…y la siguiente pregunta ya no corre (409, crédito agotado)", r7.status === 409 && /agotó su crédito/.test(r7.json?.error?.message ?? ""), `${r7.status}`);
+  ok("…y la siguiente pregunta tampoco corre (409, crédito agotado)", r7.status === 409 && /agotó su crédito/.test(r7.json?.error?.message ?? ""), `${r7.status}`);
 
   await A.call("POST", `/api/platform/organizations/${orgB}/modules`, { asistente: false });
   await A.call("PUT", `/api/platform/organizations/${orgB}/limits`, { assistantTokens: null, aiTokens: null });

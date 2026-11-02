@@ -58,8 +58,10 @@ la app viva, los mocks y `PLATFORM_ORG_ID` = la organización de
    nuevos → CERO llamadas de análisis («reutilizadas»). Un mensaje nuevo →
    una llamada (solo esa). 25 chats nuevos → 4 lotes de 5, «faltan 5» y aviso
    de análisis parcial. En pantalla, «Conversaciones revisadas: X de Y».
-   Crédito agotado a media pregunta → «Alcancé a revisar X de Y…; faltan Z»
-   sin inventar; la siguiente → 409. Imprime el costo de la primera pasada y
+   Crédito sin espacio para una llamada segura (DF-04: cada llamada reserva
+   su peor caso antes de salir) → 409 sin llamar al modelo ni pasarse del
+   tope; la siguiente → 409 («Alcancé a revisar X de Y…» a media pregunta lo
+   cubre la prueba unitaria del motor). Imprime el costo de la primera pasada y
    de una pregunta con el tope.
 5. Suspender B: su sesión → 401; su login → 403 con «Tu negocio está
    suspendido» (también en la pantalla); su webhook → 200 pero el evento va a
