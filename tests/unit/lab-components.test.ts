@@ -185,7 +185,8 @@ describe("pantallas del Laboratorio", () => {
   it("la vista previa solo habla con /api/lab/preview (no toca la Bandeja ni WhatsApp)", () => {
     const src = leer("components/lab/agent-preview.tsx");
     const rutas = [...src.matchAll(/["'`](\/api\/[^"'`]*)["'`]/g)].map((m) => m[1]);
-    expect(rutas).toEqual(["/api/lab/preview"]);
+    // «Revisar este chat» (/api/lab/review) solo analiza la conversación de prueba.
+    expect(rutas).toEqual(["/api/lab/review", "/api/lab/preview"]);
   });
 
   it("«Hacer general» avisa del cerebro externo (/api/bot/profile) antes de confirmar", () => {

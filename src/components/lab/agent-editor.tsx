@@ -4,8 +4,10 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, ChevronDown, Pencil } from "lucide-react";
+import type { CreatorField } from "@/lib/agent-creator";
 import { AgentConfigForm } from "@/components/agent/agent-config-form";
 import { AgentDocSources, AgentExclusiveDocs, ArchiveExclusiveDocsChoice } from "@/components/lab/agent-doc-sources";
+import { AgentCreator } from "@/components/lab/agent-creator";
 import { AgentKbPanel } from "@/components/lab/agent-kb-panel";
 import { AgentPreview } from "@/components/lab/agent-preview";
 import { ConfirmDialog } from "@/components/lab/confirm-dialog";
@@ -70,6 +72,7 @@ export function AgentEditor({ id, documents = false }: { id: string; documents?:
   const [summary, setSummary] = useState<AgentSummary | null>(null);
   const [versions, setVersions] = useState<AgentVersion[] | null>(null);
   const [tab, setTab] = useState<"config" | "probar">("config");
+  const [mode, setMode] = useState<"creator" | "form">("creator");
   const [dialog, setDialog] = useState<Dialog>(null);
   const [restoring, setRestoring] = useState<AgentVersion | null>(null);
   const [busy, setBusy] = useState(false);
@@ -204,6 +207,11 @@ export function AgentEditor({ id, documents = false }: { id: string; documents?:
     setRenaming(false);
   }
 
+  /** El creador y «Revisar este chat» escriben en el borrador del formulario (nada se guarda solo). */
+  function setField(field: CreatorField, value: string | null) {
+    setCfg((c) => (c ? { ...c, [field]: value } : c));
+  }
+
   const kbKey = String(cfg.useSharedKb);
   const status = dirty ? "Cambios sin guardar" : STATUS_LABEL[agent.status];
 
@@ -271,7 +279,26 @@ export function AgentEditor({ id, documents = false }: { id: string; documents?:
 
       <div className="grid min-h-0 flex-1 lg:grid-cols-[45fr_55fr]">
         {/* Izquierda: formulario */}
-        <div className={cn("min-h-0 overflow-y-auto", tab === "probar" && "hidden lg:block")}>
+        <div className={cn("flex min-h-0 flex-col", tab === "probar" && "hidden lg:flex")}>
+          <div role="group" aria-label="Cómo configurar" className="flex gap-1.5 border-b px-4 py-2 sm:px-6">
+            {(["creator", "form"] as const).map((m) => (
+              <button
+                key={m}
+                type="button"
+                aria-pressed={mode === m}
+                onClick={() => setMode(m)}
+                className={cn("rounded-full px-3 py-1 text-xs font-medium", mode === m ? "bg-brand-tint text-brand-ink" : "text-muted-foreground hover:bg-accent")}
+              >
+                {m === "creator" ? "Creador conversacional" : "Formulario"}
+              </button>
+            ))}
+          </div>
+          {mode === "creator" && (
+            <div className="min-h-0 flex-1">
+              <AgentCreator config={cfg} onField={setField} />
+            </div>
+          )}
+          <div className={cn("min-h-0 flex-1 overflow-y-auto", mode === "creator" && "hidden")}>
           <div className="mx-auto max-w-xl space-y-5 p-4 sm:p-6">
             {agent.isGeneral && (
               <p className="rounded-md bg-brand-tint px-3 py-2 text-sm">
@@ -371,11 +398,12 @@ export function AgentEditor({ id, documents = false }: { id: string; documents?:
               </div>
             </Collapsible>
           </div>
+          </div>
         </div>
 
         {/* Derecha: vista previa */}
         <div className={cn("min-h-0 border-l", tab === "config" && "hidden lg:block")}>
-          <AgentPreview agentId={id} config={cfg} />
+          <AgentPreview agentId={id} config={cfg} onApplyField={setField} />
         </div>
       </div>
 

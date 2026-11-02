@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ChevronDown, FlaskConical, RotateCcw, Send } from "lucide-react";
+import { ChevronDown, FlaskConical, RotateCcw, Send, Sparkles } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { MessageBubble } from "@/components/inbox/message-bubble";
+import { AgentReview, type ReviewSuggestionDto } from "@/components/lab/agent-review";
 import { call, type AgentConfig } from "@/components/lab/agents-api";
+import type { CreatorField } from "@/lib/agent-creator";
 import type { MessageDto } from "@/lib/types";
 
 type Chip = { kind: string; label: string };
@@ -49,16 +51,33 @@ function asDto(id: string, direction: "in" | "out", text: string): MessageDto {
  * HOY en el formulario aunque no esté guardado. No ejecuta nada: lo que el
  * agente haría sale como chips. Solo gasta cuota de IA.
  */
-export function AgentPreview({ agentId, config }: { agentId: string; config: AgentConfig }) {
+export function AgentPreview({ agentId, config, onApplyField }: { agentId: string; config: AgentConfig; onApplyField?: (field: CreatorField, value: string) => void }) {
   const [turns, setTurns] = useState<Turn[]>([]);
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
+  const [review, setReview] = useState<{ summary: string; suggestions: ReviewSuggestionDto[] } | null>(null);
+  const [reviewing, setReviewing] = useState(false);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ block: "end" });
   }, [turns.length, sending]);
+
+  /** «Revisar este chat»: la IA analiza la conversación de prueba y sugiere ajustes. */
+  async function reviewChat() {
+    if (reviewing) return;
+    const transcript = turns.filter((t) => t.text).map((t) => ({ role: t.role, text: t.text as string })).slice(-MAX_HISTORY);
+    setReviewing(true);
+    setError(null);
+    const r = await call<{ summary: string; suggestions: ReviewSuggestionDto[] }>("/api/lab/review", { method: "POST", json: { config, transcript } });
+    setReviewing(false);
+    if (!r.ok) {
+      setError(r.code === "quota_exceeded" ? "Se agotó la cuota mensual de IA de tu negocio." : r.message);
+      return;
+    }
+    setReview(r.data);
+  }
 
   async function send() {
     const message = text.trim();
@@ -103,6 +122,7 @@ export function AgentPreview({ agentId, config }: { agentId: string; config: Age
           onClick={() => {
             setTurns([]);
             setError(null);
+            setReview(null);
           }}
           disabled={turns.length === 0 && !error}
         >
@@ -145,8 +165,19 @@ export function AgentPreview({ agentId, config }: { agentId: string; config: Age
           );
         })}
         {sending && <p className="mt-2.5 text-xs italic text-muted-foreground">escribiendo…</p>}
+        {onApplyField && turns.some((t) => t.role === "assistant") && !sending && !review && (
+          <div className="mt-3 flex justify-center">
+            <Button size="sm" variant="outline" disabled={reviewing} onClick={() => void reviewChat()}>
+              <Sparkles className="h-3.5 w-3.5" /> {reviewing ? "Revisando…" : "Revisar este chat"}
+            </Button>
+          </div>
+        )}
         <div ref={endRef} />
       </div>
+
+      {review && onApplyField && (
+        <AgentReview summary={review.summary} suggestions={review.suggestions} onApply={(s) => onApplyField(s.field, s.value)} onClose={() => setReview(null)} />
+      )}
 
       {error && (
         <p role="alert" className="border-t px-4 py-2 text-sm text-destructive">
