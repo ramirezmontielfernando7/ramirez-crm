@@ -66,6 +66,9 @@ export function assertNoOpenTransaction(): void {
   logger("ai").error("llamada al LLM dentro de una transacción", { err });
 }
 
+class ProviderHttpError extends Error {
+  constructor(readonly status: number) { super(`proveedor respondió ${status}`); }
+}
 const MAX_ATTEMPTS = 3;
 const RETRY_DELAY_MS = 500;
 
@@ -97,6 +100,7 @@ export async function chatJson<T>(
   }
 
   let lastDetail = "";
+  const invalidResponses = new Set<string>();
   const usage: LlmUsage = { promptTokens: 0, completionTokens: 0 };
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     const attemptMessages: ChatMessage[] =
@@ -117,7 +121,10 @@ export async function chatJson<T>(
       usage.promptTokens += reply.usage.promptTokens;
       usage.completionTokens += reply.usage.completionTokens;
       if (reply.usage.costUsd !== undefined) usage.costUsd = (usage.costUsd ?? 0) + reply.usage.costUsd;
+      if ("refusal" in reply && reply.refusal) return { ok: false, error: "invalid_output", detail: "El modelo se negó a responder", usage };
       const raw = reply.content;
+      if (invalidResponses.has(raw)) return { ok: false, error: "invalid_output", detail: "El proveedor repitió una respuesta inválida", usage };
+      invalidResponses.add(raw);
       const extracted = extractJson(raw);
       if (extracted === null) {
         lastDetail = `sin JSON extraíble (raw=${truncate(raw)})`;
@@ -133,6 +140,7 @@ export async function chatJson<T>(
       return { ok: true, data: parsed.data, raw, usage };
     } catch (err) {
       lastDetail = err instanceof Error ? err.message : String(err);
+      if (err instanceof ProviderHttpError && err.status >= 400 && err.status < 500 && ![408, 429].includes(err.status)) break;
       if (attempt < MAX_ATTEMPTS) {
         await sleep(RETRY_DELAY_MS * attempt);
       }
@@ -153,7 +161,7 @@ async function callProvider(
   model: string,
   messages: ChatMessage[],
   timeoutMs = 60_000
-): Promise<{ content: string; usage: LlmUsage }> {
+): Promise<{ content: string; usage: LlmUsage; refusal?: boolean }> {
   const env = getEnv();
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -171,11 +179,11 @@ async function callProvider(
     if (!res.ok) {
       const text = await res.text().catch(() => "");
       logProviderHttpError(model, res, text);
-      throw new Error(`proveedor respondió ${res.status}: ${truncate(text)}`);
+      throw new ProviderHttpError(res.status);
     }
     const json = (await res.json()) as {
       id?: unknown;
-      choices?: { message?: { content?: string } }[];
+      choices?: { message?: { content?: string; refusal?: string }; finish_reason?: string }[];
       usage?: { prompt_tokens?: unknown; completion_tokens?: unknown; cost?: unknown };
     };
     const cost = providerCost(json.usage?.cost);
@@ -185,11 +193,9 @@ async function callProvider(
       logger("ai").info("costo reportado por el proveedor", { generacion: typeof json.id === "string" ? json.id : null, modelo: model, costo_usd: cost });
     }
     const content = json.choices?.[0]?.message?.content;
-    if (typeof content !== "string" || content.length === 0) {
-      throw new Error("respuesta del proveedor sin contenido");
-    }
     return {
-      content,
+      content: typeof content === "string" ? content : "",
+      refusal: !!json.choices?.[0]?.message?.refusal || json.choices?.[0]?.finish_reason === "content_filter",
       usage: {
         promptTokens: tokens(json.usage?.prompt_tokens),
         completionTokens: tokens(json.usage?.completion_tokens),
@@ -211,7 +217,7 @@ async function callBedrockClaude(
   messages: ChatMessage[],
   effort: "low" | "medium",
   timeoutMs = 60_000
-): Promise<{ content: string; usage: LlmUsage }> {
+): Promise<{ content: string; usage: LlmUsage; refusal?: boolean }> {
   const env = getEnv();
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -230,7 +236,7 @@ async function callBedrockClaude(
     if (!res.ok) {
       const text = await res.text().catch(() => "");
       logProviderHttpError(model, res, text);
-      throw new Error(`proveedor respondió ${res.status}: ${truncate(text)}`);
+      throw new ProviderHttpError(res.status);
     }
     return fromMessagesResponse(await res.json());
   } finally {
