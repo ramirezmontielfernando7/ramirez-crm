@@ -12,7 +12,7 @@ import { sealForStorage } from "@/server/credentials";
 import { insertServer } from "@/server/credentials/direct";
 import { saveDirectLimits } from "@/server/direct-connection/limits";
 import { resetDirectQueueForTests } from "@/server/direct-connection/send";
-import { listMyChats } from "@/server/mi-numero/chats";
+import { listMyChats, markClient, unmarkClient } from "@/server/mi-numero/chats";
 import { ingestNumberMessages } from "@/server/mi-numero/inbound";
 import { myNumber, updateMyNumber } from "@/server/mi-numero/numbers";
 import { forgetOrgModules } from "@/server/modules";
@@ -157,6 +157,29 @@ describe("conector de IA — los chats de cliente de «Mi número» (PR 4b)", ()
     await borrarOrganizaciones([A.id]);
     await sys().delete(schema.evolutionServer).where(eq(schema.evolutionServer.id, serverId));
     await sys().delete(schema.user).where(inArray(schema.user.id, [owner, ana, beto]));
+  });
+
+  it("DF-02: open_chat no autoriza el historial privado; conserva clientes y respeta la política de nuevos", async () => {
+    await interruptor({ aiConnector: true, shareClients: true, clientByDefault: true });
+    const result = await herramienta(llaveAna, "open_chat", { inbox: "mi_numero", phone: "525533340002" });
+    expect(result.isError).toBe(true);
+    const [row] = await sys().select().from(schema.conversation).where(eq(schema.conversation.id, privado));
+    expect(row!.clientMarkedAt).toBeNull();
+    expect((await herramienta(llaveAna, "read_chat", { conversation_id: privado })).isError).toBe(true);
+    expect((await herramienta(llaveBeto, "open_chat", { inbox: "mi_numero", phone: "525533340002" })).isError).toBe(true);
+    expect((await herramienta(llaveAna, "open_chat", { inbox: "mi_numero", phone: "525533340001" })).isError).toBe(false);
+    const nuevo = await herramienta(llaveAna, "open_chat", { inbox: "mi_numero", phone: "525533349999" });
+    expect(nuevo.isError).toBe(false);
+    expect((await herramienta(llaveAna, "read_chat", { conversation_id: nuevo.structuredContent.conversation_id })).structuredContent.messages).toEqual([]);
+    await runWithOrganization(A.id, () => markClient(A.id, ana, privado));
+    expect((await herramienta(llaveAna, "open_chat", { inbox: "mi_numero", phone: "525533340002" })).isError).toBe(false);
+    expect((await herramienta(llaveAna, "read_chat", { conversation_id: privado })).structuredContent.messages.map((m: any) => m.text)).toEqual(["hola, soy tu primo"]);
+    await runWithOrganization(A.id, () => unmarkClient(A.id, ana, privado));
+    await interruptor({ clientByDefault: false });
+    expect((await herramienta(llaveAna, "open_chat", { inbox: "mi_numero", phone: "525533349998" })).isError).toBe(true);
+    // No altera las listas de los demás casos de esta suite.
+    await sys().delete(schema.conversation).where(eq(schema.conversation.id, nuevo.structuredContent.conversation_id));
+    await interruptor({ aiConnector: false, shareClients: false });
   });
 
   it("apagado (de fábrica): la IA no ve ni contesta ningún chat del número", async () => {
