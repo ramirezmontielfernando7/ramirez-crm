@@ -18,4 +18,8 @@ describe("DF-17: mensajes de Embedded Signup", () => {
     expect(readSignupMessage(message("https://www.facebook.com", null), popup)).toBeNull();
     expect(readSignupMessage(message("https://www.facebook.com"), null)).toBeNull();
   });
+  it("si no se pudo capturar el popup, basta el origen exacto (sin romper la conexión)", () => {
+    expect(readSignupMessage(message("https://www.facebook.com", {} as Window), undefined)?.kind).toBe("finish");
+    expect(readSignupMessage(message("https://evilfacebook.com", {} as Window), undefined)).toBeNull();
+  });
 });

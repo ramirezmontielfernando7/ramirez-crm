@@ -65,9 +65,13 @@ function loadSdk(config: EmbeddedSignupConfig): Promise<FbSdk> {
 }
 
 /** Lee el `postMessage` del flujo de Meta. Null si no es suyo o no trae lo que se usa. */
-export function readSignupMessage(event: MessageEvent, expectedSource?: MessageEventSource | null): { kind: "finish"; data: SignupData } | { kind: "cancel"; step: string | null } | null {
+// `expectedSource`: la ventana del intento; null = no hay intento en curso;
+// undefined = hay intento pero el SDK no abrió el popup con window.open (no se
+// pudo capturar): entonces basta el origen exacto, para no romper la conexión.
+export function readSignupMessage(event: MessageEvent, expectedSource: MessageEventSource | null | undefined): { kind: "finish"; data: SignupData } | { kind: "cancel"; step: string | null } | null {
   if (!["https://www.facebook.com", "https://web.facebook.com"].includes(event.origin)) return null;
-  if (!expectedSource || event.source !== expectedSource) return null;
+  if (expectedSource === null) return null;
+  if (expectedSource !== undefined && event.source !== expectedSource) return null;
   let payload: unknown = event.data;
   if (typeof payload === "string") {
     try {
@@ -110,7 +114,7 @@ export function EmbeddedSignupCard({
   // Lo que va llegando de Meta en esta vuelta; se envía cuando estén los dos.
   const pending = useRef<{ code: string | null; data: SignupData | null }>({ code: null, data: null });
   const sent = useRef(false);
-  const signupWindow = useRef<Window | null>(null);
+  const signupWindow = useRef<Window | null | undefined>(null);
 
   const pinOk = /^\d{6}$/.test(pin);
   const canStart = !busy && (flow === "business_app" || pinOk);
@@ -178,6 +182,8 @@ export function EmbeddedSignupCard({
     }
     // FB.login abre el popup sin devolver su WindowProxy. Capturarlo durante
     // esa llamada permite ligar postMessage al intento, sin confiar en el emisor.
+    // Intento en curso; si el SDK no pasa por window.open se queda en undefined.
+    signupWindow.current = undefined;
     const open = window.open;
     window.open = (...args: Parameters<typeof window.open>) => {
       const popup = open.apply(window, args);
