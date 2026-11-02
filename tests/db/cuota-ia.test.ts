@@ -1,5 +1,6 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
+import { and, eq, sql } from "drizzle-orm";
 import { getSystemDb, schema } from "@/lib/db";
 import { resetEnvCacheForTests } from "@/lib/env";
 import { runWithOrganization } from "@/lib/request-context";
@@ -42,13 +43,13 @@ describe("cuota de IA por organización", () => {
     resetEnvCacheForTests();
   });
 
-  it("sin tope propio aplica un presupuesto por defecto", async () => {
+  it("sin tope (ni propio ni default) todo pasa", async () => {
     for (let i = 0; i < 5; i++) {
       expect(await runWithOrganization(B.id, () => reserveTurn(B.id, "agent"))).toEqual({ ok: true });
     }
     const resumen = await runWithOrganization(B.id, () => getUsageSummary(B.id));
     expect(resumen.turns).toBe(5);
-    expect(resumen.limits).toEqual({ turns: 1000, tokens: 1000000 });
+    expect(resumen.limits).toEqual({ turns: null, tokens: null });
   });
 
   it("tope de turnos: 10 turnos a la vez con tope 3 → pasan exactamente 3", async () => {
@@ -130,5 +131,24 @@ it("DF-04: reserva concurrente y reconciliación de tokens", async () => {
     const summary = await runWithOrganization(org.id, () => getUsageSummary(org.id));
     expect(summary.tokens).toBe(10);
     expect(summary.turns).toBe(2);
+  } finally { await borrarOrganizaciones([org.id]); }
+});
+
+// DF-04: una reserva que nunca se reconcilió (proceso caído) no bloquea para siempre.
+it("DF-04: una reserva huérfana se libera tras 10 min sin actividad", async () => {
+  const org = await crearOrganizacion("DF-04 huérfana");
+  try {
+    await ponerTope(org.id, 10, 1000);
+    const now = new Date();
+    const reserve = () => runWithOrganization(org.id, () => reserveTurn(org.id, "agent", now, 600));
+    expect(await reserve()).toEqual({ ok: true });
+    // Sin reconciliar: la segunda no cabe.
+    expect(await reserve()).toEqual({ ok: false, limit: "tokens" });
+    // Simula que pasaron 11 min sin tocar la fila.
+    await getSystemDb()
+      .update(schema.aiUsage)
+      .set({ updatedAt: sql`now() - interval '11 minutes'` })
+      .where(and(eq(schema.aiUsage.organizationId, org.id)));
+    expect(await reserve()).toEqual({ ok: true });
   } finally { await borrarOrganizaciones([org.id]); }
 });

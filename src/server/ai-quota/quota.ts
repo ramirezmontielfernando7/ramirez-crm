@@ -21,7 +21,7 @@ import { getAssistantTokenLimit } from "@/server/limits";
  *   no entra.
  *
  * Sin fila en `ai_quota` (o con NULL) valen `AI_DEFAULT_MONTHLY_TURNS` /
- * `AI_DEFAULT_MONTHLY_TOKENS`; sin ellas, aplican 1000 turnos y 1000000 tokens. El consumo se lleva en
+ * `AI_DEFAULT_MONTHLY_TOKENS`; sin ellas, no hay tope. El consumo se lleva en
  * `ai_usage` por tipo, más una fila `total` que es la que se compara.
  *
  * Todo con el pool de la APP a nombre de la organización (RLS) y FUERA de
@@ -60,6 +60,17 @@ export type ReservationLimit = "turns" | "tokens" | "assistant_tokens" | "assist
 export type Reservation = { ok: true } | { ok: false; limit: ReservationLimit };
 class AssistantBudgetExceeded extends Error {}
 
+/**
+ * DF-04 — Reservas huérfanas. Una llamada al LLM dura como mucho ~3 min (3
+ * intentos de 60 s). Si la fila no se tocó en 10 min, ninguna reserva sigue
+ * viva (el proceso murió antes de reconciliar, p. ej. un redeploy): cuenta 0.
+ */
+const STALE_RESERVATION_MS = 10 * 60_000;
+function liveReserved() {
+  const staleBefore = new Date(Date.now() - STALE_RESERVATION_MS).toISOString();
+  return sql`(case when ${schema.aiUsage.updatedAt} < ${staleBefore}::timestamp then 0 else ${schema.aiUsage.reservedTokens} end)`;
+}
+
 /** Primer día del mes en UTC, 'YYYY-MM-01'. */
 export function currentPeriod(now = new Date()): string {
   return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}-01`;
@@ -74,8 +85,8 @@ export async function getQuotaLimits(organizationId: string): Promise<QuotaLimit
     .limit(1);
   const env = getEnv();
   return {
-    turns: row?.turns ?? env.AI_DEFAULT_MONTHLY_TURNS ?? 1000,
-    tokens: row?.tokens ?? env.AI_DEFAULT_MONTHLY_TOKENS ?? 1000000,
+    turns: row?.turns ?? env.AI_DEFAULT_MONTHLY_TURNS ?? null,
+    tokens: row?.tokens ?? env.AI_DEFAULT_MONTHLY_TOKENS ?? null,
   };
 }
 
@@ -110,7 +121,7 @@ export async function reserveTurn(
   // re-evalúa el WHERE con la fila ya actualizada por el otro: no se cuelan dos.
   const reserved = await db
     .update(schema.aiUsage)
-    .set({ turns: sql`${schema.aiUsage.turns} + 1`, reservedTokens: sql`${schema.aiUsage.reservedTokens} + ${budget}`, updatedAt: new Date() })
+    .set({ turns: sql`${schema.aiUsage.turns} + 1`, reservedTokens: sql`${liveReserved()} + ${budget}`, updatedAt: new Date() })
     .where(
       and(
         scoped(schema.aiUsage.organizationId, organizationId),
@@ -119,7 +130,7 @@ export async function reserveTurn(
         limits.turns === null ? sql`true` : sql`${schema.aiUsage.turns} < ${limits.turns}`,
         limits.tokens === null
           ? sql`true`
-          : sql`${schema.aiUsage.promptTokens} + ${schema.aiUsage.completionTokens} + ${schema.aiUsage.reservedTokens} + ${budget} <= ${limits.tokens}`
+          : sql`${schema.aiUsage.promptTokens} + ${schema.aiUsage.completionTokens} + ${liveReserved()} + ${budget} <= ${limits.tokens}`
       )
     )
     .returning({ turns: schema.aiUsage.turns });
@@ -145,12 +156,12 @@ export async function reserveTurn(
     .values({ organizationId, period, kind, turns: 1, reservedTokens: budget })
     .onConflictDoUpdate({
       target: [schema.aiUsage.organizationId, schema.aiUsage.period, schema.aiUsage.kind],
-      set: { turns: sql`${schema.aiUsage.turns} + 1`, reservedTokens: sql`${schema.aiUsage.reservedTokens} + ${budget}`, updatedAt: new Date() },
+      set: { turns: sql`${schema.aiUsage.turns} + 1`, reservedTokens: sql`${liveReserved()} + ${budget}`, updatedAt: new Date() },
     });
   if ((kind === ASSISTANT_KIND || kind === "analysis")) {
     const own = await getAssistantTokenLimit(organizationId);
     const rows = await db.select().from(schema.aiUsage).where(and(scoped(schema.aiUsage.organizationId, organizationId), eq(schema.aiUsage.period, period), inArray(schema.aiUsage.kind, [ASSISTANT_KIND, "analysis"])));
-    if (own === null || rows.reduce((n, r) => n + r.promptTokens + r.completionTokens + r.reservedTokens, 0) > own) throw new AssistantBudgetExceeded("presupuesto del asistente insuficiente");
+    if (own === null || rows.reduce((n, r) => n + r.promptTokens + r.completionTokens + (r.updatedAt.getTime() < Date.now() - STALE_RESERVATION_MS ? 0 : r.reservedTokens), 0) > own) throw new AssistantBudgetExceeded("presupuesto del asistente insuficiente");
 
   }
   return { ok: true } as const;

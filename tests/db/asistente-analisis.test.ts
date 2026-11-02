@@ -153,7 +153,7 @@ describe("038 (PR 3) — análisis guardado por conversación", () => {
     const r = await as(A.id, () => analyzeConversations(ctx, 30));
     expect(r.coverage).toEqual({ total: 7, revisadas: 4, sinInformacion: 3, faltan: 0 });
     expect(analysisCalls()).toHaveLength(1);
-    expect(analysisCalls()[0]!.kind).toBe("assistant");
+    expect(analysisCalls()[0]!.kind).toBe("analysis");
     expect(analysisCalls()[0]!.opts?.model).toBe("barato/analisis");
     expect(ctx.usage).toMatchObject({ promptTokens: 1000, completionTokens: 100 });
     expect(ctx.insightBudget.remaining).toBe(16);
