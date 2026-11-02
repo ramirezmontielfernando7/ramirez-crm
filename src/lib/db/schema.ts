@@ -2905,6 +2905,7 @@ export const aiUsage = pgTable(
     /** agent | lab | judge | writing | embed (035, aparte del total) | total */
     kind: text("kind").notNull(),
     turns: integer("turns").notNull().default(0),
+    reservedTokens: integer("reserved_tokens").notNull().default(0),
     promptTokens: integer("prompt_tokens").notNull().default(0),
     completionTokens: integer("completion_tokens").notNull().default(0),
     /**
@@ -4335,3 +4336,15 @@ export const aiActionLog = pgTable(
     check("ai_action_log_summary_chk", sql`${t.summary} is null or char_length(${t.summary}) <= 200`),
   ]
 );
+
+/** DF-05: función y modelo conservados por separado, sin reescribir historia. */
+export const aiUsageModel = pgTable("ai_usage_model", {
+  organizationId: text("organization_id").notNull().references(() => organization.id, { onDelete: "cascade" }),
+  period: text("period").notNull(),
+  kind: text("kind").notNull(),
+  model: text("model").notNull(),
+  turns: integer("turns").notNull().default(0),
+  promptTokens: integer("prompt_tokens").notNull().default(0),
+  completionTokens: integer("completion_tokens").notNull().default(0),
+  costUsd: numeric("cost_usd", { precision: 14, scale: 6 }).notNull().default("0"),
+}, (t) => [primaryKey({ columns: [t.organizationId, t.period, t.kind, t.model] })]);

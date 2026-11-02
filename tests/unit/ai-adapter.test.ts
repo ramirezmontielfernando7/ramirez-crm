@@ -66,7 +66,7 @@ describe("chatJson (reintentos y errores tipados)", () => {
     expect(result.usage?.costUsd).toBeCloseTo(0.0027, 10);
     // No pide nada extra al proveedor: el cuerpo es el de siempre.
     const body = JSON.parse(fetchMock.mock.calls[0]![1]!.body as string);
-    expect(Object.keys(body).sort()).toEqual(["messages", "model"]);
+    expect(Object.keys(body).sort()).toEqual(["max_tokens", "messages", "model"]);
   });
 
   it("036 PR 3b: sin usage.cost (otro proveedor) el costo queda ausente, no en 0", async () => {

@@ -69,20 +69,19 @@ type MessagesResponse = {
 
 /**
  * Texto y tokens de una respuesta Messages. Los bloques de razonamiento
- * (`thinking`) se ignoran; una negativa del modelo (`refusal`) o una respuesta
- * sin texto lanzan error, igual que una respuesta vacía de Chat Completions.
+ * (`thinking`) se ignoran; las negativas y respuestas sin texto conservan
+ * su consumo para que la frontera común decida si corresponde reintentar.
  * La entrada cuenta también los tokens de caché. Bedrock no reporta costo.
  */
-export function fromMessagesResponse(json: MessagesResponse): { content: string; usage: LlmUsage } {
-  if (json.stop_reason === "refusal") throw new Error("el modelo se negó a responder (refusal)");
+export function fromMessagesResponse(json: MessagesResponse): { content: string; usage: LlmUsage; refusal?: boolean } {
   const content = (json.content ?? [])
     .filter((b) => b.type === "text" && typeof b.text === "string")
     .map((b) => b.text as string)
     .join("");
-  if (content.length === 0) throw new Error("respuesta del proveedor sin contenido");
   const u = json.usage;
   return {
     content,
+    ...(json.stop_reason === "refusal" ? { refusal: true } : {}),
     usage: {
       promptTokens: count(u?.input_tokens) + count(u?.cache_creation_input_tokens) + count(u?.cache_read_input_tokens),
       completionTokens: count(u?.output_tokens),

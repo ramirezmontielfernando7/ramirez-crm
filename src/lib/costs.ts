@@ -52,7 +52,7 @@ export type PricingInput = {
 
 /** Las funciones que gastan IA (la fila `total` NO entra: es la suma de las de chat). */
 // 038: el asistente interno (premium) se cobra con el precio del modelo principal.
-export const COST_KINDS = ["agent", "lab", "judge", "writing", "assistant", "embed"] as const;
+export const COST_KINDS = ["agent", "lab", "judge", "writing", "assistant", "analysis", "embed"] as const;
 export type CostKind = (typeof COST_KINDS)[number];
 
 export type KindUsage = { kind: string; promptTokens: number; completionTokens: number; costUsd: number };
@@ -70,8 +70,9 @@ export function estimateKindUsd(kind: CostKind, prompt: number, completion: numb
   if (!p) return null;
   if (kind === "embed") return (prompt * p.embedUsdPerMtok) / M;
   const judge = kind === "judge";
-  const inp = judge ? (p.judgeInputUsdPerMtok ?? p.chatInputUsdPerMtok) : p.chatInputUsdPerMtok;
-  const out = judge ? (p.judgeOutputUsdPerMtok ?? p.chatOutputUsdPerMtok) : p.chatOutputUsdPerMtok;
+  const analysis = kind === "analysis";
+  const inp = analysis ? (p.analysisInputUsdPerMtok ?? p.chatInputUsdPerMtok) : judge ? (p.judgeInputUsdPerMtok ?? p.chatInputUsdPerMtok) : p.chatInputUsdPerMtok;
+  const out = analysis ? (p.analysisOutputUsdPerMtok ?? p.chatOutputUsdPerMtok) : judge ? (p.judgeOutputUsdPerMtok ?? p.chatOutputUsdPerMtok) : p.chatOutputUsdPerMtok;
   return (prompt * inp + completion * out) / M;
 }
 
@@ -79,8 +80,9 @@ export function estimateKindUsd(kind: CostKind, prompt: number, completion: numb
 export function costByKind(rows: KindUsage[], p: Pricing | null): KindCost[] {
   const out: KindCost[] = [];
   for (const kind of COST_KINDS) {
-    const r = rows.find((x) => x.kind === kind);
-    if (!r) continue;
+    const matches = rows.filter((x) => x.kind === kind);
+    if (matches.length === 0) continue;
+    const r = matches.reduce((a, x) => ({ kind, promptTokens: a.promptTokens + x.promptTokens, completionTokens: a.completionTokens + x.completionTokens, costUsd: a.costUsd + x.costUsd }), { kind, promptTokens: 0, completionTokens: 0, costUsd: 0 });
     out.push({
       kind,
       tokens: r.promptTokens + r.completionTokens,
@@ -205,6 +207,7 @@ export const COST_KIND_LABEL: Record<CostKind, string> = {
   judge: "Juez del Laboratorio",
   writing: "Asistente de redacción",
   assistant: "Asistente interno",
+  analysis: "Análisis de conversaciones",
   embed: "Embeddings (documentos)",
 };
 

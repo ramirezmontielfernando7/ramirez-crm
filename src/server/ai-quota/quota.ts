@@ -1,5 +1,6 @@
-import { and, eq, sql } from "drizzle-orm";
-import { getDb, schema } from "@/lib/db";
+import { and, eq, inArray, sql } from "drizzle-orm";
+import { getDb, schema, withTenant } from "@/lib/db";
+
 import { scoped } from "@/lib/db/tenant";
 import { getEnv } from "@/lib/env";
 import type { LlmUsage } from "@/lib/ai";
@@ -33,7 +34,7 @@ import { getAssistantTokenLimit } from "@/server/limits";
  * y tokens cuentan también en el total, como todo lo demás.
  */
 
-export type AiKind = "agent" | "lab" | "judge" | "writing" | "assistant";
+export type AiKind = "agent" | "lab" | "judge" | "writing" | "assistant" | "analysis";
 
 /** 038 — El asistente interno (con tope propio, además del total). */
 export const ASSISTANT_KIND = "assistant";
@@ -57,6 +58,18 @@ export type QuotaLimits = { turns: number | null; tokens: number | null };
  */
 export type ReservationLimit = "turns" | "tokens" | "assistant_tokens" | "assistant_unset";
 export type Reservation = { ok: true } | { ok: false; limit: ReservationLimit };
+class AssistantBudgetExceeded extends Error {}
+
+/**
+ * DF-04 — Reservas huérfanas. Una llamada al LLM dura como mucho ~3 min (3
+ * intentos de 60 s). Si la fila no se tocó en 10 min, ninguna reserva sigue
+ * viva (el proceso murió antes de reconciliar, p. ej. un redeploy): cuenta 0.
+ */
+const STALE_RESERVATION_MS = 10 * 60_000;
+function liveReserved() {
+  const staleBefore = new Date(Date.now() - STALE_RESERVATION_MS).toISOString();
+  return sql`(case when ${schema.aiUsage.updatedAt} < ${staleBefore}::timestamp then 0 else ${schema.aiUsage.reservedTokens} end)`;
+}
 
 /** Primer día del mes en UTC, 'YYYY-MM-01'. */
 export function currentPeriod(now = new Date()): string {
@@ -85,18 +98,19 @@ export async function getQuotaLimits(organizationId: string): Promise<QuotaLimit
 export async function reserveTurn(
   organizationId: string,
   kind: AiKind,
-  now = new Date()
+  now = new Date(),
+  budget = 0
 ): Promise<Reservation> {
   const period = currentPeriod(now);
+  return withTenant<Reservation>(organizationId, async (db) => {
   // 038: el asistente, primero contra su propio tope (no gasta un turno del
   // total si ya no le toca).
-  if (kind === ASSISTANT_KIND) {
+  if ((kind === ASSISTANT_KIND || kind === "analysis")) {
     const own = await getAssistantTokenLimit(organizationId);
     if (own === null) return { ok: false, limit: "assistant_unset" };
     if ((await assistantTokensUsed(organizationId, now)) >= own) return { ok: false, limit: "assistant_tokens" };
   }
   const limits = await getQuotaLimits(organizationId);
-  const db = getDb();
 
   await db
     .insert(schema.aiUsage)
@@ -107,7 +121,7 @@ export async function reserveTurn(
   // re-evalúa el WHERE con la fila ya actualizada por el otro: no se cuelan dos.
   const reserved = await db
     .update(schema.aiUsage)
-    .set({ turns: sql`${schema.aiUsage.turns} + 1`, updatedAt: new Date() })
+    .set({ turns: sql`${schema.aiUsage.turns} + 1`, reservedTokens: sql`${liveReserved()} + ${budget}`, updatedAt: new Date() })
     .where(
       and(
         scoped(schema.aiUsage.organizationId, organizationId),
@@ -116,7 +130,7 @@ export async function reserveTurn(
         limits.turns === null ? sql`true` : sql`${schema.aiUsage.turns} < ${limits.turns}`,
         limits.tokens === null
           ? sql`true`
-          : sql`${schema.aiUsage.promptTokens} + ${schema.aiUsage.completionTokens} < ${limits.tokens}`
+          : sql`${schema.aiUsage.promptTokens} + ${schema.aiUsage.completionTokens} + ${liveReserved()} + ${budget} <= ${limits.tokens}`
       )
     )
     .returning({ turns: schema.aiUsage.turns });
@@ -139,12 +153,22 @@ export async function reserveTurn(
   // El desglose por tipo (no se compara contra nada; solo se reporta).
   await db
     .insert(schema.aiUsage)
-    .values({ organizationId, period, kind, turns: 1 })
+    .values({ organizationId, period, kind, turns: 1, reservedTokens: budget })
     .onConflictDoUpdate({
       target: [schema.aiUsage.organizationId, schema.aiUsage.period, schema.aiUsage.kind],
-      set: { turns: sql`${schema.aiUsage.turns} + 1`, updatedAt: new Date() },
+      set: { turns: sql`${schema.aiUsage.turns} + 1`, reservedTokens: sql`${liveReserved()} + ${budget}`, updatedAt: new Date() },
     });
-  return { ok: true };
+  if ((kind === ASSISTANT_KIND || kind === "analysis")) {
+    const own = await getAssistantTokenLimit(organizationId);
+    const rows = await db.select().from(schema.aiUsage).where(and(scoped(schema.aiUsage.organizationId, organizationId), eq(schema.aiUsage.period, period), inArray(schema.aiUsage.kind, [ASSISTANT_KIND, "analysis"])));
+    if (own === null || rows.reduce((n, r) => n + r.promptTokens + r.completionTokens + (r.updatedAt.getTime() < Date.now() - STALE_RESERVATION_MS ? 0 : r.reservedTokens), 0) > own) throw new AssistantBudgetExceeded("presupuesto del asistente insuficiente");
+
+  }
+  return { ok: true } as const;
+  }).catch((err) => {
+    if (err instanceof AssistantBudgetExceeded) return { ok: false, limit: "assistant_tokens" } as const;
+    throw err;
+  });
 }
 
 /** 036 (PR 3b) — Un costo reportado utilizable (USD ≥ 0), o 0. */
@@ -161,15 +185,18 @@ export async function recordUsage(
   organizationId: string,
   kind: AiKind,
   usage: LlmUsage,
-  now = new Date()
+  now = new Date(),
+  budget = 0
 ): Promise<void> {
   const cost = costOf(usage);
-  if (usage.promptTokens === 0 && usage.completionTokens === 0 && cost === 0) return;
+  if (usage.promptTokens === 0 && usage.completionTokens === 0 && cost === 0 && budget === 0) return;
   const period = currentPeriod(now);
+  await withTenant(organizationId, async (db) => {
   for (const k of [TOTAL, kind]) {
-    await getDb()
+    await db
       .update(schema.aiUsage)
       .set({
+        reservedTokens: sql`greatest(0, ${schema.aiUsage.reservedTokens} - ${budget})`,
         promptTokens: sql`${schema.aiUsage.promptTokens} + ${usage.promptTokens}`,
         completionTokens: sql`${schema.aiUsage.completionTokens} + ${usage.completionTokens}`,
         costUsd: sql`${schema.aiUsage.costUsd} + ${cost}`,
@@ -183,6 +210,7 @@ export async function recordUsage(
         )
       );
   }
+  });
 }
 
 /**
@@ -275,18 +303,18 @@ export async function recordEmbedUsage(
 /** 038 — Tokens (entrada + salida) del asistente interno este mes, para su tope propio. */
 export async function assistantTokensUsed(organizationId: string, now = new Date()): Promise<number> {
   const [row] = await getDb()
-    .select({ p: schema.aiUsage.promptTokens, c: schema.aiUsage.completionTokens })
+    .select({ p: sql<number>`coalesce(sum(${schema.aiUsage.promptTokens}), 0)`, c: sql<number>`coalesce(sum(${schema.aiUsage.completionTokens}), 0)` })
     .from(schema.aiUsage)
     .where(
       scoped(
         schema.aiUsage.organizationId,
         organizationId,
         eq(schema.aiUsage.period, currentPeriod(now)),
-        eq(schema.aiUsage.kind, ASSISTANT_KIND)
+        inArray(schema.aiUsage.kind, [ASSISTANT_KIND, "analysis"])
       )
     )
     .limit(1);
-  return (row?.p ?? 0) + (row?.c ?? 0);
+  return Number(row?.p ?? 0) + Number(row?.c ?? 0);
 }
 
 /** Tokens de embeddings del mes (para su tope). */
@@ -334,4 +362,12 @@ export async function getUsageSummary(organizationId: string, now = new Date()):
     }
   }
   return { period, limits: await getQuotaLimits(organizationId), turns, tokens, byKind };
+}
+
+/** Ledger por modelo del análisis; no se incluye dos veces en el total. */
+export async function recordAnalysisModel(organizationId: string, model: string, usage: LlmUsage, now: Date): Promise<void> {
+  await getDb().insert(schema.aiUsageModel).values({ organizationId, period: currentPeriod(now), kind: "analysis", model, turns: 1, promptTokens: usage.promptTokens, completionTokens: usage.completionTokens, costUsd: String(costOf(usage)) }).onConflictDoUpdate({
+    target: [schema.aiUsageModel.organizationId, schema.aiUsageModel.period, schema.aiUsageModel.kind, schema.aiUsageModel.model],
+    set: { turns: sql`${schema.aiUsageModel.turns} + 1`, promptTokens: sql`${schema.aiUsageModel.promptTokens} + ${usage.promptTokens}`, completionTokens: sql`${schema.aiUsageModel.completionTokens} + ${usage.completionTokens}`, costUsd: sql`${schema.aiUsageModel.costUsd} + ${costOf(usage)}` },
+  });
 }

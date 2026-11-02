@@ -273,3 +273,11 @@ describe("acuse del patrón de respaldo antes de traspasar (FR-022)", () => {
     expect(eventos).toEqual(["enviado:Te paso con el equipo.", "handoff:modelo"]);
   });
 });
+
+// Estas pruebas aíslan el flujo de chat; la cuota se verifica en df04-budget.
+vi.mock("@/server/ai-quota/quota", async (importOriginal) => ({
+  ...await importOriginal<typeof import("@/server/ai-quota/quota")>(),
+  reserveTurn: vi.fn(async () => ({ ok: true })),
+  recordUsage: vi.fn(),
+  recordAgentUsage: vi.fn(),
+}));

@@ -135,3 +135,11 @@ describe("sandbox del Laboratorio en el pipeline del agente", () => {
     );
   });
 });
+
+// Estas pruebas aíslan el flujo de chat; la cuota se verifica en df04-budget.
+vi.mock("@/server/ai-quota/quota", async (importOriginal) => ({
+  ...await importOriginal<typeof import("@/server/ai-quota/quota")>(),
+  reserveTurn: vi.fn(async () => ({ ok: true })),
+  recordUsage: vi.fn(),
+  recordAgentUsage: vi.fn(),
+}));

@@ -87,8 +87,8 @@ describe("fromMessagesResponse (texto y tokens)", () => {
   });
 
   it("negativa del modelo o respuesta sin texto → error", () => {
-    expect(() => fromMessagesResponse({ content: [{ type: "text", text: "x" }], stop_reason: "refusal" })).toThrow(/refusal/);
-    expect(() => fromMessagesResponse({ content: [{ type: "thinking" }] })).toThrow(/sin contenido/);
+    expect(fromMessagesResponse({ content: [{ type: "text", text: "x" }], stop_reason: "refusal", usage: { input_tokens: 10, output_tokens: 2 } })).toMatchObject({ refusal: true, usage: { promptTokens: 10, completionTokens: 2 } });
+    expect(fromMessagesResponse({ content: [{ type: "thinking" }], usage: { input_tokens: 10, output_tokens: 2 } })).toMatchObject({ content: "", usage: { promptTokens: 10, completionTokens: 2 } });
   });
 });
 

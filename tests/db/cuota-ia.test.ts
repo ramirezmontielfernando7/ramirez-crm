@@ -1,5 +1,6 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
+import { and, eq, sql } from "drizzle-orm";
 import { getSystemDb, schema } from "@/lib/db";
 import { resetEnvCacheForTests } from "@/lib/env";
 import { runWithOrganization } from "@/lib/request-context";
@@ -114,4 +115,40 @@ describe("cuota de IA por organización", () => {
       await borrarOrganizaciones([C.id]);
     }
   });
+});
+
+// DF-04: dos llamadas simultáneas no pueden prometer el mismo presupuesto.
+it("DF-04: reserva concurrente y reconciliación de tokens", async () => {
+  const org = await crearOrganizacion("DF-04 presupuesto");
+  try {
+    await ponerTope(org.id, 10, 1000);
+    const now = new Date();
+    const reserve = () => runWithOrganization(org.id, () => reserveTurn(org.id, "agent", now, 600));
+    const results = await Promise.all([reserve(), reserve()]);
+    expect(results.filter((r) => r.ok)).toHaveLength(1);
+    await runWithOrganization(org.id, () => recordUsage(org.id, "agent", { promptTokens: 7, completionTokens: 3 }, now, 600));
+    expect(await reserve()).toEqual({ ok: true });
+    const summary = await runWithOrganization(org.id, () => getUsageSummary(org.id));
+    expect(summary.tokens).toBe(10);
+    expect(summary.turns).toBe(2);
+  } finally { await borrarOrganizaciones([org.id]); }
+});
+
+// DF-04: una reserva que nunca se reconcilió (proceso caído) no bloquea para siempre.
+it("DF-04: una reserva huérfana se libera tras 10 min sin actividad", async () => {
+  const org = await crearOrganizacion("DF-04 huérfana");
+  try {
+    await ponerTope(org.id, 10, 1000);
+    const now = new Date();
+    const reserve = () => runWithOrganization(org.id, () => reserveTurn(org.id, "agent", now, 600));
+    expect(await reserve()).toEqual({ ok: true });
+    // Sin reconciliar: la segunda no cabe.
+    expect(await reserve()).toEqual({ ok: false, limit: "tokens" });
+    // Simula que pasaron 11 min sin tocar la fila.
+    await getSystemDb()
+      .update(schema.aiUsage)
+      .set({ updatedAt: sql`now() - interval '11 minutes'` })
+      .where(and(eq(schema.aiUsage.organizationId, org.id)));
+    expect(await reserve()).toEqual({ ok: true });
+  } finally { await borrarOrganizaciones([org.id]); }
 });

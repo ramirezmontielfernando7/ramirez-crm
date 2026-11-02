@@ -7,6 +7,7 @@ import {
   isAgentKind,
   recordAgentUsage,
   recordUsage,
+  recordAnalysisModel,
   reserveTurn,
   type AiKind,
   type ReservationLimit,
@@ -30,7 +31,7 @@ import { checkAiAlerts, checkAssistantAlerts } from "@/server/limits/alerts";
  *
  * Guardarraíl: `tests/unit/ai-quota-gate.test.ts` (nadie más importa
  * `chatJson`). Un fallo al contar NUNCA tumba el turno: se registra y la
- * llamada sigue (la cuota protege la llave, no es un cobro).
+ * llamada no se realiza hasta poder reservar presupuesto.
  */
 
 const log = logger("ai");
@@ -55,32 +56,32 @@ export async function chatJsonForOrg<T>(
   // Sin proveedor no hay turno que contar.
   if (!isAiConfigured()) return chatJson(schema, messages, callOpts);
 
-  let reservado = true;
+  const budget = reservationBudget(messages);
+  const now = new Date();
+  const reservado = true;
   try {
-    const r = await reserveTurn(organizationId, kind);
+    const r = await reserveTurn(organizationId, kind, now, budget);
     if (!r.ok) {
       log.warn("cuota mensual de IA agotada: no se llama al modelo", { org: organizationId, tipo: kind, tope: r.limit });
       return { ok: false, error: "quota_exceeded", detail: QUOTA_DETAIL[r.limit] };
     }
   } catch (err) {
-    // 038: el asistente es premium y caro; sin poder revisar su tope, NO se
-    // llama (falla cerrado). Los demás usos siguen sin contarse, como siempre.
-    if (kind === ASSISTANT_KIND) {
-      log.error("no se pudo revisar el tope del asistente interno; no se llama al modelo", { org: organizationId, err });
-      return { ok: false, error: "quota_exceeded", detail: QUOTA_DETAIL.assistant_check_failed };
-    }
-    reservado = false;
-    log.error("no se pudo reservar el turno de IA; la llamada sigue sin contarse", { org: organizationId, tipo: kind, err });
+    log.error("no se pudo reservar presupuesto de IA; no se llama al modelo", { org: organizationId, tipo: kind, err });
+    return { ok: false, error: "quota_exceeded", detail: "No se pudo verificar el presupuesto de IA. El chat humano sigue disponible." };
   }
 
   const result = await chatJson(schema, messages, callOpts);
 
-  if (reservado && result.usage) {
+  if (reservado) {
     try {
-      await recordUsage(organizationId, kind, result.usage);
+      await recordUsage(organizationId, kind, result.usage ?? { promptTokens: 0, completionTokens: 0 }, now, budget);
     } catch (err) {
       log.error("no se pudieron sumar los tokens del turno de IA", { org: organizationId, tipo: kind, err });
     }
+  }
+  if (kind === "analysis" && opts?.model && result.usage) {
+    try { await recordAnalysisModel(organizationId, opts.model, result.usage, now); }
+    catch (err) { log.error("no se pudo registrar el modelo del análisis", { org: organizationId, err }); }
   }
   // 036 — El desglose por agente: solo de turnos que se contaron, y nunca
   // tumba el turno (un agente que ya no existe, la BD caída…).
@@ -93,6 +94,11 @@ export async function chatJsonForOrg<T>(
   }
   // 036 (PR 3a): avisos al 80 % y 100 % del tope (nunca tumba el turno).
   if (reservado) await checkAiAlerts(organizationId);
-  if (reservado && kind === ASSISTANT_KIND) await checkAssistantAlerts(organizationId);
+  if (reservado && (kind === ASSISTANT_KIND || kind === "analysis")) await checkAssistantAlerts(organizationId);
   return result;
+}
+
+/** Cota conservadora para tres intentos: UTF-8 + encuadre + salida máxima. */
+export function reservationBudget(messages: ChatMessage[]): number {
+  return 3 * (messages.reduce((n, m) => n + Buffer.byteLength(m.content, "utf8") + 64, 0) + 1024 + 8192);
 }

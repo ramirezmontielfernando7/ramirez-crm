@@ -30,6 +30,7 @@ describe("costos de IA", () => {
     A = await crearOrganizacion("Costos A");
     B = await crearOrganizacion("Costos B");
     C = await crearOrganizacion("Costos C (sin consumo)");
+    await getSystemDb().insert(schema.aiQuota).values([A, B].map((o) => ({ organizationId: o.id, monthlyTokenLimit: 10000000 })));
     agenteA = (await as(A.id, () => ensureGeneralAgent(A.id)))!.agent.id;
   });
   afterAll(async () => {

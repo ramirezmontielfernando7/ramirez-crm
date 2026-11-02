@@ -1,6 +1,8 @@
 import { MAX_QUESTION_CHARS, type AssistantMessageDto } from "@/lib/assistant-engine";
 import type { Access } from "@/lib/db/tenant";
 import { logger } from "@/lib/log";
+import { assistantMessage } from "@/lib/assistant";
+import { QUOTA_DETAIL } from "@/server/ai-quota/llm";
 import { askAssistant } from "./engine";
 import { getAssistantStatus } from "./status";
 import { purgeOldThreads, saveExchange, threadHistory } from "./threads";
@@ -58,7 +60,14 @@ export async function askQuestion(input: {
       if (r.error === "quota_exceeded") {
         // Se acabó a media pregunta (o la revisión atómica lo frenó): lo mismo que dice la pantalla.
         const after = await getAssistantStatus(input.organizationId, input.userId, input.now);
-        return { ok: false, status: 429, code: "quota_exceeded", message: after.canAsk ? r.detail : after.message };
+        // DF-04: si lo frenó la reserva del tope propio (lo usado aún no llega
+        // al tope, pero no cabe una llamada segura), se dice igual que agotado.
+        const message = !after.canAsk
+          ? after.message
+          : r.detail === QUOTA_DETAIL.assistant_tokens
+            ? assistantMessage("exhausted", after.resetsOn)
+            : r.detail;
+        return { ok: false, status: 429, code: "quota_exceeded", message };
       }
       if (r.error === "not_configured") return { ok: false, status: 409, code: "ai_not_configured", message: "La IA no está configurada en esta instalación." };
       return { ok: false, status: 502, code: "provider_error", message: "El asistente no pudo responder ahora por una falla del proveedor de IA. Intenta de nuevo en un momento." };

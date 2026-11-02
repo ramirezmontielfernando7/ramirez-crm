@@ -47,7 +47,7 @@ describe("chatJsonForOrg: consumo por agente", () => {
   it("con agente: suma al total/tipo y al agente, y el agentId no viaja al proveedor", async () => {
     const r = await chatJsonForOrg("org_a", "agent", S, [], { agentId: "agt_1", timeoutMs: 5 });
     expect(r.ok).toBe(true);
-    expect(m.recordUsage).toHaveBeenCalledWith("org_a", "agent", USAGE);
+    expect(m.recordUsage).toHaveBeenCalledWith("org_a", "agent", USAGE, expect.any(Date), expect.any(Number));
     expect(m.recordAgentUsage).toHaveBeenCalledWith("org_a", "agt_1", "agent", USAGE);
     expect(m.chatJson.mock.calls[0]![2]).toEqual({ timeoutMs: 5 });
   });
@@ -73,7 +73,7 @@ describe("chatJsonForOrg: consumo por agente", () => {
     m.chatJson.mockResolvedValue({ ok: false, error: "provider_error", detail: "x" });
     const r = await chatJsonForOrg("org_a", "agent", S, [], { agentId: "agt_1" });
     expect(r.ok).toBe(false);
-    expect(m.recordUsage).not.toHaveBeenCalled();
+    expect(m.recordUsage).toHaveBeenCalledWith("org_a", "agent", { promptTokens: 0, completionTokens: 0 }, expect.any(Date), expect.any(Number));
     expect(m.recordAgentUsage).toHaveBeenCalledWith("org_a", "agt_1", "agent", null);
   });
 
@@ -83,10 +83,11 @@ describe("chatJsonForOrg: consumo por agente", () => {
     expect(r).toMatchObject({ ok: true, data: { ok: true } });
   });
 
-  it("si no se pudo reservar (BD caída), la llamada sigue y no se anota nada", async () => {
+  it("si no se pudo reservar (BD caída), no llama ni anota", async () => {
     m.reserveTurn.mockRejectedValue(new Error("bd caída"));
     const r = await chatJsonForOrg("org_a", "agent", S, [], { agentId: "agt_1" });
-    expect(r.ok).toBe(true);
+    expect(r.ok).toBe(false);
+    expect(m.chatJson).not.toHaveBeenCalled();
     expect(m.recordUsage).not.toHaveBeenCalled();
     expect(m.recordAgentUsage).not.toHaveBeenCalled();
   });
