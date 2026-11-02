@@ -55,7 +55,7 @@ export type Access = {
  *
  * Toda consulta de datos de clientes que responde a una persona (chats,
  * mensajes, leads, contactos, citas, resultados) pasa por aquí en vez de por
- * `scoped()`. Para quien ve todo es exactamente `scoped()`; para un asesor
+ * `scoped()`. Para quien ve todo excluye contactos privados; para un asesor
  * añade "el contacto de esta fila está asignado a mí". Funciona con cualquier
  * tabla que tenga `contact_id` (y con `contact.id` mismo), con una subconsulta
  * correlacionada del mismo estilo que `notLabContact`.
@@ -80,7 +80,7 @@ export function scopedContacts(
 /**
  * Solo la condición de asignación (sin tenant), para piezas de SQL que ya
  * llevan su propio `scoped()` — p. ej. las subconsultas de Resultados.
- * `undefined` cuando la sesión ve todo.
+ * También excluye privados para quien ve todo el negocio.
  */
 export function assignedTo(
   access: Access,
@@ -89,7 +89,17 @@ export function assignedTo(
   const onContact = getTableName(contactIdColumn.table) === getTableName(contact);
   // 046: la lista de contactos (y lo que se lee de la tabla misma) nunca trae
   // los privados de un «Mi número», ni a quien ve todo.
-  if (access.seesAll) return onContact ? isNull(contact.privateToNumberId) : undefined;
+  if (access.seesAll) {
+    return onContact ? isNull(contact.privateToNumberId) : or(
+      // Filas sin contacto (p. ej. bloqueos de agenda) conservan su acceso.
+      isNull(contactIdColumn),
+      sql`exists (
+      select 1 from "contact" visible
+      where visible."id" = ${contactIdColumn}
+        and visible."organization_id" = ${access.organizationId}
+        and visible."private_to_number_id" is null
+    )`)!;
+  }
   if (!access.userId) {
     throw new Error("assignedTo(): userId vacío — filtro sin dueño");
   }
