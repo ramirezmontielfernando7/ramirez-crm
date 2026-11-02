@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- respuestas JSON-RPC sin tipar en la prueba */
 import { and, eq } from "drizzle-orm";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { getSystemDb, schema } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
 import { sessionContext } from "@/lib/auth/session";
@@ -10,6 +10,12 @@ import { saveConnectorSettings } from "@/server/ai-connector/settings";
 import { forgetOrgModules } from "@/server/modules/store";
 import { POST } from "@/app/api/mcp/route";
 import { borrarOrganizaciones, crearOrganizacion } from "./fixtures";
+
+const auth = vi.hoisted(() => ({ session: null as unknown }));
+vi.mock("@/lib/auth/session", async (original) => ({
+  ...(await original<typeof import("@/lib/auth/session")>()),
+  requireSession: async () => auth.session,
+}));
 
 /**
  * 047 — Ficha del contacto, embudo, tareas y notas de trabajo por la IA
@@ -177,4 +183,38 @@ describe("047 — ficha, embudo, tareas y notas", () => {
     // La nota sin ligar de Ana es solo suya: ni la Dueña la toca.
     expect((await herramienta(k.owner, "update_work_note", { note_id: own.structuredContent.note_id, body: "x" })).isError).toBe(true);
   });
+});
+
+it("DF-01: privados fuera del tablero y list_pipeline; compartidos y otra empresa aislados", async () => {
+  const B = await crearOrganizacion("DF-01 otra empresa");
+  const numberId = newId("directNumber");
+  await sys().insert(schema.directNumber).values({ id: numberId, organizationId: A.id, userId: u.ana });
+  const privado = await chat(A.id, u.ana);
+  await sys().update(schema.contact).set({ privateToNumberId: numberId }).where(eq(schema.contact.id, privado.contactId));
+  const ajeno = await chat(B.id, u.owner);
+  await sys().insert(schema.contactParticipant).values({ organizationId: A.id, contactId: deBeto.contactId, userId: u.ana, addedByUserId: u.owner });
+  try {
+    const shared = await herramienta(k.ana, "list_pipeline");
+    expect(shared.structuredContent.leads.map((l: any) => l.contact.id)).toContain(deBeto.contactId);
+    const { GET } = await import("@/app/api/pipeline/board/route");
+    for (const role of ["owner", "coordinador"] as const) {
+      auth.session = sessionContext(u.owner, A.id, role);
+      const board = await (await GET()).json();
+      expect(board.leads.map((l: any) => l.contact.id)).toContain(deBeto.contactId);
+      expect(board.leads.map((l: any) => l.contact.id)).not.toContain(privado.contactId);
+      expect(board.leads.map((l: any) => l.contact.id)).not.toContain(ajeno.contactId);
+      const key = await llave(u.owner, role);
+      const result = await herramienta(key, "list_pipeline");
+      const ids = result.structuredContent.leads.map((l: any) => l.contact.id);
+      expect(ids).toContain(deBeto.contactId);
+      expect(ids).not.toContain(privado.contactId);
+      expect(ids).not.toContain(ajeno.contactId);
+      expect(result.structuredContent.stages.reduce((n: number, s: any) => n + s.leads, 0)).toBe(2);
+    }
+  } finally {
+    await sys().delete(schema.contactParticipant).where(and(eq(schema.contactParticipant.contactId, deBeto.contactId), eq(schema.contactParticipant.userId, u.ana)));
+    await sys().delete(schema.contact).where(eq(schema.contact.id, privado.contactId));
+    await sys().delete(schema.directNumber).where(eq(schema.directNumber.id, numberId));
+    await borrarOrganizaciones([B.id]);
+  }
 });

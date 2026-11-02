@@ -1,6 +1,7 @@
 import { createHash, randomBytes } from "node:crypto";
 import { lookup } from "node:dns/promises";
-import { isIP } from "node:net";
+import { BlockList, isIP } from "node:net";
+import { request } from "node:https";
 import { and, eq, gt, isNull } from "drizzle-orm";
 import { z } from "zod";
 import {
@@ -76,18 +77,33 @@ const cimdSchema = z.object({
   redirect_uris: z.array(z.string().max(500)).min(1).max(10),
 });
 
-/** ¿Es una dirección de la red interna? (contra SSRF al leer metadatos ajenos). */
+// Rangos no globales del registro IANA: privados, compartidos, locales,
+// documentación, pruebas, transición y reservados. BlockList normaliza IPv6
+// y compara también las IPv4 mapeadas, incluidas sus formas hexadecimales.
+const nonGlobalV4 = new BlockList();
+for (const [network, prefix] of [
+  ["0.0.0.0", 8], ["10.0.0.0", 8], ["100.64.0.0", 10], ["127.0.0.0", 8],
+  ["169.254.0.0", 16], ["172.16.0.0", 12], ["192.0.0.0", 24], ["192.0.2.0", 24],
+  ["192.88.99.0", 24], ["192.168.0.0", 16], ["198.18.0.0", 15],
+  ["198.51.100.0", 24], ["203.0.113.0", 24], ["224.0.0.0", 4], ["240.0.0.0", 4],
+] as const) nonGlobalV4.addSubnet(network, prefix, "ipv4");
+const mappedV4 = new BlockList();
+mappedV4.addSubnet("::ffff:0:0", 96, "ipv6");
+const globalV6 = new BlockList();
+globalV6.addSubnet("2000::", 3, "ipv6");
+const nonGlobalV6 = new BlockList();
+nonGlobalV6.addSubnet("2001::", 23, "ipv6");
+nonGlobalV6.addSubnet("2001:db8::", 32, "ipv6");
+nonGlobalV6.addSubnet("2002::", 16, "ipv6");
+nonGlobalV6.addSubnet("3fff::", 20, "ipv6");
+
+/** Falla cerrado: solo se permite un destino de Internet global. */
 export function isPrivateAddress(ip: string): boolean {
-  if (isIP(ip) === 6) {
-    const v = ip.toLowerCase();
-    if (v.startsWith("::ffff:")) return isPrivateAddress(v.slice(7));
-    return v === "::1" || v === "::" || v.startsWith("fc") || v.startsWith("fd") || v.startsWith("fe80");
-  }
-  const [a = 0, b = 0] = ip.split(".").map(Number);
-  return (
-    a === 10 || a === 127 || a === 0 || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) ||
-    (a === 192 && b === 168) || (a === 100 && b >= 64 && b <= 127) || a >= 224
-  );
+  const family = isIP(ip);
+  if (family === 4) return nonGlobalV4.check(ip, "ipv4");
+  if (family !== 6) return true;
+  if (mappedV4.check(ip, "ipv6")) return nonGlobalV4.check(ip, "ipv6");
+  return !globalV6.check(ip, "ipv6") || nonGlobalV6.check(ip, "ipv6");
 }
 
 const CIMD_MAX_BYTES = 10_000;
@@ -96,16 +112,46 @@ const CIMD_TIMEOUT_MS = 5_000;
 async function fetchCimd(clientId: string): Promise<OAuthClient | null> {
   try {
     const url = new URL(clientId);
-    const addrs = await lookup(url.hostname, { all: true });
+    const hostname = url.hostname.replace(/^\[|\]$/g, "");
+    const family = isIP(hostname);
+    const addrs = family ? [{ address: hostname, family }] : await lookup(hostname, { all: true });
     if (addrs.length === 0 || addrs.some((a) => isPrivateAddress(a.address))) return null;
-    const res = await fetch(url, {
-      redirect: "error",
-      signal: AbortSignal.timeout(CIMD_TIMEOUT_MS),
-      headers: { accept: "application/json" },
+    const address = addrs[0]!;
+    const text = await new Promise<string>((resolve, reject) => {
+      // URL/Host y SNI siguen siendo los del cliente; solo la resolución se fija.
+      // Sin pool compartido, redirecciones ni otra resolución DNS al conectar.
+      const req = request(url, {
+        agent: false,
+        family: address.family,
+        servername: family ? undefined : hostname,
+        rejectUnauthorized: true,
+        lookup: (_host, _options, callback) => callback(null, address.address, address.family),
+        headers: { accept: "application/json" },
+      }, (res) => {
+        res.on("error", reject);
+        if (!res.statusCode || res.statusCode < 200 || res.statusCode >= 300) {
+          res.resume();
+          reject(new Error("CIMD HTTP status"));
+          return;
+        }
+        const chunks: Buffer[] = [];
+        let bytes = 0;
+        res.on("data", (chunk: Buffer) => {
+          bytes += chunk.length;
+          if (bytes > CIMD_MAX_BYTES) {
+            req.destroy(new Error("CIMD too large"));
+            return;
+          }
+          chunks.push(chunk);
+        });
+        res.on("end", () => resolve(Buffer.concat(chunks).toString("utf8")));
+        res.on("aborted", () => reject(new Error("CIMD aborted")));
+      });
+      const timeout = setTimeout(() => req.destroy(new Error("CIMD timeout")), CIMD_TIMEOUT_MS);
+      req.on("error", reject);
+      req.on("close", () => clearTimeout(timeout));
+      req.end();
     });
-    if (!res.ok) return null;
-    const text = await res.text();
-    if (text.length > CIMD_MAX_BYTES) return null;
     const doc = cimdSchema.safeParse(JSON.parse(text));
     if (!doc.success || doc.data.client_id !== clientId) return null;
     if (!doc.data.redirect_uris.every(isAllowedRedirectUri)) return null;
@@ -373,13 +419,21 @@ export async function refreshTokens(input: { refreshToken: string; clientId: str
     return { error: "invalid_grant", description: "Esta persona ya no puede conectar su IA" };
   }
   const scopes = normalizeScopes(connection.scopes);
-  return db.transaction(async (tx) => {
-    await tx
+  const pair = await db.transaction(async (tx) => {
+    const [consumed] = await tx
       .update(schema.aiToken)
       .set({ revokedAt: now })
-      .where(and(eq(schema.aiToken.id, token.id), isNull(schema.aiToken.revokedAt)));
+      .where(and(eq(schema.aiToken.id, token.id), isNull(schema.aiToken.revokedAt)))
+      .returning({ id: schema.aiToken.id });
+    // Otra petición pudo consumirla después del SELECT. Solo el ganador emite.
+    if (!consumed) return null;
     return issuePair(tx, connection.organizationId, connection.id, scopes, now);
   });
+  if (pair) return pair;
+  // Fuera de la transacción: esperar al ganador antes de revocar también su par.
+  await revokeConnectionById(connection.organizationId, connection.id, now);
+  log.warn("llave de renovación reutilizada: conexión revocada", { org: connection.organizationId, connection: connection.id });
+  return { error: "invalid_grant", description: "Llave de renovación ya usada: conexión cerrada por seguridad" };
 }
 
 async function revokeConnectionById(organizationId: string, connectionId: string, now: Date) {

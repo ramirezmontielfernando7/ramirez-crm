@@ -217,6 +217,42 @@ describe("047 PR 3 — iniciar sesión con OAuth", () => {
     expect(await mcp(r1.body!.access_token)).toBe(401);
   });
 
+  it("DF-08: dos renovaciones simultáneas consumen la llave una sola vez", async () => {
+    state.session = sessionContext(u.ana, A.id, "asesor");
+    const { r, verifier } = await iniciarSesion(clientId);
+    const code = new URL(r.body!.redirect).searchParams.get("code")!;
+    const tok = await post("oauth/token", {
+      grant_type: "authorization_code", code, client_id: clientId,
+      redirect_uri: REDIRECT, code_verifier: verifier,
+    }, true);
+    const oauth = await import("@/server/ai-connector/oauth");
+    const settings = await import("@/server/ai-connector/settings");
+    const original = settings.getConnectorSettings;
+    let arrived = 0;
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => { release = resolve; });
+    // Ambos leyeron la llave sin revocar antes de competir por consumirla.
+    const spy = vi.spyOn(settings, "getConnectorSettings").mockImplementation(async (org) => {
+      const value = await original(org);
+      if (++arrived === 2) release();
+      await gate;
+      return value;
+    });
+    try {
+      const input = { refreshToken: tok.body!.refresh_token as string, clientId };
+      const results = await Promise.all([oauth.refreshTokens(input), oauth.refreshTokens(input)]);
+      const winners = results.filter((result) => "access_token" in result);
+      expect(winners).toHaveLength(1);
+      expect(results.filter((result) => "error" in result)).toEqual([
+        expect.objectContaining({ error: "invalid_grant" }),
+      ]);
+      // El perdedor es un reúso: también invalida el par emitido por el ganador.
+      if ("access_token" in winners[0]!) expect(await mcp(winners[0].access_token)).toBe(401);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
   it("la app cierra su conexión con /api/oauth/revoke", async () => {
     state.session = sessionContext(u.ana, A.id, "asesor");
     const { r, verifier } = await iniciarSesion(clientId, ["read"]);

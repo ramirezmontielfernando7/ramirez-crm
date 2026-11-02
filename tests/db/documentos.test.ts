@@ -90,8 +90,20 @@ async function llamar(
   opts: { id?: string; form?: FormData } = {}
 ): Promise<{ status: number; data: Record<string, unknown> }> {
   const mod = (await import(`@/app/api/${route}/route`)) as Record<string, Handler>;
+  // Como un navegador: un FormData viaja con su tamaño declarado (DF-09 hace
+  // fila a las subidas sin tamaño válido).
+  let init: RequestInit = { method };
+  if (opts.form) {
+    const encoded = new Response(opts.form);
+    const body = await encoded.arrayBuffer();
+    init = {
+      method,
+      body,
+      headers: { "content-type": encoded.headers.get("content-type")!, "content-length": String(body.byteLength) },
+    };
+  }
   const res = await mod[method]!(
-    new Request(`http://localhost/api/${route}`, { method, body: opts.form }),
+    new Request(`http://localhost/api/${route}`, init),
     { params: Promise.resolve({ id: opts.id ?? "" }) }
   );
   const text = await res.text();
