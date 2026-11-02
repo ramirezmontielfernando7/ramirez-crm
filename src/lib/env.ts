@@ -65,6 +65,12 @@ const envSchema = z.object({
     .string()
     .optional()
     .transform((v) => v?.trim() || undefined),
+  // Creador conversacional del agente y «Revisar este chat» (Estudio de IA):
+  // modelo propio (p. ej. Sonnet 5.5). Vacía = el del juez, o el principal.
+  OPENROUTER_CREATOR_MODEL: z
+    .string()
+    .optional()
+    .transform((v) => v?.trim() || undefined),
   // Fase 3, PR 1: tope mensual (mes calendario UTC) de IA por organización
   // cuando la organización no tiene uno propio (tabla ai_quota). Vacías = sin
   // tope. Turnos = llamadas al modelo; tokens = entrada + salida.

@@ -466,6 +466,7 @@ async function main() {
 
     // Editor: «Documentos» → «Solo estos grupos» → Ventas 9 → Guardar → Publicar.
     await page.goto(`${BASE}/lab/agents/${agente9.id}`);
+    await page.getByRole("button", { name: "Formulario" }).click();
     await page.locator("summary", { hasText: /^Documentos$/ }).click();
     await page.getByLabel(/Solo estos grupos/).check();
     await page.getByTestId("agent-doc-sources-empty").waitFor();
@@ -575,6 +576,7 @@ async function main() {
     const agente10 = (await A.post("/api/lab/agents", { internalName: `Cierre 10 E2E ${RUN}` })).json?.agent;
     await A.post(`/api/lab/agents/${agente10?.id}/publish`);
     await page.goto(`${BASE}/lab/agents/${agente10.id}`);
+    await page.getByRole("button", { name: "Formulario" }).click();
     await page.locator("summary", { hasText: /^Documentos$/ }).click();
     await page.getByText(/Se aplican al momento, sin publicar/).waitFor();
     ok("el editor avisa que los exclusivos aplican al momento", true);

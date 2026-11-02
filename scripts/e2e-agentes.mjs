@@ -297,6 +297,9 @@ async function main() {
     await page.waitForURL(/\/lab\/agents\//);
     await page.getByText(nombreUi).first().waitFor();
     const idUi = page.url().split("/lab/agents/")[1];
+    // El editor abre con el creador conversacional; estos pasos usan el formulario.
+    await page.getByText("Creador del agente").waitFor();
+    await page.getByRole("button", { name: "Formulario" }).click();
     ok("crear un agente lo abre en el editor (borrador, sin nombre de presentación)", Boolean(idUi) && (await page.locator("#agent-display-name").inputValue()) === "");
 
     // Vista previa con lo que hay en el formulario (sin guardar).
