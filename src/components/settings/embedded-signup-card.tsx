@@ -65,8 +65,9 @@ function loadSdk(config: EmbeddedSignupConfig): Promise<FbSdk> {
 }
 
 /** Lee el `postMessage` del flujo de Meta. Null si no es suyo o no trae lo que se usa. */
-function readSignupMessage(event: MessageEvent): { kind: "finish"; data: SignupData } | { kind: "cancel"; step: string | null } | null {
-  if (typeof event.origin !== "string" || !event.origin.endsWith("facebook.com")) return null;
+export function readSignupMessage(event: MessageEvent, expectedSource?: MessageEventSource | null): { kind: "finish"; data: SignupData } | { kind: "cancel"; step: string | null } | null {
+  if (!["https://www.facebook.com", "https://web.facebook.com"].includes(event.origin)) return null;
+  if (!expectedSource || event.source !== expectedSource) return null;
   let payload: unknown = event.data;
   if (typeof payload === "string") {
     try {
@@ -109,6 +110,7 @@ export function EmbeddedSignupCard({
   // Lo que va llegando de Meta en esta vuelta; se envía cuando estén los dos.
   const pending = useRef<{ code: string | null; data: SignupData | null }>({ code: null, data: null });
   const sent = useRef(false);
+  const signupWindow = useRef<Window | null>(null);
 
   const pinOk = /^\d{6}$/.test(pin);
   const canStart = !busy && (flow === "business_app" || pinOk);
@@ -117,6 +119,7 @@ export function EmbeddedSignupCard({
     const { code, data } = pending.current;
     if (!code || !data || sent.current) return;
     sent.current = true;
+    signupWindow.current = null;
     const res = await fetch("/api/settings/whatsapp/embedded-signup", {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -138,9 +141,10 @@ export function EmbeddedSignupCard({
 
   useEffect(() => {
     function onMessage(event: MessageEvent) {
-      const msg = readSignupMessage(event);
+      const msg = readSignupMessage(event, signupWindow.current);
       if (!msg) return;
       if (msg.kind === "cancel") {
+        signupWindow.current = null;
         setBusy(false);
         setError("Cerraste la ventana de Facebook antes de terminar. Cuando quieras, vuelve a dar clic en «Conectar con Facebook».");
         return;
@@ -149,7 +153,10 @@ export function EmbeddedSignupCard({
       void finish();
     }
     window.addEventListener("message", onMessage);
-    return () => window.removeEventListener("message", onMessage);
+    return () => {
+      window.removeEventListener("message", onMessage);
+      signupWindow.current = null;
+    };
     // finish lee de refs y del PIN actual; se vuelve a registrar si cambia el PIN.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pin]);
@@ -160,6 +167,7 @@ export function EmbeddedSignupCard({
     setBusy(true);
     pending.current = { code: null, data: null };
     sent.current = false;
+    signupWindow.current = null;
     let fb: FbSdk;
     try {
       fb = await loadSdk(config);
@@ -168,28 +176,41 @@ export function EmbeddedSignupCard({
       setError("No se pudo abrir Facebook. Revisa que tu navegador no bloquee ventanas emergentes y vuelve a intentar.");
       return;
     }
-    fb.login(
-      (res) => {
-        const code = res.authResponse?.code;
-        if (!code) {
-          setBusy(false);
-          setError((prev) => prev ?? "No se completó el permiso en Facebook. Vuelve a intentar.");
-          return;
-        }
-        pending.current.code = code;
-        void finish();
-      },
-      {
-        config_id: config.configId,
-        response_type: "code",
-        override_default_response_type: true,
-        extras: {
-          setup: {},
-          sessionInfoVersion: "3",
-          ...(flow === "business_app" ? { featureType: "whatsapp_business_app_onboarding" } : {}),
+    // FB.login abre el popup sin devolver su WindowProxy. Capturarlo durante
+    // esa llamada permite ligar postMessage al intento, sin confiar en el emisor.
+    const open = window.open;
+    window.open = (...args: Parameters<typeof window.open>) => {
+      const popup = open.apply(window, args);
+      signupWindow.current = popup;
+      return popup;
+    };
+    try {
+      fb.login(
+        (res) => {
+          const code = res.authResponse?.code;
+          if (!code) {
+            signupWindow.current = null;
+            setBusy(false);
+            setError((prev) => prev ?? "No se completó el permiso en Facebook. Vuelve a intentar.");
+            return;
+          }
+          pending.current.code = code;
+          void finish();
         },
-      }
-    );
+        {
+          config_id: config.configId,
+          response_type: "code",
+          override_default_response_type: true,
+          extras: {
+            setup: {},
+            sessionInfoVersion: "3",
+            ...(flow === "business_app" ? { featureType: "whatsapp_business_app_onboarding" } : {}),
+          },
+        }
+      );
+    } finally {
+      window.open = open;
+    }
   }
 
   return (
