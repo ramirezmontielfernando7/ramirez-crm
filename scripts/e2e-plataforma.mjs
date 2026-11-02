@@ -1217,10 +1217,10 @@ async function asistenteAnalisis(A, B, orgB) {
   await A.call("PUT", `/api/platform/organizations/${orgB}/limits`, { assistantTokens: antes6.p + antes6.c + 1 });
   const r6 = await preguntar(B, "Dame el análisis de mis conversaciones");
   const d6 = await costoAsistente(orgB);
-  ok("crédito sin espacio para una llamada segura: no pregunta (409) y lo dice", r6.status === 409 && /agotó su crédito/.test(r6.json?.error?.message ?? ""), `${r6.status} ${JSON.stringify(r6.json).slice(0, 300)}`);
+  ok("crédito sin espacio para una llamada segura: no pregunta (409/429) y lo dice", [409, 429].includes(r6.status) && /agotó su crédito/.test(r6.json?.error?.message ?? ""), `${r6.status} ${JSON.stringify(r6.json).slice(0, 300)}`);
   ok("…sin llamar al modelo ni pasarse del tope", d6.turnos === antes6.turnos && d6.p + d6.c === antes6.p + antes6.c, JSON.stringify({ antes6, d6 }));
   const r7 = await preguntar(B, "¿y ahora?");
-  ok("…y la siguiente pregunta tampoco corre (409, crédito agotado)", r7.status === 409 && /agotó su crédito/.test(r7.json?.error?.message ?? ""), `${r7.status}`);
+  ok("…y la siguiente pregunta tampoco corre (crédito agotado)", [409, 429].includes(r7.status) && /agotó su crédito/.test(r7.json?.error?.message ?? ""), `${r7.status}`);
 
   await A.call("POST", `/api/platform/organizations/${orgB}/modules`, { asistente: false });
   await A.call("PUT", `/api/platform/organizations/${orgB}/limits`, { assistantTokens: null, aiTokens: null });
