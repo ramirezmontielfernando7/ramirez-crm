@@ -157,6 +157,32 @@ describe("withUploadSlot", () => {
     expect(heavyUploadsInFlight()).toBe(0);
   });
 
+  it.each([null, "", "no-es-un-tamaño", "-1", "1e2", "1.5"])(
+    "DF-09: tamaño desconocido (%s) comparte el cupo y lo libera",
+    async (length) => {
+      const headers: Record<string, string> = length === null ? {} : { "content-length": length };
+      const req = () => new Request("http://localhost/subir", { method: "POST", headers, body: "x" });
+      const releases: Array<() => void> = [];
+      const running = Array.from({ length: MAX_HEAVY_UPLOADS }, () =>
+        withUploadSlot(req(), () => new Promise<Response>((resolve) => releases.push(() => resolve(new Response("ok")))))
+      );
+      try {
+        expect(heavyUploadsInFlight()).toBe(MAX_HEAVY_UPLOADS);
+        let ran = false;
+        const busy = await withUploadSlot(heavy(), async () => { ran = true; return new Response("ok"); });
+        expect(busy.status).toBe(503);
+        expect(ran).toBe(false);
+        expect((await withUploadSlot(req(), async () => new Response("ok"))).status).toBe(503);
+      } finally {
+        releases.forEach((release) => release());
+        await Promise.all(running);
+      }
+      expect(heavyUploadsInFlight()).toBe(0);
+      await expect(withUploadSlot(req(), async () => { throw new Error("chunked failed"); })).rejects.toThrow("chunked failed");
+      expect(heavyUploadsInFlight()).toBe(0);
+    }
+  );
+
   it("libera el lugar aunque la subida falle", async () => {
     await expect(withUploadSlot(heavy(), async () => Promise.reject(new Error("boom")))).rejects.toThrow("boom");
     expect(heavyUploadsInFlight()).toBe(0);
