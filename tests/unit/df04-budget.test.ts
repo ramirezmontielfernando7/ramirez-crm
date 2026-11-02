@@ -17,7 +17,7 @@ it("DF-04: reserva antes de llamar y reconcilia con el mismo periodo y presupues
   mocks.reserve.mockResolvedValue({ ok: true });
   mocks.chat.mockImplementation(async () => { expect(mocks.reserve).toHaveBeenCalled(); return { ok: true, data: {}, usage: { promptTokens: 5, completionTokens: 2 } }; });
   await chatJsonForOrg("org", "agent", z.object({}), [{ role: "user", content: "hola" }]);
-  const [, , period, budget] = mocks.reserve.mock.calls[0];
+  const [, , period, budget] = mocks.reserve.mock.calls[0]!;
   expect(budget).toBeGreaterThan(8192);
   expect(mocks.record).toHaveBeenCalledWith("org", "agent", { promptTokens: 5, completionTokens: 2 }, period, budget);
 });

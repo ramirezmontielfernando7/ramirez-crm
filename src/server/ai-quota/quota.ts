@@ -1,5 +1,6 @@
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { getDb, schema, withTenant } from "@/lib/db";
+
 import { scoped } from "@/lib/db/tenant";
 import { getEnv } from "@/lib/env";
 import type { LlmUsage } from "@/lib/ai";
@@ -33,7 +34,7 @@ import { getAssistantTokenLimit } from "@/server/limits";
  * y tokens cuentan también en el total, como todo lo demás.
  */
 
-export type AiKind = "agent" | "lab" | "judge" | "writing" | "assistant";
+export type AiKind = "agent" | "lab" | "judge" | "writing" | "assistant" | "analysis";
 
 /** 038 — El asistente interno (con tope propio, además del total). */
 export const ASSISTANT_KIND = "assistant";
@@ -93,7 +94,7 @@ export async function reserveTurn(
   return withTenant<Reservation>(organizationId, async (db) => {
   // 038: el asistente, primero contra su propio tope (no gasta un turno del
   // total si ya no le toca).
-  if (kind === ASSISTANT_KIND) {
+  if ((kind === ASSISTANT_KIND || kind === "analysis")) {
     const own = await getAssistantTokenLimit(organizationId);
     if (own === null) return { ok: false, limit: "assistant_unset" };
     if ((await assistantTokensUsed(organizationId, now)) >= own) return { ok: false, limit: "assistant_tokens" };
@@ -146,10 +147,10 @@ export async function reserveTurn(
       target: [schema.aiUsage.organizationId, schema.aiUsage.period, schema.aiUsage.kind],
       set: { turns: sql`${schema.aiUsage.turns} + 1`, reservedTokens: sql`${schema.aiUsage.reservedTokens} + ${budget}`, updatedAt: new Date() },
     });
-  if (kind === ASSISTANT_KIND) {
+  if ((kind === ASSISTANT_KIND || kind === "analysis")) {
     const own = await getAssistantTokenLimit(organizationId);
-    const [row] = await db.select().from(schema.aiUsage).where(and(scoped(schema.aiUsage.organizationId, organizationId), eq(schema.aiUsage.period, period), eq(schema.aiUsage.kind, kind)));
-    if (own === null || row.promptTokens + row.completionTokens + row.reservedTokens > own) throw new AssistantBudgetExceeded("presupuesto del asistente insuficiente");
+    const rows = await db.select().from(schema.aiUsage).where(and(scoped(schema.aiUsage.organizationId, organizationId), eq(schema.aiUsage.period, period), inArray(schema.aiUsage.kind, [ASSISTANT_KIND, "analysis"])));
+    if (own === null || rows.reduce((n, r) => n + r.promptTokens + r.completionTokens + r.reservedTokens, 0) > own) throw new AssistantBudgetExceeded("presupuesto del asistente insuficiente");
 
   }
   return { ok: true } as const;
@@ -291,18 +292,18 @@ export async function recordEmbedUsage(
 /** 038 — Tokens (entrada + salida) del asistente interno este mes, para su tope propio. */
 export async function assistantTokensUsed(organizationId: string, now = new Date()): Promise<number> {
   const [row] = await getDb()
-    .select({ p: schema.aiUsage.promptTokens, c: schema.aiUsage.completionTokens })
+    .select({ p: sql<number>`coalesce(sum(${schema.aiUsage.promptTokens}), 0)`, c: sql<number>`coalesce(sum(${schema.aiUsage.completionTokens}), 0)` })
     .from(schema.aiUsage)
     .where(
       scoped(
         schema.aiUsage.organizationId,
         organizationId,
         eq(schema.aiUsage.period, currentPeriod(now)),
-        eq(schema.aiUsage.kind, ASSISTANT_KIND)
+        inArray(schema.aiUsage.kind, [ASSISTANT_KIND, "analysis"])
       )
     )
     .limit(1);
-  return (row?.p ?? 0) + (row?.c ?? 0);
+  return Number(row?.p ?? 0) + Number(row?.c ?? 0);
 }
 
 /** Tokens de embeddings del mes (para su tope). */
@@ -350,4 +351,12 @@ export async function getUsageSummary(organizationId: string, now = new Date()):
     }
   }
   return { period, limits: await getQuotaLimits(organizationId), turns, tokens, byKind };
+}
+
+/** Ledger por modelo del análisis; no se incluye dos veces en el total. */
+export async function recordAnalysisModel(organizationId: string, model: string, usage: LlmUsage, now: Date): Promise<void> {
+  await getDb().insert(schema.aiUsageModel).values({ organizationId, period: currentPeriod(now), kind: "analysis", model, turns: 1, promptTokens: usage.promptTokens, completionTokens: usage.completionTokens, costUsd: String(costOf(usage)) }).onConflictDoUpdate({
+    target: [schema.aiUsageModel.organizationId, schema.aiUsageModel.period, schema.aiUsageModel.kind, schema.aiUsageModel.model],
+    set: { turns: sql`${schema.aiUsageModel.turns} + 1`, promptTokens: sql`${schema.aiUsageModel.promptTokens} + ${usage.promptTokens}`, completionTokens: sql`${schema.aiUsageModel.completionTokens} + ${usage.completionTokens}`, costUsd: sql`${schema.aiUsageModel.costUsd} + ${costOf(usage)}` },
+  });
 }

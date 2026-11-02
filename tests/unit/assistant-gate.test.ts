@@ -80,7 +80,7 @@ describe("038 — el asistente interno es solo lectura y tiene una sola puerta a
     expect(code, "sql.raw").not.toMatch(/sql\.raw\(/);
     // El modelo: siempre a nombre de la organización y con el tipo del asistente.
     for (const m of code.matchAll(/chatJsonForOrg(?:<[^>(]*>)?\(\s*[^,]+,\s*([^,]+),/g)) {
-      expect(m[1]!.trim(), "tipo de IA").toBe('"assistant"');
+      expect(m[1]!.trim(), "tipo de IA").toBe(file.endsWith("insights.ts") ? '"analysis"' : '"assistant"');
     }
   });
 });
@@ -107,7 +107,7 @@ describe("038 (PR 2) — el catálogo de consultas es cerrado", () => {
   it("el análisis llama al modelo con el tipo del asistente (el detector ve el genérico)", () => {
     const code = readFileSync(path.join(ROOT, "src/server/assistant/insights.ts"), "utf8");
     const calls = [...code.matchAll(/chatJsonForOrg(?:<[^>(]*>)?\(\s*[^,]+,\s*([^,]+),/g)].map((m) => m[1]!.trim());
-    expect(calls).toEqual(['"assistant"']);
+    expect(calls).toEqual(['"analysis"']);
   });
 
   it("el catálogo solo lee: ni insert, ni update, ni delete", () => {

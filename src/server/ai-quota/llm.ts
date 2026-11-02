@@ -7,6 +7,7 @@ import {
   isAgentKind,
   recordAgentUsage,
   recordUsage,
+  recordAnalysisModel,
   reserveTurn,
   type AiKind,
   type ReservationLimit,
@@ -78,6 +79,10 @@ export async function chatJsonForOrg<T>(
       log.error("no se pudieron sumar los tokens del turno de IA", { org: organizationId, tipo: kind, err });
     }
   }
+  if (kind === "analysis" && opts?.model && result.usage) {
+    try { await recordAnalysisModel(organizationId, opts.model, result.usage, now); }
+    catch (err) { log.error("no se pudo registrar el modelo del análisis", { org: organizationId, err }); }
+  }
   // 036 — El desglose por agente: solo de turnos que se contaron, y nunca
   // tumba el turno (un agente que ya no existe, la BD caída…).
   if (reservado && agentId && isAgentKind(kind)) {
@@ -89,7 +94,7 @@ export async function chatJsonForOrg<T>(
   }
   // 036 (PR 3a): avisos al 80 % y 100 % del tope (nunca tumba el turno).
   if (reservado) await checkAiAlerts(organizationId);
-  if (reservado && kind === ASSISTANT_KIND) await checkAssistantAlerts(organizationId);
+  if (reservado && (kind === ASSISTANT_KIND || kind === "analysis")) await checkAssistantAlerts(organizationId);
   return result;
 }
 

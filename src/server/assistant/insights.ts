@@ -249,7 +249,7 @@ async function analyzePending(ctx: QueryContext, pending: PeriodConversation[], 
     });
     const r = await chatJsonForOrg<InsightBatch>(
       ctx.organizationId,
-      "assistant",
+      "analysis",
       // Entrada ≠ salida (normaliza y cae a «no se sabe»): el tipo es el de la salida.
       insightBatchSchema as unknown as z.ZodType<InsightBatch>,
       [
