@@ -373,13 +373,21 @@ export async function refreshTokens(input: { refreshToken: string; clientId: str
     return { error: "invalid_grant", description: "Esta persona ya no puede conectar su IA" };
   }
   const scopes = normalizeScopes(connection.scopes);
-  return db.transaction(async (tx) => {
-    await tx
+  const pair = await db.transaction(async (tx) => {
+    const [consumed] = await tx
       .update(schema.aiToken)
       .set({ revokedAt: now })
-      .where(and(eq(schema.aiToken.id, token.id), isNull(schema.aiToken.revokedAt)));
+      .where(and(eq(schema.aiToken.id, token.id), isNull(schema.aiToken.revokedAt)))
+      .returning({ id: schema.aiToken.id });
+    // Otra petición pudo consumirla después del SELECT. Solo el ganador emite.
+    if (!consumed) return null;
     return issuePair(tx, connection.organizationId, connection.id, scopes, now);
   });
+  if (pair) return pair;
+  // Fuera de la transacción: esperar al ganador antes de revocar también su par.
+  await revokeConnectionById(connection.organizationId, connection.id, now);
+  log.warn("llave de renovación reutilizada: conexión revocada", { org: connection.organizationId, connection: connection.id });
+  return { error: "invalid_grant", description: "Llave de renovación ya usada: conexión cerrada por seguridad" };
 }
 
 async function revokeConnectionById(organizationId: string, connectionId: string, now: Date) {
