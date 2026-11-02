@@ -15,8 +15,9 @@ import { HEAVY_UPLOAD_BYTES, MAX_HEAVY_UPLOADS, UPLOAD_ENVELOPE_BYTES } from "@/
 function declaredLength(req: Request): number | null {
   const raw = req.headers.get("content-length");
   if (raw === null || raw.trim() === "") return null;
+  if (!/^\d+$/.test(raw.trim())) return null;
   const n = Number(raw);
-  return Number.isFinite(n) && n >= 0 ? n : null;
+  return Number.isSafeInteger(n) && n >= 0 ? n : null;
 }
 
 export async function readUploadForm(
@@ -66,10 +67,10 @@ export function heavyUploadsInFlight(): number {
 }
 
 export async function withUploadSlot(req: Request, run: () => Promise<Response>): Promise<Response> {
-  // Los navegadores siempre declaran el tamaño de un FormData. Sin él (un
-  // cliente «chunked») no hace fila: `readUploadForm` igual lo corta en el tope.
+  // Sin un tamaño válido no sabemos cuánto llegará: reservar cupo antes de
+  // leer el cuerpo. El límite de bytes de readUploadForm sigue aplicando.
   const declared = declaredLength(req);
-  if (declared === null || declared <= HEAVY_UPLOAD_BYTES) return run();
+  if (declared !== null && declared <= HEAVY_UPLOAD_BYTES) return run();
   if (heavyInFlight >= MAX_HEAVY_UPLOADS) {
     const res = apiError(
       503,
