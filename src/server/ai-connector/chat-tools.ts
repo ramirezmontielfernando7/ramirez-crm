@@ -14,7 +14,7 @@ import { setConversationArchived } from "@/server/inbox/lifecycle";
 import { assertMayStartChat, NewNumberError, openChat } from "@/server/inbox/new-number";
 import { getConversation, updateConversation } from "@/server/inbox/queries";
 import { aiNumberChat, aiNumberOf } from "@/server/ai-connector/my-number";
-import { applyClientMark, openNumberChat } from "@/server/mi-numero/chats";
+import { openNumberChat } from "@/server/mi-numero/chats";
 import { miNumeroMessage } from "@/server/mi-numero/http";
 import { MiNumeroFailure } from "@/server/mi-numero/numbers";
 import { SendError } from "@/server/inbox/send";
@@ -96,18 +96,10 @@ async function openInMyNumber(
   }
   try {
     const { conversationId } = await openNumberChat(session.organizationId, session.userId, { phone, name: args.name });
-    const chat = await aiNumberChat(session, conversationId);
-    if (!chat) {
-      // La IA solo toca chats de cliente: al pedirlo la persona, el chat se marca como cliente.
-      const [row] = await getDb()
-        .select()
-        .from(schema.conversation)
-        .where(scoped(schema.conversation.organizationId, session.organizationId, eq(schema.conversation.id, conversationId)))
-        .limit(1);
-      if (row) await applyClientMark(number, row, session.userId);
-    }
-    const fresh = chat ?? (await aiNumberChat(session, conversationId));
-    if (!fresh) return fail("No se pudo dejar el chat listo para la IA", "no se abrió");
+    // Solo la persona o la política de chats NUEVOS puede autorizarlo.
+    // Un chat privado existente nunca se promueve desde una herramienta de IA.
+    const fresh = await aiNumberChat(session, conversationId);
+    if (!fresh) return fail("Este chat requiere aprobación humana en Mi número antes de que la IA pueda usarlo", "chat no autorizado");
     return {
       data: {
         ok: true,
@@ -134,8 +126,8 @@ const openChatTool: ToolSpec<z.infer<typeof openChatArgs>> = {
     "por contact_id (por ejemplo, uno recién importado) o por phone (si el número no existe, registra el contacto con name). " +
     "No envía nada. Devuelve conversation_id y window_open: con la ventana cerrada, el primer mensaje por Meta " +
     "tiene que ser una plantilla (send_template); en Conexión directa o híbrida también sirve send_message. " +
-    "Con inbox=mi_numero lo abre en el WhatsApp PROPIO de la persona (su número conectado, sin ventana de 24 h) y lo marca como cliente " +
-    "para que send_message funcione; si no puede, da error y nunca abre el chat de la empresa.",
+    "Con inbox=mi_numero lo abre en el WhatsApp PROPIO de la persona (su número conectado, sin ventana de 24 h) si ya es cliente o la política permite marcar chats nuevos como cliente; " +
+    "los chats privados existentes requieren aprobación humana; si no puede, da error y nunca abre el chat de la empresa.",
   inputSchema: {
     type: "object",
     properties: {
