@@ -2905,6 +2905,7 @@ export const aiUsage = pgTable(
     /** agent | lab | judge | writing | embed (035, aparte del total) | total */
     kind: text("kind").notNull(),
     turns: integer("turns").notNull().default(0),
+    reservedTokens: integer("reserved_tokens").notNull().default(0),
     promptTokens: integer("prompt_tokens").notNull().default(0),
     completionTokens: integer("completion_tokens").notNull().default(0),
     /**

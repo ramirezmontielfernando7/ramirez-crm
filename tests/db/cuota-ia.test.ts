@@ -42,13 +42,13 @@ describe("cuota de IA por organización", () => {
     resetEnvCacheForTests();
   });
 
-  it("sin tope (ni propio ni default) todo pasa", async () => {
+  it("sin tope propio aplica un presupuesto por defecto", async () => {
     for (let i = 0; i < 5; i++) {
       expect(await runWithOrganization(B.id, () => reserveTurn(B.id, "agent"))).toEqual({ ok: true });
     }
     const resumen = await runWithOrganization(B.id, () => getUsageSummary(B.id));
     expect(resumen.turns).toBe(5);
-    expect(resumen.limits).toEqual({ turns: null, tokens: null });
+    expect(resumen.limits).toEqual({ turns: 1000, tokens: 1000000 });
   });
 
   it("tope de turnos: 10 turnos a la vez con tope 3 → pasan exactamente 3", async () => {
@@ -114,4 +114,21 @@ describe("cuota de IA por organización", () => {
       await borrarOrganizaciones([C.id]);
     }
   });
+});
+
+// DF-04: dos llamadas simultáneas no pueden prometer el mismo presupuesto.
+it("DF-04: reserva concurrente y reconciliación de tokens", async () => {
+  const org = await crearOrganizacion("DF-04 presupuesto");
+  try {
+    await ponerTope(org.id, 10, 1000);
+    const now = new Date();
+    const reserve = () => runWithOrganization(org.id, () => reserveTurn(org.id, "agent", now, 600));
+    const results = await Promise.all([reserve(), reserve()]);
+    expect(results.filter((r) => r.ok)).toHaveLength(1);
+    await runWithOrganization(org.id, () => recordUsage(org.id, "agent", { promptTokens: 7, completionTokens: 3 }, now, 600));
+    expect(await reserve()).toEqual({ ok: true });
+    const summary = await runWithOrganization(org.id, () => getUsageSummary(org.id));
+    expect(summary.tokens).toBe(10);
+    expect(summary.turns).toBe(2);
+  } finally { await borrarOrganizaciones([org.id]); }
 });

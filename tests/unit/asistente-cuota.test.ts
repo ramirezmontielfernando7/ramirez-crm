@@ -38,14 +38,14 @@ describe("038 — el asistente falla cerrado", () => {
 
   it("asistente: no se llama al modelo y lo dice", async () => {
     const r = await chatJsonForOrg("org_a", "assistant", S, []);
-    expect(r).toEqual({ ok: false, error: "quota_exceeded", detail: "no se pudo revisar el tope del asistente interno" });
+    expect(r).toEqual({ ok: false, error: "quota_exceeded", detail: "No se pudo verificar el presupuesto de IA. El chat humano sigue disponible." });
     expect(m.chatJson).not.toHaveBeenCalled();
   });
 
-  it("los demás usos siguen (sin contarse), como antes del 038", async () => {
+  it("los demás usos también fallan cerrado", async () => {
     const r = await chatJsonForOrg("org_a", "writing", S, []);
-    expect(r.ok).toBe(true);
-    expect(m.chatJson).toHaveBeenCalledTimes(1);
+    expect(r.ok).toBe(false);
+    expect(m.chatJson).not.toHaveBeenCalled();
     expect(m.recordUsage).not.toHaveBeenCalled();
   });
 

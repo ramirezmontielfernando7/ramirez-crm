@@ -165,7 +165,7 @@ async function callProvider(
         Authorization: `Bearer ${env.OPENROUTER_API_TOKEN}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ model, messages }),
+      body: JSON.stringify({ model, messages, max_tokens: 8192 }),
       signal: controller.signal,
     });
     if (!res.ok) {

@@ -78,8 +78,8 @@ export async function getEffectiveLimits(organizationId: string, db: Db = getDb(
   ]);
   return {
     planKey: planKeyOfRow(plan),
-    aiTurns: resolveLimit(quota?.turns, env.AI_DEFAULT_MONTHLY_TURNS),
-    aiTokens: resolveLimit(quota?.tokens, env.AI_DEFAULT_MONTHLY_TOKENS),
+    aiTurns: resolveLimit(quota?.turns, env.AI_DEFAULT_MONTHLY_TURNS ?? 1000),
+    aiTokens: resolveLimit(quota?.tokens, env.AI_DEFAULT_MONTHLY_TOKENS ?? 1000000),
     embedTokens: resolveLimit(plan?.embedTokenLimit, env.AI_DEFAULT_MONTHLY_EMBED_TOKENS),
     assistantTokens: resolveLimit(quota?.assistant, env.AI_DEFAULT_MONTHLY_ASSISTANT_TOKENS),
     usageVisibility: visibilityOf(plan),
