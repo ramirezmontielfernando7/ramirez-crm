@@ -163,7 +163,7 @@ export const TENANT_QUERY_EXCEPTIONS: Record<string, { max: number; motivo: stri
       "Updates por el id del contacto que se acaba de leer con scoped() en la misma función.",
   },
   "server/inbox/send.ts": {
-    max: 3,
+    max: 2,
     motivo:
       "El envío lee la conversación por id y COMPARA su organización con la del llamador antes de seguir; los updates van por ese id.",
   },
