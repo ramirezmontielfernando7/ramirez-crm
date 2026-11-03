@@ -95,12 +95,10 @@ describe("038 — el asistente", () => {
     expect(MODULE_PROFILES.pro.modules.asistente).toBe(false);
     expect(MODULE_PROFILES.ultra.modules.asistente).toBe(true);
     const def = moduleDef("asistente");
-    // 039: sin renglón propio; es la pestaña «Asistente de negocio» de Inteligencia.
-    expect(def).toMatchObject({ route: null, core: false, defaultRoles: ["owner"], permissions: ["assistant.use"] });
-    expect(moduleDef("results").sections?.find((s) => s.route === "/asistente")).toMatchObject({
-      module: "asistente",
-      permissions: ["assistant.use"],
-    });
+    // Su propio renglón del menú («Asistente»), ya no una pestaña de Inteligencia.
+    expect(def).toMatchObject({ route: "/asistente", core: false, defaultRoles: ["owner"], permissions: ["assistant.use"] });
+    expect(def.sections?.map((s) => s.route)).toEqual(["/asistente"]);
+    expect(moduleDef("results").sections?.find((s) => s.route === "/asistente")).toBeUndefined();
   });
 
   it("el aviso dice que consume bastante crédito y que se puede agotar rápido", () => {

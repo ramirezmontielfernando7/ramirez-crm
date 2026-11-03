@@ -15,9 +15,11 @@ import {
   Plus,
   Sparkles,
   Trash2,
+  X,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ProposalsCard } from "@/components/assistant/proposals-card";
 import { UsageMeter } from "@/components/usage/usage-meter";
 import {
   ASSISTANT_COST_NOTICE,
@@ -29,6 +31,7 @@ import {
 import {
   ASSISTANT_FLAG_TEXT,
   MAX_QUESTION_CHARS,
+  type AssistantProposal,
   type AssistantMessageDto,
   type AssistantSource,
   type AssistantThreadDto,
@@ -80,6 +83,18 @@ export function AssistantClient() {
   const [picked, setPicked] = useState<string[]>([]);
   const [leftOpen, setLeftOpen] = useState(true);
   const [rightOpen, setRightOpen] = useState(true);
+  const [bannerHidden, setBannerHidden] = useState(false);
+  useEffect(() => {
+    try {
+      if (localStorage.getItem("assistant-banner-hidden") === "1") setBannerHidden(true);
+    } catch {}
+  }, []);
+  function hideBanner() {
+    setBannerHidden(true);
+    try {
+      localStorage.setItem("assistant-banner-hidden", "1");
+    } catch {}
+  }
   const bottom = useRef<HTMLDivElement>(null);
   const areaRef = useRef<HTMLTextAreaElement>(null);
   const started = useRef(false);
@@ -226,15 +241,26 @@ export function AssistantClient() {
   const title = threadId === null ? "Hilo nuevo" : (current?.title ?? "Asistente");
 
   return (
-    <PageShell pillar="results" variant="fluid">
+    <PageShell pillar="asistente" tabs={[]} variant="fluid">
+      {!bannerHidden && (
       <div
         role="note"
         data-testid="assistant-cost-banner"
         className="flex shrink-0 items-start gap-2 border-b border-warning-soft bg-warning-tint px-4 py-1.5 text-xs text-warning-text sm:px-6"
       >
         <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
-        <p className="min-w-0">{ASSISTANT_COST_NOTICE}</p>
+        <p className="min-w-0 flex-1">{ASSISTANT_COST_NOTICE}</p>
+        <button
+          type="button"
+          onClick={hideBanner}
+          aria-label="Quitar aviso"
+          data-testid="assistant-cost-banner-close"
+          className="shrink-0 rounded p-0.5 hover:bg-warning-soft"
+        >
+          <X className="h-3.5 w-3.5" aria-hidden />
+        </button>
       </div>
+      )}
 
       <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto bg-canvas p-3 lg:flex-row lg:overflow-hidden">
         {/* ── Izquierda: cápsula del Asistente + Hilos ───────────────────── */}
@@ -449,7 +475,16 @@ export function AssistantClient() {
                         </p>
                       </div>
                     ) : (
-                      <AnswerBubble key={m.id} message={m} />
+                      <AnswerBubble
+                        key={m.id}
+                        message={m}
+                        threadId={threadId}
+                        onProposals={(next) =>
+                          setMessages((all) =>
+                            all.map((x) => (x.id === m.id && x.meta ? { ...x, meta: { ...x.meta, proposals: next } } : x))
+                          )
+                        }
+                      />
                     )
                   )}
                   {asking && (
@@ -610,7 +645,15 @@ function Step({ state, label, hint }: { state: "done" | "now"; label: string; hi
 }
 
 /** Una respuesta con sus fuentes: qué consultas corrieron y lo que devolvió cada una. */
-function AnswerBubble({ message }: { message: AssistantMessageDto }) {
+function AnswerBubble({
+  message,
+  threadId,
+  onProposals,
+}: {
+  message: AssistantMessageDto;
+  threadId: string | null;
+  onProposals: (next: AssistantProposal[]) => void;
+}) {
   const meta = message.meta;
   const sources = meta?.sources ?? [];
   const cited = sources.filter((s) => s.cited);
@@ -621,6 +664,9 @@ function AnswerBubble({ message }: { message: AssistantMessageDto }) {
         <p className="whitespace-pre-wrap break-words text-sm leading-relaxed" data-testid="assistant-answer-text">
           {message.content}
         </p>
+        {threadId && meta?.proposals && meta.proposals.length > 0 && (
+          <ProposalsCard threadId={threadId} messageId={message.id} proposals={meta.proposals} onChange={onProposals} />
+        )}
         {meta?.coverage && (
           <p className="mt-2 text-xs text-text-2" data-testid="assistant-coverage" data-faltan={meta.coverage.faltan}>
             Conversaciones revisadas: {meta.coverage.revisadas + meta.coverage.sinInformacion} de {meta.coverage.total}

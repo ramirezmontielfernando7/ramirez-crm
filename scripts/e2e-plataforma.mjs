@@ -768,10 +768,10 @@ async function asistenteBase(A, B, orgB) {
   const p0 = await B.ctx.newPage();
   const r0 = await p0.goto(`${BASE}/asistente`);
   ok("…y la pantalla → 404", r0?.status() === 404, String(r0?.status()));
-  // 039: el Asistente es una pestaña del pilar Inteligencia (/results).
+  // El Asistente tiene su propio renglón del menú; apagado, no aparece.
   await p0.goto(`${BASE}/results`);
   await p0.waitForLoadState("networkidle").catch(() => null);
-  ok("…y sin la pestaña «Asistente de negocio» en Inteligencia", (await p0.locator('a[href="/asistente"]').count()) === 0);
+  ok("…y sin el renglón «Asistente» en el menú", (await p0.locator('a[href="/asistente"]').count()) === 0);
   await p0.close();
   const fila0 = ((await A.call("GET", "/api/platform/organizations")).json?.organizations ?? []).find((o) => o.id === orgB);
   ok("el interruptor existe y está apagado", fila0?.modules?.asistente === false, JSON.stringify(fila0?.modules));
@@ -817,9 +817,8 @@ async function asistenteBase(A, B, orgB) {
   const page = await B.ctx.newPage();
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(`${BASE}/inbox`);
-  await page.locator("aside nav").first().getByRole("link", { name: "Inteligencia" }).click();
-  const entrada = page.getByRole("navigation", { name: "Secciones de Inteligencia" }).locator('a[href="/asistente"]');
-  ok("la Propietaria tiene «Asistente de negocio» en Inteligencia", await entrada.waitFor({ timeout: 30000 }).then(() => true, () => false));
+  const entrada = page.locator("aside nav").first().locator('a[href="/asistente"]').first();
+  ok("la Propietaria tiene el renglón «Asistente» en el menú", await entrada.waitFor({ timeout: 30000 }).then(() => true, () => false));
   await entrada.click();
   await page.waitForURL(/\/asistente$/, { timeout: 30000 });
   const aviso = page.getByTestId("assistant-notice");

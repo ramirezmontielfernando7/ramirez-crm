@@ -59,7 +59,7 @@ export const PLATFORM_MODULE_PILLAR: Record<PlatformModuleToggle, string> = {
   instagram: "Bandeja",
   messenger: "Bandeja",
   customNav: "Ajustes",
-  asistente: "Inteligencia",
+  asistente: "Asistente",
 };
 
 /** Cuántos de los 13 están encendidos. */

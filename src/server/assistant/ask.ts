@@ -1,4 +1,5 @@
 import { MAX_QUESTION_CHARS, type AssistantMessageDto } from "@/lib/assistant-engine";
+import type { SessionContext } from "@/lib/auth/session";
 import type { Access } from "@/lib/db/tenant";
 import { logger } from "@/lib/log";
 import { assistantMessage } from "@/lib/assistant";
@@ -27,6 +28,8 @@ export async function askQuestion(input: {
   organizationId: string;
   userId: string;
   access: Access;
+  /** La sesión de la persona: con ella el asistente lee y propone cambios con las herramientas del CRM. */
+  session?: SessionContext;
   threadId: string | null;
   question: string;
   now?: Date;
@@ -55,7 +58,7 @@ export async function askQuestion(input: {
   enCurso.add(key);
   try {
     await purgeOldThreads(input.organizationId, input.userId, input.now);
-    const r = await askAssistant({ organizationId: input.organizationId, access: input.access, question, history, now: input.now });
+    const r = await askAssistant({ organizationId: input.organizationId, access: input.access, session: input.session, question, history, now: input.now });
     if (!r.ok) {
       if (r.error === "quota_exceeded") {
         // Se acabó a media pregunta (o la revisión atómica lo frenó): lo mismo que dice la pantalla.

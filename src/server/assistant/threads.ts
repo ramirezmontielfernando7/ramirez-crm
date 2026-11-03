@@ -256,6 +256,45 @@ export async function saveExchange(input: SaveExchangeInput): Promise<{ threadId
   };
 }
 
+/** Una respuesta del asistente (de un hilo de esta persona) con su meta; `null` si no existe o no es suya. */
+export async function getAnswerMeta(
+  organizationId: string,
+  userId: string,
+  threadId: string,
+  messageId: string
+): Promise<AssistantMessageMeta | null> {
+  if (!(await ownsThread(organizationId, userId, threadId))) return null;
+  const [row] = await getDb()
+    .select({ sources: schema.assistantMessage.sources })
+    .from(schema.assistantMessage)
+    .where(
+      scoped(
+        schema.assistantMessage.organizationId,
+        organizationId,
+        eq(schema.assistantMessage.threadId, threadId),
+        eq(schema.assistantMessage.id, messageId),
+        eq(schema.assistantMessage.role, "assistant")
+      )
+    )
+    .limit(1);
+  return (row?.sources as AssistantMessageMeta | null) ?? null;
+}
+
+/** Guarda el meta de una respuesta (el estado de sus acciones propuestas). */
+export async function saveAnswerMeta(organizationId: string, threadId: string, messageId: string, meta: AssistantMessageMeta): Promise<void> {
+  await getDb()
+    .update(schema.assistantMessage)
+    .set({ sources: meta })
+    .where(
+      scoped(
+        schema.assistantMessage.organizationId,
+        organizationId,
+        eq(schema.assistantMessage.threadId, threadId),
+        eq(schema.assistantMessage.id, messageId)
+      )
+    );
+}
+
 /** Archiva (o desarchiva) hilos de esta persona. El Chat general no se archiva. Devuelve cuántos. */
 export async function archiveThreads(organizationId: string, userId: string, threadIds: string[], archived: boolean, now = new Date()): Promise<number> {
   if (threadIds.length === 0) return 0;
