@@ -6,8 +6,9 @@ Dos workflows en `.github/workflows/`:
   configuraciones), `db` (migraciones dos veces + aislamiento con Postgres
   real) y `e2e-multiorg` (solo en PRs a `main`: build + varios guiones E2E
   contra la app compilada con mocks).
-- **Imagen** (`imagen.yml`): construye la imagen Docker en cada PR y la
-  publica solo con un tag `vX.Y.Z`.
+- **Imagen** (`imagen.yml`): construye la imagen Docker en cada PR; con cada
+  fusión a `main` (si todo pasa) la publica en GHCR como `:main`, y con un
+  tag `vX.Y.Z` publica esa versión. Cómo usarla en Coolify: `docs/imagen-ghcr.md`.
 
 Cada job tiene `timeout-minutes` para que un cuelgue no espere 6 horas.
 
