@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, isNotNull, isNull, ne, sql } from "drizzle-orm";
+import { and, desc, eq, ilike, inArray, isNotNull, isNull, ne, or, sql } from "drizzle-orm";
 import { messagePage, type MessageCursor } from "./message-page";
 import { getDb, schema } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
@@ -57,8 +57,18 @@ export type TeamNumbers = { companyNumbers: CompanyNumberDto[]; requestable: Req
 /** Cuántos chats por número trae la vista (los más recientes). */
 const CHATS_PER_NUMBER = 200;
 
-export async function teamNumbers(organizationId: string, userId: string): Promise<TeamNumbers> {
+/** Búsqueda por nombre o teléfono (solo sobre lo que esta persona ya puede ver). */
+function contactMatch(q: string | undefined) {
+  const term = q?.trim().slice(0, 80);
+  if (!term) return undefined;
+  const like = `%${term.replace(/[\\%_]/g, "\\$&")}%`;
+  const digits = term.replace(/\D/g, "");
+  return or(ilike(schema.contact.name, like), digits.length >= 3 ? ilike(schema.contact.phone, `%${digits}%`) : undefined);
+}
+
+export async function teamNumbers(organizationId: string, userId: string, q?: string): Promise<TeamNumbers> {
   await assertSupervisor(organizationId, userId);
+  const match = contactMatch(q);
   const db = getDb();
   const numbers = await db
     .select({ id: schema.directNumber.id, label: schema.directNumber.label, ownerName: schema.user.name })
@@ -91,7 +101,8 @@ export async function teamNumbers(organizationId: string, userId: string): Promi
           schema.conversation.organizationId,
           organizationId,
           eq(schema.conversation.directNumberId, n.id),
-          isNull(schema.conversation.archivedAt)
+          isNull(schema.conversation.archivedAt),
+          match
         )
       )
       .orderBy(desc(sql`coalesce(${schema.conversation.lastMessageAt}, ${schema.conversation.createdAt})`))
@@ -110,11 +121,11 @@ export async function teamNumbers(organizationId: string, userId: string): Promi
       })),
     });
   }
-  return { companyNumbers, requestable: await requestableChats(organizationId, userId) };
+  return { companyNumbers, requestable: await requestableChats(organizationId, userId, undefined, match) };
 }
 
 /** Los chats de cliente de números personales ajenos que su dueño deja pedir. */
-async function requestableChats(organizationId: string, userId: string, only?: string): Promise<RequestableDto[]> {
+async function requestableChats(organizationId: string, userId: string, only?: string, match?: ReturnType<typeof contactMatch>): Promise<RequestableDto[]> {
   const db = getDb();
   const rows = await db
     .select({ conversation: schema.conversation, ownerName: schema.user.name, contactName: schema.contact.name })
@@ -127,6 +138,7 @@ async function requestableChats(organizationId: string, userId: string, only?: s
         schema.conversation.organizationId,
         organizationId,
         only ? eq(schema.conversation.id, only) : undefined,
+        match,
         isNotNull(schema.conversation.clientMarkedAt),
         eq(schema.directNumber.kind, "personal"),
         eq(schema.directNumber.allowViewRequests, true),

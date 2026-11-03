@@ -11,10 +11,10 @@ export const dynamic = "force-dynamic";
  * personales que su dueño deja pedir. Sin el complemento: 404.
  */
 export const GET = withAuth(
-  async (session) => {
+  async (session, req: Request) => {
     const off = await miNumeroOff(session.organizationId);
     if (off) return off;
-    return answer(async () => Response.json(await teamNumbers(session.organizationId, session.userId)));
+    return answer(async () => Response.json(await teamNumbers(session.organizationId, session.userId, new URL(req.url).searchParams.get("q") ?? undefined)));
   },
   { permission: "mi_numero.manage" },
 );
