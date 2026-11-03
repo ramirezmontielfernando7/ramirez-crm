@@ -1,10 +1,10 @@
 import { and, desc, eq, inArray, isNotNull, isNull, ne, sql } from "drizzle-orm";
+import { messagePage, type MessageCursor } from "./message-page";
 import { getDb, schema } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
 import { scoped } from "@/lib/db/tenant";
 import { runWithOrganization } from "@/lib/request-context";
 import { publish } from "@/server/events/bus";
-import { serializeMessage } from "@/server/inbox/ingest";
 import { SUPERVISOR_ROLES } from "./audience";
 import { MiNumeroFailure } from "./numbers";
 
@@ -217,19 +217,16 @@ async function companyNumberChat(organizationId: string, userId: string, convers
 }
 
 /** Leer un chat de un número de la empresa: solo lectura, sin marcarlo leído, y queda anotado. */
-export async function companyNumberChatMessages(organizationId: string, userId: string, conversationId: string) {
+export async function companyNumberChatMessages(organizationId: string, userId: string, conversationId: string, before: MessageCursor | null = null) {
   await assertSupervisor(organizationId, userId);
   const { conversation, ownerId } = await companyNumberChat(organizationId, userId, conversationId);
-  const db = getDb();
-  await db.insert(schema.conversationAccessLog).values({ id: newId("conversationAccessLog"), organizationId, conversationId, userId });
-  publish(organizationId, { type: "number.conversation", data: { conversationId }, audience: [ownerId] });
-  const rows = await db
-    .select({ message: schema.message, media: schema.mediaAsset })
-    .from(schema.message)
-    .leftJoin(schema.mediaAsset, eq(schema.message.mediaAssetId, schema.mediaAsset.id))
-    .where(scoped(schema.message.organizationId, organizationId, eq(schema.message.conversationId, conversation.id)))
-    .orderBy(schema.message.createdAt);
-  return rows.map((r) => serializeMessage(r.message, r.media));
+  // La lectura queda anotada al abrir (no por cada bloque anterior que se pida).
+  if (!before) {
+    await getDb().insert(schema.conversationAccessLog).values({ id: newId("conversationAccessLog"), organizationId, conversationId, userId });
+    publish(organizationId, { type: "number.conversation", data: { conversationId }, audience: [ownerId] });
+  }
+  // DF-15: por bloques.
+  return messagePage(organizationId, conversation.id, before);
 }
 
 /** Un adjunto de un chat de un número de la empresa, para quien supervisa (null si no). */

@@ -1,10 +1,10 @@
 import { and, desc, eq, inArray, isNotNull, isNull, ne } from "drizzle-orm";
+import { messagePage, type MessageCursor } from "./message-page";
 import { roleLabel } from "@/lib/auth/permissions";
 import { getDb, schema } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
 import { scoped } from "@/lib/db/tenant";
 import { publish } from "@/server/events/bus";
-import { serializeMessage } from "@/server/inbox/ingest";
 import { SUPERVISOR_ROLES } from "./audience";
 import { myChat } from "./chats";
 import { MiNumeroFailure } from "./numbers";
@@ -260,7 +260,7 @@ export async function decideAccess(
  * Leer un chat ajeno con acceso concedido: SOLO LECTURA, no lo marca leído y
  * queda en la bitácora del dueño.
  */
-export async function sharedChatMessages(organizationId: string, userId: string, conversationId: string) {
+export async function sharedChatMessages(organizationId: string, userId: string, conversationId: string, before: MessageCursor | null = null) {
   const db = getDb();
   const target = await numberChat(organizationId, conversationId);
   const [granted] = await db
@@ -279,15 +279,13 @@ export async function sharedChatMessages(organizationId: string, userId: string,
     )
     .limit(1);
   if (!granted) throw new MiNumeroFailure("not_found");
-  await db.insert(schema.conversationAccessLog).values({ id: newId("conversationAccessLog"), organizationId, conversationId, userId });
-  notify(organizationId, conversationId, [target.number.userId]);
-  const rows = await db
-    .select({ message: schema.message, media: schema.mediaAsset })
-    .from(schema.message)
-    .leftJoin(schema.mediaAsset, eq(schema.message.mediaAssetId, schema.mediaAsset.id))
-    .where(scoped(schema.message.organizationId, organizationId, eq(schema.message.conversationId, conversationId)))
-    .orderBy(schema.message.createdAt);
-  return rows.map((r) => serializeMessage(r.message, r.media));
+  // La lectura queda anotada al abrir (no por cada bloque anterior que se pida).
+  if (!before) {
+    await db.insert(schema.conversationAccessLog).values({ id: newId("conversationAccessLog"), organizationId, conversationId, userId });
+    notify(organizationId, conversationId, [target.number.userId]);
+  }
+  // DF-15: por bloques.
+  return messagePage(organizationId, conversationId, before);
 }
 
 export type { NumberRow };
