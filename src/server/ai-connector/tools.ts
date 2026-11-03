@@ -123,6 +123,8 @@ function chatSummary(c: ConversationDto) {
     last_inbound_at: c.lastInboundAt,
     preview: clip(c.preview, 200),
     window_open: c.windowOpen,
+    // directa/mixta = sale por el dispositivo vinculado aunque window_open sea false.
+    connection_mode: c.connectionMode ?? "meta",
     archived: c.archivedAt !== null,
     ai_paused: c.handoffAt !== null,
   };
@@ -257,7 +259,7 @@ const readChat: ToolSpec<z.infer<typeof readChatArgs>> = {
   title: "Leer un chat",
   description:
     "Lee los últimos mensajes de un chat (del más viejo al más nuevo) con la ficha del contacto: etapa, etiquetas y quién atiende. " +
-    "Leerlo no lo marca como leído. window_open dice si se puede contestar con texto libre (ventana de 24 h de WhatsApp).",
+    "Leerlo no lo marca como leído. window_open dice si se puede contestar con texto libre por Meta (ventana de 24 h de WhatsApp); con connection_mode directa o mixta sale por el dispositivo vinculado aunque window_open sea false.",
   inputSchema: {
     type: "object",
     properties: {
@@ -305,6 +307,7 @@ const readChat: ToolSpec<z.infer<typeof readChatArgs>> = {
         tags: (tags.get(contact.id) ?? []).map((t) => t.name),
         assigned_to_me: contact.assignedUserId === session.userId,
         window_open: lastInbound > 0 && Date.now() - lastInbound < 24 * 60 * 60 * 1000,
+        connection_mode: c.connectionMode ?? "meta",
         messages: rows.reverse().map(messageView),
       },
       summary: `leyó ${rows.length} mensajes`,
