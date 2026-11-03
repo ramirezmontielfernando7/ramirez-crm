@@ -881,7 +881,7 @@ async function asistenteBase(A, B, orgB) {
   // 040: interruptor en «Plan y módulos» (pilar Inteligencia); tope y visibilidad en «Topes y visibilidad».
   await pa.goto(`${BASE}/platform/organizaciones/${orgB}`);
   await pa.getByTestId("platform-module-asistente").waitFor({ timeout: 30000 });
-  ok("el administrador ve el interruptor «Asistente interno» (en Inteligencia)", /Asistente interno/.test(await pa.getByTestId("platform-pillar-Inteligencia").getByTestId("platform-module-asistente").innerText()));
+  ok("el administrador ve el interruptor «Asistente interno» (en su pilar)", /Asistente interno/.test(await pa.getByTestId("platform-pillar-Asistente").getByTestId("platform-module-asistente").innerText()));
   await pa.goto(`${BASE}/platform/organizaciones/${orgB}/topes`);
   await pa.getByTestId("platform-limits").waitFor({ timeout: 30000 });
   ok("…el tope del asistente y la visibilidad del consumo", (await pa.getByTestId("platform-limit-assistantTokens").count()) === 1 && (await pa.getByTestId("platform-limit-usageVisibility").inputValue()) === "percent");
