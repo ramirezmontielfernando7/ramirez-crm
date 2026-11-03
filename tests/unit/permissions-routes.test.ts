@@ -138,6 +138,8 @@ const PROTEGIDAS: [string, Method, Permission][] = [
   ["lab/agents/[id]/versions", "GET", "agent.manage"],
   ["lab/agents/[id]/versions/[logId]/restore", "POST", "agent.manage"],
   ["lab/preview", "POST", "agent.manage"],
+  ["lab/creator", "POST", "agent.manage"],
+  ["lab/review", "POST", "agent.manage"],
   // 031 (PR B) — asignación de agentes por etapa.
   ["lab/assignments", "GET", "agent.manage"],
   ["lab/assignments/[stageId]", "PUT", "agent.manage"],
