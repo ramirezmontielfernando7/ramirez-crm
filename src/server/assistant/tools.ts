@@ -2,12 +2,16 @@ import type { Masker } from "@/lib/assistant-engine";
 import type { AssistantProposal } from "@/lib/assistant-engine";
 import {
   argsHelp,
-  isAssistantReadTool,
-  isAssistantWriteTool,
+  ASSISTANT_CONNECTION_ID,
+  ASSISTANT_SENDER_NAME,
+  isExcludedTool,
+  isSendingTool,
   MAX_PROPOSALS,
+  shortDescription,
 } from "@/lib/assistant-actions";
 import type { SessionContext } from "@/lib/auth/session";
-import { toolsFor, type ToolSpec } from "@/server/ai-connector/tools";
+import { toolsFor, type ToolContext, type ToolSpec } from "@/server/ai-connector/tools";
+import { getConversation } from "@/server/inbox/queries";
 
 /**
  * El asistente usa las MISMAS herramientas del conector de IA (cada una por
@@ -22,18 +26,46 @@ import { toolsFor, type ToolSpec } from "@/server/ai-connector/tools";
 
 type AnyTool = ToolSpec<unknown>;
 
+/**
+ * El contexto con el que el asistente corre una herramienta del conector: la
+ * sesión de la persona y una marca propia («Asistente») para la bitácora y la
+ * burbuja de los mensajes que salgan por él.
+ */
+export function assistantContext(session: SessionContext): ToolContext {
+  return { session, scopes: ["read", "write"], connectionId: ASSISTANT_CONNECTION_ID, assistantName: ASSISTANT_SENDER_NAME };
+}
+
+/**
+ * Lo que la persona lee antes de pulsar «Aplicar» en un ENVÍO: a quién y qué
+ * sale, calculado aquí (no lo escribe el modelo, que podría maquillarlo).
+ */
+export async function sendingLabel(session: SessionContext, tool: string, args: Record<string, unknown>): Promise<string | null> {
+  if (!isSendingTool(tool)) return null;
+  const cut = (v: unknown, n: number) => String(v ?? "").replace(/\s+/g, " ").slice(0, n);
+  if (tool === "launch_campaign") return `Lanzar la campaña ${cut(args.campaign_id, 60)} (sale a su público)`;
+  const id = typeof args.conversation_id === "string" ? args.conversation_id : "";
+  const found = id ? await getConversation(session.access, id) : null;
+  const who = found ? (found.contact.name ?? found.contact.phone ?? "el chat") : "un chat de Mi número";
+  if (tool === "send_message") return `Enviar a ${who}: «${cut(args.text, 500)}»`;
+  if (tool === "send_template") {
+    const vars = Array.isArray(args.variables) && args.variables.length ? ` (${args.variables.map((v) => cut(v, 40)).join(", ")})` : "";
+    return `Enviar a ${who} la plantilla «${cut(args.template, 80)}»${vars}`;
+  }
+  return `Enviar a ${who} el material ${cut(args.material_id, 40)} (${cut(args.mode, 10) || "file"})`;
+}
+
 /** Herramientas de lectura y de cambio que esta persona puede usar ahora. */
 export async function assistantTools(session: SessionContext): Promise<{ read: AnyTool[]; write: AnyTool[] }> {
   const all = (await toolsFor(session, ["read", "write"])) as AnyTool[];
   return {
-    read: all.filter((t) => t.scope === "read" && isAssistantReadTool(t.name)),
-    write: all.filter((t) => t.scope === "write" && isAssistantWriteTool(t.name)),
+    read: all.filter((t) => t.scope === "read" && !isExcludedTool(t.name)),
+    write: all.filter((t) => t.scope === "write" && !isExcludedTool(t.name)),
   };
 }
 
 /** El texto del prompt: qué puede leer y qué puede proponer. */
 export function renderToolCatalog(tools: { read: AnyTool[]; write: AnyTool[] }): string {
-  const line = (t: AnyTool) => `- ${t.name} — ${t.description.replace(/\s+/g, " ").slice(0, 260)} Parámetros: ${argsHelp(t.inputSchema)}.`;
+  const line = (t: AnyTool) => `- ${t.name} — ${shortDescription(t.description)} Parámetros: ${argsHelp(t.inputSchema)}.`;
   return [
     "HERRAMIENTAS PARA LEER EL CRM (se piden con {\"action\":\"query\"}, igual que el catálogo; corren al momento):",
     ...tools.read.map(line),
@@ -81,7 +113,7 @@ export async function runReadTool(
   if (!tool) return { ok: false, reason: `la consulta «${name.slice(0, 60)}» no existe en el catálogo` };
   const parsed = tool.parse.safeParse(rawArgs ?? {});
   if (!parsed.success) return { ok: false, reason: `parámetros inválidos para ${tool.name}` };
-  const out = await tool.run({ session, scopes: ["read", "write"], connectionId: "", assistantName: null }, parsed.data);
+  const out = await tool.run(assistantContext(session), parsed.data);
   if (out.isError) return { ok: false, reason: String((out.data as { error?: unknown }).error ?? "no se pudo") };
   return {
     ok: true,

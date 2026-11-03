@@ -1,7 +1,7 @@
 import type { AssistantMessageMeta, AssistantProposal } from "@/lib/assistant-engine";
 import type { SessionContext } from "@/lib/auth/session";
 import { logger } from "@/lib/log";
-import { assistantTools } from "./tools";
+import { assistantContext, assistantTools } from "./tools";
 import { getAnswerMeta, saveAnswerMeta } from "./threads";
 
 /**
@@ -59,7 +59,7 @@ export async function resolveProposals(input: {
           p.result = "Los datos del cambio ya no son válidos.";
           continue;
         }
-        const out = await tool.run({ session, scopes: ["read", "write"], connectionId: "", assistantName: null }, parsed.data);
+        const out = await tool.run(assistantContext(session), parsed.data);
         if (out.isError) {
           p.status = "failed";
           p.result = String((out.data as { error?: unknown }).error ?? out.summary ?? "No se pudo aplicar.").slice(0, 200);

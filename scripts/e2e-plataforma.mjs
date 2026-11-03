@@ -824,7 +824,7 @@ async function asistenteBase(A, B, orgB) {
   const aviso = page.getByTestId("assistant-notice");
   ok("antes de usarlo, la confirmación", await aviso.waitFor({ timeout: 30000 }).then(() => true, () => false));
   ok("…dice que consume bastante crédito y se puede agotar rápido", /consume bastante crédito de IA/.test(await aviso.innerText()) && /agotar rápido/.test(await aviso.innerText()));
-  ok("…y que solo lee (no envía ni toca campañas)", /no envía mensajes/.test(await aviso.innerText()) && /no toca campañas/.test(await aviso.innerText()));
+  ok("…y que los cambios y mensajes solo salen con «Aplicar»", /Aplicar/.test(await aviso.innerText()));
   const guardado = page.waitForResponse((r) => r.url().endsWith("/api/assistant/notice") && r.request().method() === "POST", { timeout: 90000 }).catch(() => null);
   await page.getByTestId("assistant-notice-accept").click();
   await guardado;
