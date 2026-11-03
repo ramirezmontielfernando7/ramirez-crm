@@ -40,7 +40,7 @@ export function shortDescription(description: string, max = 150): string {
 }
 
 /** Acciones que puede proponer una sola respuesta. */
-export const MAX_PROPOSALS = 20;
+export const MAX_PROPOSALS = 50;
 
 /** Una línea por parámetro («conversation_id* (texto)»), para el prompt. */
 export function argsHelp(schema: Record<string, unknown>): string {

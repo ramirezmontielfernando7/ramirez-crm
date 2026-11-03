@@ -313,8 +313,8 @@ const QUERIES = [
     label: "Conversaciones recientes",
     description:
       "Las conversaciones con clientes más recientes (sin archivadas ni de prueba): contacto, canal, etapa, a quién está asignada, si tiene mensajes sin leer y el último mensaje (recortado). Contactos, personas y teléfonos llegan enmascarados.",
-    args: limitArgs(5, 10),
-    argsHelp: '{"limite": 1-10, opcional, 5 por defecto}',
+    args: limitArgs(10, 20),
+    argsHelp: '{"limite": 1-20, opcional, 10 por defecto}',
     run: async (ctx, args) => {
       const db = getDb();
       const ultimo = sql<string | null>`(

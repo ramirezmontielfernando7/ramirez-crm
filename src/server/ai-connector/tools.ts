@@ -123,6 +123,8 @@ function chatSummary(c: ConversationDto) {
     last_inbound_at: c.lastInboundAt,
     preview: clip(c.preview, 200),
     window_open: c.windowOpen,
+    // directa/mixta = sale por el dispositivo vinculado aunque window_open sea false.
+    connection_mode: c.connectionMode ?? "meta",
     archived: c.archivedAt !== null,
     ai_paused: c.handoffAt !== null,
   };
@@ -135,6 +137,8 @@ const listChatsArgs = z.object({
   inbox: z.enum(["empresa", "mi_numero"]).default("empresa"),
   status: z.enum(["all", "unread", "archived", "humano"]).default("all"),
   query: z.string().trim().max(MAX_QUERY_LENGTH).default(""),
+  tag: z.string().trim().max(80).optional(),
+  stage: z.string().trim().max(80).optional(),
   limit: z.number().int().min(1).max(50).default(20),
   cursor: z.string().max(500).optional(),
 });
@@ -145,7 +149,7 @@ const listChats: ToolSpec<z.infer<typeof listChatsArgs>> = {
   description:
     "Lista los chats de WhatsApp que la persona puede ver en la Bandeja, del más reciente al más viejo. " +
     "status: all (todos los no archivados), unread (con mensajes sin leer), archived, humano (esperan a una persona). " +
-    "query busca por nombre o teléfono del contacto. Devuelve next_cursor para pedir la siguiente página. " +
+    "query busca SOLO por nombre o teléfono del contacto (nunca por etiqueta). Para filtrar por etiqueta usa tag (el nombre exacto, p. ej. \"Prospección\") y por etapa del embudo usa stage (el nombre de la etapa); se pueden combinar. Devuelve next_cursor para pedir la siguiente página. " +
     "inbox: empresa (la Bandeja, por defecto) o mi_numero (los chats de cliente del WhatsApp propio de la persona, " +
     "solo si ella lo permitió en «Mi número»).",
   inputSchema: {
@@ -154,6 +158,8 @@ const listChats: ToolSpec<z.infer<typeof listChatsArgs>> = {
       inbox: { type: "string", enum: ["empresa", "mi_numero"], default: "empresa" },
       status: { type: "string", enum: ["all", "unread", "archived", "humano"], default: "all" },
       query: { type: "string", maxLength: MAX_QUERY_LENGTH, description: "Nombre o teléfono a buscar" },
+      tag: { type: "string", maxLength: 80, description: "Solo chats con esta etiqueta (nombre exacto)" },
+      stage: { type: "string", maxLength: 80, description: "Solo chats en esta etapa del embudo (nombre)" },
       limit: { type: "integer", minimum: 1, maximum: 50, default: 20 },
       cursor: { type: "string", description: "next_cursor de la página anterior" },
     },
@@ -165,10 +171,23 @@ const listChats: ToolSpec<z.infer<typeof listChatsArgs>> = {
     if (args.inbox === "mi_numero") return listNumberChats(session, args);
     const cursor = decodeCursor(args.cursor ?? null);
     if (cursor === "invalid") return { data: { error: "cursor no válido" }, summary: "cursor no válido", isError: true };
+    let tagId: string = DEFAULT_FILTERS.tag;
+    if (args.tag) {
+      const all = await listTags(session.organizationId);
+      const found = all.find((t) => t.name.toLocaleLowerCase("es") === args.tag!.toLocaleLowerCase("es"));
+      if (!found) {
+        return {
+          data: { error: `No existe la etiqueta «${args.tag}». Las que hay: ${all.map((t) => t.name).join(", ") || "ninguna"}` },
+          summary: "etiqueta desconocida",
+          isError: true,
+        };
+      }
+      tagId = found.id;
+    }
     const page = await listConversationsPage(
       session.access,
       "main",
-      { ...DEFAULT_FILTERS, q: args.query, status: args.status as ListStatus },
+      { ...DEFAULT_FILTERS, q: args.query, tag: tagId, stage: args.stage || DEFAULT_FILTERS.stage, status: args.status as ListStatus },
       { limit: args.limit, cursor }
     );
     return {
@@ -257,7 +276,7 @@ const readChat: ToolSpec<z.infer<typeof readChatArgs>> = {
   title: "Leer un chat",
   description:
     "Lee los últimos mensajes de un chat (del más viejo al más nuevo) con la ficha del contacto: etapa, etiquetas y quién atiende. " +
-    "Leerlo no lo marca como leído. window_open dice si se puede contestar con texto libre (ventana de 24 h de WhatsApp).",
+    "Leerlo no lo marca como leído. window_open dice si se puede contestar con texto libre por Meta (ventana de 24 h de WhatsApp); con connection_mode directa o mixta sale por el dispositivo vinculado aunque window_open sea false.",
   inputSchema: {
     type: "object",
     properties: {
@@ -305,6 +324,7 @@ const readChat: ToolSpec<z.infer<typeof readChatArgs>> = {
         tags: (tags.get(contact.id) ?? []).map((t) => t.name),
         assigned_to_me: contact.assignedUserId === session.userId,
         window_open: lastInbound > 0 && Date.now() - lastInbound < 24 * 60 * 60 * 1000,
+        connection_mode: c.connectionMode ?? "meta",
         messages: rows.reverse().map(messageView),
       },
       summary: `leyó ${rows.length} mensajes`,

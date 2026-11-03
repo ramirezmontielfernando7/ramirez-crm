@@ -19,13 +19,13 @@ import { z } from "zod";
 import { sanitizeForPrompt } from "@/lib/kb-docs";
 
 /** Consultas del catálogo que puede pedir UNA pregunta, en total. */
-export const MAX_QUERIES_PER_QUESTION = 6;
+export const MAX_QUERIES_PER_QUESTION = 16;
 /** Consultas que puede pedir en una sola vuelta. */
-export const MAX_QUERIES_PER_STEP = 4;
+export const MAX_QUERIES_PER_STEP = 6;
 /** Llamadas al modelo por pregunta (vueltas de consulta + la respuesta). */
-export const MAX_MODEL_CALLS = 4;
+export const MAX_MODEL_CALLS = 8;
 /** Intercambios previos del hilo que se le recuerdan al modelo. */
-export const HISTORY_EXCHANGES = 3;
+export const HISTORY_EXCHANGES = 4;
 /** Largo máximo de la pregunta. */
 export const MAX_QUESTION_CHARS = 1000;
 /** Lo más que se guarda de cada resultado para mostrarlo como fuente. */
@@ -70,7 +70,7 @@ export const assistantStepSchema = z.discriminatedUnion("action", [
         })
       )
       .min(1)
-      .max(20),
+      .max(50),
   }),
 ]);
 export type AssistantStep = z.infer<typeof assistantStepSchema>;
@@ -141,7 +141,15 @@ export type AssistantMessageMeta = {
   modelCalls: number;
   /** 038 (PR 3): si la respuesta usó el análisis de conversaciones, cuántas cubrió. */
   coverage?: AssistantCoverage;
+  /** Fichas de esta pregunta → dato real, para que la siguiente pregunta del hilo entienda «eso» y «ella». */
+  masks?: Record<string, string>;
+  /** Los datos que consultó (enmascarados, recortados): en la pregunta siguiente recuerda ids y nombres sin volver a pedirlos. */
+  recall?: string;
 };
+
+/** Qué tan a fondo piensa el asistente: rápido (ahorro), normal (por defecto) o profundo (análisis). */
+export const ASSISTANT_SPEEDS = ["fast", "normal", "deep"] as const;
+export type AssistantSpeed = (typeof ASSISTANT_SPEEDS)[number];
 
 /** Mensaje de un hilo tal como lo ve la pantalla. */
 export type AssistantMessageDto = {
@@ -253,6 +261,23 @@ export class Masker {
       .split(/(\[(?:CONTACTO|PERSONA DEL EQUIPO|TELÉFONO|CORREO) \d+\])/)
       .map((seg, i) => (i % 2 === 1 ? seg : seg.replace(/[\p{L}\p{N}]+/gu, (w) => (looksLikeName(w) ? this.nameParts.get(fold(w)) : undefined) ?? w)))
       .join("");
+  }
+
+  /** Las fichas de esta pregunta y el dato real de cada una (para recordarlas en el hilo). */
+  entries(): Record<string, string> {
+    return Object.fromEntries(this.real);
+  }
+
+  /**
+   * Una ficha de un intercambio anterior: se vuelve a registrar el dato real y
+   * devuelve la ficha que le toca AHORA (la numeración de cada pregunta
+   * empieza de cero, así que «[CONTACTO 1]» de ayer puede ser otra persona hoy).
+   */
+  learn(oldToken: string, value: string): string {
+    const m = /^\[(CONTACTO|PERSONA DEL EQUIPO|TELÉFONO|CORREO) \d+\]$/.exec(oldToken);
+    if (!m) return oldToken;
+    const kind = m[1] === "CONTACTO" ? "contact" : m[1] === "PERSONA DEL EQUIPO" ? "member" : m[1] === "TELÉFONO" ? "phone" : "email";
+    return kind === "contact" || kind === "member" ? (this.name(kind, value) ?? oldToken) : this.token(kind, value);
   }
 
   /** De vuelta al Propietario: las fichas por los datos reales. */

@@ -155,7 +155,7 @@ export async function getThreadMessages(
     role: r.role,
     content: r.content,
     createdAt: r.createdAt.toISOString(),
-    meta: (r.sources as AssistantMessageMeta | null) ?? null,
+    meta: publicMeta(r.sources as AssistantMessageMeta | null),
   }));
 }
 
@@ -167,15 +167,23 @@ export async function getThreadMessages(
 export async function threadHistory(organizationId: string, userId: string, threadId: string): Promise<HistoryEntry[] | null> {
   if (!(await ownsThread(organizationId, userId, threadId))) return null;
   const rows = await getDb()
-    .select({ role: schema.assistantMessage.role, masked: schema.assistantMessage.maskedContent })
+    .select({ role: schema.assistantMessage.role, masked: schema.assistantMessage.maskedContent, sources: schema.assistantMessage.sources })
     .from(schema.assistantMessage)
     .where(scoped(schema.assistantMessage.organizationId, organizationId, eq(schema.assistantMessage.threadId, threadId)))
     .orderBy(desc(schema.assistantMessage.createdAt), desc(schema.assistantMessage.role))
     .limit(HISTORY_EXCHANGES * 2);
-  return rows
-    .reverse()
-    .filter((r): r is { role: "user" | "assistant"; masked: string } => !!r.masked)
-    .map((r) => ({ role: r.role, maskedContent: r.masked }));
+  const ordered = rows.reverse();
+  return ordered
+    .map((r, i) => {
+      // La pregunta usa las fichas de la respuesta que le sigue (se guardan juntas).
+      const own = (r.sources as AssistantMessageMeta | null)?.masks;
+      const next = ordered[i + 1];
+      const masks = own ?? (r.role === "user" && next?.role === "assistant" ? (next.sources as AssistantMessageMeta | null)?.masks : undefined);
+      const recall = (r.sources as AssistantMessageMeta | null)?.recall;
+      return { role: r.role, masked: r.masked, masks, recall };
+    })
+    .filter((r): r is { role: "user" | "assistant"; masked: string; masks: Record<string, string> | undefined; recall: string | undefined } => !!r.masked)
+    .map((r) => ({ role: r.role, maskedContent: r.masked, ...(r.masks ? { masks: r.masks } : {}), ...(r.recall ? { recall: r.recall } : {}) }));
 }
 
 export type SaveExchangeInput = {
@@ -252,8 +260,15 @@ export async function saveExchange(input: SaveExchangeInput): Promise<{ threadId
   return {
     threadId,
     question: { id: qId, role: "user", content: input.question, createdAt: now.toISOString(), meta: null },
-    answer: { id: aId, role: "assistant", content: input.answer, createdAt: answeredAt.toISOString(), meta: input.meta },
+    answer: { id: aId, role: "assistant", content: input.answer, createdAt: answeredAt.toISOString(), meta: publicMeta(input.meta) },
   };
+}
+
+/** Lo que ve la pantalla: sin la memoria interna del hilo (fichas y datos consultados). */
+function publicMeta(meta: AssistantMessageMeta | null): AssistantMessageMeta | null {
+  if (!meta) return null;
+  const { masks: _masks, recall: _recall, ...rest } = meta;
+  return rest;
 }
 
 /** Una respuesta del asistente (de un hilo de esta persona) con su meta; `null` si no existe o no es suya. */

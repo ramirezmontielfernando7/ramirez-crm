@@ -1063,12 +1063,14 @@ async function asistenteMotor(A, B, orgB) {
   const antes6 = await costoAsistente(orgB);
   const r6 = await preguntar(B, "Dame TODO: un resumen completo de mi organización");
   const d6 = await costoAsistente(orgB);
-  console.log(`  ·· costo de la pregunta más pesada (6 consultas, tope): ${JSON.stringify({ tokensEntrada: d6.p - antes6.p, tokensSalida: d6.c - antes6.c, usd: d6.usd - antes6.usd, llamadas: d6.turnos - antes6.turnos })}`);
-  ok("tope de consultas por pregunta (6): no pasa de ahí y se avisa", r6.status === 200 && r6.json?.answer?.meta?.queryCount === 6 && r6.json?.answer?.meta?.flags?.includes("query_limit"), JSON.stringify(r6.json?.answer?.meta && { q: r6.json.answer.meta.queryCount, f: r6.json.answer.meta.flags, c: r6.json.answer.meta.modelCalls }));
+  console.log(`  ·· costo de la pregunta más pesada (16 consultas, tope): ${JSON.stringify({ tokensEntrada: d6.p - antes6.p, tokensSalida: d6.c - antes6.c, usd: d6.usd - antes6.usd, llamadas: d6.turnos - antes6.turnos })}`);
+  ok("tope de consultas por pregunta (16): no pasa de ahí y se avisa", r6.status === 200 && r6.json?.answer?.meta?.queryCount === 16 && r6.json?.answer?.meta?.flags?.includes("query_limit"), JSON.stringify(r6.json?.answer?.meta && { q: r6.json.answer.meta.queryCount, f: r6.json.answer.meta.flags, c: r6.json.answer.meta.modelCalls }));
   const r7 = await preguntar(B, "BUCLE");
-  ok("tope de llamadas al modelo (4): se detiene sin inventar", r7.status === 200 && r7.json?.answer?.meta?.modelCalls === 4 && /No alcancé a terminar/.test(r7.json?.answer?.content ?? ""), JSON.stringify(r7.json?.answer?.meta));
+  ok("tope de llamadas al modelo (8): se detiene sin inventar", r7.status === 200 && r7.json?.answer?.meta?.modelCalls === 8 && /No alcancé a terminar/.test(r7.json?.answer?.content ?? ""), JSON.stringify(r7.json?.answer?.meta));
+  const rA = await preguntar(B, "ANUNCIA");
+  ok("si promete consultar sin hacerlo, se le reclama y consulta de verdad en la misma pregunta", rA.status === 200 && rA.json?.answer?.meta?.queryCount === 1 && /Ya lo consulté/.test(rA.json?.answer?.content ?? ""), JSON.stringify(rA.json?.answer?.meta));
   const r8 = await preguntar(B, "ROMPE");
-  ok("si el proveedor falla, responde 502 con un mensaje claro (sin colgarse)", r8.status === 502 && /falla del proveedor/.test(r8.json?.error?.message ?? ""), `${r8.status} ${JSON.stringify(r8.json)}`);
+  ok("si el modelo contesta en texto corrido (sin JSON), se muestra tal cual en vez de fallar", r8.status === 200 && (r8.json?.answer?.content ?? "").trim().length > 0, `${r8.status} ${JSON.stringify(r8.json)}`);
 
   // 4. Hilos: solo los propios, con sus fuentes guardadas.
   const hilos = (await B.call("GET", "/api/assistant/threads")).json?.threads ?? [];
@@ -1085,8 +1087,17 @@ async function asistenteMotor(A, B, orgB) {
   await page.getByTestId("assistant-question").waitFor({ timeout: 30000 });
   // El Chat general ya trae lo preguntado antes (p. ej. desde el panel rápido): se espera la respuesta NUEVA.
   const antesBurbujas = await page.getByTestId("assistant-msg-answer").count();
+  // El límite es de 6 preguntas por minuto y persona: se deja pasar el minuto de las preguntas de arriba.
+  await sleep(61_000);
+  // Selector de modo: Rápido por defecto; «Análisis profundo» se puede elegir y se recuerda.
+  ok("el selector arranca en «Normal»", (await page.getByTestId("assistant-speed-normal").getAttribute("aria-checked")) === "true");
+  await page.getByTestId("assistant-speed-deep").click();
+  ok("…y se puede cambiar a «Profundo»", (await page.getByTestId("assistant-speed-deep").getAttribute("aria-checked")) === "true");
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: "scratch/e2e-asistente-selector.png", fullPage: false }).catch(() => null);
   await page.getByTestId("assistant-question").fill("¿Cuánto crédito de IA llevo?");
   await page.getByTestId("assistant-ask").click();
+  ok("tu pregunta aparece al instante mientras piensa", await page.getByTestId("assistant-msg-pending").waitFor({ timeout: 5000 }).then(() => true, () => false));
   const burbuja = page.getByTestId("assistant-msg-answer").last();
   ok("en pantalla: la respuesta aparece", await page.waitForFunction((n) => document.querySelectorAll('[data-testid="assistant-msg-answer"]').length > n, antesBurbujas, { timeout: 90000 }).then(() => true, () => false));
   ok("…con «Datos de: Consumo de IA del mes»", /Consumo de IA del mes/.test(await burbuja.getByTestId("assistant-sources").innerText()));
@@ -1229,6 +1240,7 @@ async function asistenteAnalisis(A, B, orgB) {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(`${BASE}/asistente`);
   await page.getByTestId("assistant-question").waitFor({ timeout: 30000 });
+  await sleep(61_000); // límite de preguntas por minuto
   await page.getByTestId("assistant-question").fill("Analiza mis conversaciones: ¿por qué pierdo ventas?");
   await page.getByTestId("assistant-ask").click();
   const burbuja = page.getByTestId("assistant-msg-answer").last();

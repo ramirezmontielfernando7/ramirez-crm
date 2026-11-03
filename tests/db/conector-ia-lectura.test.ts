@@ -174,6 +174,21 @@ describe("047 PR 2 — conector de IA (solo lectura)", () => {
     }
   });
 
+  it("list_chats filtra por etiqueta (tag) y no la confunde con el texto de `query`", async () => {
+    const key = await llave(A.id, u.owner, "owner");
+    const tagId = newId("contactTag");
+    await sys().insert(schema.contactTag).values({ id: tagId, organizationId: A.id, name: "Prospección" });
+    const ct = (await sys().select({ c: schema.conversation.contactId }).from(schema.conversation).where(eq(schema.conversation.id, chats.deAna)))[0]!.c;
+    await sys().insert(schema.contactTagAssignment).values({ organizationId: A.id, contactId: ct, tagId });
+    const ids = (r: { structuredContent: Record<string, any> }) => (r.structuredContent.chats as { conversation_id: string }[]).map((c) => c.conversation_id);
+    expect(ids(await herramienta(key, "list_chats", { tag: "prospección" }))).toEqual([chats.deAna]);
+    // `query` busca solo nombre o teléfono: «Prospección» ahí no encuentra nada.
+    expect(ids(await herramienta(key, "list_chats", { query: "Prospección" }))).toEqual([]);
+    const mala = await herramienta(key, "list_chats", { tag: "NoExiste" });
+    expect(mala.isError).toBe(true);
+    expect(JSON.stringify(mala.structuredContent)).toContain("Prospección");
+  });
+
   it("el Propietario ve todo su negocio, nunca el de otra organización", async () => {
     const key = await llave(A.id, u.owner, "owner");
     const ids = (await herramienta(key, "list_chats")).structuredContent.chats.map((c: { conversation_id: string }) => c.conversation_id);

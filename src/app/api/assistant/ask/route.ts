@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { apiError, parseBody, withAuth } from "@/lib/api";
-import { MAX_QUESTION_CHARS } from "@/lib/assistant-engine";
+import { ASSISTANT_SPEEDS, MAX_QUESTION_CHARS } from "@/lib/assistant-engine";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { askQuestion } from "@/server/assistant/ask";
 import { moduleOff } from "@/server/modules";
@@ -15,6 +15,7 @@ const ASK_PER_MINUTE = 6;
 const body = z.object({
   threadId: z.string().min(1).max(64).nullable().optional(),
   question: z.string().trim().min(1).max(MAX_QUESTION_CHARS),
+  speed: z.enum(ASSISTANT_SPEEDS).optional(),
 });
 
 /**
@@ -39,6 +40,7 @@ export const POST = withAuth(
       session,
       threadId: parsed.data.threadId ?? null,
       question: parsed.data.question,
+      speed: parsed.data.speed,
     });
     if (!r.ok) return apiError(r.status, r.code, r.message);
     return Response.json({ threadId: r.threadId, question: r.question, answer: r.answer });

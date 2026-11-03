@@ -1,5 +1,6 @@
 "use client";
 
+import { SpeedPicker, useAssistantSpeed } from "./speed-picker";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { ArrowUp, Clock, Maximize2, Sparkles, X } from "lucide-react";
@@ -35,7 +36,9 @@ export function AssistantLauncher() {
   const [threadId, setThreadId] = useState<string | null>(null);
   const [messages, setMessages] = useState<AssistantMessageDto[]>([]);
   const [question, setQuestion] = useState("");
+  const [speed, setSpeed] = useAssistantSpeed();
   const [asking, setAsking] = useState(false);
+  const [pending, setPending] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [history, setHistory] = useState(false);
   const input = useRef<HTMLTextAreaElement>(null);
@@ -104,13 +107,15 @@ export function AssistantLauncher() {
     const q = question.trim();
     if (!q || asking || !ready) return;
     setAsking(true);
+    setPending(q);
     setError(null);
     setQuestion("");
     const r = await fetchJson<{ threadId: string; question: AssistantMessageDto; answer: AssistantMessageDto }>(
       "/api/assistant/ask",
-      jsonInit("POST", { threadId: threadId ?? general?.id ?? null, question: q })
+      jsonInit("POST", { threadId: threadId ?? general?.id ?? null, question: q, speed })
     );
     setAsking(false);
+    setPending(null);
     if (!r.ok) {
       setQuestion(q);
       setError(r.error);
@@ -209,6 +214,11 @@ export function AssistantLauncher() {
             ) : (
               <p className="text-text-3">Pregunta lo que quieras sobre tu CRM.</p>
             )}
+            {asking && pending && (
+              <div className="mt-2 flex justify-end">
+                <p className="max-w-[85%] whitespace-pre-wrap break-words rounded-[18px] bg-secondary px-3 py-2" data-testid="assistant-quick-pending">{pending}</p>
+              </div>
+            )}
             {asking && <p className="mt-2 text-text-3 motion-safe:animate-pulse">El asistente está revisando tus datos…</p>}
             {error && (
               <p className="mt-2 text-danger-text" role="alert">
@@ -247,6 +257,9 @@ export function AssistantLauncher() {
                   <ArrowUp className="h-4 w-4" aria-hidden />
                 </button>
               )}
+            </div>
+            <div className="mt-1.5 flex justify-center">
+              <SpeedPicker value={speed} onChange={setSpeed} />
             </div>
             {!hidden && (
               <button type="button" onClick={hideButton} className="mt-1 text-[11px] text-text-4 hover:text-text-3" data-testid="assistant-quick-hide">
