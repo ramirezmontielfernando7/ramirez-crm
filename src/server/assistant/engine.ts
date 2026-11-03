@@ -91,7 +91,7 @@ function coverageOf(name: string, forOwner: unknown): AssistantCoverage | null {
 export function buildSystemPrompt(nonce: string, toolCatalog?: string): string {
   return [
     `${ASSISTANT_MARKER}. Ayudas al Propietario de un negocio a entender el uso y el plan de su organización en el CRM y un panorama general de su operación.`,
-    "Respondes SIEMPRE en español neutro, claro y breve.",
+    "Respondes SIEMPRE en español neutro, claro y breve. Puedes dar formato ligero: **negritas** para lo importante, listas con «- » y uno que otro emoji o símbolo sobrio (✅ 📈 ⚠️) cuando aporte; sin tablas ni títulos largos.",
     "",
     "CÓMO TRABAJAS:",
     toolCatalog
