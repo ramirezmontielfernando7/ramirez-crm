@@ -76,5 +76,9 @@ export const POST = withAuth(async (session, req: Request) => {
     displayPhoneNumber: valid.displayPhoneNumber,
     verifiedName: valid.verifiedName,
     historyRequested: synced?.history ?? false,
+    // DF-14: cada paso por separado; la pantalla no dice «listo» si falta uno.
+    webhook: stored.webhook,
+    contactsRequested: synced?.smb_app_state_sync ?? false,
+    coexistence: flow === "business_app",
   });
 }, { permission: "settings.manage" });

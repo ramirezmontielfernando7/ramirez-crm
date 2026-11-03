@@ -1,12 +1,15 @@
 import { whatsappOwnedElsewhere } from "@/server/credentials/resolve";
 import { saveCredentials } from "@/server/whatsapp/credentials";
-import { subscribeAppToWaba, testConnection, verifyPhoneInWaba } from "@/server/whatsapp/connect";
+import { subscribeAppToWaba, testConnection, verifyPhoneInWaba, type SubscribeOutcome } from "@/server/whatsapp/connect";
 
 /**
  * El camino COMÚN para dejar conectado un número, venga de la conexión
  * manual (se pegan IDs y token) o de «Conectar con Facebook» (Tech Provider:
  * el token sale del código de Meta). Mismas validaciones, mismo guardado.
  */
+
+/** Espera antes de reintentar la suscripción (Meta a veces tarda en reconocer el token nuevo). */
+export const SUBSCRIBE_RETRY_MS = process.env.NODE_ENV === "test" ? 0 : 1500;
 
 export type ConnectionFailure = { ok: false; status: number; code: string; message: string };
 
@@ -34,7 +37,14 @@ export async function validateConnection(
   return { ok: true, displayPhoneNumber: check.displayPhoneNumber, verifiedName: check.verifiedName };
 }
 
-/** Guarda cifrado y suscribe la app a la WABA (best-effort, respeta overrides). */
+/**
+ * Guarda cifrado y suscribe la app a la WABA (respeta overrides).
+ *
+ * Auditoría DF-14: devuelve si la suscripción quedó (`webhook`), para que la
+ * pantalla NO diga «conectado» cuando Meta no aceptó mandar los mensajes
+ * nuevos. Guardar el acceso no es lo mismo que recibir mensajes. Si falla, se
+ * reintenta una vez (nunca se toca un override).
+ */
 export async function storeConnection(input: {
   organizationId: string;
   wabaId: string;
@@ -42,7 +52,7 @@ export async function storeConnection(input: {
   token: string;
   displayPhoneNumber: string;
   verifiedName: string | null;
-}): Promise<{ ok: true } | ConnectionFailure> {
+}): Promise<{ ok: true; webhook: SubscribeOutcome } | ConnectionFailure> {
   try {
     await saveCredentials(input);
   } catch (err) {
@@ -55,8 +65,12 @@ export async function storeConnection(input: {
 
   // Best-effort: necesaria en modo directo. Si la WABA ya enruta a un override
   // (backend de agencia o cerebro externo), se respeta: re-suscribir lo borraría.
-  await subscribeAppToWaba(input.wabaId, input.token);
-  return { ok: true };
+  let webhook = await subscribeAppToWaba(input.wabaId, input.token);
+  if (webhook === "failed") {
+    await new Promise((r) => setTimeout(r, SUBSCRIBE_RETRY_MS));
+    webhook = await subscribeAppToWaba(input.wabaId, input.token);
+  }
+  return { ok: true, webhook };
 }
 
 function fail(status: number, code: string, message: string): ConnectionFailure {

@@ -110,6 +110,8 @@ export function EmbeddedSignupCard({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
+  // DF-14: lo que falta aunque el número haya quedado guardado.
+  const [warnings, setWarnings] = useState<string[]>([]);
 
   // Lo que va llegando de Meta en esta vuelta; se envía cuando estén los dos.
   const pending = useRef<{ code: string | null; data: SignupData | null }>({ code: null, data: null });
@@ -130,7 +132,14 @@ export function EmbeddedSignupCard({
       body: JSON.stringify({ code, ...data, ...(data.flow === "new_number" ? { pin } : {}) }),
     }).catch(() => null);
     setBusy(false);
-    const json = (await res?.json().catch(() => null)) as { displayPhoneNumber?: string; error?: { code?: string; message?: string } } | null;
+    const json = (await res?.json().catch(() => null)) as {
+      displayPhoneNumber?: string;
+      webhook?: "subscribed" | "override_kept" | "failed";
+      coexistence?: boolean;
+      historyRequested?: boolean;
+      contactsRequested?: boolean;
+      error?: { code?: string; message?: string };
+    } | null;
     if (!res?.ok) {
       setError(
         json?.error?.code === "pin_required"
@@ -140,6 +149,7 @@ export function EmbeddedSignupCard({
       return;
     }
     setDone(json?.displayPhoneNumber ?? data.phoneNumberId);
+    setWarnings(connectionWarnings(json ?? {}));
     onConnected();
   }
 
@@ -168,6 +178,7 @@ export function EmbeddedSignupCard({
   async function start() {
     setError(null);
     setDone(null);
+    setWarnings([]);
     setBusy(true);
     pending.current = { code: null, data: null };
     sent.current = false;
@@ -283,7 +294,21 @@ export function EmbeddedSignupCard({
             {error}
           </p>
         )}
-        {done && <p className="text-sm text-success">✓ Listo: {done} quedó conectado.</p>}
+        {done && warnings.length === 0 && <p className="text-sm text-success">✓ Listo: {done} quedó conectado.</p>}
+        {done && warnings.length > 0 && (
+          <div
+            className="flex items-start gap-2 rounded-md border border-warning-soft bg-warning-tint p-3 text-xs text-warning-text"
+            data-testid="conexion-incompleta"
+          >
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+            <div className="space-y-1">
+              <p className="font-medium">{done} quedó guardado, pero falta algo</p>
+              {warnings.map((w) => (
+                <p key={w}>{w}</p>
+              ))}
+            </div>
+          </div>
+        )}
 
         <Button disabled={!canStart} onClick={() => void start()} data-testid="boton-conectar-facebook">
           {busy ? "Esperando a Facebook…" : "Conectar con Facebook"}
@@ -328,4 +353,28 @@ function FlowOption({
       </span>
     </button>
   );
+}
+
+/**
+ * Auditoría DF-14 — Guardar el acceso no es lo mismo que recibir mensajes:
+ * lo que Meta no confirmó se dice aparte, en vez de un «listo» sin más.
+ */
+export function connectionWarnings(r: {
+  webhook?: "subscribed" | "override_kept" | "failed";
+  coexistence?: boolean;
+  historyRequested?: boolean;
+  contactsRequested?: boolean;
+}): string[] {
+  const out: string[] = [];
+  if (r.webhook === "failed") {
+    out.push(
+      "Meta no confirmó que nos avise de los mensajes nuevos: puede que no te lleguen a Dashfort. Vuelve a dar clic en «Conectar con Facebook» en unos minutos."
+    );
+  }
+  if (r.coexistence && (r.historyRequested === false || r.contactsRequested === false)) {
+    out.push(
+      "Meta no aceptó enviar tus chats y contactos del celular. Solo se pueden pedir en las primeras 24 horas: vuelve a conectar hoy para intentarlo de nuevo."
+    );
+  }
+  return out;
 }
