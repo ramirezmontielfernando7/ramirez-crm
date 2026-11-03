@@ -3816,11 +3816,17 @@ export const assistantThread = pgTable(
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
     title: text("title"),
+    /** 0069 — `general`: el Chat general fijo (uno por persona); `thread`: un hilo. */
+    kind: text("kind", { enum: ["general", "thread"] }).notNull().default("thread"),
+    /** 0069 — Archivado: sale de «Hilos» y vive en «Archivados». */
+    archivedAt: timestamp("archived_at"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },
   (t) => [
     unique("assistant_thread_org_id_uq").on(t.organizationId, t.id),
+    uniqueIndex("assistant_thread_general_uq").on(t.organizationId, t.userId).where(sql`${t.kind} = 'general'`),
+    check("assistant_thread_kind_chk", sql`${t.kind} in ('general', 'thread')`),
     index("assistant_thread_org_user_idx").on(t.organizationId, t.userId, t.updatedAt),
     check("assistant_thread_title_chk", sql`${t.title} is null or char_length(${t.title}) <= 200`),
   ]

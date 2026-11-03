@@ -477,6 +477,13 @@
       "when": 1793743200000,
       "tag": "0068_webhook_inbox",
       "breakpoints": true
+    },
+    {
+      "idx": 69,
+      "version": "7",
+      "when": 1793829600000,
+      "tag": "0069_asistente_hilos",
+      "breakpoints": true
     }
   ]
 }
