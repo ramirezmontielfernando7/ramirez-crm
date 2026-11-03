@@ -1,10 +1,25 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AlertTriangle, BotMessageSquare, Database, Plus, Send, Trash2 } from "lucide-react";
+import {
+  AlertTriangle,
+  Archive,
+  ArchiveRestore,
+  ArrowUp,
+  BotMessageSquare,
+  ChevronLeft,
+  ChevronRight,
+  Database,
+  PanelLeftOpen,
+  PanelRightOpen,
+  Plus,
+  Sparkles,
+  Trash2,
+  X,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
+import { ProposalsCard } from "@/components/assistant/proposals-card";
 import { UsageMeter } from "@/components/usage/usage-meter";
 import {
   ASSISTANT_COST_NOTICE,
@@ -16,6 +31,7 @@ import {
 import {
   ASSISTANT_FLAG_TEXT,
   MAX_QUESTION_CHARS,
+  type AssistantProposal,
   type AssistantMessageDto,
   type AssistantSource,
   type AssistantThreadDto,
@@ -27,27 +43,84 @@ import { cn } from "@/lib/utils";
 import { PageShell } from "@/components/ui/page-shell";
 
 /**
- * 038 — Pantalla del asistente interno.
+ * 038 — Pantalla del asistente interno, en tarjetas flotantes:
  *
- * PR 1: el aviso FIJO de que cada pregunta consume bastante crédito de IA, la
- * confirmación antes del primer uso (una vez por persona) y el estado de su
- * crédito con un mensaje claro.
+ * - Izquierda: la cápsula «Asistente» (el Chat general fijo, con la flechita
+ *   que pliega la columna) y la tarjeta de «Hilos» (nuevo, seleccionar varios
+ *   para archivar o borrar de golpe, y «Archivados»).
+ * - Centro: el chat, con el botón de enviar DENTRO del cuadro de texto.
+ * - Derecha: «Avance» (de qué consultas salió la última respuesta) y el
+ *   crédito del asistente. También se pliega.
  *
- * PR 2: las preguntas. Cada respuesta dice de qué consultas salen sus datos
- * («Datos de: …») y deja ver lo que devolvió cada una, para verificar que no
- * inventó nada. Las conversaciones son de quien las abre.
+ * El aviso fijo de consumo, la confirmación antes del primer uso y las
+ * fuentes de cada respuesta (038 PR 1 y 2) se conservan.
  */
+
+const COLLAPSE_KEY = "dashfort-asistente-paneles";
+
+function dayLabel(iso: string): string {
+  const d = new Date(iso);
+  const days = Math.floor((Date.now() - d.getTime()) / 86_400_000);
+  if (days <= 0) return "hoy";
+  if (days === 1) return "ayer";
+  if (days < 7) return d.toLocaleDateString("es-MX", { weekday: "short" }).replace(".", "");
+  return d.toLocaleDateString("es-MX", { day: "numeric", month: "short" }).replace(".", "");
+}
+
 export function AssistantClient() {
   const [status, setStatus] = useState<AssistantStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [general, setGeneral] = useState<AssistantThreadDto | null>(null);
   const [threads, setThreads] = useState<AssistantThreadDto[]>([]);
   const [threadId, setThreadId] = useState<string | null>(null);
   const [messages, setMessages] = useState<AssistantMessageDto[]>([]);
   const [question, setQuestion] = useState("");
   const [asking, setAsking] = useState(false);
   const [askError, setAskError] = useState<string | null>(null);
+  const [showArchived, setShowArchived] = useState(false);
+  const [selecting, setSelecting] = useState(false);
+  const [picked, setPicked] = useState<string[]>([]);
+  const [leftOpen, setLeftOpen] = useState(true);
+  const [rightOpen, setRightOpen] = useState(true);
+  const [bannerHidden, setBannerHidden] = useState(false);
+  useEffect(() => {
+    try {
+      if (localStorage.getItem("assistant-banner-hidden") === "1") setBannerHidden(true);
+    } catch {}
+  }, []);
+  function hideBanner() {
+    setBannerHidden(true);
+    try {
+      localStorage.setItem("assistant-banner-hidden", "1");
+    } catch {}
+  }
   const bottom = useRef<HTMLDivElement>(null);
+  const areaRef = useRef<HTMLTextAreaElement>(null);
+  const started = useRef(false);
+
+  // Los paneles plegados se recuerdan en este navegador (si no se puede, se abren).
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(COLLAPSE_KEY);
+      if (raw) {
+        const v = JSON.parse(raw) as { left?: boolean; right?: boolean };
+        if (v.left === false) setLeftOpen(false);
+        if (v.right === false) setRightOpen(false);
+      }
+    } catch {
+      /* sin almacenamiento: paneles abiertos */
+    }
+  }, []);
+  function setPanels(left: boolean, right: boolean) {
+    setLeftOpen(left);
+    setRightOpen(right);
+    try {
+      window.localStorage.setItem(COLLAPSE_KEY, JSON.stringify({ left, right }));
+    } catch {
+      /* ignorar */
+    }
+  }
 
   const loadStatus = useCallback(async () => {
     const r = await fetchJson<{ status: AssistantStatus }>("/api/assistant/status");
@@ -56,20 +129,16 @@ export function AssistantClient() {
   }, []);
 
   const loadThreads = useCallback(async () => {
-    const r = await fetchJson<{ threads: AssistantThreadDto[] }>("/api/assistant/threads");
-    if (r.ok) setThreads(r.data.threads);
+    const r = await fetchJson<{ general: AssistantThreadDto; threads: AssistantThreadDto[] }>("/api/assistant/threads");
+    if (r.ok) {
+      setGeneral(r.data.general);
+      setThreads(r.data.threads);
+      return r.data.general;
+    }
+    return null;
   }, []);
 
-  useEffect(() => {
-    void loadStatus();
-    void loadThreads();
-  }, [loadStatus, loadThreads]);
-
-  useEffect(() => {
-    bottom.current?.scrollIntoView?.({ block: "end" });
-  }, [messages, asking]);
-
-  async function openThread(id: string | null) {
+  const openThread = useCallback(async (id: string | null) => {
     setAskError(null);
     setThreadId(id);
     if (!id) {
@@ -79,18 +148,52 @@ export function AssistantClient() {
     const r = await fetchJson<{ messages: AssistantMessageDto[] }>(`/api/assistant/threads/${encodeURIComponent(id)}`);
     if (r.ok) setMessages(r.data.messages);
     else setAskError(r.error);
-  }
+  }, []);
 
-  async function removeThread() {
-    if (!threadId) return;
-    if (!window.confirm("¿Borrar esta conversación del asistente? No se puede deshacer.")) return;
-    const r = await fetchJson(`/api/assistant/threads/${encodeURIComponent(threadId)}`, { method: "DELETE" });
+  useEffect(() => {
+    void loadStatus();
+    void (async () => {
+      const g = await loadThreads();
+      // Al entrar se abre el Chat general (una sola vez: no pisa lo que la persona ya eligió).
+      if (g && !started.current) {
+        started.current = true;
+        await openThread(g.id);
+      }
+    })();
+  }, [loadStatus, loadThreads, openThread]);
+
+  useEffect(() => {
+    bottom.current?.scrollIntoView?.({ block: "end" });
+  }, [messages, asking]);
+
+  // El cuadro de texto crece con lo que se escribe (hasta unas 6 líneas).
+  useEffect(() => {
+    const el = areaRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
+  }, [question]);
+
+  const visible = threads.filter((t) => t.archived === showArchived);
+  const archivedCount = threads.filter((t) => t.archived).length;
+  const current = threadId === null ? null : threadId === general?.id ? general : (threads.find((t) => t.id === threadId) ?? null);
+
+  async function bulk(action: "archive" | "unarchive" | "delete", ids: string[]) {
+    if (ids.length === 0) return;
+    if (action === "delete") {
+      const msg = ids.length === 1 ? "¿Borrar este hilo del asistente? No se puede deshacer." : `¿Borrar ${ids.length} hilos del asistente? No se puede deshacer.`;
+      if (!window.confirm(msg)) return;
+    }
+    const r = await fetchJson("/api/assistant/threads/bulk", jsonInit("POST", { action, ids }));
     if (!r.ok) {
       setAskError(r.error);
       return;
     }
-    setThreadId(null);
-    setMessages([]);
+    if (threadId && ids.includes(threadId) && action !== "unarchive") {
+      if (action === "delete") await openThread(general?.id ?? null);
+    }
+    setPicked([]);
+    setSelecting(false);
     void loadThreads();
   }
 
@@ -133,34 +236,353 @@ export function AssistantClient() {
       : gaugeMeter(status.gauge)
     : null;
   const canAsk = !!status?.canAsk && !!status.noticeAcceptedAt;
+  const lastAnswer = [...messages].reverse().find((m) => m.role === "assistant");
+  const progress = lastAnswer?.meta?.sources ?? [];
+  const title = threadId === null ? "Hilo nuevo" : (current?.title ?? "Asistente");
 
   return (
-    <PageShell pillar="results" variant="fluid">
+    <PageShell pillar="asistente" tabs={[]} variant="fluid">
+      {!bannerHidden && (
       <div
         role="note"
         data-testid="assistant-cost-banner"
-        className="flex shrink-0 items-start gap-2 border-b border-warning-soft bg-warning-tint px-4 py-2 text-sm text-warning-text sm:px-6"
+        className="flex shrink-0 items-start gap-2 border-b border-warning-soft bg-warning-tint px-4 py-1.5 text-xs text-warning-text sm:px-6"
       >
-        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
-        <p className="min-w-0">{ASSISTANT_COST_NOTICE}</p>
+        <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+        <p className="min-w-0 flex-1">{ASSISTANT_COST_NOTICE}</p>
+        <button
+          type="button"
+          onClick={hideBanner}
+          aria-label="Quitar aviso"
+          data-testid="assistant-cost-banner-close"
+          className="shrink-0 rounded p-0.5 hover:bg-warning-soft"
+        >
+          <X className="h-3.5 w-3.5" aria-hidden />
+        </button>
       </div>
+      )}
 
-      <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-6">
-        <div className="mx-auto max-w-3xl space-y-4">
-          {!status ? (
-            <p className={cn("text-sm", error ? "text-destructive" : "text-text-2")}>{error ?? "Cargando el asistente…"}</p>
-          ) : (
-            <>
-              <section className="rounded-md border bg-card p-4" data-testid="assistant-status" data-state={status.state}>
-                <div className="flex items-center gap-2">
-                  <BotMessageSquare className="h-4 w-4 shrink-0 text-text-2" aria-hidden />
-                  <h3 className="text-sm font-semibold">Crédito del asistente</h3>
-                </div>
-                {meter && (
-                  <div className="mt-3">
-                    <UsageMeter meter={meter} label="Crédito del asistente" testId="assistant-credit" showLabel="never" />
-                  </div>
+      <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto bg-canvas p-3 lg:flex-row lg:overflow-hidden">
+        {/* ── Izquierda: cápsula del Asistente + Hilos ───────────────────── */}
+        {leftOpen && (
+          <aside className="flex shrink-0 flex-col gap-3 lg:w-[280px] lg:min-h-0" aria-label="Conversaciones del asistente">
+            <div className="rounded-lg bg-surface p-2.5 shadow-card">
+              <div
+                className={cn(
+                  "flex w-full items-center gap-3 rounded-md p-2 text-left transition-colors",
+                  threadId === general?.id ? "bg-brand-tint" : "hover:bg-subtle"
                 )}
+              >
+                <button
+                  type="button"
+                  data-testid="assistant-general"
+                  onClick={() => general && void openThread(general.id)}
+                  className="flex min-w-0 flex-1 items-center gap-3 text-left"
+                >
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm">
+                    <Sparkles className="h-4 w-4" aria-hidden />
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block text-sm font-semibold">Asistente</span>
+                    <span className="block truncate text-xs text-text-3">Pregunta lo que quieras</span>
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  data-testid="assistant-collapse-left"
+                  aria-label="Ocultar las conversaciones"
+                  onClick={() => setPanels(false, rightOpen)}
+                  className="hidden rounded p-1 text-text-3 hover:text-foreground lg:block"
+                >
+                  <ChevronLeft className="h-4 w-4" aria-hidden />
+                </button>
+              </div>
+            </div>
+
+            <div className="hidden min-h-0 flex-1 flex-col rounded-lg bg-surface p-4 shadow-card lg:flex">
+              <div className="mb-3 flex items-center justify-between text-[11px] font-semibold uppercase tracking-wider text-text-3">
+                <span>{showArchived ? "Archivados" : "Hilos"}</span>
+                <button
+                  type="button"
+                  data-testid="assistant-select-mode"
+                  onClick={() => {
+                    setSelecting((s) => !s);
+                    setPicked([]);
+                  }}
+                  className="text-[12px] font-medium normal-case tracking-normal text-brand-ink"
+                >
+                  {selecting ? "Listo" : "Seleccionar"}
+                </button>
+              </div>
+
+              <div className="min-h-0 flex-1 space-y-0.5 overflow-y-auto" data-testid="assistant-thread-list">
+                {!showArchived && (
+                  <button
+                    type="button"
+                    data-testid="assistant-new-thread"
+                    onClick={() => void openThread(null)}
+                    className={cn(
+                      "flex w-full items-center gap-2 rounded-md px-2 py-2 text-sm font-medium text-brand-ink hover:bg-subtle",
+                      threadId === null && "bg-brand-tint"
+                    )}
+                  >
+                    <Plus className="h-4 w-4" aria-hidden /> Nuevo hilo
+                  </button>
+                )}
+                {visible.length === 0 && (
+                  <p className="px-2 py-2 text-xs text-text-3" data-testid="assistant-no-threads">
+                    {showArchived ? "No hay hilos archivados." : "Aún no hay hilos. Escribe en «Asistente» o abre uno nuevo."}
+                  </p>
+                )}
+                {visible.map((t) => {
+                  const on = picked.includes(t.id);
+                  return (
+                    <button
+                      key={t.id}
+                      type="button"
+                      data-testid="assistant-thread-item"
+                      data-thread-id={t.id}
+                      aria-current={t.id === threadId ? "true" : undefined}
+                      onClick={() => (selecting ? setPicked((p) => (on ? p.filter((x) => x !== t.id) : [...p, t.id])) : void openThread(t.id))}
+                      className={cn(
+                        "flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-sm transition-colors hover:bg-subtle",
+                        t.id === threadId && !selecting && "bg-brand-tint"
+                      )}
+                    >
+                      {selecting ? (
+                        <span
+                          aria-hidden
+                          className={cn("flex h-4 w-4 shrink-0 items-center justify-center rounded border", on ? "border-primary bg-primary text-primary-foreground" : "border-border-strong bg-background")}
+                        >
+                          {on && <span className="text-[10px] leading-none">✓</span>}
+                        </span>
+                      ) : (
+                        <span aria-hidden className={cn("h-2 w-2 shrink-0 rounded-full", t.id === threadId ? "bg-primary" : "bg-border-strong")} />
+                      )}
+                      <span className="min-w-0 flex-1 truncate">{t.title}</span>
+                      <span className="shrink-0 text-xs text-text-3">{dayLabel(t.updatedAt)}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {selecting && (
+                <div className="mt-3 flex items-center gap-2 border-t pt-3" data-testid="assistant-bulk-bar">
+                  <span className="mr-auto text-xs text-text-3">{picked.length} seleccionad{picked.length === 1 ? "o" : "os"}</span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={picked.length === 0}
+                    data-testid="assistant-bulk-archive"
+                    onClick={() => void bulk(showArchived ? "unarchive" : "archive", picked)}
+                  >
+                    {showArchived ? <ArchiveRestore className="mr-1 h-3.5 w-3.5" aria-hidden /> : <Archive className="mr-1 h-3.5 w-3.5" aria-hidden />}
+                    {showArchived ? "Desarchivar" : "Archivar"}
+                  </Button>
+                  <Button variant="outline" size="sm" disabled={picked.length === 0} data-testid="assistant-bulk-delete" onClick={() => void bulk("delete", picked)}>
+                    <Trash2 className="mr-1 h-3.5 w-3.5" aria-hidden /> Borrar
+                  </Button>
+                </div>
+              )}
+
+              <button
+                type="button"
+                data-testid="assistant-archived-toggle"
+                onClick={() => {
+                  setShowArchived((s) => !s);
+                  setSelecting(false);
+                  setPicked([]);
+                }}
+                className="mt-3 flex items-center justify-between border-t pt-3 text-[11px] font-semibold uppercase tracking-wider text-text-3 hover:text-foreground"
+              >
+                <span>{showArchived ? "Volver a hilos" : "Archivados"}</span>
+                <span className="flex items-center gap-1 normal-case tracking-normal">
+                  {!showArchived && archivedCount}
+                  <ChevronRight className={cn("h-3.5 w-3.5", showArchived && "rotate-180")} aria-hidden />
+                </span>
+              </button>
+            </div>
+          </aside>
+        )}
+
+        {/* ── Centro: el chat ─────────────────────────────────────────────── */}
+        <section className="flex min-h-[70dvh] min-w-0 flex-1 flex-col overflow-hidden rounded-lg bg-surface shadow-card lg:min-h-0" aria-label="Chat del asistente">
+          <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4">
+            {!leftOpen && (
+              <button type="button" aria-label="Mostrar las conversaciones" data-testid="assistant-open-left" onClick={() => setPanels(true, rightOpen)} className="hidden rounded p-1 text-text-3 hover:text-foreground lg:block">
+                <PanelLeftOpen className="h-4 w-4" aria-hidden />
+              </button>
+            )}
+            <h2 className="min-w-0 flex-1 truncate text-sm font-semibold" data-testid="assistant-title">{title}</h2>
+            {current && current.kind === "thread" && (
+              <Button
+                variant="ghost"
+                size="sm"
+                data-testid="assistant-archive-current"
+                onClick={() => void bulk(current.archived ? "unarchive" : "archive", [current.id])}
+              >
+                {current.archived ? <ArchiveRestore className="mr-1 h-3.5 w-3.5" aria-hidden /> : <Archive className="mr-1 h-3.5 w-3.5" aria-hidden />}
+                {current.archived ? "Desarchivar" : "Archivar"}
+              </Button>
+            )}
+            {!rightOpen && (
+              <button type="button" aria-label="Mostrar el avance" data-testid="assistant-open-right" onClick={() => setPanels(leftOpen, true)} className="hidden rounded p-1 text-text-3 hover:text-foreground xl:block">
+                <PanelRightOpen className="h-4 w-4" aria-hidden />
+              </button>
+            )}
+          </header>
+
+          {/* Celular: sin columna de hilos, un selector. */}
+          <div className="shrink-0 border-b p-2 lg:hidden">
+            <label className="sr-only" htmlFor="assistant-thread-select">Conversación</label>
+            <select
+              id="assistant-thread-select"
+              data-testid="assistant-thread-select"
+              className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
+              value={threadId ?? ""}
+              onChange={(e) => void openThread(e.target.value || null)}
+            >
+              <option value="">Hilo nuevo</option>
+              {general && <option value={general.id}>Asistente</option>}
+              {threads.filter((t) => !t.archived).map((t) => (
+                <option key={t.id} value={t.id}>{t.title}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-4 py-6">
+            <div className="mx-auto w-full max-w-[680px] space-y-4">
+              {!status ? (
+                <p className={cn("text-sm", error ? "text-destructive" : "text-text-2")}>{error ?? "Cargando el asistente…"}</p>
+              ) : (
+                <section className="space-y-4" data-testid="assistant-messages" aria-live="polite">
+                  {messages.length === 0 && !asking && (
+                    <div className="py-10 text-center" data-testid="assistant-empty">
+                      <span className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm">
+                        <Sparkles className="h-5 w-5" aria-hidden />
+                      </span>
+                      <p className="text-base font-semibold">¿En qué te ayudo?</p>
+                      <p className="mx-auto mt-2 max-w-md text-sm text-text-3">
+                        Pregúntame por el uso y el plan de tu organización, tus etiquetas, tu equipo o tus chats recientes; o por tus conversaciones: por qué se pierden ventas, qué objeciones ponen tus clientes o cómo atiende cada asesor.
+                      </p>
+                    </div>
+                  )}
+                  {messages.map((m) =>
+                    m.role === "user" ? (
+                      <div key={m.id} className="flex justify-end">
+                        <p className="max-w-[80%] whitespace-pre-wrap break-words rounded-[18px] bg-secondary px-4 py-2.5 text-sm" data-testid="assistant-msg-user">
+                          {m.content}
+                        </p>
+                      </div>
+                    ) : (
+                      <AnswerBubble
+                        key={m.id}
+                        message={m}
+                        threadId={threadId}
+                        onProposals={(next) =>
+                          setMessages((all) =>
+                            all.map((x) => (x.id === m.id && x.meta ? { ...x, meta: { ...x.meta, proposals: next } } : x))
+                          )
+                        }
+                      />
+                    )
+                  )}
+                  {asking && (
+                    <p className="text-sm text-text-3 motion-safe:animate-pulse" data-testid="assistant-thinking">
+                      El asistente está revisando tus datos…
+                    </p>
+                  )}
+                  <div ref={bottom} />
+                </section>
+              )}
+              {status && error && <p className="text-sm text-destructive">{error}</p>}
+            </div>
+          </div>
+
+          {status && (
+            <form
+              className="shrink-0 px-4 pb-3 pt-1"
+              onSubmit={(e) => {
+                e.preventDefault();
+                void ask();
+              }}
+            >
+              <div className="mx-auto w-full max-w-[680px]">
+                {askError && (
+                  <p className="mb-2 text-sm text-danger-text" role="alert" data-testid="assistant-ask-error">
+                    {askError}
+                  </p>
+                )}
+                <div className="flex items-end gap-2 rounded-[26px] border bg-background py-2 pl-5 pr-2 shadow-sm focus-within:border-primary">
+                  <label className="sr-only" htmlFor="assistant-question">Tu pregunta</label>
+                  <textarea
+                    ref={areaRef}
+                    id="assistant-question"
+                    data-testid="assistant-question"
+                    rows={1}
+                    maxLength={MAX_QUESTION_CHARS}
+                    placeholder={canAsk ? "Pregunta algo…" : "El asistente no puede responder ahora."}
+                    value={question}
+                    disabled={!canAsk || asking}
+                    onChange={(e) => setQuestion(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        void ask();
+                      }
+                    }}
+                    className="min-h-[34px] min-w-0 flex-1 resize-none self-center bg-transparent py-1.5 text-sm outline-none placeholder:text-text-4"
+                  />
+                  {question.trim() && (
+                    <button
+                      type="submit"
+                      data-testid="assistant-ask"
+                      disabled={!canAsk || asking}
+                      aria-label="Enviar"
+                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground transition-opacity disabled:opacity-50"
+                    >
+                      <ArrowUp className="h-4 w-4" aria-hidden />
+                    </button>
+                  )}
+                </div>
+                <p className="mt-2 text-center text-xs text-text-4">{ASSISTANT_READ_ONLY_NOTICE}</p>
+              </div>
+            </form>
+          )}
+        </section>
+
+        {/* ── Derecha: avance y crédito ───────────────────────────────────── */}
+        {rightOpen && (
+          <aside className="flex shrink-0 flex-col gap-3 lg:w-[300px] lg:overflow-y-auto" aria-label="Avance y crédito">
+            <div className="rounded-lg bg-surface p-4 shadow-card" data-testid="assistant-progress">
+              <div className="mb-4 flex items-center justify-between text-[11px] font-semibold uppercase tracking-wider text-text-3">
+                <span>Avance</span>
+                <button type="button" aria-label="Ocultar el avance" data-testid="assistant-collapse-right" onClick={() => setPanels(leftOpen, false)} className="hidden rounded p-0.5 hover:text-foreground xl:block">
+                  <ChevronRight className="h-4 w-4" aria-hidden />
+                </button>
+              </div>
+              {asking ? (
+                <Step state="now" label="Revisando tus datos…" />
+              ) : progress.length === 0 ? (
+                <p className="text-sm text-text-3">Aquí verás de qué consultas sale cada respuesta.</p>
+              ) : (
+                <ol className="relative">
+                  <span aria-hidden className="absolute bottom-3 left-[10px] top-3 w-0.5 bg-border" />
+                  {progress.map((s) => (
+                    <Step key={s.id} state="done" label={s.label} hint={s.cited ? "usada en la respuesta" : "consultada"} />
+                  ))}
+                  <Step state="done" label="Respuesta lista" />
+                </ol>
+              )}
+            </div>
+
+            {status && (
+              <section className="rounded-lg bg-surface p-4 shadow-card" data-testid="assistant-status" data-state={status.state}>
+                <div className="mb-3 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-text-3">
+                  <BotMessageSquare className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                  <h3>Crédito del asistente</h3>
+                </div>
+                {meter && <UsageMeter meter={meter} label="Crédito del asistente" testId="assistant-credit" showLabel="never" />}
                 <p
                   className={cn("mt-3 text-sm", status.canAsk ? "text-text-2" : "text-danger-text")}
                   data-testid="assistant-status-message"
@@ -168,117 +590,12 @@ export function AssistantClient() {
                 >
                   {status.message}
                 </p>
-                {status.canAsk && (
-                  <p className="mt-1 text-xs text-text-3">El crédito se renueva el {resetLabel(status.resetsOn)}.</p>
-                )}
-                <p className="mt-2 text-xs text-text-3">{ASSISTANT_READ_ONLY_NOTICE}</p>
+                {status.canAsk && <p className="mt-1 text-xs text-text-3">Se renueva el {resetLabel(status.resetsOn)}.</p>}
               </section>
-
-              <div className="flex flex-wrap items-center gap-2">
-                <label className="sr-only" htmlFor="assistant-thread-select">
-                  Conversación
-                </label>
-                <select
-                  id="assistant-thread-select"
-                  data-testid="assistant-thread-select"
-                  className="h-9 min-w-0 flex-1 rounded-md border border-input bg-background px-2 text-sm"
-                  value={threadId ?? ""}
-                  onChange={(e) => void openThread(e.target.value || null)}
-                >
-                  <option value="">Nueva conversación</option>
-                  {threads.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.title}
-                    </option>
-                  ))}
-                </select>
-                <Button variant="outline" size="sm" onClick={() => void openThread(null)} data-testid="assistant-new-thread">
-                  <Plus className="mr-1 h-4 w-4" aria-hidden />
-                  Nueva
-                </Button>
-                {threadId && (
-                  <Button variant="ghost" size="sm" onClick={() => void removeThread()} data-testid="assistant-delete-thread" aria-label="Borrar conversación">
-                    <Trash2 className="h-4 w-4" aria-hidden />
-                  </Button>
-                )}
-              </div>
-
-              <section className="space-y-3" data-testid="assistant-messages" aria-live="polite">
-                {messages.length === 0 && !asking && (
-                  <p className="text-sm text-text-3" data-testid="assistant-empty">
-                    Pregúntale sobre el uso y el plan de tu organización (cuánto llevas de IA, tu almacenamiento, tus topes, tu equipo, tus etiquetas, tus chats recientes) o sobre tus conversaciones: por qué se pierden ventas, qué objeciones ponen tus clientes o cómo atiende cada asesor.
-                  </p>
-                )}
-                {messages.map((m) =>
-                  m.role === "user" ? (
-                    <div key={m.id} className="flex justify-end">
-                      <p
-                        className="max-w-[85%] whitespace-pre-wrap break-words rounded-lg bg-brand-tint px-3 py-2 text-sm"
-                        data-testid="assistant-msg-user"
-                      >
-                        {m.content}
-                      </p>
-                    </div>
-                  ) : (
-                    <AnswerBubble key={m.id} message={m} />
-                  )
-                )}
-                {asking && (
-                  <p className="text-sm text-text-3" data-testid="assistant-thinking">
-                    El asistente está revisando tus datos…
-                  </p>
-                )}
-                <div ref={bottom} />
-              </section>
-              {status && error && <p className="text-sm text-destructive">{error}</p>}
-            </>
-          )}
-        </div>
-      </div>
-
-      {status && (
-        <form
-          className="shrink-0 border-t bg-background px-4 py-3 sm:px-6"
-          onSubmit={(e) => {
-            e.preventDefault();
-            void ask();
-          }}
-        >
-          <div className="mx-auto max-w-3xl">
-            {askError && (
-              <p className="mb-2 text-sm text-danger-text" role="alert" data-testid="assistant-ask-error">
-                {askError}
-              </p>
             )}
-            <div className="flex items-end gap-2">
-              <label className="sr-only" htmlFor="assistant-question">
-                Tu pregunta
-              </label>
-              <Textarea
-                id="assistant-question"
-                data-testid="assistant-question"
-                rows={2}
-                maxLength={MAX_QUESTION_CHARS}
-                placeholder={canAsk ? "Escribe tu pregunta…" : "El asistente no puede responder ahora."}
-                value={question}
-                disabled={!canAsk || asking}
-                onChange={(e) => setQuestion(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    void ask();
-                  }
-                }}
-                className="min-w-0 flex-1 resize-none"
-              />
-              <Button type="submit" disabled={!canAsk || asking || !question.trim()} data-testid="assistant-ask">
-                <Send className="mr-1 h-4 w-4" aria-hidden />
-                {asking ? "Pensando…" : "Preguntar"}
-              </Button>
-            </div>
-          </div>
-        </form>
-      )}
+          </aside>
+        )}
+      </div>
 
       {status && !status.noticeAcceptedAt && (
         <div
@@ -306,18 +623,50 @@ export function AssistantClient() {
   );
 }
 
+/** Un paso de la línea de tiempo de «Avance». */
+function Step({ state, label, hint }: { state: "done" | "now"; label: string; hint?: string }) {
+  return (
+    <li className="relative mb-4 flex gap-3 text-sm last:mb-0">
+      <span
+        aria-hidden
+        className={cn(
+          "z-10 flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full border-2 text-[11px]",
+          state === "done" ? "border-primary bg-primary text-primary-foreground" : "border-primary bg-surface motion-safe:animate-pulse"
+        )}
+      >
+        {state === "done" ? "✓" : ""}
+      </span>
+      <span className="min-w-0">
+        <span className="block break-words">{label}</span>
+        {hint && <span className="mt-0.5 block text-xs text-text-3">{hint}</span>}
+      </span>
+    </li>
+  );
+}
+
 /** Una respuesta con sus fuentes: qué consultas corrieron y lo que devolvió cada una. */
-function AnswerBubble({ message }: { message: AssistantMessageDto }) {
+function AnswerBubble({
+  message,
+  threadId,
+  onProposals,
+}: {
+  message: AssistantMessageDto;
+  threadId: string | null;
+  onProposals: (next: AssistantProposal[]) => void;
+}) {
   const meta = message.meta;
   const sources = meta?.sources ?? [];
   const cited = sources.filter((s) => s.cited);
   const shown = cited.length > 0 ? cited : sources;
   return (
     <div className="flex justify-start">
-      <div className="max-w-[92%] min-w-0 rounded-lg border bg-card px-3 py-2" data-testid="assistant-msg-answer">
-        <p className="whitespace-pre-wrap break-words text-sm" data-testid="assistant-answer-text">
+      <div className="min-w-0 max-w-full" data-testid="assistant-msg-answer">
+        <p className="whitespace-pre-wrap break-words text-sm leading-relaxed" data-testid="assistant-answer-text">
           {message.content}
         </p>
+        {threadId && meta?.proposals && meta.proposals.length > 0 && (
+          <ProposalsCard threadId={threadId} messageId={message.id} proposals={meta.proposals} onChange={onProposals} />
+        )}
         {meta?.coverage && (
           <p className="mt-2 text-xs text-text-2" data-testid="assistant-coverage" data-faltan={meta.coverage.faltan}>
             Conversaciones revisadas: {meta.coverage.revisadas + meta.coverage.sinInformacion} de {meta.coverage.total}
@@ -331,7 +680,7 @@ function AnswerBubble({ message }: { message: AssistantMessageDto }) {
             {ASSISTANT_FLAG_TEXT[f]}
           </p>
         ))}
-        <div className="mt-2 border-t pt-2" data-testid="assistant-sources" data-count={meta?.queryCount ?? 0}>
+        <div className="mt-2" data-testid="assistant-sources" data-count={meta?.queryCount ?? 0}>
           {shown.length === 0 ? (
             <p className="text-xs text-text-3" data-testid="assistant-no-sources">
               Esta respuesta no usó datos de tu organización.
@@ -366,13 +715,12 @@ function AnswerBubble({ message }: { message: AssistantMessageDto }) {
 }
 
 function SourceItem({ source }: { source: AssistantSource }) {
-  const args = Object.keys(source.args).length > 0 ? JSON.stringify(source.args) : null;
   const result = typeof source.result === "string" ? source.result : JSON.stringify(source.result, null, 2);
   return (
-    <li className="rounded border bg-background p-2" data-testid="assistant-source" data-query={source.name}>
+    <li className="rounded-md border bg-subtle p-2" data-testid="assistant-source" data-query={source.name}>
       <p className="font-medium">
-        {source.label} <span className="font-mono text-text-3">({source.name}{args ? ` ${args}` : ""})</span>
-        {!source.cited && <span className="ml-1 text-text-3">· no citada en la respuesta</span>}
+        {source.label}
+        {!source.cited && <span className="ml-1 font-normal text-text-3">· no citada en la respuesta</span>}
       </p>
       <pre className="mt-1 max-h-60 overflow-auto whitespace-pre-wrap break-words font-mono text-[11px] text-text-2" data-testid="assistant-source-result">
         {result}

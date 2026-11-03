@@ -19,6 +19,14 @@ import { describe, expect, it } from "vitest";
  * por nombre; ninguna arma SQL con texto que venga de él (`sql.raw`), y la
  * lista de consultas no cambia sin que alguien actualice este test.
  *
+ * Acciones (asistente con herramientas del CRM): el asistente ya no es solo
+ * lectura, pero SOLO por las herramientas del conector que están en la lista
+ * cerrada de `src/lib/assistant-actions.ts` (leer, y proponer cambios que la
+ * persona aprueba). Nada de enviar mensajes ni de campañas: esa lista no puede
+ * crecer sin que alguien actualice el último bloque de este test. Los
+ * archivos del asistente siguen sin importar el envío ni las campañas
+ * directamente, y escriben solo en sus tablas.
+ *
  * 038 (PR 3): el análisis guardado (`conversation_insight`) es su única
  * escritura sobre algo derivado del negocio, y también va por el tipo del
  * asistente (con o sin genérico explícito en la llamada).
@@ -114,5 +122,59 @@ describe("038 (PR 2) — el catálogo de consultas es cerrado", () => {
     const code = readFileSync(path.join(ROOT, "src/server/assistant/catalog.ts"), "utf8");
     expect(code).not.toMatch(/\.(insert|update|delete)\(/);
     expect(code).not.toMatch(/\.transaction\(/);
+  });
+});
+
+describe("Acciones — las herramientas del asistente son una lista cerrada que no envía nada", () => {
+  it("son exactamente estas (agregar una pide revisar que no mande nada al cliente)", async () => {
+    const { ASSISTANT_READ_TOOLS, ASSISTANT_WRITE_TOOLS } = await import("@/lib/assistant-actions");
+    expect([...ASSISTANT_READ_TOOLS]).toEqual([
+      "list_chats",
+      "read_chat",
+      "read_contact",
+      "list_stages",
+      "list_pipeline",
+      "list_tags",
+      "list_tasks",
+      "list_work_notes",
+      "list_people",
+      "list_quick_replies",
+      "get_results",
+    ]);
+    expect([...ASSISTANT_WRITE_TOOLS]).toEqual([
+      "move_stage",
+      "update_lead",
+      "tag_chat",
+      "add_note",
+      "create_task",
+      "update_task",
+      "create_work_note",
+      "update_work_note",
+      "update_contact",
+      "assign_chat",
+      "update_chat",
+      "open_chat",
+    ]);
+  });
+
+  it("ninguna herramienta de la lista envía mensajes, plantillas, material ni campañas", async () => {
+    const { ASSISTANT_READ_TOOLS, ASSISTANT_WRITE_TOOLS } = await import("@/lib/assistant-actions");
+    const { TOOLS } = await import("@/server/ai-connector/tools");
+    const byName = new Map(TOOLS.map((t) => [t.name, t]));
+    for (const name of [...ASSISTANT_READ_TOOLS, ...ASSISTANT_WRITE_TOOLS]) {
+      const t = byName.get(name);
+      expect(t, `${name} existe en el conector`).toBeDefined();
+      expect(t!.area, `${name} no es una función avanzada`).toBeUndefined();
+      expect(t!.serial, `${name} no es de envío`).toBeFalsy();
+      expect(name).not.toMatch(/send|launch|campaign|export|import|template|material|upload/);
+    }
+  });
+
+  it("las herramientas de lectura son de lectura y las de cambio, de escritura", async () => {
+    const { ASSISTANT_READ_TOOLS, ASSISTANT_WRITE_TOOLS } = await import("@/lib/assistant-actions");
+    const { TOOLS } = await import("@/server/ai-connector/tools");
+    const byName = new Map(TOOLS.map((t) => [t.name, t]));
+    for (const n of ASSISTANT_READ_TOOLS) expect(byName.get(n)!.scope).toBe("read");
+    for (const n of ASSISTANT_WRITE_TOOLS) expect(byName.get(n)!.scope).toBe("write");
   });
 });

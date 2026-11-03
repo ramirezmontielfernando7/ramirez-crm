@@ -33,7 +33,7 @@ export const ASSISTANT_NOTICE_TITLE = "Antes de usar el asistente";
 export const ASSISTANT_COST_NOTICE =
   "Cada pregunta al asistente consume bastante crédito de IA, porque revisa muchos datos para contestarte. El crédito del mes se puede agotar rápido; cuando se acaba, el asistente se detiene hasta el mes siguiente.";
 export const ASSISTANT_READ_ONLY_NOTICE =
-  "El asistente solo lee los datos de tu organización: no envía mensajes a tus clientes, no toca campañas y no cambia nada.";
+  "El asistente solo lee los datos de tu organización: no envía mensajes a tus clientes, no toca campañas y solo cambia algo del CRM cuando tú confirmas.";
 
 /** «1 de noviembre» a partir de 'YYYY-MM-DD' (UTC). */
 export function resetLabel(resetsOn: string): string {

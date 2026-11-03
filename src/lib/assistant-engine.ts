@@ -55,6 +55,23 @@ export const assistantStepSchema = z.discriminatedUnion("action", [
     text: z.string().trim().min(1).max(4000),
     sources: z.array(z.string().max(20)).max(20).optional(),
   }),
+  // Proponer cambios: termina la pregunta (el texto es la respuesta) y deja las
+  // acciones pendientes de que la persona las apruebe.
+  z.object({
+    action: z.literal("propose"),
+    text: z.string().trim().min(1).max(4000),
+    sources: z.array(z.string().max(20)).max(20).optional(),
+    changes: z
+      .array(
+        z.object({
+          tool: z.string().min(1).max(60),
+          args: z.record(z.string(), z.unknown()).optional(),
+          label: z.string().trim().min(1).max(200),
+        })
+      )
+      .min(1)
+      .max(20),
+  }),
 ]);
 export type AssistantStep = z.infer<typeof assistantStepSchema>;
 
@@ -93,8 +110,30 @@ export const ASSISTANT_FLAG_TEXT: Record<AssistantFlag, string> = {
 /** 038 (PR 3) — Cuántas conversaciones del periodo cubrió el análisis de una respuesta. */
 export type AssistantCoverage = { total: number; revisadas: number; sinInformacion: number; faltan: number };
 
+/**
+ * Una acción que el asistente PROPONE (nunca la hace solo): mover de etapa,
+ * etiquetar, crear una tarea… Queda pendiente hasta que la persona pulse
+ * «Aplicar»; entonces corre la misma herramienta del conector, con los
+ * permisos de esa persona.
+ */
+export type AssistantProposal = {
+  /** «p1», «p2»… */
+  id: string;
+  /** Nombre de la herramienta del conector (lista cerrada, `assistant-actions.ts`). */
+  tool: string;
+  /** Texto corto para la tarjeta («Mover a Laura Gómez a Seguimiento»), con los datos reales. */
+  label: string;
+  /** Parámetros ya validados, con los datos reales. */
+  args: Record<string, unknown>;
+  status: "pending" | "applied" | "failed" | "cancelled";
+  /** Qué pasó al aplicarla (resumen corto de la herramienta o el motivo del fallo). */
+  result?: string;
+};
+
 /** Lo que se guarda junto a cada respuesta (`assistant_message.sources`). */
 export type AssistantMessageMeta = {
+  /** Acciones propuestas en esta respuesta (con su estado). */
+  proposals?: AssistantProposal[];
   sources: AssistantSource[];
   flags: AssistantFlag[];
   /** Consultas que corrieron y llamadas al modelo de esta pregunta. */
@@ -113,7 +152,17 @@ export type AssistantMessageDto = {
   meta: AssistantMessageMeta | null;
 };
 
-export type AssistantThreadDto = { id: string; title: string; updatedAt: string };
+export type AssistantThreadDto = {
+  id: string;
+  title: string;
+  updatedAt: string;
+  /** `general`: el Chat general fijo de la persona; `thread`: un hilo. */
+  kind: "general" | "thread";
+  archived: boolean;
+};
+
+/** Cuántos hilos se pueden elegir a la vez para archivar o borrar. */
+export const THREAD_BULK_MAX = 50;
 
 // ---------------------------------------------------------------------------
 // Enmascarado

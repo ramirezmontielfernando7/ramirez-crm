@@ -122,7 +122,7 @@ describe("menú por rol", () => {
 
   it("039: el menú son 5 pilares + Ajustes, y cada rol ve los suyos", () => {
     const esperado: Record<Role, string[]> = {
-      owner: ["Bandeja", "CRM Comercial", "Estudio de IA", "Marketing", "Inteligencia"],
+      owner: ["Bandeja", "CRM Comercial", "Asistente", "Estudio de IA", "Marketing", "Inteligencia"],
       coordinador: ["Bandeja", "CRM Comercial", "Marketing", "Inteligencia"],
       asesor: ["Bandeja", "CRM Comercial"],
     };
@@ -131,7 +131,7 @@ describe("menú por rol", () => {
       expect(nav.main.map((m) => m.label), role).toEqual(esperado[role]);
       expect(nav.settings, role).toBe(role !== "asesor");
     }
-    expect(NAV_MODULES.map((m) => m.key)).toEqual(["inbox", "pipeline", "lab", "campaigns", "results", "settings"]);
+    expect(NAV_MODULES.map((m) => m.key)).toEqual(["inbox", "pipeline", "asistente", "lab", "campaigns", "results", "settings"]);
   });
 
   it("039: las pestañas de cada pilar, en orden y sin rutas repetidas", () => {
@@ -140,11 +140,12 @@ describe("menú por rol", () => {
     expect(pestañas("pipeline")).toEqual(["/pipeline", "/contacts", "/bookings", "/trabajo/tareas", "/knowledge"]);
     expect(pestañas("lab")).toEqual(["/lab", "/agent", "/lab/documentos", "/lab/asignacion", "/lab/evaluaciones"]);
     expect(pestañas("campaigns")).toEqual(["/campaigns", "/campaigns/audiences", "/campaigns/templates", "/campaigns/metrics"]);
-    expect(pestañas("results")).toEqual(["/results", "/asistente"]);
+    expect(pestañas("results")).toEqual(["/results"]);
+    expect(pestañas("asistente")).toEqual(["/asistente"]);
     const todas = NAV_MODULES.flatMap((m) => (m.sections ?? []).map((s) => s.route));
     expect(new Set(todas).size).toBe(todas.length);
     // Ningún módulo absorbido conserva renglón propio.
-    for (const k of ["team_chat", "agenda", "contacts", "knowledge", "agent", "asistente", "trabajo"] as const) {
+    for (const k of ["team_chat", "agenda", "contacts", "knowledge", "agent", "trabajo"] as const) {
       expect(moduleDef(k).route, k).toBeNull();
     }
   });
@@ -162,12 +163,13 @@ describe("menú por rol", () => {
     // Sin agente: no hay Estudio de IA.
     const sinIa = effectiveModules(new Set<ModuleKey>(["team_chat", "results"]));
     expect(resolveNav({ role: "owner", modules: sinIa, can: canRole("owner"), layout: null }).main.map((m) => m.key)).not.toContain("lab");
-    // Inteligencia solo con el Asistente: lleva a /asistente.
+    // El Asistente tiene su propio renglón (lleva a /asistente) y no abre Inteligencia.
     const soloAsistente = effectiveModules(new Set<ModuleKey>(["asistente"]));
     const b = resolveNav({ role: "owner", modules: soloAsistente, can: canRole("owner"), layout: null });
-    expect(b.hrefs.results).toBe("/asistente");
+    expect(b.hrefs.asistente).toBe("/asistente");
+    expect(b.main.map((m) => m.key)).not.toContain("results");
     // …y el Coordinador (sin assistant.use) no la ve.
-    expect(resolveNav({ role: "coordinador", modules: soloAsistente, can: canRole("coordinador"), layout: null }).main.map((m) => m.key)).not.toContain("results");
+    expect(resolveNav({ role: "coordinador", modules: soloAsistente, can: canRole("coordinador"), layout: null }).main.map((m) => m.key)).not.toContain("asistente");
   });
 
   it("039: el CRM Comercial y la Bandeja siempre existen; sus pestañas siguen a sus módulos", () => {
@@ -193,7 +195,7 @@ describe("menú por rol", () => {
     expect(activeSection(lab, "/lab/documentos/grp_1")?.label).toBe("Conocimiento y documentos");
     expect(pillarOfPath("/chat")?.key).toBe("inbox");
     expect(pillarOfPath("/knowledge")?.key).toBe("pipeline");
-    expect(pillarOfPath("/asistente")?.key).toBe("results");
+    expect(pillarOfPath("/asistente")?.key).toBe("asistente");
     expect(pillarOfPath("/settings/team")).toBeUndefined();
   });
 
@@ -204,7 +206,7 @@ describe("menú por rol", () => {
       { key: "results", hidden: false },
       { key: "inbox", hidden: false },
     ];
-    expect(normalizeLayout(viejo, "owner").map((i) => i.key)).toEqual(["results", "inbox", "pipeline", "lab", "campaigns", "settings"]);
+    expect(normalizeLayout(viejo, "owner").map((i) => i.key)).toEqual(["results", "inbox", "pipeline", "asistente", "lab", "campaigns", "settings"]);
   });
 
   it("un módulo apagado no aparece aunque el menú guardado lo muestre", () => {
@@ -236,7 +238,7 @@ describe("menú por rol", () => {
       [{ key: "settings", hidden: false }, { key: "x" }, { key: "inbox", hidden: true }, { key: "inbox", hidden: false }, { key: "instagram" }],
       "coordinador"
     );
-    expect(items.map((i) => i.key)).toEqual(["inbox", "pipeline", "lab", "campaigns", "results", "settings"]);
+    expect(items.map((i) => i.key)).toEqual(["inbox", "pipeline", "asistente", "lab", "campaigns", "results", "settings"]);
     expect(items[0]).toEqual({ key: "inbox", hidden: true });
   });
 

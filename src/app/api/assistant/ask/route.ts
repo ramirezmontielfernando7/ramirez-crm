@@ -36,6 +36,7 @@ export const POST = withAuth(
       organizationId: session.organizationId,
       userId: session.userId,
       access: session.access,
+      session,
       threadId: parsed.data.threadId ?? null,
       question: parsed.data.question,
     });

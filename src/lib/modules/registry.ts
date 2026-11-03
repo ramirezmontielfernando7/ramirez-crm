@@ -158,6 +158,19 @@ export const MODULES: readonly ModuleDef[] = [
       { label: "Biblioteca", route: "/knowledge", module: "knowledge" },
     ],
   },
+  // 038 — Asistente interno (premium, solo el Propietario): su propio renglón
+  // del menú, entre el CRM Comercial y el Estudio de IA.
+  {
+    key: "asistente",
+    label: "Asistente",
+    route: "/asistente",
+    icon: "Sparkles",
+    core: false,
+    permissions: ["assistant.use"],
+    defaultRoles: ["owner"],
+    requires: [],
+    sections: [{ label: "Asistente", route: "/asistente", module: "asistente", permissions: ["assistant.use"] }],
+  },
   {
     key: "lab",
     label: "Estudio de IA",
@@ -202,13 +215,11 @@ export const MODULES: readonly ModuleDef[] = [
     route: "/results",
     icon: "ChartColumn",
     core: false,
-    permissions: ["results.read", "assistant.use"],
+    permissions: ["results.read"],
     defaultRoles: ["owner", "coordinador"],
     requires: [],
     sections: [
       { label: "Resultados y embudo", route: "/results", module: "results", permissions: ["results.read"] },
-      // 038 — Asistente interno (premium, solo el Propietario).
-      { label: "Asistente de negocio ✨", route: "/asistente", module: "asistente", permissions: ["assistant.use"] },
     ],
   },
   {
@@ -235,18 +246,6 @@ export const MODULES: readonly ModuleDef[] = [
     icon: "Sparkles",
     core: false,
     permissions: ["agent.manage"],
-    defaultRoles: ["owner"],
-    requires: [],
-  },
-  // 038 — Asistente interno: preguntas sobre los datos propios. Premium y
-  // solo del Propietario.
-  {
-    key: "asistente",
-    label: "Asistente",
-    route: null,
-    icon: "BotMessageSquare",
-    core: false,
-    permissions: ["assistant.use"],
     defaultRoles: ["owner"],
     requires: [],
   },
