@@ -77,9 +77,9 @@ export function MyNumberInbox({ own = true, team = false }: { own?: boolean; tea
   const [version, setVersion] = useState(0);
   const [queued, setQueued] = useState(false);
   const { overview, reload: reloadAccess } = useAccessOverview();
-  const { team: teamData, reload: reloadTeam } = useTeamNumbers(team);
   const [rowError, setRowError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
+  const { team: teamData, reload: reloadTeam } = useTeamNumbers(team, team ? query : "");
   const rowRef = useRef<HTMLDivElement>(null);
   const catalogs = useInboxCatalogs();
   const members = useAssignees();
@@ -318,8 +318,10 @@ export function MyNumberInbox({ own = true, team = false }: { own?: boolean; tea
             <NavRevealButton />
             <InboxModeSwitch current="number" />
           </header>
-          <InboxTabs current="number" rowRef={own ? rowRef : undefined}>
-            {own && <SearchPill query={query} onQuery={setQuery} rowRef={rowRef} />}
+          <InboxTabs current="number" rowRef={rowRef}>
+            <div className="ml-auto flex items-center gap-1">
+              <SearchPill query={query} onQuery={setQuery} rowRef={rowRef} />
+            </div>
           </InboxTabs>
           <p className="flex items-start gap-2 border-y bg-secondary px-4 py-2 text-[12px] leading-snug text-text-2">
             <Lock className="mt-[1px] h-3.5 w-3.5 shrink-0" strokeWidth={2} aria-hidden />
@@ -337,7 +339,7 @@ export function MyNumberInbox({ own = true, team = false }: { own?: boolean; tea
             )}
             {own && !list && !listError && <p className="px-4 py-6 text-center text-xs text-text-3">Cargando…</p>}
             {list?.chats.length === 0 && !query && <p className="px-6 py-10 text-center text-[13px] text-text-3">{MY_CHATS_TEXT.empty}</p>}
-            {!own && teamData && teamData.companyNumbers.length === 0 && teamData.requestable.length === 0 && !overview?.sharedWithMe.length && (
+            {!own && !q && teamData && teamData.companyNumbers.length === 0 && teamData.requestable.length === 0 && !overview?.sharedWithMe.length && (
               <p className="px-6 py-10 text-center text-[13px] text-text-3">{TEAM_TEXT.nothing}</p>
             )}
             {rowError && (
@@ -376,10 +378,13 @@ export function MyNumberInbox({ own = true, team = false }: { own?: boolean; tea
             {q && !sinRegistrar && list && list.chats.length > 0 && shown.length === 0 && (
               <p className="px-6 py-10 text-center text-[13px] text-text-3">{MY_CHATS_TEXT.notFound}</p>
             )}
-            {teamData && <CompanyNumbersSection numbers={teamData.companyNumbers} activeId={companyId} onSelect={(id) => select(id, "e")} />}
+            {!own && q && teamData && teamData.companyNumbers.every((n) => n.chats.length === 0) && teamData.requestable.length === 0 && (
+              <p className="px-6 py-10 text-center text-[13px] text-text-3">{MY_CHATS_TEXT.notFound}</p>
+            )}
+            {teamData && <CompanyNumbersSection numbers={q ? teamData.companyNumbers.filter((n) => n.chats.length > 0) : teamData.companyNumbers} activeId={companyId} onSelect={(id) => select(id, "e")} />}
             <SharedChatsSection chats={overview?.sharedWithMe ?? []} activeId={sharedId} onSelect={(id) => select(id, "s")} />
             {teamData && (
-              <RequestableSection chats={teamData.requestable} onOpenShared={(id) => select(id, "s")} onChanged={() => void reloadTeam()} />
+              <RequestableSection forceOpen={!!q} chats={teamData.requestable} onOpenShared={(id) => select(id, "s")} onChanged={() => void reloadTeam()} />
             )}
           </div>
         </div>

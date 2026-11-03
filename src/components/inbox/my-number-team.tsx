@@ -35,16 +35,19 @@ export type TeamNumbers = { companyNumbers: CompanyNumber[]; requestable: Reques
 
 const day = new Intl.DateTimeFormat("es-MX", { day: "numeric", month: "short" });
 
-export function useTeamNumbers(enabled: boolean) {
+export function useTeamNumbers(enabled: boolean, query = "") {
   const [team, setTeam] = useState<TeamNumbers | null>(null);
+  const q = query.trim();
   const reload = useCallback(async () => {
     if (!enabled) return;
-    const res = await fetchJson<TeamNumbers>("/api/my-number/team");
+    const res = await fetchJson<TeamNumbers>(`/api/my-number/team${q ? `?q=${encodeURIComponent(q)}` : ""}`);
     if (res.ok) setTeam(res.data);
-  }, [enabled]);
+  }, [enabled, q]);
   useEffect(() => {
-    void reload();
-  }, [reload]);
+    // Al buscar, se espera un instante a que termine de escribir.
+    const t = setTimeout(() => void reload(), q ? 250 : 0);
+    return () => clearTimeout(t);
+  }, [reload, q]);
   return { team, reload };
 }
 
@@ -112,10 +115,12 @@ export function CompanyNumbersSection({
 
 /** Pedir ver un chat de cliente de un número personal (plegable: puede ser larga). */
 export function RequestableSection({
+  forceOpen = false,
   chats,
   onOpenShared,
   onChanged,
 }: {
+  forceOpen?: boolean;
   chats: Requestable[];
   onOpenShared: (id: string) => void;
   onChanged: () => void;
@@ -124,6 +129,7 @@ export function RequestableSection({
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   if (chats.length === 0) return null;
+  const shownOpen = open || forceOpen;
 
   async function ask(id: string) {
     setError(null);
@@ -139,16 +145,16 @@ export function RequestableSection({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        aria-expanded={open}
+        aria-expanded={shownOpen}
         className="flex w-full items-center gap-1.5 px-4 pb-1 pt-4 text-left text-[11px] font-semibold uppercase tracking-wide text-text-3 hover:text-foreground"
       >
         <Lock className="h-3.5 w-3.5 shrink-0" strokeWidth={2} aria-hidden />
         <span className="flex-1 truncate">
           {TEAM_TEXT.requestTitle} ({chats.length})
         </span>
-        <ChevronDown className={cn("h-3.5 w-3.5 shrink-0 transition-transform", open && "rotate-180")} strokeWidth={2} aria-hidden />
+        <ChevronDown className={cn("h-3.5 w-3.5 shrink-0 transition-transform", shownOpen && "rotate-180")} strokeWidth={2} aria-hidden />
       </button>
-      {open && (
+      {shownOpen && (
         <>
           <p className="px-4 pb-2 text-[12px] leading-snug text-text-3">{TEAM_TEXT.requestHelp}</p>
           {error && (
