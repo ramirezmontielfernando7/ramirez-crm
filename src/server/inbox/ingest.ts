@@ -6,6 +6,7 @@ import { normalizeMx } from "@/lib/meta/client";
 import { publish } from "@/server/events/bus";
 import { logActivitySafe } from "@/server/activity/log";
 import { resolveWhatsAppNumber } from "@/server/credentials/resolve";
+import { latest } from "@/lib/db/latest";
 import { recordUnrouted, unroutedReasonFor } from "@/server/webhooks/unrouted";
 import { ensureAssetAvailable } from "@/server/whatsapp/media";
 import type { Channel } from "@/lib/channels";
@@ -428,7 +429,7 @@ async function ingestManualEcho(
   // Solo lastMessageAt: un mensaje del negocio NUNCA abre la ventana de 24 h.
   await db
     .update(schema.conversation)
-    .set({ lastMessageAt: waTimestamp, updatedAt: new Date() })
+    .set({ lastMessageAt: latest(schema.conversation.lastMessageAt, waTimestamp), updatedAt: new Date() })
     .where(eq(schema.conversation.id, conversation.id));
 
   // Pausa automática de la IA, idempotente y atómica (solo si no hay handoff).
@@ -564,8 +565,9 @@ async function ingestInboundMessageInOrg(input: {
     await tx
       .update(schema.conversation)
       .set({
-        lastInboundAt: waTimestamp,
-        lastMessageAt: waTimestamp,
+        // DF-18: solo avanzan (un mensaje retrasado no las hace retroceder).
+        lastInboundAt: latest(schema.conversation.lastInboundAt, waTimestamp),
+        lastMessageAt: latest(schema.conversation.lastMessageAt, waTimestamp),
         unreadCount: sql`${schema.conversation.unreadCount} + 1`,
         // 034: un mensaje entrante saca el chat del archivo.
         archivedAt: null,

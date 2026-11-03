@@ -32,6 +32,10 @@ export async function register(): Promise<void> {
     // que un reinicio dejó a medias se da por fallido sin reenviar.
     const { resumeDirectQueue } = await import("@/server/direct-connection/send");
     await resumeDirectQueue();
+    // DF-13: envíos por Meta que un reinicio dejó a medias → «no se sabe si
+    // llegó» (al arrancar y cada 10 min; nada se reenvía solo).
+    const { startInterruptedSendsRecovery } = await import("@/server/inbox/interrupted");
+    startInterruptedSendsRecovery();
     // H2: la BOT_API_KEY de la variable queda ligada a PLATFORM_ORG_ID.
     await syncEnvBotKey();
     // DF-03: webhooks guardados y no procesados (un contenedor que se cayó a

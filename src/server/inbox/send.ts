@@ -1,5 +1,7 @@
 import { assertOrgActive } from "@/server/platform-admin/org-status";
 import { eq } from "drizzle-orm";
+import { scoped } from "@/lib/db/tenant";
+import { logger } from "@/lib/log";
 import { getDb, schema } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
 import { graphRequest, MetaApiError, normalizeRecipient } from "@/lib/meta/client";
@@ -45,6 +47,8 @@ import {
   sendDirect,
   type DirectOutgoing,
 } from "@/server/direct-connection/send";
+
+const log = logger("send");
 
 /** Error tipado del envío; `code` mapea a HTTP en la capa de API. */
 export class SendError extends Error {
@@ -316,42 +320,44 @@ async function prepareSend(
   return { conversation: row.conversation, credentials, destinatario, recipient };
 }
 
-async function persistOutbound(input: {
+type OutboundInput = {
   organizationId: string;
   conversationId: string;
-  waMessageId: string | null;
   type: string;
   text: string | null;
-  /**
-   * 014: 'sent' existe porque no todos los canales confirman por webhook.
-   * WhatsApp entra como 'pending' y avanza con los `statuses` de Meta;
-   * Instagram no manda ese evento salvo que se suscriba aparte, asi que la
-   * aceptacion de la plataforma ES la confirmacion. Sin esto el mensaje se
-   * queda con el reloj puesto para siempre aunque ya se haya entregado.
-   */
-  status: "pending" | "sent" | "failed";
-  error?: string | null;
   aiGenerated?: boolean;
   origin: "ai" | "operator";
   mediaAssetId?: string | null;
-  media?: typeof schema.mediaAsset.$inferSelect | null;
   /** 047 — la IA conectada de una persona lo mandó («enviado por IA»). */
   aiConnectionId?: string | null;
   aiSenderName?: string | null;
-}): Promise<string> {
-  const db = getDb();
-  const inserted = await db
+};
+
+type OutboundRow = typeof schema.message.$inferSelect;
+
+/** Texto del mensaje que quedó sin confirmar: PUDO salir. */
+export const UNCONFIRMED_SEND_TEXT =
+  "Envío sin confirmar: Meta no respondió a tiempo, no se sabe si llegó. Revisa antes de reenviarlo";
+
+/**
+ * Auditoría DF-13 — El saliente se REGISTRA antes de llamar a Meta (estado
+ * `pending`, aún sin `wa_message_id`). Antes se registraba después: si Meta
+ * lo aceptaba y luego fallaba la base o el proceso, el cliente lo recibía y
+ * el CRM no lo mostraba (o lo mostraba como fallido), y reenviarlo a mano lo
+ * duplicaba. No se publica todavía: la bandeja lo ve al confirmarse.
+ */
+async function reserveOutbound(input: OutboundInput): Promise<OutboundRow> {
+  const inserted = await getDb()
     .insert(schema.message)
     .values({
       id: newId("message"),
       organizationId: input.organizationId,
       conversationId: input.conversationId,
-      waMessageId: input.waMessageId,
+      waMessageId: null,
       direction: "out",
       type: input.type,
       text: input.text,
-      status: input.status,
-      error: input.error ?? null,
+      status: "pending",
       aiGenerated: input.aiGenerated ?? false,
       origin: input.origin,
       mediaAssetId: input.mediaAssetId ?? null,
@@ -359,22 +365,105 @@ async function persistOutbound(input: {
       aiSenderName: input.aiConnectionId ? (input.aiSenderName ?? null) : null,
     })
     .returning();
-  const message = inserted[0]!;
+  return inserted[0]!;
+}
 
-  await db
-    .update(schema.conversation)
-    .set({ lastMessageAt: new Date(), updatedAt: new Date() })
-    .where(eq(schema.conversation.id, input.conversationId));
+/** Reintento corto de una escritura a la base (lo que falla es casi siempre momentáneo). */
+async function withRetry<T>(fn: () => Promise<T>, tries = 3): Promise<T> {
+  let last: unknown;
+  for (let i = 0; i < tries; i++) {
+    try {
+      return await fn();
+    } catch (err) {
+      last = err;
+      if (i < tries - 1) await new Promise((r) => setTimeout(r, 200 * (i + 1)));
+    }
+  }
+  throw last;
+}
 
-  publish(input.organizationId, {
+/**
+ * Meta lo aceptó: se guarda su ID y se publica. NUNCA lanza: el mensaje ya
+ * salió, y un error aquí haría creer a quien llama que no salió (y lo
+ * reenviaría). Si la base no responde, el mensaje queda en el hilo como
+ * `pending` sin ID de Meta (visible, no perdido) y queda en el log.
+ */
+async function confirmOutbound(
+  row: OutboundRow,
+  waMessageId: string,
+  status: "pending" | "sent",
+  media: typeof schema.mediaAsset.$inferSelect | null = null
+): Promise<string> {
+  const db = getDb();
+  const now = new Date();
+  try {
+    await withRetry(() =>
+      db
+        .update(schema.message)
+        .set({ waMessageId, status })
+        .where(scoped(schema.message.organizationId, row.organizationId, eq(schema.message.id, row.id)))
+    );
+  } catch (err) {
+    log.error("Meta aceptó el mensaje pero no se pudo guardar su ID: queda en el hilo sin acuses", {
+      org: row.organizationId,
+      mensaje: row.id,
+      err,
+    });
+  }
+  try {
+    await db
+      .update(schema.conversation)
+      .set({ lastMessageAt: now, updatedAt: now })
+      .where(scoped(schema.conversation.organizationId, row.organizationId, eq(schema.conversation.id, row.conversationId)));
+  } catch (err) {
+    log.warn("no se actualizó la fecha del chat tras un envío", { org: row.organizationId, err });
+  }
+  publish(row.organizationId, {
     type: "message.new",
-    data: {
-      conversationId: input.conversationId,
-      message: serializeMessage(message, input.media ?? null),
-    },
+    data: { conversationId: row.conversationId, message: serializeMessage({ ...row, waMessageId, status }, media) },
   });
+  return row.id;
+}
 
-  return message.id;
+/**
+ * Meta no lo aceptó. Si se SABE que no salió y no hay nada que conservar
+ * (un texto), la reserva se borra, como antes (el texto sigue en la caja de
+ * quien escribe). Si Meta no respondió a tiempo (PUDO salir) o hay un
+ * archivo que conservar, queda en el hilo como fallido con su motivo, y el
+ * error lleva su `messageId`. Nada lo reenvía solo.
+ */
+async function abandonOutbound(
+  row: OutboundRow,
+  err: unknown,
+  opts: { keep: boolean; failure?: SendError; media?: typeof schema.mediaAsset.$inferSelect | null }
+): Promise<never> {
+  const db = getDb();
+  const sendErr = opts.failure ?? (err instanceof SendError ? err : null);
+  const unknown = sendErr?.timedOut === true;
+  try {
+    if (!unknown && !opts.keep) {
+      await db.delete(schema.message).where(scoped(schema.message.organizationId, row.organizationId, eq(schema.message.id, row.id)));
+    } else {
+      const error = unknown ? UNCONFIRMED_SEND_TEXT : (sendErr?.message ?? "No se pudo enviar");
+      const now = new Date();
+      await db
+        .update(schema.message)
+        .set({ status: "failed", error, failedAt: now })
+        .where(scoped(schema.message.organizationId, row.organizationId, eq(schema.message.id, row.id)));
+      await db
+        .update(schema.conversation)
+        .set({ lastMessageAt: now, updatedAt: now })
+        .where(scoped(schema.conversation.organizationId, row.organizationId, eq(schema.conversation.id, row.conversationId)));
+      publish(row.organizationId, {
+        type: "message.new",
+        data: { conversationId: row.conversationId, message: serializeMessage({ ...row, status: "failed", error }, opts.media ?? null) },
+      });
+      if (sendErr) sendErr.messageId = row.id;
+    }
+  } catch (e) {
+    log.error("no se pudo cerrar la reserva de un envío que Meta no aceptó", { org: row.organizationId, mensaje: row.id, err: e });
+  }
+  throw sendErr ?? err;
 }
 
 /** Envía un mensaje de texto libre por WhatsApp. */
@@ -428,36 +517,37 @@ export async function sendText(input: {
   }
   const { credentials } = target;
 
-  const waMessageId = target.instagram
-    ? await callInstagramSend(target, input.text)
-    : target.messenger
-      ? await callMessengerSend(target, input.text)
-      : await callGraphSend(credentials!, {
-          messaging_product: "whatsapp",
-          ...target.destinatario,
-          type: "text",
-          text: { body: input.text },
-        });
-
-  const messageId = await persistOutbound({
+  const reserved = await reserveOutbound({
     organizationId: input.organizationId,
     conversationId: input.conversationId,
-    waMessageId,
     type: "text",
     text: input.text,
-    // Un canal sin acuses de entrega confirma al aceptar; uno con acuses
-    // avanza despues por webhook. Sin esta distincion el mensaje se queda
-    // con el reloj puesto para siempre.
-    status: capabilitiesFor(target.conversation.channel).deliveryReceipts
-      ? "pending"
-      : "sent",
     aiGenerated: input.aiGenerated,
     origin: input.aiGenerated ? "ai" : "operator",
     aiConnectionId: input.aiConnectionId ?? null,
     aiSenderName: input.aiSenderName ?? null,
   });
+  let waMessageId: string;
+  try {
+    waMessageId = target.instagram
+      ? await callInstagramSend(target, input.text)
+      : target.messenger
+        ? await callMessengerSend(target, input.text)
+        : await callGraphSend(credentials!, {
+            messaging_product: "whatsapp",
+            ...target.destinatario,
+            type: "text",
+            text: { body: input.text },
+          });
+  } catch (err) {
+    return abandonOutbound(reserved, err, { keep: false });
+  }
 
-  return { messageId };
+  // Un canal sin acuses de entrega confirma al aceptar; uno con acuses
+  // avanza despues por webhook. Sin esta distincion el mensaje se queda
+  // con el reloj puesto para siempre.
+  const status = capabilitiesFor(target.conversation.channel).deliveryReceipts ? "pending" : "sent";
+  return { messageId: await confirmOutbound(reserved, waMessageId, status) };
 }
 
 /**
@@ -527,6 +617,17 @@ export async function sendMediaMessage(input: {
     });
   }
 
+  const reserved = await reserveOutbound({
+    organizationId: input.organizationId,
+    conversationId: input.conversationId,
+    type: kind,
+    text: null,
+    origin: "operator",
+    mediaAssetId: assetId,
+    aiConnectionId: input.aiConnectionId ?? null,
+    aiSenderName: input.aiSenderName ?? null,
+  });
+  let waMessageId: string;
   try {
     const waMediaId = await uploadGraphMedia(credentials!, input.file);
     await db
@@ -539,27 +640,12 @@ export async function sendMediaMessage(input: {
     if (kind === "document" && input.file.fileName) {
       mediaPayload.filename = input.file.fileName;
     }
-    const waMessageId = await callGraphSend(credentials!, {
+    waMessageId = await callGraphSend(credentials!, {
       messaging_product: "whatsapp",
       ...target.destinatario,
       type: kind,
       [kind]: mediaPayload,
     });
-
-    const messageId = await persistOutbound({
-      organizationId: input.organizationId,
-      conversationId: input.conversationId,
-      waMessageId,
-      type: kind,
-      text: null,
-      status: "pending",
-      origin: "operator",
-      mediaAssetId: assetId,
-      media: asset,
-      aiConnectionId: input.aiConnectionId ?? null,
-      aiSenderName: input.aiSenderName ?? null,
-    });
-    return { messageId };
   } catch (err) {
     let sendErr: SendError;
     if (err instanceof SendError) {
@@ -578,20 +664,10 @@ export async function sendMediaMessage(input: {
       );
     }
     // El contenido NO se pierde: mensaje failed con el asset ya en disco.
-    sendErr.messageId = await persistOutbound({
-      organizationId: input.organizationId,
-      conversationId: input.conversationId,
-      waMessageId: null,
-      type: kind,
-      text: null,
-      status: "failed",
-      error: sendErr.message,
-      origin: "operator",
-      mediaAssetId: assetId,
-      media: asset,
-    });
-    throw sendErr;
+    return abandonOutbound(reserved, err, { keep: true, failure: sendErr, media: asset });
   }
+  // DF-13: lo que pase después de que Meta lo aceptó ya no lo marca fallido.
+  return { messageId: await confirmOutbound(reserved, waMessageId, "pending", asset) };
 }
 
 export type LocationInput = {
@@ -637,12 +713,6 @@ export async function sendStructured(
           })),
         };
 
-  const waMessageId = await callGraphSend(target.credentials, {
-    messaging_product: "whatsapp",
-    ...target.destinatario,
-    ...payload,
-  });
-
   const db = getDb();
   const assetRows = await db
     .insert(schema.mediaAsset)
@@ -656,18 +726,25 @@ export async function sendStructured(
     .returning();
   const asset = assetRows[0]!;
 
-  const messageId = await persistOutbound({
+  const reserved = await reserveOutbound({
     organizationId: input.organizationId,
     conversationId: input.conversationId,
-    waMessageId,
     type: input.kind,
     text: null,
-    status: "pending",
     origin: "operator",
     mediaAssetId: asset.id,
-    media: asset,
   });
-  return { messageId };
+  let waMessageId: string;
+  try {
+    waMessageId = await callGraphSend(target.credentials, {
+      messaging_product: "whatsapp",
+      ...target.destinatario,
+      ...payload,
+    });
+  } catch (err) {
+    return abandonOutbound(reserved, err, { keep: false, media: asset });
+  }
+  return { messageId: await confirmOutbound(reserved, waMessageId, "pending", asset) };
 }
 
 /** Conexión directa (PR 3): envía por el dispositivo y traduce su falla a `SendError`. */

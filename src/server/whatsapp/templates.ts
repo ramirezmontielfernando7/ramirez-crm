@@ -914,71 +914,61 @@ export async function sendTemplate(input: {
     },
   };
 
-  let message: typeof schema.message.$inferSelect;
-  if (input.reserve) {
-    const reserved = await db
-      .insert(schema.message)
-      .values({
-        id: newId("message"),
-        organizationId: input.organizationId,
-        conversationId: input.conversationId,
-        waMessageId: null,
-        direction: "out",
-        type: "template",
-        text: renderBody(template.body, values),
-        status: "pending",
-        origin: "template",
-      })
-      .returning();
-    const pending = reserved[0]!;
-    await input.reserve(pending.id);
-    let waMessageId: string;
-    try {
-      waMessageId = await callGraphSend(creds, payload);
-    } catch (err) {
-      if (err instanceof SendError && err.timedOut) {
-        // Operación 1: Meta no respondió a tiempo y el mensaje PUDO salir. La
-        // reserva se queda (fallida, «no se sabe si llegó»), igual que un
-        // envío interrumpido por un reinicio (`recoverAbandoned`): nada la
-        // vuelve a enviar.
-        await db
-          .update(schema.message)
-          .set({ status: "failed", error: "Envío interrumpido: Meta no respondió a tiempo, no se sabe si llegó" })
-          .where(scoped(schema.message.organizationId, input.organizationId, eq(schema.message.id, pending.id)));
-        throw err;
-      }
-      // Meta respondió con error: el mensaje no salió. Se borra la reserva
-      // (la FK suelta campaign_recipient.message_id).
+  // DF-13: SIEMPRE se reserva el mensaje antes de llamar a Meta (antes solo
+  // las campañas). Si Meta lo acepta y luego falla la base, el mensaje ya
+  // está en el hilo; si Meta no responde a tiempo, queda «no se sabe si llegó».
+  const reserved = await db
+    .insert(schema.message)
+    .values({
+      id: newId("message"),
+      organizationId: input.organizationId,
+      conversationId: input.conversationId,
+      waMessageId: null,
+      direction: "out",
+      type: "template",
+      text: renderBody(template.body, values),
+      status: "pending",
+      origin: "template",
+      aiConnectionId: input.aiConnectionId ?? null,
+      aiSenderName: input.aiConnectionId ? (input.aiSenderName ?? null) : null,
+    })
+    .returning();
+  const pending = reserved[0]!;
+  if (input.reserve) await input.reserve(pending.id);
+  let waMessageId: string;
+  try {
+    waMessageId = await callGraphSend(creds, payload);
+  } catch (err) {
+    if (err instanceof SendError && err.timedOut) {
+      // Operación 1: Meta no respondió a tiempo y el mensaje PUDO salir. La
+      // reserva se queda (fallida, «no se sabe si llegó»), igual que un
+      // envío interrumpido por un reinicio (`recoverAbandoned`): nada la
+      // vuelve a enviar.
       await db
-        .delete(schema.message)
+        .update(schema.message)
+        .set({ status: "failed", error: "Envío interrumpido: Meta no respondió a tiempo, no se sabe si llegó" })
         .where(scoped(schema.message.organizationId, input.organizationId, eq(schema.message.id, pending.id)));
       throw err;
     }
+    // Meta respondió con error: el mensaje no salió. Se borra la reserva
+    // (la FK suelta campaign_recipient.message_id).
+    await db
+      .delete(schema.message)
+      .where(scoped(schema.message.organizationId, input.organizationId, eq(schema.message.id, pending.id)));
+    throw err;
+  }
+  let message: typeof schema.message.$inferSelect = { ...pending, waMessageId };
+  try {
     const updated = await db
       .update(schema.message)
       .set({ waMessageId })
       .where(scoped(schema.message.organizationId, input.organizationId, eq(schema.message.id, pending.id)))
       .returning();
-    message = updated[0] ?? { ...pending, waMessageId };
-  } else {
-    const waMessageId = await callGraphSend(creds, payload);
-    const inserted = await db
-      .insert(schema.message)
-      .values({
-        id: newId("message"),
-        organizationId: input.organizationId,
-        conversationId: input.conversationId,
-        waMessageId,
-        direction: "out",
-        type: "template",
-        text: renderBody(template.body, values),
-        status: "pending",
-        origin: "template",
-        aiConnectionId: input.aiConnectionId ?? null,
-        aiSenderName: input.aiConnectionId ? (input.aiSenderName ?? null) : null,
-      })
-      .returning();
-    message = inserted[0]!;
+    message = updated[0] ?? message;
+  } catch (err) {
+    // Ya salió: lanzar haría creer que no (y se reenviaría). Queda en el hilo
+    // sin ID de Meta y lo marca la recuperación de envíos interrumpidos.
+    log.error("Meta aceptó la plantilla pero no se pudo guardar su ID", { org: input.organizationId, mensaje: pending.id, err });
   }
 
   await db

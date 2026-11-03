@@ -83,6 +83,10 @@ const PERMITIDOS: Record<string, { usos: number; motivo: string }> = {
     usos: 1,
     motivo: "DF-03: bandeja durable de webhooks (tabla de plataforma webhook_inbox): se guarda ANTES de saber la organización; cada evento se procesa luego a nombre de la suya",
   },
+  "src/server/inbox/interrupted.ts": {
+    usos: 1,
+    motivo: "DF-13: al arrancar y cada 10 min, los envíos por Meta que quedaron a medias en TODAS las organizaciones pasan a «no se sabe si llegó» (una sola sentencia, sin leer contenido)",
+  },
   "src/server/webhooks/unrouted.ts": {
     usos: 1,
     motivo: "eventos de webhook sin organización (tabla de plataforma webhook_unrouted) y su limpieza de 7 días",

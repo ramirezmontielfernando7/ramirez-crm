@@ -1,4 +1,5 @@
 import { eq, isNull, sql } from "drizzle-orm";
+import { latest } from "@/lib/db/latest";
 import { getDb, schema } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
 import { scoped } from "@/lib/db/tenant";
@@ -149,10 +150,11 @@ async function ingestOne(number: NumberRow, m: DeviceMessage): Promise<boolean> 
     .update(schema.conversation)
     .set(
       m.fromMe
-        ? { lastMessageAt: at, updatedAt: new Date() }
+        ? { lastMessageAt: latest(schema.conversation.lastMessageAt, at), updatedAt: new Date() }
         : {
-            lastInboundAt: at,
-            lastMessageAt: at,
+            // DF-18: solo avanzan (un mensaje retrasado no las hace retroceder).
+            lastInboundAt: latest(schema.conversation.lastInboundAt, at),
+            lastMessageAt: latest(schema.conversation.lastMessageAt, at),
             unreadCount: sql`${schema.conversation.unreadCount} + 1`,
             archivedAt: null,
             updatedAt: new Date(),
