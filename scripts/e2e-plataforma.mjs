@@ -1068,10 +1068,12 @@ async function asistenteMotor(A, B, orgB) {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(`${BASE}/asistente`);
   await page.getByTestId("assistant-question").waitFor({ timeout: 30000 });
+  // El Chat general ya trae lo preguntado antes (p. ej. desde el panel rápido): se espera la respuesta NUEVA.
+  const antesBurbujas = await page.getByTestId("assistant-msg-answer").count();
   await page.getByTestId("assistant-question").fill("¿Cuánto crédito de IA llevo?");
   await page.getByTestId("assistant-ask").click();
   const burbuja = page.getByTestId("assistant-msg-answer").last();
-  ok("en pantalla: la respuesta aparece", await burbuja.waitFor({ timeout: 90000 }).then(() => true, () => false));
+  ok("en pantalla: la respuesta aparece", await page.waitForFunction((n) => document.querySelectorAll('[data-testid="assistant-msg-answer"]').length > n, antesBurbujas, { timeout: 90000 }).then(() => true, () => false));
   ok("…con «Datos de: Consumo de IA del mes»", /Consumo de IA del mes/.test(await burbuja.getByTestId("assistant-sources").innerText()));
   await burbuja.getByTestId("assistant-sources-toggle").click();
   ok("…y se puede ver lo que devolvió la consulta", /porcentaje_del_tope/.test(await burbuja.getByTestId("assistant-source-result").first().innerText()));
