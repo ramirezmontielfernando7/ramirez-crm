@@ -319,7 +319,9 @@ export function MyNumberInbox({ own = true, team = false }: { own?: boolean; tea
             <InboxModeSwitch current="number" />
           </header>
           <InboxTabs current="number" rowRef={rowRef}>
-            <SearchPill query={query} onQuery={setQuery} rowRef={rowRef} />
+            <div className="ml-auto flex items-center gap-1">
+              <SearchPill query={query} onQuery={setQuery} rowRef={rowRef} />
+            </div>
           </InboxTabs>
           <p className="flex items-start gap-2 border-y bg-secondary px-4 py-2 text-[12px] leading-snug text-text-2">
             <Lock className="mt-[1px] h-3.5 w-3.5 shrink-0" strokeWidth={2} aria-hidden />
