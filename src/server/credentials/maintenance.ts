@@ -122,6 +122,13 @@ function targets(): Target[] {
       keyVersion: schema.webhookUnrouted.keyVersion,
       secrets: [{ cipher: schema.webhookUnrouted.payloadCipher, iv: schema.webhookUnrouted.payloadIv, tag: schema.webhookUnrouted.payloadTag }],
     },
+    {
+      name: "webhook_inbox",
+      table: schema.webhookInbox,
+      id: schema.webhookInbox.id,
+      keyVersion: schema.webhookInbox.keyVersion,
+      secrets: [{ cipher: schema.webhookInbox.payloadCipher, iv: schema.webhookInbox.payloadIv, tag: schema.webhookInbox.payloadTag }],
+    },
   ];
 }
 

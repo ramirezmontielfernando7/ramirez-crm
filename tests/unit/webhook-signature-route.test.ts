@@ -12,10 +12,12 @@ import { isMockEnabled as realIsMockEnabled } from "@/lib/env";
  *   NODE_ENV ≠ production). En producción jamás se activa.
  */
 
-const { getEnv, after, processMessagesValue } = vi.hoisted(() => ({
+const { getEnv, after, processMessagesValue, enqueueWebhookEvent, guardado } = vi.hoisted(() => ({
   getEnv: vi.fn(),
   after: vi.fn(),
   processMessagesValue: vi.fn(),
+  enqueueWebhookEvent: vi.fn(),
+  guardado: { payload: null as unknown },
 }));
 // `isMockEnabled` es el REAL: se controla con WA_MOCK_ENABLED y NODE_ENV.
 vi.mock("@/lib/env", async (importOriginal) => {
@@ -27,6 +29,16 @@ vi.mock("next/server", () => ({ after }));
 vi.mock("@/server/inbox/ingest", () => ({
   processMessagesValue,
   processEchoesValue: vi.fn(),
+}));
+// DF-03: la bandeja durable sin base: «guarda» en memoria y, al procesar,
+// corre el procesamiento REAL del evento guardado.
+vi.mock("@/server/webhooks/inbox", () => ({
+  enqueueWebhookEvent,
+  processSoon: (_id: string, schedule: (fn: () => Promise<void>) => void) =>
+    schedule(async () => {
+      const { processWhatsAppPayload } = await import("@/server/inbox/process-payload");
+      await processWhatsAppPayload(guardado.payload as never);
+    }),
 }));
 vi.mock("@/server/whatsapp/template-events", () => ({
   processTemplateStatusValue: vi.fn(),
@@ -60,6 +72,38 @@ function post(headers: Record<string, string> = {}, raw = body) {
 beforeEach(() => {
   after.mockReset();
   processMessagesValue.mockReset();
+  enqueueWebhookEvent.mockReset();
+  enqueueWebhookEvent.mockImplementation(async (_source: string, payload: unknown) => {
+    guardado.payload = payload;
+    return "whi_prueba";
+  });
+});
+
+describe("DF-03: el evento se guarda ANTES de responder", () => {
+  beforeEach(() => {
+    getEnv.mockReturnValue({ META_WEBHOOK_VERIFY_TOKEN: TOKEN, META_APP_SECRET: SECRET });
+  });
+
+  it("si no se pudo guardar → 500 (Meta lo reintenta) y no se agenda nada", async () => {
+    enqueueWebhookEvent.mockRejectedValueOnce(new Error("la base no responde"));
+    const res = await post({ "x-hub-signature-256": sign(body, SECRET) });
+    expect(res.status).toBe(500);
+    expect(after).not.toHaveBeenCalled();
+  });
+
+  it("guardado → 200 y se procesa en seguida", async () => {
+    const res = await post({ "x-hub-signature-256": sign(body, SECRET) });
+    expect(res.status).toBe(200);
+    expect(enqueueWebhookEvent).toHaveBeenCalledWith("whatsapp", JSON.parse(body));
+    expect(after).toHaveBeenCalledTimes(1);
+  });
+
+  it("el mismo evento ya guardado (reintento de Meta) → 200 sin procesarlo otra vez aquí", async () => {
+    enqueueWebhookEvent.mockResolvedValueOnce(null);
+    const res = await post({ "x-hub-signature-256": sign(body, SECRET) });
+    expect(res.status).toBe(200);
+    expect(after).not.toHaveBeenCalled();
+  });
 });
 
 describe("webhook WA con META_APP_SECRET definido: la firma se exige", () => {

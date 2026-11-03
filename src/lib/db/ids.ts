@@ -62,6 +62,8 @@ const prefixes = {
   // PR 1 Fase 3
   whatsappBusinessAccount: "waba",
   webhookUnrouted: "whu",
+  // Auditoría DF-03
+  webhookInbox: "whi",
   // PR 2 Fase 3
   platformAudit: "pal",
   accountLinkToken: "alt",

@@ -34,6 +34,10 @@ export async function register(): Promise<void> {
     await resumeDirectQueue();
     // H2: la BOT_API_KEY de la variable queda ligada a PLATFORM_ORG_ID.
     await syncEnvBotKey();
+    // DF-03: webhooks guardados y no procesados (un contenedor que se cayó a
+    // medias, una falla de la base): se retoman al arrancar y cada 15 s.
+    const { startWebhookInboxWorker } = await import("@/server/webhooks/inbox");
+    startWebhookInboxWorker();
     // Fase 3: eventos sin organización, 7 días (al arrancar y cada hora).
     const { startUnroutedPurge } = await import("@/server/webhooks/unrouted");
     await startUnroutedPurge();

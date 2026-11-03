@@ -6,17 +6,9 @@ import {
   MISSING_SECRET_REJECT_WARNING,
   type WebhookPayload,
 } from "@/server/inbox/webhook";
-import { processEchoesValue, processMessagesValue } from "@/server/inbox/ingest";
-import { processTemplateStatusValue } from "@/server/whatsapp/template-events";
-import {
-  processHistoryValue,
-  processStateSyncValue,
-  type HistoryValue,
-  type StateSyncValue,
-} from "@/server/whatsapp/coexistence";
-import { isWabaField, processWabaEvent } from "@/server/whatsapp/waba-events";
+import { enqueueWebhookEvent, processSoon } from "@/server/webhooks/inbox";
 import { logger } from "@/lib/log";
-import { acceptsWebhooks, beginTask } from "@/server/shutdown";
+import { acceptsWebhooks } from "@/server/shutdown";
 
 const log = logger("webhook");
 
@@ -27,7 +19,10 @@ const log = logger("webhook");
  * Sin firma válida → 401. Sin META_APP_SECRET → 401 a todo evento y un aviso
  * en el log; la única excepción es desarrollo con los mocks
  * (`isMockEnabled()`: WA_MOCK_ENABLED=true y NODE_ENV ≠ production).
- * El POST siempre responde 200 tras validar; el procesamiento va en after().
+ * DF-03: tras validar, el evento se GUARDA (cifrado) en la bandeja durable y
+ * solo entonces se responde 200; si no se pudo guardar, 500 y Meta reintenta.
+ * El procesamiento va en after() y, si falla, lo reintenta el trabajador de
+ * fondo (`src/server/webhooks/inbox.ts`).
  */
 export const dynamic = "force-dynamic";
 
@@ -81,17 +76,17 @@ export async function POST(req: Request, { params }: Params) {
     return Response.json({ received: true });
   }
 
-  // El apagado espera este procesamiento (se abre ANTES de agendarlo).
-  const task = beginTask("webhook:wa");
-  after(async () => {
-    try {
-      await processPayload(payload);
-    } catch (err) {
-      log.error("error procesando payload", { err });
-    } finally {
-      task.end();
-    }
-  });
+  let id: string | null;
+  try {
+    id = await enqueueWebhookEvent("whatsapp", payload);
+  } catch (err) {
+    // Sin guardarlo no se acusa: Meta lo reintenta.
+    log.error("no se pudo guardar el evento del webhook: se responde 500 para que Meta lo reintente", { err });
+    return new Response(null, { status: 500 });
+  }
+  // null: el mismo evento ya estaba guardado (reintento de Meta); lo procesa
+  // quien lo guardó o el trabajador.
+  if (id) processSoon(id, after);
 
   return Response.json({ received: true });
 }
@@ -107,31 +102,4 @@ function warnMissingSecret(): void {
   if (now - lastMissingSecretWarnAt < MISSING_SECRET_WARN_EVERY_MS) return;
   lastMissingSecretWarnAt = now;
   log.warn(MISSING_SECRET_REJECT_WARNING);
-}
-
-async function processPayload(payload: WebhookPayload): Promise<void> {
-  for (const entry of payload.entry ?? []) {
-    for (const change of entry.changes ?? []) {
-      if (!change.value) continue;
-      if (change.field === "messages") {
-        await processMessagesValue(change.value);
-      } else if (change.field === "smb_message_echoes") {
-        // 008: mensajes enviados a mano desde la app del teléfono (coexistence)
-        await processEchoesValue(change.value);
-      } else if (change.field === "history") {
-        // Tech Provider (coexistencia): chats de los últimos 6 meses.
-        await processHistoryValue(change.value as HistoryValue);
-      } else if (change.field === "smb_app_state_sync") {
-        // Tech Provider (coexistencia): contactos del celular.
-        await processStateSyncValue(change.value as StateSyncValue);
-      } else if (change.field === "message_template_status_update") {
-        await processTemplateStatusValue(entry.id ?? null, change.value);
-      } else if (isWabaField(change.field)) {
-        // Campañas v2: salud del número, avisos de la cuenta y cambio de
-        // categoría de plantillas (a nivel WABA).
-        await processWabaEvent(change.field, entry.id ?? null, change.value as Record<string, unknown>);
-      }
-      // otros fields: ignorar sin error
-    }
-  }
 }

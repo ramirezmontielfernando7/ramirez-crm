@@ -2553,6 +2553,45 @@ export const webhookUnrouted = pgTable(
 );
 
 /**
+ * Auditoría DF-03 — Bandeja de entrada DURABLE de los webhooks.
+ *
+ * Cada evento firmado de Meta (y cada aviso de mensajes del dispositivo
+ * vinculado) se guarda aquí ANTES de responder «recibido»: si el proceso o la
+ * base fallan después, el trabajador de fondo lo reintenta
+ * (`src/server/webhooks/inbox.ts`). Al procesarse bien, la fila se borra.
+ *
+ * Tabla de PLATAFORMA (al recibir todavía no se sabe la organización): solo
+ * el pool de sistema. Trae mensajes de clientes: va CIFRADA y nunca al log.
+ */
+export const webhookInbox = pgTable(
+  "webhook_inbox",
+  {
+    id: text("id").primaryKey(),
+    receivedAt: timestamp("received_at").notNull().defaultNow(),
+    /** whatsapp (Meta) | direct (dispositivo vinculado) */
+    source: text("source").notNull(),
+    /** Huella con llave: el mismo evento reintentado no se guarda dos veces. */
+    payloadHash: text("payload_hash").notNull(),
+    payloadCipher: text("payload_cipher").notNull(),
+    payloadIv: text("payload_iv").notNull(),
+    payloadTag: text("payload_tag").notNull(),
+    keyVersion: integer("key_version").notNull().default(1),
+    /** pending (por procesar o reintentar) | failed (se agotaron los intentos) */
+    status: text("status").notNull().default("pending"),
+    attempts: integer("attempts").notNull().default(0),
+    nextAttemptAt: timestamp("next_attempt_at").notNull().defaultNow(),
+    /** Quién lo procesa lo aparta hasta esta hora (si se cae, otro lo retoma). */
+    lockedUntil: timestamp("locked_until"),
+    /** Último error, SIN contenido del mensaje. */
+    lastError: text("last_error"),
+  },
+  (t) => [
+    uniqueIndex("webhook_inbox_hash_uq").on(t.payloadHash),
+    index("webhook_inbox_due_idx").on(t.status, t.nextAttemptAt),
+  ]
+);
+
+/**
  * PR 1 Fase 3 — Tope mensual de IA de UNA organización (la llave de
  * OpenRouter es de la plataforma y la comparten todas). Sin fila, o con
  * NULL, vale el default del entorno (`AI_DEFAULT_MONTHLY_TURNS` /

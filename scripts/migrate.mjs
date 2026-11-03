@@ -26,6 +26,7 @@ if (!url) {
 /** Tablas de plataforma que solo usa `vocero_system` (sin permisos para `vocero_app`). */
 const SOLO_SISTEMA = [
   "webhook_unrouted",
+  "webhook_inbox",
   "platform_admin",
   "platform_audit_log",
   "account_link_token",
