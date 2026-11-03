@@ -17,6 +17,10 @@ export async function register(): Promise<void> {
     const { installShutdownHandler } = await import("@/server/shutdown");
     installShutdownHandler();
     warnIfWebhookUnsigned();
+    // DF-12: ¿la app respeta el aislamiento entre empresas (RLS)? Avisa; con
+    // DB_ROLE_STRICT=true, no arranca si no.
+    const { checkDbRole } = await import("@/server/db-role-check");
+    await checkDbRole();
     // Fase 3: antes que nada que lea credenciales (rotación de la llave y
     // secretos de Zernio en claro → cifrados). Nunca tumba el arranque.
     const { credentialMaintenanceOnBoot } = await import("@/server/credentials/maintenance");
