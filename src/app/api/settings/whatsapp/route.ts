@@ -67,5 +67,7 @@ export const PUT = withAuth(async (session, req: Request) => {
   return Response.json({
     ok: true,
     displayPhoneNumber: valid.displayPhoneNumber,
+    // DF-14: ¿Meta aceptó mandar los mensajes nuevos? (o hay un override que se respetó)
+    webhook: stored.webhook,
   });
 }, { permission: "settings.manage" });

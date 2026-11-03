@@ -146,6 +146,8 @@ function ConnectForm({
   const [testing, setTesting] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  // DF-14: el número quedó guardado pero Meta no confirmó los avisos de mensajes.
+  const [webhookWarning, setWebhookWarning] = useState(false);
 
   const canTest = wabaId.trim() && phoneNumberId.trim() && token.trim();
 
@@ -179,6 +181,7 @@ function ConnectForm({
   async function save() {
     setSaving(true);
     setSaveError(null);
+    setWebhookWarning(false);
     const res = await fetch("/api/settings/whatsapp", {
       method: "PUT",
       headers: { "content-type": "application/json" },
@@ -192,6 +195,8 @@ function ConnectForm({
       setSaveError(data?.error?.message ?? "No se pudo guardar la conexión");
       return;
     }
+    const saved = (await res.json().catch(() => null)) as { webhook?: string } | null;
+    setWebhookWarning(saved?.webhook === "failed");
     setToken("");
     setTestResult(null);
     onSaved();
@@ -279,6 +284,12 @@ function ConnectForm({
           </p>
         )}
         {saveError && <p className="text-sm text-destructive">{saveError}</p>}
+        {webhookWarning && (
+          <p role="alert" className="text-sm text-warning-text" data-testid="conexion-sin-avisos">
+            El número quedó guardado, pero Meta no confirmó que nos avise de los mensajes nuevos: puede que no te lleguen.
+            Vuelve a guardar en unos minutos o revisa la suscripción de la app en WhatsApp Manager.
+          </p>
+        )}
 
         <div className="flex gap-2">
           <Button
