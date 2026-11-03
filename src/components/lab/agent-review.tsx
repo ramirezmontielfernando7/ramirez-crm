@@ -25,7 +25,7 @@ export function AgentReview({
 }) {
   const [state, setState] = useState<Record<number, "applied" | "ignored">>({});
   return (
-    <section aria-label="Revisión de este chat" className="mx-3 mb-2 rounded-2xl border bg-background p-4 shadow-md">
+    <section aria-label="Revisión de este chat" className="mx-3 mb-2 max-h-[60vh] overflow-y-auto rounded-2xl border bg-background p-4 shadow-md">
       <div className="flex items-center gap-2">
         <b className="text-sm">✦ Revisión de este chat</b>
         <span className="text-xs text-muted-foreground">{suggestions.length === 1 ? "1 sugerencia" : `${suggestions.length} sugerencias`}</span>
@@ -40,7 +40,7 @@ export function AgentReview({
           <b>{s.title}</b>
           {s.reason && <p className="text-xs text-muted-foreground">{s.reason}</p>}
           <p className="mt-1.5 text-xs font-medium text-muted-foreground">Cambio sugerido en {CREATOR_FIELD_LABEL[s.field]}:</p>
-          <p className="mt-1 whitespace-pre-wrap break-words leading-relaxed">
+          <p className="mt-1 max-h-48 overflow-y-auto whitespace-pre-wrap break-words rounded-md bg-muted/30 p-2 leading-relaxed">
             {wordDiff(s.before ?? "", s.value).map((p, j) =>
               p.kind === "del" ? (
                 <del key={j} className="rounded bg-red-100 px-0.5 text-red-900 no-underline line-through dark:bg-red-950 dark:text-red-200">{p.text} </del>
@@ -51,7 +51,7 @@ export function AgentReview({
               )
             )}
           </p>
-          <div className="mt-2 flex gap-2">
+          <div className="sticky bottom-0 -mx-1 mt-2 flex gap-2 bg-background px-1 py-1.5">
             {state[i] === "applied" ? (
               <span className="text-xs font-medium text-brand-ink">✓ Aplicado al borrador</span>
             ) : state[i] === "ignored" ? (
