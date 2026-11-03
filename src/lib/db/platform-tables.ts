@@ -22,4 +22,6 @@ export const PLATFORM_TABLES: Readonly<Record<string, string>> = {
     "047 PR 1: apps de IA del registro dinámico de OAuth (RFC 7591); el registro ocurre antes de saber de qué organización es la persona (solo pool de sistema)",
   webhook_unrouted:
     "eventos de Meta que no se pudieron enrutar: justo no se sabe de qué organización son (solo pool de sistema, cifrados, 7 días)",
+  webhook_inbox:
+    "DF-03: webhooks guardados ANTES de responder, aún sin enrutar a su organización (solo pool de sistema, cifrados; se borran al procesarse)",
 };

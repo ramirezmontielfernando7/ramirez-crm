@@ -1,3 +1,4 @@
+import type { DirectInboxPayload } from "@/server/webhooks/inbox";
 import { eq } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { scoped } from "@/lib/db/tenant";
@@ -35,8 +36,12 @@ export async function organizationForWebhook(token: string): Promise<{ organizat
   return row ? { organizationId: row.organizationId, directNumberId: row.directNumberId } : null;
 }
 
-/** Nunca lanza: un mensaje malo se registra y sigue con el siguiente. */
-export async function ingestDeviceMessages(organizationId: string, messages: DeviceMessage[]): Promise<number> {
+/**
+ * Un mensaje malo se registra y sigue con el siguiente. Sin `strict` nunca
+ * lanza; con `strict` (la bandeja durable, DF-03) lanza AL FINAL si algo
+ * falló, para que se reintente (lo ya registrado se deduplica).
+ */
+export async function ingestDeviceMessages(organizationId: string, messages: DeviceMessage[], opts: { strict?: boolean } = {}): Promise<number> {
   if (messages.length === 0) return 0;
   return runWithOrganization(organizationId, async () => {
     try {
@@ -47,16 +52,20 @@ export async function ingestDeviceMessages(organizationId: string, messages: Dev
       }
     } catch (err) {
       log.error("no se pudo revisar la organización del dispositivo vinculado", { org: organizationId, err });
+      if (opts.strict) throw err;
       return 0;
     }
     let done = 0;
+    let failed = 0;
     for (const m of messages) {
       try {
         if (await ingestOne(organizationId, m)) done++;
       } catch (err) {
+        failed++;
         log.error("no se pudo registrar un mensaje del dispositivo vinculado", { org: organizationId, err });
       }
     }
+    if (opts.strict && failed > 0) throw new Error(`${failed} mensaje(s) del dispositivo vinculado no se registraron`);
     return done;
   });
 }
@@ -95,4 +104,19 @@ export async function phoneByLid(organizationId: string, lid: string): Promise<s
     .where(scoped(schema.contact.organizationId, organizationId, eq(schema.contact.waLid, lid)))
     .limit(1);
   return row?.phone ?? null;
+}
+
+/**
+ * DF-03 — Procesa un aviso de mensajes del dispositivo vinculado guardado en
+ * la bandeja durable: el de «Mi número» de una persona o el de la empresa.
+ * Lanza si algo falló (la bandeja lo reintenta).
+ */
+export async function processDirectPayload(payload: DirectInboxPayload): Promise<void> {
+  const { organizationId, directNumberId, messages } = payload;
+  if (directNumberId) {
+    const { ingestNumberMessages } = await import("@/server/mi-numero/inbound");
+    await ingestNumberMessages({ organizationId, directNumberId }, messages, { strict: true });
+    return;
+  }
+  await ingestDeviceMessages(organizationId, messages, { strict: true });
 }

@@ -247,9 +247,18 @@ export async function processMessagesValue(value: WebhookValue): Promise<void> {
   const organizationId = credentials.organizationId;
 
   // H27: todo lo que se registre de aquí en adelante es de ESTA organización.
+  // DF-03: un elemento que falla no frena a los siguientes del lote; al
+  // final se lanza para que la bandeja durable reintente (lo ya registrado se
+  // deduplica).
+  let failures = 0;
   await runWithOrganization(organizationId, async () => {
     for (const status of value.statuses ?? []) {
-      await applyStatusUpdate(organizationId, status);
+      try {
+        await applyStatusUpdate(organizationId, status);
+      } catch (err) {
+        failures++;
+        log.error("no se pudo aplicar un estado de mensaje", { org: organizationId, mensaje: status.id, err });
+      }
     }
 
     for (const msg of value.messages ?? []) {
@@ -265,20 +274,26 @@ export async function processMessagesValue(value: WebhookValue): Promise<void> {
         log.warn("mensaje sin identidad utilizable (sin from ni from_user_id): descartado", { org: organizationId, mensaje: msg.id });
         continue;
       }
-      await ingestInboundMessage({
-        organizationId,
-        identity: resolved,
-        waMessageId: msg.id,
-        type: button ? "text" : msg.type,
-        text: button || (msg.text?.body ?? null),
-        timestamp: msg.timestamp,
-        media: mediaInputFrom(msg),
-        // 018: normalizado aquí, en el adaptador del canal; la ingesta no sabe
-        // de qué forma lo mandó Meta.
-        anuncio: anuncioDeWhatsapp(msg.referral),
-      });
+      try {
+        await ingestInboundMessage({
+          organizationId,
+          identity: resolved,
+          waMessageId: msg.id,
+          type: button ? "text" : msg.type,
+          text: button || (msg.text?.body ?? null),
+          timestamp: msg.timestamp,
+          media: mediaInputFrom(msg),
+          // 018: normalizado aquí, en el adaptador del canal; la ingesta no sabe
+          // de qué forma lo mandó Meta.
+          anuncio: anuncioDeWhatsapp(msg.referral),
+        });
+      } catch (err) {
+        failures++;
+        log.error("no se pudo registrar un mensaje entrante", { org: organizationId, mensaje: msg.id, err });
+      }
     }
   });
+  if (failures > 0) throw new Error(`${failures} elemento(s) del webhook no se registraron`);
 }
 
 /**
@@ -309,6 +324,7 @@ export async function processEchoesValue(value: WebhookValue): Promise<void> {
 
 async function ingestEchoes(organizationId: string, echoes: WebhookMessage[]): Promise<void> {
   const credentials = { organizationId };
+  let failures = 0;
   for (const echo of echoes) {
     if (!SUPPORTED_TYPES.has(echo.type)) continue;
     if (!echo.to) {
@@ -318,10 +334,13 @@ async function ingestEchoes(organizationId: string, echoes: WebhookMessage[]): P
     try {
       await ingestManualEcho(credentials.organizationId, echo);
     } catch (err) {
-      // Un echo malformado jamás tumba el webhook (edge case del spec).
+      // Un echo malformado no frena a los demás (edge case del spec); DF-03:
+      // al final se lanza para que la bandeja durable lo reintente.
+      failures++;
       log.error("error procesando echo", { org: credentials.organizationId, mensaje: echo.id, err });
     }
   }
+  if (failures > 0) throw new Error(`${failures} echo(s) no se registraron`);
 }
 
 /**
@@ -518,23 +537,47 @@ async function ingestInboundMessageInOrg(input: {
   const waTimestamp = toDate(input.timestamp);
 
   // Idempotencia dura: mismo wa_message_id → sin efectos adicionales.
-  const inserted = await db
-    .insert(schema.message)
-    .values({
-      id: newId("message"),
-      organizationId,
-      conversationId: conversation.id,
-      waMessageId: input.waMessageId,
-      direction: "in",
-      type: input.type,
-      text: input.text,
-      status: "delivered",
-      waTimestamp,
-      ...(input.device ? { transport: "directa" as const, altMessageId: input.device.keyId } : {}),
-    })
-    .onConflictDoNothing({ target: [schema.message.waMessageId] })
-    .returning();
-  const message = inserted[0];
+  // DF-03: el mensaje y el chat (no leídos, fecha) en UNA transacción. Si la
+  // segunda parte falla, la primera no queda: el reintento de la bandeja
+  // durable encuentra el mensaje sin registrar y completa todo (antes el
+  // dedup lo daba por hecho y el chat quedaba sin actualizar).
+  const message = await db.transaction(async (tx) => {
+    const inserted = await tx
+      .insert(schema.message)
+      .values({
+        id: newId("message"),
+        organizationId,
+        conversationId: conversation.id,
+        waMessageId: input.waMessageId,
+        direction: "in",
+        type: input.type,
+        text: input.text,
+        status: "delivered",
+        waTimestamp,
+        ...(input.device ? { transport: "directa" as const, altMessageId: input.device.keyId } : {}),
+      })
+      .onConflictDoNothing({ target: [schema.message.waMessageId] })
+      .returning();
+    const row = inserted[0];
+    if (!row) return null; // duplicado
+
+    await tx
+      .update(schema.conversation)
+      .set({
+        lastInboundAt: waTimestamp,
+        lastMessageAt: waTimestamp,
+        unreadCount: sql`${schema.conversation.unreadCount} + 1`,
+        // 034: un mensaje entrante saca el chat del archivo.
+        archivedAt: null,
+        // 041: y de la pestaña «Campañas»: pasa a la principal con «Respondió
+        // a campaña X». Una sola sentencia (Postgres lee los valores de antes).
+        campaignRepliedId: sql`coalesce(${schema.conversation.campaignPendingId}, ${schema.conversation.campaignRepliedId})`,
+        campaignPendingId: null,
+        updatedAt: new Date(),
+      })
+      .where(eq(schema.conversation.id, conversation.id));
+    return row;
+  });
   if (!message) return; // duplicado
 
   // PR 6: el ID privado (`@lid`) del contacto, para reconocerlo si un día
@@ -550,22 +593,6 @@ async function ingestInboundMessageInOrg(input: {
   const asset = input.media
     ? await attachMediaAsset(organizationId, message.id, input.media)
     : null;
-
-  await db
-    .update(schema.conversation)
-    .set({
-      lastInboundAt: waTimestamp,
-      lastMessageAt: waTimestamp,
-      unreadCount: sql`${schema.conversation.unreadCount} + 1`,
-      // 034: un mensaje entrante saca el chat del archivo.
-      archivedAt: null,
-      // 041: y de la pestaña «Campañas»: pasa a la principal con «Respondió
-      // a campaña X». Una sola sentencia (Postgres lee los valores de antes).
-      campaignRepliedId: sql`coalesce(${schema.conversation.campaignPendingId}, ${schema.conversation.campaignRepliedId})`,
-      campaignPendingId: null,
-      updatedAt: new Date(),
-    })
-    .where(eq(schema.conversation.id, conversation.id));
 
   await onLeadActivity(organizationId, contact.id, waTimestamp);
 

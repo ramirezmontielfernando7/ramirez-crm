@@ -120,6 +120,11 @@ export function sealForStorage(plain: string): SealedValue {
   return seal(plain);
 }
 
+/** Abre lo que guardó `sealForStorage` (sin lanzar: el fallo viene tipado). */
+export function openFromStorage(cipher: string, iv: string, tag: string, keyVersion: number) {
+  return open(cipher, iv, tag, keyVersion);
+}
+
 const log = logger("credentials");
 
 class OpenError extends Error {

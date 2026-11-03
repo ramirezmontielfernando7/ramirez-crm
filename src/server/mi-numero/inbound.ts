@@ -37,7 +37,8 @@ const log = logger("mi-numero");
  */
 export async function ingestNumberMessages(
   ref: { organizationId: string; directNumberId: string },
-  messages: DeviceMessage[]
+  messages: DeviceMessage[],
+  opts: { strict?: boolean } = {}
 ): Promise<number> {
   if (messages.length === 0) return 0;
   const { organizationId, directNumberId } = ref;
@@ -52,17 +53,22 @@ export async function ingestNumberMessages(
         .limit(1);
     } catch (err) {
       log.error("no se pudo revisar el número del dispositivo vinculado", { org: organizationId, number: directNumberId, err });
+      if (opts.strict) throw err;
       return 0;
     }
     if (!number || number.revokedAt) return 0;
     let done = 0;
+    let failed = 0;
     for (const m of messages) {
       try {
         if (await ingestOne(number, m)) done++;
       } catch (err) {
+        failed++;
         log.error("no se pudo registrar un mensaje de un «Mi número»", { org: organizationId, number: directNumberId, err });
       }
     }
+    // DF-03: con `strict` (la bandeja durable) lo que falló se reintenta.
+    if (opts.strict && failed > 0) throw new Error(`${failed} mensaje(s) de un «Mi número» no se registraron`);
     return done;
   });
 }

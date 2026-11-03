@@ -79,6 +79,10 @@ const PERMITIDOS: Record<string, { usos: number; motivo: string }> = {
     usos: 1,
     motivo: "Fase 3: el administrador de plataforma da de alta, suspende y borra organizaciones (por encima de ellas)",
   },
+  "src/server/webhooks/inbox.ts": {
+    usos: 1,
+    motivo: "DF-03: bandeja durable de webhooks (tabla de plataforma webhook_inbox): se guarda ANTES de saber la organización; cada evento se procesa luego a nombre de la suya",
+  },
   "src/server/webhooks/unrouted.ts": {
     usos: 1,
     motivo: "eventos de webhook sin organización (tabla de plataforma webhook_unrouted) y su limpieza de 7 días",

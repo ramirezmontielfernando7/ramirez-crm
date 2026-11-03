@@ -1,13 +1,13 @@
 import { after } from "next/server";
 import { parseDeviceMessages } from "@/lib/direct-inbound";
 import { logger } from "@/lib/log";
-import { ingestDeviceMessages, organizationForWebhook } from "@/server/direct-connection/inbound";
+import { organizationForWebhook } from "@/server/direct-connection/inbound";
 import { handleWebhookState } from "@/server/direct-connection/link";
 import { parseState } from "@/server/direct-connection/evolution-api";
 import { handleWebhookStatuses } from "@/server/direct-connection/status";
 import { parseDirectStatusUpdates } from "@/lib/direct-echo";
-import { ingestNumberMessages } from "@/server/mi-numero/inbound";
-import { acceptsWebhooks, beginTask } from "@/server/shutdown";
+import { acceptsWebhooks } from "@/server/shutdown";
+import { enqueueWebhookEvent, processSoon } from "@/server/webhooks/inbox";
 
 export const dynamic = "force-dynamic";
 
@@ -56,32 +56,17 @@ export async function POST(req: Request, { params }: Params) {
     const { organizationId, directNumberId } = owner;
     const messages = parseDeviceMessages(body.data);
     if (messages.length === 0) return new Response(null, { status: 200 });
-    // Mi número (046): lo del número de una persona va a SUS chats.
-    if (directNumberId) {
-      const task = beginTask("webhook:direct");
-      after(async () => {
-        try {
-          await ingestNumberMessages({ organizationId, directNumberId }, messages);
-        } catch (err) {
-          log.error("error registrando mensajes de un «Mi número»", { err });
-        } finally {
-          task.end();
-        }
-      });
-      return new Response(null, { status: 200 });
+    // DF-03: se GUARDA antes de responder (cifrado) y se procesa en seguida;
+    // si falla, lo reintenta el trabajador de fondo. Mi número (046): lo del
+    // número de una persona va a SUS chats (lo decide `directNumberId`).
+    let id: string | null;
+    try {
+      id = await enqueueWebhookEvent("direct", { organizationId, directNumberId, messages });
+    } catch (err) {
+      log.error("no se pudo guardar el aviso de mensajes del dispositivo vinculado: 500 para que lo reintente", { org: organizationId, err });
+      return new Response(null, { status: 500 });
     }
-    // Como el webhook de Meta: se responde ya y se registra después (unir la
-    // copia de un envío puede esperar a que el dispositivo conteste).
-    const task = beginTask("webhook:direct");
-    after(async () => {
-      try {
-        await ingestDeviceMessages(organizationId, messages);
-      } catch (err) {
-        log.error("error registrando mensajes del dispositivo vinculado", { err });
-      } finally {
-        task.end();
-      }
-    });
+    if (id) processSoon(id, after);
     return new Response(null, { status: 200 });
   }
   if (event !== "connection.update") return new Response(null, { status: 200 });

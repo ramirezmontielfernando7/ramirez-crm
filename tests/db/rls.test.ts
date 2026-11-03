@@ -30,6 +30,7 @@ const EXCEPCIONES: Record<string, string> = {
   evolution_server: "Conexión directa PR 1: servidores del dispositivo vinculado que registra el administrador de plataforma (por encima de las organizaciones); llave cifrada; solo el pool de sistema",
   ai_oauth_client: "047 PR 1: apps de IA del registro dinámico de OAuth, antes de saber de qué organización es la persona; solo el pool de sistema",
   webhook_unrouted: "Fase 3 PR 1: eventos de Meta sin organización conocida (justo no se pudo enrutar); solo el pool de sistema, cifrados, 7 días",
+  webhook_inbox: "DF-03: webhooks guardados antes de responder, aún sin enrutar a su organización; solo el pool de sistema, cifrados, se borran al procesarse",
 };
 
 const POLITICA = "aislamiento_por_organizacion";
