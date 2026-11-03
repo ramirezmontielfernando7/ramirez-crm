@@ -159,7 +159,7 @@ describe("menú por rol: guardar, restaurar y bitácora", () => {
 
   it("guarda el del Asesor, lo deja en la bitácora y restaurar vuelve al de fábrica", async () => {
     const items = await saveNavLayout({ organizationId: A.id, role: "asesor", items: asesorSoloBandeja(), actorUserId: dueña });
-    expect(items.slice(0, 3).map((i) => i.key)).toEqual(["pipeline", "inbox", "lab"]);
+    expect(items.slice(0, 3).map((i) => i.key)).toEqual(["pipeline", "inbox", "asistente"]);
     const guardado = await runWithOrganization(A.id, () => getNavLayouts(A.id));
     expect(guardado.asesor?.find((i) => i.key === "pipeline")?.hidden).toBe(true);
     expect(guardado.coordinador).toBeNull();
