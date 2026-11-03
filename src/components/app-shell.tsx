@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import { BrandLogo, BrandTile } from "@/components/brand-mark";
 import { ViewerProvider } from "@/components/viewer-context";
 import { TeamUnreadLogoBadge } from "@/components/team-chat/unread-badge";
+import { AssistantLauncher } from "@/components/assistant/assistant-launcher";
 import { HandoffNotices } from "@/components/handoff-notices";
 import { NumberHealthBanner } from "@/components/number-health";
 import { CampaignPauseBanner } from "@/components/campaigns/campaign-pause-banner";
@@ -107,6 +108,8 @@ export function AppShell({
         </ShellFrame>
         {/* 026 — Avisos de handoff (solo le llegan a quien le toca). */}
         <HandoffNotices />
+        {/* Asistente: botón discreto y Ctrl/⌘+K (solo con el módulo y el permiso). */}
+        <AssistantLauncher />
       </MotionProvider>
     </ViewerProvider>
   );
