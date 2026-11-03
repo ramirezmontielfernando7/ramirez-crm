@@ -9,7 +9,6 @@ Dos workflows en `.github/workflows/`:
 - **Imagen** (`imagen.yml`): construye la imagen Docker en cada PR; con cada
   fusión a `main` (si todo pasa) la publica en GHCR como `:main`, y con un
   tag `vX.Y.Z` publica esa versión. Cómo usarla en Coolify: `docs/imagen-ghcr.md`.
-  Antes decía: publica solo con un tag
 
 Cada job tiene `timeout-minutes` para que un cuelgue no espere 6 horas.
 
