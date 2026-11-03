@@ -1058,7 +1058,7 @@ async function asistenteMotor(A, B, orgB) {
   await burbuja.getByTestId("assistant-sources-toggle").click();
   ok("…y se puede ver lo que devolvió la consulta", /porcentaje_del_tope/.test(await burbuja.getByTestId("assistant-source-result").first().innerText()));
   await page.screenshot({ path: "scratch/e2e-asistente-motor.png", fullPage: true }).catch(() => null);
-  await page.getByTestId("assistant-thread-select").selectOption(threadId);
+  await page.locator(`[data-testid="assistant-thread-item"][data-thread-id="${threadId}"]`).click();
   ok("abrir un hilo anterior muestra sus mensajes", await hasta(async () => (await page.getByTestId("assistant-msg-user").count()) === 3, 30000));
   ok("…y el aviso de una respuesta sin fuentes no aparece en las que sí tienen", (await page.getByTestId("assistant-flag").count()) === 0);
   await page.close();

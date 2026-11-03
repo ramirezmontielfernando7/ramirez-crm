@@ -171,6 +171,8 @@ const PROTEGIDAS: [string, Method, Permission][] = [
   ["assistant/threads", "GET", "assistant.use"],
   ["assistant/threads/[id]", "GET", "assistant.use"],
   ["assistant/threads/[id]", "DELETE", "assistant.use"],
+  ["assistant/threads/[id]", "PATCH", "assistant.use"],
+  ["assistant/threads/bulk", "POST", "assistant.use"],
   ["settings/team", "GET", "users.read"],
   ["settings/team", "POST", "users.manage"],
   ["settings/team/[id]", "PATCH", "users.manage"],

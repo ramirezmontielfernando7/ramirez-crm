@@ -113,7 +113,17 @@ export type AssistantMessageDto = {
   meta: AssistantMessageMeta | null;
 };
 
-export type AssistantThreadDto = { id: string; title: string; updatedAt: string };
+export type AssistantThreadDto = {
+  id: string;
+  title: string;
+  updatedAt: string;
+  /** `general`: el Chat general fijo de la persona; `thread`: un hilo. */
+  kind: "general" | "thread";
+  archived: boolean;
+};
+
+/** Cuántos hilos se pueden elegir a la vez para archivar o borrar. */
+export const THREAD_BULK_MAX = 50;
 
 // ---------------------------------------------------------------------------
 // Enmascarado

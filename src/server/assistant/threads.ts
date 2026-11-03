@@ -1,4 +1,4 @@
-import { asc, desc, eq, inArray, lt } from "drizzle-orm";
+import { asc, desc, eq, inArray, isNotNull, isNull, lt } from "drizzle-orm";
 import {
   HISTORY_EXCHANGES,
   THREAD_RETENTION_DAYS,
@@ -35,6 +35,7 @@ export async function purgeOldThreads(organizationId: string, userId: string, no
         schema.assistantThread.organizationId,
         organizationId,
         eq(schema.assistantThread.userId, userId),
+        eq(schema.assistantThread.kind, "thread"),
         lt(schema.assistantThread.updatedAt, retentionCutoff(now))
       )
     )
@@ -42,15 +43,76 @@ export async function purgeOldThreads(organizationId: string, userId: string, no
   return rows.length;
 }
 
+type ThreadRow = { id: string; title: string | null; updatedAt: Date; kind: "general" | "thread"; archivedAt: Date | null };
+
+function toDto(r: ThreadRow): AssistantThreadDto {
+  return {
+    id: r.id,
+    title: r.kind === "general" ? "Asistente" : (r.title ?? "Conversación"),
+    updatedAt: r.updatedAt.toISOString(),
+    kind: r.kind,
+    archived: r.archivedAt !== null,
+  };
+}
+
+/**
+ * Los hilos de esta persona (archivados incluidos, la pantalla los separa),
+ * sin el Chat general, del más reciente al más viejo.
+ */
 export async function listThreads(organizationId: string, userId: string, now = new Date()): Promise<AssistantThreadDto[]> {
   await purgeOldThreads(organizationId, userId, now);
   const rows = await getDb()
-    .select({ id: schema.assistantThread.id, title: schema.assistantThread.title, updatedAt: schema.assistantThread.updatedAt })
+    .select({
+      id: schema.assistantThread.id,
+      title: schema.assistantThread.title,
+      updatedAt: schema.assistantThread.updatedAt,
+      kind: schema.assistantThread.kind,
+      archivedAt: schema.assistantThread.archivedAt,
+    })
     .from(schema.assistantThread)
-    .where(scoped(schema.assistantThread.organizationId, organizationId, eq(schema.assistantThread.userId, userId)))
+    .where(
+      scoped(
+        schema.assistantThread.organizationId,
+        organizationId,
+        eq(schema.assistantThread.userId, userId),
+        eq(schema.assistantThread.kind, "thread")
+      )
+    )
     .orderBy(desc(schema.assistantThread.updatedAt))
-    .limit(50);
-  return rows.map((r) => ({ id: r.id, title: r.title ?? "Conversación", updatedAt: r.updatedAt.toISOString() }));
+    .limit(100);
+  return rows.map(toDto);
+}
+
+/** El Chat general de esta persona: se crea la primera vez (uno por persona). */
+export async function ensureGeneralThread(organizationId: string, userId: string, now = new Date()): Promise<AssistantThreadDto> {
+  const find = () =>
+    getDb()
+      .select({
+        id: schema.assistantThread.id,
+        title: schema.assistantThread.title,
+        updatedAt: schema.assistantThread.updatedAt,
+        kind: schema.assistantThread.kind,
+        archivedAt: schema.assistantThread.archivedAt,
+      })
+      .from(schema.assistantThread)
+      .where(
+        scoped(
+          schema.assistantThread.organizationId,
+          organizationId,
+          eq(schema.assistantThread.userId, userId),
+          eq(schema.assistantThread.kind, "general")
+        )
+      )
+      .limit(1);
+  const [existing] = await find();
+  if (existing) return toDto(existing);
+  await getDb()
+    .insert(schema.assistantThread)
+    .values({ id: newId("assistantThread"), organizationId, userId, kind: "general", title: "Asistente", createdAt: now, updatedAt: now })
+    .onConflictDoNothing();
+  const [row] = await find();
+  if (!row) throw new Error("No se pudo crear el Chat general del asistente");
+  return toDto(row);
 }
 
 /** ¿Es un hilo de esta persona en esta organización? */
@@ -142,7 +204,7 @@ export async function saveExchange(input: SaveExchangeInput): Promise<{ threadId
     if (id) {
       await tx
         .update(schema.assistantThread)
-        .set({ updatedAt: answeredAt })
+        .set({ updatedAt: answeredAt, archivedAt: null })
         .where(
           scoped(
             schema.assistantThread.organizationId,
@@ -194,7 +256,27 @@ export async function saveExchange(input: SaveExchangeInput): Promise<{ threadId
   };
 }
 
-/** Borra hilos de esta persona (los de otra, ni los toca). Devuelve cuántos. */
+/** Archiva (o desarchiva) hilos de esta persona. El Chat general no se archiva. Devuelve cuántos. */
+export async function archiveThreads(organizationId: string, userId: string, threadIds: string[], archived: boolean, now = new Date()): Promise<number> {
+  if (threadIds.length === 0) return 0;
+  const rows = await getDb()
+    .update(schema.assistantThread)
+    .set({ archivedAt: archived ? now : null })
+    .where(
+      scoped(
+        schema.assistantThread.organizationId,
+        organizationId,
+        eq(schema.assistantThread.userId, userId),
+        eq(schema.assistantThread.kind, "thread"),
+        inArray(schema.assistantThread.id, threadIds),
+        archived ? isNull(schema.assistantThread.archivedAt) : isNotNull(schema.assistantThread.archivedAt)
+      )
+    )
+    .returning({ id: schema.assistantThread.id });
+  return rows.length;
+}
+
+/** Borra hilos de esta persona (los de otra, ni los toca; el Chat general tampoco). Devuelve cuántos. */
 export async function deleteThreads(organizationId: string, userId: string, threadIds: string[]): Promise<number> {
   if (threadIds.length === 0) return 0;
   const rows = await getDb()
@@ -204,6 +286,7 @@ export async function deleteThreads(organizationId: string, userId: string, thre
         schema.assistantThread.organizationId,
         organizationId,
         eq(schema.assistantThread.userId, userId),
+        eq(schema.assistantThread.kind, "thread"),
         inArray(schema.assistantThread.id, threadIds)
       )
     )

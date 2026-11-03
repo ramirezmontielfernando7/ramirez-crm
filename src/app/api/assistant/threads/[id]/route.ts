@@ -1,5 +1,6 @@
-import { apiError, withAuth } from "@/lib/api";
-import { deleteThreads, getThreadMessages } from "@/server/assistant/threads";
+import { z } from "zod";
+import { apiError, parseBody, withAuth } from "@/lib/api";
+import { archiveThreads, deleteThreads, getThreadMessages } from "@/server/assistant/threads";
 import { moduleOff } from "@/server/modules";
 
 export const dynamic = "force-dynamic";
@@ -26,6 +27,21 @@ export const DELETE = withAuth(
     if (off) return off;
     const { id } = await ctx.params;
     const n = await deleteThreads(session.organizationId, session.userId, [id]);
+    if (n === 0) return apiError(404, "not_found", "Conversación no encontrada");
+    return Response.json({ ok: true });
+  },
+  { permission: "assistant.use" }
+);
+
+/** Archivar o desarchivar una conversación propia. */
+export const PATCH = withAuth(
+  async (session, req: Request, ctx: Params) => {
+    const off = await moduleOff(session.organizationId, "asistente");
+    if (off) return off;
+    const { id } = await ctx.params;
+    const parsed = await parseBody(req, z.object({ archived: z.boolean() }));
+    if (!parsed.ok) return parsed.response;
+    const n = await archiveThreads(session.organizationId, session.userId, [id], parsed.data.archived);
     if (n === 0) return apiError(404, "not_found", "Conversación no encontrada");
     return Response.json({ ok: true });
   },
