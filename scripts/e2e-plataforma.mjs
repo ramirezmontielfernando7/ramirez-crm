@@ -1075,8 +1075,7 @@ async function asistenteMotor(A, B, orgB) {
   const burbuja = page.getByTestId("assistant-msg-answer").last();
   ok("en pantalla: la respuesta aparece", await page.waitForFunction((n) => document.querySelectorAll('[data-testid="assistant-msg-answer"]').length > n, antesBurbujas, { timeout: 90000 }).then(() => true, () => false));
   ok("…con «Datos de: Consumo de IA del mes»", /Consumo de IA del mes/.test(await burbuja.getByTestId("assistant-sources").innerText()));
-  await burbuja.getByTestId("assistant-sources-toggle").click();
-  ok("…y se puede ver lo que devolvió la consulta", /porcentaje_del_tope/.test(await burbuja.getByTestId("assistant-source-result").first().innerText()));
+  ok("…y ya no muestra el código de lo que devolvió la consulta", (await burbuja.getByTestId("assistant-source-result").count()) === 0);
   await page.screenshot({ path: "scratch/e2e-asistente-motor.png", fullPage: true }).catch(() => null);
   await page.locator(`[data-testid="assistant-thread-item"][data-thread-id="${threadId}"]`).click();
   ok("abrir un hilo anterior muestra sus mensajes", await hasta(async () => (await page.getByTestId("assistant-msg-user").count()) === 3, 30000));

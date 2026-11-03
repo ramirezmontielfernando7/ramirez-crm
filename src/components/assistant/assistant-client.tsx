@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { RichText } from "@/components/assistant/rich-text";
 import { ProposalsCard } from "@/components/assistant/proposals-card";
 import { UsageMeter } from "@/components/usage/usage-meter";
 import {
@@ -33,7 +34,6 @@ import {
   MAX_QUESTION_CHARS,
   type AssistantProposal,
   type AssistantMessageDto,
-  type AssistantSource,
   type AssistantThreadDto,
 } from "@/lib/assistant-engine";
 import { fetchJson, jsonInit } from "@/lib/fetch-json";
@@ -213,12 +213,14 @@ export function AssistantClient() {
     if (!q || asking) return;
     setAsking(true);
     setAskError(null);
+    setQuestion("");
     const r = await fetchJson<{ threadId: string; question: AssistantMessageDto; answer: AssistantMessageDto }>(
       "/api/assistant/ask",
       jsonInit("POST", { threadId, question: q })
     );
     setAsking(false);
     if (!r.ok) {
+      setQuestion(q);
       setAskError(r.error);
       void loadStatus();
       return;
@@ -657,9 +659,7 @@ function AnswerBubble({
   return (
     <div className="flex justify-start">
       <div className="min-w-0 max-w-full" data-testid="assistant-msg-answer">
-        <p className="whitespace-pre-wrap break-words text-sm leading-relaxed" data-testid="assistant-answer-text">
-          {message.content}
-        </p>
+        <RichText text={message.content} testId="assistant-answer-text" />
         {threadId && meta?.proposals && meta.proposals.length > 0 && (
           <ProposalsCard threadId={threadId} messageId={message.id} proposals={meta.proposals} onChange={onProposals} />
         )}
@@ -692,36 +692,10 @@ function AnswerBubble({
                   </Badge>
                 ))}
               </p>
-              <details className="mt-1 text-xs">
-                <summary className="cursor-pointer text-text-3" data-testid="assistant-sources-toggle">
-                  Ver lo que devolvió cada consulta ({sources.length} {sources.length === 1 ? "consulta" : "consultas"})
-                </summary>
-                <ul className="mt-2 space-y-2">
-                  {sources.map((s) => (
-                    <SourceItem key={s.id} source={s} />
-                  ))}
-                </ul>
-              </details>
             </>
           )}
         </div>
       </div>
     </div>
-  );
-}
-
-function SourceItem({ source }: { source: AssistantSource }) {
-  const result = typeof source.result === "string" ? source.result : JSON.stringify(source.result, null, 2);
-  return (
-    <li className="rounded-md border bg-subtle p-2" data-testid="assistant-source" data-query={source.name}>
-      <p className="font-medium">
-        {source.label}
-        {!source.cited && <span className="ml-1 font-normal text-text-3">· no citada en la respuesta</span>}
-      </p>
-      <pre className="mt-1 max-h-60 overflow-auto whitespace-pre-wrap break-words font-mono text-[11px] text-text-2" data-testid="assistant-source-result">
-        {result}
-        {source.truncated ? "\n(recortado)" : ""}
-      </pre>
-    </li>
   );
 }

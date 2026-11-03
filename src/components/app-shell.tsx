@@ -140,7 +140,11 @@ function ShellFrame({
 }) {
   const pathname = usePathname();
   const [navOpen, setNavOpen] = useState(false);
-  const [mode, setMode] = useState<NavMode>(navMode);
+  const [savedMode, setMode] = useState<NavMode>(navMode);
+  // En el Asistente el menú nunca se oculta del todo (sin encabezado no habría cómo reabrirlo):
+  // solo completo o con íconos.
+  const noHidden = pathname === "/asistente" || pathname.startsWith("/asistente/");
+  const mode: NavMode = noHidden && savedMode === "hidden" ? "collapsed" : savedMode;
   const content = useRef<HTMLDivElement>(null);
   const slideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Dónde empezaba el contenido antes de cambiar el menú (para deslizarlo).
@@ -153,8 +157,11 @@ function ShellFrame({
   // cambian de identidad por culpa de la función.
   const modeRef = useRef(mode);
   modeRef.current = mode;
+  const noHiddenRef = useRef(noHidden);
+  noHiddenRef.current = noHidden;
   const cycleNav = useCallback(() => {
-    const next = nextNavMode(modeRef.current);
+    let next = nextNavMode(modeRef.current);
+    if (noHiddenRef.current && next === "hidden") next = "expanded";
     leftBefore.current = content.current?.getBoundingClientRect().left ?? null;
     setMode(next);
     // Por usuario y en BD: la elección lo sigue a otro dispositivo. Si no se

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { ArrowUp, Clock, Maximize2, Sparkles, X } from "lucide-react";
+import { RichText } from "@/components/assistant/rich-text";
 import { ProposalsCard } from "@/components/assistant/proposals-card";
 import { useViewer } from "@/components/viewer-context";
 import type { AssistantStatus } from "@/lib/assistant";
@@ -104,16 +105,17 @@ export function AssistantLauncher() {
     if (!q || asking || !ready) return;
     setAsking(true);
     setError(null);
+    setQuestion("");
     const r = await fetchJson<{ threadId: string; question: AssistantMessageDto; answer: AssistantMessageDto }>(
       "/api/assistant/ask",
       jsonInit("POST", { threadId: threadId ?? general?.id ?? null, question: q })
     );
     setAsking(false);
     if (!r.ok) {
+      setQuestion(q);
       setError(r.error);
       return;
     }
-    setQuestion("");
     setThreadId(r.data.threadId);
     setMessages((m) => [...m, r.data.question, r.data.answer]);
   }
@@ -199,7 +201,7 @@ export function AssistantLauncher() {
               <p className="text-text-2">{status.message}</p>
             ) : last ? (
               <div data-testid="assistant-quick-answer">
-                <p className="whitespace-pre-wrap break-words leading-relaxed">{last.content}</p>
+                <RichText text={last.content} />
                 {threadId && last.meta?.proposals && last.meta.proposals.length > 0 && (
                   <ProposalsCard threadId={threadId} messageId={last.id} proposals={last.meta.proposals} onChange={setProposals} />
                 )}
