@@ -251,6 +251,7 @@ export function aiMockCost(promptTokens: number, completionTokens: number): numb
  * Palabras de la pregunta que cambian su conducta (solo pruebas):
  * INVENTA (responde cifras sin consultar y cita una fuente que no existe),
  * TODO (pide más consultas de las permitidas), BUCLE (nunca responde),
+ * ANUNCIA (promete consultar y no lo hace hasta que se le reclama),
  * ROMPE (no devuelve JSON), PROPON NOTA <id> / PROPON ENVIO <id> (propone
  * una nota o un mensaje de texto para ese chat; el engaño del modelo en la
  * etiqueta lo corrige el servidor).
@@ -277,7 +278,8 @@ const MOCK_KEYWORDS: [RegExp, string, Record<string, unknown>?][] = [
   [/consumo|cr[eé]dito|\bia\b/, "consumo_ia"],
   [/analisis|objecion|motivo|pierd|perd/, "analisis_conversaciones", { dias: 30 }],
 ];
-const TODO_QUERIES = ["consumo_ia", "consumo_ia_por_funcion", "almacenamiento", "plan_y_topes", "avisos_consumo", "modulos", "equipo", "etiquetas"];
+const TODO_BASE = ["consumo_ia", "consumo_ia_por_funcion", "almacenamiento", "plan_y_topes", "avisos_consumo", "modulos", "equipo", "etiquetas"];
+const TODO_QUERIES = [...TODO_BASE, ...TODO_BASE, ...TODO_BASE];
 
 function assistantMock(messages: InMessage[]): string {
   const log = assistantMockLog();
@@ -289,7 +291,7 @@ function assistantMock(messages: InMessage[]): string {
   const block = new RegExp(`<<DATOS (q\\d+) · ([a-z_]+) · ${nonce}>>\\n([^\\n]*)\\n<<FIN DATOS \\1 · ${nonce}>>`, "g");
   const results = messages.filter((m) => m.role === "user" && m.content.startsWith("RESULTADOS DE LAS CONSULTAS"));
   const question =
-    [...messages].reverse().find((m) => m.role === "user" && !m.content.startsWith("RESULTADOS DE LAS CONSULTAS") && !m.content.startsWith("Ya no puedes"))
+    [...messages].reverse().find((m) => m.role === "user" && !m.content.startsWith("RESULTADOS DE LAS CONSULTAS") && !m.content.startsWith("Ya no puedes") && !m.content.startsWith("Tu respuesta trae cifras") && !m.content.startsWith("No anuncies"))
       ?.content ?? "";
   const q = foldAccents(question.toLowerCase());
 
@@ -317,11 +319,18 @@ function assistantMock(messages: InMessage[]): string {
   }
   if (q.includes("rompe")) return "lo siento, hoy no tengo ganas de JSON";
   if (q.includes("bucle")) return JSON.stringify({ action: "query", queries: [{ name: "consumo_ia" }] });
+  if (q.includes("anuncia")) {
+    // Anuncia lo que va a hacer; solo si se le reclama («No anuncies…») consulta de verdad y responde.
+    const reclamado = messages.some((m) => m.role === "user" && /No anuncies lo que vas a hacer/.test(m.content));
+    if (!reclamado) return JSON.stringify({ action: "answer", text: "Siguiente paso: voy a consultar el consumo.", sources: [] });
+    if (data.length === 0) return JSON.stringify({ action: "query", queries: [{ name: "consumo_ia" }] });
+    return JSON.stringify({ action: "answer", text: "Ya lo consulté.", sources: ["q1"] });
+  }
   if (q.includes("inventa")) return JSON.stringify({ action: "answer", text: "Tienes 42 contactos nuevos.", sources: ["q9"] });
 
   const sinMas = messages.some((m) => m.role === "user" && /Ya no (puedes hacer más|quedan) consultas/.test(m.content));
   if (q.includes("todo") && !sinMas && data.length < TODO_QUERIES.length) {
-    const next = TODO_QUERIES.slice(data.length, data.length + 4).map((name) => ({ name }));
+    const next = TODO_QUERIES.slice(data.length, data.length + 6).map((name) => ({ name }));
     if (next.length > 0) return JSON.stringify({ action: "query", queries: next });
   }
 

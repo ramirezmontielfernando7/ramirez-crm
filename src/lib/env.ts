@@ -65,6 +65,13 @@ const envSchema = z.object({
     .string()
     .optional()
     .transform((v) => v?.trim() || undefined),
+  // Asistente interno: un modelo por modo del selector. Cada una vacía = se
+  // usa la siguiente de la cadena (RÁPIDO → OPENROUTER_MODEL; NORMAL →
+  // OPENROUTER_ANALYSIS_MODEL → OPENROUTER_JUDGE_MODEL → OPENROUTER_MODEL;
+  // PROFUNDO → NORMAL). Se cambian sin tocar código (solo al reiniciar).
+  ASSISTANT_MODEL_FAST: z.string().optional().transform((v) => v?.trim() || undefined),
+  ASSISTANT_MODEL_NORMAL: z.string().optional().transform((v) => v?.trim() || undefined),
+  ASSISTANT_MODEL_DEEP: z.string().optional().transform((v) => v?.trim() || undefined),
   // Creador conversacional del agente y «Revisar este chat» (Estudio de IA):
   // modelo propio (p. ej. Sonnet 5.5). Vacía = el del juez, o el principal.
   OPENROUTER_CREATOR_MODEL: z

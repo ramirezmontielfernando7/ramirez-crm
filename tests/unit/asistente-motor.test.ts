@@ -5,6 +5,7 @@ import {
   Masker,
   MAX_MODEL_CALLS,
   MAX_QUERIES_PER_QUESTION,
+  MAX_QUERIES_PER_STEP,
   quarantineString,
   renderDataBlock,
   sourceResult,
@@ -146,12 +147,33 @@ describe("038 — el bucle del motor", () => {
     expect(results.replace(inside![0], "")).not.toContain("SISTEMA:");
   });
 
+  it("el historial arrastra los datos que consultó antes (ids) con las fichas renumeradas", async () => {
+    m.chat.mockResolvedValueOnce(ok({ action: "answer", text: "ok", sources: [] }));
+    await askAssistant({
+      organizationId: "org_a",
+      access,
+      question: "muévelos a la etapa correcta",
+      history: [
+        { role: "user", maskedContent: "¿quién respondió?", masks: { "[CONTACTO 1]": "Angela Pico" } },
+        {
+          role: "assistant",
+          maskedContent: "Respondió [CONTACTO 1].",
+          masks: { "[CONTACTO 1]": "Angela Pico" },
+          recall: '<<DATOS q1 · list_chats · abc>>\n{"conversation_id":"cv_123","contact":"[CONTACTO 1]"}\n<<FIN DATOS q1 · abc>>',
+        },
+      ],
+    });
+    const sent = (m.chat.mock.calls[0]![3] as { role: string; content: string }[]).map((x) => x.content).join("\n");
+    expect(sent).toContain("cv_123");
+    expect(sent).toContain("Datos que consulté al contestar eso");
+    expect(sent).not.toContain("Angela Pico");
+  });
+
   it("tope de consultas por pregunta: las que sobran no corren y se avisa", async () => {
-    const muchas = Array.from({ length: 4 }, (_, i) => ({ name: `c${i}` }));
-    m.chat
-      .mockResolvedValueOnce(ok({ action: "query", queries: muchas }))
-      .mockResolvedValueOnce(ok({ action: "query", queries: muchas }))
-      .mockResolvedValueOnce(ok({ action: "answer", text: "Listo", sources: ["q1", "q6"] }));
+    const muchas = Array.from({ length: MAX_QUERIES_PER_STEP }, (_, i) => ({ name: `c${i}` }));
+    const vueltas = Math.ceil((MAX_QUERIES_PER_QUESTION + 2) / MAX_QUERIES_PER_STEP);
+    for (let i = 0; i < vueltas; i++) m.chat.mockResolvedValueOnce(ok({ action: "query", queries: muchas }));
+    m.chat.mockResolvedValueOnce(ok({ action: "answer", text: "Listo", sources: ["q1"] }));
     const r = await askAssistant({ organizationId: "org_a", access, question: "todo", history: [] });
     expect(m.runQuery).toHaveBeenCalledTimes(MAX_QUERIES_PER_QUESTION);
     expect(r.ok && r.meta.queryCount).toBe(MAX_QUERIES_PER_QUESTION);
@@ -167,10 +189,34 @@ describe("038 — el bucle del motor", () => {
   });
 
   it("cifras sin consultar y citas que no existen quedan marcadas", async () => {
-    m.chat.mockResolvedValueOnce(ok({ action: "answer", text: "Tienes 42 contactos.", sources: ["q9"] }));
+    // La primera vez se le reclama (cifras sin consulta); si insiste, se muestra marcada.
+    m.chat
+      .mockResolvedValueOnce(ok({ action: "answer", text: "Tienes 42 contactos.", sources: ["q9"] }))
+      .mockResolvedValueOnce(ok({ action: "answer", text: "Tienes 42 contactos.", sources: ["q9"] }));
     const r = await askAssistant({ organizationId: "org_a", access, question: "inventa", history: [] });
     expect(r.ok && r.meta.flags.sort()).toEqual(["invalid_citation", "no_sources"]);
     expect(r.ok && r.meta.sources).toEqual([]);
+    expect(m.chat).toHaveBeenCalledTimes(2);
+  });
+
+  it("si da cifras sin consultar, se le pide consultar y responde con datos de verdad", async () => {
+    m.chat
+      .mockResolvedValueOnce(ok({ action: "answer", text: "Hay 48 leads en Perdido.", sources: [] }))
+      .mockResolvedValueOnce(ok({ action: "query", queries: [{ name: "consumo_ia" }] }))
+      .mockResolvedValueOnce(ok({ action: "answer", text: "Listo", sources: ["q1"] }));
+    const r = await askAssistant({ organizationId: "org_a", access, question: "cuántos leads", history: [] });
+    expect(r.ok && r.meta.queryCount).toBe(1);
+    expect(r.ok && r.meta.flags).not.toContain("no_sources");
+  });
+
+  it("si anuncia lo que va a hacer («voy a consultar…»), se le pide hacerlo en la misma pregunta", async () => {
+    m.chat
+      .mockResolvedValueOnce(ok({ action: "answer", text: "Siguiente paso: voy a consultar los leads de Perdido.", sources: [] }))
+      .mockResolvedValueOnce(ok({ action: "query", queries: [{ name: "consumo_ia" }] }))
+      .mockResolvedValueOnce(ok({ action: "answer", text: "Aquí están.", sources: ["q1"] }));
+    const r = await askAssistant({ organizationId: "org_a", access, question: "archiva los de perdido", history: [] });
+    expect(r.ok && r.meta.queryCount).toBe(1);
+    expect(r.ok && r.answer).toBe("Aquí están.");
   });
 
   it("una consulta que no existe no corre (y se avisa)", async () => {

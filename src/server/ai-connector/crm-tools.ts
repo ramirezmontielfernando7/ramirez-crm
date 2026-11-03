@@ -196,6 +196,7 @@ const updateContact: ToolSpec<z.infer<typeof updateContactArgs>> = {
 const listPipelineArgs = z.object({
   stage: z.string().trim().min(1).max(80).optional(),
   limit: z.number().int().min(1).max(200).default(50),
+  offset: z.number().int().min(0).max(100_000).default(0),
 });
 
 const listPipeline: ToolSpec<z.infer<typeof listPipelineArgs>> = {
@@ -203,10 +204,15 @@ const listPipeline: ToolSpec<z.infer<typeof listPipelineArgs>> = {
   title: "Ver el embudo",
   description:
     "Los leads del embudo (pipeline) que la persona ve, con su etapa, monto, prioridad y quién atiende, más el total por etapa. " +
-    "stage (nombre de list_stages) filtra una sola etapa.",
+    "stage (el nombre o el id de list_stages) filtra una sola etapa. Devuelve total_leads (los que hay en total), returned y next_offset: " +
+    "si next_offset no es null, faltan leads: vuelve a pedir con offset=next_offset hasta recorrerlos todos.",
   inputSchema: {
     type: "object",
-    properties: { stage: { type: "string" }, limit: { type: "integer", minimum: 1, maximum: 200, default: 50 } },
+    properties: {
+      stage: { type: "string", description: "Nombre o id de la etapa" },
+      limit: { type: "integer", minimum: 1, maximum: 200, default: 50 },
+      offset: { type: "integer", minimum: 0, default: 0, description: "Cuántos saltar (paginar con next_offset)" },
+    },
     additionalProperties: false,
   },
   parse: listPipelineArgs,
@@ -220,7 +226,7 @@ const listPipeline: ToolSpec<z.infer<typeof listPipelineArgs>> = {
         .from(schema.pipelineStage)
         .where(scoped(schema.pipelineStage.organizationId, session.organizationId));
       const wanted = args.stage.toLocaleLowerCase("es");
-      const s = stages.find((x) => x.name.toLocaleLowerCase("es") === wanted);
+      const s = stages.find((x) => x.id === args.stage || x.name.toLocaleLowerCase("es") === wanted);
       if (!s) return fail(`No hay una etapa «${args.stage}». Las etapas: ${stages.map((x) => x.name).join(", ")}`, "etapa desconocida");
       stageId = s.id;
     }
@@ -241,7 +247,8 @@ const listPipeline: ToolSpec<z.infer<typeof listPipelineArgs>> = {
         .leftJoin(schema.conversation, and(eq(schema.conversation.contactId, schema.contact.id), companyChat()))
         .where(scopedContacts(schema.lead.organizationId, session.access, schema.lead.contactId, ...onlyStage))
         .orderBy(asc(schema.pipelineStage.position), asc(schema.lead.position))
-        .limit(args.limit),
+        .limit(args.limit)
+        .offset(args.offset),
       db
         .select({
           stage: schema.pipelineStage.name,
@@ -256,9 +263,14 @@ const listPipeline: ToolSpec<z.infer<typeof listPipelineArgs>> = {
         .orderBy(asc(schema.pipelineStage.position)),
       getBranding(session.organizationId),
     ]);
+    const totalLeads = totals.reduce((n, t) => n + t.leads, 0);
+    const nextOffset = args.offset + rows.length < totalLeads ? args.offset + rows.length : null;
     return {
       data: {
         currency: branding.currency,
+        total_leads: totalLeads,
+        returned: rows.length,
+        next_offset: nextOffset,
         stages: totals.map((t) => ({ stage: t.stage, kind: t.kind, leads: t.leads, amount: Number(t.amountCents) / 100 })),
         leads: rows.map((r) => ({
           contact: { id: r.contactId, name: r.contactName },

@@ -140,6 +140,14 @@ describe("047 — ficha, embudo, tareas y notas", () => {
     expect(owner.structuredContent.leads).toHaveLength(2);
     expect(owner.structuredContent.stages[0].leads).toBe(2);
     expect((await herramienta(k.owner, "list_pipeline", { stage: "No existe" })).isError).toBe(true);
+    // Paginación y etapa por id: total_leads / returned / next_offset.
+    const pag1 = await herramienta(k.owner, "list_pipeline", { limit: 1 });
+    expect(pag1.structuredContent).toMatchObject({ total_leads: 2, returned: 1, next_offset: 1 });
+    const pag2 = await herramienta(k.owner, "list_pipeline", { limit: 1, offset: 1 });
+    expect(pag2.structuredContent).toMatchObject({ returned: 1, next_offset: null });
+    expect(pag2.structuredContent.leads[0].contact.id).not.toBe(pag1.structuredContent.leads[0].contact.id);
+    const [primera] = await sys().select().from(schema.pipelineStage).where(and(eq(schema.pipelineStage.organizationId, A.id), eq(schema.pipelineStage.position, 0)));
+    expect((await herramienta(k.owner, "list_pipeline", { stage: primera!.id })).structuredContent.total_leads).toBe(2);
 
     const upd = await herramienta(k.ana, "update_lead", { conversation_id: deAna.conversationId, amount: 1500.5, priority: "alta" });
     expect(upd.isError).toBe(false);

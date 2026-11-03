@@ -19,13 +19,13 @@ import { z } from "zod";
 import { sanitizeForPrompt } from "@/lib/kb-docs";
 
 /** Consultas del catálogo que puede pedir UNA pregunta, en total. */
-export const MAX_QUERIES_PER_QUESTION = 6;
+export const MAX_QUERIES_PER_QUESTION = 16;
 /** Consultas que puede pedir en una sola vuelta. */
-export const MAX_QUERIES_PER_STEP = 4;
+export const MAX_QUERIES_PER_STEP = 6;
 /** Llamadas al modelo por pregunta (vueltas de consulta + la respuesta). */
-export const MAX_MODEL_CALLS = 4;
+export const MAX_MODEL_CALLS = 8;
 /** Intercambios previos del hilo que se le recuerdan al modelo. */
-export const HISTORY_EXCHANGES = 3;
+export const HISTORY_EXCHANGES = 4;
 /** Largo máximo de la pregunta. */
 export const MAX_QUESTION_CHARS = 1000;
 /** Lo más que se guarda de cada resultado para mostrarlo como fuente. */
@@ -70,7 +70,7 @@ export const assistantStepSchema = z.discriminatedUnion("action", [
         })
       )
       .min(1)
-      .max(20),
+      .max(50),
   }),
 ]);
 export type AssistantStep = z.infer<typeof assistantStepSchema>;
@@ -143,10 +143,12 @@ export type AssistantMessageMeta = {
   coverage?: AssistantCoverage;
   /** Fichas de esta pregunta → dato real, para que la siguiente pregunta del hilo entienda «eso» y «ella». */
   masks?: Record<string, string>;
+  /** Los datos que consultó (enmascarados, recortados): en la pregunta siguiente recuerda ids y nombres sin volver a pedirlos. */
+  recall?: string;
 };
 
-/** Qué tan a fondo piensa el asistente: rápido (Haiku, por defecto) o análisis profundo (Sonnet). */
-export const ASSISTANT_SPEEDS = ["fast", "deep"] as const;
+/** Qué tan a fondo piensa el asistente: rápido (ahorro), normal (por defecto) o profundo (análisis). */
+export const ASSISTANT_SPEEDS = ["fast", "normal", "deep"] as const;
 export type AssistantSpeed = (typeof ASSISTANT_SPEEDS)[number];
 
 /** Mensaje de un hilo tal como lo ve la pantalla. */

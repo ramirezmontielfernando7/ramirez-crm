@@ -8,17 +8,19 @@ const KEY = "assistant-speed";
 
 const OPTIONS: { value: AssistantSpeed; label: string; hint: string }[] = [
   { value: "fast", label: "Rápido", hint: "Modo ahorro: respuestas ágiles y de bajo consumo." },
-  { value: "deep", label: "Análisis profundo", hint: "Piensa más a fondo para análisis y casos difíciles; consume más crédito." },
+  { value: "normal", label: "Normal", hint: "El equilibrio de siempre: buen criterio para el día a día." },
+  { value: "deep", label: "Profundo", hint: "Piensa más a fondo para análisis y casos difíciles; consume más crédito." },
 ];
 
-/** Rápido por defecto; la elección se recuerda en este navegador (solo comodidad). */
+/** Normal por defecto; la elección se recuerda en este navegador (solo comodidad). */
 export function useAssistantSpeed(): [AssistantSpeed, (s: AssistantSpeed) => void] {
-  const [speed, setSpeed] = useState<AssistantSpeed>("fast");
+  const [speed, setSpeed] = useState<AssistantSpeed>("normal");
   useEffect(() => {
     try {
-      if (window.localStorage.getItem(KEY) === "deep") setSpeed("deep");
+      const saved = window.localStorage.getItem(KEY);
+      if (saved === "fast" || saved === "deep") setSpeed(saved);
     } catch {
-      /* sin almacenamiento: se queda en Rápido */
+      /* sin almacenamiento: se queda en Normal */
     }
   }, []);
   return [
