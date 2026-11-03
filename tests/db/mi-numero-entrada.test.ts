@@ -11,6 +11,7 @@ import { getOrCreateContact } from "@/server/inbox/ingest";
 import { listConversations, listMessages } from "@/server/inbox/queries";
 import { listMyChats, markClient, myChatMessages, myNumberAsset } from "@/server/mi-numero/chats";
 import { ingestNumberMessages } from "@/server/mi-numero/inbound";
+import { MESSAGE_PAGE } from "@/server/mi-numero/message-page";
 import { MiNumeroFailure } from "@/server/mi-numero/numbers";
 import { forgetOrgModules } from "@/server/modules";
 import { updateOrgModules } from "@/server/modules/store";
@@ -214,6 +215,27 @@ describe("Mi número — lo que entra a cada número (PR 4)", () => {
     expect(porFiltro).toEqual([]);
     expect((await as(A.id, () => myNumberAsset(A.id, ana, asset!.id)))?.id).toBe(asset!.id);
     expect(await as(A.id, () => myNumberAsset(A.id, luis, asset!.id))).toBeNull();
+  });
+
+  it("DF-15: el hilo se lee por bloques y la lista se acota y busca en el servidor", async () => {
+    const tel = "52552222077";
+    const lote = Array.from({ length: 205 }, (_, i) => msg(tel, `m${i}`, { keyId: `PAGINA${i}` }));
+    expect(await ingestNumberMessages(ref(), lote)).toBe(205);
+    const chat = (await as(A.id, () => listMyChats(A.id, ana, undefined, { q: tel.slice(-6) }))).chats[0]!;
+    const ultimos = await as(A.id, () => myChatMessages(A.id, ana, chat.id));
+    expect(ultimos).toHaveLength(MESSAGE_PAGE);
+    expect(ultimos.at(-1)!.text).toBe("m204");
+    const antes = await as(A.id, () => myChatMessages(A.id, ana, chat.id, { id: ultimos[0]!.id }));
+    expect(antes.map((m) => m.text)).toEqual(["m0", "m1", "m2", "m3", "m4"]);
+    // Un cursor de otro chat no trae nada (no sirve para leer chats ajenos).
+    const otro = (await as(A.id, () => listMyChats(A.id, ana))).chats.find((c) => c.id !== chat.id)!;
+    expect(await as(A.id, () => myChatMessages(A.id, ana, otro.id, { id: ultimos[0]!.id }))).toEqual([]);
+    // La lista: tope y bandera de «hay más».
+    const uno = await as(A.id, () => listMyChats(A.id, ana, undefined, { limit: 1 }));
+    expect(uno.chats).toHaveLength(1);
+    expect(uno.more).toBe(true);
+    // Búsqueda por nombre en el servidor; sin coincidencias, vacío.
+    expect((await as(A.id, () => listMyChats(A.id, ana, undefined, { q: "zzzz-nadie" }))).chats).toEqual([]);
   });
 
   it("un número revocado o con el complemento apagado no recibe nada", async () => {

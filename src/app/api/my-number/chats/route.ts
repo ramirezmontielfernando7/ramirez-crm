@@ -9,8 +9,12 @@ export const dynamic = "force-dynamic";
  * Mi número (046), PR 4 — Los chats de MI número (la sesión decide de quién;
  * nunca los de otro). Sin el complemento: 404; sin número: 404.
  */
-export const GET = withAuth(async (session) => {
+export const GET = withAuth(async (session, req: Request) => {
   const off = await miNumeroOff(session.organizationId);
   if (off) return off;
-  return answer(async () => Response.json(await listMyChats(session.organizationId, session.userId, session.access)));
+  // DF-15: `?limit=` (los más recientes) y `?q=` (buscar entre todos, en el servidor).
+  const url = new URL(req.url);
+  const limit = Number(url.searchParams.get("limit")) || undefined;
+  const q = url.searchParams.get("q");
+  return answer(async () => Response.json(await listMyChats(session.organizationId, session.userId, session.access, { limit, q })));
 });

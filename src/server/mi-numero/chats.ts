@@ -1,11 +1,10 @@
-import { and, desc, eq, inArray, isNull, ne, sql } from "drizzle-orm";
+import { and, desc, eq, ilike, inArray, isNull, ne, or, sql } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { scoped, type Access } from "@/lib/db/tenant";
 import type { ConversationDto } from "@/lib/types";
 import { logger } from "@/lib/log";
 import { assignContacts } from "@/server/assignment/assign";
 import { publish } from "@/server/events/bus";
-import { serializeMessage } from "@/server/inbox/ingest";
 import { createLeadForContact } from "@/server/inbox/lead-activity";
 import { numberClientChats } from "@/server/inbox/queries";
 import { normalizeTypedPhone } from "@/lib/phone-search";
@@ -15,6 +14,7 @@ import { syncNumberAi } from "./ai";
 import { numberAudience } from "./audience";
 import { MiNumeroFailure } from "./numbers";
 import { supervisedNumberAsset } from "./supervise";
+import { messagePage, type MessageCursor } from "./message-page";
 
 const log = logger("mi-numero");
 
@@ -66,14 +66,36 @@ export type MyChatDto = {
   crm: ConversationDto | null;
 };
 
-export type MyChats = { numberId: string; shareClients: boolean; chats: MyChatDto[] };
+export type MyChats = {
+  numberId: string;
+  shareClients: boolean;
+  chats: MyChatDto[];
+  /** DF-15: hay más chats que los de esta lista (los más viejos); se piden con `limit`. */
+  more: boolean;
+};
+
+/** DF-15: los chats más recientes por lectura (antes, todos). */
+export const CHATS_PAGE = 200;
+export const CHATS_MAX = 2000;
 
 export async function listMyChats(
   organizationId: string,
   userId: string,
   // Lo que la sesión ve del CRM (para `crm`); sin él, como un asesor.
-  access: Access = { organizationId, userId, seesAll: false }
+  access: Access = { organizationId, userId, seesAll: false },
+  /**
+   * DF-15: `limit` = cuántos de los más recientes (tope `CHATS_MAX`); `q` =
+   * buscar por nombre o teléfono entre TODOS sus chats, en el servidor.
+   */
+  opts: { limit?: number; q?: string | null } = {}
 ): Promise<MyChats> {
+  const limit = Math.min(Math.max(1, Math.floor(opts.limit ?? CHATS_PAGE)), CHATS_MAX);
+  const q = opts.q?.trim().slice(0, 80) ?? "";
+  const digits = q.replace(/\D/g, "");
+  const like = `%${q.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
+  const search = q
+    ? or(ilike(schema.contact.name, like), digits.length >= 3 ? ilike(schema.contact.phone, `%${digits}%`) : undefined)
+    : undefined;
   const number = await myLiveNumber(organizationId, userId);
   const preview = sql<string | null>`(
     select coalesce(m.text, m.type) from message m
@@ -89,16 +111,21 @@ export async function listMyChats(
         schema.conversation.organizationId,
         organizationId,
         eq(schema.conversation.directNumberId, number.id),
-        isNull(schema.conversation.archivedAt)
+        isNull(schema.conversation.archivedAt),
+        search
       )
     )
-    .orderBy(desc(sql`coalesce(${schema.conversation.lastMessageAt}, ${schema.conversation.createdAt})`));
+    .orderBy(desc(sql`coalesce(${schema.conversation.lastMessageAt}, ${schema.conversation.createdAt})`), desc(schema.conversation.id))
+    .limit(limit + 1);
+  const more = rows.length > limit;
+  if (more) rows.length = limit;
   const crm = new Map(
     (await numberClientChats(access, rows.filter((r) => r.conversation.clientMarkedAt).map((r) => r.conversation.id))).map((c) => [c.id, c])
   );
   return {
     numberId: number.id,
     shareClients: number.shareClients,
+    more,
     chats: rows.map((r) => ({
       id: r.conversation.id,
       contact: {
@@ -158,24 +185,22 @@ export async function myChat(organizationId: string, userId: string, conversatio
   return { number, conversation };
 }
 
-/** Los mensajes de uno de MIS chats; abrirlo lo deja leído. */
-export async function myChatMessages(organizationId: string, userId: string, conversationId: string) {
+/**
+ * Los mensajes de uno de MIS chats, por bloques (DF-15: los últimos
+ * `MESSAGE_PAGE`; con `before`, los anteriores). Abrirlo lo deja leído.
+ */
+export async function myChatMessages(organizationId: string, userId: string, conversationId: string, before: MessageCursor | null = null) {
   const { number, conversation } = await myChat(organizationId, userId, conversationId);
   const db = getDb();
-  const rows = await db
-    .select({ message: schema.message, media: schema.mediaAsset })
-    .from(schema.message)
-    .leftJoin(schema.mediaAsset, eq(schema.message.mediaAssetId, schema.mediaAsset.id))
-    .where(scoped(schema.message.organizationId, organizationId, eq(schema.message.conversationId, conversation.id)))
-    .orderBy(schema.message.createdAt);
-  if (conversation.unreadCount > 0) {
+  const messages = await messagePage(organizationId, conversation.id, before);
+  if (!before && conversation.unreadCount > 0) {
     await db
       .update(schema.conversation)
       .set({ unreadCount: 0 })
       .where(scoped(schema.conversation.organizationId, organizationId, eq(schema.conversation.id, conversation.id)));
     publish(organizationId, { type: "number.conversation", data: { conversationId: conversation.id }, audience: await numberAudience(organizationId, number) });
   }
-  return rows.map((r) => serializeMessage(r.message, r.media));
+  return messages;
 }
 
 /**

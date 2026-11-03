@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { apiError, withAuth } from "@/lib/api";
 import { answer } from "@/server/mi-numero/http";
+import { MESSAGE_PAGE, messageCursorFrom } from "@/server/mi-numero/message-page";
 import { myChatMessages } from "@/server/mi-numero/chats";
 import { miNumeroOff } from "@/server/mi-numero/numbers";
 import { sendFromMyNumber } from "@/server/mi-numero/send";
@@ -11,11 +12,15 @@ export const dynamic = "force-dynamic";
 type Params = { params: Promise<{ id: string }> };
 
 /** Mi número (046), PR 4 — Los mensajes de uno de MIS chats (abrirlo lo deja leído). */
-export const GET = withAuth(async (session, _req: Request, { params }: Params) => {
+export const GET = withAuth(async (session, req: Request, { params }: Params) => {
   const off = await miNumeroOff(session.organizationId);
   if (off) return off;
   const { id } = await params;
-  return answer(async () => Response.json({ messages: await myChatMessages(session.organizationId, session.userId, id) }));
+  return answer(async () => {
+    // DF-15: por bloques; `more` = puede haber mensajes anteriores.
+    const messages = await myChatMessages(session.organizationId, session.userId, id, messageCursorFrom(req.url));
+    return Response.json({ messages, more: messages.length >= MESSAGE_PAGE });
+  });
 });
 
 const Body = z.object({ text: z.string().trim().min(1).max(4096) });

@@ -1,5 +1,6 @@
 "use client";
 
+import { mergeLatest } from "@/lib/mi-numero-thread";
 import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -40,7 +41,10 @@ type MyChat = {
   /** Lo de CRM (etapa, etiquetas, quién atiende) en un chat de cliente; null en los privados. */
   crm: ConversationDto | null;
 };
-type MyChats = { numberId: string; shareClients: boolean; chats: MyChat[] };
+type MyChats = { numberId: string; shareClients: boolean; chats: MyChat[]; more?: boolean };
+/** DF-15: los mismos topes del servidor (`src/server/mi-numero/chats.ts`). */
+const CHATS_PAGE = 200;
+const CHATS_MAX = 2000;
 
 /**
  * Mi número (046), PR 4 — La pestaña «Mi número» de la Bandeja: los chats del
@@ -61,6 +65,12 @@ export function MyNumberInbox({ own = true, team = false }: { own?: boolean; tea
   const [list, setList] = useState<MyChats | null>(null);
   const [listError, setListError] = useState<string | null>(null);
   const [messages, setMessages] = useState<MessageDto[] | null>(null);
+  // DF-15: el hilo llega por bloques; `olderMore` = hay mensajes anteriores por pedir.
+  const [olderMore, setOlderMore] = useState(false);
+  const loadingOlder = useRef(false);
+  // DF-15: la lista llega por bloques (los más recientes) y la búsqueda va al servidor.
+  const [listLimit, setListLimit] = useState(CHATS_PAGE);
+  const [found, setFound] = useState<MyChats | null>(null);
   const [threadError, setThreadError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [reviewing, setReviewing] = useState(false);
@@ -98,12 +108,12 @@ export function MyNumberInbox({ own = true, team = false }: { own?: boolean; tea
 
   const refetchList = useCallback(async () => {
     if (!own) return;
-    const res = await fetchJson<MyChats>("/api/my-number/chats");
+    const res = await fetchJson<MyChats>(`/api/my-number/chats?limit=${listLimit}`);
     if (res.ok) {
       setList(res.data);
       setListError(null);
     } else setListError(res.error);
-  }, [own]);
+  }, [own, listLimit]);
 
   /** Una cápsula cambió algo de CRM: se pinta al instante (como en Empresa). */
   const patchRow = useCallback((id: string, patch: Partial<ConversationDto>) => {
@@ -133,15 +143,18 @@ export function MyNumberInbox({ own = true, team = false }: { own?: boolean; tea
       // PR 7: uno de un número de la empresa, igual: solo lectura y anotado.
       const shared = sharedRef.current === id;
       const company = companyRef.current === id;
-      const res = await fetchJson<{ messages: MessageDto[] }>(
-        shared ? `/api/my-number/shared/${id}/messages` : company ? `/api/my-number/team/${id}/messages` : `/api/my-number/chats/${id}/messages`,
-      );
+      const res = await fetchJson<{ messages: MessageDto[]; more?: boolean }>(threadUrl(id, shared, company));
       if (selectedRef.current !== id) return;
+      if (res.ok) {
+        // DF-15: llega el bloque más reciente; lo anterior que ya estaba en
+        // pantalla (pedido al subir) se conserva.
+        const page = res.data.messages;
+        setMessages((prev) => mergeLatest(prev, page));
+        setOlderMore((was) => (page.length > 0 && res.data.more === true) || (was && page.length > 0));
+      }
       if (res.ok && (shared || company)) {
-        setMessages(res.data.messages);
         setThreadError(null);
       } else if (res.ok) {
-        setMessages(res.data.messages);
         setThreadError(null);
         // Abrirlo lo deja leído: la lista y el globo de la pestaña se ponen al día.
         scheduleList();
@@ -157,9 +170,49 @@ export function MyNumberInbox({ own = true, team = false }: { own?: boolean; tea
 
   useEffect(() => {
     setMessages(null);
+    setOlderMore(false);
     setThreadError(null);
     if (selectedId) void loadThread(selectedId);
   }, [selectedId, loadThread]);
+
+  /** DF-15: al llegar arriba del hilo, el bloque anterior. */
+  const loadOlder = useCallback(async () => {
+    const id = selectedRef.current;
+    const oldest = messages?.[0];
+    if (!id || !oldest || loadingOlder.current) return;
+    loadingOlder.current = true;
+    try {
+      const shared = sharedRef.current === id;
+      const company = companyRef.current === id;
+      const res = await fetchJson<{ messages: MessageDto[]; more?: boolean }>(
+        `${threadUrl(id, shared, company)}?before=${encodeURIComponent(oldest.id)}`,
+      );
+      if (selectedRef.current !== id || !res.ok) return;
+      const older = res.data.messages;
+      setMessages((prev) => (prev ? [...older.filter((m) => !prev.some((x) => x.id === m.id)), ...prev] : prev));
+      setOlderMore(res.data.more === true);
+    } finally {
+      loadingOlder.current = false;
+    }
+  }, [messages]);
+
+  // DF-15: buscar entre TODOS mis chats en el servidor (la lista trae solo los recientes).
+  useEffect(() => {
+    const term = query.trim();
+    if (!own || !term) {
+      setFound(null);
+      return;
+    }
+    let cancelled = false;
+    const t = setTimeout(async () => {
+      const res = await fetchJson<MyChats>(`/api/my-number/chats?q=${encodeURIComponent(term)}`);
+      if (!cancelled && res.ok) setFound(res.data);
+    }, 250);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [own, query, list]);
 
   useEvents({
     onNumberMessage: ({ conversationId, message }) => {
@@ -235,13 +288,15 @@ export function MyNumberInbox({ own = true, team = false }: { own?: boolean; tea
   // Buscar entre mis chats por nombre o teléfono (solo dígitos si parece teléfono).
   const q = query.trim().toLowerCase();
   const qDigits = looksLikePhone(query) ? stripPhoneAdornments(query) : "";
+  // Mientras llega la respuesta del servidor, se filtra lo que ya está en pantalla.
   const shown = !q
     ? (list?.chats ?? [])
-    : (list?.chats ?? []).filter(
+    : (found?.chats ??
+      (list?.chats ?? []).filter(
         (c) =>
           c.contact.name.toLowerCase().includes(q) ||
           (c.contact.phone ?? "").includes(qDigits || q.replace(/\D/g, "") || "\u0000"),
-      );
+      ));
   const sinRegistrar = own && !!list && looksLikePhone(query) && shown.length === 0;
 
   const selected = sharedId || companyId ? null : (list?.chats.find((c) => c.id === selectedId) ?? null);
@@ -306,6 +361,8 @@ export function MyNumberInbox({ own = true, team = false }: { own?: boolean; tea
                 />
               ))}
             </CapsuleCatalogs.Provider>
+            {/* DF-15: al llegar al final, los chats más viejos (sin botón: se piden solos). */}
+            {!q && list?.more && <LoadMoreSentinel onVisible={() => setListLimit((l) => Math.min(l + CHATS_PAGE, CHATS_MAX))} />}
             {sinRegistrar && (
               <NumberNewChatCard
                 query={query}
@@ -422,7 +479,7 @@ export function MyNumberInbox({ own = true, team = false }: { own?: boolean; tea
               </p>
             )}
             {messages ? (
-              <Messages messages={messages} />
+              <Messages messages={messages} olderMore={olderMore} onLoadOlder={() => void loadOlder()} />
             ) : (
               !threadError && <p className="thread-bg flex-1 p-6 text-center text-xs text-text-3">Cargando…</p>
             )}
@@ -788,13 +845,36 @@ function RowCapsules({
   );
 }
 
-function Messages({ messages }: { messages: MessageDto[] }) {
+function Messages({ messages, olderMore = false, onLoadOlder }: { messages: MessageDto[]; olderMore?: boolean; onLoadOlder?: () => void }) {
   const end = useRef<HTMLDivElement>(null);
+  const box = useRef<HTMLDivElement>(null);
+  const firstId = messages[0]?.id;
+  const lastId = messages.at(-1)?.id;
+  const prevFirst = useRef<string | undefined>(undefined);
+  const prevHeight = useRef(0);
+  // Abajo del todo al abrir y con cada mensaje nuevo (no al cargar los anteriores).
   useLayoutEffect(() => {
     end.current?.scrollIntoView({ block: "end" });
-  }, [messages.length]);
+  }, [lastId]);
+  // DF-15: llegó un bloque anterior arriba: la vista se queda donde estaba.
+  useLayoutEffect(() => {
+    const el = box.current;
+    if (el && prevFirst.current && firstId !== prevFirst.current && prevHeight.current > 0) {
+      el.scrollTop += el.scrollHeight - prevHeight.current;
+    }
+    prevFirst.current = firstId;
+    prevHeight.current = el?.scrollHeight ?? 0;
+  }, [firstId]);
   return (
-    <div className="thread-bg flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-3 py-4 md:px-6" data-testid="my-number-thread">
+    <div
+      ref={box}
+      onScroll={(e) => {
+        prevHeight.current = e.currentTarget.scrollHeight;
+        if (olderMore && e.currentTarget.scrollTop < 80) onLoadOlder?.();
+      }}
+      className="thread-bg flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-3 py-4 md:px-6"
+      data-testid="my-number-thread"
+    >
       {messages.length === 0 && <p className="m-auto text-xs text-text-3">Sin mensajes todavía.</p>}
       {messages.map((m, i) => {
         const prev = messages[i - 1];
@@ -808,4 +888,26 @@ function Messages({ messages }: { messages: MessageDto[] }) {
       <div ref={end} />
     </div>
   );
+}
+
+/** De dónde se lee el hilo: mío, compartido conmigo o de un número de la empresa. */
+function threadUrl(id: string, shared: boolean, company: boolean): string {
+  return shared ? `/api/my-number/shared/${id}/messages` : company ? `/api/my-number/team/${id}/messages` : `/api/my-number/chats/${id}/messages`;
+}
+
+/** DF-15: un punto invisible al final de la lista; al verse, pide más. */
+function LoadMoreSentinel({ onVisible }: { onVisible: () => void }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const cb = useRef(onVisible);
+  cb.current = onVisible;
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || typeof IntersectionObserver === "undefined") return;
+    const io = new IntersectionObserver((entries) => {
+      if (entries.some((e) => e.isIntersecting)) cb.current();
+    });
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+  return <div ref={ref} aria-hidden className="h-px" data-testid="my-number-more" />;
 }
