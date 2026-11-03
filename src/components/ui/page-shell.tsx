@@ -45,6 +45,7 @@ export function PageShell({
   hideSections,
   tabs,
   tabsLabel,
+  hideHeader = false,
   variant = "contained",
   className,
   children,
@@ -71,6 +72,8 @@ export function PageShell({
   /** Pestañas propias (en vez de las del pilar). */
   tabs?: readonly SectionTab[];
   tabsLabel?: string;
+  /** Sin barra de título en escritorio (el contenido ya se explica solo); en el teléfono queda por el menú. */
+  hideHeader?: boolean;
   variant?: PageShellVariant;
   /** Clases extra del área de contenido. */
   className?: string;
@@ -113,7 +116,7 @@ export function PageShell({
     <div className="flex h-full min-h-0 flex-col">
       <header
         data-page-header
-        className="flex shrink-0 flex-wrap items-center border-b px-4 sm:h-14 sm:flex-nowrap sm:px-6"
+        className={cn("flex shrink-0 flex-wrap items-center border-b px-4 sm:h-14 sm:flex-nowrap sm:px-6", hideHeader && "sm:hidden")}
       >
         <div className="flex h-14 min-w-0 flex-auto items-center gap-2 sm:h-auto sm:flex-none">
           <NavRevealButton />

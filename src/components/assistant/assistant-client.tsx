@@ -241,27 +241,7 @@ export function AssistantClient() {
   const title = threadId === null ? "Hilo nuevo" : (current?.title ?? "Asistente");
 
   return (
-    <PageShell pillar="asistente" tabs={[]} variant="fluid">
-      {!bannerHidden && (
-      <div
-        role="note"
-        data-testid="assistant-cost-banner"
-        className="flex shrink-0 items-start gap-2 border-b border-warning-soft bg-warning-tint px-4 py-1.5 text-xs text-warning-text sm:px-6"
-      >
-        <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
-        <p className="min-w-0 flex-1">{ASSISTANT_COST_NOTICE}</p>
-        <button
-          type="button"
-          onClick={hideBanner}
-          aria-label="Quitar aviso"
-          data-testid="assistant-cost-banner-close"
-          className="shrink-0 rounded p-0.5 hover:bg-warning-soft"
-        >
-          <X className="h-3.5 w-3.5" aria-hidden />
-        </button>
-      </div>
-      )}
-
+    <PageShell pillar="asistente" tabs={[]} hideHeader variant="fluid">
       <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto bg-canvas p-3 lg:flex-row lg:overflow-hidden">
         {/* ── Izquierda: cápsula del Asistente + Hilos ───────────────────── */}
         {leftOpen && (
@@ -269,8 +249,7 @@ export function AssistantClient() {
             <div className="rounded-lg bg-surface p-2.5 shadow-card">
               <div
                 className={cn(
-                  "flex w-full items-center gap-3 rounded-md p-2 text-left transition-colors",
-                  threadId === general?.id ? "bg-brand-tint" : "hover:bg-subtle"
+                  "flex w-full items-center gap-3 rounded-md p-2 text-left transition-colors hover:bg-subtle"
                 )}
               >
                 <button
@@ -279,9 +258,7 @@ export function AssistantClient() {
                   onClick={() => general && void openThread(general.id)}
                   className="flex min-w-0 flex-1 items-center gap-3 text-left"
                 >
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm">
-                    <Sparkles className="h-4 w-4" aria-hidden />
-                  </span>
+                  <Sparkles className="ml-1 h-6 w-6 shrink-0 text-brand-text" strokeWidth={1.8} aria-hidden />
                   <span className="min-w-0">
                     <span className="block text-sm font-semibold">Asistente</span>
                     <span className="block truncate text-xs text-text-3">Pregunta lo que quieras</span>
@@ -592,6 +569,25 @@ export function AssistantClient() {
                 </p>
                 {status.canAsk && <p className="mt-1 text-xs text-text-3">Se renueva el {resetLabel(status.resetsOn)}.</p>}
               </section>
+            )}
+            {!bannerHidden && (
+              <div
+                role="note"
+                data-testid="assistant-cost-banner"
+                className="flex items-start gap-2 rounded-lg border border-warning-soft bg-warning-tint p-3 text-xs text-warning-text"
+              >
+                <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+                <p className="min-w-0 flex-1">{ASSISTANT_COST_NOTICE}</p>
+                <button
+                  type="button"
+                  onClick={hideBanner}
+                  aria-label="Quitar aviso"
+                  data-testid="assistant-cost-banner-close"
+                  className="shrink-0 rounded p-0.5 hover:bg-warning-soft"
+                >
+                  <X className="h-3.5 w-3.5" aria-hidden />
+                </button>
+              </div>
             )}
           </aside>
         )}

@@ -836,6 +836,25 @@ async function asistenteBase(A, B, orgB) {
   await page.getByTestId("assistant-status").waitFor({ timeout: 30000 });
   ok("al volver, ya no pide confirmar (una vez por persona)", (await page.getByTestId("assistant-notice").count()) === 0);
   ok("…pero el banner sigue", await page.getByTestId("assistant-cost-banner").isVisible());
+  // La X del aviso se recuerda.
+  await page.getByTestId("assistant-cost-banner-close").click();
+  ok("la X quita el aviso de arriba", (await page.getByTestId("assistant-cost-banner").count()) === 0);
+  await page.reload();
+  await page.getByTestId("assistant-status").waitFor({ timeout: 30000 });
+  ok("…y se recuerda al volver", (await page.getByTestId("assistant-cost-banner").count()) === 0);
+  // Acceso rápido desde otra pantalla: botón discreto y Ctrl+K.
+  await page.goto(`${BASE}/inbox`);
+  await page.getByTestId("assistant-launcher").waitFor({ timeout: 30000 });
+  await page.keyboard.press("Control+k");
+  ok("Ctrl+K abre el panel rápido del asistente", await page.getByTestId("assistant-quick").waitFor({ timeout: 15000 }).then(() => true, () => false));
+  await page.getByTestId("assistant-quick-input").fill("¿Cómo va mi equipo?");
+  await page.getByTestId("assistant-quick-input").press("Enter");
+  ok("…y contesta ahí mismo", await page.getByTestId("assistant-quick-answer").waitFor({ timeout: 120000 }).then(() => true, () => false));
+  await page.screenshot({ path: "scratch/e2e-asistente-rapido.png" }).catch(() => null);
+  await page.getByTestId("assistant-quick-close").click();
+  ok("la ✕ lo cierra", (await page.getByTestId("assistant-quick").count()) === 0);
+  await page.goto(`${BASE}/asistente`);
+  await page.getByTestId("assistant-status").waitFor({ timeout: 30000 });
   await A.call("PUT", `/api/platform/organizations/${orgB}/limits`, { assistantTokens: 0 });
   await page.reload();
   await page.getByTestId("assistant-status-message").waitFor({ timeout: 30000 });
@@ -1049,10 +1068,12 @@ async function asistenteMotor(A, B, orgB) {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(`${BASE}/asistente`);
   await page.getByTestId("assistant-question").waitFor({ timeout: 30000 });
+  // El Chat general ya trae lo preguntado antes (p. ej. desde el panel rápido): se espera la respuesta NUEVA.
+  const antesBurbujas = await page.getByTestId("assistant-msg-answer").count();
   await page.getByTestId("assistant-question").fill("¿Cuánto crédito de IA llevo?");
   await page.getByTestId("assistant-ask").click();
   const burbuja = page.getByTestId("assistant-msg-answer").last();
-  ok("en pantalla: la respuesta aparece", await burbuja.waitFor({ timeout: 90000 }).then(() => true, () => false));
+  ok("en pantalla: la respuesta aparece", await page.waitForFunction((n) => document.querySelectorAll('[data-testid="assistant-msg-answer"]').length > n, antesBurbujas, { timeout: 90000 }).then(() => true, () => false));
   ok("…con «Datos de: Consumo de IA del mes»", /Consumo de IA del mes/.test(await burbuja.getByTestId("assistant-sources").innerText()));
   await burbuja.getByTestId("assistant-sources-toggle").click();
   ok("…y se puede ver lo que devolvió la consulta", /porcentaje_del_tope/.test(await burbuja.getByTestId("assistant-source-result").first().innerText()));
