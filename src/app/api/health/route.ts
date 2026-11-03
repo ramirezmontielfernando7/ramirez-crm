@@ -1,6 +1,7 @@
 import { getSql, getSystemSql } from "@/lib/db";
 import { APP_VERSION, resolveCommit } from "@/lib/version";
 import { isShuttingDown } from "@/server/shutdown";
+import { lastDbRoleCheck } from "@/server/db-role-check";
 
 export const dynamic = "force-dynamic";
 
@@ -29,10 +30,13 @@ export async function GET() {
     // commits tiene que exigir `true`; `commit` sigue ahí igual para no romper
     // a quien ya lo lee.
     const { commit, verified } = resolveCommit();
+    // DF-12: aislamiento entre empresas activo en la base (solo sí/no).
+    const role = lastDbRoleCheck();
     return Response.json({
       ok: true,
       version: APP_VERSION,
       ...(commit ? { commit, commitVerified: verified } : {}),
+      ...(role ? { rls: role.safe } : {}),
     });
   } catch {
     return Response.json(

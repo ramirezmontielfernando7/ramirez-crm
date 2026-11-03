@@ -123,6 +123,10 @@ const PERMITIDOS: Record<string, { usos: number; motivo: string }> = {
     usos: 1,
     motivo: "036 PR 2: el administrador de plataforma ve cuánto almacenamiento (aprox.) ocupa CADA organización: sumas agrupadas por organización, nunca contenido; la de una sola organización va con el pool de la app",
   },
+  "src/server/db-role-check.ts": {
+    usos: 1,
+    motivo: "DF-12: al arrancar, con qué usuario conecta el pool de la app y si se salta RLS (pg_roles de current_user, sin organización ni datos)",
+  },
   "src/app/api/health/route.ts": {
     usos: 2,
     motivo: "salud: `select 1` en los dos pools, sin organización",
