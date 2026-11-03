@@ -4,6 +4,7 @@ import {
   type AssistantProposal,
   ASSISTANT_MARKER,
   assistantStepSchema,
+  type AssistantSpeed,
   hasFigures,
   HISTORY_EXCHANGES,
   Masker,
@@ -21,6 +22,7 @@ import type { Access } from "@/lib/db/tenant";
 import { logger } from "@/lib/log";
 import { INSIGHT_MAX_NEW_PER_QUESTION } from "@/lib/conversation-insight";
 import type { SessionContext } from "@/lib/auth/session";
+import { getEnv } from "@/lib/env";
 import { chatJsonForOrg } from "@/server/ai-quota/llm";
 import { renderCatalog, runQuery, type QueryContext } from "./catalog";
 import { assistantTools, checkProposal, renderToolCatalog, runReadTool, sendingLabel } from "./tools";
@@ -47,9 +49,11 @@ const log = logger("asistente");
 
 /** Tokens (y costo real, si el proveedor lo manda) de TODAS las llamadas de una pregunta. */
 export type LlmUsage = { promptTokens: number; completionTokens: number; costUsd?: number };
+const TOKEN_RE_G = /\[(?:CONTACTO|PERSONA DEL EQUIPO|TELÉFONO|CORREO) \d+\]/g;
+
 type ChatMessage = { role: "system" | "user" | "assistant"; content: string };
 
-export type HistoryEntry = { role: "user" | "assistant"; maskedContent: string };
+export type HistoryEntry = { role: "user" | "assistant"; maskedContent: string; /** Fichas de ese intercambio → dato real. */ masks?: Record<string, string> };
 
 export type AskInput = {
   organizationId: string;
@@ -59,6 +63,8 @@ export type AskInput = {
   question: string;
   /** Los intercambios previos del hilo, YA enmascarados (así se guardaron). */
   history: HistoryEntry[];
+  /** «fast» (por defecto): el modelo de siempre; «deep»: el de análisis. */
+  speed?: AssistantSpeed;
   now?: Date;
 };
 
@@ -88,6 +94,12 @@ function coverageOf(name: string, forOwner: unknown): AssistantCoverage | null {
   };
 }
 
+/** El modelo del «Análisis profundo»: el de análisis, o el del juez (Sonnet); sin ninguno, el de siempre. */
+function deepModelName(): string | undefined {
+  const env = getEnv();
+  return env.OPENROUTER_ANALYSIS_MODEL ?? env.OPENROUTER_JUDGE_MODEL ?? undefined;
+}
+
 export function buildSystemPrompt(nonce: string, toolCatalog?: string): string {
   return [
     `${ASSISTANT_MARKER}. Ayudas al Propietario de un negocio a entender el uso y el plan de su organización en el CRM y un panorama general de su operación.`,
@@ -99,6 +111,8 @@ export function buildSystemPrompt(nonce: string, toolCatalog?: string): string {
       : "- Solo lees datos con las consultas del catálogo. No puedes escribir, enviar mensajes, tocar campañas ni cambiar nada: si te lo piden, explica que solo puedes consultar.",
     "- Cada cifra o dato de tu respuesta DEBE salir de una consulta que corriste. Si no hay consulta que lo responda, dilo; NUNCA inventes ni estimes.",
     "- Si la pregunta es sobre datos, consulta primero. Pide solo las consultas necesarias.",
+    "- Esto es una CONVERSACIÓN: «eso», «ella», «respóndele», «sí» se refieren a lo que se dijo antes en este hilo. Si la persona te pide responder o hacer algo sobre lo que ya hablaron, NO repitas el resumen: ve directo a la acción (lee ese chat con read_chat y propón el mensaje con «Aplicar»). Si falta saber a quién se refiere, pregunta en una línea.",
+    "- Las consultas de conversaciones recientes solo traen una muestra (las últimas): dilo así, nunca digas que revisaste «toda la bandeja».",
     "- Nunca hables de dinero, precios ni dólares: no tienes esos datos.",
     "- Respeta lo que muestran los datos: si el consumo llega solo como estado o porcentaje, no hables de tokens.",
     "- Si un análisis de conversaciones dice que faltan conversaciones por revisar, di cuántas revisaste y cuántas faltan, y no supongas nada de las que faltan.",
@@ -152,10 +166,15 @@ export async function askAssistant(input: AskInput): Promise<AskResult> {
   const maskedQuestion = masker.text(input.question);
   const messages: ChatMessage[] = [
     { role: "system", content: buildSystemPrompt(nonce, tools ? renderToolCatalog(tools) : undefined) },
-    ...input.history.slice(-HISTORY_EXCHANGES * 2).map((h) => ({ role: h.role, content: h.maskedContent })),
+    // Las fichas del historial se renumeran con las de ESTA pregunta: así «eso» y «ella» siguen apuntando a la misma persona.
+    ...input.history.slice(-HISTORY_EXCHANGES * 2).map((h) => ({
+      role: h.role,
+      content: h.masks ? h.maskedContent.replace(TOKEN_RE_G, (m) => (h.masks?.[m] ? masker.learn(m, h.masks[m]) : m)) : h.maskedContent,
+    })),
     { role: "user", content: maskedQuestion },
   ];
 
+  const deepModel = input.speed === "deep" ? deepModelName() : undefined;
   const proposals: AssistantProposal[] = [];
   const sources: AssistantSource[] = [];
   const flags = new Set<AssistantFlag>();
@@ -182,6 +201,7 @@ export async function askAssistant(input: AskInput): Promise<AskResult> {
         queryCount: sources.length,
         modelCalls,
         ...(coverage ? { coverage } : {}),
+        masks: masker.entries(),
         ...(proposals.length > 0 ? { proposals } : {}),
       },
       usage: totalUsage(),
@@ -191,7 +211,7 @@ export async function askAssistant(input: AskInput): Promise<AskResult> {
   while (modelCalls < MAX_MODEL_CALLS) {
     modelCalls++;
     const last = modelCalls === MAX_MODEL_CALLS || sources.length >= MAX_QUERIES_PER_QUESTION;
-    const r = await chatJsonForOrg(input.organizationId, "assistant", assistantStepSchema, messages);
+    const r = await chatJsonForOrg(input.organizationId, "assistant", assistantStepSchema, messages, deepModel ? { model: deepModel } : undefined);
     addUsage(usage, r.usage);
     if (!r.ok) {
       // 038 (PR 3): si el crédito se acabó DESPUÉS de analizar, se dice cuántas se
@@ -200,6 +220,12 @@ export async function askAssistant(input: AskInput): Promise<AskResult> {
         flags.add("query_limit");
         const text = coverageStoppedText(coverage);
         return done(text, text);
+      }
+      // El modelo contestó en texto corrido (p. ej. una pregunta fuera de los datos): se le muestra tal cual en vez de fallar.
+      if (r.error === "invalid_output" && r.proseRaw && r.proseRaw.trim()) {
+        const prose = r.proseRaw.trim().slice(0, 4000);
+        if (hasFigures(prose)) flags.add("no_sources");
+        return done(masker.unmask(prose), prose);
       }
       if (r.error === "quota_exceeded" || r.error === "not_configured") return { ok: false, error: r.error, detail: r.detail, usage: totalUsage() };
       log.warn("el modelo no devolvió una vuelta válida", { org: input.organizationId, error: r.error, detail: r.detail });

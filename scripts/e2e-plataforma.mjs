@@ -1068,7 +1068,7 @@ async function asistenteMotor(A, B, orgB) {
   const r7 = await preguntar(B, "BUCLE");
   ok("tope de llamadas al modelo (4): se detiene sin inventar", r7.status === 200 && r7.json?.answer?.meta?.modelCalls === 4 && /No alcancé a terminar/.test(r7.json?.answer?.content ?? ""), JSON.stringify(r7.json?.answer?.meta));
   const r8 = await preguntar(B, "ROMPE");
-  ok("si el proveedor falla, responde 502 con un mensaje claro (sin colgarse)", r8.status === 502 && /falla del proveedor/.test(r8.json?.error?.message ?? ""), `${r8.status} ${JSON.stringify(r8.json)}`);
+  ok("si el modelo contesta en texto corrido (sin JSON), se muestra tal cual en vez de fallar", r8.status === 200 && (r8.json?.answer?.content ?? "").trim().length > 0, `${r8.status} ${JSON.stringify(r8.json)}`);
 
   // 4. Hilos: solo los propios, con sus fuentes guardadas.
   const hilos = (await B.call("GET", "/api/assistant/threads")).json?.threads ?? [];
@@ -1085,8 +1085,15 @@ async function asistenteMotor(A, B, orgB) {
   await page.getByTestId("assistant-question").waitFor({ timeout: 30000 });
   // El Chat general ya trae lo preguntado antes (p. ej. desde el panel rápido): se espera la respuesta NUEVA.
   const antesBurbujas = await page.getByTestId("assistant-msg-answer").count();
+  // Selector de modo: Rápido por defecto; «Análisis profundo» se puede elegir y se recuerda.
+  ok("el selector arranca en «Rápido»", (await page.getByTestId("assistant-speed-fast").getAttribute("aria-checked")) === "true");
+  await page.getByTestId("assistant-speed-deep").click();
+  ok("…y se puede cambiar a «Análisis profundo»", (await page.getByTestId("assistant-speed-deep").getAttribute("aria-checked")) === "true");
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: "scratch/e2e-asistente-selector.png", fullPage: false }).catch(() => null);
   await page.getByTestId("assistant-question").fill("¿Cuánto crédito de IA llevo?");
   await page.getByTestId("assistant-ask").click();
+  ok("tu pregunta aparece al instante mientras piensa", await page.getByTestId("assistant-msg-pending").waitFor({ timeout: 5000 }).then(() => true, () => false));
   const burbuja = page.getByTestId("assistant-msg-answer").last();
   ok("en pantalla: la respuesta aparece", await page.waitForFunction((n) => document.querySelectorAll('[data-testid="assistant-msg-answer"]').length > n, antesBurbujas, { timeout: 90000 }).then(() => true, () => false));
   ok("…con «Datos de: Consumo de IA del mes»", /Consumo de IA del mes/.test(await burbuja.getByTestId("assistant-sources").innerText()));

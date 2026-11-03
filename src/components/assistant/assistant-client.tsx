@@ -1,5 +1,6 @@
 "use client";
 
+import { SpeedPicker, useAssistantSpeed } from "./speed-picker";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   AlertTriangle,
@@ -76,7 +77,10 @@ export function AssistantClient() {
   const [threadId, setThreadId] = useState<string | null>(null);
   const [messages, setMessages] = useState<AssistantMessageDto[]>([]);
   const [question, setQuestion] = useState("");
+  const [speed, setSpeed] = useAssistantSpeed();
   const [asking, setAsking] = useState(false);
+  /** Tu pregunta se ve al instante, mientras el asistente piensa. */
+  const [pending, setPending] = useState<string | null>(null);
   const [askError, setAskError] = useState<string | null>(null);
   const [showArchived, setShowArchived] = useState(false);
   const [selecting, setSelecting] = useState(false);
@@ -212,13 +216,15 @@ export function AssistantClient() {
     const q = question.trim();
     if (!q || asking) return;
     setAsking(true);
+    setPending(q);
     setAskError(null);
     setQuestion("");
     const r = await fetchJson<{ threadId: string; question: AssistantMessageDto; answer: AssistantMessageDto }>(
       "/api/assistant/ask",
-      jsonInit("POST", { threadId, question: q })
+      jsonInit("POST", { threadId, question: q, speed })
     );
     setAsking(false);
+    setPending(null);
     if (!r.ok) {
       setQuestion(q);
       setAskError(r.error);
@@ -466,6 +472,13 @@ export function AssistantClient() {
                       />
                     )
                   )}
+                  {asking && pending && (
+                    <div className="flex justify-end">
+                      <p className="max-w-[80%] whitespace-pre-wrap break-words rounded-[18px] bg-secondary px-4 py-2.5 text-sm" data-testid="assistant-msg-pending">
+                        {pending}
+                      </p>
+                    </div>
+                  )}
                   {asking && (
                     <p className="text-sm text-text-3 motion-safe:animate-pulse" data-testid="assistant-thinking">
                       El asistente está revisando tus datos…
@@ -523,6 +536,9 @@ export function AssistantClient() {
                       <ArrowUp className="h-4 w-4" aria-hidden />
                     </button>
                   )}
+                </div>
+                <div className="mt-2 flex justify-center">
+                  <SpeedPicker value={speed} onChange={setSpeed} />
                 </div>
                 <p className="mt-2 text-center text-xs text-text-4">{ASSISTANT_READ_ONLY_NOTICE}</p>
               </div>

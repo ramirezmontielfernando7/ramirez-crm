@@ -39,6 +39,8 @@ export type ChatJsonResult<T> =
       error: "not_configured" | "provider_error" | "invalid_output" | "quota_exceeded";
       detail: string;
       usage?: LlmUsage;
+      /** Si el modelo contestó texto sin JSON, ese texto (para quien prefiera usarlo tal cual). */
+      proseRaw?: string;
     };
 
 /**
@@ -71,6 +73,11 @@ class ProviderHttpError extends Error {
 }
 const MAX_ATTEMPTS = 3;
 const RETRY_DELAY_MS = 500;
+/** Espera antes del reintento: un proveedor saturado (429, 5xx, tiempo agotado) necesita segundos, no medio segundo. */
+function retryDelayMs(err: unknown, attempt: number): number {
+  const transient = !(err instanceof ProviderHttpError) || err.status === 429 || err.status === 408 || err.status >= 500;
+  return transient ? 1500 * attempt * attempt + Math.floor(Math.random() * 500) : RETRY_DELAY_MS * attempt;
+}
 
 export async function chatJson<T>(
   schema: z.ZodType<T>,
@@ -100,6 +107,7 @@ export async function chatJson<T>(
   }
 
   let lastDetail = "";
+  let proseRaw: string | undefined;
   const invalidResponses = new Set<string>();
   const usage: LlmUsage = { promptTokens: 0, completionTokens: 0 };
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
@@ -123,11 +131,12 @@ export async function chatJson<T>(
       if (reply.usage.costUsd !== undefined) usage.costUsd = (usage.costUsd ?? 0) + reply.usage.costUsd;
       if ("refusal" in reply && reply.refusal) return { ok: false, error: "invalid_output", detail: "El modelo se negó a responder", usage };
       const raw = reply.content;
-      if (invalidResponses.has(raw)) return { ok: false, error: "invalid_output", detail: "El proveedor repitió una respuesta inválida", usage };
+      if (invalidResponses.has(raw)) return { ok: false, error: "invalid_output", detail: "El proveedor repitió una respuesta inválida", usage, ...(proseRaw ? { proseRaw } : {}) };
       invalidResponses.add(raw);
       const extracted = extractJson(raw);
       if (extracted === null) {
         lastDetail = `sin JSON extraíble (raw=${truncate(raw)})`;
+        proseRaw = raw;
         continue;
       }
       const parsed = schema.safeParse(extracted);
@@ -142,7 +151,7 @@ export async function chatJson<T>(
       lastDetail = err instanceof Error ? err.message : String(err);
       if (err instanceof ProviderHttpError && err.status >= 400 && err.status < 500 && ![408, 429].includes(err.status)) break;
       if (attempt < MAX_ATTEMPTS) {
-        await sleep(RETRY_DELAY_MS * attempt);
+        await sleep(retryDelayMs(err, attempt));
       }
     }
   }
@@ -154,6 +163,7 @@ export async function chatJson<T>(
       : "provider_error",
     detail: lastDetail,
     usage,
+    ...(proseRaw ? { proseRaw } : {}),
   };
 }
 

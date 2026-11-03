@@ -167,15 +167,22 @@ export async function getThreadMessages(
 export async function threadHistory(organizationId: string, userId: string, threadId: string): Promise<HistoryEntry[] | null> {
   if (!(await ownsThread(organizationId, userId, threadId))) return null;
   const rows = await getDb()
-    .select({ role: schema.assistantMessage.role, masked: schema.assistantMessage.maskedContent })
+    .select({ role: schema.assistantMessage.role, masked: schema.assistantMessage.maskedContent, sources: schema.assistantMessage.sources })
     .from(schema.assistantMessage)
     .where(scoped(schema.assistantMessage.organizationId, organizationId, eq(schema.assistantMessage.threadId, threadId)))
     .orderBy(desc(schema.assistantMessage.createdAt), desc(schema.assistantMessage.role))
     .limit(HISTORY_EXCHANGES * 2);
-  return rows
-    .reverse()
-    .filter((r): r is { role: "user" | "assistant"; masked: string } => !!r.masked)
-    .map((r) => ({ role: r.role, maskedContent: r.masked }));
+  const ordered = rows.reverse();
+  return ordered
+    .map((r, i) => {
+      // La pregunta usa las fichas de la respuesta que le sigue (se guardan juntas).
+      const own = (r.sources as AssistantMessageMeta | null)?.masks;
+      const next = ordered[i + 1];
+      const masks = own ?? (r.role === "user" && next?.role === "assistant" ? (next.sources as AssistantMessageMeta | null)?.masks : undefined);
+      return { role: r.role, masked: r.masked, masks };
+    })
+    .filter((r): r is { role: "user" | "assistant"; masked: string; masks: Record<string, string> | undefined } => !!r.masked)
+    .map((r) => ({ role: r.role, maskedContent: r.masked, ...(r.masks ? { masks: r.masks } : {}) }));
 }
 
 export type SaveExchangeInput = {

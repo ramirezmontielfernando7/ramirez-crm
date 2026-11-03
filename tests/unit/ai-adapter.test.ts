@@ -54,6 +54,17 @@ describe("chatJson (reintentos y errores tipados)", () => {
     });
   }
 
+  it("si el modelo siempre contesta en prosa, el fallo trae ese texto (proseRaw) para poder mostrarlo", async () => {
+    const fetchMock = vi.fn().mockImplementation(async () => providerResponse("Claro, con gusto te ayudo con eso."));
+    vi.stubGlobal("fetch", fetchMock);
+    const r = await chatJson(schema, [{ role: "user", content: "hola" }]);
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.error).toBe("invalid_output");
+      expect(r.proseRaw).toBe("Claro, con gusto te ayudo con eso.");
+    }
+  });
+
   it("036 PR 3b: lee el costo real (usage.cost) y lo suma entre reintentos", async () => {
     const fetchMock = vi
       .fn()
@@ -100,10 +111,18 @@ describe("chatJson (reintentos y errores tipados)", () => {
       );
     vi.stubGlobal("fetch", fetchMock);
 
-    const result = await chatJson(schema, [{ role: "user", content: "hola" }]);
-    expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.error).toBe("provider_error");
-    expect(fetchMock).toHaveBeenCalledTimes(3); // agotó los 3 intentos
+    // Un proveedor saturado se reintenta con espera creciente (segundos): reloj falso.
+    vi.useFakeTimers();
+    try {
+      const pending = chatJson(schema, [{ role: "user", content: "hola" }]);
+      await vi.runAllTimersAsync();
+      const result = await pending;
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.error).toBe("provider_error");
+      expect(fetchMock).toHaveBeenCalledTimes(3); // agotó los 3 intentos
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("salida que nunca cumple el esquema → invalid_output", async () => {

@@ -1,4 +1,4 @@
-import { MAX_QUESTION_CHARS, type AssistantMessageDto } from "@/lib/assistant-engine";
+import { MAX_QUESTION_CHARS, type AssistantMessageDto, type AssistantSpeed } from "@/lib/assistant-engine";
 import type { SessionContext } from "@/lib/auth/session";
 import type { Access } from "@/lib/db/tenant";
 import { logger } from "@/lib/log";
@@ -32,6 +32,7 @@ export async function askQuestion(input: {
   session?: SessionContext;
   threadId: string | null;
   question: string;
+  speed?: AssistantSpeed;
   now?: Date;
 }): Promise<AskOutcome> {
   const question = input.question.trim();
@@ -58,7 +59,7 @@ export async function askQuestion(input: {
   enCurso.add(key);
   try {
     await purgeOldThreads(input.organizationId, input.userId, input.now);
-    const r = await askAssistant({ organizationId: input.organizationId, access: input.access, session: input.session, question, history, now: input.now });
+    const r = await askAssistant({ organizationId: input.organizationId, access: input.access, session: input.session, question, history, speed: input.speed, now: input.now });
     if (!r.ok) {
       if (r.error === "quota_exceeded") {
         // Se acabó a media pregunta (o la revisión atómica lo frenó): lo mismo que dice la pantalla.
@@ -73,6 +74,10 @@ export async function askQuestion(input: {
         return { ok: false, status: 429, code: "quota_exceeded", message };
       }
       if (r.error === "not_configured") return { ok: false, status: 409, code: "ai_not_configured", message: "La IA no está configurada en esta instalación." };
+      // Saturación o tiempo agotado del proveedor (ya se reintentó con espera): se dice distinto de una respuesta inválida.
+      if (/proveedor respondió (408|429|5\d\d)|abort|timeout|timed out|throttl|fetch failed/i.test(r.detail)) {
+        return { ok: false, status: 502, code: "provider_busy", message: "El proveedor de IA está saturado en este momento (ya lo intenté varias veces). Espera unos segundos y vuelve a enviar tu pregunta." };
+      }
       return { ok: false, status: 502, code: "provider_error", message: "El asistente no pudo responder ahora por una falla del proveedor de IA. Intenta de nuevo en un momento." };
     }
     const saved = await saveExchange({

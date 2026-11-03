@@ -141,7 +141,13 @@ export type AssistantMessageMeta = {
   modelCalls: number;
   /** 038 (PR 3): si la respuesta usó el análisis de conversaciones, cuántas cubrió. */
   coverage?: AssistantCoverage;
+  /** Fichas de esta pregunta → dato real, para que la siguiente pregunta del hilo entienda «eso» y «ella». */
+  masks?: Record<string, string>;
 };
+
+/** Qué tan a fondo piensa el asistente: rápido (Haiku, por defecto) o análisis profundo (Sonnet). */
+export const ASSISTANT_SPEEDS = ["fast", "deep"] as const;
+export type AssistantSpeed = (typeof ASSISTANT_SPEEDS)[number];
 
 /** Mensaje de un hilo tal como lo ve la pantalla. */
 export type AssistantMessageDto = {
@@ -253,6 +259,23 @@ export class Masker {
       .split(/(\[(?:CONTACTO|PERSONA DEL EQUIPO|TELÉFONO|CORREO) \d+\])/)
       .map((seg, i) => (i % 2 === 1 ? seg : seg.replace(/[\p{L}\p{N}]+/gu, (w) => (looksLikeName(w) ? this.nameParts.get(fold(w)) : undefined) ?? w)))
       .join("");
+  }
+
+  /** Las fichas de esta pregunta y el dato real de cada una (para recordarlas en el hilo). */
+  entries(): Record<string, string> {
+    return Object.fromEntries(this.real);
+  }
+
+  /**
+   * Una ficha de un intercambio anterior: se vuelve a registrar el dato real y
+   * devuelve la ficha que le toca AHORA (la numeración de cada pregunta
+   * empieza de cero, así que «[CONTACTO 1]» de ayer puede ser otra persona hoy).
+   */
+  learn(oldToken: string, value: string): string {
+    const m = /^\[(CONTACTO|PERSONA DEL EQUIPO|TELÉFONO|CORREO) \d+\]$/.exec(oldToken);
+    if (!m) return oldToken;
+    const kind = m[1] === "CONTACTO" ? "contact" : m[1] === "PERSONA DEL EQUIPO" ? "member" : m[1] === "TELÉFONO" ? "phone" : "email";
+    return kind === "contact" || kind === "member" ? (this.name(kind, value) ?? oldToken) : this.token(kind, value);
   }
 
   /** De vuelta al Propietario: las fichas por los datos reales. */
