@@ -1017,6 +1017,21 @@ async function asistenteMotor(A, B, orgB) {
   ok("el costo real quedó en el consumo del asistente (ai_usage, kind assistant)", costo1.llamadas === 2 && costo1.usd > 0, JSON.stringify(costo1));
   const threadId = r1.json?.threadId;
 
+  // 1b. Acciones: el asistente PROPONE y nada sale hasta «Aplicar».
+  const rp = await preguntar(B, `PROPON ENVIO ${cv}`);
+  const prop = rp.json?.answer?.meta?.proposals?.[0];
+  ok("propone un envío (sin enviar nada)", rp.status === 200 && prop?.tool === "send_message" && prop?.status === "pending", JSON.stringify(rp.json?.answer?.meta?.proposals));
+  ok("…y el texto de la propuesta lo arma el servidor: a quién y qué sale", prop?.label === `Enviar a ${nombre}: «Hola, ¿sigues interesado?»`, prop?.label);
+  const salientes = async () => Number((await sql`select count(*) n from message where conversation_id = ${cv} and direction = 'out'`)[0].n);
+  const antesSal = await salientes();
+  const cancel = await B.call("POST", "/api/assistant/actions", { threadId: rp.json?.threadId, messageId: rp.json?.answer?.id, action: "cancel" });
+  ok("«Cancelar» no envía nada", cancel.status === 200 && cancel.json?.proposals?.[0]?.status === "cancelled" && (await salientes()) === antesSal, JSON.stringify(cancel.json));
+  const rn = await preguntar(B, `PROPON NOTA ${cv}`);
+  const aplicar = await B.call("POST", "/api/assistant/actions", { threadId: rn.json?.threadId, messageId: rn.json?.answer?.id, action: "apply" });
+  ok("«Aplicar» una nota la guarda en el chat", aplicar.status === 200 && aplicar.json?.proposals?.[0]?.status === "applied", JSON.stringify(aplicar.json));
+  const otraVez = await B.call("POST", "/api/assistant/actions", { threadId: rn.json?.threadId, messageId: rn.json?.answer?.id, action: "apply" });
+  ok("…y no se aplica dos veces", otraVez.status === 409, String(otraVez.status));
+
   // 2. Chats recientes (mismo hilo): datos reales para la Propietaria, fichas para el modelo.
   const r2 = await preguntar(B, "¿Cuáles son mis chats recientes?", threadId);
   const a2 = r2.json?.answer?.content ?? "";

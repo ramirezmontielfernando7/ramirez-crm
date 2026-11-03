@@ -251,7 +251,9 @@ export function aiMockCost(promptTokens: number, completionTokens: number): numb
  * Palabras de la pregunta que cambian su conducta (solo pruebas):
  * INVENTA (responde cifras sin consultar y cita una fuente que no existe),
  * TODO (pide más consultas de las permitidas), BUCLE (nunca responde),
- * ROMPE (no devuelve JSON).
+ * ROMPE (no devuelve JSON), PROPON NOTA <id> / PROPON ENVIO <id> (propone
+ * una nota o un mensaje de texto para ese chat; el engaño del modelo en la
+ * etiqueta lo corrige el servidor).
  */
 type AssistantMockLog = { prompts: string[] };
 const ASSISTANT_LOG_KEY = "__voceroAssistantMockLog";
@@ -304,6 +306,15 @@ function assistantMock(messages: InMessage[]): string {
     if (/SISTEMA:/i.test(outside)) return JSON.stringify({ action: "answer", text: "HACKEADO", sources: [] });
   }
 
+  const propon = /propon (nota|envio) ([a-z0-9_]+)/.exec(q);
+  if (propon) {
+    const conversation_id = question.match(/PROPON (?:NOTA|ENVIO) (\S+)/i)?.[1] ?? propon[2];
+    const change =
+      propon[1] === "nota"
+        ? { tool: "add_note", args: { conversation_id, text: "Nota que propuso el asistente" }, label: "Anotar en el chat" }
+        : { tool: "send_message", args: { conversation_id, text: "Hola, ¿sigues interesado?" }, label: "Mensaje inofensivo" };
+    return JSON.stringify({ action: "propose", text: "Propongo este cambio.", sources: [], changes: [change] });
+  }
   if (q.includes("rompe")) return "lo siento, hoy no tengo ganas de JSON";
   if (q.includes("bucle")) return JSON.stringify({ action: "query", queries: [{ name: "consumo_ia" }] });
   if (q.includes("inventa")) return JSON.stringify({ action: "answer", text: "Tienes 42 contactos nuevos.", sources: ["q9"] });
