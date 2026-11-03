@@ -16,7 +16,7 @@ import { EXTRA_TOOLS } from "@/server/ai-connector/extra-tools";
 import { KNOWLEDGE_TOOLS } from "@/server/ai-connector/knowledge-tools";
 import { LIBRARY_TOOLS } from "@/server/ai-connector/library-tools";
 import { getConnectorSettings } from "@/server/ai-connector/settings";
-import { messagesSentLastDay } from "@/server/ai-connector/log";
+import { withDailySend } from "@/server/ai-connector/daily-send";
 import {
   aiNumberChat,
   aiNumberMessages,
@@ -76,6 +76,8 @@ export type ToolOutcome = {
   isError?: boolean;
   /** Para la bitácora: `limited` = tope diario; `denied` = no le toca. */
   outcome?: "limited" | "denied";
+  /** DF-07: la herramienta ya dejó su fila en la bitácora (la reserva del envío). */
+  logged?: boolean;
 };
 
 export type ToolSpec<A> = {
@@ -471,58 +473,52 @@ const sendMessage: ToolSpec<z.infer<typeof sendMessageArgs>> = {
         outcome: "denied",
       });
     }
-    const sent = await messagesSentLastDay(session.organizationId, session.userId);
-    if (sent >= dailyMessageLimit) {
-      return fail(
-        `Llegaste al tope de ${dailyMessageLimit} mensajes en 24 horas para tu IA. Escríbelos desde la Bandeja o espera.`,
-        `tope diario (${dailyMessageLimit})`,
-        { ...ids, outcome: "limited" }
-      );
-    }
-    if (numberChat) {
-      const res = await sendAsMyNumberAi(session, numberChat.conversation.id, args.text, {
-        aiConnectionId: connectionId,
-        aiSenderName: assistantName,
-      });
-      if (!res) return NOT_FOUND;
-      if (!res.ok) return fail(res.message, `no se envió (${res.code})`, ids);
-      return {
-        data: {
-          ok: true,
-          message_id: res.messageId,
-          queued_until: res.queuedUntil?.toISOString() ?? null,
-          sent_today: sent + 1,
-          daily_limit: dailyMessageLimit,
-        },
-        summary: `envió ${args.text.length} caracteres por mi número`,
-        ...ids,
-      };
-    }
-    try {
-      const res = await sendText({
-        conversationId: found!.conversation.id,
-        organizationId: session.organizationId,
-        text: args.text,
-        aiConnectionId: connectionId,
-        aiSenderName: assistantName,
-        // La misma vía que la persona en la Bandeja (Meta, Directa o Automática).
-        allowDirect: true,
-      });
-      return {
-        data: {
-          ok: true,
-          message_id: res.messageId,
-          queued_until: res.queuedUntil?.toISOString() ?? null,
-          sent_today: sent + 1,
-          daily_limit: dailyMessageLimit,
-        },
-        summary: `envió ${args.text.length} caracteres`,
-        ...ids,
-      };
-    } catch (err) {
-      if (err instanceof SendError) return fail(err.message, `no se envió (${err.code})`, ids);
-      throw err;
-    }
+    return withDailySend({ session, connectionId, tool: "send_message", limit: dailyMessageLimit, ids }, async (sent) => {
+      if (numberChat) {
+        const res = await sendAsMyNumberAi(session, numberChat.conversation.id, args.text, {
+          aiConnectionId: connectionId,
+          aiSenderName: assistantName,
+        });
+        if (!res) return NOT_FOUND;
+        if (!res.ok) return fail(res.message, `no se envió (${res.code})`, ids);
+        return {
+          data: {
+            ok: true,
+            message_id: res.messageId,
+            queued_until: res.queuedUntil?.toISOString() ?? null,
+            sent_today: sent + 1,
+            daily_limit: dailyMessageLimit,
+          },
+          summary: `envió ${args.text.length} caracteres por mi número`,
+          ...ids,
+        };
+      }
+      try {
+        const res = await sendText({
+          conversationId: found!.conversation.id,
+          organizationId: session.organizationId,
+          text: args.text,
+          aiConnectionId: connectionId,
+          aiSenderName: assistantName,
+          // La misma vía que la persona en la Bandeja (Meta, Directa o Automática).
+          allowDirect: true,
+        });
+        return {
+          data: {
+            ok: true,
+            message_id: res.messageId,
+            queued_until: res.queuedUntil?.toISOString() ?? null,
+            sent_today: sent + 1,
+            daily_limit: dailyMessageLimit,
+          },
+          summary: `envió ${args.text.length} caracteres`,
+          ...ids,
+        };
+      } catch (err) {
+        if (err instanceof SendError) return fail(err.message, `no se envió (${err.code})`, ids);
+        throw err;
+      }
+    });
   },
 };
 

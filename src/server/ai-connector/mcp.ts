@@ -95,7 +95,7 @@ async function callTool(id: RpcId, params: Record<string, unknown> | undefined, 
     const run = async () => {
       try {
         const out = await tool.run({ session, scopes, connectionId, assistantName }, parsed.data);
-        await recordAction({
+        if (!out.logged) await recordAction({
           ...base,
           tool: tool.name,
           outcome: out.outcome ?? (out.isError ? "error" : "ok"),

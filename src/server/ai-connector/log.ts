@@ -1,4 +1,4 @@
-import { and, count, desc, eq, gt, inArray, lt } from "drizzle-orm";
+import { and, count, desc, eq, gt, inArray, lt, sql } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
 import type { SessionContext } from "@/lib/auth/session";
@@ -55,13 +55,91 @@ export async function messagesSentLastDay(organizationId: string, userId: string
         organizationId,
         and(
           eq(schema.aiActionLog.userId, userId),
-          inArray(schema.aiActionLog.tool, ["send_message", "send_template", "send_material"]),
+          inArray(schema.aiActionLog.tool, [...SENDING_TOOLS]),
           eq(schema.aiActionLog.outcome, "ok"),
           gt(schema.aiActionLog.at, new Date(now.getTime() - 24 * 60 * 60 * 1000))
         )
       )
     );
   return Number(row?.n ?? 0);
+}
+
+/** Herramientas que mandan mensajes: comparten el MISMO tope diario. */
+export const SENDING_TOOLS = ["send_message", "send_template", "send_material"] as const;
+
+/**
+ * Auditoría DF-07 — Reserva ATÓMICA de un envío contra el tope diario.
+ *
+ * Antes se contaba lo anotado en la bitácora y se enviaba: dos herramientas
+ * distintas a la vez (o dos procesos) leían el mismo conteo y se pasaban del
+ * tope, y si la bitácora fallaba tras enviar, el envío no contaba. Ahora,
+ * con un candado de PostgreSQL por persona (vale entre procesos), se cuenta
+ * y se anota la reserva (`ok`) en una sola transacción, ANTES de enviar. Si
+ * no se puede anotar, no se envía. Al terminar, `settleDailySend` deja el
+ * resultado: un envío que falló (`error`) libera su lugar.
+ */
+export async function reserveDailySend(e: {
+  organizationId: string;
+  userId: string;
+  connectionId: string;
+  tool: (typeof SENDING_TOOLS)[number];
+  limit: number;
+  conversationId?: string | null;
+  contactId?: string | null;
+  now?: Date;
+}): Promise<{ ok: true; reservationId: string; sent: number } | { ok: false; sent: number }> {
+  const now = e.now ?? new Date();
+  return getDb().transaction(async (tx) => {
+    // Candado de transacción por organización y persona: se suelta solo al terminar.
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`ai-send:${e.organizationId}:${e.userId}`}))`);
+    const [row] = await tx
+      .select({ n: count() })
+      .from(schema.aiActionLog)
+      .where(
+        scoped(
+          schema.aiActionLog.organizationId,
+          e.organizationId,
+          and(
+            eq(schema.aiActionLog.userId, e.userId),
+            inArray(schema.aiActionLog.tool, [...SENDING_TOOLS]),
+            eq(schema.aiActionLog.outcome, "ok"),
+            gt(schema.aiActionLog.at, new Date(now.getTime() - 24 * 60 * 60 * 1000))
+          )
+        )
+      );
+    const sent = Number(row?.n ?? 0);
+    if (sent >= e.limit) return { ok: false as const, sent };
+    const reservationId = newId("aiActionLog");
+    await tx.insert(schema.aiActionLog).values({
+      id: reservationId,
+      organizationId: e.organizationId,
+      userId: e.userId,
+      connectionId: e.connectionId,
+      tool: e.tool,
+      outcome: "ok",
+      conversationId: e.conversationId ?? null,
+      contactId: e.contactId ?? null,
+      summary: "enviando…",
+      at: now,
+    });
+    return { ok: true as const, reservationId, sent };
+  });
+}
+
+/** Deja el resultado de un envío reservado. Nunca lanza (si falla, la reserva sigue contando). */
+export async function settleDailySend(
+  organizationId: string,
+  reservationId: string,
+  result: { outcome: "ok" | "denied" | "limited" | "error"; summary: string }
+): Promise<void> {
+  try {
+    await getDb()
+      .update(schema.aiActionLog)
+      .set({ outcome: result.outcome, summary: result.summary.slice(0, 200) })
+      .where(scoped(schema.aiActionLog.organizationId, organizationId, eq(schema.aiActionLog.id, reservationId)));
+  } catch (err) {
+    log.error("no se pudo cerrar la reserva de un envío de la IA (sigue contando en el tope)", { org: organizationId, err });
+  }
 }
 
 export type ActionView = {

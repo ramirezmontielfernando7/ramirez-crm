@@ -97,6 +97,34 @@ async function setupRoles(sql) {
   }
 }
 
+/**
+ * Auditoría DF-16 — Un solo migrador a la vez, aunque arranquen dos
+ * contenedores juntos (un despliegue que se encima con otro, una réplica).
+ * Candado de SESIÓN de PostgreSQL sobre la única conexión del migrador: el
+ * segundo espera a que el primero termine y luego ve el journal al día (no
+ * aplica nada dos veces). Si el proceso muere, Postgres suelta el candado al
+ * cerrarse la conexión. Tope de espera: MIGRATE_LOCK_TIMEOUT_MS (5 min).
+ */
+const MIGRATE_LOCK_KEY = 0x6d696772; // "migr"
+const LOCK_WAIT_MS = Number(process.env.MIGRATE_LOCK_TIMEOUT_MS) > 0 ? Number(process.env.MIGRATE_LOCK_TIMEOUT_MS) : 5 * 60_000;
+
+async function acquireMigrateLock(sql) {
+  const started = Date.now();
+  let warned = false;
+  for (;;) {
+    const [row] = await sql`select pg_try_advisory_lock(${MIGRATE_LOCK_KEY}) as ok`;
+    if (row?.ok) return;
+    if (!warned) {
+      console.log("[migrate] otro arranque está migrando: espero a que termine…");
+      warned = true;
+    }
+    if (Date.now() - started > LOCK_WAIT_MS) {
+      throw new Error(`otro proceso tiene el candado de migraciones desde hace más de ${Math.round(LOCK_WAIT_MS / 1000)} s`);
+    }
+    await new Promise((r) => setTimeout(r, 1000));
+  }
+}
+
 const here = path.dirname(fileURLToPath(import.meta.url));
 const migrationsFolder =
   process.env.MIGRATIONS_DIR ?? path.join(here, "drizzle");
@@ -133,6 +161,7 @@ for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     connection: { TimeZone: "UTC" },
   });
   try {
+    await acquireMigrateLock(sql);
     await migrate(drizzle(sql), { migrationsFolder });
     console.log("[migrate] migraciones aplicadas");
     try {

@@ -5,7 +5,7 @@ import { getDb, schema } from "@/lib/db";
 import { companyChat, scoped, scopedContacts } from "@/lib/db/tenant";
 import { logActivitySafe } from "@/server/activity/log";
 import { getConnectorSettings } from "@/server/ai-connector/settings";
-import { messagesSentLastDay } from "@/server/ai-connector/log";
+import { withDailySend } from "@/server/ai-connector/daily-send";
 import type { ToolContext, ToolOutcome, ToolSpec } from "@/server/ai-connector/tools";
 import { getContactById } from "@/server/contacts";
 import { publish } from "@/server/events/bus";
@@ -303,41 +303,34 @@ const sendTemplateTool: ToolSpec<z.infer<typeof sendTemplateArgs>> = {
         outcome: "denied",
       });
     }
-    const sent = await messagesSentLastDay(session.organizationId, session.userId);
-    if (sent >= dailyMessageLimit) {
-      return fail(
-        `Llegaste al tope de ${dailyMessageLimit} mensajes en 24 horas para tu IA. Escríbelos desde la Bandeja o espera.`,
-        `tope diario (${dailyMessageLimit})`,
-        { ...ids, outcome: "limited" }
+    return withDailySend({ session, connectionId, tool: "send_template", limit: dailyMessageLimit, ids }, async (sent) => {
+      const wanted = args.template.toLocaleLowerCase("es");
+      const template = (await sendableTemplates(session.organizationId)).find(
+        (t) => t.id === args.template || t.name.toLocaleLowerCase("es") === wanted
       );
-    }
+      if (!template) return fail("No hay una plantilla aprobada con ese nombre o id (mira list_chat_templates)", "plantilla no encontrada", ids);
 
-    const wanted = args.template.toLocaleLowerCase("es");
-    const template = (await sendableTemplates(session.organizationId)).find(
-      (t) => t.id === args.template || t.name.toLocaleLowerCase("es") === wanted
-    );
-    if (!template) return fail("No hay una plantilla aprobada con ese nombre o id (mira list_chat_templates)", "plantilla no encontrada", ids);
-
-    try {
-      const res = await sendTemplate({
-        organizationId: session.organizationId,
-        conversationId: conversation.id,
-        templateId: template.id,
-        variables: args.variables,
-        aiConnectionId: connectionId,
-        aiSenderName: assistantName,
-      });
-      return {
-        data: { ok: true, message_id: res.messageId, sent_today: sent + 1, daily_limit: dailyMessageLimit },
-        summary: `envió la plantilla ${template.name}`,
-        ...ids,
-      };
-    } catch (err) {
-      if (err instanceof TemplateError || err instanceof SendError) {
-        return fail(err.message, `no se envió (${err.code})`, ids);
+      try {
+        const res = await sendTemplate({
+          organizationId: session.organizationId,
+          conversationId: conversation.id,
+          templateId: template.id,
+          variables: args.variables,
+          aiConnectionId: connectionId,
+          aiSenderName: assistantName,
+        });
+        return {
+          data: { ok: true, message_id: res.messageId, sent_today: sent + 1, daily_limit: dailyMessageLimit },
+          summary: `envió la plantilla ${template.name}`,
+          ...ids,
+        };
+      } catch (err) {
+        if (err instanceof TemplateError || err instanceof SendError) {
+          return fail(err.message, `no se envió (${err.code})`, ids);
+        }
+        throw err;
       }
-      throw err;
-    }
+    });
   },
 };
 
@@ -457,40 +450,34 @@ const sendMaterialTool: ToolSpec<z.infer<typeof sendMaterialArgs>> = {
     if (dailyMessageLimit === 0) {
       return fail("En esta empresa la IA conectada solo puede leer: no envía mensajes", "envío apagado", { ...ids, outcome: "denied" });
     }
-    const sent = await messagesSentLastDay(session.organizationId, session.userId);
-    if (sent >= dailyMessageLimit) {
-      return fail(
-        `Llegaste al tope de ${dailyMessageLimit} mensajes en 24 horas para tu IA. Escríbelos desde la Bandeja o espera.`,
-        `tope diario (${dailyMessageLimit})`,
-        { ...ids, outcome: "limited" }
-      );
-    }
-    const via = { aiConnectionId: connectionId, aiSenderName: assistantName };
-    try {
-      const res = numberChat
-        ? await deliverKnowledgeToMyNumber(
-            { organizationId: session.organizationId, userId: session.userId, conversationId: ids.conversationId, via },
-            entry,
-            args.mode
-          )
-        : await deliverKnowledgeEntry(
-            { kind: "whatsapp_conversation", organizationId: session.organizationId, conversationId: ids.conversationId, via },
-            entry,
-            args.mode
-          );
-      return {
-        data: { ok: true, message_id: res.messageId, sent_today: sent + 1, daily_limit: dailyMessageLimit },
-        summary: `envió el material «${entry.title}» (${args.mode === "file" ? "archivo" : "texto"})`,
-        ...ids,
-      };
-    } catch (err) {
-      if (err instanceof KnowledgeDeliveryError || err instanceof MediaValidationError || err instanceof SendError) {
-        return fail(err.message, "no se envió", ids);
+    return withDailySend({ session, connectionId, tool: "send_material", limit: dailyMessageLimit, ids }, async (sent) => {
+      const via = { aiConnectionId: connectionId, aiSenderName: assistantName };
+      try {
+        const res = numberChat
+          ? await deliverKnowledgeToMyNumber(
+              { organizationId: session.organizationId, userId: session.userId, conversationId: ids.conversationId, via },
+              entry,
+              args.mode
+            )
+          : await deliverKnowledgeEntry(
+              { kind: "whatsapp_conversation", organizationId: session.organizationId, conversationId: ids.conversationId, via },
+              entry,
+              args.mode
+            );
+        return {
+          data: { ok: true, message_id: res.messageId, sent_today: sent + 1, daily_limit: dailyMessageLimit },
+          summary: `envió el material «${entry.title}» (${args.mode === "file" ? "archivo" : "texto"})`,
+          ...ids,
+        };
+      } catch (err) {
+        if (err instanceof KnowledgeDeliveryError || err instanceof MediaValidationError || err instanceof SendError) {
+          return fail(err.message, "no se envió", ids);
+        }
+        if (err instanceof MiNumeroFailure) return fail(miNumeroMessage(err.code), `no se envió (${err.code})`, ids);
+        if (err instanceof Error && err.name === "DirectSendFailure") return fail(err.message, "no se envió", ids);
+        throw err;
       }
-      if (err instanceof MiNumeroFailure) return fail(miNumeroMessage(err.code), `no se envió (${err.code})`, ids);
-      if (err instanceof Error && err.name === "DirectSendFailure") return fail(err.message, "no se envió", ids);
-      throw err;
-    }
+    });
   },
 };
 
