@@ -80,9 +80,10 @@ describe("DF-03: bandeja durable de webhooks", () => {
     const antes = (await contarDatosDeClientes(A.id)).message;
     // Guardado y respondido, pero nadie lo procesó (el proceso murió).
     const id = await enqueueWebhookEvent("whatsapp", evento(A.phoneNumberId, "5215522220003", "¿siguen abiertos?", wamid));
-    // Otras pruebas comparten la tabla: se pide un lote grande para que no empujen a ésta fuera.
-    expect(await dueWebhookEvents(new Date(), 1000)).toContain(id);
-    for (let i = 0; i < 5 && (await fila(id!)); i++) await webhookInboxTick();
+    // Otras pruebas comparten la tabla: se pide un lote grande para que no empujen a ésta fuera, y
+    // «ahora» se adelanta un poco (el reloj de la base y el de Node pueden diferir unos ms).
+    expect(await dueWebhookEvents(new Date(Date.now() + 5_000), 1000)).toContain(id);
+    for (let i = 0; i < 5 && (await fila(id!)); i++) await webhookInboxTick(new Date(Date.now() + 5_000));
     expect(await fila(id!)).toBeUndefined();
     expect((await contarDatosDeClientes(A.id)).message).toBe(antes + 1);
     // Meta lo reenvía igual (ya se había borrado): entra otra fila, pero el

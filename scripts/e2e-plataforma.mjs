@@ -824,7 +824,7 @@ async function asistenteBase(A, B, orgB) {
   const aviso = page.getByTestId("assistant-notice");
   ok("antes de usarlo, la confirmación", await aviso.waitFor({ timeout: 30000 }).then(() => true, () => false));
   ok("…dice que consume bastante crédito y se puede agotar rápido", /consume bastante crédito de IA/.test(await aviso.innerText()) && /agotar rápido/.test(await aviso.innerText()));
-  ok("…y que solo lee (no envía ni toca campañas)", /no envía mensajes/.test(await aviso.innerText()) && /no toca campañas/.test(await aviso.innerText()));
+  ok("…y que los cambios y mensajes solo salen con «Aplicar»", /Aplicar/.test(await aviso.innerText()));
   const guardado = page.waitForResponse((r) => r.url().endsWith("/api/assistant/notice") && r.request().method() === "POST", { timeout: 90000 }).catch(() => null);
   await page.getByTestId("assistant-notice-accept").click();
   await guardado;
@@ -1016,6 +1016,21 @@ async function asistenteMotor(A, B, orgB) {
   console.log(`  ·· costo de la pregunta típica (precio de prueba = Sonnet 4.5, $3/$15 por Mtok): ${JSON.stringify(costo1)}`);
   ok("el costo real quedó en el consumo del asistente (ai_usage, kind assistant)", costo1.llamadas === 2 && costo1.usd > 0, JSON.stringify(costo1));
   const threadId = r1.json?.threadId;
+
+  // 1b. Acciones: el asistente PROPONE y nada sale hasta «Aplicar».
+  const rp = await preguntar(B, `PROPON ENVIO ${cv}`);
+  const prop = rp.json?.answer?.meta?.proposals?.[0];
+  ok("propone un envío (sin enviar nada)", rp.status === 200 && prop?.tool === "send_message" && prop?.status === "pending", JSON.stringify(rp.json?.answer?.meta?.proposals));
+  ok("…y el texto de la propuesta lo arma el servidor: a quién y qué sale", prop?.label === `Enviar a ${nombre}: «Hola, ¿sigues interesado?»`, prop?.label);
+  const salientes = async () => Number((await sql`select count(*) n from message where conversation_id = ${cv} and direction = 'out'`)[0].n);
+  const antesSal = await salientes();
+  const cancel = await B.call("POST", "/api/assistant/actions", { threadId: rp.json?.threadId, messageId: rp.json?.answer?.id, action: "cancel" });
+  ok("«Cancelar» no envía nada", cancel.status === 200 && cancel.json?.proposals?.[0]?.status === "cancelled" && (await salientes()) === antesSal, JSON.stringify(cancel.json));
+  const rn = await preguntar(B, `PROPON NOTA ${cv}`);
+  const aplicar = await B.call("POST", "/api/assistant/actions", { threadId: rn.json?.threadId, messageId: rn.json?.answer?.id, action: "apply" });
+  ok("«Aplicar» una nota la guarda en el chat", aplicar.status === 200 && aplicar.json?.proposals?.[0]?.status === "applied", JSON.stringify(aplicar.json));
+  const otraVez = await B.call("POST", "/api/assistant/actions", { threadId: rn.json?.threadId, messageId: rn.json?.answer?.id, action: "apply" });
+  ok("…y no se aplica dos veces", otraVez.status === 409, String(otraVez.status));
 
   // 2. Chats recientes (mismo hilo): datos reales para la Propietaria, fichas para el modelo.
   const r2 = await preguntar(B, "¿Cuáles son mis chats recientes?", threadId);

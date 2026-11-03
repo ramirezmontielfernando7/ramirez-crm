@@ -1,58 +1,46 @@
 /**
- * Asistente interno — las ACCIONES (reglas puras). El asistente hace lo que la
- * persona haría en el CRM, con las mismas herramientas del conector de IA
- * (`src/server/ai-connector/`), pero solo las de esta lista CERRADA:
+ * Asistente interno — las ACCIONES (reglas puras). El asistente tiene las
+ * MISMAS herramientas que el conector de IA (`src/server/ai-connector/`), con
+ * los mismos permisos de la persona, los mismos módulos y las mismas
+ * «funciones avanzadas» que el Propietario haya encendido para el conector:
  *
- * - LEER (corren al momento, como una consulta más): chats, etapas, etiquetas,
- *   tareas, notas de trabajo, la ficha de un contacto, resultados…
- * - CAMBIAR (el asistente solo las PROPONE; corren cuando la persona pulsa
- *   «Aplicar»): mover de etapa, etiquetar, notas, tareas, asignar, ficha…
+ * - LEER: corren al momento, como una consulta más.
+ * - CAMBIAR y ENVIAR: el asistente solo las PROPONE; corren cuando la persona
+ *   pulsa «Aplicar», con su sesión y por la misma puerta del CRM que la
+ *   pantalla (ventana de 24 h, modo de conexión, tope diario compartido con el
+ *   conector). Los envíos (`SENDING_TOOLS`) muestran el texto exacto.
  *
- * Fuera de la lista, a propósito: enviar mensajes, plantillas y material,
- * campañas, importar/exportar, agentes, ajustes y todo lo que el conector
- * trata como «función avanzada». Agregar una a esta lista pide revisar que no
- * mande nada al cliente (`tests/unit/assistant-gate.test.ts`).
+ * Fuera, a propósito: los enlaces de subida (abren otra pantalla). Como en el
+ * conector, nada borra.
  */
 
-export const ASSISTANT_READ_TOOLS = [
-  "list_chats",
-  "read_chat",
-  "read_contact",
-  "list_stages",
-  "list_pipeline",
-  "list_tags",
-  "list_tasks",
-  "list_work_notes",
-  "list_people",
-  "list_quick_replies",
-  "get_results",
-] as const;
+/** Herramientas del conector que el asistente NO usa. */
+export const ASSISTANT_EXCLUDED_TOOLS = ["create_upload_link", "check_upload_link"] as const;
 
-export const ASSISTANT_WRITE_TOOLS = [
-  "move_stage",
-  "update_lead",
-  "tag_chat",
-  "add_note",
-  "create_task",
-  "update_task",
-  "create_work_note",
-  "update_work_note",
-  "update_contact",
-  "assign_chat",
-  "update_chat",
-  "open_chat",
-] as const;
+/** Las que mandan algo a un cliente o a un público: la propuesta siempre dice qué y a quién. */
+export const SENDING_TOOLS = ["send_message", "send_template", "send_material", "launch_campaign"] as const;
+
+export function isSendingTool(name: string): boolean {
+  return (SENDING_TOOLS as readonly string[]).includes(name);
+}
+
+export function isExcludedTool(name: string): boolean {
+  return (ASSISTANT_EXCLUDED_TOOLS as readonly string[]).includes(name);
+}
+
+/** Cómo se marcan en la bitácora y en los mensajes los envíos del asistente (no es una conexión del conector). */
+export const ASSISTANT_CONNECTION_ID = "assistant";
+export const ASSISTANT_SENDER_NAME = "Asistente";
+
+/** Primera frase de la descripción, corta, para no inflar el prompt con ~60 herramientas. */
+export function shortDescription(description: string, max = 150): string {
+  const flat = description.replace(/\s+/g, " ").trim();
+  const first = flat.split(/(?<=[.!?])\s/)[0] ?? flat;
+  return first.length > max ? `${first.slice(0, max - 1)}…` : first;
+}
 
 /** Acciones que puede proponer una sola respuesta. */
 export const MAX_PROPOSALS = 20;
-
-export function isAssistantReadTool(name: string): boolean {
-  return (ASSISTANT_READ_TOOLS as readonly string[]).includes(name);
-}
-
-export function isAssistantWriteTool(name: string): boolean {
-  return (ASSISTANT_WRITE_TOOLS as readonly string[]).includes(name);
-}
 
 /** Una línea por parámetro («conversation_id* (texto)»), para el prompt. */
 export function argsHelp(schema: Record<string, unknown>): string {
