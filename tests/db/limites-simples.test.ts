@@ -4,6 +4,8 @@ import { getSystemDb, schema } from "@/lib/db";
 import { runWithOrganization } from "@/lib/request-context";
 import { fnSpentUsd, recordUsage, reserveTurn } from "@/server/ai-quota/quota";
 import { getOrgAiState, saveOrgAiOverrides } from "@/server/ai-settings/org";
+import { changeOrgAi } from "@/server/ai-settings/admin";
+import { resolveAiChoice } from "@/server/ai-quota/choice";
 import { getEffectiveLimits, saveOrgLimits } from "@/server/limits";
 import { getOwnerUsage } from "@/server/usage/owner";
 import { borrarOrganizaciones, crearOrganizacion } from "./fixtures";
@@ -28,7 +30,7 @@ describe("0071 — límites sencillos", () => {
   });
 
   it("tope de la función en «bloquear»: frena esa función y solo esa", async () => {
-    await as(A.id, () => saveOrgAiOverrides(A.id, { agentUsdLimit: 0.5, agentMode: "block" }));
+    await as(A.id, () => saveOrgAiOverrides(A.id, { caps: { agent: { unit: "usd", value: 0.5, usd: 0.5 } }, agentMode: "block" }));
     const cap = { fn: "agent" as const, usdLimit: 0.5, mode: "block" as const };
     expect(await as(A.id, () => reserveTurn(A.id, "agent", new Date(), 0, null, cap))).toEqual({ ok: true });
     await as(A.id, () => recordUsage(A.id, "agent", { promptTokens: 10, completionTokens: 10 }, new Date(), 0, 0.6, "agent"));
@@ -63,11 +65,36 @@ describe("0071 — límites sencillos", () => {
 
   it("los topes por función se guardan y la BD rechaza modos raros", async () => {
     const st = await as(A.id, () => getOrgAiState(A.id));
-    expect(st.overrides.agentUsdLimit).toBe(0.5);
+    expect(st.overrides.caps.agent.value).toBe(0.5);
+    expect(st.overrides.caps.agent.unit).toBe("usd");
     expect(st.overrides.agentMode).toBe("block");
     await expect(
       getSystemDb().update(schema.aiQuota).set({ poolMode: "nunca" }).where(eq(schema.aiQuota.organizationId, A.id))
     ).rejects.toThrow();
+  });
+
+  it("0072 — reparto por función: % contra el total, suma que no pasa del total, % sin total se rechaza", async () => {
+    const C = await crearOrganizacion("Límites reparto C");
+    const actor = null;
+    try {
+      // % sin total: 422
+      await expect(
+        changeOrgAi(C.id, { caps: { agent: { unit: "pct", value: 20, usd: null } } } as never, actor, null)
+      ).rejects.toMatchObject({ status: 422 });
+      await as(C.id, () => saveOrgAiOverrides(C.id, { monthlyUsdLimit: 10 }));
+      // 20 % de 10 USD = 2 USD
+      await changeOrgAi(C.id, { caps: { agent: { unit: "pct", value: 20, usd: null } } } as never, actor, null);
+      const st = await as(C.id, () => getOrgAiState(C.id));
+      expect(st.overrides.caps.agent).toMatchObject({ unit: "pct", value: 20 });
+      const ch = await as(C.id, () => resolveAiChoice(C.id, "agent"));
+      expect(ch.fnCap?.usdLimit).toBeCloseTo(2);
+      // 20 % + 9 USD pasa de 10 USD: 422
+      await expect(
+        changeOrgAi(C.id, { caps: { creator: { unit: "usd", value: 9, usd: 9 } } } as never, actor, null)
+      ).rejects.toMatchObject({ status: 422 });
+    } finally {
+      await borrarOrganizaciones([C.id]);
+    }
   });
 
   it("«Porcentaje y dólares»: el cliente ve gastado y tope; «tokens» ve su equivalencia; nunca dólares con las demás", async () => {

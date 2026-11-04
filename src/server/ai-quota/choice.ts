@@ -1,4 +1,5 @@
 import { functionOfUse, layeredChoice, type AiChoice, type AiUse, type AssistantMode } from "@/lib/ai/choice";
+import { capUsd } from "@/lib/fn-caps";
 import { getEnv } from "@/lib/env";
 import { getOrgAiState } from "@/server/ai-settings/org";
 import { getPlatformAiDefaults } from "@/server/ai-settings/platform";
@@ -26,6 +27,7 @@ export async function resolveAiChoice(organizationId: string, use: AiUse, mode?:
   const choice = layeredChoice(use, layers, getEnv(), mode);
   const o = state.overrides;
   const fn = functionOfUse(use);
-  const fnCap: FnCap = { fn, usdLimit: o[`${fn}UsdLimit`], mode: o[`${fn}Mode`] };
-  return { ...choice, usdLimit: o.monthlyUsdLimit ?? plan?.monthlyUsdLimit ?? null, fnCap, poolMode: o.poolMode };
+  const pool = o.monthlyUsdLimit ?? plan?.monthlyUsdLimit ?? null;
+  const fnCap: FnCap = { fn, usdLimit: capUsd(o.caps[fn], pool), mode: o[`${fn}Mode`] };
+  return { ...choice, usdLimit: pool, fnCap, poolMode: o.poolMode };
 }

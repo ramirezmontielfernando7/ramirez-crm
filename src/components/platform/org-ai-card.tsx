@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { AI_EFFORT_LABEL, type AiEffort, type AiFunction } from "@/lib/ai/choice";
 import { formatMtok, formatUsd2, mtokToUsd, usdToMtok, type Price } from "@/lib/ai-plans";
+import { CAP_UNIT_LABEL, CAP_UNITS, capUsd, checkCaps, type CapUnit, type FnCapValue } from "@/lib/fn-caps";
 import { PLAN_LABEL } from "@/lib/limits";
 import { cn } from "@/lib/utils";
 import type { AiSettingsOverview, OrgAiView } from "@/server/ai-settings/admin";
@@ -52,10 +53,12 @@ export function OrgAiCard({ orgId }: { orgId: string }) {
   const [unit, setUnit] = useState<"usd" | "mtok">("usd");
   const [cap, setCap] = useState("");
   const [draft, setDraft] = useState<Draft | null>(null);
-  // 0071: topes de seguridad por función (dólares; vacío = usa la bolsa) y qué hacer al llenarse.
-  const [fnCaps, setFnCaps] = useState<Record<AiFunction, string>>({ agent: "", creator: "", assistant: "" });
+  // 0071/0072: reparto por función (unidad y valor tal cual) y qué hacer al llegar.
+  type CapDraft = { unit: CapUnit; value: string };
+  const [fnCaps, setFnCaps] = useState<Record<AiFunction, CapDraft>>({ agent: { unit: "pct", value: "" }, creator: { unit: "pct", value: "" }, assistant: { unit: "pct", value: "" } });
   const [fnModes, setFnModes] = useState<Record<AiFunction, "block" | "warn">>({ agent: "block", creator: "block", assistant: "block" });
   const [poolMode, setPoolMode] = useState<"block" | "warn">("block");
+  const [safetyMsg, setSafetyMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -70,7 +73,8 @@ export function OrgAiCard({ orgId }: { orgId: string }) {
       setDraft(draftOf(v.data));
       setCap(v.data.overrides.monthlyUsdLimit?.toString() ?? "");
       const o = v.data.overrides;
-      setFnCaps({ agent: o.agentUsdLimit?.toString() ?? "", creator: o.creatorUsdLimit?.toString() ?? "", assistant: o.assistantUsdLimit?.toString() ?? "" });
+      const d = (fn: AiFunction): CapDraft => ({ unit: o.caps[fn].unit, value: o.caps[fn].value?.toString() ?? "" });
+      setFnCaps({ agent: d("agent"), creator: d("creator"), assistant: d("assistant") });
       setFnModes({ agent: o.agentMode, creator: o.creatorMode, assistant: o.assistantMode });
       setPoolMode(o.poolMode);
       setUnit("usd");
@@ -87,8 +91,8 @@ export function OrgAiCard({ orgId }: { orgId: string }) {
   const agentModel = draft.agentModel ?? view.inherited.agent.model;
   const price: Price | null = priceOf(catalog, agentModel);
   const n = cap.trim() === "" ? null : Number(cap);
-  const capUsd = n === null || !Number.isFinite(n) ? null : unit === "usd" ? n : mtokToUsd(n, price);
-  const effectiveCap = capUsd ?? view.inherited.monthlyUsdLimit;
+  const capUsdValue = n === null || !Number.isFinite(n) ? null : unit === "usd" ? n : mtokToUsd(n, price);
+  const effectiveCap = capUsdValue ?? view.inherited.monthlyUsdLimit;
   const ratio = effectiveCap ? view.spentThisMonth / effectiveCap : null;
   const pct = ratio === null ? null : Math.round(ratio * 100);
   const capOrigin = view.overrides.monthlyUsdLimit !== null ? "Propio" : view.plan ? `Del ${(PLAN_LABEL[view.plan as keyof typeof PLAN_LABEL] ?? "plan").replace("Plan ", "plan ")}` : "Sin plan";
@@ -103,33 +107,48 @@ export function OrgAiCard({ orgId }: { orgId: string }) {
     setUnit(u);
   }
 
-  async function save(patch: Record<string, unknown>) {
+  async function save(patch: Record<string, unknown>): Promise<boolean> {
     setBusy(true);
     const r = await api<OrgAiView>(`/api/platform/organizations/${orgId}/ai`, { method: "PUT", body: JSON.stringify(patch) });
     setBusy(false);
     if (!r.ok) {
       setMsg(null);
-      return setError(r.error);
+      setError(r.error);
+      return false;
     }
     setError(null);
     setMsg("Guardado. Aplica en máximo un minuto.");
     await load();
+    return true;
   }
 
   function saveCap() {
-    if (cap.trim() !== "" && (capUsd === null || capUsd < 0)) return setError(unit === "mtok" && !price ? "El modelo de agentes no tiene precio: escribe el tope en dólares." : "Escribe un número.");
-    void save({ monthlyUsdLimit: capUsd === null ? null : Math.round(capUsd * 10000) / 10000 });
+    if (cap.trim() !== "" && (capUsdValue === null || capUsdValue < 0)) return setError(unit === "mtok" && !price ? "El modelo de agentes no tiene precio: escribe el tope en dólares." : "Escribe un número.");
+    void save({ monthlyUsdLimit: capUsdValue === null ? null : Math.round(capUsdValue * 10000) / 10000, poolMode });
   }
 
-  function saveSafety() {
-    const patch: Record<string, unknown> = { poolMode, agentMode: fnModes.agent, creatorMode: fnModes.creator, assistantMode: fnModes.assistant };
+  /** Lo que vale cada tope por función (dólares), con el total de arriba. */
+  function capOf(fn: AiFunction): FnCapValue {
+    const raw = fnCaps[fn].value.trim().replace(",", ".");
+    const v = raw === "" ? null : Number(raw);
+    if (v === null || !Number.isFinite(v) || v < 0) return { unit: fnCaps[fn].unit, value: null, usd: null };
+    const unit = fnCaps[fn].unit;
+    return { unit, value: v, usd: unit === "usd" ? v : unit === "mtok" ? mtokToUsd(v, price) : null };
+  }
+  const capsNow = (["agent", "creator", "assistant"] as const).map(capOf);
+  const check = checkCaps(capsNow, effectiveCap);
+
+  async function saveSafety() {
+    setSafetyMsg(null);
     for (const fn of ["agent", "creator", "assistant"] as const) {
-      const raw = fnCaps[fn].trim().replace(",", ".");
-      const n = raw === "" ? null : Number(raw);
-      if (n !== null && (!Number.isFinite(n) || n < 0)) return setError("Escribe un número en dólares, o déjalo vacío para usar la bolsa.");
-      patch[`${fn}UsdLimit`] = n === null ? null : Math.round(n * 10000) / 10000;
+      const raw = fnCaps[fn].value.trim().replace(",", ".");
+      if (raw !== "" && (!Number.isFinite(Number(raw)) || Number(raw) < 0)) return setError("Escribe un número, o déjalo vacío para usar el total.");
+      if (raw !== "" && fnCaps[fn].unit === "mtok" && !price) return setError("El modelo de agentes no tiene precio: usa dólares o porcentaje.");
     }
-    void save(patch);
+    if (!check.ok) return setError(check.message);
+    const caps = { agent: capOf("agent"), creator: capOf("creator"), assistant: capOf("assistant") };
+    const ok = await save({ caps, agentMode: fnModes.agent, creatorMode: fnModes.creator, assistantMode: fnModes.assistant });
+    if (ok) setSafetyMsg("Guardado · aplica en máximo un minuto");
   }
 
   // Cuántas veces más caro es lo propio que lo heredado (solo agentes, lo que más gasta).
@@ -142,8 +161,8 @@ export function OrgAiCard({ orgId }: { orgId: string }) {
       <section className="space-y-4 rounded-lg border bg-card p-4" data-testid="platform-org-ai-cap">
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div>
-            <h2 className="text-sm font-semibold">Tope mensual de IA</h2>
-            <p className="text-xs text-text-3">Una sola bolsa: agentes, asistente, creador de agentes y lectura de documentos salen de aquí. Avisos al 80 % y al 100 %.</p>
+            <h2 className="text-sm font-semibold">Tope mensual de IA · total de la empresa</h2>
+            <p className="text-xs text-text-3">Es el límite de todo: agentes, creador, asistente y lectura de documentos suman aquí. Avisos al 80 % y al 100 %.</p>
           </div>
           <Badge variant="secondary" data-testid="platform-org-ai-cap-origin">
             {capOrigin}
@@ -188,6 +207,20 @@ export function OrgAiCard({ orgId }: { orgId: string }) {
             )}
           </p>
         </div>
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          <span className="text-xs text-text-2">Al llenarse el total</span>
+          <select
+            className="h-9 rounded-sm border bg-background px-2 text-sm"
+            value={poolMode}
+            onChange={(e) => setPoolMode(e.target.value as "block" | "warn")}
+            aria-label="Al llenarse el total"
+            data-testid="platform-org-ai-poolmode"
+          >
+            <option value="block">Bloquear</option>
+            <option value="warn">Solo avisar</option>
+          </select>
+          <span className="text-xs text-text-3">Bloquear pasa los chats a una persona.</span>
+        </div>
         <div>
           <div className="flex flex-wrap items-baseline justify-between gap-2 text-sm">
             <span>
@@ -221,56 +254,91 @@ export function OrgAiCard({ orgId }: { orgId: string }) {
 
       <section className="space-y-3 rounded-lg border bg-card p-4" data-testid="platform-org-ai-safety">
         <div>
-          <h2 className="text-sm font-semibold">Topes de seguridad por función</h2>
-          <p className="text-xs text-text-3">
-            Opcionales, en dólares al mes. Si una función queda vacía, usa la bolsa de IA. Al acercarse (80 %) siempre se avisa; al llenarse puedes elegir entre solo avisar o bloquear.
-          </p>
+          <h2 className="text-sm font-semibold">
+            Reparto por función <span className="font-normal text-text-3">(opcional)</span>
+          </h2>
+          <p className="text-xs text-text-3">Si una función queda vacía, usa lo que haya disponible del total. Lo repartido no puede pasar del total.</p>
         </div>
         <ul className="divide-y">
-          {FUNCS.map(({ fn, label }) => (
-            <li key={fn} className="grid gap-2 py-2 sm:grid-cols-[minmax(0,10rem)_minmax(0,9rem)_minmax(0,14rem)_1fr] sm:items-center">
-              <span className="text-sm">{label}</span>
-              <Input
-                inputMode="decimal"
-                placeholder="Usa la bolsa"
-                value={fnCaps[fn]}
-                onChange={(e) => setFnCaps({ ...fnCaps, [fn]: e.target.value })}
-                data-testid={`platform-org-ai-fncap-${fn}`}
-              />
-              <select
-                className="h-9 rounded-sm border bg-background px-2 text-sm"
-                value={fnModes[fn]}
-                onChange={(e) => setFnModes({ ...fnModes, [fn]: e.target.value as "block" | "warn" })}
-                aria-label={`Al llenarse: ${label}`}
-                data-testid={`platform-org-ai-fnmode-${fn}`}
-              >
-                <option value="block">Al llenarse: bloquear</option>
-                <option value="warn">Al llenarse: solo avisar</option>
-              </select>
-              <span className="text-xs text-text-3">USD al mes</span>
-            </li>
-          ))}
-          <li className="grid gap-2 py-2 sm:grid-cols-[minmax(0,10rem)_minmax(0,9rem)_minmax(0,14rem)_1fr] sm:items-center">
-            <span className="text-sm">Bolsa de IA</span>
-            <span className="text-xs text-text-3">La de arriba</span>
-            <select
-              className="h-9 rounded-sm border bg-background px-2 text-sm"
-              value={poolMode}
-              onChange={(e) => setPoolMode(e.target.value as "block" | "warn")}
-              aria-label="Al llenarse la bolsa"
-              data-testid="platform-org-ai-poolmode"
-            >
-              <option value="block">Al llenarse: bloquear</option>
-              <option value="warn">Al llenarse: solo avisar</option>
-            </select>
-            <span className="text-xs text-text-3">Bloquear pasa los chats a una persona.</span>
-          </li>
+          {FUNCS.map(({ fn, label }) => {
+            const usd = capUsd(capOf(fn), effectiveCap);
+            const filled = capOf(fn).value !== null;
+            const eq =
+              !filled
+                ? effectiveCap !== null && check.ok
+                  ? `usa lo que quede del total (${formatUsd2(Math.max(0, effectiveCap - check.repartidoUsd))})`
+                  : "usa el total"
+                : usd === null
+                  ? "—"
+                  : `= ${formatUsd2(usd)}${price ? ` · ${formatMtok(usdToMtok(usd, price))} tokens` : ""}${effectiveCap ? ` · ${Math.round((usd / effectiveCap) * 100)} %` : ""}`;
+            return (
+              <li key={fn} className="grid gap-2 py-2 sm:grid-cols-[minmax(0,9rem)_minmax(0,9rem)_minmax(0,7rem)_minmax(0,1fr)_minmax(0,7.5rem)] sm:items-center">
+                <span className="text-sm">{label}</span>
+                <select
+                  className="h-9 rounded-sm border bg-background px-2 text-sm"
+                  value={fnCaps[fn].unit}
+                  onChange={(e) => setFnCaps({ ...fnCaps, [fn]: { ...fnCaps[fn], unit: e.target.value as CapUnit } })}
+                  aria-label={`Escribir en: ${label}`}
+                  data-testid={`platform-org-ai-fnunit-${fn}`}
+                >
+                  {CAP_UNITS.map((u) => (
+                    <option key={u} value={u}>
+                      {CAP_UNIT_LABEL[u]}
+                    </option>
+                  ))}
+                </select>
+                <Input
+                  inputMode="decimal"
+                  placeholder="Vacío"
+                  value={fnCaps[fn].value}
+                  onChange={(e) => setFnCaps({ ...fnCaps, [fn]: { ...fnCaps[fn], value: e.target.value } })}
+                  data-testid={`platform-org-ai-fncap-${fn}`}
+                />
+                <span className="text-xs text-text-3" data-testid={`platform-org-ai-fneq-${fn}`}>
+                  {eq}
+                </span>
+                <select
+                  className="h-9 rounded-sm border bg-background px-2 text-sm"
+                  value={fnModes[fn]}
+                  onChange={(e) => setFnModes({ ...fnModes, [fn]: e.target.value as "block" | "warn" })}
+                  aria-label={`Al llegar: ${label}`}
+                  data-testid={`platform-org-ai-fnmode-${fn}`}
+                >
+                  <option value="block">Bloquear</option>
+                  <option value="warn">Solo avisar</option>
+                </select>
+              </li>
+            );
+          })}
         </ul>
-        <div className="flex justify-end">
-          <Button size="sm" disabled={busy} onClick={saveSafety} data-testid="platform-org-ai-safety-save">
+        {effectiveCap !== null && (
+          <div>
+            <div className="flex h-2.5 overflow-hidden rounded-full bg-muted" aria-hidden>
+              {capsNow.map((c, i) => {
+                const u = capUsd(c, effectiveCap) ?? 0;
+                return <i key={i} className={i === 0 ? "bg-brand" : i === 1 ? "bg-brand/60" : "bg-brand/35"} style={{ width: `${Math.min(100, (u / effectiveCap) * 100)}%` }} />;
+              })}
+            </div>
+            <p className={cn("mt-1 text-xs", check.ok ? "text-text-2" : "text-destructive")} data-testid="platform-org-ai-fnsum">
+              {check.ok
+                ? `Repartido ${Math.round(check.pct ?? 0)} % (${formatUsd2(check.repartidoUsd)} de ${formatUsd2(effectiveCap)}) · libre ${Math.max(0, 100 - Math.round(check.pct ?? 0))} %`
+                : check.message}
+            </p>
+          </div>
+        )}
+        <div className="flex flex-wrap items-center justify-end gap-3">
+          {safetyMsg && (
+            <span className="text-xs text-success-text" data-testid="platform-org-ai-safety-saved">
+              ✓ {safetyMsg}
+            </span>
+          )}
+          <Button size="sm" disabled={busy || !check.ok} onClick={() => void saveSafety()} data-testid="platform-org-ai-safety-save">
             Guardar topes de seguridad
           </Button>
         </div>
+        <p className="rounded-md bg-muted px-3 py-2 text-xs text-text-2">
+          «% del total» sigue al total si lo cambias; en dólares o millones de tokens el valor queda fijo. Siempre ves el equivalente en gris.
+        </p>
       </section>
 
       <section className="space-y-3 rounded-lg border bg-card p-4" data-testid="platform-org-ai-models">

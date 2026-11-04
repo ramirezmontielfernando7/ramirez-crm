@@ -2,6 +2,8 @@ import { and, eq } from "drizzle-orm";
 import { withTenant, schema } from "@/lib/db";
 import { scoped } from "@/lib/db/tenant";
 import { parseEffort } from "@/lib/ai/choice";
+import type { FnCapValue } from "@/lib/fn-caps";
+import { CAP_UNITS, type CapUnit } from "@/lib/fn-caps";
 import { PLAN_SCOPES, type AiFunctionValues } from "./platform";
 
 /**
@@ -13,19 +15,22 @@ import { PLAN_SCOPES, type AiFunctionValues } from "./platform";
 
 export type OverMode = "block" | "warn";
 const asMode = (v: string | null | undefined): OverMode => (v === "warn" ? "warn" : "block");
+const asUnit = (v: string | null | undefined): CapUnit => ((CAP_UNITS as readonly string[]).includes(v ?? "") ? (v as CapUnit) : "usd");
+const capOf = (unit: string | null, value: string | null, usd: string | null): FnCapValue => ({ unit: asUnit(unit), value: asNum(value), usd: asNum(usd) });
 const asNum = (v: string | null | undefined): number | null => (v === null || v === undefined ? null : Number(v));
 
 /** 0071 — Topes de seguridad por función en dólares (NULL = usa la bolsa) y qué hacer al llenarse. */
 export type OrgAiCaps = {
-  agentUsdLimit: number | null;
-  creatorUsdLimit: number | null;
-  assistantUsdLimit: number | null;
+  /** 0072 — Cada tope como se escribió (unidad, valor y dólares ya convertidos). */
+  caps: { agent: FnCapValue; creator: FnCapValue; assistant: FnCapValue };
   poolMode: OverMode;
   agentMode: OverMode;
   creatorMode: OverMode;
   assistantMode: OverMode;
 };
 export type OrgAiOverrides = AiFunctionValues & { monthlyUsdLimit: number | null } & OrgAiCaps;
+/** Lo que se puede cambiar: `caps` por función (las que no vengan se conservan). */
+export type OrgAiPatch = Partial<Omit<OrgAiOverrides, "caps">> & { caps?: Partial<OrgAiCaps["caps"]> };
 export type OrgAiState = { overrides: OrgAiOverrides; plan: (typeof PLAN_SCOPES)[number] | null };
 
 const EMPTY: OrgAiOverrides = {
@@ -35,9 +40,11 @@ const EMPTY: OrgAiOverrides = {
   creatorEffort: null,
   assistantModel: null,
   monthlyUsdLimit: null,
-  agentUsdLimit: null,
-  creatorUsdLimit: null,
-  assistantUsdLimit: null,
+  caps: {
+    agent: { unit: "pct", value: null, usd: null },
+    creator: { unit: "pct", value: null, usd: null },
+    assistant: { unit: "pct", value: null, usd: null },
+  },
   poolMode: "block",
   agentMode: "block",
   creatorMode: "block",
@@ -63,9 +70,11 @@ export async function getOrgAiState(organizationId: string): Promise<OrgAiState>
         creatorEffort: parseEffort(q.creatorEffort) ?? null,
         assistantModel: q.assistantModel?.trim() || null,
         monthlyUsdLimit: q.monthlyUsdLimit === null ? null : Number(q.monthlyUsdLimit),
-        agentUsdLimit: asNum(q.agentUsdLimit),
-        creatorUsdLimit: asNum(q.creatorUsdLimit),
-        assistantUsdLimit: asNum(q.assistantUsdLimit),
+        caps: {
+          agent: capOf(q.agentCapUnit, q.agentCapValue, q.agentUsdLimit),
+          creator: capOf(q.creatorCapUnit, q.creatorCapValue, q.creatorUsdLimit),
+          assistant: capOf(q.assistantCapUnit, q.assistantCapValue, q.assistantUsdLimit),
+        },
         poolMode: asMode(q.poolMode),
         agentMode: asMode(q.agentMode),
         creatorMode: asMode(q.creatorMode),
@@ -75,7 +84,17 @@ export async function getOrgAiState(organizationId: string): Promise<OrgAiState>
   });
 }
 
-export async function saveOrgAiOverrides(organizationId: string, patch: Partial<OrgAiOverrides>): Promise<OrgAiOverrides> {
+/** Las columnas de un tope por función: `pct` guarda solo el valor (los dólares los resuelve el total). */
+function capColumns(fn: "agent" | "creator" | "assistant", cap: FnCapValue | undefined, q: typeof schema.aiQuota.$inferSelect | undefined) {
+  const unit = `${fn}CapUnit` as const;
+  const value = `${fn}CapValue` as const;
+  const usd = `${fn}UsdLimit` as const;
+  if (!cap) return { [unit]: q?.[unit] ?? "usd", [value]: q?.[value] ?? null, [usd]: q?.[usd] ?? null };
+  if (cap.value === null) return { [unit]: cap.unit, [value]: null, [usd]: null };
+  return { [unit]: cap.unit, [value]: String(cap.value), [usd]: cap.unit === "pct" || cap.usd === null ? null : String(cap.usd) };
+}
+
+export async function saveOrgAiOverrides(organizationId: string, patch: OrgAiPatch): Promise<OrgAiOverrides> {
   await withTenant(organizationId, async (tx) => {
     const [q] = await tx.select().from(schema.aiQuota).where(scoped(schema.aiQuota.organizationId, organizationId)).limit(1);
     const keep = <K extends keyof OrgAiOverrides>(k: K, cur: string | null) =>
@@ -87,9 +106,9 @@ export async function saveOrgAiOverrides(organizationId: string, patch: Partial<
       creatorEffort: keep("creatorEffort", q?.creatorEffort ?? null),
       assistantModel: keep("assistantModel", q?.assistantModel ?? null),
       monthlyUsdLimit: keep("monthlyUsdLimit", q?.monthlyUsdLimit ?? null),
-      agentUsdLimit: keep("agentUsdLimit", q?.agentUsdLimit ?? null),
-      creatorUsdLimit: keep("creatorUsdLimit", q?.creatorUsdLimit ?? null),
-      assistantUsdLimit: keep("assistantUsdLimit", q?.assistantUsdLimit ?? null),
+      ...capColumns("agent", patch.caps?.agent, q),
+      ...capColumns("creator", patch.caps?.creator, q),
+      ...capColumns("assistant", patch.caps?.assistant, q),
       poolMode: asMode(patch.poolMode ?? q?.poolMode),
       agentMode: asMode(patch.agentMode ?? q?.agentMode),
       creatorMode: asMode(patch.creatorMode ?? q?.creatorMode),

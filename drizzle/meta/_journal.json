@@ -498,6 +498,13 @@
       "when": 1794002400000,
       "tag": "0071_limites_simples",
       "breakpoints": true
+    },
+    {
+      "idx": 72,
+      "version": "7",
+      "when": 1794088800000,
+      "tag": "0072_reparto_por_funcion",
+      "breakpoints": true
     }
   ]
 }
