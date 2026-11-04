@@ -16,6 +16,10 @@ export const PLATFORM_TABLES: Readonly<Record<string, string>> = {
   account_link_token: "Fase 3: enlaces de un solo uso para poner contraseña, antes de tener sesión (solo pool de sistema)",
   platform_ai_pricing:
     "036 PR 3: precios de IA y tipo de cambio que captura el administrador de plataforma, para estimar el costo de TODAS las organizaciones (solo pool de sistema)",
+  platform_ai_defaults:
+    "0070: modelos de IA por defecto de la instancia y de cada plan, y la meta de gasto de la plataforma; valen para TODAS las organizaciones (solo pool de sistema)",
+  platform_ai_model_price:
+    "0070: precio de cada modelo de IA para estimar el costo de las llamadas de todas las organizaciones (solo pool de sistema)",
   evolution_server:
     "Conexión directa PR 1: servidores del dispositivo vinculado que registra el administrador de plataforma; atienden a VARIAS organizaciones (solo pool de sistema, llave cifrada)",
   ai_oauth_client:

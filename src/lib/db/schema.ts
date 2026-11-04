@@ -2609,8 +2609,27 @@ export const aiQuota = pgTable("ai_quota", {
    * sin ninguno, el asistente no responde (nunca corre sin tope).
    */
   assistantMonthlyTokenLimit: integer("assistant_monthly_token_limit"),
+  /**
+   * 0070 — Tope mensual de IA en DÓLARES (costo estimado con el precio del
+   * modelo de cada llamada, `ai_usage.est_cost_usd`). NULL = el de su plan
+   * (`platform_ai_defaults`); sin ninguno, no hay tope en dólares.
+   */
+  monthlyUsdLimit: numeric("monthly_usd_limit", { precision: 12, scale: 4 }),
+  /**
+   * 0070 — Modelo y esfuerzo PROPIOS de esta organización por función
+   * (agentes, creador, asistente). NULL = el de su plan o el de la instancia.
+   * Los elige solo el administrador de plataforma.
+   */
+  agentModel: text("agent_model"),
+  agentEffort: text("agent_effort"),
+  creatorModel: text("creator_model"),
+  creatorEffort: text("creator_effort"),
+  assistantModel: text("assistant_model"),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 }, (t) => [
+  check("ai_quota_usd_chk", sql`${t.monthlyUsdLimit} is null or ${t.monthlyUsdLimit} >= 0`),
+  check("ai_quota_agent_effort_chk", sql`${t.agentEffort} is null or ${t.agentEffort} in ('none', 'low', 'medium', 'high')`),
+  check("ai_quota_creator_effort_chk", sql`${t.creatorEffort} is null or ${t.creatorEffort} in ('none', 'low', 'medium', 'high')`),
   check(
     "ai_quota_assistant_tokens_chk",
     sql`${t.assistantMonthlyTokenLimit} is null or ${t.assistantMonthlyTokenLimit} >= 0`
@@ -2953,6 +2972,12 @@ export const aiUsage = pgTable(
      * usa entonces el estimado con los precios de `platform_ai_pricing`.
      */
     costUsd: numeric("cost_usd", { precision: 14, scale: 6 }).notNull().default("0"),
+    /**
+     * 0070 — Costo ESTIMADO (USD) con el precio del modelo que contestó cada
+     * llamada (`platform_ai_model_price` o la lista conocida). Es lo que se
+     * compara contra el tope en dólares (`ai_quota.monthly_usd_limit`).
+     */
+    estCostUsd: numeric("est_cost_usd", { precision: 14, scale: 6 }).notNull().default("0"),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },
   (t) => [primaryKey({ columns: [t.organizationId, t.period, t.kind] })]
@@ -3059,7 +3084,7 @@ export const usageAlert = pgTable(
       .references(() => organization.id, { onDelete: "cascade" }),
     period: text("period").notNull(),
     metric: text("metric", {
-      enum: ["ai_tokens", "ai_turns", "embed_tokens", "storage", "members", "modules", "assistant_tokens"],
+      enum: ["ai_tokens", "ai_turns", "embed_tokens", "storage", "members", "modules", "assistant_tokens", "ai_usd"],
     }).notNull(),
     threshold: integer("threshold").notNull(),
     used: bigint("used", { mode: "number" }).notNull(),
@@ -3072,7 +3097,7 @@ export const usageAlert = pgTable(
     primaryKey({ columns: [t.organizationId, t.period, t.metric, t.threshold] }),
     check(
       "usage_alert_metric_chk",
-      sql`${t.metric} in ('ai_tokens', 'ai_turns', 'embed_tokens', 'storage', 'members', 'modules', 'assistant_tokens')`
+      sql`${t.metric} in ('ai_tokens', 'ai_turns', 'embed_tokens', 'storage', 'members', 'modules', 'assistant_tokens', 'ai_usd')`
     ),
     check("usage_alert_threshold_chk", sql`${t.threshold} in (80, 100)`),
   ]
@@ -4393,3 +4418,59 @@ export const aiUsageModel = pgTable("ai_usage_model", {
   completionTokens: integer("completion_tokens").notNull().default(0),
   costUsd: numeric("cost_usd", { precision: 14, scale: 6 }).notNull().default("0"),
 }, (t) => [primaryKey({ columns: [t.organizationId, t.period, t.kind, t.model] })]);
+
+/**
+ * 0070 — Modelos de IA por defecto de la INSTANCIA y de cada PLAN, más la
+ * meta de gasto de la plataforma. Tabla de PLATAFORMA (sin organización),
+ * solo pool de sistema. `scope`: 'instance' (los «Modelos de Dashfort»,
+ * encima de las variables de entorno) o el plan ('esencial' | 'pro' |
+ * 'ultra'). NULL en una columna = hereda (plan → instancia → entorno).
+ * Prioridad al responder: empresa (`ai_quota`) > plan > instancia > entorno.
+ * Única puerta: `src/server/ai-settings/`.
+ */
+export const platformAiDefaults = pgTable(
+  "platform_ai_defaults",
+  {
+    scope: text("scope").primaryKey(),
+    agentModel: text("agent_model"),
+    agentEffort: text("agent_effort"),
+    creatorModel: text("creator_model"),
+    creatorEffort: text("creator_effort"),
+    assistantModel: text("assistant_model"),
+    /** Solo planes: tope mensual de IA en USD de las empresas de ese plan. */
+    monthlyUsdLimit: numeric("monthly_usd_limit", { precision: 12, scale: 4 }),
+    /** Solo 'instance': meta de gasto mensual y créditos de la plataforma. */
+    budgetMonthlyUsd: numeric("budget_monthly_usd", { precision: 12, scale: 4 }),
+    creditsUsd: numeric("credits_usd", { precision: 12, scale: 4 }),
+    creditsSince: text("credits_since"),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+    updatedBy: text("updated_by").references(() => user.id, { onDelete: "set null" }),
+  },
+  (t) => [
+    check("platform_ai_defaults_scope_chk", sql`${t.scope} in ('instance', 'esencial', 'pro', 'ultra')`),
+    check("platform_ai_defaults_agent_effort_chk", sql`${t.agentEffort} is null or ${t.agentEffort} in ('none', 'low', 'medium', 'high')`),
+    check("platform_ai_defaults_creator_effort_chk", sql`${t.creatorEffort} is null or ${t.creatorEffort} in ('none', 'low', 'medium', 'high')`),
+    check("platform_ai_defaults_usd_chk", sql`${t.monthlyUsdLimit} is null or ${t.monthlyUsdLimit} >= 0`),
+    check("platform_ai_defaults_since_chk", sql`${t.creditsSince} is null or ${t.creditsSince} ~ '^[0-9]{4}-[0-9]{2}-01$'`),
+  ]
+);
+
+/**
+ * 0070 — Precio de cada MODELO (USD por millón de tokens de entrada y de
+ * salida) para estimar el costo de cada llamada y el tope en dólares. Sin
+ * fila, vale la lista conocida del código (`KNOWN_PRICES`). Tabla de
+ * PLATAFORMA, solo pool de sistema.
+ */
+export const platformAiModelPrice = pgTable(
+  "platform_ai_model_price",
+  {
+    model: text("model").primaryKey(),
+    inputUsdPerMtok: numeric("input_usd_per_mtok", { precision: 12, scale: 6 }).notNull(),
+    outputUsdPerMtok: numeric("output_usd_per_mtok", { precision: 12, scale: 6 }).notNull(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+    updatedBy: text("updated_by").references(() => user.id, { onDelete: "set null" }),
+  },
+  (t) => [
+    check("platform_ai_model_price_positive_chk", sql`${t.inputUsdPerMtok} >= 0 and ${t.outputUsdPerMtok} >= 0`),
+  ]
+);

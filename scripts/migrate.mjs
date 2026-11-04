@@ -32,6 +32,8 @@ const SOLO_SISTEMA = [
   "account_link_token",
   "evolution_server",
   "ai_oauth_client",
+  "platform_ai_defaults",
+  "platform_ai_model_price",
 ];
 
 /** Roles de la 0026 y la variable que trae la contraseña de cada uno. */

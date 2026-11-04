@@ -3,13 +3,14 @@ import { chatJson, type ChatJsonResult, type ChatMessage } from "@/lib/ai";
 import { defaultUseOfKind, type AiEffort, type AiUse, type AssistantMode } from "@/lib/ai/choice";
 import { isAiConfigured } from "@/lib/env";
 import { resolveAiChoice } from "@/server/ai-quota/choice";
+import { priceOfModel } from "@/server/ai-settings/platform";
 import { logger } from "@/lib/log";
 import {
   ASSISTANT_KIND,
   isAgentKind,
   recordAgentUsage,
   recordUsage,
-  recordAnalysisModel,
+  recordModelUsage,
   reserveTurn,
   type AiKind,
   type ReservationLimit,
@@ -41,6 +42,7 @@ const log = logger("ai");
 /** El motivo del rechazo, para registros y para quien llama. */
 export const QUOTA_DETAIL: Record<ReservationLimit | "assistant_check_failed", string> = {
   turns: "tope mensual de turnos de IA alcanzado",
+  usd: "tope mensual de IA (en dólares) alcanzado",
   tokens: "tope mensual de tokens de IA alcanzado",
   assistant_tokens: "tope mensual del asistente interno alcanzado",
   assistant_unset: "el asistente interno no tiene tope asignado",
@@ -70,9 +72,11 @@ export async function chatJsonForOrg<T>(
   // Modelo y esfuerzo de la función; un `model` explícito (pruebas, «Probar
   // conexión») manda sobre el elegido.
   let callOpts = rest;
+  let usdLimit: number | null = null;
   try {
     const choice = await resolveAiChoice(organizationId, use ?? defaultUseOfKind(kind), mode);
     callOpts = { ...rest, model: rest.model ?? choice.model, effort: rest.effort ?? choice.effort };
+    usdLimit = choice.usdLimit;
   } catch (err) {
     log.error("no se pudo resolver el modelo de la organización; se usa el de la instancia", { org: organizationId, tipo: kind, err });
   }
@@ -81,7 +85,7 @@ export async function chatJsonForOrg<T>(
   const now = new Date();
   const reservado = true;
   try {
-    const r = await reserveTurn(organizationId, kind, now, budget);
+    const r = await reserveTurn(organizationId, kind, now, budget, usdLimit);
     if (!r.ok) {
       log.warn("cuota mensual de IA agotada: no se llama al modelo", { org: organizationId, tipo: kind, tope: r.limit });
       return { ok: false, error: "quota_exceeded", detail: QUOTA_DETAIL[r.limit] };
@@ -95,14 +99,17 @@ export async function chatJsonForOrg<T>(
 
   if (reservado) {
     try {
-      await recordUsage(organizationId, kind, result.usage ?? { promptTokens: 0, completionTokens: 0 }, now, budget);
+      const estUsd = await estimateCallUsd(result.model ?? callOpts.model, result.usage);
+      await recordUsage(organizationId, kind, result.usage ?? { promptTokens: 0, completionTokens: 0 }, now, budget, estUsd);
     } catch (err) {
       log.error("no se pudieron sumar los tokens del turno de IA", { org: organizationId, tipo: kind, err });
     }
   }
-  if (kind === "analysis" && callOpts.model && result.usage) {
-    try { await recordAnalysisModel(organizationId, callOpts.model, result.usage, now); }
-    catch (err) { log.error("no se pudo registrar el modelo del análisis", { org: organizationId, err }); }
+  // 0070: qué modelo contestó, por función (antes solo el análisis).
+  const usedModel = result.model ?? callOpts.model;
+  if (usedModel && result.usage) {
+    try { await recordModelUsage(organizationId, kind, usedModel, result.usage, now); }
+    catch (err) { log.error("no se pudo registrar el modelo de la llamada", { org: organizationId, tipo: kind, err }); }
   }
   // 036 — El desglose por agente: solo de turnos que se contaron, y nunca
   // tumba el turno (un agente que ya no existe, la BD caída…).
@@ -122,4 +129,28 @@ export async function chatJsonForOrg<T>(
 /** Cota conservadora para tres intentos: UTF-8 + encuadre + salida máxima. */
 export function reservationBudget(messages: ChatMessage[]): number {
   return 3 * (messages.reduce((n, m) => n + Buffer.byteLength(m.content, "utf8") + 64, 0) + 1024 + 8192);
+}
+
+/**
+ * 0070 — Costo ESTIMADO de una llamada con el precio de su modelo (USD por
+ * millón de tokens). Sin precio conocido: 0, y se avisa en el registro (el
+ * tope en dólares no puede contar lo que no sabe cuánto cuesta).
+ */
+const sinPrecio = new Set<string>();
+export async function estimateCallUsd(model: string | undefined, usage: { promptTokens: number; completionTokens: number } | undefined): Promise<number> {
+  if (!model || !usage) return 0;
+  try {
+    const p = await priceOfModel(model);
+    if (!p) {
+      if (!sinPrecio.has(model)) {
+        sinPrecio.add(model);
+        log.warn("modelo sin precio: su costo no cuenta en el tope en dólares", { modelo: model });
+      }
+      return 0;
+    }
+    return (usage.promptTokens * p.inputUsdPerMtok + usage.completionTokens * p.outputUsdPerMtok) / 1_000_000;
+  } catch (err) {
+    log.error("no se pudo leer el precio del modelo", { modelo: model, err });
+    return 0;
+  }
 }

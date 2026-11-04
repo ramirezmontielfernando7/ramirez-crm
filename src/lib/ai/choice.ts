@@ -112,3 +112,40 @@ export function defaultUseOfKind(kind: string): AiUse {
   if (kind === "writing") return "writing";
   return "agent";
 }
+
+/**
+ * 0070 — Una capa de valores elegidos (empresa, plan o instancia). NULL o
+ * ausente = hereda de la siguiente capa; al final, el entorno.
+ */
+export type AiLayer = {
+  agentModel?: string | null;
+  agentEffort?: AiEffort | null;
+  creatorModel?: string | null;
+  creatorEffort?: AiEffort | null;
+  assistantModel?: string | null;
+};
+
+const firstOf = <T>(values: (T | null | undefined)[]): T | undefined => values.find((v) => v !== null && v !== undefined) ?? undefined;
+
+/**
+ * Modelo y esfuerzo de un uso con las capas en orden de prioridad (empresa,
+ * plan, instancia) y, al final, el entorno. Pura.
+ */
+export function layeredChoice(use: AiUse, layers: AiLayer[], env: ChoiceEnv, mode: AssistantMode = "normal"): AiChoice {
+  const base = envChoice(use, env, mode);
+  const fn = functionOfUse(use);
+  if (fn === "agent") {
+    return {
+      model: firstOf(layers.map((l) => l.agentModel)) ?? base.model,
+      effort: firstOf(layers.map((l) => l.agentEffort)) ?? base.effort,
+    };
+  }
+  if (fn === "creator") {
+    return {
+      model: firstOf(layers.map((l) => l.creatorModel)) ?? base.model,
+      effort: use === "judge" ? base.effort : (firstOf(layers.map((l) => l.creatorEffort)) ?? base.effort),
+    };
+  }
+  // Asistente y análisis: el esfuerzo lo da el modo (o «bajo» al analizar).
+  return { model: firstOf(layers.map((l) => l.assistantModel)) ?? base.model, effort: base.effort };
+}

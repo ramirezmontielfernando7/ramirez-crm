@@ -115,6 +115,14 @@ const PERMITIDOS: Record<string, { usos: number; motivo: string }> = {
     usos: 1,
     motivo: "036 PR 3b: precios de IA de la plataforma (platform_ai_pricing, tabla de PLATAFORMA sin organización) con su historial; solo el administrador de plataforma",
   },
+  "src/server/ai-settings/platform.ts": {
+    usos: 5,
+    motivo: "0070: modelos, esfuerzo y tope en USD de la instancia y de cada plan (platform_ai_defaults) y precio por modelo (platform_ai_model_price), tablas de PLATAFORMA sin organización; más el gasto estimado sumado de todas las organizaciones (solo números)",
+  },
+  "src/server/ai-settings/admin.ts": {
+    usos: 1,
+    motivo: "0070: confirma que la organización existe y toma su nombre para la bitácora de plataforma al ver o cambiar su modelo y tope en dólares; nunca contenido",
+  },
   "src/server/costs/report.ts": {
     usos: 1,
     motivo: "036 PR 3b: el panel de costos lee tokens y costo del mes (ai_usage) de TODAS las organizaciones en una lectura agrupada, más el nombre de las que tuvieron consumo; solo números, nunca contenido",

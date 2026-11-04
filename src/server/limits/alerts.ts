@@ -1,3 +1,4 @@
+import { orgUsdLimit } from "@/server/ai-quota/choice";
 import { and, desc, eq, isNull } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { scoped } from "@/lib/db/tenant";
@@ -73,7 +74,12 @@ export async function checkAiAlerts(organizationId: string, now = new Date()): P
     // primera no queda como un rechazo sin manejar.
     const limits = await getEffectiveLimits(organizationId);
     const [row] = await getDb()
-      .select({ turns: schema.aiUsage.turns, p: schema.aiUsage.promptTokens, c: schema.aiUsage.completionTokens })
+      .select({
+        turns: schema.aiUsage.turns,
+        p: schema.aiUsage.promptTokens,
+        c: schema.aiUsage.completionTokens,
+        usd: schema.aiUsage.estCostUsd,
+      })
       .from(schema.aiUsage)
       .where(
         scoped(
@@ -87,6 +93,11 @@ export async function checkAiAlerts(organizationId: string, now = new Date()): P
     if (!row) return;
     await recordCrossings(organizationId, "ai_tokens", row.p + row.c, limits.aiTokens.value, now);
     await recordCrossings(organizationId, "ai_turns", row.turns, limits.aiTurns.value, now);
+    // 0070 — Tope en dólares (en centavos: la tabla guarda enteros).
+    const usdLimit = await orgUsdLimit(organizationId);
+    if (usdLimit !== null) {
+      await recordCrossings(organizationId, "ai_usd", Math.round(Number(row.usd ?? 0) * 100), Math.round(usdLimit * 100), now);
+    }
   });
 }
 

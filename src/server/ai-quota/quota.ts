@@ -56,7 +56,7 @@ export type QuotaLimits = { turns: number | null; tokens: number | null };
  * asistente (`assistant_tokens`) o que el asistente no tiene tope asignado
  * (`assistant_unset`).
  */
-export type ReservationLimit = "turns" | "tokens" | "assistant_tokens" | "assistant_unset";
+export type ReservationLimit = "turns" | "tokens" | "usd" | "assistant_tokens" | "assistant_unset";
 export type Reservation = { ok: true } | { ok: false; limit: ReservationLimit };
 class AssistantBudgetExceeded extends Error {}
 
@@ -99,7 +99,9 @@ export async function reserveTurn(
   organizationId: string,
   kind: AiKind,
   now = new Date(),
-  budget = 0
+  budget = 0,
+  /** 0070 — Tope mensual en dólares (costo estimado); `null` = sin tope en dólares. */
+  usdLimit: number | null = null
 ): Promise<Reservation> {
   const period = currentPeriod(now);
   return withTenant<Reservation>(organizationId, async (db) => {
@@ -128,6 +130,9 @@ export async function reserveTurn(
         eq(schema.aiUsage.period, period),
         eq(schema.aiUsage.kind, TOTAL),
         limits.turns === null ? sql`true` : sql`${schema.aiUsage.turns} < ${limits.turns}`,
+        // 0070: el costo se conoce DESPUÉS de cada llamada (como los tokens): el
+        // último turno puede pasarse unos centavos; el siguiente ya no entra.
+        usdLimit === null ? sql`true` : sql`${schema.aiUsage.estCostUsd} < ${usdLimit}`,
         limits.tokens === null
           ? sql`true`
           : sql`${schema.aiUsage.promptTokens} + ${schema.aiUsage.completionTokens} + ${liveReserved()} + ${budget} <= ${limits.tokens}`
@@ -136,7 +141,7 @@ export async function reserveTurn(
     .returning({ turns: schema.aiUsage.turns });
   if (reserved.length === 0) {
     const [row] = await db
-      .select({ turns: schema.aiUsage.turns, p: schema.aiUsage.promptTokens, c: schema.aiUsage.completionTokens })
+      .select({ turns: schema.aiUsage.turns, p: schema.aiUsage.promptTokens, c: schema.aiUsage.completionTokens, usd: schema.aiUsage.estCostUsd })
       .from(schema.aiUsage)
       .where(
         and(
@@ -147,7 +152,8 @@ export async function reserveTurn(
       )
       .limit(1);
     const turnsFull = limits.turns !== null && (row?.turns ?? 0) >= limits.turns;
-    return { ok: false, limit: turnsFull ? "turns" : "tokens" };
+    const usdFull = usdLimit !== null && Number(row?.usd ?? 0) >= usdLimit;
+    return { ok: false, limit: turnsFull ? "turns" : usdFull ? "usd" : "tokens" };
   }
 
   // El desglose por tipo (no se compara contra nada; solo se reporta).
@@ -186,10 +192,13 @@ export async function recordUsage(
   kind: AiKind,
   usage: LlmUsage,
   now = new Date(),
-  budget = 0
+  budget = 0,
+  /** 0070 — Costo estimado de la llamada (USD) con el precio de su modelo. */
+  estUsd = 0
 ): Promise<void> {
   const cost = costOf(usage);
-  if (usage.promptTokens === 0 && usage.completionTokens === 0 && cost === 0 && budget === 0) return;
+  const est = Number.isFinite(estUsd) && estUsd > 0 ? estUsd : 0;
+  if (usage.promptTokens === 0 && usage.completionTokens === 0 && cost === 0 && budget === 0 && est === 0) return;
   const period = currentPeriod(now);
   await withTenant(organizationId, async (db) => {
   for (const k of [TOTAL, kind]) {
@@ -200,6 +209,7 @@ export async function recordUsage(
         promptTokens: sql`${schema.aiUsage.promptTokens} + ${usage.promptTokens}`,
         completionTokens: sql`${schema.aiUsage.completionTokens} + ${usage.completionTokens}`,
         costUsd: sql`${schema.aiUsage.costUsd} + ${cost}`,
+        estCostUsd: sql`${schema.aiUsage.estCostUsd} + ${est}`,
         updatedAt: new Date(),
       })
       .where(
@@ -365,8 +375,8 @@ export async function getUsageSummary(organizationId: string, now = new Date()):
 }
 
 /** Ledger por modelo del análisis; no se incluye dos veces en el total. */
-export async function recordAnalysisModel(organizationId: string, model: string, usage: LlmUsage, now: Date): Promise<void> {
-  await getDb().insert(schema.aiUsageModel).values({ organizationId, period: currentPeriod(now), kind: "analysis", model, turns: 1, promptTokens: usage.promptTokens, completionTokens: usage.completionTokens, costUsd: String(costOf(usage)) }).onConflictDoUpdate({
+export async function recordModelUsage(organizationId: string, kind: AiKind, model: string, usage: LlmUsage, now: Date): Promise<void> {
+  await getDb().insert(schema.aiUsageModel).values({ organizationId, period: currentPeriod(now), kind, model, turns: 1, promptTokens: usage.promptTokens, completionTokens: usage.completionTokens, costUsd: String(costOf(usage)) }).onConflictDoUpdate({
     target: [schema.aiUsageModel.organizationId, schema.aiUsageModel.period, schema.aiUsageModel.kind, schema.aiUsageModel.model],
     set: { turns: sql`${schema.aiUsageModel.turns} + 1`, promptTokens: sql`${schema.aiUsageModel.promptTokens} + ${usage.promptTokens}`, completionTokens: sql`${schema.aiUsageModel.completionTokens} + ${usage.completionTokens}`, costUsd: sql`${schema.aiUsageModel.costUsd} + ${costOf(usage)}` },
   });
