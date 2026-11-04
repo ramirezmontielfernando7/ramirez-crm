@@ -36,7 +36,9 @@ vi.mock("@/server/ai-quota/llm", () => ({
     if (forced === "broken") return { ok: false, error: "invalid_output", detail: "no es JSON", usage };
     const raw = aiMockCompletion(messages);
     const parsed = schema.safeParse(JSON.parse(raw));
-    return parsed.success ? { ok: true, data: parsed.data, raw, usage } : { ok: false, error: "invalid_output", detail: "esquema", usage };
+    // Como la puerta real: el modelo lo resuelve ella (aquí, el del análisis del entorno).
+    const model = process.env.OPENROUTER_ANALYSIS_MODEL;
+    return parsed.success ? { ok: true, data: parsed.data, raw, usage, model } : { ok: false, error: "invalid_output", detail: "esquema", usage, model };
   },
 }));
 
@@ -154,7 +156,8 @@ describe("038 (PR 3) — análisis guardado por conversación", () => {
     expect(r.coverage).toEqual({ total: 7, revisadas: 4, sinInformacion: 3, faltan: 0 });
     expect(analysisCalls()).toHaveLength(1);
     expect(analysisCalls()[0]!.kind).toBe("analysis");
-    expect(analysisCalls()[0]!.opts?.model).toBe("barato/analisis");
+    // El modelo lo elige la puerta (`chatJsonForOrg`), no quien analiza.
+    expect(analysisCalls()[0]!.opts?.model).toBeUndefined();
     expect(ctx.usage).toMatchObject({ promptTokens: 1000, completionTokens: 100 });
     expect(ctx.insightBudget.remaining).toBe(16);
 
