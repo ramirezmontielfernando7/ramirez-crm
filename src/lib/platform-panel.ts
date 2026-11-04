@@ -11,9 +11,15 @@ type PanelOrg = {
   name: string;
   status: "active" | "suspended" | "deleted";
   usage: {
-    ai: { turns: number; tokens: number; limits: { turns: number | null; tokens: number | null } };
+    ai: {
+      turns: number;
+      tokens: number;
+      limits: { turns: number | null; tokens: number | null };
+      estUsd?: number;
+      usdLimit?: number | null;
+    };
     storageBytes: number;
-    plan: { storageLimitBytes: number | null };
+    plan: { storageLimitBytes: number | null; planKey?: string };
     alerts: { metric: string; threshold: number }[];
   } | null;
 };
@@ -86,4 +92,36 @@ export function buildPanel(orgs: readonly PanelOrg[], topN = 5): PanelSummary {
     nearLimit: near,
     topAi,
   };
+}
+
+/** 0070 — Una empresa en «Consumo de IA por empresa» (dólares estimados contra su tope). */
+export type AiUsdRow = { id: string; name: string; planKey: string | null; estUsd: number; usdLimit: number | null; ratio: number | null };
+
+/**
+ * 0070 — «Mi panel» sencillo: el consumo de IA de cada empresa ACTIVA en
+ * dólares contra su tope (propio o del plan), la más llena primero; las que no
+ * tienen tope van al final, por gasto. `nearCap` = cuántas van en 80 % o más.
+ */
+export function aiUsdRows(orgs: readonly PanelOrg[]): { rows: AiUsdRow[]; nearCap: number } {
+  const rows = orgs
+    .filter((o) => o.status === "active")
+    .map((o) => {
+      const estUsd = o.usage?.ai.estUsd ?? 0;
+      const usdLimit = o.usage?.ai.usdLimit ?? null;
+      return {
+        id: o.id,
+        name: o.name,
+        planKey: o.usage?.plan.planKey ?? null,
+        estUsd,
+        usdLimit,
+        ratio: usdLimit && usdLimit > 0 ? estUsd / usdLimit : null,
+      };
+    })
+    .sort((a, b) => {
+      if (a.ratio !== null && b.ratio !== null) return b.ratio - a.ratio || b.estUsd - a.estUsd;
+      if (a.ratio !== null) return -1;
+      if (b.ratio !== null) return 1;
+      return b.estUsd - a.estUsd;
+    });
+  return { rows, nearCap: rows.filter((r) => r.ratio !== null && r.ratio >= 0.8).length };
 }

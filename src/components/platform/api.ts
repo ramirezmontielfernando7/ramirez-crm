@@ -25,7 +25,15 @@ export type Limits = { turns: number | null; tokens: number | null };
 /** 036 (PR 4) — El consumo del mes de una organización, para su fila. */
 export type OrgUsage = {
   period: string;
-  ai: { turns: number; tokens: number; limits: Limits };
+  ai: {
+    turns: number;
+    tokens: number;
+    limits: Limits;
+    /** 0070 — Gasto estimado del mes y su tope en dólares (propio o del plan). */
+    estUsd?: number;
+    usdLimit?: number | null;
+    usdLimitOrigin?: "own" | "plan" | null;
+  };
   storageBytes: number;
   /** 036 (PR 3a) — Plan y topes propios. */
   plan: {
