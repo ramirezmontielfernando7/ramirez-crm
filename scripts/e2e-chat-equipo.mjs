@@ -230,7 +230,8 @@ async function main() {
   const p2 = (await A.api(`/api/team-chat/threads/${D}/messages?limit=50&before=${p1.messages[0].id}`)).json;
   ok("before= trae lo anterior sin repetir", p2?.messages?.length >= 5 && !p2.messages.some((m) => p1.messages.some((x) => x.id === m.id)));
   ok("limit fuera de rango → 422", (await A.api(`/api/team-chat/threads/${D}/messages?limit=5000`)).res.status === 422);
-  ok("un mensaje de más de 4000 caracteres → 422", (await post(A, D, "x".repeat(4001))).res.status === 422);
+  ok("un mensaje largo (5,000 caracteres) se envía", (await post(A, D, "x".repeat(5000))).res.status < 300);
+  ok("un mensaje de más de 20,000 caracteres → 422", (await post(A, D, "x".repeat(20001))).res.status === 422);
   ok("un mensaje vacío → 422", (await post(A, D, "   ")).res.status === 422);
 
   console.log("\n== Adjuntos ==");

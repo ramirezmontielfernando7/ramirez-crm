@@ -3,6 +3,7 @@ import { apiError, parseBody, withAuth } from "@/lib/api";
 import { getConversation, listMessages } from "@/server/inbox/queries";
 import { serializeMessage } from "@/server/inbox/ingest";
 import { SendError, sendStructured, sendText } from "@/server/inbox/send";
+import { CHAT_TEXT_MAX } from "@/lib/message-length";
 
 export const dynamic = "force-dynamic";
 
@@ -31,7 +32,8 @@ export const GET = withAuth(async (session, req: Request, ctx: Params) => {
 const sendSchema = z.union([
   z.object({
     type: z.literal("text").optional(),
-    text: z.string().trim().min(1).max(4096),
+    // Hasta 65,536 (lo de la app de WhatsApp): por Meta sale en partes de 4,096.
+    text: z.string().trim().min(1).max(CHAT_TEXT_MAX),
   }),
   z.object({
     type: z.literal("location"),

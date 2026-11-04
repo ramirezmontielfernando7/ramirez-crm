@@ -22,14 +22,25 @@ import { borrarOrganizaciones, crearOrganizacion } from "./fixtures";
  * DF-18: un mensaje que llega tarde no hace retroceder la fecha del chat.
  */
 
-const graph = vi.hoisted(() => ({ mode: "ok" as "ok" | "reject" | "timeout", calls: 0 }));
+const graph = vi.hoisted(() => ({
+  mode: "ok" as "ok" | "reject" | "timeout",
+  calls: 0,
+  /** Rechaza desde esta llamada (1 = la primera); null = según `mode`. */
+  rejectFrom: null as number | null,
+  bodies: [] as string[],
+}));
 
 vi.mock("@/lib/meta/client", async (importOriginal) => {
   const original = await importOriginal<typeof import("@/lib/meta/client")>();
   return {
     ...original,
-    graphRequest: vi.fn(async () => {
+    graphRequest: vi.fn(async (_path: string, opts?: { body?: unknown }) => {
       graph.calls++;
+      const body = (opts?.body as { text?: { body?: string } } | undefined)?.text?.body;
+      if (body !== undefined) graph.bodies.push(body);
+      if (graph.rejectFrom !== null && graph.calls >= graph.rejectFrom) {
+        throw new original.MetaApiError("(#131026) Mensaje no entregable", { status: 400, code: 131026 });
+      }
       if (graph.mode === "timeout") throw new original.MetaApiError("Meta no respondió en 20 s", { status: 0, timedOut: true });
       if (graph.mode === "reject") throw new original.MetaApiError("(#131026) Mensaje no entregable", { status: 400, code: 131026 });
       return { messages: [{ id: `wamid.reservado.${Math.random().toString(36).slice(2)}` }] };
@@ -83,6 +94,42 @@ describe("DF-13: el saliente se registra antes de llamar a Meta", () => {
   beforeEach(() => {
     graph.mode = "ok";
     graph.calls = 0;
+    graph.rejectFrom = null;
+    graph.bodies = [];
+  });
+
+  const largo = () =>
+    Array.from({ length: 30 }, (_, i) => `Párrafo ${i + 1}. ` + "Texto de relleno para un mensaje largo. ".repeat(7).trim()).join("\n\n");
+
+  it("texto de más de 4,096: sale en partes de máximo 4,096, en orden y sin perder nada", async () => {
+    const cv = await chat(A.id);
+    const texto = largo();
+    expect(texto.length).toBeGreaterThan(8192);
+    const r = await as(A.id, () => sendText({ organizationId: A.id, conversationId: cv, text: texto }));
+    expect(graph.calls).toBeGreaterThanOrEqual(3);
+    for (const b of graph.bodies) expect(b.length).toBeLessThanOrEqual(4096);
+    expect(graph.bodies.join("\n\n")).toBe(texto);
+    const filas = (await mensajes(A.id, cv)).sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+    expect(filas.map((f) => f.text)).toEqual(graph.bodies);
+    expect(filas.every((f) => f.status === "pending" && f.waMessageId)).toBe(true);
+    expect(r.messageId).toBe(filas.at(-1)!.id);
+  });
+
+  it("falla una parte a la mitad: lo que salió queda, lo que faltó queda fallido para copiarlo", async () => {
+    const cv = await chat(A.id);
+    const texto = largo();
+    graph.rejectFrom = 2;
+    const err = await as(A.id, () => sendText({ organizationId: A.id, conversationId: cv, text: texto })).catch((e) => e);
+    expect(err).toMatchObject({ code: "meta_error" });
+    expect(err.message).toMatch(/Salieron 1 de \d+ partes/);
+    expect(graph.calls).toBe(2);
+    const filas = await mensajes(A.id, cv);
+    expect(filas).toHaveLength(2);
+    const enviado = filas.find((f) => f.status === "pending")!;
+    const fallido = filas.find((f) => f.status === "failed")!;
+    expect(enviado.text).toBe(graph.bodies[0]);
+    expect(fallido.id).toBe(err.messageId);
+    expect(`${enviado.text}\n\n${fallido.text}`).toBe(texto);
   });
 
   it("aceptado: queda un solo mensaje, con el ID de Meta y en espera de acuses", async () => {

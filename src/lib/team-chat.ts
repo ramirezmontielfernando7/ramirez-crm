@@ -18,8 +18,8 @@ export type TeamThreadKind = "direct" | "group" | "announcements";
  */
 export type ThreadRelation = "member" | "oversight";
 
-/** Largo máximo de un mensaje (validado en el servidor). */
-export const TEAM_MESSAGE_MAX = 4000;
+/** Largo máximo de un mensaje (validado en el servidor). Interno: no sale a WhatsApp, sin el tope de Meta. */
+export const TEAM_MESSAGE_MAX = 20000;
 /** Largo máximo del nombre de un grupo. */
 export const TEAM_GROUP_NAME_MAX = 60;
 /** Página del historial: por defecto y tope. */

@@ -41,6 +41,7 @@ import {
   validateOutgoing,
 } from "@/server/whatsapp/media";
 import { directNumber, unavailableText } from "@/lib/direct-send";
+import { META_TEXT_MAX, splitForMeta } from "@/lib/message-length";
 import {
   DirectSendFailure,
   directRouteFor,
@@ -517,6 +518,12 @@ export async function sendText(input: {
   }
   const { credentials } = target;
 
+  // Meta acepta 4,096 caracteres por texto: uno más largo sale en partes, en
+  // orden (cada una espera a que Meta acepte la anterior).
+  if (!target.instagram && !target.messenger && input.text.length > META_TEXT_MAX) {
+    return sendTextInParts(input, target, credentials!);
+  }
+
   const reserved = await reserveOutbound({
     organizationId: input.organizationId,
     conversationId: input.conversationId,
@@ -548,6 +555,64 @@ export async function sendText(input: {
   // con el reloj puesto para siempre.
   const status = capabilitiesFor(target.conversation.channel).deliveryReceipts ? "pending" : "sent";
   return { messageId: await confirmOutbound(reserved, waMessageId, status) };
+}
+
+/**
+ * Un texto de WhatsApp por Meta de más de 4,096 caracteres: sale como varios
+ * mensajes seguidos (`splitForMeta`), cada uno registrado antes de llamar a
+ * Meta y confirmado antes de mandar el siguiente, así que el orden es el del
+ * texto y nada se reintenta solo. Si una parte falla después de que otras ya
+ * salieron, esa parte queda en el hilo como FALLIDA con todo lo que faltó por
+ * enviar (para copiarlo, no para reenviar el texto completo y duplicar).
+ */
+async function sendTextInParts(
+  input: { conversationId: string; organizationId: string; text: string; aiGenerated?: boolean; aiConnectionId?: string; aiSenderName?: string | null },
+  target: SendTarget,
+  credentials: Credentials
+): Promise<SendResult> {
+  const parts = splitForMeta(input.text);
+  let lastId = "";
+  for (let i = 0; i < parts.length; i++) {
+    const reserved = await reserveOutbound({
+      organizationId: input.organizationId,
+      conversationId: input.conversationId,
+      type: "text",
+      text: parts[i]!,
+      aiGenerated: input.aiGenerated,
+      origin: input.aiGenerated ? "ai" : "operator",
+      aiConnectionId: input.aiConnectionId ?? null,
+      aiSenderName: input.aiSenderName ?? null,
+    });
+    let waMessageId: string;
+    try {
+      waMessageId = await callGraphSend(credentials, {
+        messaging_product: "whatsapp",
+        ...target.destinatario,
+        type: "text",
+        text: { body: parts[i]! },
+      });
+    } catch (err) {
+      if (i === 0) return abandonOutbound(reserved, err, { keep: false });
+      const rest = parts.slice(i).join("\n\n");
+      const failure = new SendError(
+        err instanceof SendError ? err.code : "meta_error",
+        `Salieron ${i} de ${parts.length} partes del mensaje. Lo que faltó quedó en el chat como no enviado: ` +
+          `cópialo de ahí (no reenvíes el texto completo). ${err instanceof Error ? err.message : ""}`.trim()
+      );
+      if (err instanceof SendError) failure.timedOut = err.timedOut;
+      try {
+        await getDb()
+          .update(schema.message)
+          .set({ text: rest })
+          .where(scoped(schema.message.organizationId, reserved.organizationId, eq(schema.message.id, reserved.id)));
+      } catch (e) {
+        log.warn("no se guardó el resto de un mensaje en partes", { org: input.organizationId, err: e });
+      }
+      return abandonOutbound({ ...reserved, text: rest }, err, { keep: true, failure });
+    }
+    lastId = await confirmOutbound(reserved, waMessageId, "pending");
+  }
+  return { messageId: lastId };
 }
 
 /**
