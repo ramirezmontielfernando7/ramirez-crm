@@ -20,8 +20,8 @@ Módulos por organización (PR 3): [specs/029-modulos-por-organizacion](../specs
 - **Pestañas (040)**: «Organizaciones y Planes» (`/platform` abre aquí: tabla
   con estado, plan guardado —Plan Esencial / Pro / Ultra o Personalizado—,
   módulos x/13, IA del mes y almacenamiento; filtros por estado y plan; cada
-  fila abre su ficha en cuatro pestañas: Plan y módulos, Topes y visibilidad,
-  Consumo y almacenamiento, Accesos y estado), «Costos y Precios IA»,
+  fila abre su ficha en cuatro pestañas: Plan y módulos, IA y topes,
+  Consumo y almacenamiento, Accesos y estado), «IA: modelos y costos»,
   «Webhooks sin ruta» (lo guardado en `webhook_unrouted`, agrupado por llave;
   solo metadatos, nunca el contenido) y «Administradores y auditoría» (quién
   administra —se dan con `ops/platform-admin.mjs`— y la bitácora).

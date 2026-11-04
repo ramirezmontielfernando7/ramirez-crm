@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { getSystemDb, schema } from "@/lib/db";
 import {
   AI_FUNCTIONS,
@@ -9,6 +9,7 @@ import {
 } from "@/lib/ai/choice";
 import { MODEL_CATALOG, modelLabel } from "@/lib/costs";
 import { getEnv } from "@/lib/env";
+import { getModelsInUse } from "@/server/costs/models";
 import { runWithOrganization } from "@/lib/request-context";
 import { currentPeriod } from "@/server/ai-quota/quota";
 import { recordPlatformAudit, type AuditActor } from "@/server/platform-admin/audit";
@@ -80,7 +81,11 @@ const EMPTY_ROW: AiDefaultsRow = {
 export type AiSettingsOverview = {
   scopes: Record<AiDefaultScope, AiDefaultsRow & { effective: Record<AiFunction, FunctionView> }>;
   catalog: { id: string; label: string; price: (ModelPrice & { source: "platform" | "known" }) | null }[];
+  connection: { provider: string; host: string | null; hasToken: boolean };
   budget: {
+    /** Suma de los topes en dólares de las empresas activas (propio o del plan); sin tope no suma. */
+    companiesCapUsd: number;
+    companiesWithoutCap: number;
     monthlyUsd: number | null;
     creditsUsd: number | null;
     creditsSince: string | null;
@@ -109,10 +114,15 @@ export async function getAiSettingsOverview(now = new Date()): Promise<AiSetting
   const ids = [...MODEL_CATALOG.map((m) => m.id), ...[...own.keys()].filter((id) => !MODEL_CATALOG.some((m) => m.id === id))];
   const catalog = await Promise.all(ids.map(async (id) => ({ id, label: modelLabel(id), price: await priceOfModel(id) })));
   const period = currentPeriod(now);
+  const m = getModelsInUse();
+  const caps = await companiesCaps(defaults);
   return {
     scopes,
     catalog,
+    connection: { provider: m.provider, host: m.providerHost, hasToken: m.hasToken },
     budget: {
+      companiesCapUsd: caps.total,
+      companiesWithoutCap: caps.without,
       monthlyUsd: instance.budgetMonthlyUsd,
       creditsUsd: instance.creditsUsd,
       creditsSince: instance.creditsSince,
@@ -120,6 +130,26 @@ export async function getAiSettingsOverview(now = new Date()): Promise<AiSetting
       spentThisMonth: await platformEstSpendSince(period),
     },
   };
+}
+
+/** Los topes en dólares de las empresas ACTIVAS: el propio o el de su plan (solo números). */
+async function companiesCaps(defaults: Partial<Record<AiDefaultScope, AiDefaultsRow>>): Promise<{ total: number; without: number }> {
+  const rows = await sys()
+    .select({ own: schema.aiQuota.monthlyUsdLimit, plan: schema.organizationPlan.planKey })
+    .from(schema.organization)
+    .leftJoin(schema.aiQuota, eq(schema.aiQuota.organizationId, schema.organization.id))
+    .leftJoin(schema.organizationPlan, eq(schema.organizationPlan.organizationId, schema.organization.id))
+    .where(and(eq(schema.organization.status, "active")));
+  let total = 0;
+  let without = 0;
+  for (const r of rows) {
+    const own = r.own === null || r.own === undefined ? null : Number(r.own);
+    const planCap = r.plan && r.plan in defaults ? (defaults[r.plan as AiDefaultScope]?.monthlyUsdLimit ?? null) : null;
+    const cap = own ?? planCap;
+    if (cap === null) without++;
+    else total += cap;
+  }
+  return { total, without };
 }
 
 export async function changePlatformAiDefaults(scope: AiDefaultScope, patch: AiDefaultsPatch, actor: AuditActor, ip: string | null): Promise<void> {
@@ -150,8 +180,13 @@ export type OrgAiView = {
   spentThisMonth: number;
 };
 
+/** Uno solo por archivo, para que el guardarraíl lo cuente una vez. */
+function sys() {
+  return getSystemDb();
+}
+
 async function orgName(organizationId: string): Promise<{ id: string; name: string }> {
-  const [org] = await getSystemDb()
+  const [org] = await sys()
     .select({ id: schema.organization.id, name: schema.organization.name })
     .from(schema.organization)
     .where(eq(schema.organization.id, organizationId))

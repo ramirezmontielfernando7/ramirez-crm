@@ -12,7 +12,7 @@ import { PageShell } from "@/components/ui/page-shell";
 export const PLATFORM_TABS = [
   { href: "/platform/panel", label: "Mi panel" },
   { href: "/platform/organizaciones", label: "Organizaciones y Planes" },
-  { href: "/platform/costos", label: "Costos y Precios IA" },
+  { href: "/platform/costos", label: "IA: modelos y costos" },
   { href: "/platform/webhooks", label: "Webhooks sin ruta" },
   { href: "/platform/conexion-directa", label: "Conexión directa" },
   { href: "/platform/admin", label: "Administradores y auditoría" },

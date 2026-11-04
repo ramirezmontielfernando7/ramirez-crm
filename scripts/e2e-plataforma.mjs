@@ -145,7 +145,7 @@ async function main() {
   ok("«Mi panel» muestra el resumen (solo metadatos)", await page.getByTestId("panel-orgs").waitFor({ timeout: 30000 }).then(() => true, () => false));
   ok("el menú muestra «Plataforma»", (await page.getByRole("link", { name: "Plataforma" }).count()) > 0);
   const pestanas = page.getByRole("navigation", { name: "Secciones de Plataforma" });
-  const nombres = ["Mi panel", "Organizaciones y Planes", "Costos y Precios IA", "Webhooks sin ruta", "Administradores y auditoría"];
+  const nombres = ["Mi panel", "Organizaciones y Planes", "IA: modelos y costos", "Webhooks sin ruta", "Administradores y auditoría"];
   ok("040: las pestañas de Plataforma", (await Promise.all(nombres.map((n) => pestanas.getByRole("link", { name: n, exact: true }).count()))).every((c) => c === 1));
   // 040: la geometría del estándar (039): UNA barra de 56 px con las pestañas en píldora dentro.
   const geo = await page.evaluate(() => {
@@ -392,7 +392,7 @@ async function consumoEnPlataforma(A, B, orgB) {
   await fila.getByTestId("platform-org-open").click();
   await page.waitForURL(new RegExp(`/platform/organizaciones/${orgB}$`), { timeout: 30000 });
   const fichaTabs = page.getByRole("navigation", { name: "Secciones de la organización" });
-  ok("040: la ficha tiene sus cuatro pestañas", (await Promise.all(["Plan y módulos", "Topes y visibilidad", "Consumo y almacenamiento", "Accesos y estado"].map((n) => fichaTabs.getByRole("link", { name: n }).count()))).every((c) => c === 1));
+  ok("040: la ficha tiene sus cuatro pestañas", (await Promise.all(["Plan y módulos", "IA y topes", "Consumo y almacenamiento", "Accesos y estado"].map((n) => fichaTabs.getByRole("link", { name: n }).count()))).every((c) => c === 1));
   const geoFicha = await page.evaluate(() => document.querySelector("[data-page-header]")?.getBoundingClientRect().height ?? 0);
   ok("040: la ficha también usa la barra de 56 px", Math.round(geoFicha) === 56, String(geoFicha));
   ok("«Plan y módulos»: plantillas y los 13 agrupados por pilar", await page.getByTestId("platform-modules").waitFor({ timeout: 20000 }).then(() => true, () => false) && (await page.getByTestId("platform-plan-templates").count()) === 1 && (await page.locator("[data-testid^='platform-pillar-']").count()) >= 5 && (await page.locator("[data-testid^='platform-module-']").count()) === 13);
@@ -462,7 +462,7 @@ async function topesYAvisos(A, B, orgB) {
   // Desde la pantalla: personas = 1 (la Propietaria) y bloqueo de subidas.
   const page = await A.ctx.newPage();
   await page.setViewportSize({ width: 1440, height: 1000 });
-  // 040: los topes viven en la pestaña «Topes y visibilidad» de la ficha.
+  // 040: los topes viven en la pestaña «IA y topes» de la ficha.
   await page.goto(`${BASE}/platform/organizaciones/${orgB}/topes`);
   const form = page.getByTestId("platform-limits");
   await form.waitFor({ timeout: 30000 });
@@ -475,6 +475,23 @@ async function topesYAvisos(A, B, orgB) {
   await form.getByTestId("platform-limits-save").click();
   ok("guardar topes desde la pantalla", await form.getByTestId("platform-limits-saved").waitFor({ timeout: 15000 }).then(() => true, () => false));
   await page.screenshot({ path: "scratch/e2e-plataforma-topes.png", fullPage: false }).catch(() => null);
+  // 0070: tope mensual de IA en dólares y modelos de la empresa, desde la pantalla.
+  const capCard = page.getByTestId("platform-org-ai-cap");
+  await capCard.getByTestId("platform-org-ai-cap-input").fill("2.5");
+  await capCard.getByTestId("platform-org-ai-cap-save").click();
+  ok("0070: guardar el tope en dólares desde la ficha", await capCard.getByTestId("platform-org-ai-cap-origin").filter({ hasText: "Propio" }).waitFor({ timeout: 15000 }).then(() => true, () => false));
+  ok("0070: …queda en ai_quota", Number((await sql`select monthly_usd_limit from ai_quota where organization_id = ${orgB}`)[0]?.monthly_usd_limit) === 2.5);
+  await page.getByTestId("platform-org-ai-model-agent").selectOption("global.anthropic.claude-sonnet-5-5");
+  await page.getByTestId("platform-org-ai-models-save").click();
+  await page.waitForTimeout(1500);
+  ok("0070: modelo propio de agentes guardado", (await sql`select agent_model from ai_quota where organization_id = ${orgB}`)[0]?.agent_model === "global.anthropic.claude-sonnet-5-5");
+  ok("0070: la bitácora registra el cambio de IA", (await sql`select 1 from platform_audit_log where target_org_id = ${orgB} and action = 'organization.ai_changed'`).length >= 1);
+  ok("0070: B (usuaria común) → 404 en la IA de la empresa", (await B.call("PUT", `/api/platform/organizations/${orgB}/ai`, { monthlyUsdLimit: 99 })).status === 404);
+  const back = await A.call("PUT", `/api/platform/organizations/${orgB}/ai`, { monthlyUsdLimit: null, agentModel: null });
+  ok("0070: volver a heredar del plan", back.status === 200 && back.json?.overrides?.monthlyUsdLimit === null);
+  const ov = await A.call("GET", "/api/platform/ai-settings");
+  ok("0070: «IA: modelos y costos» responde al administrador", ov.status === 200 && Array.isArray(ov.json?.catalog) && !!ov.json?.scopes?.instance);
+  ok("0070: …y 404 a los demás", (await B.call("GET", "/api/platform/ai-settings")).status === 404);
   // El almacenamiento exacto (en bytes) por la API: la pantalla lo pide en GB.
   const put = await A.call("PUT", `/api/platform/organizations/${orgB}/limits`, { storageBytes: tope });
   ok("la API guarda el tope de almacenamiento", put.status === 200 && put.json?.limits?.storageBytes?.value === tope && put.json?.limits?.storageMode === "block_uploads", JSON.stringify(put.json?.limits).slice(0, 200));
@@ -609,8 +626,15 @@ async function costosEnPlataforma(A, B, orgB) {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto(`${BASE}/platform`);
   await page.waitForURL(/\/platform\/panel$/);
-  await page.getByRole("navigation", { name: "Secciones de Plataforma" }).getByRole("link", { name: "Costos y Precios IA" }).click();
+  await page.getByRole("navigation", { name: "Secciones de Plataforma" }).getByRole("link", { name: "IA: modelos y costos" }).click();
   await page.waitForURL(/\/platform\/costos$/);
+  // 0070: arriba, los créditos, los «Modelos de Dashfort» y los valores por plan.
+  await page.getByTestId("platform-ai-models").waitFor({ timeout: 30000 });
+  await page.getByTestId("platform-ai-plan-pro-edit").click();
+  await page.getByTestId("platform-ai-plan-pro-cap-input").fill("5");
+  await page.getByTestId("platform-ai-plan-pro-save").click();
+  ok("0070: tope del plan Pro guardado desde la pantalla", await page.getByTestId("platform-ai-plan-pro-cap").filter({ hasText: "5.00 USD" }).waitFor({ timeout: 15000 }).then(() => true, () => false));
+  await A.call("PUT", "/api/platform/ai-settings", { kind: "defaults", scope: "pro", monthlyUsdLimit: null });
   const form = page.getByTestId("platform-pricing");
   await form.waitFor({ timeout: 30000 });
   const hoy = new Date().toISOString().slice(0, 10);
@@ -897,7 +921,7 @@ async function asistenteBase(A, B, orgB) {
   const fila = pa.getByTestId(`platform-org-${orgB}`);
   await fila.waitFor({ timeout: 30000 });
   ok("la fila cuenta «x/13»", /^\d+\/13$/.test((await fila.getByTestId("platform-org-modules-count").last().innerText()).trim()));
-  // 040: interruptor en «Plan y módulos» (pilar Inteligencia); tope y visibilidad en «Topes y visibilidad».
+  // 040: interruptor en «Plan y módulos» (pilar Inteligencia); tope y visibilidad en «IA y topes».
   await pa.goto(`${BASE}/platform/organizaciones/${orgB}`);
   await pa.getByTestId("platform-module-asistente").waitFor({ timeout: 30000 });
   ok("el administrador ve el interruptor «Asistente interno» (en su pilar)", /Asistente interno/.test(await pa.getByTestId("platform-pillar-Asistente").getByTestId("platform-module-asistente").innerText()));

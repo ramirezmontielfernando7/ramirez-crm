@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { AiModelsClient } from "@/components/platform/ai-models-client";
 import { CostsClient } from "@/components/platform/costs-client";
 import { currentPlatformAdmin } from "@/server/platform-admin/admins";
 
@@ -12,5 +13,10 @@ export const dynamic = "force-dynamic";
  */
 export default async function PlatformCostsPage() {
   if (!(await currentPlatformAdmin())) notFound();
-  return <CostsClient />;
+  return (
+    <div className="mx-auto max-w-5xl space-y-4">
+      <AiModelsClient />
+      <CostsClient />
+    </div>
+  );
 }
