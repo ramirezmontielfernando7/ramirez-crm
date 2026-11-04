@@ -14,6 +14,7 @@ import { getOrgModules } from "@/server/modules";
 import { getOwnerUsage, type OwnerUsage } from "@/server/usage/owner";
 import { INSIGHT_DEFAULT_DAYS, INSIGHT_MAX_DAYS, INSIGHT_MAX_NEW_PER_QUESTION } from "@/lib/conversation-insight";
 import { analyzeConversations } from "./insights";
+import { AUDIT_DEFAULT_DAYS, AUDIT_DEFAULT_EXAMPLES, AUDIT_MAX_DAYS, AUDIT_MAX_EXAMPLES, auditAgents } from "./audit";
 
 /**
  * 038 (PR 2) — El CATÁLOGO CERRADO del asistente interno. El modelo nunca
@@ -397,6 +398,19 @@ const QUERIES = [
       const r = await analyzeConversations(ctx, args.dias);
       return { forModel: r.forModel, forOwner: r.forOwner };
     },
+  },
+  {
+    name: "auditoria_agentes",
+    label: "Auditoría de los agentes de IA",
+    description: `Para AUDITAR los agentes de IA o REVISAR los chats que contestó la IA: cada agente con su estado, tono, instrucciones y cuándo pasa a una persona; cuántos chats contestó en el periodo, cuántos pasó a una persona y por qué; y chats de ejemplo (primero los que terminaron en traspaso) con sus últimos mensajes (de: cliente / agente de IA / persona del equipo). Úsala para decir qué hace bien cada agente, dónde falla (respuestas inventadas, no contestó lo que preguntaron, se tardó en pasar a una persona…) y qué cambiar en sus instrucciones, con ejemplos. Contactos enmascarados.`,
+    args: z
+      .object({
+        dias: z.coerce.number().int().min(1).max(AUDIT_MAX_DAYS).default(AUDIT_DEFAULT_DAYS),
+        ejemplos: z.coerce.number().int().min(0).max(AUDIT_MAX_EXAMPLES).default(AUDIT_DEFAULT_EXAMPLES),
+      })
+      .strict(),
+    argsHelp: `{"dias": 1-${AUDIT_MAX_DAYS}, opcional, ${AUDIT_DEFAULT_DAYS} por defecto; "ejemplos": 0-${AUDIT_MAX_EXAMPLES}, opcional, ${AUDIT_DEFAULT_EXAMPLES} por defecto}`,
+    run: (ctx, args) => auditAgents(ctx, args),
   },
 ] satisfies QueryDef<z.ZodTypeAny>[];
 

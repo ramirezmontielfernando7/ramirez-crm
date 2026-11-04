@@ -335,6 +335,7 @@ function assistantMock(messages: InMessage[]): string {
   }
 
   if (data.length === 0 && results.length === 0) {
+    if (/audit|contesto la ia/.test(q)) return JSON.stringify({ action: "query", queries: [{ name: "auditoria_agentes" }] });
     const wanted = MOCK_KEYWORDS.filter(([re]) => re.test(q)).map(([, name, args]) => ({ name, ...(args ? { args } : {}) }));
     if (q.includes("inexistente")) wanted.unshift({ name: "borrar_todo" });
     if (wanted.length > 0) return JSON.stringify({ action: "query", queries: wanted.slice(0, 4) });
@@ -373,6 +374,13 @@ function assistantMockLine(name: string, json: unknown): string {
       const top = d.objeciones?.[0]?.valor ?? "ninguna";
       const ej = d.ejemplos_recientes?.[0];
       return `Revisé ${vistas} de ${c.conversaciones_en_periodo ?? 0} conversaciones${c.faltan ? `; faltan ${c.faltan}` : ""}. Objeción principal: ${top}.${ej ? ` Ejemplo: ${ej.contacto}: ${ej.resumen}` : ""}`;
+    }
+    case "auditoria_agentes": {
+      const ags = (d.agentes ?? []) as { agente: string; chats_contestados: number; pasados_a_persona: number }[];
+      const ej = d.ejemplos?.[0];
+      return `Revisé ${d.chats_revisados ?? 0} chats que contestó la IA en ${d.periodo_dias ?? 7} días. ${ags
+        .map((a) => `${a.agente}: ${a.chats_contestados} chats, ${a.pasados_a_persona} pasados a una persona`)
+        .join("; ")}.${ej ? ` Ejemplo: ${ej.contacto} (${ej.paso_a_persona ?? "sin traspaso"}).` : ""}`;
     }
     default:
       return `Revisé ${name}.`;

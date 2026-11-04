@@ -1096,6 +1096,10 @@ async function asistenteMotor(A, B, orgB) {
   const r8 = await preguntar(B, "ROMPE");
   ok("si el modelo contesta en texto corrido (sin JSON), se muestra tal cual en vez de fallar", r8.status === 200 && (r8.json?.answer?.content ?? "").trim().length > 0, `${r8.status} ${JSON.stringify(r8.json)}`);
 
+  // 0070: «Audita mis agentes de IA» corre la consulta de auditoría (solo lectura).
+  const rAud = await preguntar(B, "Audita mis agentes de IA");
+  ok("«Audita mis agentes de IA» usa la auditoría de agentes", rAud.status === 200 && rAud.json?.answer?.meta?.sources?.some((s) => s.name === "auditoria_agentes") && /chats que contestó la IA/.test(rAud.json?.answer?.content ?? ""), JSON.stringify(rAud.json?.answer?.meta?.sources));
+
   // 4. Hilos: solo los propios, con sus fuentes guardadas.
   const hilos = (await B.call("GET", "/api/assistant/threads")).json?.threads ?? [];
   ok("la Propietaria ve sus conversaciones", hilos.some((h) => h.id === threadId));

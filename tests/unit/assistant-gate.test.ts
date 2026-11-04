@@ -108,6 +108,7 @@ describe("038 (PR 2) — el catálogo de consultas es cerrado", () => {
       "conversaciones_por_etapa",
       "conversaciones_recientes",
       "analisis_conversaciones",
+      "auditoria_agentes",
     ]);
   });
 
