@@ -735,6 +735,9 @@ async function usoYPlan(A, B, orgB) {
   ok("la pantalla dice el plan («Plan Esencial», «Plan Pro», «Plan Ultra» o «Personalizado»)", (await page.getByTestId("usage-plan-name").innerText()).trim() === PLAN_TXT[planB ?? "custom"]);
   ok("IA del mes contra su tope", /\/ 1 M tokens/.test(await page.getByTestId("usage-plan-ai-meter").innerText()));
   ok("personas contra su tope", /\/ 3 personas/.test(await page.getByTestId("usage-plan-members-meter").innerText()));
+  // 0070: el detalle (por función, por agente, por categoría) va plegado; se abre como lo haría la persona.
+  await page.getByTestId("usage-plan-detail").locator("summary").click();
+  ok("el detalle del mes se abre", await page.getByTestId("usage-plan-kinds").waitFor({ state: "visible", timeout: 10000 }).then(() => true, () => false));
   ok("«Almacenamiento (aprox.)» contra su tope, por categoría", /\/ 50 MB/.test(await page.getByTestId("usage-plan-storage-meter").innerText()) && /Archivos de Conocimientos/.test(await page.getByTestId("usage-plan-storage-categories").innerText()));
   ok("qué función consume más", /Asistente de redacción/.test(await page.getByTestId("usage-plan-kinds").innerText()));
   const agentes = (await B.call("GET", "/api/lab/agents")).json?.agents ?? [];
