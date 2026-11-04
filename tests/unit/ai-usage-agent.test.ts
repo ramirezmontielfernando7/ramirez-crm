@@ -47,7 +47,7 @@ describe("chatJsonForOrg: consumo por agente", () => {
   it("con agente: suma al total/tipo y al agente, y el agentId no viaja al proveedor", async () => {
     const r = await chatJsonForOrg("org_a", "agent", S, [], { agentId: "agt_1", timeoutMs: 5 });
     expect(r.ok).toBe(true);
-    expect(m.recordUsage).toHaveBeenCalledWith("org_a", "agent", USAGE, expect.any(Date), expect.any(Number));
+    expect(m.recordUsage).toHaveBeenCalledWith("org_a", "agent", USAGE, expect.any(Date), expect.any(Number), expect.any(Number));
     expect(m.recordAgentUsage).toHaveBeenCalledWith("org_a", "agt_1", "agent", USAGE);
     expect(m.chatJson.mock.calls[0]![2]).toMatchObject({ timeoutMs: 5 });
     expect(m.chatJson.mock.calls[0]![2]).not.toHaveProperty("agentId");
@@ -74,7 +74,7 @@ describe("chatJsonForOrg: consumo por agente", () => {
     m.chatJson.mockResolvedValue({ ok: false, error: "provider_error", detail: "x" });
     const r = await chatJsonForOrg("org_a", "agent", S, [], { agentId: "agt_1" });
     expect(r.ok).toBe(false);
-    expect(m.recordUsage).toHaveBeenCalledWith("org_a", "agent", { promptTokens: 0, completionTokens: 0 }, expect.any(Date), expect.any(Number));
+    expect(m.recordUsage).toHaveBeenCalledWith("org_a", "agent", { promptTokens: 0, completionTokens: 0 }, expect.any(Date), expect.any(Number), expect.any(Number));
     expect(m.recordAgentUsage).toHaveBeenCalledWith("org_a", "agt_1", "agent", null);
   });
 

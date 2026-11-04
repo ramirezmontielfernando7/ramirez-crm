@@ -99,7 +99,7 @@ export function resolveLimit(own: number | null | undefined, env: number | null 
 
 /* ───────── Avisos ───────── */
 
-export const ALERT_METRICS = ["ai_tokens", "ai_turns", "embed_tokens", "storage", "members", "modules", "assistant_tokens"] as const;
+export const ALERT_METRICS = ["ai_tokens", "ai_turns", "embed_tokens", "storage", "members", "modules", "assistant_tokens", "ai_usd"] as const;
 export type AlertMetric = (typeof ALERT_METRICS)[number];
 export const ALERT_THRESHOLDS = [80, 100] as const;
 export type AlertThreshold = (typeof ALERT_THRESHOLDS)[number];
@@ -112,10 +112,11 @@ export const ALERT_METRIC_LABEL: Record<AlertMetric, string> = {
   members: "personas del equipo",
   modules: "módulos activos",
   assistant_tokens: "tokens del asistente interno del mes",
+  ai_usd: "IA del mes (en dólares)",
 };
 
 /** 038 — Las medidas de IA: su aviso al cliente sigue su visibilidad. */
-export const AI_ALERT_METRICS: readonly AlertMetric[] = ["ai_tokens", "ai_turns", "embed_tokens", "assistant_tokens"];
+export const AI_ALERT_METRICS: readonly AlertMetric[] = ["ai_tokens", "ai_turns", "embed_tokens", "assistant_tokens", "ai_usd"];
 
 /** 038 — Cómo se nombra cada medida de IA cuando el cliente no ve tokens. */
 const AI_METRIC_PLAIN: Partial<Record<AlertMetric, string>> = {
@@ -123,6 +124,7 @@ const AI_METRIC_PLAIN: Partial<Record<AlertMetric, string>> = {
   ai_turns: "IA del mes",
   embed_tokens: "IA de los documentos del agente",
   assistant_tokens: "crédito del asistente interno",
+  ai_usd: "IA del mes",
 };
 
 /**

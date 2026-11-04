@@ -248,8 +248,28 @@ const KNOWN_PRICES: { match: RegExp; price: PriceSuggestion }[] = [
   { match: /claude-haiku-5[-.]5/i, price: { inputUsdPerMtok: 0.1, outputUsdPerMtok: 0.5, note: "Claude Haiku 5.5" } },
   { match: /claude-sonnet-5[-.]5/i, price: { inputUsdPerMtok: 2, outputUsdPerMtok: 10, note: "Claude Sonnet 5.5" } },
   { match: /gpt-6-luna/i, price: { inputUsdPerMtok: 0.1, outputUsdPerMtok: 0.5, note: "GPT-6 Luna" } },
+  { match: /gpt-6\.1-terra/i, price: { inputUsdPerMtok: 1, outputUsdPerMtok: 5, note: "GPT-6.1 Terra" } },
+  { match: /gpt-6\.1-sol/i, price: { inputUsdPerMtok: 2, outputUsdPerMtok: 10, note: "GPT-6.1 Sol" } },
   { match: /gpt-6-sol/i, price: { inputUsdPerMtok: 2, outputUsdPerMtok: 10, note: "GPT-6 Sol (precio inferido)" } },
 ];
+
+/**
+ * 0070 — Los modelos que Plataforma ofrece en sus listas (Claude y GPT dentro
+ * de Amazon Bedrock, región global). Otro nombre se puede escribir a mano.
+ */
+export const MODEL_CATALOG: { id: string; label: string }[] = [
+  { id: "global.anthropic.claude-haiku-5-5", label: "Claude Haiku 5.5" },
+  { id: "global.anthropic.claude-sonnet-5-5", label: "Claude Sonnet 5.5" },
+  { id: "global.openai.gpt-6-luna", label: "GPT-6 Luna" },
+  { id: "global.openai.gpt-6.1-terra", label: "GPT-6.1 Terra" },
+  { id: "global.openai.gpt-6.1-sol", label: "GPT-6.1 Sol" },
+];
+
+/** El nombre corto de un modelo para la pantalla («Claude Haiku 5.5»), o el id tal cual. */
+export function modelLabel(id: string | null | undefined): string {
+  if (!id) return "—";
+  return MODEL_CATALOG.find((m) => m.id === id)?.label ?? suggestedPriceFor(id)?.note ?? id;
+}
 
 /** El precio de referencia de un modelo conocido, o `null`. */
 export function suggestedPriceFor(modelId: string | null): PriceSuggestion | null {

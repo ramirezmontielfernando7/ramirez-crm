@@ -27,6 +27,8 @@ const EXCEPCIONES: Record<string, string> = {
   platform_audit_log: "Fase 3 PR 2: bitácora del administrador de plataforma, sobrevive al borrado de la organización; solo el pool de sistema",
   account_link_token: "Fase 3 PR 2: enlaces de un solo uso para poner contraseña, antes de tener sesión; solo el pool de sistema",
   platform_ai_pricing: "036 PR 3: precios de IA y tipo de cambio del administrador de plataforma, para estimar el costo de todas las organizaciones; solo el pool de sistema",
+  platform_ai_defaults: "0070: modelos de IA por defecto de la instancia y de cada plan, y la meta de gasto de la plataforma; solo el pool de sistema",
+  platform_ai_model_price: "0070: precio de cada modelo de IA para estimar el costo de todas las organizaciones; solo el pool de sistema",
   evolution_server: "Conexión directa PR 1: servidores del dispositivo vinculado que registra el administrador de plataforma (por encima de las organizaciones); llave cifrada; solo el pool de sistema",
   ai_oauth_client: "047 PR 1: apps de IA del registro dinámico de OAuth, antes de saber de qué organización es la persona; solo el pool de sistema",
   webhook_unrouted: "Fase 3 PR 1: eventos de Meta sin organización conocida (justo no se pudo enrutar); solo el pool de sistema, cifrados, 7 días",

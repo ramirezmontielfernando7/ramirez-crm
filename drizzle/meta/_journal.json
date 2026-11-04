@@ -484,6 +484,13 @@
       "when": 1793829600000,
       "tag": "0069_asistente_hilos",
       "breakpoints": true
+    },
+    {
+      "idx": 70,
+      "version": "7",
+      "when": 1793916000000,
+      "tag": "0070_modelos_por_plan_y_empresa",
+      "breakpoints": true
     }
   ]
 }

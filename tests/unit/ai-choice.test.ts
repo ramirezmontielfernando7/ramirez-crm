@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import { chatJson } from "@/lib/ai";
 import { bedrockOpenAiUrl, isBedrockOpenAiModel } from "@/lib/ai/bedrock-openai";
-import { defaultUseOfKind, envChoice, functionOfUse, parseEffort } from "@/lib/ai/choice";
+import { defaultUseOfKind, envChoice, functionOfUse, layeredChoice, parseEffort } from "@/lib/ai/choice";
 
 const env = (o: Record<string, string | undefined>) => o as never;
 
@@ -49,6 +49,27 @@ describe("modelo y esfuerzo por función (variables de entorno)", () => {
     expect(functionOfUse("writing")).toBe("agent");
     expect(parseEffort(" HIGH ")).toBe("high");
     expect(parseEffort("")).toBeUndefined();
+  });
+});
+
+describe("capas: empresa > plan > instancia > entorno", () => {
+  const e = env({ OPENROUTER_MODEL: "haiku", OPENROUTER_CREATOR_MODEL: "sonnet", ASSISTANT_MODEL: "sonnet" });
+  it("gana la primera capa con valor; vacío hereda", () => {
+    const empresa = { agentModel: null, agentEffort: "none" as const };
+    const plan = { agentModel: "luna" };
+    const instancia = { agentModel: "otro", agentEffort: "medium" as const };
+    expect(layeredChoice("agent", [empresa, plan, instancia], e)).toEqual({ model: "luna", effort: "none" });
+    expect(layeredChoice("writing", [{}, {}, {}], e)).toEqual({ model: "haiku", effort: "low" });
+  });
+  it("el creador y el juez comparten modelo; el juez conserva su esfuerzo", () => {
+    const capas = [{ creatorModel: "terra", creatorEffort: "high" as const }];
+    expect(layeredChoice("creator", capas, e)).toEqual({ model: "terra", effort: "high" });
+    expect(layeredChoice("judge", capas, e)).toEqual({ model: "terra", effort: "low" });
+  });
+  it("asistente: el modelo por capa, el esfuerzo por modo; el análisis en bajo", () => {
+    const capas = [{}, { assistantModel: "sol" }];
+    expect(layeredChoice("assistant", capas, e, "deep")).toEqual({ model: "sol", effort: "high" });
+    expect(layeredChoice("analysis", capas, e)).toEqual({ model: "sol", effort: "low" });
   });
 });
 
