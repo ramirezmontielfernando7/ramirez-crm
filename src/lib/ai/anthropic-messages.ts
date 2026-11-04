@@ -22,7 +22,9 @@ export function messagesUrl(baseUrl: string): string {
   return `${baseUrl.replace(/\/+$/, "")}/anthropic/v1/messages`;
 }
 
-type Turn = { role: "user" | "assistant"; content: string };
+type Turn = { role: "user" | "assistant"; content: string; cache?: boolean };
+type TextBlock = { type: "text"; text: string; cache_control?: { type: "ephemeral" } };
+const EPHEMERAL = { type: "ephemeral" } as const;
 
 /**
  * Chat Completions → Messages. Todos los `system` (el inicial, la cola del
@@ -33,24 +35,41 @@ type Turn = { role: "user" | "assistant"; content: string };
  * (400) un último turno `assistant`.
  */
 export function toMessagesBody(model: string, messages: ChatMessage[], effort: "low" | "medium" | "high") {
-  const system = messages
-    .filter((m) => m.role === "system")
-    .map((m) => m.content)
-    .join("\n\n");
+  const joined = (list: ChatMessage[]) => list.map((m) => m.content).join("\n\n");
+  const systems = messages.filter((m) => m.role === "system");
+  const cachedSystem = systems.filter((m) => m.cache);
+  // Caché de prompts: lo marcado `cache` va primero y es un bloque aparte con
+  // punto de caché (prefijo estable); el resto (cola, STRICT, código del
+  // turno) va después, sin caché. Sin nada marcado, el texto de siempre.
+  const system: string | TextBlock[] =
+    cachedSystem.length === 0
+      ? joined(systems)
+      : [
+          { type: "text", text: joined(cachedSystem), cache_control: EPHEMERAL },
+          ...(systems.length > cachedSystem.length ? [{ type: "text" as const, text: joined(systems.filter((m) => !m.cache)) }] : []),
+        ];
   const turns: Turn[] = [];
   for (const m of messages) {
     if (m.role === "system") continue;
     const prev = turns[turns.length - 1];
-    if (prev && prev.role === m.role) prev.content += `\n\n${m.content}`;
-    else turns.push({ role: m.role, content: m.content });
+    if (prev && prev.role === m.role) {
+      prev.content += `\n\n${m.content}`;
+      if (m.cache) prev.cache = true;
+    } else turns.push({ role: m.role, content: m.content, ...(m.cache ? { cache: true } : {}) });
   }
   if (turns[0]?.role !== "user") turns.unshift({ role: "user", content: "(inicio de la conversación)" });
   if (turns[turns.length - 1]?.role === "assistant") turns.push({ role: "user", content: "(continúa)" });
+  // Un solo punto de caché en la conversación: el ÚLTIMO turno marcado (máx. 4 en total).
+  const lastCached = turns.map((t) => !!t.cache).lastIndexOf(true);
   return {
     model,
     max_tokens: MAX_TOKENS,
-    ...(system ? { system } : {}),
-    messages: turns,
+    ...(system.length > 0 ? { system } : {}),
+    messages: turns.map((t, i) =>
+      i === lastCached
+        ? { role: t.role, content: [{ type: "text" as const, text: t.content, cache_control: EPHEMERAL }] }
+        : { role: t.role, content: t.content }
+    ),
     output_config: { effort },
   };
 }
@@ -71,7 +90,9 @@ type MessagesResponse = {
  * Texto y tokens de una respuesta Messages. Los bloques de razonamiento
  * (`thinking`) se ignoran; las negativas y respuestas sin texto conservan
  * su consumo para que la frontera común decida si corresponde reintentar.
- * La entrada cuenta también los tokens de caché. Bedrock no reporta costo.
+ * La entrada cuenta también los tokens de caché (y se desglosan aparte para
+ * estimar el costo: leer de la caché cuesta ~10 %, escribirla ~125 %).
+ * Bedrock no reporta costo.
  */
 export function fromMessagesResponse(json: MessagesResponse): { content: string; usage: LlmUsage; refusal?: boolean } {
   const content = (json.content ?? [])
@@ -79,12 +100,16 @@ export function fromMessagesResponse(json: MessagesResponse): { content: string;
     .map((b) => b.text as string)
     .join("");
   const u = json.usage;
+  const cacheRead = count(u?.cache_read_input_tokens);
+  const cacheWrite = count(u?.cache_creation_input_tokens);
   return {
     content,
     ...(json.stop_reason === "refusal" ? { refusal: true } : {}),
     usage: {
       promptTokens: count(u?.input_tokens) + count(u?.cache_creation_input_tokens) + count(u?.cache_read_input_tokens),
       completionTokens: count(u?.output_tokens),
+      ...(cacheRead > 0 ? { cacheReadTokens: cacheRead } : {}),
+      ...(cacheWrite > 0 ? { cacheWriteTokens: cacheWrite } : {}),
     },
   };
 }

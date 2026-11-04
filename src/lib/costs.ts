@@ -244,6 +244,25 @@ export type PriceSuggestion = { inputUsdPerMtok: number; outputUsdPerMtok: numbe
  * una ayuda para capturar a mano, no una fuente de verdad: confirma contra
  * la factura del proveedor.
  */
+/**
+ * Caché de prompts (Claude): leer cuesta 10 % del precio de entrada y escribir
+ * (caché de 5 minutos) 125 %. Costo estimado de una llamada con esos tokens
+ * separados; sin caché es la cuenta de siempre. USD por millón de tokens.
+ */
+export const CACHE_READ_FACTOR = 0.1;
+export const CACHE_WRITE_FACTOR = 1.25;
+export function promptCachedCostUsd(
+  usage: { promptTokens: number; completionTokens: number; cacheReadTokens?: number; cacheWriteTokens?: number },
+  inputUsdPerMtok: number,
+  outputUsdPerMtok: number
+): number {
+  const read = Math.min(usage.cacheReadTokens ?? 0, usage.promptTokens);
+  const write = Math.min(usage.cacheWriteTokens ?? 0, usage.promptTokens - read);
+  const plain = usage.promptTokens - read - write;
+  const input = plain + read * CACHE_READ_FACTOR + write * CACHE_WRITE_FACTOR;
+  return (input * inputUsdPerMtok + usage.completionTokens * outputUsdPerMtok) / 1_000_000;
+}
+
 const KNOWN_PRICES: { match: RegExp; price: PriceSuggestion }[] = [
   { match: /claude-haiku-5[-.]5/i, price: { inputUsdPerMtok: 0.1, outputUsdPerMtok: 0.5, note: "Claude Haiku 5.5" } },
   { match: /claude-sonnet-5[-.]5/i, price: { inputUsdPerMtok: 2, outputUsdPerMtok: 10, note: "Claude Sonnet 5.5" } },
