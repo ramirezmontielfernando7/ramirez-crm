@@ -42,6 +42,8 @@ import { countMeter, formatTokens } from "@/lib/usage";
 import { gaugeMeter } from "@/lib/usage-visibility";
 import { cn } from "@/lib/utils";
 import { PageShell } from "@/components/ui/page-shell";
+import { useViewer } from "@/components/viewer-context";
+import Link from "next/link";
 
 /**
  * 038 — Pantalla del asistente interno, en tarjetas flotantes:
@@ -72,10 +74,10 @@ function dayLabel(iso: string): string {
 const ASSISTANT_SUGGESTIONS = [
   { label: "Audita mis agentes de IA", question: "Audita mis agentes de IA: qué hacen bien, dónde fallan y qué cambiarías en sus instrucciones, con ejemplos de chats reales." },
   { label: "Revisa los chats que contestó la IA", question: "Revisa los chats que contestó la IA esta semana: ¿hubo respuestas equivocadas o chats que debió pasar antes a una persona?" },
-  { label: "¿Por qué se pierden ventas?", question: "¿Por qué se están perdiendo ventas este mes y qué objeciones ponen más mis clientes?" },
 ] as const;
 
 export function AssistantClient() {
+  const viewer = useViewer();
   const [status, setStatus] = useState<AssistantStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -457,20 +459,6 @@ export function AssistantClient() {
                       <p className="mx-auto mt-2 max-w-md text-sm text-text-3">
                         Pregúntame por el uso y el plan de tu organización, tus etiquetas, tu equipo o tus chats recientes; por tus conversaciones (por qué se pierden ventas, qué objeciones ponen tus clientes, cómo atiende cada asesor) o por cómo trabajan tus agentes de IA.
                       </p>
-                      <div className="mt-5 flex flex-wrap justify-center gap-2" data-testid="assistant-suggestions">
-                        {ASSISTANT_SUGGESTIONS.map((s) => (
-                          <button
-                            key={s.label}
-                            type="button"
-                            disabled={!canAsk}
-                            onClick={() => void ask(s.question)}
-                            className="rounded-full border bg-card px-3 py-1.5 text-sm text-text-2 hover:border-primary hover:text-foreground disabled:opacity-50"
-                            data-testid="assistant-suggestion"
-                          >
-                            {s.label}
-                          </button>
-                        ))}
-                      </div>
                     </div>
                   )}
                   {messages.map((m) =>
@@ -525,6 +513,32 @@ export function AssistantClient() {
                   <p className="mb-2 text-sm text-danger-text" role="alert" data-testid="assistant-ask-error">
                     {askError}
                   </p>
+                )}
+                {!asking && (
+                  <div className="mb-2 flex flex-wrap gap-2" data-testid="assistant-suggestions">
+                    {ASSISTANT_SUGGESTIONS.map((s, i) => (
+                      <button
+                        key={s.label}
+                        type="button"
+                        disabled={!canAsk}
+                        onClick={() => void ask(s.question)}
+                        className="inline-flex items-center gap-1.5 rounded-full border bg-card px-3 py-1.5 text-sm text-text-2 hover:border-primary hover:text-foreground disabled:opacity-50"
+                        data-testid="assistant-suggestion"
+                      >
+                        {i === 0 && <Sparkles className="h-3.5 w-3.5 text-primary" aria-hidden />}
+                        {s.label}
+                      </button>
+                    ))}
+                    {viewer.hasModule("lab") && (
+                      <Link
+                        href="/lab/simulados"
+                        className="rounded-full border bg-card px-3 py-1.5 text-sm text-text-2 hover:border-primary hover:text-foreground"
+                        data-testid="assistant-suggestion-simulados"
+                      >
+                        Prueba mi agente con clientes simulados
+                      </Link>
+                    )}
+                  </div>
                 )}
                 <div className="flex items-end gap-2 rounded-[26px] border bg-background py-2 pl-5 pr-2 shadow-sm focus-within:border-primary">
                   <label className="sr-only" htmlFor="assistant-question">Tu pregunta</label>
