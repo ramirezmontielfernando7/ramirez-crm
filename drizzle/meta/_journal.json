@@ -491,6 +491,13 @@
       "when": 1793916000000,
       "tag": "0070_modelos_por_plan_y_empresa",
       "breakpoints": true
+    },
+    {
+      "idx": 71,
+      "version": "7",
+      "when": 1794002400000,
+      "tag": "0071_limites_simples",
+      "breakpoints": true
     }
   ]
 }

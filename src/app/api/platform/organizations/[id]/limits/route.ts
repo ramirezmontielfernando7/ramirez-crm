@@ -46,6 +46,7 @@ const schema = z
     kbMaxDocuments: z.number().int().min(1).max(10_000).nullable().optional(),
     kbMaxChunks: z.number().int().min(1).max(100_000).nullable().optional(),
     kbMaxFileBytes: z.number().int().min(1024).max(50 * 1024 * 1024).nullable().optional(),
+    kbMaxTotalBytes: z.number().int().min(1024 * 1024).max(100 * 1024 ** 3).nullable().optional(),
   })
   .strict();
 

@@ -52,6 +52,10 @@ export function OrgAiCard({ orgId }: { orgId: string }) {
   const [unit, setUnit] = useState<"usd" | "mtok">("usd");
   const [cap, setCap] = useState("");
   const [draft, setDraft] = useState<Draft | null>(null);
+  // 0071: topes de seguridad por función (dólares; vacío = usa la bolsa) y qué hacer al llenarse.
+  const [fnCaps, setFnCaps] = useState<Record<AiFunction, string>>({ agent: "", creator: "", assistant: "" });
+  const [fnModes, setFnModes] = useState<Record<AiFunction, "block" | "warn">>({ agent: "block", creator: "block", assistant: "block" });
+  const [poolMode, setPoolMode] = useState<"block" | "warn">("block");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -65,6 +69,10 @@ export function OrgAiCard({ orgId }: { orgId: string }) {
       setView(v.data);
       setDraft(draftOf(v.data));
       setCap(v.data.overrides.monthlyUsdLimit?.toString() ?? "");
+      const o = v.data.overrides;
+      setFnCaps({ agent: o.agentUsdLimit?.toString() ?? "", creator: o.creatorUsdLimit?.toString() ?? "", assistant: o.assistantUsdLimit?.toString() ?? "" });
+      setFnModes({ agent: o.agentMode, creator: o.creatorMode, assistant: o.assistantMode });
+      setPoolMode(o.poolMode);
       setUnit("usd");
     } else setError(v.error);
     if (o.data) setCatalog(o.data.catalog);
@@ -113,6 +121,17 @@ export function OrgAiCard({ orgId }: { orgId: string }) {
     void save({ monthlyUsdLimit: capUsd === null ? null : Math.round(capUsd * 10000) / 10000 });
   }
 
+  function saveSafety() {
+    const patch: Record<string, unknown> = { poolMode, agentMode: fnModes.agent, creatorMode: fnModes.creator, assistantMode: fnModes.assistant };
+    for (const fn of ["agent", "creator", "assistant"] as const) {
+      const raw = fnCaps[fn].trim().replace(",", ".");
+      const n = raw === "" ? null : Number(raw);
+      if (n !== null && (!Number.isFinite(n) || n < 0)) return setError("Escribe un número en dólares, o déjalo vacío para usar la bolsa.");
+      patch[`${fn}UsdLimit`] = n === null ? null : Math.round(n * 10000) / 10000;
+    }
+    void save(patch);
+  }
+
   // Cuántas veces más caro es lo propio que lo heredado (solo agentes, lo que más gasta).
   const inheritedPrice = priceOf(catalog, view.inherited.agent.model);
   const ownPrice = view.overrides.agentModel ? priceOf(catalog, view.overrides.agentModel) : null;
@@ -124,7 +143,7 @@ export function OrgAiCard({ orgId }: { orgId: string }) {
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div>
             <h2 className="text-sm font-semibold">Tope mensual de IA</h2>
-            <p className="text-xs text-text-3">Al llegar al tope, los agentes pasan los chats a una persona. Avisos al 80 % y al 100 %.</p>
+            <p className="text-xs text-text-3">Una sola bolsa: agentes, asistente, creador de agentes y lectura de documentos salen de aquí. Avisos al 80 % y al 100 %.</p>
           </div>
           <Badge variant="secondary" data-testid="platform-org-ai-cap-origin">
             {capOrigin}
@@ -196,6 +215,60 @@ export function OrgAiCard({ orgId }: { orgId: string }) {
           </Button>
           <Button size="sm" disabled={busy} onClick={saveCap} data-testid="platform-org-ai-cap-save">
             Guardar
+          </Button>
+        </div>
+      </section>
+
+      <section className="space-y-3 rounded-lg border bg-card p-4" data-testid="platform-org-ai-safety">
+        <div>
+          <h2 className="text-sm font-semibold">Topes de seguridad por función</h2>
+          <p className="text-xs text-text-3">
+            Opcionales, en dólares al mes. Si una función queda vacía, usa la bolsa de IA. Al acercarse (80 %) siempre se avisa; al llenarse puedes elegir entre solo avisar o bloquear.
+          </p>
+        </div>
+        <ul className="divide-y">
+          {FUNCS.map(({ fn, label }) => (
+            <li key={fn} className="grid gap-2 py-2 sm:grid-cols-[minmax(0,10rem)_minmax(0,9rem)_minmax(0,14rem)_1fr] sm:items-center">
+              <span className="text-sm">{label}</span>
+              <Input
+                inputMode="decimal"
+                placeholder="Usa la bolsa"
+                value={fnCaps[fn]}
+                onChange={(e) => setFnCaps({ ...fnCaps, [fn]: e.target.value })}
+                data-testid={`platform-org-ai-fncap-${fn}`}
+              />
+              <select
+                className="h-9 rounded-sm border bg-background px-2 text-sm"
+                value={fnModes[fn]}
+                onChange={(e) => setFnModes({ ...fnModes, [fn]: e.target.value as "block" | "warn" })}
+                aria-label={`Al llenarse: ${label}`}
+                data-testid={`platform-org-ai-fnmode-${fn}`}
+              >
+                <option value="block">Al llenarse: bloquear</option>
+                <option value="warn">Al llenarse: solo avisar</option>
+              </select>
+              <span className="text-xs text-text-3">USD al mes</span>
+            </li>
+          ))}
+          <li className="grid gap-2 py-2 sm:grid-cols-[minmax(0,10rem)_minmax(0,9rem)_minmax(0,14rem)_1fr] sm:items-center">
+            <span className="text-sm">Bolsa de IA</span>
+            <span className="text-xs text-text-3">La de arriba</span>
+            <select
+              className="h-9 rounded-sm border bg-background px-2 text-sm"
+              value={poolMode}
+              onChange={(e) => setPoolMode(e.target.value as "block" | "warn")}
+              aria-label="Al llenarse la bolsa"
+              data-testid="platform-org-ai-poolmode"
+            >
+              <option value="block">Al llenarse: bloquear</option>
+              <option value="warn">Al llenarse: solo avisar</option>
+            </select>
+            <span className="text-xs text-text-3">Bloquear pasa los chats a una persona.</span>
+          </li>
+        </ul>
+        <div className="flex justify-end">
+          <Button size="sm" disabled={busy} onClick={saveSafety} data-testid="platform-org-ai-safety-save">
+            Guardar topes de seguridad
           </Button>
         </div>
       </section>

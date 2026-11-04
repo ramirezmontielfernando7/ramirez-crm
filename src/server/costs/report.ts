@@ -1,4 +1,4 @@
-import { eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, notLike } from "drizzle-orm";
 import { getSystemDb, schema } from "@/lib/db";
 import {
   costByKind,
@@ -46,7 +46,7 @@ export async function getCostReport(now = new Date()): Promise<CostReport> {
         costUsd: schema.aiUsage.costUsd,
       })
       .from(schema.aiUsage)
-      .where(eq(schema.aiUsage.period, period)),
+      .where(and(eq(schema.aiUsage.period, period), notLike(schema.aiUsage.kind, "fn\\_%"))),
     listPricing(),
   ]);
   // Solo las organizaciones con consumo este mes (las demás no ocupan renglón).

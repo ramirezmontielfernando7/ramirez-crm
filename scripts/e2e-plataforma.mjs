@@ -619,7 +619,7 @@ async function costosEnPlataforma(A, B, orgB) {
   console.log("\n== 4d · Costos de IA en Plataforma ==");
   const [real] = await sql`
     select coalesce(sum(cost_usd), 0)::float8 as usd, coalesce(sum(prompt_tokens + completion_tokens), 0)::int as tokens
-    from ai_usage where organization_id = ${orgB} and period = to_char(date_trunc('month', now() at time zone 'utc'), 'YYYY-MM-DD') and kind <> 'total'`;
+    from ai_usage where organization_id = ${orgB} and period = to_char(date_trunc('month', now() at time zone 'utc'), 'YYYY-MM-DD') and kind <> 'total' and kind not like 'fn\\_%'`;
   ok("el costo real que reportó el proveedor quedó en cost_usd", real.usd > 0 && real.tokens > 0, JSON.stringify(real));
 
   const page = await A.ctx.newPage();
@@ -818,6 +818,9 @@ async function asistenteBase(A, B, orgB) {
   // El administrador lo enciende.
   const on = await A.call("POST", `/api/platform/organizations/${orgB}/modules`, { asistente: true });
   ok("el administrador enciende el asistente", on.status === 200 && on.json?.modules?.asistente === true, `${on.status} ${JSON.stringify(on.json)}`);
+  // 0071: sin tope propio el asistente usa la bolsa de IA; sin NINGÚN tope no responde.
+  await A.call("PUT", `/api/platform/organizations/${orgB}/ai`, { monthlyUsdLimit: null });
+  await A.call("PUT", `/api/platform/organizations/${orgB}/limits`, { aiTokens: null, aiTurns: null });
   const st1 = (await B.call("GET", "/api/assistant/status")).json?.status;
   ok("sin tope propio: no responde y lo dice", st1?.state === "unset" && st1?.canAsk === false && /aún no tiene un crédito asignado/.test(st1?.message ?? ""), JSON.stringify(st1));
   await A.call("PUT", `/api/platform/organizations/${orgB}/limits`, { assistantTokens: 0 });
@@ -930,7 +933,7 @@ async function asistenteBase(A, B, orgB) {
   ok("el administrador ve el interruptor «Asistente interno» (en su pilar)", /Asistente interno/.test(await pa.getByTestId("platform-pillar-Asistente").getByTestId("platform-module-asistente").innerText()));
   await pa.goto(`${BASE}/platform/organizaciones/${orgB}/topes`);
   await pa.getByTestId("platform-limits").waitFor({ timeout: 30000 });
-  ok("…el tope del asistente y la visibilidad del consumo", (await pa.getByTestId("platform-limit-assistantTokens").count()) === 1 && (await pa.getByTestId("platform-limit-usageVisibility").inputValue()) === "percent");
+  ok("…el tope del asistente (por función) y la visibilidad del consumo", (await pa.getByTestId("platform-org-ai-fncap-assistant").count()) === 1 && (await pa.getByTestId("platform-limit-usageVisibility-percent").isChecked()));
   await pa.close();
 
   const off = await A.call("POST", `/api/platform/organizations/${orgB}/modules`, { asistente: false });

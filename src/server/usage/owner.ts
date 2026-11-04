@@ -30,9 +30,12 @@ import { orgEstSpend } from "@/server/ai-settings/org";
 export type OwnerLimits = Omit<EffectiveLimits, "aiTurns" | "aiTokens" | "embedTokens" | "assistantTokens">;
 
 export type OwnerAiTotal = Gauge & {
-  /** Solo con `tokens`: las dos medidas del total por separado. */
+  /** Solo con `tokens`: tokens usados y su equivalente del tope (0071: sale de la bolsa en dólares). */
   tokens?: { used: number; limit: number | null };
+  /** Solo con `tokens` y SIN bolsa en dólares (tope antiguo de turnos). */
   turns?: { used: number; limit: number | null };
+  /** Solo con `usd`: dólares usados y tope de la bolsa. */
+  usd?: { used: number; limit: number };
 };
 
 export type OwnerAgentShare = ShareLine<string> & { name: string | null; archived: boolean };
@@ -86,7 +89,7 @@ export async function listOwnerAlerts(
     const text = alertText(a.metric, a.threshold, visibility);
     if (textos.has(text)) continue;
     textos.add(text);
-    const cifras = visibility === "tokens" || !AI_ALERT_METRICS.includes(a.metric);
+    const cifras = !AI_ALERT_METRICS.includes(a.metric) || (visibility === "tokens" && a.metric !== "ai_usd");
     out.push({
       metric: a.metric,
       threshold: a.threshold,
@@ -113,22 +116,28 @@ export async function getOwnerUsage(organizationId: string, now = new Date()): P
   const orgModules = await getOrgModules(organizationId);
   const modules = countActiveModules(moduleToggles(orgModules));
   const assistant = orgModules.asistente
-    ? projectGauge(visibility, await assistantTokensUsed(organizationId, now), limits.assistantTokens.value)
+    ? projectGauge(visibility === "usd" ? "percent" : visibility, await assistantTokensUsed(organizationId, now), limits.assistantTokens.value)
     : null;
   const alerts = await listOwnerAlerts(organizationId, { now, visibility });
 
   const { ai } = detail;
-  const porTokens = projectGauge(visibility, ai.tokens, limits.aiTokens.value);
-  const porTurnos = projectGauge(visibility, ai.turns, limits.aiTurns.value);
+  const porTokens = projectGauge(visibility === "usd" ? "percent" : visibility, ai.tokens, limits.aiTokens.value);
+  const porTurnos = projectGauge(visibility === "usd" ? "percent" : visibility, ai.turns, limits.aiTurns.value);
   // 0070: el tope en DÓLARES (propio o del plan) frena igual; al cliente solo le
   // llega como porcentaje o estado, nunca los dólares.
   const usdLimit = await orgUsdLimit(organizationId);
-  const porDolares = projectGauge(visibility === "tokens" ? "percent" : visibility, usdLimit === null ? 0 : await orgEstSpend(organizationId, detail.period), usdLimit);
+  const gastado = usdLimit === null ? 0 : await orgEstSpend(organizationId, detail.period);
+  const porDolares = projectGauge(visibility === "tokens" || visibility === "usd" ? "percent" : visibility, gastado, usdLimit);
+  // 0071: con bolsa en dólares el tope de tokens es una EQUIVALENCIA (lo usado × tope ÷ gastado).
+  const equivalente = usdLimit !== null && gastado > 0 && ai.tokens > 0 ? Math.round((ai.tokens * usdLimit) / gastado) : null;
   const total: OwnerAiTotal = {
     ...worstGauge(worstGauge(porTokens, porTurnos), porDolares),
     ...(visibility === "tokens"
-      ? { tokens: { used: ai.tokens, limit: limits.aiTokens.value }, turns: { used: ai.turns, limit: limits.aiTurns.value } }
+      ? usdLimit !== null
+        ? { tokens: { used: ai.tokens, limit: equivalente } }
+        : { tokens: { used: ai.tokens, limit: limits.aiTokens.value }, turns: { used: ai.turns, limit: limits.aiTurns.value } }
       : {}),
+    ...(visibility === "usd" && usdLimit !== null ? { usd: { used: gastado, limit: usdLimit } } : {}),
   };
   // Lo de `worstGauge` en `tokens` trae `used`/`limit` de una sola medida: van aparte.
   delete total.used;
@@ -137,7 +146,7 @@ export async function getOwnerUsage(organizationId: string, now = new Date()): P
   const funciones = (Object.entries(ai.byKind) as [AiUsageKind, { turns: number; tokens: number }][])
     .filter(([k]) => k !== "embed")
     .map(([key, v]) => ({ key, tokens: v.tokens, turns: v.turns }));
-  const agentes = projectShares(visibility, ai.byAgent.map((a) => ({ key: a.agentId, tokens: a.tokens, turns: a.turns })));
+  const agentes = projectShares(visibility === "usd" ? "percent" : visibility, ai.byAgent.map((a) => ({ key: a.agentId, tokens: a.tokens, turns: a.turns })));
   const porAgente = new Map(ai.byAgent.map((a) => [a.agentId, a]));
 
   const { aiTurns: _t, aiTokens: _k, embedTokens: _e, assistantTokens: _a, ...ownerLimits } = limits;
@@ -147,9 +156,9 @@ export async function getOwnerUsage(organizationId: string, now = new Date()): P
     visibility,
     ai: {
       total,
-      embed: projectGauge(visibility, embedTokens, limits.embedTokens.value),
+      embed: projectGauge(visibility === "usd" ? "percent" : visibility, embedTokens, limits.embedTokens.value),
       assistant,
-      byKind: projectShares(visibility, funciones),
+      byKind: projectShares(visibility === "usd" ? "percent" : visibility, funciones),
       byAgent:
         agentes?.map((line) => ({
           ...line,

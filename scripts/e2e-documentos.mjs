@@ -220,7 +220,7 @@ async function main() {
     await fila.getByTestId("kb-doc-status").filter({ hasText: /^Listo$/ }).waitFor({ timeout: 30000 });
     ok("el documento aparece y llega a «Listo»", true);
     const uso = await page.getByTestId("kb-docs-usage").innerText();
-    ok("se ve el uso contra el límite («1 de 50 documentos»)", /1 de 50 documentos/.test(uso), uso);
+    ok("se ve cuántos documentos hay, sin límite de cantidad («1 documento»)", /1 documento/.test(uso) && !/ de \d+ documentos/.test(uso), uso);
     docId = await fila.getAttribute("data-doc-id");
     ok("el documento tiene id", Boolean(docId));
     const d = await estado(A, docId);

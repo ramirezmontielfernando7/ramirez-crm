@@ -164,7 +164,7 @@ describe("038 — base del asistente interno", () => {
     expect(st.gauge).toEqual({ state: "exhausted", percent: null });
     await saveOrgLimits(A.id, { usageVisibility: "percent" }, null);
     await expect(
-      as(A.id, () => getDb().update(schema.organizationPlan).set({ usageVisibility: "usd" as never }).where(eq(schema.organizationPlan.organizationId, A.id)))
+      as(A.id, () => getDb().update(schema.organizationPlan).set({ usageVisibility: "eur" as never }).where(eq(schema.organizationPlan.organizationId, A.id)))
     ).rejects.toThrow();
     await expect(
       as(A.id, () => getDb().update(schema.organizationPlan).set({ maxActiveModules: 14 }).where(eq(schema.organizationPlan.organizationId, A.id)))

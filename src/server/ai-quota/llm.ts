@@ -14,6 +14,8 @@ import {
   recordModelUsage,
   reserveTurn,
   type AiKind,
+  type FnCap,
+  type PoolMode,
   type ReservationLimit,
 } from "@/server/ai-quota/quota";
 import { checkAiAlerts, checkAssistantAlerts } from "@/server/limits/alerts";
@@ -44,6 +46,7 @@ const log = logger("ai");
 export const QUOTA_DETAIL: Record<ReservationLimit | "assistant_check_failed", string> = {
   turns: "tope mensual de turnos de IA alcanzado",
   usd: "tope mensual de IA (en dólares) alcanzado",
+  fn_usd: "tope de seguridad de esta función de IA alcanzado",
   tokens: "tope mensual de tokens de IA alcanzado",
   assistant_tokens: "tope mensual del asistente interno alcanzado",
   assistant_unset: "el asistente interno no tiene tope asignado",
@@ -74,10 +77,14 @@ export async function chatJsonForOrg<T>(
   // conexión») manda sobre el elegido.
   let callOpts = rest;
   let usdLimit: number | null = null;
+  let fnCap: FnCap | null = null;
+  let poolMode: PoolMode = "block";
   try {
     const choice = await resolveAiChoice(organizationId, use ?? defaultUseOfKind(kind), mode);
     callOpts = { ...rest, model: rest.model ?? choice.model, effort: rest.effort ?? choice.effort };
     usdLimit = choice.usdLimit;
+    fnCap = choice.fnCap;
+    poolMode = choice.poolMode;
   } catch (err) {
     log.error("no se pudo resolver el modelo de la organización; se usa el de la instancia", { org: organizationId, tipo: kind, err });
   }
@@ -86,7 +93,7 @@ export async function chatJsonForOrg<T>(
   const now = new Date();
   const reservado = true;
   try {
-    const r = await reserveTurn(organizationId, kind, now, budget, usdLimit);
+    const r = await reserveTurn(organizationId, kind, now, budget, usdLimit, fnCap, poolMode);
     if (!r.ok) {
       log.warn("cuota mensual de IA agotada: no se llama al modelo", { org: organizationId, tipo: kind, tope: r.limit });
       return { ok: false, error: "quota_exceeded", detail: QUOTA_DETAIL[r.limit] };
@@ -101,7 +108,7 @@ export async function chatJsonForOrg<T>(
   if (reservado) {
     try {
       const estUsd = await estimateCallUsd(result.model ?? callOpts.model, result.usage);
-      await recordUsage(organizationId, kind, result.usage ?? { promptTokens: 0, completionTokens: 0 }, now, budget, estUsd);
+      await recordUsage(organizationId, kind, result.usage ?? { promptTokens: 0, completionTokens: 0 }, now, budget, estUsd, fnCap?.fn ?? null);
     } catch (err) {
       log.error("no se pudieron sumar los tokens del turno de IA", { org: organizationId, tipo: kind, err });
     }

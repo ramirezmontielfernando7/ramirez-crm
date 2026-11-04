@@ -231,11 +231,9 @@ export function DocumentsClient({ groupKey: activeKey = GENERAL_GROUP_KEY }: { g
             <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-card px-4 py-3">
               <div className="text-sm">
                 <span className="font-medium" data-testid="kb-docs-usage">
-                  {data.usage.documents} de {data.limits.maxDocuments} documentos
+                  {plural(data.usage.documents, "documento", "documentos")}
                 </span>
                 <span className="text-muted-foreground">
-                  {" "}
-                  · {data.usage.chunks.toLocaleString("es-MX")} de {data.limits.maxChunks.toLocaleString("es-MX")} fragmentos
                   {data.usage.exclusive > 0 && (
                     <span data-testid="kb-docs-exclusive"> · {plural(data.usage.exclusive, "exclusivo de un agente", "exclusivos de agentes")}</span>
                   )}

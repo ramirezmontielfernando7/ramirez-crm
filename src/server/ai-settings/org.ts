@@ -11,7 +11,21 @@ import { PLAN_SCOPES, type AiFunctionValues } from "./platform";
  * plataforma (`PUT /api/platform/organizations/[id]/ai`).
  */
 
-export type OrgAiOverrides = AiFunctionValues & { monthlyUsdLimit: number | null };
+export type OverMode = "block" | "warn";
+const asMode = (v: string | null | undefined): OverMode => (v === "warn" ? "warn" : "block");
+const asNum = (v: string | null | undefined): number | null => (v === null || v === undefined ? null : Number(v));
+
+/** 0071 — Topes de seguridad por función en dólares (NULL = usa la bolsa) y qué hacer al llenarse. */
+export type OrgAiCaps = {
+  agentUsdLimit: number | null;
+  creatorUsdLimit: number | null;
+  assistantUsdLimit: number | null;
+  poolMode: OverMode;
+  agentMode: OverMode;
+  creatorMode: OverMode;
+  assistantMode: OverMode;
+};
+export type OrgAiOverrides = AiFunctionValues & { monthlyUsdLimit: number | null } & OrgAiCaps;
 export type OrgAiState = { overrides: OrgAiOverrides; plan: (typeof PLAN_SCOPES)[number] | null };
 
 const EMPTY: OrgAiOverrides = {
@@ -21,6 +35,13 @@ const EMPTY: OrgAiOverrides = {
   creatorEffort: null,
   assistantModel: null,
   monthlyUsdLimit: null,
+  agentUsdLimit: null,
+  creatorUsdLimit: null,
+  assistantUsdLimit: null,
+  poolMode: "block",
+  agentMode: "block",
+  creatorMode: "block",
+  assistantMode: "block",
 };
 
 export async function getOrgAiState(organizationId: string): Promise<OrgAiState> {
@@ -42,6 +63,13 @@ export async function getOrgAiState(organizationId: string): Promise<OrgAiState>
         creatorEffort: parseEffort(q.creatorEffort) ?? null,
         assistantModel: q.assistantModel?.trim() || null,
         monthlyUsdLimit: q.monthlyUsdLimit === null ? null : Number(q.monthlyUsdLimit),
+        agentUsdLimit: asNum(q.agentUsdLimit),
+        creatorUsdLimit: asNum(q.creatorUsdLimit),
+        assistantUsdLimit: asNum(q.assistantUsdLimit),
+        poolMode: asMode(q.poolMode),
+        agentMode: asMode(q.agentMode),
+        creatorMode: asMode(q.creatorMode),
+        assistantMode: asMode(q.assistantMode),
       },
     };
   });
@@ -59,6 +87,13 @@ export async function saveOrgAiOverrides(organizationId: string, patch: Partial<
       creatorEffort: keep("creatorEffort", q?.creatorEffort ?? null),
       assistantModel: keep("assistantModel", q?.assistantModel ?? null),
       monthlyUsdLimit: keep("monthlyUsdLimit", q?.monthlyUsdLimit ?? null),
+      agentUsdLimit: keep("agentUsdLimit", q?.agentUsdLimit ?? null),
+      creatorUsdLimit: keep("creatorUsdLimit", q?.creatorUsdLimit ?? null),
+      assistantUsdLimit: keep("assistantUsdLimit", q?.assistantUsdLimit ?? null),
+      poolMode: asMode(patch.poolMode ?? q?.poolMode),
+      agentMode: asMode(patch.agentMode ?? q?.agentMode),
+      creatorMode: asMode(patch.creatorMode ?? q?.creatorMode),
+      assistantMode: asMode(patch.assistantMode ?? q?.assistantMode),
       updatedAt: new Date(),
     };
     await tx
