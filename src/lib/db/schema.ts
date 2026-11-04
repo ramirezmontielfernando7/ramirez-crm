@@ -2634,6 +2634,13 @@ export const aiQuota = pgTable("ai_quota", {
   agentUsdLimit: numeric("agent_usd_limit", { precision: 12, scale: 4 }),
   creatorUsdLimit: numeric("creator_usd_limit", { precision: 12, scale: 4 }),
   assistantUsdLimit: numeric("assistant_usd_limit", { precision: 12, scale: 4 }),
+  /** 0072 — Cómo se escribió cada tope por función: unidad y valor tal cual (`pct` = % del total). */
+  agentCapUnit: text("agent_cap_unit").notNull().default("usd"),
+  agentCapValue: numeric("agent_cap_value", { precision: 14, scale: 4 }),
+  creatorCapUnit: text("creator_cap_unit").notNull().default("usd"),
+  creatorCapValue: numeric("creator_cap_value", { precision: 14, scale: 4 }),
+  assistantCapUnit: text("assistant_cap_unit").notNull().default("usd"),
+  assistantCapValue: numeric("assistant_cap_value", { precision: 14, scale: 4 }),
   poolMode: text("pool_mode").notNull().default("block"),
   agentMode: text("agent_mode").notNull().default("block"),
   creatorMode: text("creator_mode").notNull().default("block"),
@@ -2641,6 +2648,7 @@ export const aiQuota = pgTable("ai_quota", {
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 }, (t) => [
   check("ai_quota_fn_usd_chk", sql`(${t.agentUsdLimit} is null or ${t.agentUsdLimit} >= 0) and (${t.creatorUsdLimit} is null or ${t.creatorUsdLimit} >= 0) and (${t.assistantUsdLimit} is null or ${t.assistantUsdLimit} >= 0)`),
+  check("ai_quota_cap_units_chk", sql`${t.agentCapUnit} in ('usd', 'mtok', 'pct') and ${t.creatorCapUnit} in ('usd', 'mtok', 'pct') and ${t.assistantCapUnit} in ('usd', 'mtok', 'pct')`),
   check("ai_quota_modes_chk", sql`${t.poolMode} in ('block', 'warn') and ${t.agentMode} in ('block', 'warn') and ${t.creatorMode} in ('block', 'warn') and ${t.assistantMode} in ('block', 'warn')`),
   check("ai_quota_usd_chk", sql`${t.monthlyUsdLimit} is null or ${t.monthlyUsdLimit} >= 0`),
   check("ai_quota_agent_effort_chk", sql`${t.agentEffort} is null or ${t.agentEffort} in ('none', 'low', 'medium', 'high')`),

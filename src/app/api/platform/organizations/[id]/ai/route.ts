@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { parseBody } from "@/lib/api";
+import { CAP_UNITS } from "@/lib/fn-caps";
 import { AI_EFFORTS } from "@/lib/ai/choice";
 import { changeOrgAi, getOrgAiView } from "@/server/ai-settings/admin";
 import { actorOf, withPlatformAdmin } from "@/server/platform-admin/http";
@@ -21,6 +22,15 @@ export const GET = withPlatformAdmin(async (_admin, _ip, _req, { params }: Param
 const modelo = z.string().trim().min(1).max(200).regex(/^[\w.:/@-]+$/, "Nombre de modelo no válido").nullable().optional();
 const esfuerzo = z.enum(AI_EFFORTS).nullable().optional();
 
+/** 0072 — Un tope por función: unidad, lo escrito y (solo dólares/tokens) los dólares ya convertidos. */
+const capSchema = z
+  .object({
+    unit: z.enum(CAP_UNITS),
+    value: z.number().min(0).max(1_000_000).nullable(),
+    usd: z.number().min(0).max(1_000_000).nullable(),
+  })
+  .strict();
+
 const schema = z
   .object({
     agentModel: modelo,
@@ -29,9 +39,7 @@ const schema = z
     creatorEffort: esfuerzo,
     assistantModel: modelo,
     monthlyUsdLimit: z.number().min(0).max(1_000_000).nullable().optional(),
-    agentUsdLimit: z.number().min(0).max(1_000_000).nullable().optional(),
-    creatorUsdLimit: z.number().min(0).max(1_000_000).nullable().optional(),
-    assistantUsdLimit: z.number().min(0).max(1_000_000).nullable().optional(),
+    caps: z.object({ agent: capSchema.optional(), creator: capSchema.optional(), assistant: capSchema.optional() }).strict().optional(),
     poolMode: z.enum(["block", "warn"]).optional(),
     agentMode: z.enum(["block", "warn"]).optional(),
     creatorMode: z.enum(["block", "warn"]).optional(),

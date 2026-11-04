@@ -54,7 +54,7 @@ export async function getAssistantStatus(
 /** 0071 — La bolsa de IA en dólares: ¿hay una, y ya se llenó (en modo «bloquear»)? */
 async function poolOf(organizationId: string, now: Date): Promise<{ exists: boolean; exhausted: boolean }> {
   const [usd, limits, state] = await Promise.all([orgUsdLimit(organizationId), getQuotaLimits(organizationId), getOrgAiState(organizationId)]);
-  const exists = usd !== null || limits.tokens !== null || limits.turns !== null || state.overrides.assistantUsdLimit !== null;
+  const exists = usd !== null || limits.tokens !== null || limits.turns !== null || state.overrides.caps.assistant.value !== null;
   if (usd === null || state.overrides.poolMode === "warn") return { exists, exhausted: false };
   return { exists, exhausted: (await orgEstSpend(organizationId, currentPeriod(now))) >= usd };
 }

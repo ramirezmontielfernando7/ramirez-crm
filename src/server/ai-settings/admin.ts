@@ -7,6 +7,7 @@ import {
   type AiEffort,
   type AiFunction,
 } from "@/lib/ai/choice";
+import { checkCaps } from "@/lib/fn-caps";
 import { MODEL_CATALOG, modelLabel } from "@/lib/costs";
 import { getEnv } from "@/lib/env";
 import { getModelsInUse } from "@/server/costs/models";
@@ -14,7 +15,7 @@ import { runWithOrganization } from "@/lib/request-context";
 import { currentPeriod } from "@/server/ai-quota/quota";
 import { recordPlatformAudit, type AuditActor } from "@/server/platform-admin/audit";
 import { PlatformError } from "@/server/platform-admin/organizations";
-import { getOrgAiState, orgEstSpend, saveOrgAiOverrides, type OrgAiOverrides } from "./org";
+import { getOrgAiState, orgEstSpend, saveOrgAiOverrides, type OrgAiOverrides, type OrgAiPatch } from "./org";
 import {
   AI_DEFAULT_SCOPES,
   getModelPriceRows,
@@ -160,7 +161,7 @@ export async function changePlatformAiDefaults(scope: AiDefaultScope, patch: AiD
     await recordPlatformAudit({
       actor,
       action: "ai_settings.changed",
-      detail: { alcance: scope, ...Object.fromEntries(cambios.map((k) => [k, { de: before[k], a: patch[k] }])) },
+      detail: { alcance: scope, ...Object.fromEntries(cambios.map((k) => [k, { de: before[k], a: (patch as Record<string, unknown>)[k] }])) },
       ip,
     });
   }
@@ -221,14 +222,23 @@ export async function getOrgAiView(organizationId: string, now = new Date()): Pr
 
 export async function changeOrgAi(
   organizationId: string,
-  patch: Partial<OrgAiOverrides>,
+  patch: OrgAiPatch,
   actor: AuditActor,
   ip: string | null
 ): Promise<OrgAiView> {
   const org = await orgName(organizationId);
-  const before = (await runWithOrganization(organizationId, () => getOrgAiState(organizationId))).overrides;
+  const state = await runWithOrganization(organizationId, () => getOrgAiState(organizationId));
+  const before = state.overrides;
+  // 0072: lo repartido entre funciones no puede pasar del total (la bolsa propia o la del plan).
+  if (patch.caps || patch.monthlyUsdLimit !== undefined) {
+    const planPool = state.plan ? ((await getPlatformAiDefaults())[state.plan]?.monthlyUsdLimit ?? null) : null;
+    const pool = (patch.monthlyUsdLimit !== undefined ? patch.monthlyUsdLimit : before.monthlyUsdLimit) ?? planPool;
+    const caps = { ...before.caps, ...(patch.caps ?? {}) };
+    const check = checkCaps([caps.agent, caps.creator, caps.assistant], pool);
+    if (!check.ok) throw new PlatformError(422, check.code, check.message);
+  }
   await runWithOrganization(organizationId, () => saveOrgAiOverrides(organizationId, patch));
-  const cambios = (Object.keys(patch) as (keyof OrgAiOverrides)[]).filter((k) => before[k] !== patch[k]);
+  const cambios = (Object.keys(patch) as (keyof OrgAiOverrides)[]).filter((k) => JSON.stringify(before[k]) !== JSON.stringify((patch as Record<string, unknown>)[k]));
   if (cambios.length > 0) {
     await recordPlatformAudit({
       actor,
