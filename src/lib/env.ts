@@ -72,6 +72,14 @@ const envSchema = z.object({
   ASSISTANT_MODEL_FAST: z.string().optional().transform((v) => v?.trim() || undefined),
   ASSISTANT_MODEL_NORMAL: z.string().optional().transform((v) => v?.trim() || undefined),
   ASSISTANT_MODEL_DEEP: z.string().optional().transform((v) => v?.trim() || undefined),
+  // Modelos por FUNCIÓN (src/lib/ai/choice.ts): agentes = OPENROUTER_MODEL,
+  // creador = OPENROUTER_CREATOR_MODEL, asistente = ASSISTANT_MODEL (un solo
+  // modelo; Rápido/Normal/Profundo = esfuerzo bajo/medio/alto; también hace
+  // el análisis de chats). Vacía = la cadena de las variables de arriba.
+  ASSISTANT_MODEL: z.string().optional().transform((v) => v?.trim() || undefined),
+  // Esfuerzo (none | low | medium | high) de agentes y creador. Vacías = low.
+  AI_AGENT_EFFORT: z.string().optional().transform((v) => v?.trim() || undefined),
+  AI_CREATOR_EFFORT: z.string().optional().transform((v) => v?.trim() || undefined),
   // Creador conversacional del agente y «Revisar este chat» (Estudio de IA):
   // modelo propio (p. ej. Sonnet 5.5). Vacía = el del juez, o el principal.
   OPENROUTER_CREATOR_MODEL: z

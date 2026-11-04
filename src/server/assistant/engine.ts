@@ -22,7 +22,6 @@ import type { Access } from "@/lib/db/tenant";
 import { logger } from "@/lib/log";
 import { INSIGHT_MAX_NEW_PER_QUESTION } from "@/lib/conversation-insight";
 import type { SessionContext } from "@/lib/auth/session";
-import { getEnv } from "@/lib/env";
 import { chatJsonForOrg } from "@/server/ai-quota/llm";
 import { renderCatalog, runQuery, type QueryContext } from "./catalog";
 import { assistantTools, checkProposal, renderToolCatalog, runReadTool, sendingLabel } from "./tools";
@@ -95,18 +94,6 @@ function coverageOf(name: string, forOwner: unknown): AssistantCoverage | null {
     sinInformacion: c.sin_informacion_suficiente ?? 0,
     faltan: c.faltan ?? 0,
   };
-}
-
-/**
- * El modelo de cada modo, de las variables ASSISTANT_MODEL_FAST/NORMAL/DEEP.
- * Vacías, cadena: rápido = el de siempre; normal = análisis → juez → el de siempre;
- * profundo = el normal. `undefined` = el modelo principal (OPENROUTER_MODEL).
- */
-export function assistantModelFor(speed: AssistantSpeed, env = getEnv()): string | undefined {
-  const normal = env.ASSISTANT_MODEL_NORMAL ?? env.OPENROUTER_ANALYSIS_MODEL ?? env.OPENROUTER_JUDGE_MODEL ?? undefined;
-  if (speed === "fast") return env.ASSISTANT_MODEL_FAST;
-  if (speed === "normal") return normal;
-  return env.ASSISTANT_MODEL_DEEP ?? normal;
 }
 
 /** Lo consultado, recortado: los últimos bloques primero, hasta ~6000 caracteres. */
@@ -206,13 +193,9 @@ export async function askAssistant(input: AskInput): Promise<AskResult> {
   /** Lo consultado en esta pregunta (enmascarado): se guarda para recordarlo en la siguiente. */
   const dataBlocks: string[] = [];
 
+  // Un solo modelo; Rápido / Normal / Profundo = esfuerzo bajo / medio / alto
+  // (lo resuelve la puerta, `chatJsonForOrg`).
   const speed = input.speed ?? "normal";
-  let modelOverride: string | undefined;
-  try {
-    modelOverride = assistantModelFor(speed);
-  } catch {
-    modelOverride = undefined; // entorno sin validar (pruebas): el modelo de siempre
-  }
   const proposals: AssistantProposal[] = [];
   const sources: AssistantSource[] = [];
   const flags = new Set<AssistantFlag>();
@@ -252,9 +235,7 @@ export async function askAssistant(input: AskInput): Promise<AskResult> {
     modelCalls++;
     const last = modelCalls === MAX_MODEL_CALLS || sources.length >= MAX_QUERIES_PER_QUESTION;
     const r = await chatJsonForOrg(input.organizationId, "assistant", assistantStepSchema, messages, {
-      ...(modelOverride ? { model: modelOverride } : {}),
-      // Normal y profundo piensan con más esfuerzo; rápido, el mínimo.
-      ...(speed === "fast" ? {} : { judge: true }),
+      mode: speed,
     });
     addUsage(usage, r.usage);
     if (!r.ok) {

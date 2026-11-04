@@ -12,7 +12,6 @@ import {
   type CreatorField,
   type FieldUpdate,
 } from "@/lib/agent-creator";
-import { getEnv } from "@/lib/env";
 import { chatJsonForOrg } from "@/server/ai-quota/llm";
 import type { AgentConfig } from "./config";
 
@@ -35,11 +34,6 @@ export function fieldsOf(config: AgentConfig): CreatorFields {
     instructions: config.instructions,
     escalationRules: config.escalationRules,
   };
-}
-
-function creatorModel(): string | undefined {
-  const env = getEnv();
-  return env.OPENROUTER_CREATOR_MODEL ?? env.OPENROUTER_JUDGE_MODEL ?? undefined;
 }
 
 function renderFields(f: CreatorFields): string {
@@ -78,7 +72,7 @@ export async function runCreatorTurn(input: CreatorInput): Promise<CreatorResult
     ...input.history.map((m) => ({ role: m.role, content: m.text })),
     { role: "user", content: input.message },
   ];
-  const res = await chatJsonForOrg(input.organizationId, "writing", creatorOutputSchema, messages, { model: creatorModel(), timeoutMs: 60_000 });
+  const res = await chatJsonForOrg(input.organizationId, "writing", creatorOutputSchema, messages, { use: "creator", timeoutMs: 60_000 });
   if (!res.ok) return { ok: false, error: res.error === "invalid_output" ? "provider_error" : res.error };
   const reply = res.data.reply.trim();
   const updates = sanitizeUpdates(res.data.updates ?? [], fields);
@@ -121,7 +115,7 @@ export async function runReview(input: ReviewInput): Promise<ReviewResult> {
       content: `Configuración actual:\n\n${renderFields(fields)}\n\n<<<CHAT_${nonce}\n${convo}\nCHAT_${nonce}>>>`,
     },
   ];
-  const res = await chatJsonForOrg(input.organizationId, "writing", reviewOutputSchema, messages, { model: creatorModel(), timeoutMs: 60_000 });
+  const res = await chatJsonForOrg(input.organizationId, "writing", reviewOutputSchema, messages, { use: "creator", timeoutMs: 60_000 });
   if (!res.ok) return { ok: false, error: res.error === "invalid_output" ? "provider_error" : res.error };
   const suggestions: ReviewSuggestion[] = [];
   for (const s of res.data.suggestions ?? []) {

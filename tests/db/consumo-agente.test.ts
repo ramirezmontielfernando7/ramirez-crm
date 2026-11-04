@@ -66,7 +66,7 @@ describe("consumo de IA por agente", () => {
     await as(A.id, () => chatJsonForOrg(A.id, "agent", esquema, [{ role: "user", content: "hola" }], { agentId: agenteA }));
     await as(A.id, () => chatJsonForOrg(A.id, "lab", esquema, [{ role: "user", content: "prueba" }], { agentId: agenteA }));
     await as(A.id, () =>
-      chatJsonForOrg(A.id, "judge", esquema, [{ role: "user", content: "juzga" }], { agentId: agenteA, judge: true })
+      chatJsonForOrg(A.id, "judge", esquema, [{ role: "user", content: "juzga" }], { agentId: agenteA, effort: "medium" })
     );
     // La escritura no tiene agente.
     await as(A.id, () => chatJsonForOrg(A.id, "writing", esquema, [{ role: "user", content: "redacta" }]));

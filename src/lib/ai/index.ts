@@ -2,6 +2,8 @@ import type { z } from "zod";
 import { getEnv, isAiConfigured, isMockEnabled } from "@/lib/env";
 import { logger } from "@/lib/log";
 import { hasOpenTransaction } from "@/lib/request-context";
+import type { AiEffort } from "@/lib/ai/choice";
+import { bedrockOpenAiUrl, isBedrockOpenAiModel } from "@/lib/ai/bedrock-openai";
 import {
   ANTHROPIC_VERSION,
   fromMessagesResponse,
@@ -31,9 +33,10 @@ export type ChatMessage = {
 export type LlmUsage = { promptTokens: number; completionTokens: number; costUsd?: number };
 
 export type ChatJsonResult<T> =
-  | { ok: true; data: T; raw: string; usage?: LlmUsage }
+  | { ok: true; data: T; raw: string; usage?: LlmUsage; model?: string }
   | {
       ok: false;
+      model?: string;
       // `quota_exceeded` lo produce `src/server/ai/llm.ts` (Fase 3) antes de
       // llamar; aquí nunca.
       error: "not_configured" | "provider_error" | "invalid_output" | "quota_exceeded";
@@ -82,7 +85,7 @@ function retryDelayMs(err: unknown, attempt: number): number {
 export async function chatJson<T>(
   schema: z.ZodType<T>,
   messages: ChatMessage[],
-  opts?: { model?: string; judge?: boolean; timeoutMs?: number }
+  opts?: { model?: string; judge?: boolean; effort?: AiEffort; timeoutMs?: number }
 ): Promise<ChatJsonResult<T>> {
   assertNoOpenTransaction();
   if (!isAiConfigured()) {
@@ -98,6 +101,8 @@ export async function chatJson<T>(
     (opts?.judge
       ? (env.OPENROUTER_JUDGE_MODEL ?? env.OPENROUTER_MODEL)
       : env.OPENROUTER_MODEL);
+  // Sin esfuerzo explícito, el de siempre: medio para el juez, bajo para lo demás.
+  const effort: AiEffort = opts?.effort ?? (opts?.judge ? "medium" : "low");
   if (!model?.trim()) {
     return {
       ok: false,
@@ -124,8 +129,10 @@ export async function chatJson<T>(
           ];
     try {
       const reply = isBedrockClaudeModel(model)
-        ? await callBedrockClaude(model, attemptMessages, opts?.judge ? "medium" : "low", opts?.timeoutMs)
-        : await callProvider(model, attemptMessages, opts?.timeoutMs);
+        ? await callBedrockClaude(model, attemptMessages, effort === "none" ? "low" : effort, opts?.timeoutMs)
+        : isBedrockOpenAiModel(model)
+          ? await callProvider(model, attemptMessages, opts?.timeoutMs, { url: bedrockOpenAiUrl(getEnv().OPENROUTER_BASE_URL), effort })
+          : await callProvider(model, attemptMessages, opts?.timeoutMs);
       usage.promptTokens += reply.usage.promptTokens;
       usage.completionTokens += reply.usage.completionTokens;
       if (reply.usage.costUsd !== undefined) usage.costUsd = (usage.costUsd ?? 0) + reply.usage.costUsd;
@@ -146,7 +153,7 @@ export async function chatJson<T>(
           .join("; ")} (raw=${truncate(raw)})`;
         continue;
       }
-      return { ok: true, data: parsed.data, raw, usage };
+      return { ok: true, data: parsed.data, raw, usage, model };
     } catch (err) {
       lastDetail = err instanceof Error ? err.message : String(err);
       if (err instanceof ProviderHttpError && err.status >= 400 && err.status < 500 && ![408, 429].includes(err.status)) break;
@@ -163,27 +170,39 @@ export async function chatJson<T>(
       : "provider_error",
     detail: lastDetail,
     usage,
+    model,
     ...(proseRaw ? { proseRaw } : {}),
   };
 }
 
+/**
+ * Chat Completions. `bedrock` = un modelo de OpenAI dentro de Amazon Bedrock:
+ * su ruta propia y el esfuerzo de razonamiento (`reasoning_effort`); los
+ * demás proveedores siguen exactamente como antes (sin esfuerzo: un modelo
+ * que no razona lo rechazaría).
+ */
 async function callProvider(
   model: string,
   messages: ChatMessage[],
-  timeoutMs = 60_000
+  timeoutMs = 60_000,
+  bedrock?: { url: string; effort: AiEffort }
 ): Promise<{ content: string; usage: LlmUsage; refusal?: boolean }> {
   const env = getEnv();
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const res = await fetch(`${env.OPENROUTER_BASE_URL}/v1/chat/completions`, {
+    const res = await fetch(bedrock?.url ?? `${env.OPENROUTER_BASE_URL}/v1/chat/completions`, {
       method: "POST",
       headers: {
         // El token jamás se loguea; solo viaja en este header.
         Authorization: `Bearer ${env.OPENROUTER_API_TOKEN}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ model, messages, max_tokens: 8192 }),
+      body: JSON.stringify(
+        bedrock
+          ? { model, messages, max_completion_tokens: 8192, reasoning_effort: bedrock.effort }
+          : { model, messages, max_tokens: 8192 }
+      ),
       signal: controller.signal,
     });
     if (!res.ok) {
@@ -225,7 +244,7 @@ async function callProvider(
 async function callBedrockClaude(
   model: string,
   messages: ChatMessage[],
-  effort: "low" | "medium",
+  effort: "low" | "medium" | "high",
   timeoutMs = 60_000
 ): Promise<{ content: string; usage: LlmUsage; refusal?: boolean }> {
   const env = getEnv();

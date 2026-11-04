@@ -54,7 +54,7 @@ export async function judgeCase(input: {
       { role: "system", content: system },
       { role: "user", content: user },
     ],
-    { judge: true, agentId: input.agentId }
+    { effort: "medium", agentId: input.agentId }
   );
   if (!result.ok) {
     // Diagnóstico operativo: el caso queda visible como judge_failed y aquí
