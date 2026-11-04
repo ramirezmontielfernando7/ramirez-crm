@@ -434,7 +434,7 @@ export function AgentEditor({ id, documents = false }: { id: string; documents?:
           ) : (
             <p>Los agentes que no son el general no atienden clientes todavía; puedes evaluarlos en el Laboratorio.</p>
           )}
-          {!summary?.lastRun && <p>Todavía no has evaluado a este agente. Puedes hacerlo antes en la pestaña «Evaluaciones».</p>}
+          {!summary?.lastRun && <p>Todavía no has evaluado a este agente. Puedes probarlo antes en la pestaña «Clientes simulados».</p>}
         </ConfirmDialog>
       )}
       {dialog === "general" && (

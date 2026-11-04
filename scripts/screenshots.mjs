@@ -114,12 +114,8 @@ await shoot("/pipeline", "pipeline.png", async () => {
 });
 
 await shoot("/lab/evaluaciones", "laboratorio.png", async () => {
-  await page.getByText(/Score 83/).first().waitFor();
-  // El reporte de la corrida llega en un segundo fetch: se espera a que el
-  // hueco "elige una corrida" desaparezca, no un tiempo fijo.
-  await page
-    .getByText("Elige una corrida del historial")
-    .waitFor({ state: "hidden", timeout: 20_000 });
+  // 0070: Clientes simulados; la conversación llega en un segundo fetch.
+  await page.getByTestId("lab-sim-case-view").waitFor({ timeout: 20_000 });
 });
 
 await shoot("/settings/branding", "marca.png", async () => {

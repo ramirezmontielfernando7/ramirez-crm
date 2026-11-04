@@ -86,6 +86,11 @@ export function AssistantClient() {
   const [threadId, setThreadId] = useState<string | null>(null);
   const [messages, setMessages] = useState<AssistantMessageDto[]>([]);
   const [question, setQuestion] = useState("");
+  // 0070: «Abrir en el asistente» (Clientes simulados) llega con la pregunta lista en `?q=`.
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search).get("q");
+    if (q) setQuestion(q.slice(0, MAX_QUESTION_CHARS));
+  }, []);
   const [speed, setSpeed] = useAssistantSpeed();
   const [asking, setAsking] = useState(false);
   /** Tu pregunta se ve al instante, mientras el asistente piensa. */
@@ -531,7 +536,7 @@ export function AssistantClient() {
                     ))}
                     {viewer.hasModule("lab") && (
                       <Link
-                        href="/lab/simulados"
+                        href="/lab/evaluaciones"
                         className="rounded-full border bg-card px-3 py-1.5 text-sm text-text-2 hover:border-primary hover:text-foreground"
                         data-testid="assistant-suggestion-simulados"
                       >

@@ -144,7 +144,6 @@ const PROTEGIDAS: [string, Method, Permission][] = [
   ["lab/assignments", "GET", "agent.manage"],
   ["lab/assignments/[stageId]", "PUT", "agent.manage"],
   ["lab/assignments/[stageId]", "DELETE", "agent.manage"],
-  ["lab/suggestions/apply", "POST", "agent.manage"],
   // 035 — Documentos del agente (Laboratorio → Documentos).
   ["lab/documents", "GET", "agent.manage"],
   ["lab/documents", "POST", "agent.manage"],

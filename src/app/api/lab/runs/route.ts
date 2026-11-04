@@ -4,7 +4,8 @@ import { apiError, withAuth } from "@/lib/api";
 import { getDb, schema } from "@/lib/db";
 import { scoped } from "@/lib/db/tenant";
 import { isAiConfigured } from "@/lib/env";
-import { RunConflictError, startRun } from "@/server/lab/runner";
+import { RunConflictError, RunNotFoundError, startRun } from "@/server/lab/runner";
+import { clientsOf, SIM_COUNTS } from "@/server/lab/simulated";
 import { moduleOff } from "@/server/modules";
 import { withAgentErrors } from "@/server/agents/http";
 
@@ -37,6 +38,7 @@ export const GET = withAuth(async (session) => {
       agentId: run.agentId,
       agentName: snapshotName(run.agentSnapshot),
       source: snapshotSource(run.agentSnapshot),
+      clients: clientsOf(run.agentSnapshot).length,
       delta:
         run.status === "done" && run.score !== null && prev?.score != null
           ? run.score - prev.score
@@ -46,11 +48,21 @@ export const GET = withAuth(async (session) => {
   return Response.json({ runs: withDelta, aiConfigured: isAiConfigured() });
 }, { permission: "agent.manage" });
 
-/** 031 — `{ agentId?, source? }` (cuerpo opcional: sin él, el general publicado). */
+/**
+ * 031 — `{ agentId?, source? }` (cuerpo opcional: sin él, el general publicado).
+ * 0070 — `clients`: cuántos clientes simulados (3, 5 u 8; 5 por defecto);
+ * `repeat`: repetir con UN cliente de una prueba anterior.
+ */
 const startSchema = z
   .object({
     agentId: z.string().min(1).optional(),
     source: z.enum(["draft", "published"]).optional(),
+    clients: z
+      .number()
+      .int()
+      .refine((n) => (SIM_COUNTS as readonly number[]).includes(n), "clients debe ser 3, 5 u 8")
+      .optional(),
+    repeat: z.object({ runId: z.string().min(1), caseId: z.string().min(1) }).strict().optional(),
   })
   .strict();
 
@@ -80,6 +92,7 @@ export const POST = withAuth(async (session, req: Request) => {
       const runId = await startRun(session.organizationId, body.data);
       return Response.json({ runId }, { status: 202 });
     } catch (err) {
+      if (err instanceof RunNotFoundError) return apiError(404, "not_found", err.message);
       if (err instanceof RunConflictError) {
         return apiError(
           409,

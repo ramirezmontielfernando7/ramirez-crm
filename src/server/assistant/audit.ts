@@ -1,7 +1,7 @@
 import { and, desc, eq, gte, inArray, isNull, sql } from "drizzle-orm";
 import { quarantineString } from "@/lib/assistant-engine";
 import { getDb, schema } from "@/lib/db";
-import { companyChat, scoped, scopedContacts } from "@/lib/db/tenant";
+import { companyChat, scopedContacts, scopedConversations } from "@/lib/db/tenant";
 import { agentsForAudit } from "@/server/agents/store";
 import type { QueryContext, QueryOutput } from "./catalog";
 
@@ -141,7 +141,7 @@ export async function auditAgents(ctx: QueryContext, args: { dias: number; ejemp
           at: schema.message.createdAt,
         })
         .from(schema.message)
-        .where(scoped(schema.message.organizationId, ctx.organizationId, inArray(schema.message.conversationId, ids)))
+        .where(scopedConversations(schema.message.organizationId, ctx.access, schema.message.conversationId, inArray(schema.message.conversationId, ids)))
         .orderBy(desc(schema.message.createdAt))
     : [];
   const byConv = new Map<string, typeof msgs>();

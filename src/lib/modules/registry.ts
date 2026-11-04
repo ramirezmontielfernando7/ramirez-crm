@@ -188,7 +188,7 @@ export const MODULES: readonly ModuleDef[] = [
       { label: "Mi agente", route: "/agent", module: "agent", permissions: ["agent.manage"], unless: "lab" },
       { label: "Conocimiento y documentos", route: "/lab/documentos", module: "lab", permissions: ["agent.manage"] },
       { label: "Asignación por etapa", route: "/lab/asignacion", module: "lab", permissions: ["agent.manage"] },
-      { label: "Evaluaciones", route: "/lab/evaluaciones", module: "lab", permissions: ["agent.manage"] },
+      { label: "Clientes simulados", route: "/lab/evaluaciones", module: "lab", permissions: ["agent.manage"] },
     ],
   },
   {

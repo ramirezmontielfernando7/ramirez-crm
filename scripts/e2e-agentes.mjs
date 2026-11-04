@@ -24,7 +24,7 @@
  *    vista previa tipo chat con chips y «Por qué respondió así»; guardar
  *    borrador, publicar (con resumen), renombrar, cargar una versión al
  *    borrador, y el aviso del cerebro externo al «Hacer general».
- *  - /lab/evaluaciones: el selector de agente lista al agente nuevo.
+ *  - /lab/evaluaciones (Clientes simulados): el selector de agente lista al agente nuevo.
  *  - La vista previa NO manda nada a WhatsApp (outbox vacío); archivar desde
  *    la lista.
  *
@@ -215,6 +215,21 @@ async function main() {
     return r && r.status !== "running";
   }, 240000);
   ok("la corrida termina", terminada);
+  // 0070: clientes simulados inventados con lo que sabe el agente (5 por defecto), revisados uno por uno.
+  const detalle = (await api(`/api/lab/runs/${corrida.json?.runId}`)).json ?? {};
+  const casos = detalle.cases ?? [];
+  ok("0070: 5 clientes simulados por defecto, con nombre y lo que quieren", casos.length === 5 && casos.every((c) => c.personaLabel && c.summary !== null && !/^sim_/.test(c.personaLabel)), JSON.stringify(casos.map((c) => c.personaLabel)));
+  ok("…cada uno revisado (Bien / Revisar / Falló)", casos.every((c) => ["verde", "amarillo", "rojo"].includes(c.veredicto)), JSON.stringify(casos.map((c) => c.veredicto)));
+  const garantia = casos.find((c) => /garant/i.test(JSON.stringify(c.transcript)));
+  ok("…el que preguntó algo que el agente no sabe queda en «Revisar» con una sugerencia", garantia?.veredicto === "amarillo" && !!garantia?.hallazgos?.arreglo && garantia?.hallazgos?.notas?.length === 1, JSON.stringify(garantia?.hallazgos));
+  ok("…y conversó más de un mensaje cuando no hubo traspaso", casos.some((c) => c.transcript.filter((m) => m.role === "cliente").length >= 2), JSON.stringify(casos.map((c) => c.transcript.length)));
+  const repetir = await post("/api/lab/runs", { agentId: agente?.id, source: "draft", repeat: { runId: corrida.json?.runId, caseId: garantia?.id ?? casos[0]?.id } });
+  ok("«Repetir con este cliente» → 202", repetir.status === 202, repetir.text.slice(0, 200));
+  await hasta(async () => (await api(`/api/lab/runs/${repetir.json?.runId}`)).json?.run?.status !== "running", 240000);
+  const rep = (await api(`/api/lab/runs/${repetir.json?.runId}`)).json?.cases ?? [];
+  ok("…con UN solo cliente, el mismo", rep.length === 1 && rep[0]?.personaLabel === (garantia ?? casos[0])?.personaLabel, JSON.stringify(rep.map((c) => c.personaLabel)));
+  const tres = await post("/api/lab/runs", { agentId: agente?.id, source: "draft", clients: 4 });
+  ok("solo 3, 5 u 8 clientes (4 → 422)", tres.status === 422, tres.text.slice(0, 200));
   const runs = (await api("/api/lab/runs")).json?.runs ?? [];
   const mia = runs.find((r) => r.id === corrida.json?.runId);
   const juez = await turnosDe(org, agente?.id, "judge");
@@ -361,10 +376,10 @@ async function main() {
     const generales = ((await api("/api/lab/agents")).json?.agents ?? []).filter((a) => a.isGeneral);
     ok("cancelar deja al mismo general", generales.length === 1 && generales[0].id !== idUi);
 
-    // Evaluaciones: el selector lista al agente.
+    // Clientes simulados: el selector lista al agente.
     await page.goto(`${BASE}/lab/evaluaciones`);
-    await page.getByLabel("Agente a evaluar").waitFor();
-    const opcion = page.locator("#eval-agent option", { hasText: `${nombreUi} v2` });
+    await page.getByLabel("Agente que se prueba").waitFor();
+    const opcion = page.locator("#lab-sim-agent option", { hasText: `${nombreUi} v2` });
     await opcion.waitFor({ state: "attached" });
     ok("/lab/evaluaciones ofrece al agente nuevo en el selector", (await opcion.count()) === 1);
 
