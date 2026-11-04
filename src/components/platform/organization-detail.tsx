@@ -26,6 +26,7 @@ import { cn } from "@/lib/utils";
 import { api, fecha, type Member, type Modules, type Org } from "./api";
 import { PLAN_HINT } from "./create-organization";
 import { LimitsForm } from "./limits-form";
+import { OrgAiCard } from "./org-ai-card";
 import { ResetLink, ResetLinkButton } from "./one-time-link";
 import { STATUS_DOT, STATUS_LABEL } from "./organizations-client";
 import { UsageDetail, UsageMeter } from "./usage";
@@ -37,7 +38,7 @@ import { UsageDetail, UsageMeter } from "./usage";
  * - A. Plan y módulos (`/platform/organizaciones/[id]`): plantillas rápidas
  *   (Esencial, Pro, Ultra; Personalizado = a mano) y los 13 interruptores
  *   agrupados por los pilares del CRM.
- * - B. Topes y visibilidad (`…/topes`): `LimitsForm`.
+ * - B. IA y topes (`…/topes`): `OrgAiCard` (0070: tope en dólares y modelos) y `LimitsForm`.
  * - C. Consumo y almacenamiento (`…/consumo`): el detalle del mes.
  * - D. Accesos y estado (`…/accesos`): personas, enlaces de contraseña y
  *   suspender / reactivar / borrar / restaurar.
@@ -59,7 +60,7 @@ const base = (id: string) => `/platform/organizaciones/${id}`;
 export function organizationTabs(id: string) {
   return [
     { href: base(id), label: "Plan y módulos", match: (p: string) => p === base(id) },
-    { href: `${base(id)}/topes`, label: "Topes y visibilidad" },
+    { href: `${base(id)}/topes`, label: "IA y topes" },
     { href: `${base(id)}/consumo`, label: "Consumo y almacenamiento" },
     { href: `${base(id)}/accesos`, label: "Accesos y estado" },
   ] as const;
@@ -502,17 +503,20 @@ function DirectServerPicker({ orgId, disabled }: { orgId: string; disabled: bool
   );
 }
 
-/* ───────── B. Topes y visibilidad ───────── */
+/* ───────── B. IA y topes ───────── */
 
 export function LimitsSection() {
   const { org, refetch } = useOrg();
   return (
-    <Section
-      title="Topes y visibilidad"
-      hint="Un campo vacío hereda (del entorno o sin tope). Bajar un tope por debajo del uso no quita nada: solo impide crecer."
-    >
-      <LimitsForm orgId={org.id} onSaved={() => void refetch()} />
-    </Section>
+    <div className="space-y-4">
+      <OrgAiCard orgId={org.id} />
+      <Section
+        title="Otros topes y qué ve el cliente"
+        hint="Almacenamiento, personas, módulos, documentos del agente y los topes en tokens de antes. Un campo vacío hereda. Bajar un tope por debajo del uso no quita nada: solo impide crecer."
+      >
+        <LimitsForm orgId={org.id} onSaved={() => void refetch()} />
+      </Section>
+    </div>
   );
 }
 

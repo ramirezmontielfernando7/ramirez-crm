@@ -59,7 +59,22 @@ export async function probeRole(role: AiRole): Promise<ProbeResult> {
       : role === "judge"
         ? (env.OPENROUTER_JUDGE_MODEL ?? env.OPENROUTER_MODEL)
         : (env.OPENROUTER_ANALYSIS_MODEL ?? env.OPENROUTER_MODEL);
-  const name = model?.trim() || null;
+  return pingModel(role, model?.trim() || null, started);
+}
+
+/** 0070 — Prueba un modelo por su nombre (el elegido en Plataforma, no el del entorno). */
+export async function probeModel(model: string): Promise<ProbeResult> {
+  return pingModel("main", model.trim() || null, Date.now());
+}
+
+async function pingModel(role: AiRole, name: string | null, started: number): Promise<ProbeResult> {
+  const done = (model: string | null, ok: boolean, detail?: string): ProbeResult => ({
+    role,
+    ok,
+    model,
+    latencyMs: Date.now() - started,
+    ...(detail ? { detail: clean(detail) } : {}),
+  });
   if (!name) return done(null, false, "Sin modelo configurado");
 
   const r = await chatJson(
