@@ -251,15 +251,18 @@ export type PriceSuggestion = { inputUsdPerMtok: number; outputUsdPerMtok: numbe
  */
 export const CACHE_READ_FACTOR = 0.1;
 export const CACHE_WRITE_FACTOR = 1.25;
+/** Escribir en la caché de 1 hora cuesta 2× el precio de entrada. */
+export const CACHE_WRITE_FACTOR_1H = 2;
 export function promptCachedCostUsd(
   usage: { promptTokens: number; completionTokens: number; cacheReadTokens?: number; cacheWriteTokens?: number },
   inputUsdPerMtok: number,
-  outputUsdPerMtok: number
+  outputUsdPerMtok: number,
+  writeFactor: number = CACHE_WRITE_FACTOR
 ): number {
   const read = Math.min(usage.cacheReadTokens ?? 0, usage.promptTokens);
   const write = Math.min(usage.cacheWriteTokens ?? 0, usage.promptTokens - read);
   const plain = usage.promptTokens - read - write;
-  const input = plain + read * CACHE_READ_FACTOR + write * CACHE_WRITE_FACTOR;
+  const input = plain + read * CACHE_READ_FACTOR + write * writeFactor;
   return (input * inputUsdPerMtok + usage.completionTokens * outputUsdPerMtok) / 1_000_000;
 }
 

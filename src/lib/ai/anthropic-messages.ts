@@ -23,8 +23,11 @@ export function messagesUrl(baseUrl: string): string {
 }
 
 type Turn = { role: "user" | "assistant"; content: string; cache?: boolean };
-type TextBlock = { type: "text"; text: string; cache_control?: { type: "ephemeral" } };
-const EPHEMERAL = { type: "ephemeral" } as const;
+type CacheControl = { type: "ephemeral"; ttl?: "1h" };
+type TextBlock = { type: "text"; text: string; cache_control?: CacheControl };
+/** Duración de la caché de prompts: 5 minutos (por defecto) o 1 hora (escribir cuesta más). */
+export type CacheTtl = "5m" | "1h";
+const controlOf = (ttl: CacheTtl): CacheControl => (ttl === "1h" ? { type: "ephemeral", ttl: "1h" } : { type: "ephemeral" });
 
 /**
  * Chat Completions → Messages. Todos los `system` (el inicial, la cola del
@@ -34,7 +37,8 @@ const EPHEMERAL = { type: "ephemeral" } as const;
  * cliente, y si termina con el agente se agrega uno: estos modelos rechazan
  * (400) un último turno `assistant`.
  */
-export function toMessagesBody(model: string, messages: ChatMessage[], effort: "low" | "medium" | "high") {
+export function toMessagesBody(model: string, messages: ChatMessage[], effort: "low" | "medium" | "high", cacheTtl: CacheTtl = "5m") {
+  const EPHEMERAL = controlOf(cacheTtl);
   const joined = (list: ChatMessage[]) => list.map((m) => m.content).join("\n\n");
   const systems = messages.filter((m) => m.role === "system");
   const cachedSystem = systems.filter((m) => m.cache);

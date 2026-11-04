@@ -1,11 +1,11 @@
 import type { z } from "zod";
-import { chatJson, type ChatJsonResult, type ChatMessage } from "@/lib/ai";
+import { cacheTtlOf, chatJson, type ChatJsonResult, type ChatMessage } from "@/lib/ai";
 import { defaultUseOfKind, type AiEffort, type AiUse, type AssistantMode } from "@/lib/ai/choice";
-import { isAiConfigured } from "@/lib/env";
+import { getEnv, isAiConfigured } from "@/lib/env";
 import { resolveAiChoice } from "@/server/ai-quota/choice";
 import { priceOfModel } from "@/server/ai-settings/platform";
 import { logger } from "@/lib/log";
-import { promptCachedCostUsd } from "@/lib/costs";
+import { CACHE_WRITE_FACTOR, CACHE_WRITE_FACTOR_1H, promptCachedCostUsd } from "@/lib/costs";
 import {
   ASSISTANT_KIND,
   isAgentKind,
@@ -163,7 +163,7 @@ export async function estimateCallUsd(
       }
       return 0;
     }
-    return promptCachedCostUsd(usage, p.inputUsdPerMtok, p.outputUsdPerMtok);
+    return promptCachedCostUsd(usage, p.inputUsdPerMtok, p.outputUsdPerMtok, cacheTtlOf(getEnv().AI_CACHE_TTL) === "1h" ? CACHE_WRITE_FACTOR_1H : CACHE_WRITE_FACTOR);
   } catch (err) {
     log.error("no se pudo leer el precio del modelo", { modelo: model, err });
     return 0;

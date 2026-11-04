@@ -10,7 +10,13 @@ import {
   isBedrockClaudeModel,
   messagesUrl,
   toMessagesBody,
+  type CacheTtl,
 } from "@/lib/ai/anthropic-messages";
+
+/** `AI_CACHE_TTL`: «1h» o, por defecto, «5m». */
+export function cacheTtlOf(v: string | undefined): CacheTtl {
+  return v?.trim().toLowerCase() === "1h" ? "1h" : "5m";
+}
 
 /**
  * Adaptador LLM OpenRouter-compatible — ÚNICA frontera con el proveedor de IA
@@ -278,7 +284,7 @@ async function callBedrockClaude(
         "anthropic-version": ANTHROPIC_VERSION,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(toMessagesBody(model, messages, effort)),
+      body: JSON.stringify(toMessagesBody(model, messages, effort, cacheTtlOf(env.AI_CACHE_TTL))),
       signal: controller.signal,
     });
     if (!res.ok) {

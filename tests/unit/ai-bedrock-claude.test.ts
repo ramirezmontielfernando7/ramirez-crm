@@ -246,4 +246,10 @@ describe("caché de prompts (cache_control)", () => {
     expect(promptCachedCostUsd(r.usage, 1, 0)).toBeCloseTo(305 / 1_000_000, 10);
     expect(promptCachedCostUsd({ promptTokens: 1000, completionTokens: 0 }, 1, 0)).toBeCloseTo(1000 / 1_000_000, 10);
   });
+
+  it("con TTL de 1 hora el punto de caché lleva ttl «1h»; por defecto no", () => {
+    const msgs = [{ role: "system" as const, content: "fijo", cache: true }, { role: "user" as const, content: "hola" }];
+    expect(toMessagesBody("global.anthropic.claude-haiku-5-5", msgs, "low").system).toEqual([{ type: "text", text: "fijo", cache_control: { type: "ephemeral" } }]);
+    expect(toMessagesBody("global.anthropic.claude-haiku-5-5", msgs, "low", "1h").system).toEqual([{ type: "text", text: "fijo", cache_control: { type: "ephemeral", ttl: "1h" } }]);
+  });
 });
