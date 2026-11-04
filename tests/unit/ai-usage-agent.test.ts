@@ -49,12 +49,13 @@ describe("chatJsonForOrg: consumo por agente", () => {
     expect(r.ok).toBe(true);
     expect(m.recordUsage).toHaveBeenCalledWith("org_a", "agent", USAGE, expect.any(Date), expect.any(Number));
     expect(m.recordAgentUsage).toHaveBeenCalledWith("org_a", "agt_1", "agent", USAGE);
-    expect(m.chatJson.mock.calls[0]![2]).toEqual({ timeoutMs: 5 });
+    expect(m.chatJson.mock.calls[0]![2]).toMatchObject({ timeoutMs: 5 });
+    expect(m.chatJson.mock.calls[0]![2]).not.toHaveProperty("agentId");
   });
 
   it("lab y judge también se anotan al agente", async () => {
     await chatJsonForOrg("org_a", "lab", S, [], { agentId: "agt_1" });
-    await chatJsonForOrg("org_a", "judge", S, [], { agentId: "agt_1", judge: true });
+    await chatJsonForOrg("org_a", "judge", S, [], { agentId: "agt_1", effort: "medium" });
     expect(m.recordAgentUsage.mock.calls.map((c) => c[2])).toEqual(["lab", "judge"]);
   });
 

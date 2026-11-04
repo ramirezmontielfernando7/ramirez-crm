@@ -27,7 +27,7 @@ describe("judgeCase (FR-032)", () => {
     });
     expect(outcome.status).toBe("done");
     // usa el modelo del juez (opts.judge)
-    expect(chatJson.mock.calls[0]![2]).toMatchObject({ judge: true });
+    expect(chatJson.mock.calls[0]![2]).toMatchObject({ effort: "medium" });
     // 036: el agente evaluado es para la cuenta, no para el proveedor.
     expect(chatJson.mock.calls[0]![2]).not.toHaveProperty("agentId");
   });

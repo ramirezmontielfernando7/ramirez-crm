@@ -32,7 +32,7 @@ type Turn = { role: "user" | "assistant"; content: string };
  * cliente, y si termina con el agente se agrega uno: estos modelos rechazan
  * (400) un último turno `assistant`.
  */
-export function toMessagesBody(model: string, messages: ChatMessage[], effort: "low" | "medium") {
+export function toMessagesBody(model: string, messages: ChatMessage[], effort: "low" | "medium" | "high") {
   const system = messages
     .filter((m) => m.role === "system")
     .map((m) => m.content)

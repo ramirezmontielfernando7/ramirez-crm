@@ -1,6 +1,8 @@
 import type { z } from "zod";
 import { chatJson, type ChatJsonResult, type ChatMessage } from "@/lib/ai";
+import { defaultUseOfKind, type AiEffort, type AiUse, type AssistantMode } from "@/lib/ai/choice";
 import { isAiConfigured } from "@/lib/env";
+import { resolveAiChoice } from "@/server/ai-quota/choice";
 import { logger } from "@/lib/log";
 import {
   ASSISTANT_KIND,
@@ -50,11 +52,30 @@ export async function chatJsonForOrg<T>(
   kind: AiKind,
   schema: z.ZodType<T>,
   messages: ChatMessage[],
-  opts?: { model?: string; judge?: boolean; timeoutMs?: number; agentId?: string | null }
+  opts?: {
+    model?: string;
+    effort?: AiEffort;
+    timeoutMs?: number;
+    agentId?: string | null;
+    /** Qué función responde (por defecto, la que corresponde a `kind`). */
+    use?: AiUse;
+    /** Solo el asistente: Rápido / Normal / Profundo. */
+    mode?: AssistantMode;
+  }
 ): Promise<ChatJsonResult<T>> {
-  const { agentId, ...callOpts } = opts ?? {};
+  const { agentId, use, mode, ...rest } = opts ?? {};
   // Sin proveedor no hay turno que contar.
-  if (!isAiConfigured()) return chatJson(schema, messages, callOpts);
+  if (!isAiConfigured()) return chatJson(schema, messages, rest);
+
+  // Modelo y esfuerzo de la función; un `model` explícito (pruebas, «Probar
+  // conexión») manda sobre el elegido.
+  let callOpts = rest;
+  try {
+    const choice = await resolveAiChoice(organizationId, use ?? defaultUseOfKind(kind), mode);
+    callOpts = { ...rest, model: rest.model ?? choice.model, effort: rest.effort ?? choice.effort };
+  } catch (err) {
+    log.error("no se pudo resolver el modelo de la organización; se usa el de la instancia", { org: organizationId, tipo: kind, err });
+  }
 
   const budget = reservationBudget(messages);
   const now = new Date();
@@ -79,8 +100,8 @@ export async function chatJsonForOrg<T>(
       log.error("no se pudieron sumar los tokens del turno de IA", { org: organizationId, tipo: kind, err });
     }
   }
-  if (kind === "analysis" && opts?.model && result.usage) {
-    try { await recordAnalysisModel(organizationId, opts.model, result.usage, now); }
+  if (kind === "analysis" && callOpts.model && result.usage) {
+    try { await recordAnalysisModel(organizationId, callOpts.model, result.usage, now); }
     catch (err) { log.error("no se pudo registrar el modelo del análisis", { org: organizationId, err }); }
   }
   // 036 — El desglose por agente: solo de turnos que se contaron, y nunca

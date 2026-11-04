@@ -378,8 +378,8 @@ export async function decideTurn(input: DecideInput): Promise<TurnDecision> {
   );
   const meta: DecisionMeta = {
     ms: Date.now() - started,
-    // Solo para «Por qué respondió así»: leído sin validar el entorno entero.
-    model: process.env.OPENROUTER_MODEL?.trim() || null,
+    // Solo para «Por qué respondió así»: el modelo que de verdad contestó.
+    model: result.model ?? null,
     tokens: result.usage
       ? { prompt: result.usage.promptTokens, completion: result.usage.completionTokens }
       : null,
