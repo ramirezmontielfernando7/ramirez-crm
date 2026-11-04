@@ -94,7 +94,7 @@ export type AiUsageKind = (typeof AI_KINDS)[number];
 export const AI_KIND_LABEL: Record<AiUsageKind, string> = {
   agent: "Agente (conversaciones reales)",
   lab: "Laboratorio y vista previa",
-  judge: "Juez del Laboratorio",
+  judge: "Revisión de clientes simulados",
   writing: "Asistente de redacción",
   assistant: "Asistente interno",
   embed: "Embeddings de documentos",

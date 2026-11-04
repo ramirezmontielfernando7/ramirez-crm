@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildPanel } from "@/lib/platform-panel";
+import { aiUsdRows, buildPanel } from "@/lib/platform-panel";
 
 const usage = (tokens: number, limit: number | null, storage = 0, storageLimit: number | null = null) => ({
   ai: { turns: 1, tokens, limits: { turns: null, tokens: limit } },
@@ -30,4 +30,23 @@ describe("buildPanel", () => {
     expect(p.nearLimit.map((n) => n.id + n.kind)).toEqual(["aia"]);
   });
   it("ordena el mayor consumo", () => expect(p.topAi.map((t) => t.id)).toEqual(["a", "c", "b"]));
+});
+
+describe("aiUsdRows (0070)", () => {
+  const u = (estUsd: number, usdLimit: number | null) => ({ ...usage(0, null), ai: { turns: 0, tokens: 0, limits: { turns: null, tokens: null }, estUsd, usdLimit } });
+  const { rows, nearCap } = aiUsdRows([
+    { id: "a", name: "A", status: "active", usage: u(1, 10) },
+    { id: "b", name: "B", status: "active", usage: u(4.6, 5) },
+    { id: "c", name: "C", status: "active", usage: u(9, null) },
+    { id: "d", name: "D", status: "active", usage: u(0.5, null) },
+    { id: "e", name: "E", status: "suspended", usage: u(99, 1) },
+    { id: "f", name: "F", status: "active", usage: null },
+  ]);
+  it("solo activas; la más llena primero y las sin tope al final, por gasto", () => {
+    expect(rows.map((r) => r.id)).toEqual(["b", "a", "c", "d", "f"]);
+    expect(rows[0]).toMatchObject({ estUsd: 4.6, usdLimit: 5 });
+    expect(rows[0]!.ratio).toBeCloseTo(0.92);
+    expect(rows[2]!.ratio).toBeNull();
+  });
+  it("cuenta las que van en 80 % o más", () => expect(nearCap).toBe(1));
 });

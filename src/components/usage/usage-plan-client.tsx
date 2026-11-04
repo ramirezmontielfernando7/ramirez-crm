@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { ChevronRight } from "lucide-react";
 import { UsageMeter } from "@/components/usage/usage-meter";
 import { fetchJson } from "@/lib/fetch-json";
 import { PLAN_LABEL, STORAGE_MODE_LABEL } from "@/lib/limits";
@@ -38,6 +39,13 @@ function mesDe(period: string): string {
   const [y, m] = period.split("-").map(Number);
   if (!y || !m) return period;
   return new Date(Date.UTC(y, m - 1, 1)).toLocaleDateString("es-MX", { month: "long", year: "numeric", timeZone: "UTC" });
+}
+
+/** «1 de diciembre»: el primer día del mes siguiente al periodo. */
+function renovacion(period: string): string {
+  const [y, m] = period.split("-").map(Number);
+  if (!y || !m) return "inicio del mes siguiente";
+  return new Date(Date.UTC(y, m, 1)).toLocaleDateString("es-MX", { day: "numeric", month: "long", timeZone: "UTC" });
 }
 
 function Card({ title, children, testId }: { title: string; children: React.ReactNode; testId?: string }) {
@@ -107,19 +115,22 @@ export function UsagePlanClient() {
 
   const header = (
     // 039: vive en Ajustes → Uso y plan; el encabezado de 56 px es el de Ajustes.
-    <div className="mb-4 flex flex-wrap items-center gap-2">
-      <h2 className="text-[15px] font-semibold tracking-tight">Uso y plan</h2>
+    // 0070 (maqueta 4): el plan como título y una línea con el mes.
+    <div className="mb-4">
+      <h2 className="text-lg font-semibold tracking-tight" data-testid="usage-plan-name">
+        {usage ? PLAN_LABEL[usage.limits.planKey] : "Uso y plan"}
+      </h2>
       {usage && (
-        <span className="rounded-sm bg-muted px-1.5 py-0.5 text-xs text-text-2" data-testid="usage-plan-name">
-          {PLAN_LABEL[usage.limits.planKey]}
-        </span>
+        <p className="text-sm text-text-2">
+          Tu consumo de {mesDe(usage.period).replace(/ de \d{4}$/, "")}. Se renueva el {renovacion(usage.period)}.
+        </p>
       )}
     </div>
   );
 
   if (!usage) {
     return (
-      <div>
+      <div className="mx-auto max-w-3xl">
         {header}
         <p className={cn("text-sm", error ? "text-destructive" : "text-text-2")}>{error ?? "Cargando tu consumo…"}</p>
       </div>
@@ -130,137 +141,158 @@ export function UsagePlanClient() {
   const { tokens: tk, turns: tu } = ai.total;
   const cifras = tk !== undefined && tu !== undefined;
   const iaMes = cifras ? aiMeter({ tokens: tk.used, turns: tu.used }, { tokens: tk.limit, turns: tu.limit }) : gaugeMeter(ai.total);
-  // Con cifras, el medidor muestra la medida que va más alta; la nota, la otra (sin repetir).
-  const iaNota = !cifras
-    ? undefined
-    : iaMes.text.includes("turno")
-      ? `${formatTokens(tk.used)}${tk.limit !== null ? ` / ${formatTokens(tk.limit)}` : ""} tokens`
-      : tu.limit !== null
-        ? `${tu.used.toLocaleString("es-MX")} / ${tu.limit.toLocaleString("es-MX")} turnos`
-        : turnos(tu.used);
+  const pct = ai.total.percent;
+  const queda = pct === null ? null : Math.max(0, 100 - pct);
   const orden = (k: string) => AI_KINDS.indexOf(k as (typeof AI_KINDS)[number]);
   const funciones = ai.byKind ? [...ai.byKind].sort((a, b) => orden(a.key) - orden(b.key)) : null;
   const maxFuncion = Math.max(0.0001, ...(funciones ?? []).map((l) => l.share));
   const maxAgente = Math.max(0.0001, ...(ai.byAgent ?? []).map((a) => a.share));
+  const fin = renovacion(usage.period);
+
+  const filas: { label: string; meter: Meter; testId: string }[] = [
+    { label: "Almacenamiento", meter: storageMeter(storage.totalBytes, limits.storageBytes.value), testId: "usage-plan-storage-meter" },
+    {
+      label: "Personas del equipo",
+      meter: countMeter(usage.members, limits.members.value, usage.members === 1 && limits.members.value === null ? "persona" : "personas"),
+      testId: "usage-plan-members-meter",
+    },
+    ...(usage.documents
+      ? [{ label: "Documentos de los agentes", meter: countMeter(usage.documents.documents, limits.kbMaxDocuments.value, "documentos"), testId: "usage-plan-docs-meter" }]
+      : []),
+    { label: "Módulos activos", meter: countMeter(usage.modules.active, limits.modules.value, `de ${usage.modules.total} módulos`), testId: "usage-plan-modules-meter" },
+  ];
 
   return (
-    <div>
+    <div className="mx-auto max-w-3xl space-y-4" data-testid="usage-plan">
       {header}
-      <div className="min-w-0">
-        <div className="mx-auto max-w-5xl space-y-4" data-testid="usage-plan">
-          <p className="text-sm text-text-2">
-            Consumo de {mesDe(usage.period)} (el mes se cuenta en UTC) contra los topes de tu plan. Para cambiar tu plan o tus
-            topes, habla con quien administra la plataforma.
-          </p>
 
-          {usage.alerts.length > 0 && (
+      {usage.alerts.length > 0 && (
+        <div className="rounded-md border border-warning-soft bg-warning-tint px-4 py-2 text-sm text-warning-text" data-testid="usage-plan-alerts">
+          <p className="text-xs font-medium">Avisos de este mes</p>
+          <ul className="mt-1 space-y-1">
+            {usage.alerts.map((a) => (
+              <li key={a.metric}>{a.text}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      <section className="rounded-xl border bg-card p-5" data-testid="usage-plan-ai">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h3 className="text-base font-semibold">Inteligencia artificial</h3>
+            <p className="text-sm text-text-2">Agentes, asistente y creador de agentes</p>
+          </div>
+          <div className="text-right" data-testid="usage-plan-ai-meter" title={iaMes.detail}>
+            <p className={cn("text-2xl font-semibold tabular-nums", iaMes.tone === "danger" && "text-danger-text", iaMes.tone === "warning" && "text-warning-text")}>
+              {pct !== null ? `${Math.min(pct, 100)} %` : iaMes.text}
+            </p>
+            {/* El texto exacto del medidor (cifras con `tokens`; «% del tope» si no). */}
+            <span className={cn(cifras ? "text-xs text-text-3" : "sr-only")}>{iaMes.text}</span>
+          </div>
+        </div>
+        {iaMes.ratio !== null && (
+          <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-muted" role="progressbar" aria-label="IA del mes" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.min(100, Math.round(iaMes.ratio * 100))}>
             <div
-              className="rounded-md border border-warning-soft bg-warning-tint px-4 py-2 text-sm text-warning-text"
-              data-testid="usage-plan-alerts"
-            >
-              <p className="text-xs font-medium">Avisos de este mes</p>
-              <ul className="mt-1 space-y-1">
-                {usage.alerts.map((a) => (
-                  <li key={a.metric}>{a.text}</li>
-                ))}
-              </ul>
-            </div>
-          )}
+              className={cn("h-full rounded-full", iaMes.tone === "danger" ? "bg-destructive" : iaMes.tone === "warning" ? "bg-warning" : "bg-brand")}
+              style={{ width: `${Math.min(100, Math.round(iaMes.ratio * 100))}%` }}
+            />
+          </div>
+        )}
+        <p className="mt-3 text-sm text-text-2">
+          {ai.total.state === "exhausted"
+            ? `Llegaste al 100 %: los agentes pasan los chats a tu equipo hasta el ${fin}.`
+            : queda !== null
+              ? `Te queda ${queda} %. Si llegas al 100 %, los agentes pasan los chats a tu equipo hasta el ${fin}.`
+              : "Si llegas al tope, los agentes pasan los chats a tu equipo hasta que se renueve."}
+        </p>
+      </section>
 
-          <div className="grid gap-4 md:grid-cols-2">
-            <Card title="Inteligencia artificial" testId="usage-plan-ai">
-              <Measure label="IA del mes" meter={iaMes} testId="usage-plan-ai-meter" note={iaNota} />
-              <Measure
-                label="Embeddings (documentos del agente)"
-                meter={gaugeOrCount(ai.embed, "tokens")}
-                note={EMBED_NOTE}
-                testId="usage-plan-embed-meter"
-              />
-              {ai.assistant && (
-                <Measure
-                  label="Asistente interno"
-                  meter={gaugeOrCount(ai.assistant, "tokens")}
-                  note="Tiene su propio tope y cuenta también en la IA del mes."
-                  testId="usage-plan-assistant-meter"
+      <section className="divide-y rounded-xl border bg-card px-5" data-testid="usage-plan-team">
+        {filas.map((f) => (
+          <div key={f.testId} className="grid items-center gap-x-4 gap-y-1 py-3.5 sm:grid-cols-[minmax(0,12rem)_minmax(0,1fr)_minmax(0,12rem)]" title={f.meter.detail} data-testid={f.testId} data-tone={f.meter.tone}>
+            <span className="text-sm">{f.label}</span>
+            <div className="h-2 w-full overflow-hidden rounded-full bg-muted" aria-hidden>
+              {f.meter.ratio !== null && (
+                <div
+                  className={cn("h-full rounded-full", f.meter.tone === "danger" ? "bg-destructive" : f.meter.tone === "warning" ? "bg-warning" : "bg-brand")}
+                  style={{ width: `${Math.min(100, Math.round(f.meter.ratio * 100))}%` }}
                 />
               )}
-            </Card>
-
-            <Card title={STORAGE_LABEL} testId="usage-plan-storage">
-              <Measure
-                label="Total"
-                meter={storageMeter(storage.totalBytes, limits.storageBytes.value)}
-                note={limits.storageBytes.value !== null ? `Al llegar al tope: ${STORAGE_MODE_LABEL[limits.storageMode]}.` : undefined}
-                testId="usage-plan-storage-meter"
-              />
-              <ul className="divide-y text-sm" data-testid="usage-plan-storage-categories">
-                {STORAGE_CATEGORIES.map((c) => (
-                  <li key={c} className="flex items-baseline justify-between gap-3 py-1">
-                    <span className="min-w-0 break-words">{STORAGE_CATEGORY_LABEL[c]}</span>
-                    <span className="shrink-0 tabular-nums text-text-2">{formatStorage(storage.byCategory[c])}</span>
-                  </li>
-                ))}
-              </ul>
-              <p className="text-[11px] text-text-3">{STORAGE_NOTE}</p>
-            </Card>
-
-            <Card title="Equipo y módulos" testId="usage-plan-team">
-              <Measure label="Personas" meter={countMeter(usage.members, limits.members.value, usage.members === 1 && limits.members.value === null ? "persona" : "personas")} testId="usage-plan-members-meter" />
-              <Measure
-                label="Módulos activos"
-                meter={countMeter(usage.modules.active, limits.modules.value, `de ${usage.modules.total} módulos`)}
-                testId="usage-plan-modules-meter"
-              />
-            </Card>
-
-            {usage.documents && (
-              <Card title="Documentos del agente" testId="usage-plan-docs">
-                <Measure label="Documentos" meter={countMeter(usage.documents.documents, limits.kbMaxDocuments.value, "documentos")} testId="usage-plan-docs-meter" />
-                <Measure label="Fragmentos" meter={countMeter(usage.documents.chunks, limits.kbMaxChunks.value, "fragmentos")} testId="usage-plan-chunks-meter" />
-                {limits.kbMaxFileBytes.value !== null && (
-                  <p className="text-[11px] text-text-3">Cada documento, hasta {formatStorage(limits.kbMaxFileBytes.value)}.</p>
-                )}
-              </Card>
-            )}
+            </div>
+            <span className={cn("text-sm tabular-nums sm:text-right", f.meter.tone === "danger" ? "text-danger-text" : "text-text-2")}>{f.meter.text}</span>
           </div>
+        ))}
+      </section>
 
+      <details className="group" data-testid="usage-plan-detail">
+        <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-2 text-sm">
+          <span className="inline-flex items-center gap-1 text-brand-text">
+            <ChevronRight className="h-4 w-4 transition-transform group-open:rotate-90" aria-hidden />
+            Ver detalle por agente y función
+          </span>
+          <span className="text-text-3">¿Necesitas más? Habla con quien administra la plataforma.</span>
+        </summary>
+        <div className="mt-4 grid gap-4 md:grid-cols-2">
           {funciones && ai.byAgent && (
-          <div className="grid gap-4 md:grid-cols-2">
-            <Card title="¿Qué función consume más?" testId="usage-plan-kinds">
-              {funciones.length === 0 ? (
-                <p className="text-sm text-text-3">Sin consumo de IA este mes.</p>
-              ) : (
-                <ul className="divide-y">
-                  {funciones.map((l) => (
-                    <Share key={l.key} label={AI_KIND_LABEL[l.key]} value={shareValue(l)} share={l.share / maxFuncion} />
-                  ))}
-                </ul>
-              )}
-              {!cifras && <p className="text-xs text-text-3">Porcentaje de la IA usada este mes (sin embeddings).</p>}
-            </Card>
-
-            <Card title="¿Qué agente consume más?" testId="usage-plan-agents">
-              {ai.byAgent.length === 0 ? (
-                <p className="text-sm text-text-3">Ningún agente ha usado IA este mes.</p>
-              ) : (
-                <ul className="divide-y">
-                  {ai.byAgent.map((a) => (
-                    <Share
-                      key={a.key}
-                      label={a.name ?? "Agente que ya no existe"}
-                      hint={a.archived && a.name ? "Archivado" : undefined}
-                      value={shareValue(a)}
-                      share={a.share / maxAgente}
-                    />
-                  ))}
-                </ul>
-              )}
-              <p className="text-xs text-text-3">La redacción, el asistente interno y los embeddings no tienen agente.</p>
-            </Card>
-          </div>
+            <>
+              <Card title="¿Qué función consume más?" testId="usage-plan-kinds">
+                {funciones.length === 0 ? (
+                  <p className="text-sm text-text-3">Sin consumo de IA este mes.</p>
+                ) : (
+                  <ul className="divide-y">
+                    {funciones.map((l) => (
+                      <Share key={l.key} label={AI_KIND_LABEL[l.key]} value={shareValue(l)} share={l.share / maxFuncion} />
+                    ))}
+                  </ul>
+                )}
+                {!cifras && <p className="text-xs text-text-3">Porcentaje de la IA usada este mes (sin embeddings).</p>}
+              </Card>
+              <Card title="¿Qué agente consume más?" testId="usage-plan-agents">
+                {ai.byAgent.length === 0 ? (
+                  <p className="text-sm text-text-3">Ningún agente ha usado IA este mes.</p>
+                ) : (
+                  <ul className="divide-y">
+                    {ai.byAgent.map((a) => (
+                      <Share
+                        key={a.key}
+                        label={a.name ?? "Agente que ya no existe"}
+                        hint={a.archived && a.name ? "Archivado" : undefined}
+                        value={shareValue(a)}
+                        share={a.share / maxAgente}
+                      />
+                    ))}
+                  </ul>
+                )}
+                <p className="text-xs text-text-3">La redacción, el asistente interno y los embeddings no tienen agente.</p>
+              </Card>
+            </>
           )}
+          <Card title="Otras medidas de IA" testId="usage-plan-ai-more">
+            <Measure label="Embeddings (documentos del agente)" meter={gaugeOrCount(ai.embed, "tokens")} note={EMBED_NOTE} testId="usage-plan-embed-meter" />
+            {ai.assistant && (
+              <Measure
+                label="Asistente interno"
+                meter={gaugeOrCount(ai.assistant, "tokens")}
+                note="Tiene su propio tope y cuenta también en la IA del mes."
+                testId="usage-plan-assistant-meter"
+              />
+            )}
+          </Card>
+          <Card title={STORAGE_LABEL} testId="usage-plan-storage">
+            <ul className="divide-y text-sm" data-testid="usage-plan-storage-categories">
+              {STORAGE_CATEGORIES.map((c) => (
+                <li key={c} className="flex items-baseline justify-between gap-3 py-1">
+                  <span className="min-w-0 break-words">{STORAGE_CATEGORY_LABEL[c]}</span>
+                  <span className="shrink-0 tabular-nums text-text-2">{formatStorage(storage.byCategory[c])}</span>
+                </li>
+              ))}
+            </ul>
+            {limits.storageBytes.value !== null && <p className="text-[11px] text-text-3">Al llegar al tope: {STORAGE_MODE_LABEL[limits.storageMode]}.</p>}
+            <p className="text-[11px] text-text-3">{STORAGE_NOTE}</p>
+          </Card>
         </div>
-      </div>
+      </details>
     </div>
   );
 }

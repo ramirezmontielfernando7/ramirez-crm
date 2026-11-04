@@ -735,6 +735,9 @@ async function usoYPlan(A, B, orgB) {
   ok("la pantalla dice el plan («Plan Esencial», «Plan Pro», «Plan Ultra» o «Personalizado»)", (await page.getByTestId("usage-plan-name").innerText()).trim() === PLAN_TXT[planB ?? "custom"]);
   ok("IA del mes contra su tope", /\/ 1 M tokens/.test(await page.getByTestId("usage-plan-ai-meter").innerText()));
   ok("personas contra su tope", /\/ 3 personas/.test(await page.getByTestId("usage-plan-members-meter").innerText()));
+  // 0070: el detalle (por función, por agente, por categoría) va plegado; se abre como lo haría la persona.
+  await page.getByTestId("usage-plan-detail").locator("summary").click();
+  ok("el detalle del mes se abre", await page.getByTestId("usage-plan-kinds").waitFor({ state: "visible", timeout: 10000 }).then(() => true, () => false));
   ok("«Almacenamiento (aprox.)» contra su tope, por categoría", /\/ 50 MB/.test(await page.getByTestId("usage-plan-storage-meter").innerText()) && /Archivos de Conocimientos/.test(await page.getByTestId("usage-plan-storage-categories").innerText()));
   ok("qué función consume más", /Asistente de redacción/.test(await page.getByTestId("usage-plan-kinds").innerText()));
   const agentes = (await B.call("GET", "/api/lab/agents")).json?.agents ?? [];
@@ -1095,6 +1098,10 @@ async function asistenteMotor(A, B, orgB) {
   ok("si promete consultar sin hacerlo, se le reclama y consulta de verdad en la misma pregunta", rA.status === 200 && rA.json?.answer?.meta?.queryCount === 1 && /Ya lo consulté/.test(rA.json?.answer?.content ?? ""), JSON.stringify(rA.json?.answer?.meta));
   const r8 = await preguntar(B, "ROMPE");
   ok("si el modelo contesta en texto corrido (sin JSON), se muestra tal cual en vez de fallar", r8.status === 200 && (r8.json?.answer?.content ?? "").trim().length > 0, `${r8.status} ${JSON.stringify(r8.json)}`);
+
+  // 0070: «Audita mis agentes de IA» corre la consulta de auditoría (solo lectura).
+  const rAud = await preguntar(B, "Audita mis agentes de IA");
+  ok("«Audita mis agentes de IA» usa la auditoría de agentes", rAud.status === 200 && rAud.json?.answer?.meta?.sources?.some((s) => s.name === "auditoria_agentes") && /chats que contestó la IA/.test(rAud.json?.answer?.content ?? ""), JSON.stringify(rAud.json?.answer?.meta?.sources));
 
   // 4. Hilos: solo los propios, con sus fuentes guardadas.
   const hilos = (await B.call("GET", "/api/assistant/threads")).json?.threads ?? [];

@@ -42,6 +42,8 @@ import { countMeter, formatTokens } from "@/lib/usage";
 import { gaugeMeter } from "@/lib/usage-visibility";
 import { cn } from "@/lib/utils";
 import { PageShell } from "@/components/ui/page-shell";
+import { useViewer } from "@/components/viewer-context";
+import Link from "next/link";
 
 /**
  * 038 — Pantalla del asistente interno, en tarjetas flotantes:
@@ -68,7 +70,14 @@ function dayLabel(iso: string): string {
   return d.toLocaleDateString("es-MX", { day: "numeric", month: "short" }).replace(".", "");
 }
 
+/** 0070 — Atajos de la pantalla vacía: preguntas que el asistente sabe contestar con su catálogo. */
+const ASSISTANT_SUGGESTIONS = [
+  { label: "Audita mis agentes de IA", question: "Audita mis agentes de IA: qué hacen bien, dónde fallan y qué cambiarías en sus instrucciones, con ejemplos de chats reales." },
+  { label: "Revisa los chats que contestó la IA", question: "Revisa los chats que contestó la IA esta semana: ¿hubo respuestas equivocadas o chats que debió pasar antes a una persona?" },
+] as const;
+
 export function AssistantClient() {
+  const viewer = useViewer();
   const [status, setStatus] = useState<AssistantStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -77,6 +86,11 @@ export function AssistantClient() {
   const [threadId, setThreadId] = useState<string | null>(null);
   const [messages, setMessages] = useState<AssistantMessageDto[]>([]);
   const [question, setQuestion] = useState("");
+  // 0070: «Abrir en el asistente» (Clientes simulados) llega con la pregunta lista en `?q=`.
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search).get("q");
+    if (q) setQuestion(q.slice(0, MAX_QUESTION_CHARS));
+  }, []);
   const [speed, setSpeed] = useAssistantSpeed();
   const [asking, setAsking] = useState(false);
   /** Tu pregunta se ve al instante, mientras el asistente piensa. */
@@ -212,8 +226,8 @@ export function AssistantClient() {
     setStatus((s) => (s ? { ...s, noticeAcceptedAt: r.data.noticeAcceptedAt } : s));
   }
 
-  async function ask() {
-    const q = question.trim();
+  async function ask(preset?: string) {
+    const q = (preset ?? question).trim();
     if (!q || asking) return;
     setAsking(true);
     setPending(q);
@@ -448,7 +462,7 @@ export function AssistantClient() {
                       </span>
                       <p className="text-base font-semibold">¿En qué te ayudo?</p>
                       <p className="mx-auto mt-2 max-w-md text-sm text-text-3">
-                        Pregúntame por el uso y el plan de tu organización, tus etiquetas, tu equipo o tus chats recientes; o por tus conversaciones: por qué se pierden ventas, qué objeciones ponen tus clientes o cómo atiende cada asesor.
+                        Pregúntame por el uso y el plan de tu organización, tus etiquetas, tu equipo o tus chats recientes; por tus conversaciones (por qué se pierden ventas, qué objeciones ponen tus clientes, cómo atiende cada asesor) o por cómo trabajan tus agentes de IA.
                       </p>
                     </div>
                   )}
@@ -504,6 +518,32 @@ export function AssistantClient() {
                   <p className="mb-2 text-sm text-danger-text" role="alert" data-testid="assistant-ask-error">
                     {askError}
                   </p>
+                )}
+                {!asking && (
+                  <div className="mb-2 flex flex-wrap gap-2" data-testid="assistant-suggestions">
+                    {ASSISTANT_SUGGESTIONS.map((s, i) => (
+                      <button
+                        key={s.label}
+                        type="button"
+                        disabled={!canAsk}
+                        onClick={() => void ask(s.question)}
+                        className="inline-flex items-center gap-1.5 rounded-full border bg-card px-3 py-1.5 text-sm text-text-2 hover:border-primary hover:text-foreground disabled:opacity-50"
+                        data-testid="assistant-suggestion"
+                      >
+                        {i === 0 && <Sparkles className="h-3.5 w-3.5 text-primary" aria-hidden />}
+                        {s.label}
+                      </button>
+                    ))}
+                    {viewer.hasModule("lab") && (
+                      <Link
+                        href="/lab/evaluaciones"
+                        className="rounded-full border bg-card px-3 py-1.5 text-sm text-text-2 hover:border-primary hover:text-foreground"
+                        data-testid="assistant-suggestion-simulados"
+                      >
+                        Prueba mi agente con clientes simulados
+                      </Link>
+                    )}
+                  </div>
                 )}
                 <div className="flex items-end gap-2 rounded-[26px] border bg-background py-2 pl-5 pr-2 shadow-sm focus-within:border-primary">
                   <label className="sr-only" htmlFor="assistant-question">Tu pregunta</label>

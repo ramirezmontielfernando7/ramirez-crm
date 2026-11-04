@@ -7,6 +7,7 @@ import { emptyStorageUsage } from "@/lib/usage";
 import { currentPeriod, type QuotaLimits } from "@/server/ai-quota/quota";
 import { readOrgUsageDetail, type OrgUsageDetail } from "@/server/usage/detail";
 import { getAllOrgsStorageUsage } from "@/server/usage/storage";
+import { getPlatformAiDefaults } from "@/server/ai-settings/platform";
 
 /**
  * 036 (PR 4) — Consumo de cada organización para /platform: IA del mes (UTC)
@@ -25,7 +26,13 @@ export type AiTotals = { turns: number; tokens: number };
 
 export type OrgUsageSummary = {
   period: string;
-  ai: AiTotals & { limits: QuotaLimits };
+  ai: AiTotals & {
+    limits: QuotaLimits;
+    /** 0070 — Gasto ESTIMADO del mes en dólares y su tope (propio o del plan; null = sin tope). */
+    estUsd: number;
+    usdLimit: number | null;
+    usdLimitOrigin: "own" | "plan" | null;
+  };
   storageBytes: number;
   /** 036 (PR 3a) — Plan y topes propios (sin fila: «Personalizado» y sin topes). */
   plan: {
@@ -65,6 +72,7 @@ export async function listOrgsUsage(ids: string[], now = new Date()): Promise<Ma
   const period = currentPeriod(now);
   const db = sys();
   const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+  const aiDefaults = await getPlatformAiDefaults();
   const [totales, topes, almacen, planes, avisos, conectadas, acciones] = await Promise.all([
     db
       .select({
@@ -72,6 +80,7 @@ export async function listOrgsUsage(ids: string[], now = new Date()): Promise<Ma
         turns: schema.aiUsage.turns,
         prompt: schema.aiUsage.promptTokens,
         completion: schema.aiUsage.completionTokens,
+        estUsd: schema.aiUsage.estCostUsd,
       })
       .from(schema.aiUsage)
       .where(and(eq(schema.aiUsage.period, period), eq(schema.aiUsage.kind, "total"))),
@@ -80,6 +89,7 @@ export async function listOrgsUsage(ids: string[], now = new Date()): Promise<Ma
         org: schema.aiQuota.organizationId,
         turns: schema.aiQuota.monthlyTurnLimit,
         tokens: schema.aiQuota.monthlyTokenLimit,
+        usd: schema.aiQuota.monthlyUsdLimit,
       })
       .from(schema.aiQuota),
     getAllOrgsStorageUsage(),
@@ -125,9 +135,20 @@ export async function listOrgsUsage(ids: string[], now = new Date()): Promise<Ma
   }
   for (const id of ids) {
     const t = total.get(id);
+    const own = tope.get(id)?.usd;
+    const ownUsd = own === null || own === undefined ? null : Number(own);
+    const pk = plan.get(id)?.planKey;
+    const planUsd = pk && pk in aiDefaults ? (aiDefaults[pk as keyof typeof aiDefaults]?.monthlyUsdLimit ?? null) : null;
     out.set(id, {
       period,
-      ai: { turns: t?.turns ?? 0, tokens: (t?.prompt ?? 0) + (t?.completion ?? 0), limits: withEnvDefaults(tope.get(id)) },
+      ai: {
+        turns: t?.turns ?? 0,
+        tokens: (t?.prompt ?? 0) + (t?.completion ?? 0),
+        limits: withEnvDefaults(tope.get(id)),
+        estUsd: Number(t?.estUsd ?? 0),
+        usdLimit: ownUsd ?? planUsd,
+        usdLimitOrigin: ownUsd !== null ? "own" : planUsd !== null ? "plan" : null,
+      },
       storageBytes: (almacen.get(id) ?? emptyStorageUsage()).totalBytes,
       plan: {
         planKey: isPlanKey(plan.get(id)?.planKey) ? (plan.get(id)!.planKey as PlanKey) : "custom",

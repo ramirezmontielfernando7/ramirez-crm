@@ -185,6 +185,44 @@ export async function listAgents(organizationId: string): Promise<AgentSummary[]
   });
 }
 
+/**
+ * 0070 — Para «Audita mis agentes» del asistente: los agentes activos con lo
+ * que hoy responde cada uno (lo publicado, o el borrador si nunca se
+ * publicó). SOLO LECTURA: a diferencia de `listAgents`, no garantiza el general.
+ */
+export type AgentForAudit = {
+  id: string;
+  name: string;
+  isGeneral: boolean;
+  status: AgentStatus;
+  paused: boolean;
+  tone: string | null;
+  instructions: string | null;
+  escalationRules: string | null;
+};
+
+export async function agentsForAudit(organizationId: string): Promise<AgentForAudit[]> {
+  const rows = await getDb()
+    .select()
+    .from(schema.agent)
+    .where(scoped(schema.agent.organizationId, organizationId, isNull(schema.agent.archivedAt)))
+    .orderBy(desc(schema.agent.isGeneral), asc(schema.agent.createdAt));
+  return rows.map((row) => {
+    const d = toDetail(row);
+    const c = d.published ?? d.draft;
+    return {
+      id: d.id,
+      name: c.displayName ? `${d.internalName} («${c.displayName}»)` : d.internalName,
+      isGeneral: d.isGeneral,
+      status: d.status,
+      paused: row.pausedAt !== null,
+      tone: c.tone,
+      instructions: c.instructions,
+      escalationRules: c.escalationRules,
+    };
+  });
+}
+
 export async function getAgent(organizationId: string, id: string): Promise<AgentDetail | null> {
   const [row] = await getDb().select().from(schema.agent).where(scoped(schema.agent.organizationId, organizationId, activeId(id))).limit(1);
   return row ? toDetail(row) : null;

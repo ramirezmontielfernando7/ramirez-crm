@@ -6,7 +6,7 @@ import { PageShell } from "@/components/ui/page-shell";
 /**
  * 031 (A2) — Encabezado del Laboratorio con sus subpestañas. 039: es el pilar
  * «Estudio de IA» (`PageShell` con las pestañas del registro: Mis agentes,
- * Conocimiento y documentos, Asignación por etapa y Evaluaciones). Son rutas
+ * Conocimiento y documentos, Asignación por etapa y Clientes simulados). Son rutas
  * (compartibles, Atrás funciona).
  *
  * 035 — «Conocimiento y documentos» solo existe con KB_DOCS (lo decide el

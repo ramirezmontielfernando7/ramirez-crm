@@ -9,6 +9,8 @@ import { countMembers, getEffectiveLimits, getUsageVisibility, moduleToggles } f
 import { listAlerts } from "@/server/limits/alerts";
 import { getOrgModules } from "@/server/modules";
 import { readOrgUsageDetail } from "./detail";
+import { orgUsdLimit } from "@/server/ai-quota/choice";
+import { orgEstSpend } from "@/server/ai-settings/org";
 
 /**
  * 036 (PR 6) — «Uso y plan» del Propietario: lo que su organización consume
@@ -118,8 +120,12 @@ export async function getOwnerUsage(organizationId: string, now = new Date()): P
   const { ai } = detail;
   const porTokens = projectGauge(visibility, ai.tokens, limits.aiTokens.value);
   const porTurnos = projectGauge(visibility, ai.turns, limits.aiTurns.value);
+  // 0070: el tope en DÓLARES (propio o del plan) frena igual; al cliente solo le
+  // llega como porcentaje o estado, nunca los dólares.
+  const usdLimit = await orgUsdLimit(organizationId);
+  const porDolares = projectGauge(visibility === "tokens" ? "percent" : visibility, usdLimit === null ? 0 : await orgEstSpend(organizationId, detail.period), usdLimit);
   const total: OwnerAiTotal = {
-    ...worstGauge(porTokens, porTurnos),
+    ...worstGauge(worstGauge(porTokens, porTurnos), porDolares),
     ...(visibility === "tokens"
       ? { tokens: { used: ai.tokens, limit: limits.aiTokens.value }, turns: { used: ai.turns, limit: limits.aiTurns.value } }
       : {}),

@@ -1,25 +1,22 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import {
-  AlertTriangle,
-  CheckCircle2,
-  ChevronDown,
-  ChevronUp,
-  Play,
-  Sparkles,
-  TrendingDown,
-  TrendingUp,
-  XCircle,
-} from "lucide-react";
+import { Loader2, Play, RotateCw, Sparkles, User } from "lucide-react";
 import { useEvents } from "@/components/use-events";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { AgentReview, type ReviewSuggestionDto } from "@/components/lab/agent-review";
+import { cn } from "@/lib/utils";
+
+/**
+ * 0070 — Estudio de IA → «Clientes simulados» (antes «Evaluaciones» con 6
+ * personas fijas y un juez). Se inventan clientes con lo que sabe el agente,
+ * conversan con él (nada sale a WhatsApp) y una revisión dice Bien / Revisar
+ * / Falló. «Proponer arreglo» reusa la revisión del editor y deja el cambio
+ * en el BORRADOR; «Abrir en el asistente» lleva la conversación al asistente.
+ */
 
 type Run = {
   id: string;
@@ -28,57 +25,61 @@ type Run = {
   error: string | null;
   startedAt: string;
   finishedAt: string | null;
-  delta: number | null;
-  /** 031: qué agente y qué versión se evaluó (null en corridas anteriores). */
   agentId?: string | null;
   agentName?: string | null;
   source?: "draft" | "published" | null;
+  clients?: number;
 };
 
-type AgentOption = {
-  id: string;
-  internalName: string;
-  isGeneral: boolean;
-  status: "published" | "draft" | "changes";
-};
+type AgentOption = { id: string; internalName: string; isGeneral: boolean; status: "published" | "draft" | "changes" };
 
-type Hallazgo = {
-  tipo: "alucinacion" | "fuera_de_kb" | "debio_escalar" | "tono";
-  evidencia: string;
-  sugerencia?: { pregunta: string; respuesta: string };
-};
+type Review = { notas: string[]; arreglo: string | null };
+type LegacyHallazgo = { evidencia?: string };
 
 type Case = {
   id: string;
   persona: string;
   personaLabel: string;
+  summary: string | null;
   status: string;
   veredicto: "verde" | "amarillo" | "rojo" | null;
-  hallazgos: Hallazgo[];
+  hallazgos: Review | LegacyHallazgo[];
   transcript: { role: "cliente" | "agente"; text: string }[];
 };
 
-const TIPO_LABELS: Record<Hallazgo["tipo"], string> = {
-  alucinacion: "Alucinación",
-  fuera_de_kb: "Fuera del conocimiento",
-  debio_escalar: "Debió escalar",
-  tono: "Tono",
+type Detail = { run: Run; cases: Case[] };
+
+const COUNTS = [3, 5, 8] as const;
+
+const VERDICT: Record<"verde" | "amarillo" | "rojo", { label: string; variant: "success" | "warning" | "destructive" }> = {
+  verde: { label: "Bien", variant: "success" },
+  amarillo: { label: "Revisar", variant: "warning" },
+  rojo: { label: "Falló", variant: "destructive" },
 };
 
+/** Las corridas de antes de 0070 guardaban una lista de hallazgos del juez. */
+function reviewOf(c: Case): Review {
+  if (Array.isArray(c.hallazgos)) return { notas: c.hallazgos.map((h) => h.evidencia ?? "").filter(Boolean), arreglo: null };
+  return { notas: c.hallazgos?.notas ?? [], arreglo: c.hallazgos?.arreglo ?? null };
+}
+
+const fecha = (iso: string) => new Date(iso).toLocaleDateString("es-MX", { day: "numeric", month: "short" });
+
 export function LabClient() {
+  const params = useSearchParams();
+  const [agents, setAgents] = useState<AgentOption[]>([]);
+  const [agentId, setAgentId] = useState<string | null>(params.get("agente"));
+  const [source, setSource] = useState<"draft" | "published">("published");
+  const [count, setCount] = useState<(typeof COUNTS)[number]>(5);
   const [runs, setRuns] = useState<Run[]>([]);
-  // Hasta la primera respuesta de /api/lab/runs no se sabe si hay corridas.
-  const [runsLoaded, setRunsLoaded] = useState(false);
+  const [loaded, setLoaded] = useState(false);
   const [aiConfigured, setAiConfigured] = useState(true);
-  const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
-  const [detail, setDetail] = useState<{ run: Run; cases: Case[] } | null>(null);
+  const [runId, setRunId] = useState<string | null>(null);
+  const [detail, setDetail] = useState<Detail | null>(null);
+  const [caseId, setCaseId] = useState<string | null>(null);
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const [launching, setLaunching] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // 031: qué agente y qué versión se evalúa (por defecto, el general publicado).
-  const [agents, setAgents] = useState<AgentOption[]>([]);
-  const [agentId, setAgentId] = useState<string | null>(useSearchParams().get("agente"));
-  const [source, setSource] = useState<"draft" | "published">("published");
 
   useEffect(() => {
     void fetch("/api/lab/agents")
@@ -92,510 +93,384 @@ export function LabClient() {
   }, []);
 
   const chosen = agents.find((a) => a.id === agentId) ?? null;
-  // Un agente que nunca se publicó solo se puede evaluar como borrador.
   const effectiveSource: "draft" | "published" = chosen?.status === "draft" ? "draft" : source;
+  const agentRuns = useMemo(() => runs.filter((r) => !agentId || r.agentId === agentId), [runs, agentId]);
+  const running = runs.some((r) => r.status === "running");
 
   const refetchRuns = useCallback(async () => {
     const res = await fetch("/api/lab/runs").catch(() => null);
-    // Un fallo también termina la espera: no se queda en «Cargando…» para siempre.
-    setRunsLoaded(true);
+    setLoaded(true);
     if (!res?.ok) return;
     const data = (await res.json()) as { runs: Run[]; aiConfigured: boolean };
     setRuns(data.runs);
     setAiConfigured(data.aiConfigured);
-    if (!selectedRunId && data.runs[0]) setSelectedRunId(data.runs[0].id);
-  }, [selectedRunId]);
+  }, []);
 
-  const refetchDetail = useCallback(async (runId: string) => {
-    const res = await fetch(`/api/lab/runs/${runId}`).catch(() => null);
+  const refetchDetail = useCallback(async (id: string) => {
+    const res = await fetch(`/api/lab/runs/${id}`).catch(() => null);
     if (!res?.ok) return;
-    setDetail((await res.json()) as { run: Run; cases: Case[] });
+    const d = (await res.json()) as Detail;
+    setDetail(d);
+    setCaseId((cur) => (cur && d.cases.some((c) => c.id === cur) ? cur : (d.cases.find((c) => c.veredicto && c.veredicto !== "verde")?.id ?? d.cases[0]?.id ?? null)));
   }, []);
 
   useEffect(() => {
     void refetchRuns();
   }, [refetchRuns]);
 
+  // Al cambiar de agente, su prueba más reciente.
   useEffect(() => {
-    if (selectedRunId) void refetchDetail(selectedRunId);
-  }, [selectedRunId, refetchDetail]);
+    if (!loaded) return;
+    setRunId((cur) => (cur && agentRuns.some((r) => r.id === cur) ? cur : (agentRuns[0]?.id ?? null)));
+  }, [agentRuns, loaded]);
+
+  useEffect(() => {
+    if (runId) void refetchDetail(runId);
+    else setDetail(null);
+  }, [runId, refetchDetail]);
 
   useEvents({
     onLabRun: (data) => {
       setProgress(data.status === "running" ? data.progress : null);
       void refetchRuns();
-      if (selectedRunId === data.runId || !selectedRunId) {
-        setSelectedRunId(data.runId);
-        void refetchDetail(data.runId);
-      }
+      if (runId === data.runId) void refetchDetail(data.runId);
     },
   });
 
-  async function launch() {
+  async function launch(repeat?: { runId: string; caseId: string }) {
     setLaunching(true);
     setError(null);
     const res = await fetch("/api/lab/runs", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify(agentId ? { agentId, source: effectiveSource } : {}),
+      body: JSON.stringify({ ...(agentId ? { agentId, source: effectiveSource } : {}), ...(repeat ? { repeat } : { clients: count }) }),
     }).catch(() => null);
     setLaunching(false);
     if (!res) return;
     if (!res.ok) {
-      const data = (await res.json().catch(() => null)) as {
-        error?: { message?: string };
-      } | null;
-      setError(data?.error?.message ?? "No se pudo lanzar la corrida");
+      const data = (await res.json().catch(() => null)) as { error?: { message?: string } } | null;
+      setError(data?.error?.message ?? "No se pudo empezar la prueba");
       return;
     }
     const data = (await res.json()) as { runId: string };
-    setSelectedRunId(data.runId);
-    setProgress({ done: 0, total: 6 });
+    setRunId(data.runId);
+    setCaseId(null);
+    setProgress({ done: 0, total: repeat ? 1 : count });
     void refetchRuns();
   }
 
-  const toolbar = { agents, agentId, onAgent: setAgentId, source: effectiveSource, onSource: setSource, sourceLocked: chosen?.status === "draft" };
-
-  if (!aiConfigured) {
-    return (
-      <div className="flex h-full flex-col">
-        <Toolbar {...toolbar} running={false} launching={false} onLaunch={() => {}} disabled />
-        <div className="m-6 rounded-lg border border-brand-soft bg-brand-tint p-8 text-center">
-          <Sparkles className="mx-auto mb-2 h-8 w-8 text-primary" />
-          <p className="font-medium">
-            Configura tu proveedor de IA para usar el Laboratorio
-          </p>
-          <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">
-            El Laboratorio necesita el agente activo: agrega{" "}
-            <code className="rounded bg-secondary px-1">OPENROUTER_API_TOKEN</code> a la
-            instancia y vuelve aquí.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  const running = runs.some((r) => r.status === "running");
+  const selectedRun = detail?.run ?? null;
+  const cases = detail?.cases ?? [];
+  const current = cases.find((c) => c.id === caseId) ?? null;
+  const good = cases.filter((c) => c.veredicto === "verde").length;
+  const reviewed = cases.filter((c) => c.veredicto).length;
+  const isRunning = selectedRun?.status === "running";
 
   return (
-    <div className="flex h-full flex-col overflow-y-auto">
-      <Toolbar
-        {...toolbar}
-        running={running}
-        launching={launching}
-        onLaunch={() => void launch()}
-        disabled={false}
-      />
-      {error && <p className="px-4 pt-3 text-sm text-destructive sm:px-6">{error}</p>}
+    <div className="grid h-full min-h-0 lg:grid-cols-[minmax(0,26rem)_minmax(0,1fr)]" data-testid="lab-sim">
+      {/* Columna izquierda: agente, prueba y clientes. */}
+      <div className="flex min-h-0 flex-col border-b lg:border-b-0 lg:border-r">
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4 sm:p-5">
+          <div className="space-y-1.5">
+            <label htmlFor="lab-sim-agent" className="text-sm text-text-2">Agente que se prueba</label>
+            <select
+              id="lab-sim-agent"
+              data-testid="lab-agent-select"
+              className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+              value={agentId ?? ""}
+              onChange={(e) => setAgentId(e.target.value || null)}
+            >
+              {agents.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.internalName}
+                  {a.isGeneral ? " (general)" : ""}
+                  {a.status === "draft" ? " · borrador" : ""}
+                </option>
+              ))}
+            </select>
+            {chosen?.status === "changes" && (
+              <div className="inline-flex rounded-md bg-muted p-0.5 text-xs" role="radiogroup" aria-label="Qué versión se prueba">
+                {(["published", "draft"] as const).map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    role="radio"
+                    aria-checked={source === s}
+                    onClick={() => setSource(s)}
+                    className={cn("rounded px-2.5 py-1", source === s ? "bg-card font-medium shadow-sm" : "text-text-2")}
+                    data-testid={`lab-source-${s}`}
+                  >
+                    {s === "published" ? "Lo publicado" : "El borrador"}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          <p className="rounded-lg bg-muted px-4 py-3 text-sm text-text-2">
+            Inventamos clientes con lo que sabe tu agente: instrucciones, conocimiento y documentos. Nada sale a WhatsApp.
+          </p>
 
-      {running && progress && (
-        <div className="mx-6 mt-4 rounded-lg border bg-card p-4">
-          <div className="mb-2 flex items-center justify-between text-sm">
-            <span className="font-medium">Evaluando personas…</span>
-            <span className="text-muted-foreground">
-              {progress.done} / {progress.total}
-            </span>
-          </div>
-          <div className="h-2 overflow-hidden rounded-full bg-secondary">
-            <div
-              className="h-full w-full origin-left rounded-full bg-primary transition-transform duration-300"
-              style={{ transform: `scaleX(${progress.done / progress.total})` }}
-            />
-          </div>
+          {!aiConfigured ? (
+            <p className="rounded-lg border border-dashed p-4 text-sm text-text-2">
+              Configura el proveedor de IA de la instancia para probar a tus agentes.
+            </p>
+          ) : !loaded ? (
+            <p className="text-sm text-text-3">Cargando…</p>
+          ) : !selectedRun ? (
+            <p className="rounded-lg border border-dashed p-6 text-center text-sm text-text-2" data-testid="lab-sim-empty">
+              Todavía no pruebas a este agente. Elige cuántos clientes y pulsa «Nueva prueba».
+            </p>
+          ) : (
+            <section className="space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <h2 className="text-sm font-semibold">
+                  Prueba del {fecha(selectedRun.startedAt)} · {cases.length || progress?.total || "…"} {cases.length === 1 ? "cliente" : "clientes"}
+                </h2>
+                {reviewed > 0 && (
+                  <Badge variant="secondary" className="whitespace-nowrap text-brand-text" data-testid="lab-sim-score">
+                    {good} de {cases.length} bien
+                  </Badge>
+                )}
+              </div>
+              {agentRuns.length > 1 && (
+                <select
+                  aria-label="Pruebas anteriores"
+                  className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs text-text-2"
+                  value={runId ?? ""}
+                  onChange={(e) => {
+                    setRunId(e.target.value);
+                    setCaseId(null);
+                  }}
+                  data-testid="lab-sim-history"
+                >
+                  {agentRuns.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {fecha(r.startedAt)} · {r.status === "running" ? "en curso" : r.status === "failed" ? "falló" : r.score === null ? "sin revisar" : `${r.score} %`}
+                      {r.source === "draft" ? " · borrador" : ""}
+                    </option>
+                  ))}
+                </select>
+              )}
+              {selectedRun.status === "failed" && <p className="text-sm text-destructive">La prueba no terminó: {selectedRun.error}</p>}
+              {isRunning && cases.length === 0 && (
+                <p className="flex items-center gap-2 text-sm text-text-2" data-testid="lab-sim-generating">
+                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> Inventando clientes con lo que sabe tu agente…
+                </p>
+              )}
+              <ul className="space-y-2" data-testid="lab-sim-cases">
+                {cases.map((c) => (
+                  <li key={c.id}>
+                    <button
+                      type="button"
+                      onClick={() => setCaseId(c.id)}
+                      aria-current={c.id === caseId ? "true" : undefined}
+                      className={cn(
+                        "flex w-full items-center gap-3 rounded-lg border bg-card px-3 py-2.5 text-left hover:border-primary/60",
+                        c.id === caseId && "border-primary bg-brand-tint"
+                      )}
+                      data-testid="lab-sim-case"
+                    >
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-soft text-brand-text">
+                        <User className="h-4 w-4" aria-hidden />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-medium">{c.personaLabel}</span>
+                        {c.summary && <span className="line-clamp-2 text-xs text-text-3">{c.summary}</span>}
+                      </span>
+                      {c.veredicto ? (
+                        <Badge variant={VERDICT[c.veredicto].variant}>{VERDICT[c.veredicto].label}</Badge>
+                      ) : c.status === "judge_failed" ? (
+                        <Badge variant="secondary">Sin revisar</Badge>
+                      ) : c.status === "running" ? (
+                        <Loader2 className="h-4 w-4 animate-spin text-text-3" aria-label="Conversando" />
+                      ) : (
+                        <span className="text-xs text-text-4">En espera</span>
+                      )}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
         </div>
-      )}
-
-      <div className="grid gap-4 p-4 sm:gap-6 sm:p-6 lg:grid-cols-[280px_1fr]">
-        <HistoryList
-          runs={runs}
-          selectedRunId={selectedRunId}
-          onSelect={setSelectedRunId}
-        />
-        {detail ? (
-          <Report
-            detail={detail}
-            agent={runs.find((r) => r.id === detail.run.id) ?? null}
-            onApplied={() => void refetchDetail(detail.run.id)}
-          />
-        ) : (
-          <div className="rounded-lg border border-dashed p-10 text-center text-sm text-muted-foreground">
-            {!runsLoaded
-              ? "Cargando…"
-              : runs.length === 0
-              ? "Corre tu primera evaluación: 6 clientes simulados conversarán con tu agente y un juez calificará cada conversación."
-              : "Elige una corrida del historial."}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function Toolbar({
-  running,
-  launching,
-  onLaunch,
-  disabled,
-  agents,
-  agentId,
-  onAgent,
-  source,
-  onSource,
-  sourceLocked,
-}: {
-  running: boolean;
-  launching: boolean;
-  onLaunch: () => void;
-  disabled: boolean;
-  agents: AgentOption[];
-  agentId: string | null;
-  onAgent: (id: string) => void;
-  source: "draft" | "published";
-  onSource: (s: "draft" | "published") => void;
-  sourceLocked: boolean;
-}) {
-  const field = "h-9 min-w-[10rem] rounded-md border border-border-strong bg-background px-2.5 text-sm";
-  return (
-    <div className="flex flex-wrap items-end justify-between gap-3 border-b px-4 py-3 sm:px-6">
-      <div className="flex flex-wrap items-end gap-3">
-        <div className="space-y-1">
-          <Label htmlFor="eval-agent" className="block">Agente a evaluar</Label>
+        <div className="flex flex-wrap items-center gap-2 border-t p-4 sm:px-5">
+          {error && <p className="w-full text-sm text-destructive">{error}</p>}
+          <Button onClick={() => void launch()} disabled={!aiConfigured || running || launching || !agentId} data-testid="lab-run">
+            <Play className="h-4 w-4" aria-hidden /> {running ? "Probando…" : "Nueva prueba"}
+          </Button>
           <select
-            id="eval-agent"
-            className={field}
-            value={agentId ?? ""}
-            disabled={disabled || agents.length === 0}
-            onChange={(e) => onAgent(e.target.value)}
+            aria-label="Cuántos clientes"
+            className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+            value={count}
+            onChange={(e) => setCount(Number(e.target.value) as (typeof COUNTS)[number])}
+            data-testid="lab-sim-count"
           >
-            {agents.map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.internalName}
-                {a.isGeneral ? " (general)" : ""}
+            {COUNTS.map((n) => (
+              <option key={n} value={n}>
+                {n} clientes
               </option>
             ))}
           </select>
-        </div>
-        <div className="space-y-1">
-          <Label htmlFor="eval-source" className="block">Versión</Label>
-          <select
-            id="eval-source"
-            className={field}
-            value={source}
-            disabled={disabled || sourceLocked}
-            onChange={(e) => onSource(e.target.value as "draft" | "published")}
-          >
-            <option value="published">Publicada (la de producción)</option>
-            <option value="draft">Borrador (sin publicar)</option>
-          </select>
+          {running && progress && progress.total > 0 && (
+            <span className="text-xs text-text-3" data-testid="lab-sim-progress">
+              {progress.done} de {progress.total}
+            </span>
+          )}
         </div>
       </div>
-      <Button onClick={onLaunch} disabled={disabled || running || launching}>
-        <Play className="h-4 w-4" />
-        {running ? "Corrida en curso…" : "Correr evaluación"}
-      </Button>
-    </div>
-  );
-}
 
-function HistoryList({
-  runs,
-  selectedRunId,
-  onSelect,
-}: {
-  runs: Run[];
-  selectedRunId: string | null;
-  onSelect: (id: string) => void;
-}) {
-  return (
-    <div className="space-y-2">
-      <p className="kicker">
-        Historial
-      </p>
-      {runs.length === 0 && (
-        <p className="text-xs text-muted-foreground">Sin corridas todavía.</p>
-      )}
-      {runs.map((run) => (
-        <button
-          key={run.id}
-          onClick={() => onSelect(run.id)}
-          className={`w-full rounded-lg border p-3 text-left transition-colors hover:bg-accent ${
-            selectedRunId === run.id ? "border-brand bg-brand-tint" : "border-border-strong bg-card"
-          }`}
-        >
-          <div className="flex items-center justify-between">
-            <ScoreBadge run={run} />
-            {run.delta !== null && run.delta !== 0 && (
-              <span
-                className={`flex items-center gap-0.5 text-xs font-medium ${
-                  run.delta > 0 ? "text-success" : "text-destructive"
-                }`}
-              >
-                {run.delta > 0 ? (
-                  <TrendingUp className="h-3.5 w-3.5" />
-                ) : (
-                  <TrendingDown className="h-3.5 w-3.5" />
-                )}
-                {run.delta > 0 ? "+" : ""}
-                {run.delta}
-              </span>
-            )}
+      {/* Columna derecha: la conversación y su revisión. */}
+      <div className="min-h-0 overflow-y-auto">
+        {current ? (
+          <CaseView
+            key={current.id}
+            c={current}
+            run={selectedRun!}
+            agentId={selectedRun?.agentId ?? agentId}
+            onRepeat={() => void launch({ runId: selectedRun!.id, caseId: current.id })}
+            repeatDisabled={running || launching}
+          />
+        ) : (
+          <div className="flex h-full min-h-[12rem] items-center justify-center p-8 text-center text-sm text-text-3">
+            {selectedRun ? "Elige un cliente para ver su conversación." : "Aquí verás cada conversación y lo que encontró la revisión."}
           </div>
-          {run.agentName && (
-            <p className="mt-1 truncate text-xs">
-              {run.agentName}
-              <span className="text-muted-foreground">
-                {run.source ? ` · ${run.source === "draft" ? "borrador" : "publicada"}` : ""}
-              </span>
-            </p>
-          )}
-          <p className="mt-1 text-[11px] text-muted-foreground">
-            {new Date(run.startedAt).toLocaleString("es-MX", {
-              day: "numeric",
-              month: "short",
-              hour: "2-digit",
-              minute: "2-digit",
-            })}
-          </p>
-        </button>
-      ))}
-    </div>
-  );
-}
-
-function ScoreBadge({ run }: { run: Run }) {
-  if (run.status === "running") return <Badge variant="secondary">En curso…</Badge>;
-  if (run.status === "failed") return <Badge variant="destructive">Fallida</Badge>;
-  const score = run.score ?? 0;
-  const variant = score >= 80 ? "success" : score >= 50 ? "warning" : "destructive";
-  return <Badge variant={variant}>Score {score}</Badge>;
-}
-
-function Report({
-  detail,
-  agent,
-  onApplied,
-}: {
-  detail: { run: Run; cases: Case[] };
-  agent: Run | null;
-  onApplied: () => void;
-}) {
-  const { run, cases } = detail;
-  return (
-    <div className="space-y-4">
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>Reporte</CardTitle>
-            <ScoreBadge run={run} />
-          </div>
-          {run.status === "failed" && (
-            <p className="text-sm text-destructive">
-              La corrida falló: {run.error ?? "error desconocido"}. Vuelve a
-              intentarlo.
-            </p>
-          )}
-        </CardHeader>
-        {run.status === "done" && (
-          <CardContent>
-            <div className="grid grid-cols-3 gap-3 text-center text-sm">
-              {(["verde", "amarillo", "rojo"] as const).map((v) => (
-                <div key={v} className="rounded-md border p-3">
-                  <p className="text-2xl font-bold">
-                    {cases.filter((c) => c.veredicto === v).length}
-                  </p>
-                  <p className="capitalize text-muted-foreground">{v}s</p>
-                </div>
-              ))}
-            </div>
-            {cases.some((c) => c.status === "judge_failed") && (
-              <p className="mt-3 text-xs text-warning-text">
-                {cases.filter((c) => c.status === "judge_failed").length} caso(s) sin
-                veredicto (el juez no respondió válido); excluidos del score.
-              </p>
-            )}
-          </CardContent>
         )}
-      </Card>
-
-      {cases.map((c) => (
-        <CaseCard key={c.id} testCase={c} agent={agent} onApplied={onApplied} />
-      ))}
+      </div>
     </div>
   );
 }
 
-function CaseCard({ testCase, agent, onApplied }: { testCase: Case; agent: Run | null; onApplied: () => void }) {
-  const [open, setOpen] = useState(false);
-  const c = testCase;
-  const icon =
-    c.veredicto === "verde" ? (
-      <CheckCircle2 className="h-4 w-4 text-success" />
-    ) : c.veredicto === "amarillo" ? (
-      <AlertTriangle className="h-4 w-4 text-warning-text" />
-    ) : c.veredicto === "rojo" ? (
-      <XCircle className="h-4 w-4 text-destructive" />
-    ) : (
-      <AlertTriangle className="h-4 w-4 text-muted-foreground" />
-    );
-
-  return (
-    <Card>
-      <CardHeader className="pb-3">
-        <button
-          className="flex w-full items-center justify-between"
-          onClick={() => setOpen(!open)}
-        >
-          <span className="flex items-center gap-2 text-sm font-semibold">
-            {icon}
-            {c.personaLabel}
-            {c.status === "judge_failed" && (
-              <Badge variant="secondary">sin veredicto</Badge>
-            )}
-          </span>
-          <span className="flex items-center gap-2 text-xs text-muted-foreground">
-            {c.hallazgos.length > 0 && `${c.hallazgos.length} hallazgo(s)`}
-            {open ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-          </span>
-        </button>
-      </CardHeader>
-      {open && (
-        <CardContent className="space-y-3">
-          {c.hallazgos.map((h, i) => (
-            <HallazgoCard key={i} hallazgo={h} caseId={c.id} index={i} agent={agent} onApplied={onApplied} />
-          ))}
-          <div className="rounded-md border bg-background p-3">
-            <p className="mb-2 kicker">
-              Transcript
-            </p>
-            <div className="space-y-1.5 text-sm">
-              {c.transcript.map((t, i) => (
-                <p key={i}>
-                  <span
-                    className={
-                      t.role === "cliente" ? "text-info" : "text-primary"
-                    }
-                  >
-                    {t.role === "cliente" ? "Cliente" : "Agente"}:
-                  </span>{" "}
-                  {t.text}
-                </p>
-              ))}
-            </div>
-          </div>
-        </CardContent>
-      )}
-    </Card>
-  );
-}
-
-function HallazgoCard({
-  hallazgo,
-  caseId,
-  index,
-  agent,
-  onApplied,
+function CaseView({
+  c,
+  run,
+  agentId,
+  onRepeat,
+  repeatDisabled,
 }: {
-  hallazgo: Hallazgo;
-  caseId: string;
-  index: number;
-  agent: Run | null;
-  onApplied: () => void;
+  c: Case;
+  run: Run;
+  agentId: string | null | undefined;
+  onRepeat: () => void;
+  repeatDisabled: boolean;
 }) {
-  const [editing, setEditing] = useState(false);
-  const [pregunta, setPregunta] = useState(hallazgo.sugerencia?.pregunta ?? "");
-  const [respuesta, setRespuesta] = useState(hallazgo.sugerencia?.respuesta ?? "");
-  const [applied, setApplied] = useState(false);
-  const [saving, setSaving] = useState(false);
-  // 031: ¿al conocimiento compartido o al propio del agente evaluado? (el
-  // general siempre lee el compartido, así que para él no hay elección).
-  const ownable = !!agent?.agentId && !!agent.agentName;
-  const [destino, setDestino] = useState<"shared" | "agent">("shared");
+  const review = reviewOf(c);
+  const verdict = c.veredicto ? VERDICT[c.veredicto] : null;
+  const [fix, setFix] = useState<{ summary: string; suggestions: ReviewSuggestionDto[] } | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  const clientMsgs = c.transcript.filter((m) => m.role === "cliente").length;
 
-  async function apply() {
-    setSaving(true);
-    const res = await fetch("/api/lab/suggestions/apply", {
+  async function proposeFix() {
+    if (!agentId) return;
+    setBusy(true);
+    setMsg(null);
+    const a = await fetch(`/api/lab/agents/${agentId}`).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+    if (!a?.agent) {
+      setBusy(false);
+      return setMsg("No encontré al agente.");
+    }
+    const transcript = c.transcript.slice(0, 40).map((m) => ({ role: m.role === "cliente" ? "user" : "assistant", text: m.text.slice(0, 2000) }));
+    const res = await fetch("/api/lab/review", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        caseId,
-        hallazgoIndex: index,
-        pregunta,
-        respuesta,
-        ...(ownable && destino === "agent" ? { agentId: agent!.agentId } : {}),
-      }),
+      body: JSON.stringify({ config: a.agent.draft, transcript }),
     }).catch(() => null);
-    setSaving(false);
-    if (res?.ok) {
-      setApplied(true);
-      setEditing(false);
-      onApplied();
-    }
+    setBusy(false);
+    const data = res ? await res.json().catch(() => null) : null;
+    if (!res?.ok || !data) return setMsg(data?.error?.message ?? "No se pudo proponer un arreglo.");
+    setFix({ summary: data.summary ?? "", suggestions: data.suggestions ?? [] });
   }
 
+  async function applyFix(s: ReviewSuggestionDto) {
+    if (!agentId) return;
+    const a = await fetch(`/api/lab/agents/${agentId}`).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+    if (!a?.agent) return;
+    const res = await fetch(`/api/lab/agents/${agentId}/draft`, {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ ...a.agent.draft, [s.field]: s.value }),
+    }).catch(() => null);
+    setMsg(res?.ok ? "Listo: quedó en el borrador del agente. Pruébalo y publica cuando quieras." : "No se pudo guardar el cambio.");
+  }
+
+  const question = `Revisa esta conversación de prueba de mi agente con «${c.personaLabel}» y dime qué cambiarías en sus instrucciones:\n\n${c.transcript
+    .map((m) => `${m.role === "cliente" ? "Cliente" : "Agente"}: ${m.text}`)
+    .join("\n")}`.slice(0, 990);
+
   return (
-    <div className="rounded-md border border-warning-soft bg-warning-tint p-3">
-      <div className="flex items-center justify-between">
-        <Badge variant="warning">{TIPO_LABELS[hallazgo.tipo]}</Badge>
-        {hallazgo.sugerencia && !applied && !editing && (
-          <Button size="sm" variant="outline" onClick={() => setEditing(true)}>
-            Agregar al conocimiento
+    <div className="flex min-h-full flex-col" data-testid="lab-sim-case-view">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b px-5 py-3">
+        <p className="text-sm">
+          <strong>{c.personaLabel}</strong>
+          <span className="text-text-3"> · {clientMsgs} {clientMsgs === 1 ? "mensaje" : "mensajes"} del cliente</span>
+        </p>
+        {run.status !== "running" && c.summary !== null && (
+          <Button size="sm" variant="outline" onClick={onRepeat} disabled={repeatDisabled} data-testid="lab-sim-repeat">
+            <RotateCw className="h-4 w-4" aria-hidden /> Repetir con este cliente
           </Button>
         )}
-        {applied && (
-          <span className="text-xs text-success">Agregado al conocimiento ✓</span>
+      </div>
+      <div className="flex-1 space-y-3 bg-muted/30 p-5">
+        {c.transcript.length === 0 && <p className="text-sm text-text-3">{c.status === "pending" ? "En espera…" : "Conversando…"}</p>}
+        {c.transcript.map((m, i) => (
+          <div key={i} className={cn("flex", m.role === "agente" && "justify-end")}>
+            <p
+              className={cn(
+                "max-w-[80%] whitespace-pre-wrap break-words rounded-2xl px-4 py-2.5 text-sm",
+                m.role === "cliente" ? "border bg-card" : "bg-brand-tint"
+              )}
+              data-testid={m.role === "cliente" ? "lab-sim-msg-client" : "lab-sim-msg-agent"}
+            >
+              {m.text}
+            </p>
+          </div>
+        ))}
+        {(verdict || c.status === "judge_failed") && (
+          <section
+            className={cn(
+              "rounded-xl border p-4",
+              c.veredicto === "rojo" ? "border-danger-soft bg-danger-tint/40" : c.veredicto === "amarillo" ? "border-warning-soft bg-warning-tint/40" : "bg-card"
+            )}
+            data-testid="lab-sim-review"
+          >
+            <div className="flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-warning-text" aria-hidden />
+              <h3 className="text-sm font-semibold">Revisión del asistente</h3>
+              {verdict ? <Badge variant={verdict.variant}>{verdict.label}</Badge> : <Badge variant="secondary">Sin revisar</Badge>}
+            </div>
+            {review.notas.length > 0 ? (
+              <ul className="mt-2 list-disc space-y-1 pl-5 text-sm">
+                {review.notas.map((n, i) => (
+                  <li key={i}>{n}</li>
+                ))}
+              </ul>
+            ) : (
+              <p className="mt-2 text-sm text-text-2">
+                {c.status === "judge_failed" ? "La IA no pudo revisar esta conversación." : "Atendió bien a este cliente."}
+              </p>
+            )}
+            {review.arreglo && (
+              <p className="mt-2 text-sm text-text-2">
+                Sugerencia: <em>{review.arreglo}</em>
+              </p>
+            )}
+            {c.veredicto && c.veredicto !== "verde" && (
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <Button size="sm" onClick={() => void proposeFix()} disabled={busy || !agentId} data-testid="lab-sim-fix">
+                  {busy && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />} Proponer arreglo en las instrucciones
+                </Button>
+                <Link href={`/asistente?q=${encodeURIComponent(question)}`} className={buttonVariants({ size: "sm", variant: "outline" })} data-testid="lab-sim-assistant">
+                  Abrir en el asistente
+                </Link>
+              </div>
+            )}
+            {msg && <p className="mt-2 text-sm text-text-2" data-testid="lab-sim-fix-msg">{msg}</p>}
+          </section>
+        )}
+        {fix && (
+          <AgentReview summary={fix.summary} suggestions={fix.suggestions} onApply={(s) => void applyFix(s)} onClose={() => setFix(null)} />
         )}
       </div>
-      <p className="mt-2 text-sm text-muted-foreground">
-        <span className="font-medium text-foreground">Evidencia:</span>{" "}
-        {hallazgo.evidencia}
-      </p>
-      {editing && hallazgo.sugerencia && (
-        <div className="mt-3 space-y-2 rounded-md border bg-card p-3">
-          <div className="space-y-1">
-            <Label htmlFor={`sug-q-${caseId}-${index}`}>Pregunta</Label>
-            <Input
-              id={`sug-q-${caseId}-${index}`}
-              value={pregunta}
-              onChange={(e) => setPregunta(e.target.value)}
-            />
-          </div>
-          <div className="space-y-1">
-            <Label htmlFor={`sug-a-${caseId}-${index}`}>Respuesta</Label>
-            <Textarea
-              id={`sug-a-${caseId}-${index}`}
-              rows={3}
-              value={respuesta}
-              onChange={(e) => setRespuesta(e.target.value)}
-            />
-          </div>
-          {ownable && (
-            <div className="space-y-1">
-              <Label htmlFor={`sug-d-${caseId}-${index}`}>¿Dónde guardarlo?</Label>
-              <select
-                id={`sug-d-${caseId}-${index}`}
-                className="h-9 w-full rounded-md border border-border-strong bg-background px-2.5 text-sm"
-                value={destino}
-                onChange={(e) => setDestino(e.target.value as "shared" | "agent")}
-              >
-                <option value="shared">Conocimiento compartido (lo leen los agentes que lo usan)</option>
-                <option value="agent">Solo de «{agent?.agentName}»</option>
-              </select>
-            </div>
-          )}
-          <div className="flex gap-2">
-            <Button
-              size="sm"
-              onClick={() => void apply()}
-              disabled={saving || !pregunta.trim() || !respuesta.trim()}
-            >
-              {saving ? "Guardando…" : "Guardar en el KB"}
-            </Button>
-            <Button size="sm" variant="ghost" onClick={() => setEditing(false)}>
-              Cancelar
-            </Button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

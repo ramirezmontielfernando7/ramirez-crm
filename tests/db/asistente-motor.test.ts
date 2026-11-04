@@ -119,6 +119,39 @@ describe("038 (PR 2) — motor del asistente interno", () => {
     expect(ctx.masker.unmask("[CONTACTO 1] y [PERSONA DEL EQUIPO 1]")).toBe("Lucía Fernández y Pedro Asesorín");
   });
 
+  it("auditoría de agentes: cuenta lo que contestó la IA y los traspasos, con ejemplos enmascarados", async () => {
+    const contactId = newId("contact");
+    await sys().insert(schema.contact).values({ id: contactId, organizationId: A.id, waIdentity: "5215511112222", phone: "5215511112222", name: "Ramona Auditada" });
+    const conversationId = newId("conversation");
+    await sys().insert(schema.conversation).values({ id: conversationId, organizationId: A.id, contactId, lastMessageAt: new Date(), handoffAt: new Date(), handoffReason: "cliente" });
+    const msg = (direction: "in" | "out", text: string, ai: boolean) => ({
+      id: newId("message"),
+      organizationId: A.id,
+      conversationId,
+      direction,
+      type: "text",
+      text,
+      aiGenerated: ai,
+      origin: ai ? ("ai" as const) : ("operator" as const),
+      status: "delivered" as const,
+      waMessageId: `wamid.${newId("message")}`,
+    });
+    await sys().insert(schema.message).values([msg("in", "Hola, soy Ramona, ¿cuánto cuesta?", false), msg("out", "Cuesta 100 pesos", true), msg("in", "Quiero hablar con alguien", false)]);
+    const ctx = ctxDe(A.id, duena);
+    const r = await as(A.id, () => runQuery(ctx, "auditoria_agentes", {}));
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    const owner = r.output.forOwner as { chats_revisados: number; agentes: { chats_contestados: number; pasados_a_persona: number }[]; ejemplos: { contacto: string; mensajes: { de: string }[] }[] };
+    expect(owner.chats_revisados).toBe(1);
+    const total = owner.agentes.reduce((n, a) => ({ chats: n.chats + a.chats_contestados, traspasos: n.traspasos + a.pasados_a_persona }), { chats: 0, traspasos: 0 });
+    expect(total).toEqual({ chats: 1, traspasos: 1 });
+    expect(owner.ejemplos[0]).toMatchObject({ contacto: "Ramona Auditada", paso_a_persona: "el cliente pidió una persona" });
+    expect(owner.ejemplos[0]!.mensajes.map((m) => m.de)).toEqual(["cliente", "agente de IA", "cliente"]);
+    const paraModelo = JSON.stringify(r.output.forModel);
+    expect(paraModelo).not.toMatch(/Ramona|5215511112222/);
+    expect(paraModelo).toContain("[CONTACTO 1]");
+  });
+
   it("etiquetas y equipo: delimitadores neutralizados, nombres de personas enmascarados", async () => {
     const ctx = ctxDe(A.id, duena);
     const tags = await as(A.id, () => runQuery(ctx, "etiquetas", {}));

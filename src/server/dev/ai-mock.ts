@@ -1,4 +1,5 @@
-import { DOCS_MARKER, JUDGE_MARKER } from "@/server/ai/prompts";
+import { DOCS_MARKER } from "@/server/ai/prompts";
+import { SIM_CLIENTS_MARKER, SIM_REVIEW_MARKER, SIM_TURN_MARKER } from "@/server/lab/simulated";
 import { foldAccents } from "@/lib/kb-docs";
 import { CABECERA_HUECOS } from "@/server/agenda/offers";
 import { WRITING_ASSIST_MARKER } from "@/server/writing-assist/prompts";
@@ -27,34 +28,14 @@ export function aiMockCompletion(messages: InMessage[]): string {
   // 023 — Asistente de redacción: transformación determinista del borrador.
   if (system.includes(WRITING_ASSIST_MARKER)) return writingAssistMock(lastUser);
 
-  // Juez del Laboratorio: veredicto determinista por persona. Para cerrar el
-  // loop del self-test, la persona fuera_de_kb pasa a verde si el CONOCIMIENTO
-  // configurado ya cubre garantías/devoluciones (sugerencia aplicada).
-  if (system.includes(JUDGE_MARKER)) {
-    const kbSection =
-      lastUser
-        .split("CONOCIMIENTO CONFIGURADO:")[1]
-        ?.split("TRANSCRIPT COMPLETO:")[0] ?? "";
-    const kbCoversWarranty = /garant|devoluc/i.test(kbSection);
-    if (lastUser.includes("fuera_de_kb") && !kbCoversWarranty) {
-      return JSON.stringify({
-        veredicto: "rojo",
-        hallazgos: [
-          {
-            tipo: "fuera_de_kb",
-            evidencia:
-              "El cliente preguntó por garantías y devoluciones y el conocimiento no lo cubre.",
-            sugerencia: {
-              pregunta: "¿Cuál es la política de garantías y devoluciones?",
-              respuesta:
-                "Aceptamos devoluciones dentro de los 30 días con ticket de compra; la garantía depende del fabricante.",
-            },
-          },
-        ],
-      });
-    }
-    return JSON.stringify({ veredicto: "verde", hallazgos: [] });
+  // 0070 — Clientes simulados: inventar, seguir la plática y revisar, deterministas.
+  if (system.includes(SIM_CLIENTS_MARKER)) return simClientsMock(lastUser);
+  if (system.includes(SIM_TURN_MARKER)) {
+    // Un segundo mensaje y luego termina.
+    const mine = (lastUser.match(/^TÚ \(cliente\):/gm) ?? []).length;
+    return JSON.stringify(mine >= 2 ? { mensaje: "", terminado: true } : { mensaje: "¿Y cuánto tardan en contestar?", terminado: false });
   }
+  if (system.includes(SIM_REVIEW_MARKER)) return simReviewMock(lastUser);
 
   const text = lastUser.toLowerCase();
 
@@ -335,6 +316,7 @@ function assistantMock(messages: InMessage[]): string {
   }
 
   if (data.length === 0 && results.length === 0) {
+    if (/audit|contesto la ia/.test(q)) return JSON.stringify({ action: "query", queries: [{ name: "auditoria_agentes" }] });
     const wanted = MOCK_KEYWORDS.filter(([re]) => re.test(q)).map(([, name, args]) => ({ name, ...(args ? { args } : {}) }));
     if (q.includes("inexistente")) wanted.unshift({ name: "borrar_todo" });
     if (wanted.length > 0) return JSON.stringify({ action: "query", queries: wanted.slice(0, 4) });
@@ -373,6 +355,13 @@ function assistantMockLine(name: string, json: unknown): string {
       const top = d.objeciones?.[0]?.valor ?? "ninguna";
       const ej = d.ejemplos_recientes?.[0];
       return `Revisé ${vistas} de ${c.conversaciones_en_periodo ?? 0} conversaciones${c.faltan ? `; faltan ${c.faltan}` : ""}. Objeción principal: ${top}.${ej ? ` Ejemplo: ${ej.contacto}: ${ej.resumen}` : ""}`;
+    }
+    case "auditoria_agentes": {
+      const ags = (d.agentes ?? []) as { agente: string; chats_contestados: number; pasados_a_persona: number }[];
+      const ej = d.ejemplos?.[0];
+      return `Revisé ${d.chats_revisados ?? 0} chats que contestó la IA en ${d.periodo_dias ?? 7} días. ${ags
+        .map((a) => `${a.agente}: ${a.chats_contestados} chats, ${a.pasados_a_persona} pasados a una persona`)
+        .join("; ")}.${ej ? ` Ejemplo: ${ej.contacto} (${ej.paso_a_persona ?? "sin traspaso"}).` : ""}`;
     }
     default:
       return `Revisé ${name}.`;
@@ -425,4 +414,36 @@ function analysisMock(messages: InMessage[]): string {
       };
     }),
   });
+}
+
+/**
+ * 0070 — Mock de los clientes simulados. Los primeros mensajes ejercitan los
+ * caminos del agente de prueba (precio, pedir una persona, garantías). La
+ * palabra ROMPE-SIMULADOS en el conocimiento hace que no devuelva clientes
+ * válidos (deben entrar los genéricos).
+ */
+function simClientsMock(user: string): string {
+  if (user.includes("ROMPE-SIMULADOS")) return JSON.stringify({ clientes: [{ nombre: "" }] });
+  const n = Number(user.match(/Inventa (\d+) clientes/)?.[1] ?? 5);
+  const base = [
+    { nombre: "Cliente que pregunta precios", resumen: "Quiere saber precios", objetivo: "Saber precios", estilo: "Directo", primer_mensaje: "Hola, ¿cuánto cuesta?" },
+    { nombre: "Pide hablar con alguien", resumen: "Quiere una persona", objetivo: "Hablar con una persona", estilo: "Insistente", primer_mensaje: "Quiero hablar con un humano por favor" },
+    { nombre: "Pregunta por garantías", resumen: "Pregunta algo fuera del conocimiento", objetivo: "Saber de garantías y devoluciones", estilo: "Curioso", primer_mensaje: "¿Cuál es su política de garantías y devoluciones?" },
+  ];
+  const clientes = Array.from({ length: n }, (_, i) => ({ ...base[i % base.length]!, nombre: i < base.length ? base[i]!.nombre : `${base[i % base.length]!.nombre} ${Math.floor(i / base.length) + 1}` }));
+  return JSON.stringify({ clientes });
+}
+
+/** Revisa: si el cliente preguntó por garantías y el conocimiento no las cubre → «revisar» con un arreglo. */
+function simReviewMock(user: string): string {
+  const agente = user.split("<<FIN AGENTE")[0] ?? "";
+  const chat = user.split("<<CHAT")[1] ?? "";
+  if (/garant/i.test(chat) && !/garant|devoluc/i.test(agente.split("CONOCIMIENTO DEL AGENTE:")[1] ?? "")) {
+    return JSON.stringify({
+      resultado: "revisar",
+      notas: ["El cliente preguntó por garantías y devoluciones, y eso no está en lo que sabe el agente."],
+      arreglo: "Si te preguntan por garantías o devoluciones y no está en tu conocimiento, no lo inventes: pasa el chat a una persona.",
+    });
+  }
+  return JSON.stringify({ resultado: "bien", notas: [], arreglo: null });
 }

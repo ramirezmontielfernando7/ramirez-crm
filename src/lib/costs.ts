@@ -204,7 +204,7 @@ export function formatLocal(usd: number | null, p: Pricing | null): string {
 export const COST_KIND_LABEL: Record<CostKind, string> = {
   agent: "Agente (conversaciones reales)",
   lab: "Laboratorio",
-  judge: "Juez del Laboratorio",
+  judge: "Revisión de clientes simulados",
   writing: "Asistente de redacción",
   assistant: "Asistente interno",
   analysis: "Análisis de conversaciones",
