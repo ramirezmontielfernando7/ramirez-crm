@@ -267,7 +267,7 @@ function assistantMock(messages: InMessage[]): string {
   log.prompts.push(messages.map((m) => `${m.role}: ${m.content}`).join("\n\n"));
   if (log.prompts.length > 200) log.prompts.splice(0, log.prompts.length - 200);
 
-  const system = messages[0]?.content ?? "";
+  const system = messages.filter((m) => m.role === "system").map((m) => m.content).join("\n\n");
   const nonce = system.match(/<<DATOS qN · consulta · ([0-9a-f]+)>>/)?.[1] ?? "";
   const block = new RegExp(`<<DATOS (q\\d+) · ([a-z_]+) · ${nonce}>>\\n([^\\n]*)\\n<<FIN DATOS \\1 · ${nonce}>>`, "g");
   const results = messages.filter((m) => m.role === "user" && m.content.startsWith("RESULTADOS DE LAS CONSULTAS"));
