@@ -270,6 +270,21 @@ ok(
 await sleep(800);
 await shot(page, "06-enviado");
 
+console.log("\n== Mensaje largo: por Meta sale en partes de 4,096, en orden ==");
+const LARGO = Array.from({ length: 24 }, (_, i) => `Parte-${S}-${String(i + 1).padStart(2, "0")}. ${"Texto largo de prueba. ".repeat(18).trim()}`).join("\n\n");
+const antes = (await outbox()).length;
+await box.fill(LARGO);
+await page.getByRole("button", { name: "Enviar", exact: true }).click();
+let trozos = [];
+await until(async () => {
+  trozos = (await outbox()).slice(antes).filter((o) => o.type === "text" && String(o.body?.text?.body ?? "").includes(`Parte-${S}-`));
+  return trozos.map((o) => o.body.text.body).join("\n\n") === LARGO;
+}, 15000);
+ok("el texto de más de 4,096 salió completo en varios mensajes", trozos.length >= 2 && trozos.map((o) => o.body.text.body).join("\n\n") === LARGO, `${trozos.length} partes`);
+ok("ninguna parte pasa de 4,096", trozos.every((o) => o.body.text.body.length <= 4096));
+ok("y en orden", trozos.every((o, i) => i === 0 || o.n > trozos[i - 1].n));
+ok("la caja queda vacía tras enviar", await until(async () => (await box.inputValue()) === "", 5000));
+
 await browser.close();
 console.log(`\n${checks - failures}/${checks} checks OK`);
 process.exit(failures ? 1 : 0);
