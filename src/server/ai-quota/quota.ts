@@ -56,7 +56,12 @@ export type QuotaLimits = { turns: number | null; tokens: number | null };
  * asistente (`assistant_tokens`) o que el asistente no tiene tope asignado
  * (`assistant_unset`).
  */
-export type ReservationLimit = "turns" | "tokens" | "usd" | "assistant_tokens" | "assistant_unset";
+export type ReservationLimit = "turns" | "tokens" | "usd" | "fn_usd" | "assistant_tokens" | "assistant_unset";
+
+/** 0071 — Tope de seguridad de UNA función (agentes, creador, asistente). */
+export const FN_KIND_PREFIX = "fn_";
+export type FnCap = { fn: "agent" | "creator" | "assistant"; usdLimit: number | null; mode: "block" | "warn" };
+export type PoolMode = "block" | "warn";
 export type Reservation = { ok: true } | { ok: false; limit: ReservationLimit };
 class AssistantBudgetExceeded extends Error {}
 
@@ -101,18 +106,36 @@ export async function reserveTurn(
   now = new Date(),
   budget = 0,
   /** 0070 — Tope mensual en dólares (costo estimado); `null` = sin tope en dólares. */
-  usdLimit: number | null = null
+  usdLimit: number | null = null,
+  /** 0071 — Tope de seguridad de la función que llama, y qué hacer con la bolsa al llenarse. */
+  fnCap: FnCap | null = null,
+  poolMode: PoolMode = "block"
 ): Promise<Reservation> {
   const period = currentPeriod(now);
   return withTenant<Reservation>(organizationId, async (db) => {
+  const limits = await getQuotaLimits(organizationId);
+  // 0071: sin tope propio el asistente usa la bolsa de IA; solo no responde si
+  // no hay NINGÚN tope (ni suyo ni de la bolsa).
+  const hayBolsa = usdLimit !== null || limits.tokens !== null || limits.turns !== null || (fnCap?.usdLimit ?? null) !== null;
   // 038: el asistente, primero contra su propio tope (no gasta un turno del
   // total si ya no le toca).
+  let assistantOwn: number | null = null;
   if ((kind === ASSISTANT_KIND || kind === "analysis")) {
-    const own = await getAssistantTokenLimit(organizationId);
-    if (own === null) return { ok: false, limit: "assistant_unset" };
-    if ((await assistantTokensUsed(organizationId, now)) >= own) return { ok: false, limit: "assistant_tokens" };
+    assistantOwn = await getAssistantTokenLimit(organizationId);
+    if (assistantOwn === null && !hayBolsa) return { ok: false, limit: "assistant_unset" };
+    if (assistantOwn !== null && (await assistantTokensUsed(organizationId, now)) >= assistantOwn) return { ok: false, limit: "assistant_tokens" };
   }
-  const limits = await getQuotaLimits(organizationId);
+  // 0071: el tope en dólares de la función (solo bloquea si así se eligió).
+  if (fnCap && fnCap.usdLimit !== null && fnCap.mode === "block") {
+    const [fr] = await db
+      .select({ usd: schema.aiUsage.estCostUsd })
+      .from(schema.aiUsage)
+      .where(and(scoped(schema.aiUsage.organizationId, organizationId), eq(schema.aiUsage.period, period), eq(schema.aiUsage.kind, FN_KIND_PREFIX + fnCap.fn)))
+      .limit(1);
+    if (Number(fr?.usd ?? 0) >= fnCap.usdLimit) return { ok: false, limit: "fn_usd" };
+  }
+  // «Solo avisar»: la bolsa en dólares no frena (los avisos al 80/100 % siguen).
+  if (poolMode === "warn") usdLimit = null;
 
   await db
     .insert(schema.aiUsage)
@@ -164,11 +187,9 @@ export async function reserveTurn(
       target: [schema.aiUsage.organizationId, schema.aiUsage.period, schema.aiUsage.kind],
       set: { turns: sql`${schema.aiUsage.turns} + 1`, reservedTokens: sql`${liveReserved()} + ${budget}`, updatedAt: new Date() },
     });
-  if ((kind === ASSISTANT_KIND || kind === "analysis")) {
-    const own = await getAssistantTokenLimit(organizationId);
+  if ((kind === ASSISTANT_KIND || kind === "analysis") && assistantOwn !== null) {
     const rows = await db.select().from(schema.aiUsage).where(and(scoped(schema.aiUsage.organizationId, organizationId), eq(schema.aiUsage.period, period), inArray(schema.aiUsage.kind, [ASSISTANT_KIND, "analysis"])));
-    if (own === null || rows.reduce((n, r) => n + r.promptTokens + r.completionTokens + (r.updatedAt.getTime() < Date.now() - STALE_RESERVATION_MS ? 0 : r.reservedTokens), 0) > own) throw new AssistantBudgetExceeded("presupuesto del asistente insuficiente");
-
+    if (rows.reduce((n, r) => n + r.promptTokens + r.completionTokens + (r.updatedAt.getTime() < Date.now() - STALE_RESERVATION_MS ? 0 : r.reservedTokens), 0) > assistantOwn) throw new AssistantBudgetExceeded("presupuesto del asistente insuficiente");
   }
   return { ok: true } as const;
   }).catch((err) => {
@@ -194,14 +215,20 @@ export async function recordUsage(
   now = new Date(),
   budget = 0,
   /** 0070 — Costo estimado de la llamada (USD) con el precio de su modelo. */
-  estUsd = 0
+  estUsd = 0,
+  /** 0071 — La función que llamó: lleva su propia fila `fn_<función>` (solo costo y tokens). */
+  fn: FnCap["fn"] | null = null
 ): Promise<void> {
   const cost = costOf(usage);
   const est = Number.isFinite(estUsd) && estUsd > 0 ? estUsd : 0;
   if (usage.promptTokens === 0 && usage.completionTokens === 0 && cost === 0 && budget === 0 && est === 0) return;
   const period = currentPeriod(now);
   await withTenant(organizationId, async (db) => {
-  for (const k of [TOTAL, kind]) {
+  if (fn) {
+    // La fila de la función se crea al vuelo: no reserva, solo suma.
+    await db.insert(schema.aiUsage).values({ organizationId, period, kind: FN_KIND_PREFIX + fn }).onConflictDoNothing();
+  }
+  for (const k of fn ? [TOTAL, kind, FN_KIND_PREFIX + fn] : [TOTAL, kind]) {
     await db
       .update(schema.aiUsage)
       .set({
@@ -363,6 +390,7 @@ export async function getUsageSummary(organizationId: string, now = new Date()):
   let turns = 0;
   let tokens = 0;
   for (const r of rows) {
+    if (r.kind.startsWith(FN_KIND_PREFIX)) continue;
     const t = r.promptTokens + r.completionTokens;
     if (r.kind === TOTAL) {
       turns = r.turns;
@@ -380,4 +408,14 @@ export async function recordModelUsage(organizationId: string, kind: AiKind, mod
     target: [schema.aiUsageModel.organizationId, schema.aiUsageModel.period, schema.aiUsageModel.kind, schema.aiUsageModel.model],
     set: { turns: sql`${schema.aiUsageModel.turns} + 1`, promptTokens: sql`${schema.aiUsageModel.promptTokens} + ${usage.promptTokens}`, completionTokens: sql`${schema.aiUsageModel.completionTokens} + ${usage.completionTokens}`, costUsd: sql`${schema.aiUsageModel.costUsd} + ${costOf(usage)}` },
   });
+}
+
+/** 0071 — Lo gastado (estimado, USD) este mes por una función. */
+export async function fnSpentUsd(organizationId: string, fn: FnCap["fn"], now = new Date()): Promise<number> {
+  const [row] = await getDb()
+    .select({ usd: schema.aiUsage.estCostUsd })
+    .from(schema.aiUsage)
+    .where(scoped(schema.aiUsage.organizationId, organizationId, eq(schema.aiUsage.period, currentPeriod(now)), eq(schema.aiUsage.kind, FN_KIND_PREFIX + fn)))
+    .limit(1);
+  return Number(row?.usd ?? 0);
 }

@@ -19,5 +19,5 @@ it("DF-04: reserva antes de llamar y reconcilia con el mismo periodo y presupues
   await chatJsonForOrg("org", "agent", z.object({}), [{ role: "user", content: "hola" }]);
   const [, , period, budget] = mocks.reserve.mock.calls[0]!;
   expect(budget).toBeGreaterThan(8192);
-  expect(mocks.record).toHaveBeenCalledWith("org", "agent", { promptTokens: 5, completionTokens: 2 }, period, budget, expect.any(Number));
+  expect(mocks.record).toHaveBeenCalledWith("org", "agent", { promptTokens: 5, completionTokens: 2 }, period, budget, expect.any(Number), null);
 });

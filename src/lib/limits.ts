@@ -40,13 +40,22 @@ export function isPlanKey(v: unknown): v is PlanKey {
  * asistente). La plataforma siempre ve todo, dólares incluidos; el cliente
  * nunca ve dólares.
  */
-export const USAGE_VISIBILITIES = ["percent", "status", "tokens"] as const;
+export const USAGE_VISIBILITIES = ["percent", "tokens", "usd", "status"] as const;
 export type UsageVisibility = (typeof USAGE_VISIBILITIES)[number];
 export const DEFAULT_USAGE_VISIBILITY: UsageVisibility = "percent";
 export const USAGE_VISIBILITY_LABEL: Record<UsageVisibility, string> = {
-  percent: "Porcentaje del tope",
+  percent: "Solo porcentaje",
+  tokens: "Porcentaje y tokens",
+  usd: "Porcentaje y dólares",
   status: "Solo «Disponible» / «Agotado»",
-  tokens: "Tokens (cifras reales)",
+};
+
+/** 0071 — Lo que dice cada opción con un ejemplo, para el formulario de plataforma. */
+export const USAGE_VISIBILITY_EXAMPLE: Record<UsageVisibility, string> = {
+  percent: "«15 %». Sin cifras.",
+  tokens: "«15 % · 0.75 M de 5 M tokens»",
+  usd: "«15 % · 0.30 de 2.00 USD»",
+  status: "Sin ningún número.",
 };
 
 export function isUsageVisibility(v: unknown): v is UsageVisibility {
@@ -69,6 +78,8 @@ export type EffectiveLimits = {
   kbMaxDocuments: Limit;
   kbMaxChunks: Limit;
   kbMaxFileBytes: Limit;
+  /** 0071 — Freno de seguridad de documentos cargados (bytes). Por defecto 1 GB. */
+  kbMaxTotalBytes: Limit;
 };
 
 /**
@@ -88,6 +99,7 @@ export type LimitsPatch = {
   kbMaxDocuments?: number | null;
   kbMaxChunks?: number | null;
   kbMaxFileBytes?: number | null;
+  kbMaxTotalBytes?: number | null;
 };
 
 /** Un tope: el propio si lo hay; si no, el del entorno; si no, sin tope. */
@@ -147,7 +159,8 @@ export function alertText(
   visibility: UsageVisibility = "tokens"
 ): string {
   const plain = AI_METRIC_PLAIN[metric];
-  if (!plain || visibility === "tokens") {
+  // ai_usd (dólares) nunca se enseña con cifras en el aviso: va siempre en palabras.
+  if (!plain || (visibility === "tokens" && metric !== "ai_usd")) {
     return threshold >= 100
       ? `Tu organización llegó al tope de ${ALERT_METRIC_LABEL[metric]}.`
       : `Tu organización va en el ${threshold} % del tope de ${ALERT_METRIC_LABEL[metric]}.`;
@@ -159,6 +172,9 @@ export function alertText(
     ? `Tu organización agotó su ${plain}.`
     : `Tu organización va en el ${threshold} % de su ${plain}.`;
 }
+
+/** 0071 — Freno de seguridad por defecto de los documentos del agente: 1 GB. */
+export const DEFAULT_KB_TOTAL_BYTES = 1024 ** 3;
 
 /** Mensajes de rechazo cuando un tope impide crecer. */
 export const LIMIT_MESSAGES = {

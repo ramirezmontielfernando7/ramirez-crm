@@ -29,6 +29,13 @@ const schema = z
     creatorEffort: esfuerzo,
     assistantModel: modelo,
     monthlyUsdLimit: z.number().min(0).max(1_000_000).nullable().optional(),
+    agentUsdLimit: z.number().min(0).max(1_000_000).nullable().optional(),
+    creatorUsdLimit: z.number().min(0).max(1_000_000).nullable().optional(),
+    assistantUsdLimit: z.number().min(0).max(1_000_000).nullable().optional(),
+    poolMode: z.enum(["block", "warn"]).optional(),
+    agentMode: z.enum(["block", "warn"]).optional(),
+    creatorMode: z.enum(["block", "warn"]).optional(),
+    assistantMode: z.enum(["block", "warn"]).optional(),
   })
   .strict();
 

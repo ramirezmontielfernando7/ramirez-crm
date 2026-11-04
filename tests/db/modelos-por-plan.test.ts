@@ -35,7 +35,7 @@ describe("modelos por plan y empresa", () => {
 
   it("sin nada guardado: el entorno, como siempre", async () => {
     const r = await runWithOrganization(A.id, () => resolveAiChoice(A.id, "agent"));
-    expect(r).toEqual({ model: "env-agentes", effort: "low", usdLimit: null });
+    expect(r).toMatchObject({ model: "env-agentes", effort: "low", usdLimit: null });
   });
 
   it("instancia < plan < empresa", async () => {
@@ -48,16 +48,16 @@ describe("modelos por plan y empresa", () => {
       .onConflictDoUpdate({ target: schema.organizationPlan.organizationId, set: { planKey: "pro" } });
     await savePlatformAiDefaults("pro", { agentModel: "plan-pro", monthlyUsdLimit: 5 }, null);
     let r = await runWithOrganization(A.id, () => resolveAiChoice(A.id, "agent"));
-    expect(r).toEqual({ model: "plan-pro", effort: "medium", usdLimit: 5 });
+    expect(r).toMatchObject({ model: "plan-pro", effort: "medium", usdLimit: 5 });
 
     await saveOrgAiOverrides(A.id, { agentModel: "propio", agentEffort: "none", monthlyUsdLimit: 2 });
     r = await runWithOrganization(A.id, () => resolveAiChoice(A.id, "agent"));
-    expect(r).toEqual({ model: "propio", effort: "none", usdLimit: 2 });
+    expect(r).toMatchObject({ model: "propio", effort: "none", usdLimit: 2 });
 
     // Volver a heredar: null borra lo propio.
     await saveOrgAiOverrides(A.id, { agentModel: null, agentEffort: null, monthlyUsdLimit: null });
     r = await runWithOrganization(A.id, () => resolveAiChoice(A.id, "agent"));
-    expect(r).toEqual({ model: "plan-pro", effort: "medium", usdLimit: 5 });
+    expect(r).toMatchObject({ model: "plan-pro", effort: "medium", usdLimit: 5 });
   });
 
   it("costo estimado: precio capturado gana al conocido; sin precio, 0", async () => {

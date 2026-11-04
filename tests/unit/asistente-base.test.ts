@@ -57,9 +57,9 @@ describe("038 — visibilidad del consumo", () => {
     expect(projectShares("status", filas)).toBeNull();
   });
 
-  it("solo tres valores válidos", () => {
-    for (const v of ["percent", "status", "tokens"]) expect(isUsageVisibility(v)).toBe(true);
-    expect(isUsageVisibility("usd")).toBe(false);
+  it("solo cuatro valores válidos (0071 suma dólares)", () => {
+    for (const v of ["percent", "status", "tokens", "usd"]) expect(isUsageVisibility(v)).toBe(true);
+    expect(isUsageVisibility("eur")).toBe(false);
   });
 });
 

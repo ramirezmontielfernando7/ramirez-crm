@@ -18,7 +18,6 @@ import {
   STORAGE_LABEL,
   STORAGE_NOTE,
   storageMeter,
-  turnos,
   type Meter,
 } from "@/lib/usage";
 import { gaugeMeter, type Gauge } from "@/lib/usage-visibility";
@@ -86,11 +85,12 @@ function Share({ label, hint, value, share }: { label: string; hint?: string; va
   );
 }
 
-const tokensYTurnos = (t: { tokens: number; turns: number }) => `${formatTokens(t.tokens)} tokens · ${turnos(t.turns)}`;
+// 0071: los turnos ya no se enseñan al cliente (solo tokens).
+const soloTokens = (t: { tokens: number }) => `${formatTokens(t.tokens)} tokens`;
 
 /** Lo que dice una fila de «quién consume más»: cifras con `tokens`, si no su parte del total. */
 const shareValue = (l: { share: number; tokens?: number; turns?: number }) =>
-  l.tokens !== undefined && l.turns !== undefined ? tokensYTurnos({ tokens: l.tokens, turns: l.turns }) : `${Math.round(l.share * 100)} %`;
+  l.tokens !== undefined ? soloTokens({ tokens: l.tokens }) : `${Math.round(l.share * 100)} %`;
 
 /** El medidor de una medida de IA: con cifras (`tokens`) o con porcentaje/estado. */
 function gaugeOrCount(g: Gauge, unit: string): Meter {
@@ -138,9 +138,17 @@ export function UsagePlanClient() {
   }
 
   const { ai, limits, storage } = usage;
-  const { tokens: tk, turns: tu } = ai.total;
-  const cifras = tk !== undefined && tu !== undefined;
-  const iaMes = cifras ? aiMeter({ tokens: tk.used, turns: tu.used }, { tokens: tk.limit, turns: tu.limit }) : gaugeMeter(ai.total);
+  const { tokens: tk, turns: tu, usd } = ai.total;
+  const cifras = tk !== undefined || usd !== undefined;
+  const dolares = (n: number) => `${n.toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD`;
+  const iaMes: Meter =
+    tk !== undefined && tu !== undefined
+      ? aiMeter({ tokens: tk.used, turns: tu.used }, { tokens: tk.limit, turns: tu.limit })
+      : tk !== undefined
+        ? countMeter(tk.used, tk.limit, "tokens", formatTokens)
+        : usd !== undefined
+          ? { ...countMeter(usd.used, usd.limit, "", (n) => n.toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 })), text: `${dolares(usd.used)} de ${dolares(usd.limit)}` }
+          : gaugeMeter(ai.total);
   const pct = ai.total.percent;
   const queda = pct === null ? null : Math.max(0, 100 - pct);
   const orden = (k: string) => AI_KINDS.indexOf(k as (typeof AI_KINDS)[number]);
@@ -156,9 +164,6 @@ export function UsagePlanClient() {
       meter: countMeter(usage.members, limits.members.value, usage.members === 1 && limits.members.value === null ? "persona" : "personas"),
       testId: "usage-plan-members-meter",
     },
-    ...(usage.documents
-      ? [{ label: "Documentos de los agentes", meter: countMeter(usage.documents.documents, limits.kbMaxDocuments.value, "documentos"), testId: "usage-plan-docs-meter" }]
-      : []),
     { label: "Módulos activos", meter: countMeter(usage.modules.active, limits.modules.value, `de ${usage.modules.total} módulos`), testId: "usage-plan-modules-meter" },
   ];
 
@@ -188,7 +193,7 @@ export function UsagePlanClient() {
               {pct !== null ? `${Math.min(pct, 100)} %` : iaMes.text}
             </p>
             {/* El texto exacto del medidor (cifras con `tokens`; «% del tope» si no). */}
-            <span className={cn(cifras ? "text-xs text-text-3" : "sr-only")}>{iaMes.text}</span>
+            <span className={cn(cifras ? "block text-xs text-text-3" : "sr-only")}>{iaMes.text}</span>
           </div>
         </div>
         {iaMes.ratio !== null && (

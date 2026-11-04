@@ -55,8 +55,8 @@ export const KB_DOC_ERROR_LABEL: Record<KbDocErrorCode, string> = {
   encrypted: "Este PDF está protegido con contraseña. Quítale la protección y vuelve a subirlo.",
   unreadable: "No se pudo leer el archivo. Revisa que no esté dañado.",
   duplicate: "Ese documento ya está subido.",
-  document_limit: "Llegaste al máximo de documentos de tu negocio. Elimina alguno para subir otro.",
-  chunk_limit: "Este documento no cabe: tu negocio llegó al máximo de fragmentos. Elimina documentos o súbelo más corto.",
+  document_limit: "Tu negocio llegó al máximo de espacio para documentos. Elimina alguno para subir otro.",
+  chunk_limit: "Este documento no cabe: tu negocio llegó al máximo de espacio para documentos. Elimina alguno o súbelo más corto.",
   internal: "Algo salió mal al procesar el documento. Inténtalo de nuevo.",
 };
 

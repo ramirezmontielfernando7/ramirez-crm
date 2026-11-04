@@ -91,6 +91,7 @@ export async function getEffectiveLimits(organizationId: string, db: Db = getDb(
     kbMaxDocuments: resolveLimit(kb.maxDocuments, kbEnv.maxDocuments),
     kbMaxChunks: resolveLimit(kb.maxChunks, kbEnv.maxChunks),
     kbMaxFileBytes: resolveLimit(kb.maxFileBytes, kbEnv.maxFileBytes),
+    kbMaxTotalBytes: resolveLimit(kb.maxTotalBytes, kbEnv.maxTotalBytes),
   };
 }
 
@@ -184,6 +185,7 @@ export async function saveOrgLimits(
       maxFileBytes: patch.kbMaxFileBytes,
       maxDocuments: patch.kbMaxDocuments,
       maxChunks: patch.kbMaxChunks,
+      maxTotalBytes: patch.kbMaxTotalBytes,
     });
   });
   const after = await withTenant(organizationId, (tx) => getEffectiveLimits(organizationId, tx));

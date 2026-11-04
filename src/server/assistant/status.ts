@@ -5,6 +5,9 @@ import { scoped } from "@/lib/db/tenant";
 import { isAiConfigured } from "@/lib/env";
 import { projectGauge } from "@/lib/usage-visibility";
 import { assistantTokensUsed, getUsageSummary } from "@/server/ai-quota/quota";
+import { orgUsdLimit } from "@/server/ai-quota/choice";
+import { getOrgAiState, orgEstSpend } from "@/server/ai-settings/org";
+import { currentPeriod, getQuotaLimits } from "@/server/ai-quota/quota";
 import { getAssistantTokenLimit, getUsageVisibility } from "@/server/limits";
 
 /**
@@ -27,13 +30,15 @@ export async function getAssistantStatus(
   const visibility = await getUsageVisibility(organizationId);
   const limit = await getAssistantTokenLimit(organizationId);
   const used = await assistantTokensUsed(organizationId, now);
-  const gauge = limit === null ? null : projectGauge(visibility, used, limit);
+  const gauge = limit === null ? null : projectGauge(visibility === "usd" ? "percent" : visibility, used, limit);
+  // 0071: sin tope propio el asistente usa la bolsa de IA (dólares, tokens o turnos).
+  const bolsa = await poolOf(organizationId, now);
 
   let state: AssistantState;
   if (!isAiConfigured()) state = "not_configured";
-  else if (limit === null) state = "unset";
-  else if (used >= limit) state = "exhausted";
-  else if (await totalExhausted(organizationId, now)) state = "ai_exhausted";
+  else if (limit === null && !bolsa.exists) state = "unset";
+  else if (limit !== null && used >= limit) state = "exhausted";
+  else if ((await totalExhausted(organizationId, now)) || bolsa.exhausted) state = "ai_exhausted";
   else state = "available";
 
   return {
@@ -44,6 +49,14 @@ export async function getAssistantStatus(
     resetsOn,
     noticeAcceptedAt: await noticeAcceptedAt(organizationId, userId),
   };
+}
+
+/** 0071 — La bolsa de IA en dólares: ¿hay una, y ya se llenó (en modo «bloquear»)? */
+async function poolOf(organizationId: string, now: Date): Promise<{ exists: boolean; exhausted: boolean }> {
+  const [usd, limits, state] = await Promise.all([orgUsdLimit(organizationId), getQuotaLimits(organizationId), getOrgAiState(organizationId)]);
+  const exists = usd !== null || limits.tokens !== null || limits.turns !== null || state.overrides.assistantUsdLimit !== null;
+  if (usd === null || state.overrides.poolMode === "warn") return { exists, exhausted: false };
+  return { exists, exhausted: (await orgEstSpend(organizationId, currentPeriod(now))) >= usd };
 }
 
 /** ¿La IA de la organización (turnos o tokens del total) ya llegó a su tope? */

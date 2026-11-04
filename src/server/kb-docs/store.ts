@@ -1,4 +1,5 @@
 import { and, asc, desc, eq, inArray, isNotNull, isNull, ne, or, sql, type SQL } from "drizzle-orm";
+import { getOrgStorageUsage } from "@/server/usage/storage";
 import { getDb, getSystemDb, schema, withTenant, type Db } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
 import { scoped } from "@/lib/db/tenant";
@@ -169,6 +170,8 @@ export async function createDocument(
       const limits = await getKbDocLimits(organizationId, tx);
       const usage = await getUsage(organizationId, tx);
       if (usage.documents >= limits.maxDocuments) throw new KbDocError("document_limit");
+      // 0071: freno de seguridad en bytes (por defecto 1 GB); cuenta dentro del almacenamiento.
+      if ((await getOrgStorageUsage(organizationId, tx)).byCategory.documents >= limits.maxTotalBytes) throw new KbDocError("document_limit");
       const [dup] = await tx
         .select({ id: schema.kbDocument.id, groupName: schema.kbDocumentGroup.name, agentId: schema.kbDocument.agentId })
         .from(schema.kbDocument)
@@ -713,9 +716,9 @@ export async function chunksByIds(organizationId: string, scope: DocScope, ids: 
 export async function saveKbDocLimits(
   tx: Db,
   organizationId: string,
-  patch: { maxFileBytes?: number | null; maxDocuments?: number | null; maxChunks?: number | null }
+  patch: { maxFileBytes?: number | null; maxDocuments?: number | null; maxChunks?: number | null; maxTotalBytes?: number | null }
 ): Promise<void> {
-  if (patch.maxFileBytes === undefined && patch.maxDocuments === undefined && patch.maxChunks === undefined) return;
+  if (patch.maxFileBytes === undefined && patch.maxDocuments === undefined && patch.maxChunks === undefined && patch.maxTotalBytes === undefined) return;
   const [actual] = await tx
     .select()
     .from(schema.kbDocumentLimit)
@@ -725,6 +728,7 @@ export async function saveKbDocLimits(
     maxFileBytes: patch.maxFileBytes === undefined ? (actual?.maxFileBytes ?? null) : patch.maxFileBytes,
     maxDocuments: patch.maxDocuments === undefined ? (actual?.maxDocuments ?? null) : patch.maxDocuments,
     maxChunks: patch.maxChunks === undefined ? (actual?.maxChunks ?? null) : patch.maxChunks,
+    maxTotalBytes: patch.maxTotalBytes === undefined ? (actual?.maxTotalBytes ?? null) : patch.maxTotalBytes,
     updatedAt: new Date(),
   };
   await tx

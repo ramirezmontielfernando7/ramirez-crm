@@ -2625,8 +2625,23 @@ export const aiQuota = pgTable("ai_quota", {
   creatorModel: text("creator_model"),
   creatorEffort: text("creator_effort"),
   assistantModel: text("assistant_model"),
+  /**
+   * 0071 — Topes de seguridad por función (en dólares, costo estimado):
+   * agentes, creador y asistente. NULL = usa la bolsa de IA. `*_mode`: al
+   * llenarse, `block` frena esa función y `warn` solo avisa. `pool_mode` es
+   * lo mismo para la bolsa en dólares.
+   */
+  agentUsdLimit: numeric("agent_usd_limit", { precision: 12, scale: 4 }),
+  creatorUsdLimit: numeric("creator_usd_limit", { precision: 12, scale: 4 }),
+  assistantUsdLimit: numeric("assistant_usd_limit", { precision: 12, scale: 4 }),
+  poolMode: text("pool_mode").notNull().default("block"),
+  agentMode: text("agent_mode").notNull().default("block"),
+  creatorMode: text("creator_mode").notNull().default("block"),
+  assistantMode: text("assistant_mode").notNull().default("block"),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 }, (t) => [
+  check("ai_quota_fn_usd_chk", sql`(${t.agentUsdLimit} is null or ${t.agentUsdLimit} >= 0) and (${t.creatorUsdLimit} is null or ${t.creatorUsdLimit} >= 0) and (${t.assistantUsdLimit} is null or ${t.assistantUsdLimit} >= 0)`),
+  check("ai_quota_modes_chk", sql`${t.poolMode} in ('block', 'warn') and ${t.agentMode} in ('block', 'warn') and ${t.creatorMode} in ('block', 'warn') and ${t.assistantMode} in ('block', 'warn')`),
   check("ai_quota_usd_chk", sql`${t.monthlyUsdLimit} is null or ${t.monthlyUsdLimit} >= 0`),
   check("ai_quota_agent_effort_chk", sql`${t.agentEffort} is null or ${t.agentEffort} in ('none', 'low', 'medium', 'high')`),
   check("ai_quota_creator_effort_chk", sql`${t.creatorEffort} is null or ${t.creatorEffort} in ('none', 'low', 'medium', 'high')`),
@@ -3052,7 +3067,7 @@ export const organizationPlan = pgTable(
      * `status` (solo «Disponible» / «Agotado») o `tokens` (solo si el
      * administrador lo habilita). Nunca ve dólares. La plataforma ve todo.
      */
-    usageVisibility: text("usage_visibility", { enum: ["status", "percent", "tokens"] }).notNull().default("percent"),
+    usageVisibility: text("usage_visibility", { enum: ["status", "percent", "tokens", "usd"] }).notNull().default("percent"),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
     updatedBy: text("updated_by").references(() => user.id, { onDelete: "set null" }),
   },
@@ -3066,7 +3081,7 @@ export const organizationPlan = pgTable(
       sql`${t.maxActiveModules} is null or ${t.maxActiveModules} between 0 and 13`
     ),
     check("organization_plan_embed_chk", sql`${t.embedTokenLimit} is null or ${t.embedTokenLimit} >= 0`),
-    check("organization_plan_usage_visibility_chk", sql`${t.usageVisibility} in ('status', 'percent', 'tokens')`),
+    check("organization_plan_usage_visibility_chk", sql`${t.usageVisibility} in ('status', 'percent', 'tokens', 'usd')`),
   ]
 );
 
@@ -3821,6 +3836,8 @@ export const kbDocumentLimit = pgTable("kb_document_limit", {
   maxFileBytes: integer("max_file_bytes"),
   maxDocuments: integer("max_documents"),
   maxChunks: integer("max_chunks"),
+  /** 0071 — Freno de seguridad: bytes de documentos cargados (NULL = 1 GB). */
+  maxTotalBytes: bigint("max_total_bytes", { mode: "number" }),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 

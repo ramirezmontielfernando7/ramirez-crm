@@ -930,7 +930,7 @@ async function asistenteBase(A, B, orgB) {
   ok("el administrador ve el interruptor «Asistente interno» (en su pilar)", /Asistente interno/.test(await pa.getByTestId("platform-pillar-Asistente").getByTestId("platform-module-asistente").innerText()));
   await pa.goto(`${BASE}/platform/organizaciones/${orgB}/topes`);
   await pa.getByTestId("platform-limits").waitFor({ timeout: 30000 });
-  ok("…el tope del asistente y la visibilidad del consumo", (await pa.getByTestId("platform-limit-assistantTokens").count()) === 1 && (await pa.getByTestId("platform-limit-usageVisibility").inputValue()) === "percent");
+  ok("…el tope del asistente (por función) y la visibilidad del consumo", (await pa.getByTestId("platform-org-ai-fncap-assistant").count()) === 1 && (await pa.getByTestId("platform-limit-usageVisibility-percent").isChecked()));
   await pa.close();
 
   const off = await A.call("POST", `/api/platform/organizations/${orgB}/modules`, { asistente: false });

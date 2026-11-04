@@ -1,13 +1,14 @@
 import { getDb, schema, type Db } from "@/lib/db";
 import { scoped } from "@/lib/db/tenant";
 import { getEnv } from "@/lib/env";
+import { DEFAULT_KB_TOTAL_BYTES } from "@/lib/limits";
 
 /**
  * 035 — Los límites de documentos de una organización: los propios
  * (`kb_document_limit`, los fija el operador con scripts/kb-limits.mjs) o, si
  * no tiene (o vale NULL), los del entorno.
  */
-export type KbDocLimits = { maxFileBytes: number; maxDocuments: number; maxChunks: number };
+export type KbDocLimits = { maxFileBytes: number; maxDocuments: number; maxChunks: number; maxTotalBytes: number };
 
 export function envKbDocLimits(): KbDocLimits {
   const env = getEnv();
@@ -15,6 +16,7 @@ export function envKbDocLimits(): KbDocLimits {
     maxFileBytes: Math.round(env.KB_DOCS_MAX_FILE_MB * 1024 * 1024),
     maxDocuments: env.KB_DOCS_MAX_DOCUMENTS,
     maxChunks: env.KB_DOCS_MAX_CHUNKS,
+    maxTotalBytes: DEFAULT_KB_TOTAL_BYTES,
   };
 }
 
@@ -29,6 +31,7 @@ export async function getKbDocLimits(organizationId: string, db: Db = getDb()): 
     maxFileBytes: row?.maxFileBytes ?? def.maxFileBytes,
     maxDocuments: row?.maxDocuments ?? def.maxDocuments,
     maxChunks: row?.maxChunks ?? def.maxChunks,
+    maxTotalBytes: row?.maxTotalBytes ?? def.maxTotalBytes,
   };
 }
 
@@ -40,7 +43,7 @@ export async function getKbDocLimits(organizationId: string, db: Db = getDb()): 
 export async function getOwnKbDocLimits(
   organizationId: string,
   db: Db = getDb()
-): Promise<{ maxFileBytes: number | null; maxDocuments: number | null; maxChunks: number | null }> {
+): Promise<{ maxFileBytes: number | null; maxDocuments: number | null; maxChunks: number | null; maxTotalBytes: number | null }> {
   const [row] = await db
     .select()
     .from(schema.kbDocumentLimit)
@@ -50,6 +53,7 @@ export async function getOwnKbDocLimits(
     maxFileBytes: row?.maxFileBytes ?? null,
     maxDocuments: row?.maxDocuments ?? null,
     maxChunks: row?.maxChunks ?? null,
+    maxTotalBytes: row?.maxTotalBytes ?? null,
   };
 }
 

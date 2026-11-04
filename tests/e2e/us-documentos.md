@@ -18,7 +18,7 @@
    siempre (sin sección de documentos; `docChunkIds` vacío).
 2. **Pantalla.** Laboratorio → pestaña «Documentos» → «Aún no hay
    documentos» → subir un `.md` → aparece en la lista, pasa por «Indexando…»
-   y llega a «Listo»; «1 de 50 documentos».
+   y llega a «Listo»; «1 documento» (sin límite de cantidad ni fragmentos a la vista).
 3. **Prefijos e5.** Los fragmentos llegaron al servicio con «passage: » (y
    ninguno fue rechazado); la pregunta de la vista previa, con «query: ».
 4. **El agente usa el documento.** Vista previa: «¿El envío es gratis?» →
