@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import { chatJson, providerErrorType } from "@/lib/ai";
 import { fromMessagesResponse, isBedrockClaudeModel, messagesUrl, toMessagesBody } from "@/lib/ai/anthropic-messages";
+import { promptCachedCostUsd } from "@/lib/costs";
 
 describe("isBedrockClaudeModel (qué formato usa cada modelo)", () => {
   it("Claude en Bedrock: global., us., eu. y sin prefijo", () => {
@@ -83,7 +84,7 @@ describe("fromMessagesResponse (texto y tokens)", () => {
       stop_reason: "end_turn",
       usage: { input_tokens: 10, cache_read_input_tokens: 5, cache_creation_input_tokens: 2, output_tokens: 7 },
     });
-    expect(r).toEqual({ content: '{"a":1}', usage: { promptTokens: 17, completionTokens: 7 } });
+    expect(r).toEqual({ content: '{"a":1}', usage: { promptTokens: 17, completionTokens: 7, cacheReadTokens: 5, cacheWriteTokens: 2 } });
   });
 
   it("negativa del modelo o respuesta sin texto → error", () => {
@@ -204,5 +205,51 @@ describe("providerErrorType (tipo de error para el log, sin mensaje)", () => {
     expect(providerErrorType(null, "<html>502</html>")).toBeNull();
     expect(providerErrorType(null, '{"error":{"type":"tiene espacios y texto del chat"}}')).toBeNull();
     expect(providerErrorType(null, '{"message":"Credential should be scoped"}')).toBeNull();
+  });
+});
+
+describe("caché de prompts (cache_control)", () => {
+  it("marca el prefijo estable del system y deja la cola sin caché", () => {
+    const body = toMessagesBody(
+      "global.anthropic.claude-haiku-5-5",
+      [
+        { role: "system", content: "reglas fijas", cache: true },
+        { role: "system", content: "código del turno" },
+        { role: "user", content: "hola" },
+      ],
+      "low"
+    );
+    expect(body.system).toEqual([
+      { type: "text", text: "reglas fijas", cache_control: { type: "ephemeral" } },
+      { type: "text", text: "código del turno" },
+    ]);
+  });
+
+  it("solo el ÚLTIMO turno marcado lleva punto de caché", () => {
+    const body = toMessagesBody(
+      "global.anthropic.claude-haiku-5-5",
+      [
+        { role: "user", content: "a", cache: true },
+        { role: "assistant", content: "b" },
+        { role: "user", content: "c", cache: true },
+      ],
+      "low"
+    );
+    expect(body.messages[0]).toEqual({ role: "user", content: "a" });
+    expect(body.messages[2]).toEqual({ role: "user", content: [{ type: "text", text: "c", cache_control: { type: "ephemeral" } }] });
+  });
+
+  it("desglosa los tokens de caché y estima el costo con sus factores", () => {
+    const r = fromMessagesResponse({ content: [{ type: "text", text: "x" }], usage: { input_tokens: 100, cache_read_input_tokens: 800, cache_creation_input_tokens: 100, output_tokens: 10 } });
+    expect(r.usage).toEqual({ promptTokens: 1000, completionTokens: 10, cacheReadTokens: 800, cacheWriteTokens: 100 });
+    // 100 normales + 800×0.1 + 100×1.25 = 305 tokens de entrada equivalentes
+    expect(promptCachedCostUsd(r.usage, 1, 0)).toBeCloseTo(305 / 1_000_000, 10);
+    expect(promptCachedCostUsd({ promptTokens: 1000, completionTokens: 0 }, 1, 0)).toBeCloseTo(1000 / 1_000_000, 10);
+  });
+
+  it("con TTL de 1 hora el punto de caché lleva ttl «1h»; por defecto no", () => {
+    const msgs = [{ role: "system" as const, content: "fijo", cache: true }, { role: "user" as const, content: "hola" }];
+    expect(toMessagesBody("global.anthropic.claude-haiku-5-5", msgs, "low").system).toEqual([{ type: "text", text: "fijo", cache_control: { type: "ephemeral" } }]);
+    expect(toMessagesBody("global.anthropic.claude-haiku-5-5", msgs, "low", "1h").system).toEqual([{ type: "text", text: "fijo", cache_control: { type: "ephemeral", ttl: "1h" } }]);
   });
 });

@@ -1,10 +1,11 @@
 import type { z } from "zod";
-import { chatJson, type ChatJsonResult, type ChatMessage } from "@/lib/ai";
+import { cacheTtlOf, chatJson, type ChatJsonResult, type ChatMessage } from "@/lib/ai";
 import { defaultUseOfKind, type AiEffort, type AiUse, type AssistantMode } from "@/lib/ai/choice";
-import { isAiConfigured } from "@/lib/env";
+import { getEnv, isAiConfigured } from "@/lib/env";
 import { resolveAiChoice } from "@/server/ai-quota/choice";
 import { priceOfModel } from "@/server/ai-settings/platform";
 import { logger } from "@/lib/log";
+import { CACHE_WRITE_FACTOR, CACHE_WRITE_FACTOR_1H, promptCachedCostUsd } from "@/lib/costs";
 import {
   ASSISTANT_KIND,
   isAgentKind,
@@ -107,6 +108,17 @@ export async function chatJsonForOrg<T>(
   }
   // 0070: qué modelo contestó, por función (antes solo el análisis).
   const usedModel = result.model ?? callOpts.model;
+  // Caché de prompts: cuánto se leyó (barato) y se escribió (más caro) en la llamada.
+  if (result.usage && (result.usage.cacheReadTokens || result.usage.cacheWriteTokens)) {
+    log.info("caché de prompts", {
+      org: organizationId,
+      tipo: kind,
+      modelo: usedModel,
+      entrada: result.usage.promptTokens,
+      leidos: result.usage.cacheReadTokens ?? 0,
+      escritos: result.usage.cacheWriteTokens ?? 0,
+    });
+  }
   if (usedModel && result.usage) {
     try { await recordModelUsage(organizationId, kind, usedModel, result.usage, now); }
     catch (err) { log.error("no se pudo registrar el modelo de la llamada", { org: organizationId, tipo: kind, err }); }
@@ -137,7 +149,10 @@ export function reservationBudget(messages: ChatMessage[]): number {
  * tope en dólares no puede contar lo que no sabe cuánto cuesta).
  */
 const sinPrecio = new Set<string>();
-export async function estimateCallUsd(model: string | undefined, usage: { promptTokens: number; completionTokens: number } | undefined): Promise<number> {
+export async function estimateCallUsd(
+  model: string | undefined,
+  usage: { promptTokens: number; completionTokens: number; cacheReadTokens?: number; cacheWriteTokens?: number } | undefined
+): Promise<number> {
   if (!model || !usage) return 0;
   try {
     const p = await priceOfModel(model);
@@ -148,7 +163,7 @@ export async function estimateCallUsd(model: string | undefined, usage: { prompt
       }
       return 0;
     }
-    return (usage.promptTokens * p.inputUsdPerMtok + usage.completionTokens * p.outputUsdPerMtok) / 1_000_000;
+    return promptCachedCostUsd(usage, p.inputUsdPerMtok, p.outputUsdPerMtok, cacheTtlOf(getEnv().AI_CACHE_TTL) === "1h" ? CACHE_WRITE_FACTOR_1H : CACHE_WRITE_FACTOR);
   } catch (err) {
     log.error("no se pudo leer el precio del modelo", { modelo: model, err });
     return 0;

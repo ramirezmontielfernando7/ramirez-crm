@@ -68,7 +68,9 @@ export type CreatorResult =
 export async function runCreatorTurn(input: CreatorInput): Promise<CreatorResult> {
   const fields = fieldsOf(input.config);
   const messages: ChatMessage[] = [
-    { role: "system", content: `${CREATOR_SYSTEM}\n\nEstado ACTUAL del agente:\n\n${renderFields(fields)}` },
+    // Las reglas del creador son fijas (caché de prompts); el estado del agente cambia y va aparte.
+    { role: "system", content: CREATOR_SYSTEM, cache: true },
+    { role: "system", content: `Estado ACTUAL del agente:\n\n${renderFields(fields)}` },
     ...input.history.map((m) => ({ role: m.role, content: m.text })),
     { role: "user", content: input.message },
   ];

@@ -360,6 +360,10 @@ export async function decideTurn(input: DecideInput): Promise<TurnDecision> {
         // cómo cerrar su sección.
         docs: docs.length > 0 ? { nonce: randomBytes(6).toString("hex"), chunks: docs } : null,
       }),
+      // Caché de prompts: el prompt del agente (identidad, conocimiento, reglas) es
+      // igual turno tras turno SALVO cuando trae fragmentos de documentos (cambian
+      // en cada turno): ahí no se marca, para no pagar una escritura que no se reusa.
+      ...(docs.length === 0 ? { cache: true } : {}),
     },
     ...input.history,
     /**

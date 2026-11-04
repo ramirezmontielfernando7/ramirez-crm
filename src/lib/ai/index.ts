@@ -10,7 +10,13 @@ import {
   isBedrockClaudeModel,
   messagesUrl,
   toMessagesBody,
+  type CacheTtl,
 } from "@/lib/ai/anthropic-messages";
+
+/** `AI_CACHE_TTL`: «1h» o, por defecto, «5m». */
+export function cacheTtlOf(v: string | undefined): CacheTtl {
+  return v?.trim().toLowerCase() === "1h" ? "1h" : "5m";
+}
 
 /**
  * Adaptador LLM OpenRouter-compatible — ÚNICA frontera con el proveedor de IA
@@ -22,6 +28,13 @@ import {
 export type ChatMessage = {
   role: "system" | "user" | "assistant";
   content: string;
+  /**
+   * Caché de prompts (solo Claude en Bedrock): este mensaje cierra un prefijo
+   * estable. En `system`, lo marcado va primero y con punto de caché; en un
+   * turno, el ÚLTIMO marcado cierra el prefijo de la conversación. Debajo del
+   * mínimo de tokens del modelo la caché simplemente no actúa.
+   */
+  cache?: boolean;
 };
 
 /**
@@ -30,7 +43,15 @@ export type ChatMessage = {
  * (`usage.cost`, en créditos = USD), sumado entre reintentos; ausente si el
  * proveedor no lo manda (otro proveedor compatible, el contenedor local…).
  */
-export type LlmUsage = { promptTokens: number; completionTokens: number; costUsd?: number };
+export type LlmUsage = {
+  promptTokens: number;
+  completionTokens: number;
+  costUsd?: number;
+  /** Parte de `promptTokens` leída de la caché de prompts (cuesta ~10 %). */
+  cacheReadTokens?: number;
+  /** Parte de `promptTokens` escrita en la caché de prompts (cuesta ~125 %). */
+  cacheWriteTokens?: number;
+};
 
 export type ChatJsonResult<T> =
   | { ok: true; data: T; raw: string; usage?: LlmUsage; model?: string }
@@ -136,6 +157,8 @@ export async function chatJson<T>(
       usage.promptTokens += reply.usage.promptTokens;
       usage.completionTokens += reply.usage.completionTokens;
       if (reply.usage.costUsd !== undefined) usage.costUsd = (usage.costUsd ?? 0) + reply.usage.costUsd;
+      if (reply.usage.cacheReadTokens) usage.cacheReadTokens = (usage.cacheReadTokens ?? 0) + reply.usage.cacheReadTokens;
+      if (reply.usage.cacheWriteTokens) usage.cacheWriteTokens = (usage.cacheWriteTokens ?? 0) + reply.usage.cacheWriteTokens;
       if ("refusal" in reply && reply.refusal) return { ok: false, error: "invalid_output", detail: "El modelo se negó a responder", usage };
       const raw = reply.content;
       if (invalidResponses.has(raw)) return { ok: false, error: "invalid_output", detail: "El proveedor repitió una respuesta inválida", usage, ...(proseRaw ? { proseRaw } : {}) };
@@ -190,6 +213,8 @@ async function callProvider(
   const env = getEnv();
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
+  // `cache` es solo nuestro: estos proveedores no deben recibirlo.
+  messages = messages.map(({ role, content }) => ({ role, content }));
   try {
     const res = await fetch(bedrock?.url ?? `${env.OPENROUTER_BASE_URL}/v1/chat/completions`, {
       method: "POST",
@@ -259,7 +284,7 @@ async function callBedrockClaude(
         "anthropic-version": ANTHROPIC_VERSION,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(toMessagesBody(model, messages, effort)),
+      body: JSON.stringify(toMessagesBody(model, messages, effort, cacheTtlOf(env.AI_CACHE_TTL))),
       signal: controller.signal,
     });
     if (!res.ok) {

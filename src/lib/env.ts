@@ -78,6 +78,8 @@ const envSchema = z.object({
   // el análisis de chats). Vacía = la cadena de las variables de arriba.
   ASSISTANT_MODEL: z.string().optional().transform((v) => v?.trim() || undefined),
   // Esfuerzo (none | low | medium | high) de agentes y creador. Vacías = low.
+  // Caché de prompts de Claude: «5m» (por defecto) o «1h» (escribir cuesta 2×, leer sigue a 0.1×).
+  AI_CACHE_TTL: z.string().optional().transform((v) => v?.trim() || undefined),
   AI_AGENT_EFFORT: z.string().optional().transform((v) => v?.trim() || undefined),
   AI_CREATOR_EFFORT: z.string().optional().transform((v) => v?.trim() || undefined),
   // Creador conversacional del agente y «Revisar este chat» (Estudio de IA):
