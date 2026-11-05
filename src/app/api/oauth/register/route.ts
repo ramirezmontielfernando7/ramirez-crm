@@ -44,3 +44,15 @@ export async function POST(req: Request): Promise<Response> {
     { status: 201, headers: { "cache-control": "no-store" } }
   );
 }
+
+/** Preflight CORS (clientes en navegador). */
+export async function OPTIONS(): Promise<Response> {
+  return new Response(null, {
+    status: 204,
+    headers: {
+      "access-control-allow-origin": "*",
+      "access-control-allow-methods": "POST, OPTIONS",
+      "access-control-allow-headers": "content-type",
+    },
+  });
+}

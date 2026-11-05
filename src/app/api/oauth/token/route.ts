@@ -39,7 +39,16 @@ export async function POST(req: Request): Promise<Response> {
   }
   const p = await readParams(req);
   if (!p) return oauthError("invalid_request", "Cuerpo no válido");
-  const clientId = p.get("client_id") ?? "";
+  // Algunas apps (ChatGPT) mandan el client_id en `Authorization: Basic` en vez del cuerpo.
+  let clientId = p.get("client_id") ?? "";
+  const basic = /^Basic\s+(.+)$/i.exec(req.headers.get("authorization") ?? "");
+  if (!clientId && basic) {
+    try {
+      clientId = decodeURIComponent(Buffer.from(basic[1]!, "base64").toString("utf8").split(":")[0] ?? "");
+    } catch {
+      clientId = "";
+    }
+  }
   const grant = p.get("grant_type");
   if (!clientId) return oauthError("invalid_client", "Falta client_id", 401);
   let out;
@@ -58,4 +67,16 @@ export async function POST(req: Request): Promise<Response> {
   }
   if ("error" in out) return oauthError(out.error, out.description);
   return Response.json(out, { headers: NO_STORE });
+}
+
+/** Preflight CORS (clientes en navegador). */
+export async function OPTIONS(): Promise<Response> {
+  return new Response(null, {
+    status: 204,
+    headers: {
+      "access-control-allow-origin": "*",
+      "access-control-allow-methods": "POST, OPTIONS",
+      "access-control-allow-headers": "content-type, authorization",
+    },
+  });
 }

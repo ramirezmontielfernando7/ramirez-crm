@@ -52,7 +52,8 @@ export type OAuthClient = { clientId: string; clientName: string; redirectUris: 
 export const registerSchema = z.object({
   client_name: z.string().trim().min(1).max(100).optional(),
   redirect_uris: z.array(z.string().max(500)).min(1).max(10),
-  token_endpoint_auth_method: z.literal("none").optional(),
+  // ChatGPT y otras apps mandan aquí cualquier valor: se ignora y se responde «none» (cliente público con PKCE).
+  token_endpoint_auth_method: z.string().max(60).optional(),
   grant_types: z.array(z.string()).optional(),
   response_types: z.array(z.string()).optional(),
 });
