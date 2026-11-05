@@ -18,6 +18,8 @@ export const PLATFORM_TABLES: Readonly<Record<string, string>> = {
     "036 PR 3: precios de IA y tipo de cambio que captura el administrador de plataforma, para estimar el costo de TODAS las organizaciones (solo pool de sistema)",
   platform_ai_defaults:
     "0070: modelos de IA por defecto de la instancia y de cada plan, y la meta de gasto de la plataforma; valen para TODAS las organizaciones (solo pool de sistema)",
+  platform_plan_catalog:
+    "0073: catálogo de planes (nombre, precio, qué incluye) que edita el administrador de plataforma; vale para TODAS las organizaciones (solo pool de sistema)",
   platform_ai_model_price:
     "0070: precio de cada modelo de IA para estimar el costo de las llamadas de todas las organizaciones (solo pool de sistema)",
   evolution_server:

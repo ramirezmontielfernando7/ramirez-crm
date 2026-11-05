@@ -15,6 +15,7 @@ export const ACTION_LABEL: Record<string, string> = {
   "organization.limits_changed": "cambió el plan o los topes de la organización",
   "pricing.changed": "cambió los precios de IA o el tipo de cambio",
   "ai_settings.changed": "cambió los modelos de IA, sus precios o el presupuesto",
+  "plans.changed": "cambió el nombre, el precio o lo que incluye un plan",
   "organization.ai_changed": "cambió el modelo o el tope en dólares de IA",
   "link.activation_created": "generó un enlace de activación",
   "link.reset_created": "generó un enlace de restablecimiento",

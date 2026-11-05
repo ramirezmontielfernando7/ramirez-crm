@@ -4481,6 +4481,31 @@ export const platformAiDefaults = pgTable(
 );
 
 /**
+ * 0073 — Catálogo de planes (nombre, precio en MXN, qué incluye) que edita el
+ * administrador de plataforma. Tabla de PLATAFORMA (sin organización), solo
+ * pool de sistema. Cada columna NULL = el valor de fábrica de
+ * `src/lib/plan-catalog.ts`. Única puerta: `src/server/plan-catalog/`.
+ */
+export const platformPlanCatalog = pgTable(
+  "platform_plan_catalog",
+  {
+    scope: text("scope").primaryKey(),
+    name: text("name"),
+    tagline: text("tagline"),
+    priceMonthlyMxn: integer("price_monthly_mxn"),
+    priceYearlyMxn: integer("price_yearly_mxn"),
+    implementationFeeMxn: integer("implementation_fee_mxn"),
+    peopleLimit: integer("people_limit"),
+    storageGb: integer("storage_gb"),
+    features: jsonb("features").$type<string[]>(),
+    recommended: boolean("recommended"),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+    updatedBy: text("updated_by").references(() => user.id, { onDelete: "set null" }),
+  },
+  (t) => [check("platform_plan_catalog_scope_chk", sql`${t.scope} in ('esencial', 'pro', 'ultra')`)]
+);
+
+/**
  * 0070 — Precio de cada MODELO (USD por millón de tokens de entrada y de
  * salida) para estimar el costo de cada llamada y el tope en dólares. Sin
  * fila, vale la lista conocida del código (`KNOWN_PRICES`). Tabla de

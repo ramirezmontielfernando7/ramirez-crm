@@ -119,6 +119,10 @@ const PERMITIDOS: Record<string, { usos: number; motivo: string }> = {
     usos: 5,
     motivo: "0070: modelos, esfuerzo y tope en USD de la instancia y de cada plan (platform_ai_defaults) y precio por modelo (platform_ai_model_price), tablas de PLATAFORMA sin organización; más el gasto estimado sumado de todas las organizaciones (solo números)",
   },
+  "src/server/plan-catalog/store.ts": {
+    usos: 2,
+    motivo: "0073: catálogo de planes (platform_plan_catalog), tabla de PLATAFORMA sin organización: lectura con caché y escritura del administrador de plataforma; nunca datos de un negocio",
+  },
   "src/server/ai-settings/admin.ts": {
     usos: 1,
     motivo: "0070: confirma que la organización existe y toma su nombre para la bitácora de plataforma al ver o cambiar su modelo y tope en dólares; nunca contenido",
