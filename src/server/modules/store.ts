@@ -127,6 +127,7 @@ function anyCache() {
  */
 export async function anyOrgHasChannel(channel: Channel): Promise<boolean> {
   if (channel === "whatsapp") return true;
+  if (channel === "messenger" && process.env.FACEBOOK_UI_ENABLED !== "true") return false;
   const hit = anyCache().get(channel);
   if (hit && Date.now() - hit.at < TTL_MS) return hit.yes;
   const byDefault = envModuleDefaults().channels.has(channel);

@@ -28,6 +28,8 @@ export type EmbeddedSignupConfig = {
  */
 export function embeddedSignupConfig(): EmbeddedSignupConfig | null {
   const env = getEnv();
+  // Oculto hasta probarlo: FACEBOOK_UI_ENABLED=true lo reactiva.
+  if (process.env.FACEBOOK_UI_ENABLED !== "true") return null;
   if (!env.META_APP_ID || !env.META_EMBEDDED_SIGNUP_CONFIG_ID || !appSecret()) return null;
   return {
     appId: env.META_APP_ID,

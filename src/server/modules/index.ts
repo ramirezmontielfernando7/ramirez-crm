@@ -29,11 +29,24 @@ export async function orgHasAtribucion(organizationId: string): Promise<boolean>
   return (await getOrgModules(organizationId)).atribucion;
 }
 
+/**
+ * Messenger y «Conectar con Facebook» están ocultos hasta probarlos.
+ * Para reactivarlos: FACEBOOK_UI_ENABLED=true (el código y los datos siguen).
+ */
+export function facebookUiEnabled(): boolean {
+  return process.env.FACEBOOK_UI_ENABLED === "true";
+}
+
 export async function orgChannels(organizationId: string): Promise<ReadonlySet<Channel>> {
-  return (await getOrgModules(organizationId)).channels;
+  const channels = (await getOrgModules(organizationId)).channels;
+  if (facebookUiEnabled() || !channels.has("messenger")) return channels;
+  const visible = new Set(channels);
+  visible.delete("messenger");
+  return visible;
 }
 
 export async function orgHasChannel(organizationId: string, channel: Channel): Promise<boolean> {
+  if (channel === "messenger" && !facebookUiEnabled()) return false;
   return (await getOrgModules(organizationId)).channels.has(channel);
 }
 
