@@ -49,6 +49,7 @@ jobs:
 
     env:
       CHANNELS: ${{ matrix.config.channels }}
+      FACEBOOK_UI_ENABLED: "true"
       AGENDA: ${{ matrix.config.agenda }}
 
     steps:

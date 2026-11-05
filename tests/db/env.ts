@@ -18,3 +18,5 @@ process.env.ENCRYPTION_KEY ??= randomBytes(32).toString("base64");
 process.env.META_WEBHOOK_VERIFY_TOKEN ??= "tok_test_" + randomBytes(8).toString("hex");
 // Sin IA: la ingesta no agenda turnos del agente durante estas pruebas.
 delete process.env.OPENROUTER_API_TOKEN;
+// Messenger está oculto por defecto en producción; las pruebas lo ejercitan.
+process.env.FACEBOOK_UI_ENABLED = "true";
