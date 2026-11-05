@@ -492,6 +492,18 @@ async function topesYAvisos(A, B, orgB) {
   const ov = await A.call("GET", "/api/platform/ai-settings");
   ok("0070: «IA: modelos y costos» responde al administrador", ov.status === 200 && Array.isArray(ov.json?.catalog) && !!ov.json?.scopes?.instance);
   ok("0070: …y 404 a los demás", (await B.call("GET", "/api/platform/ai-settings")).status === 404);
+  // 0073: catálogo de planes (precios en pesos) que edita la plataforma y ve la Propietaria.
+  const pl0 = await A.call("GET", "/api/platform/plans");
+  ok("0073: «Planes y precios» responde al administrador con los de fábrica", pl0.status === 200 && pl0.json?.catalog?.pro?.priceMonthlyMxn === 899 && pl0.json?.catalog?.esencial?.priceMonthlyMxn === 499 && pl0.json?.catalog?.ultra?.priceMonthlyMxn === 1799, JSON.stringify(pl0.json?.catalog?.pro));
+  ok("0073: …y 404 a los demás", (await B.call("GET", "/api/platform/plans")).status === 404 && (await B.call("PUT", "/api/platform/plans", { scope: "pro", priceMonthlyMxn: 1 })).status === 404);
+  const pl1 = await A.call("PUT", "/api/platform/plans", { scope: "pro", priceMonthlyMxn: 1099 });
+  ok("0073: el administrador cambia un precio", pl1.status === 200 && pl1.json?.catalog?.pro?.priceMonthlyMxn === 1099 && pl1.json?.catalog?.ultra?.priceMonthlyMxn === 1799);
+  const pl2 = await B.call("GET", "/api/usage/plans");
+  ok("0073: la Propietaria ve el precio nuevo y su plan", pl2.status === 200 && pl2.json?.catalog?.pro?.priceMonthlyMxn === 1099 && typeof pl2.json?.current === "string", JSON.stringify(pl2.json?.current));
+  ok("0073: la bitácora registra el cambio de planes", (await sql`select 1 from platform_audit_log where action = 'plans.changed'`).length >= 1);
+  const pl3 = await A.call("PUT", "/api/platform/plans", { scope: "pro", priceMonthlyMxn: null });
+  ok("0073: volver al precio de fábrica", pl3.status === 200 && pl3.json?.catalog?.pro?.priceMonthlyMxn === 899);
+  ok("0073: un precio negativo se rechaza (422)", (await A.call("PUT", "/api/platform/plans", { scope: "pro", priceMonthlyMxn: -5 })).status === 422);
   // El almacenamiento exacto (en bytes) por la API: la pantalla lo pide en GB.
   const put = await A.call("PUT", `/api/platform/organizations/${orgB}/limits`, { storageBytes: tope });
   ok("la API guarda el tope de almacenamiento", put.status === 200 && put.json?.limits?.storageBytes?.value === tope && put.json?.limits?.storageMode === "block_uploads", JSON.stringify(put.json?.limits).slice(0, 200));

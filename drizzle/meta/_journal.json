@@ -505,6 +505,13 @@
       "when": 1794088800000,
       "tag": "0072_reparto_por_funcion",
       "breakpoints": true
+    },
+    {
+      "idx": 73,
+      "version": "7",
+      "when": 1794175200000,
+      "tag": "0073_catalogo_de_planes",
+      "breakpoints": true
     }
   ]
 }

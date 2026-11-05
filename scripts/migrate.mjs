@@ -34,6 +34,7 @@ const SOLO_SISTEMA = [
   "ai_oauth_client",
   "platform_ai_defaults",
   "platform_ai_model_price",
+  "platform_plan_catalog",
 ];
 
 /** Roles de la 0026 y la variable que trae la contraseña de cada uno. */

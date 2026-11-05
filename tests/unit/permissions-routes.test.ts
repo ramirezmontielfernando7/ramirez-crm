@@ -163,6 +163,7 @@ const PROTEGIDAS: [string, Method, Permission][] = [
   ["usage", "GET", "usage.read"],
   ["usage/alerts", "GET", "usage.read"],
   ["usage/alerts", "POST", "usage.read"],
+  ["usage/plans", "GET", "usage.read"],
   // 038 (PR 1): asistente interno (solo el Propietario; 404 sin el módulo).
   ["assistant/status", "GET", "assistant.use"],
   ["assistant/notice", "POST", "assistant.use"],
@@ -408,6 +409,8 @@ const PLATAFORMA: [string, Method][] = [
   ["platform/organizations/[id]/ai", "PUT"],
   ["platform/ai-settings", "GET"],
   ["platform/ai-settings", "PUT"],
+  ["platform/plans", "GET"],
+  ["platform/plans", "PUT"],
   ["platform/organizations/[id]/limits", "GET"],
   ["platform/organizations/[id]/limits", "PUT"],
   ["platform/pricing", "GET"],
