@@ -182,6 +182,7 @@ jobs:
             echo "META_WEBHOOK_VERIFY_TOKEN=tok_$(openssl rand -hex 12)"
             echo "META_APP_SECRET=$(openssl rand -hex 16)"
             echo "WA_MOCK_ENABLED=true"
+            echo "FACEBOOK_UI_ENABLED=true"
             # La app COMPILADA (`next start`, NODE_ENV=production) solo abre
             # los mocks con este candado Y APP_BASE_URL en localhost
             # (`isMockEnabled`, src/lib/env.ts). En un despliegue real, 404.
