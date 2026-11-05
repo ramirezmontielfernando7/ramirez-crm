@@ -16,6 +16,7 @@ import { NumberHealthBanner } from "@/components/number-health";
 import { CampaignPauseBanner } from "@/components/campaigns/campaign-pause-banner";
 import { UsageAlertBanner } from "@/components/usage-alert-banner";
 import { UsageDialog } from "@/components/usage/usage-dialog";
+import { UsagePrompt } from "@/components/usage/usage-prompt";
 import { MotionProvider, NAV } from "@/components/motion";
 import { NavModeProvider } from "@/components/nav-mode";
 import { nextNavMode, type NavMode } from "@/lib/preferences";
@@ -299,6 +300,7 @@ function ShellFrame({
           {/* «Uso y plan» como ventana (solo el Propietario). */}
           <Suspense fallback={null}>
             <UsageDialog />
+            <UsagePrompt />
           </Suspense>
         </div>
       </div>

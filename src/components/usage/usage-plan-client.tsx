@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { ChevronRight } from "lucide-react";
 import { UsageMeter } from "@/components/usage/usage-meter";
 import { fetchJson } from "@/lib/fetch-json";
+import { setUsageDialogView } from "@/lib/usage-dialog";
 import { PLAN_LABEL, STORAGE_MODE_LABEL } from "@/lib/limits";
 import {
   AI_KIND_LABEL,
@@ -217,6 +218,16 @@ export function UsagePlanClient({ embedded = false }: { embedded?: boolean } = {
               ? `Te queda ${queda} %. Si llegas al 100 %, los agentes pasan los chats a tu equipo hasta el ${fin}.`
               : "Si llegas al tope, los agentes pasan los chats a tu equipo hasta que se renueve."}
         </p>
+        {embedded && usage.limits.planKey !== "ultra" && (
+          <button
+            type="button"
+            onClick={() => setUsageDialogView("planes")}
+            className="usage-btn-dark mt-3 rounded-lg px-4 py-2 text-sm font-medium"
+            data-testid="usage-plan-upgrade"
+          >
+            Mejorar plan
+          </button>
+        )}
       </section>
 
       <section className="divide-y rounded-xl border bg-card px-5" data-testid="usage-plan-team">

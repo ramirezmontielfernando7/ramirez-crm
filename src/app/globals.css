@@ -1016,3 +1016,24 @@
 }
 html[data-lite] .usage-overlay { -webkit-backdrop-filter: none; backdrop-filter: none; animation: none; }
 html[data-lite] .usage-modal { animation: none; }
+
+/* «Mejora tu plan»: tarjetas de plan y botón oscuro (sin animación propia). */
+.usage-plan { transition: border-color 0.15s, box-shadow 0.15s; }
+.usage-plan:hover { border-color: color-mix(in srgb, var(--accent, #12999d) 40%, var(--border, #e5e7eb)); }
+.usage-plan-rec {
+  border-color: color-mix(in srgb, var(--accent, #12999d) 55%, transparent);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--accent, #12999d) 8%, var(--surface, #fff)), var(--surface, #fff) 55%);
+  box-shadow: 0 10px 30px -12px color-mix(in srgb, var(--accent, #12999d) 35%, transparent);
+}
+.usage-plan-badge {
+  background: color-mix(in srgb, var(--accent, #12999d) 14%, transparent);
+  color: var(--accent, #12999d);
+}
+.usage-btn-dark {
+  background: linear-gradient(180deg, #1f2a33, #10161c);
+  color: #fff;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.12) inset, 0 6px 16px -8px rgba(10, 40, 45, 0.6);
+  transition: filter 0.15s;
+}
+.usage-btn-dark:hover { filter: brightness(1.15); }
+.usage-btn-dark:disabled { opacity: 0.6; }
