@@ -72,8 +72,7 @@ const GROUPS: readonly Group[] = [
   },
   // Fase D: Marca y Navegación son subpestañas de Personalización.
   { label: "Marca y apariencia", pages: [{ slug: "personalization", label: "Personalización" }] },
-  // 036 (PR 6) → 039: «Uso y plan» vive aquí (antes /uso, que redirige).
-  { label: "Uso y plan", pages: [{ slug: "uso", label: "Uso y plan" }] },
+  // «Uso y plan» ya es una ventana (ícono del medidor); /settings/uso y /uso la abren.
 ];
 
 const href = (slug: string) => `/settings/${slug}`;

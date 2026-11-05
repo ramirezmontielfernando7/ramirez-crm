@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 
-/** 039 — «Uso y plan» vive en Ajustes; la dirección vieja sigue funcionando. */
+/** «Uso y plan» es una ventana: la dirección vieja la abre sobre la Bandeja. */
 export default function UsoRedirect() {
   redirect("/settings/uso");
 }

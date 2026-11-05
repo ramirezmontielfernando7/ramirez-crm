@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import type { Branding } from "@/lib/branding";
 import type { ThemePreference } from "@/lib/theme";
@@ -15,6 +15,7 @@ import { HandoffNotices } from "@/components/handoff-notices";
 import { NumberHealthBanner } from "@/components/number-health";
 import { CampaignPauseBanner } from "@/components/campaigns/campaign-pause-banner";
 import { UsageAlertBanner } from "@/components/usage-alert-banner";
+import { UsageDialog } from "@/components/usage/usage-dialog";
 import { MotionProvider, NAV } from "@/components/motion";
 import { NavModeProvider } from "@/components/nav-mode";
 import { nextNavMode, type NavMode } from "@/lib/preferences";
@@ -295,6 +296,10 @@ function ShellFrame({
           {/* 036 (PR 3a): avisos de consumo al 80 % y 100 % de los topes (solo el Propietario). */}
           <UsageAlertBanner />
           <main className="min-h-0 min-w-0 flex-1 overflow-hidden">{children}</main>
+          {/* «Uso y plan» como ventana (solo el Propietario). */}
+          <Suspense fallback={null}>
+            <UsageDialog />
+          </Suspense>
         </div>
       </div>
     </NavModeProvider>

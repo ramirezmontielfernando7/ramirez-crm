@@ -726,9 +726,9 @@ async function usoYPlan(A, B, orgB) {
   const entrada = page.getByTestId("nav-usage");
   ok("la Propietaria tiene «Uso y plan» en el menú de su cuenta", await entrada.waitFor({ timeout: 30000 }).then(() => true, () => false));
   await entrada.click();
-  // 039: «Uso y plan» es la 5.ª pestaña de Ajustes.
-  await page.waitForURL(/\/settings\/uso$/, { timeout: 30000 });
-  ok("…en la pestaña «Uso y plan» de Ajustes", (await page.getByRole("navigation", { name: "Secciones de Ajustes" }).getByRole("link", { name: "Uso y plan" }).getAttribute("aria-current").catch(() => null)) === "page");
+  // «Uso y plan» es una ventana sobre la pantalla en la que estás.
+  await page.getByTestId("usage-dialog").waitFor({ timeout: 30000 });
+  ok("…se abre como ventana (sin cambiar de página)", /\/inbox/.test(page.url()));
   const pantalla = page.getByTestId("usage-plan");
   await pantalla.waitFor({ timeout: 30000 });
   const PLAN_TXT = { esencial: "Plan Esencial", pro: "Plan Pro", ultra: "Plan Ultra", custom: "Personalizado" };
@@ -750,9 +750,9 @@ async function usoYPlan(A, B, orgB) {
   const movil = await browser.newContext({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true, extraHTTPHeaders: { origin: BASE } });
   await movil.addCookies([{ name: "vocero-theme", value: "dark", url: BASE }, ...(await B.ctx.cookies())]);
   const cel = await movil.newPage();
-  // La dirección vieja sigue funcionando (redirige a Ajustes → Uso y plan).
+  // La dirección vieja sigue funcionando (abre la ventana sobre la Bandeja).
   await cel.goto(`${BASE}/uso`);
-  await cel.waitForURL(/\/settings\/uso$/, { timeout: 30000 });
+  await cel.waitForURL(/\/inbox$/, { timeout: 30000 });
   await cel.getByTestId("usage-plan").waitFor({ timeout: 30000 });
   const desborde = await cel.evaluate(() => {
     const els = [document.documentElement, ...document.querySelectorAll("main, [class*='overflow-y-auto']")];

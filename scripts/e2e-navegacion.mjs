@@ -179,8 +179,8 @@ async function main() {
   await pagOff.p.goto(`${BASE}/settings/whatsapp`);
   const ajustesTabs = pagOff.p.getByRole("navigation", { name: "Secciones de Ajustes" });
   ok(
-    "Ajustes tiene 5 pestañas (039) y Marca y Navegación van dentro de «Marca y apariencia»",
-    (await ajustesTabs.getByRole("link").allInnerTexts()).join() === "Canales y Meta,Equipo y permisos,Operación CRM,Marca y apariencia,Uso y plan" &&
+    "Ajustes tiene 4 pestañas («Uso y plan» ya es una ventana) y Marca y Navegación van dentro de «Marca y apariencia»",
+    (await ajustesTabs.getByRole("link").allInnerTexts()).join() === "Canales y Meta,Equipo y permisos,Operación CRM,Marca y apariencia" &&
       (await pagOff.p.getByRole("link", { name: "Navegación" }).count()) === 0,
     (await ajustesTabs.getByRole("link").allInnerTexts()).join()
   );
