@@ -21,6 +21,7 @@ function json(body: unknown, status = 200): Response {
 let warn: MockInstance<typeof console.warn>;
 
 beforeEach(() => {
+  vi.stubEnv("FACEBOOK_UI_ENABLED", "true");
   vi.stubEnv("APP_BASE_URL", "http://localhost:3000");
   vi.stubEnv("DATABASE_URL", "postgresql://t:t@localhost:5432/t");
   vi.stubEnv("BETTER_AUTH_SECRET", "secret-de-test-suficiente");
@@ -126,5 +127,12 @@ describe("registerPhoneNumber", () => {
       vi.fn().mockResolvedValueOnce(json({ error: { message: "Two step verification PIN Mismatch", code: 133005 } }, 400))
     );
     await expect(registerPhoneNumber("1", "tok", "000000")).resolves.toMatchObject({ ok: false, code: "pin_mismatch" });
+  });
+});
+
+describe("Facebook oculto por defecto", () => {
+  it("sin FACEBOOK_UI_ENABLED no hay «Conectar con Facebook»", () => {
+    vi.stubEnv("FACEBOOK_UI_ENABLED", "");
+    expect(embeddedSignupConfig()).toBeNull();
   });
 });
