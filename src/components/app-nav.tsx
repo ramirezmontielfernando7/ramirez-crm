@@ -30,6 +30,7 @@ import { moduleDef, type ModuleKey } from "@/lib/modules/registry";
 import { NAV_ICONS } from "@/components/nav-icons";
 import { useInboxUnread } from "@/components/inbox/unread-store";
 import type { NavEntries } from "@/lib/modules/nav-layout";
+import { openUsageDialog } from "@/lib/usage-dialog";
 import {
   BUILD_COMMIT,
   UNVERIFIED_COMMIT_NOTE,
@@ -268,7 +269,6 @@ export function AppNav({
         theme={theme}
         onSignOut={signOutAndLeave}
         showUsage={viewer.can("usage.read")}
-        usageActive={pathname === "/settings/uso"}
       />
 
       <NavVersion branding={branding} version={version} />
@@ -367,7 +367,6 @@ const NavFooter = memo(function NavFooter({
   theme,
   onSignOut,
   showUsage,
-  usageActive,
 }: {
   userName: string;
   roleText: string;
@@ -375,7 +374,6 @@ const NavFooter = memo(function NavFooter({
   onSignOut: () => Promise<void>;
   /** 036 (PR 6): «Uso y plan», solo el Propietario (`usage.read`). */
   showUsage: boolean;
-  usageActive: boolean;
 }) {
   return (
     <>
@@ -391,16 +389,17 @@ const NavFooter = memo(function NavFooter({
           <span className="block truncate text-[11px] text-text-3">{roleText} · En línea</span>
         </span>
         {showUsage && (
-          <Link
-            href="/settings/uso"
+          <button
+            type="button"
+            onClick={() => openUsageDialog()}
             aria-label="Uso y plan"
             title="Uso y plan"
-            aria-current={usageActive ? "page" : undefined}
+            aria-haspopup="dialog"
             data-testid="nav-usage"
-            className={cn("rounded p-1 hover:text-foreground", usageActive ? "text-brand" : "text-text-3")}
+            className="rounded p-1 text-text-3 hover:text-foreground"
           >
             <Gauge className="h-4 w-4" strokeWidth={1.7} />
-          </Link>
+          </button>
         )}
         <ThemeToggle initial={theme} />
         <button
@@ -612,15 +611,18 @@ function ProfileMenu({
                   </button>
                 </div>
                 {showUsage && (
-                  <Link
-                    href="/settings/uso"
-                    onClick={() => setOpen(false)}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setOpen(false);
+                      openUsageDialog();
+                    }}
                     data-testid="nav-usage-menu"
-                    className="mt-1 flex items-center gap-2 rounded-sm px-2 py-1.5 text-[13px] hover:bg-accent"
+                    className="mt-1 flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-[13px] hover:bg-accent"
                   >
                     <Gauge className="h-4 w-4 text-text-3" strokeWidth={1.7} />
                     Uso y plan
-                  </Link>
+                  </button>
                 )}
               </m.div>
             )}

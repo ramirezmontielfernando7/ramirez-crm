@@ -97,7 +97,7 @@ function gaugeOrCount(g: Gauge, unit: string): Meter {
   return g.used !== undefined ? countMeter(g.used, g.limit ?? null, unit, formatTokens) : gaugeMeter(g);
 }
 
-export function UsagePlanClient() {
+export function UsagePlanClient({ embedded = false }: { embedded?: boolean } = {}) {
   const [usage, setUsage] = useState<OwnerUsage | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -117,9 +117,15 @@ export function UsagePlanClient() {
     // 039: vive en Ajustes → Uso y plan; el encabezado de 56 px es el de Ajustes.
     // 0070 (maqueta 4): el plan como título y una línea con el mes.
     <div className="mb-4">
-      <h2 className="text-lg font-semibold tracking-tight" data-testid="usage-plan-name">
-        {usage ? PLAN_LABEL[usage.limits.planKey] : "Uso y plan"}
-      </h2>
+      {embedded ? (
+        <span className="inline-block rounded-md bg-muted px-2 py-0.5 text-xs font-semibold text-text-2" data-testid="usage-plan-name">
+          {usage ? PLAN_LABEL[usage.limits.planKey] : "…"}
+        </span>
+      ) : (
+        <h2 className="text-lg font-semibold tracking-tight" data-testid="usage-plan-name">
+          {usage ? PLAN_LABEL[usage.limits.planKey] : "Uso y plan"}
+        </h2>
+      )}
       {usage && (
         <p className="text-sm text-text-2">
           Tu consumo de {mesDe(usage.period).replace(/ de \d{4}$/, "")}. Se renueva el {renovacion(usage.period)}.
