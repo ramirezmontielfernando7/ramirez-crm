@@ -18,8 +18,10 @@ export const ListSearch = forwardRef<
     placeholder: string;
     label?: string;
     hint?: string | null;
+    autoFocus?: boolean;
+    onClose?: () => void;
   }
->(function ListSearch({ query, onQuery, placeholder, label = "Buscar conversación", hint }, ref) {
+>(function ListSearch({ query, onQuery, placeholder, label = "Buscar conversación", hint, autoFocus, onClose }, ref) {
   const input = useRef<HTMLInputElement>(null);
   useImperativeHandle(ref, () => input.current as HTMLInputElement);
   useEffect(() => {
@@ -38,6 +40,7 @@ export const ListSearch = forwardRef<
       <Search className="h-4 w-4 shrink-0" strokeWidth={1.75} aria-hidden />
       <input
         ref={input}
+        autoFocus={autoFocus}
         type="search"
         value={query}
         onChange={(e) => onQuery(e.target.value)}
@@ -45,7 +48,7 @@ export const ListSearch = forwardRef<
           if (e.key === "Escape" && query) {
             e.preventDefault();
             onQuery("");
-          }
+          } else if (e.key === "Escape") onClose?.();
         }}
         placeholder={placeholder}
         aria-label={label}
