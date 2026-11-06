@@ -24,6 +24,7 @@ const MAX_ID = 128;
 export type DeviceMessage = {
   /** El `key.id` del dispositivo. */
   keyId: string;
+  group?: { jid: string; subject: string | null; sender: string; senderId: string };
   /** Lo escribió el negocio (en el celular o desde Dashfort), no el contacto. */
   fromMe: boolean;
   /** El teléfono del contacto en la forma de Dashfort (52 + 10); null si solo vino su `@lid`. */
@@ -80,6 +81,10 @@ function addressOf(jid: unknown): { phone: string | null; lid: string | null } {
   if (server !== "s.whatsapp.net" && server !== "c.us") return { phone: null, lid: null };
   if (digits.length < 8 || digits.length > 15) return { phone: null, lid: null };
   return { phone: phoneFromDirect(digits), lid: null };
+}
+
+export function isGroupJid(jid: unknown): jid is string {
+  return typeof jid === "string" && /^\d+(?:-\d+)?@g\.us$/.test(jid) && jid.length <= 80;
 }
 
 /** ¿Es un chat uno a uno? Grupos, estados, listas de difusión y canales no entran. */
@@ -166,8 +171,8 @@ export function contentOf(message: Obj, keyId: string): Omit<WebhookMessage, "id
 
 /**
  * Los mensajes de un aviso `messages.upsert` del dispositivo, listos para la
- * ingesta. Tolerante: uno solo o en lista, con o sin `data`. Solo chats uno a
- * uno con contenido que se registra; lo demás se descarta sin error.
+ * ingesta. Tolerante: uno solo o en lista, con o sin `data`. Chats personales
+ * y grupos con contenido; el adaptador conserva su identidad por separado.
  */
 export function parseDeviceMessages(data: unknown, now = new Date()): DeviceMessage[] {
   const items = Array.isArray(data) ? data : isObj(data) && Array.isArray(data.messages) ? data.messages : [data];
@@ -177,14 +182,15 @@ export function parseDeviceMessages(data: unknown, now = new Date()): DeviceMess
     const key = item.key;
     const keyId = str(key.id);
     if (!keyId || keyId.length > MAX_ID) continue;
-    if (!isPersonalChat(key.remoteJid)) continue;
+    const groupJid = isGroupJid(key.remoteJid) ? key.remoteJid : null;
+    if (!groupJid && !isPersonalChat(key.remoteJid)) continue;
 
     const main = addressOf(key.remoteJid);
     // Con `@lid`, el teléfono viene aparte (según la versión, uno u otro campo).
     const alt = [key.remoteJidAlt, key.senderPn, item.senderPn, key.participantPn].map(addressOf).find((a) => a.phone);
     const phone = main.phone ?? alt?.phone ?? null;
     const lid = main.lid ?? [key.remoteJidAlt, key.senderLid].map(addressOf).find((a) => a.lid)?.lid ?? null;
-    if (!phone && !lid) continue;
+    if (!groupJid && !phone && !lid) continue;
 
     const content = contentOf(item.message, keyId);
     if (!content) continue;
@@ -193,6 +199,12 @@ export function parseDeviceMessages(data: unknown, now = new Date()): DeviceMess
     const timestamp = secondsOf(item.messageTimestamp, now);
     out.push({
       keyId,
+      ...(groupJid ? { group: {
+        jid: groupJid,
+        subject: str(item.groupName) ?? str(item.subject),
+        senderId: str(key.participant) ?? (fromMe ? "self" : "unknown"),
+        sender: str(item.pushName) ?? addressOf(key.participantAlt ?? key.participant).phone ?? str(key.participant) ?? (fromMe ? "Tú" : "Participante"),
+      } } : {}),
       fromMe,
       phone,
       lid,

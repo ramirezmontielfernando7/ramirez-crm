@@ -250,9 +250,9 @@ export function InboxClient({
 
   /** El chat abierto, pedido aparte (no está en lo cargado). null = ya no lo ve. */
   const fetchOpen = useCallback(async (id: string) => {
-    for (const view of ["main", "campaigns"] as const) {
+    for (const view of ["main", "campaigns", "groups"] as const) {
       const q = new URLSearchParams({ ids: id });
-      if (view === "campaigns") q.set("view", "campaigns");
+      if (view !== "main") q.set("view", view);
       const res = await fetch(`/api/conversations?${q}`).catch(() => null);
       if (!res?.ok) return undefined; // sin respuesta: se queda como estaba
       const data = (await res.json()) as { conversations: ConversationDto[] };
@@ -294,7 +294,7 @@ export function InboxClient({
       const q = subsetQuery(plan);
       const view = listQueryRef.current.view;
       const seq = listSeq.current;
-      const res = await fetch(`/api/conversations?${view === "campaigns" ? "view=campaigns&" : ""}${q}`).catch(() => null);
+      const res = await fetch(`/api/conversations?${view !== "main" ? `view=${view}&` : ""}${q}`).catch(() => null);
       if (!res?.ok) {
         // Sin la fila no hay cómo saber qué cambió: la lista completa.
         batch.current.markFull();
@@ -489,9 +489,9 @@ export function InboxClient({
     // respuesta (041, fuera de la principal): se pide solo ese.
     let cancelled = false;
     void (async () => {
-      for (const view of ["main", "campaigns"] as const) {
+      for (const view of ["main", "campaigns", "groups"] as const) {
         const q = new URLSearchParams({ contactIds: contactParam });
-        if (view === "campaigns") q.set("view", "campaigns");
+        if (view !== "main") q.set("view", view);
         const res = await fetch(`/api/conversations?${q}`).catch(() => null);
         if (!res?.ok) return;
         const data = (await res.json()) as { conversations: ConversationDto[] };
@@ -750,7 +750,7 @@ export function InboxClient({
                   <p className="flex min-w-0 items-center gap-1.5 text-[15px] font-semibold leading-5">
                     {multiChannel && <ChannelBadge channel={selected.channel} />}
                     <span className="truncate">{contactLabel(selected.contact)}</span>
-                    {direct && !direct.metaless && (
+                    {direct && !direct.metaless && !selected.groupJid && (
                       <ChatModeDot
                         variant="chip"
                         conversation={selected}

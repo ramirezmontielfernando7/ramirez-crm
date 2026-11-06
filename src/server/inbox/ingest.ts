@@ -640,6 +640,8 @@ export function serializeMessage(
     id: m.id,
     conversationId: m.conversationId,
     direction: m.direction,
+    groupSender: m.groupSender,
+    groupSenderId: m.groupSenderId,
     type: m.type,
     text: m.text,
     status: m.status,

@@ -313,6 +313,8 @@ export const contact = pgTable(
      * organización cuando existe.
      */
     waLid: text("wa_lid"),
+    /** Grupo de WhatsApp; nunca un destinatario de Meta. Protegido por RLS del contacto. */
+    waGroupJid: text("wa_group_jid"),
     /**
      * Mi número (046, 0057) — el contacto nació en el chat PRIVADO de un
      * «Mi número» (p. ej. un familiar del asesor) y no es del CRM: solo lo ve
@@ -335,6 +337,7 @@ export const contact = pgTable(
     uniqueIndex("contact_org_wa_lid_uq")
       .on(t.organizationId, t.waLid)
       .where(sql`${t.waLid} is not null`),
+    uniqueIndex("contact_org_group_jid_uq").on(t.organizationId, t.waGroupJid).where(sql`${t.waGroupJid} is not null`),
     index("contact_org_email_idx").on(t.organizationId, sql`lower(${t.email})`),
     // 014: el canal entra en la llave. Sin el, un IGSID que coincidiera con
     // un telefono normalizado mezclaria dos personas en silencio.
@@ -894,6 +897,8 @@ export const message = pgTable(
       .notNull(),
     /** ID de WhatsApp — UNIQUE (idempotencia). Nullable en salientes de prueba. */
     waMessageId: text("wa_message_id").unique(),
+    groupSender: text("group_sender"),
+    groupSenderId: text("group_sender_id"),
     direction: text("direction", { enum: ["in", "out"] }).notNull(),
     type: text("type").notNull().default("text"),
     text: text("text"),

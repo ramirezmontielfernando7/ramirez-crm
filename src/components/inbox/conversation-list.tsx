@@ -224,6 +224,7 @@ export const ConversationList = memo(function ConversationList({
   const [bulkError, setBulkError] = useState<string | null>(null);
 
   const showCampaigns = filter === "campaigns";
+  const showGroups = filter === "groups";
   // Fluidez PR 3: los filtros viajan al servidor. La búsqueda, tras un
   // respiro (no una petición por tecla); mientras, lo cargado se filtra aquí.
   const [sentQuery, setSentQuery] = useState("");
@@ -232,8 +233,8 @@ export const ConversationList = memo(function ConversationList({
     return () => clearTimeout(t);
   }, [query]);
   const listQuery: ListQuery = {
-    view: showCampaigns ? "campaigns" : "main",
-    status: showCampaigns ? "all" : (filter as ListStatus),
+    view: showGroups ? "groups" : showCampaigns ? "campaigns" : "main",
+    status: showCampaigns || showGroups ? "all" : (filter as ListStatus),
     q: sentQuery,
     stage,
     tag,
@@ -287,13 +288,14 @@ export const ConversationList = memo(function ConversationList({
   }
   // 041: los chats que abrió una campaña y nadie ha respondido. Sin ninguno,
   // no aparece (igual que «Anuncios»). Abierta, cuenta lo que muestra.
-  if (campaignCount > 0 || showCampaigns) {
+  if (campaignCount > 0 || showCampaigns || counts?.groupsEnabled) {
     filtros.push({
       id: "campaigns",
       label: "Campañas",
       count: showCampaigns ? (counts?.campaigns ?? 0) : campaignCount,
     });
   }
+  if (counts?.groupsEnabled) filtros.push({ id: "groups", label: "Grupos", count: counts.groups ?? 0 });
   // Lo que la cápsula de filtros diría, para el buscador abierto que la tapa.
   const extraFiltros =
     (stage !== "all" ? 1 : 0) + (seesAll && owner !== "all" ? 1 : 0) + (tag !== ALL_TAGS ? 1 : 0);
@@ -383,8 +385,11 @@ export const ConversationList = memo(function ConversationList({
       },
     });
   }
-  if (campaignCount > 0 || showCampaigns) {
+  if (campaignCount > 0 || showCampaigns || counts?.groupsEnabled) {
     quick.push({ id: "campaigns", label: "Campañas", on: showCampaigns, pick: () => setFilter("campaigns") });
+  }
+  if (counts?.groupsEnabled) {
+    quick.push({ id: "groups", label: "Grupos", on: showGroups, pick: () => setFilter("groups") });
   }
   const searchRef = useRef<HTMLInputElement>(null);
   // Ronda 4: la búsqueda es una lupa en el encabezado; el cuadro aparece al
@@ -475,8 +480,8 @@ export const ConversationList = memo(function ConversationList({
                 )}
               >
                 {q.label}
-                {q.id === "unread" && (counts?.unread ?? 0) > 0 ? (
-                  <b className="ml-1 font-semibold text-brand-text">{counts?.unread ?? 0}</b>
+                {(q.id === "unread" || q.id === "groups") && (q.id === "groups" ? counts?.groupUnread ?? 0 : counts?.unread ?? 0) > 0 ? (
+                  <b className="ml-1 font-semibold text-brand-text">{q.id === "groups" ? counts?.groupUnread ?? 0 : counts?.unread ?? 0}</b>
                 ) : null}
               </button>
             ))}
@@ -569,7 +574,7 @@ export const ConversationList = memo(function ConversationList({
               onSelect(id);
             }}
           />
-        ) : counts?.total === 0 && campaignCount === 0 && !showCampaigns ? (
+        ) : counts?.total === 0 && campaignCount === 0 && !showCampaigns && !showGroups ? (
           <EmptyState onSeeded={onSeeded} />
         ) : visible.length === 0 && (hasMore || counts === null) ? (
           <p className="p-6 text-center text-xs text-text-3">Cargando…</p>

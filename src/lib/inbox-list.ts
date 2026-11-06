@@ -60,7 +60,7 @@ export const DEFAULT_FILTERS: ListFilters = { q: "", stage: "all", tag: ALL_TAGS
 /** Lo que la Bandeja pide, como parámetros de URL (solo lo que filtra). */
 export function listQueryParams(q: Partial<ListQuery>): URLSearchParams {
   const p = new URLSearchParams();
-  if (q.view === "campaigns") p.set("view", "campaigns");
+  if (q.view === "campaigns" || q.view === "groups") p.set("view", q.view);
   else if (q.status && q.status !== "all") p.set("status", q.status);
   const text = q.q?.trim();
   if (text) p.set("q", text);
@@ -96,6 +96,7 @@ export function parseLimit(value: string | null): number | null | "invalid" {
  * de «Campañas» solo pasa en esa vista; en la principal, el estado decide.
  */
 export function matchesListQuery(c: ConversationDto, q: ListQuery, viewerId: string): boolean {
+  if (q.view === "groups" ? !c.groupJid : !!c.groupJid) return false;
   if (q.view === "campaigns" ? !c.campaign || c.campaign.state !== "pending" : c.campaign?.state === "pending") {
     return false;
   }
@@ -170,6 +171,9 @@ export type InboxCounts = {
   campaigns: number;
   /** «Campañas» sin filtros de pantalla (la pestaña cerrada). */
   campaignPending: number;
+  groups?: number;
+  groupUnread?: number;
+  groupsEnabled?: boolean;
   /** Por bandeja (canal), sin archivados y con los filtros, sin el de canal. */
   channels: Partial<Record<Channel, number>>;
   /** ¿Algún chat de la principal coincide con la búsqueda? (número no registrado). */

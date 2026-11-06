@@ -245,14 +245,14 @@ async function prepareSend(
   // Conexión directa (PR 3): un chat en Directa o Automática sale por el
   // dispositivo vinculado, sin ventana de 24 h. Sin `allowDirect`, sin el
   // módulo, sin dispositivo vinculado o en modo Meta: lo de siempre.
-  const route = await directRouteFor(organizationId, row.conversation, opts.allowDirect === true, new Date(), {
+  const route = await directRouteFor(organizationId, { ...row.conversation, groupJid: row.contact.waGroupJid }, opts.allowDirect === true, new Date(), {
     ai: opts.aiDirect === true,
   });
   if (route.via === "unavailable") {
     throw new SendError("not_connected", unavailableText(route.reason));
   }
   if (route.via === "directa") {
-    if (!directNumber(row.contact.phone)) {
+    if (!row.contact.waGroupJid && !directNumber(row.contact.phone)) {
       throw new SendError(
         "meta_error",
         "Este contacto no tiene teléfono: no se puede enviar por conexión directa."

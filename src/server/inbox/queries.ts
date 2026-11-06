@@ -8,6 +8,7 @@ import { isTagColor, type TagDto } from "@/lib/tags";
 import { botLastSeenAt, EXTERNAL_SEEN_WINDOW_MS } from "@/server/bot/status";
 import { ALL_TAGS } from "@/lib/inbox-filters";
 import type { InboxCounts, ListFilters, ListStatus } from "@/lib/inbox-list";
+import { orgHasConexionDirecta } from "@/server/modules";
 import { CHANNEL_ORDER } from "@/lib/channels";
 import { digitsOnly, normalizeText } from "@/lib/search";
 import { encodeCursor, type Cursor } from "@/server/inbox/cursor";
@@ -91,9 +92,10 @@ const campaignNameSql = sql<string | null>`(
 
 /** 041: la principal sin los chats de campaña sin respuesta; «Campañas», solo ellos. */
 function viewCondition(view: InboxView) {
+  if (view === "groups") return isNotNull(schema.contact.waGroupJid);
   return view === "campaigns"
-    ? isNotNull(schema.conversation.campaignPendingId)
-    : isNull(schema.conversation.campaignPendingId);
+    ? and(isNull(schema.contact.waGroupJid), isNotNull(schema.conversation.campaignPendingId))
+    : and(isNull(schema.contact.waGroupJid), isNull(schema.conversation.campaignPendingId));
 }
 
 /**
@@ -424,7 +426,7 @@ async function queryConversations(
     )
     .orderBy(desc(sortKeySql), desc(schema.conversation.id));
   // Una fila de más: si llega, hay página siguiente.
-  const rows = page ? await query.limit(page.limit + 1) : await query;
+  const rows = view === "groups" && !(await orgHasConexionDirecta(access.organizationId)) ? [] : page ? await query.limit(page.limit + 1) : await query;
   const more = !!page && rows.length > page.limit;
   if (more) rows.length = page.limit;
   const last = rows[rows.length - 1];
@@ -466,8 +468,9 @@ async function queryConversations(
 export async function countConversations(access: Access, f: ListFilters): Promise<InboxCounts> {
   const db = getDb();
   const leadActual = leadActualDe(access);
-  const main = isNull(schema.conversation.campaignPendingId);
-  const campaign = isNotNull(schema.conversation.campaignPendingId);
+  const main = and(isNull(schema.contact.waGroupJid), isNull(schema.conversation.campaignPendingId));
+  const campaign = and(isNull(schema.contact.waGroupJid), isNotNull(schema.conversation.campaignPendingId));
+  const groupsEnabled = await orgHasConexionDirecta(access.organizationId);
   const filtros = and(...screenFilters(access, f, leadActual.stageName)) ?? sql`true`;
   const enBandeja =
     f.channel !== "all" ? eq(schema.conversation.channel, f.channel) : sql`true`;
@@ -486,6 +489,8 @@ export async function countConversations(access: Access, f: ListFilters): Promis
       anuncios: n(and(enLaPrincipal, aLaVista, conAnuncio)),
       campaigns: n(and(campaign, filtros, enBandeja)),
       campaignPending: n(campaign),
+      groups: n(and(isNotNull(schema.contact.waGroupJid), filtros, aLaVista, enBandeja)),
+      groupUnread: n(and(isNotNull(schema.contact.waGroupJid), filtros, aLaVista, enBandeja, noLeida)),
       queryHits: n(q ? and(main, q) : sql`false`),
       ...Object.fromEntries(
         CHANNEL_ORDER.map((ch) => [
@@ -508,7 +513,7 @@ export async function countConversations(access: Access, f: ListFilters): Promis
     .from(schema.conversation)
     .innerJoin(schema.contact, eq(schema.conversation.contactId, schema.contact.id))
     .leftJoinLateral(leadActual, sql`true`)
-    .where(scopedContacts(schema.conversation.organizationId, access, schema.conversation.contactId, real, main, isNotNull(leadActual.stageName)))
+    .where(scopedContacts(schema.conversation.organizationId, access, schema.conversation.contactId, real, or(main, isNotNull(schema.contact.waGroupJid)), isNotNull(leadActual.stageName)))
     .groupBy(leadActual.stageName)
     .orderBy(desc(sql`max(${sortKeySql})`));
   const tagRows = await db
@@ -517,18 +522,21 @@ export async function countConversations(access: Access, f: ListFilters): Promis
     .innerJoin(schema.contact, eq(schema.conversation.contactId, schema.contact.id))
     .innerJoin(schema.contactTagAssignment, eq(schema.contactTagAssignment.contactId, schema.contact.id))
     .innerJoin(schema.contactTag, eq(schema.contactTag.id, schema.contactTagAssignment.tagId))
-    .where(scopedContacts(schema.conversation.organizationId, access, schema.conversation.contactId, real, main, isNull(schema.contactTag.systemOrigin)));
+    .where(scopedContacts(schema.conversation.organizationId, access, schema.conversation.contactId, real, or(main, isNotNull(schema.contact.waGroupJid)), isNull(schema.contactTag.systemOrigin)));
   const ownerRows = await db
     .selectDistinct({ id: schema.contact.assignedUserId, name: assigneeNameSql })
     .from(schema.conversation)
     .innerJoin(schema.contact, eq(schema.conversation.contactId, schema.contact.id))
-    .where(scopedContacts(schema.conversation.organizationId, access, schema.conversation.contactId, real, main, isNotNull(schema.contact.assignedUserId)));
+    .where(scopedContacts(schema.conversation.organizationId, access, schema.conversation.contactId, real, or(main, isNotNull(schema.contact.waGroupJid)), isNotNull(schema.contact.assignedUserId)));
 
   const t = (totals ?? {}) as Record<string, number | undefined>;
   const channels: InboxCounts["channels"] = {};
   for (const ch of CHANNEL_ORDER) channels[ch] = t[`ch_${ch}`] ?? 0;
   return {
     q: f.q,
+    groupsEnabled,
+    groups: groupsEnabled ? t.groups ?? 0 : 0,
+    groupUnread: groupsEnabled ? t.groupUnread ?? 0 : 0,
     total: t.total ?? 0,
     all: t.all ?? 0,
     unread: t.unread ?? 0,
@@ -625,6 +633,7 @@ export function serializeConversation(
   return {
     id: c.id,
     channel: c.channel,
+    groupJid: contact.waGroupJid,
     contact: { id: contact.id, name: contact.name, phone: contact.phone },
     assignee: contact.assignedUserId
       ? { id: contact.assignedUserId, name: assigneeName ?? "" }
@@ -635,15 +644,15 @@ export function serializeConversation(
     stageId: extra.stageId ?? null,
     tags: extra.tags ?? [],
     archivedAt: c.archivedAt?.toISOString() ?? null,
-    aiAvailable: extra.aiAvailable ?? false,
-    aiEnabled: c.aiEnabled,
+    aiAvailable: !contact.waGroupJid && (extra.aiAvailable ?? false),
+    aiEnabled: !contact.waGroupJid && c.aiEnabled,
     handoffAt: c.handoffAt?.toISOString() ?? null,
     handoffReason: c.handoffReason,
     lastInboundAt: c.lastInboundAt?.toISOString() ?? null,
     lastMessageAt: c.lastMessageAt?.toISOString() ?? null,
     createdAt: c.createdAt.toISOString(),
     unreadCount: c.unreadCount,
-    windowOpen: isWindowOpen(c.lastInboundAt),
+    windowOpen: !!contact.waGroupJid || isWindowOpen(c.lastInboundAt),
     windowRemainingMs: windowRemainingMs(c.lastInboundAt),
     connectionMode: c.connectionMode,
     preview,
@@ -671,6 +680,10 @@ export async function updateConversation(
     set.aiEnabled = patch.aiEnabled ?? true;
   }
   if (patch.markRead) set.unreadCount = 0;
+  // A group can be read/archived/assigned, but never activate its automatic agent.
+  const visible = await getConversation(access, conversationId);
+  if (!visible) return null;
+  if (visible.contact.waGroupJid) set.aiEnabled = false;
 
   const updated = await db
     .update(schema.conversation)

@@ -9,13 +9,16 @@ import { connectionByWebhookHash } from "@/server/credentials/direct";
 import { ingestDeviceEcho, ingestInboundMessage, mediaInputFrom } from "@/server/inbox/ingest";
 import { isOrgActive } from "@/server/platform-admin/org-status";
 import { hashToken } from "./link";
+import { orgHasConexionDirecta } from "@/server/modules";
+import { ingestGroupMessage } from "./groups";
 import { isOrgWithoutMeta } from "./without-meta";
 
 const log = logger("direct-connection");
 
 /**
  * Conexión directa (PR 6) — Lo que ENTRA por el dispositivo vinculado
- * (`messages.upsert`), solo en una empresa SIN Meta. Con Meta, lo que escribe
+ * (`messages.upsert`). Los grupos siempre entran; los chats personales, solo
+ * en una empresa SIN Meta. Con Meta, lo que escribe
  * el contacto ya entra por Meta y esto no hace nada (evita mensajes dobles).
  *
  * - Lo que escribe el contacto entra por la ingesta de siempre
@@ -45,7 +48,7 @@ export async function ingestDeviceMessages(organizationId: string, messages: Dev
   if (messages.length === 0) return 0;
   return runWithOrganization(organizationId, async () => {
     try {
-      if (!(await isOrgWithoutMeta(organizationId))) return 0;
+      if (!(await orgHasConexionDirecta(organizationId))) return 0;
       if (!(await isOrgActive(organizationId))) {
         log.warn("mensajes del dispositivo de una organización no activa: descartados", { org: organizationId, n: messages.length });
         return 0;
@@ -55,11 +58,13 @@ export async function ingestDeviceMessages(organizationId: string, messages: Dev
       if (opts.strict) throw err;
       return 0;
     }
+    const withoutMeta = await isOrgWithoutMeta(organizationId);
     let done = 0;
     let failed = 0;
     for (const m of messages) {
       try {
-        if (await ingestOne(organizationId, m)) done++;
+        if (m.group) { await ingestGroupMessage(organizationId, m); done++; }
+        else if (withoutMeta && await ingestOne(organizationId, m)) done++;
       } catch (err) {
         failed++;
         log.error("no se pudo registrar un mensaje del dispositivo vinculado", { org: organizationId, err });
@@ -115,7 +120,7 @@ export async function processDirectPayload(payload: DirectInboxPayload): Promise
   const { organizationId, directNumberId, messages } = payload;
   if (directNumberId) {
     const { ingestNumberMessages } = await import("@/server/mi-numero/inbound");
-    await ingestNumberMessages({ organizationId, directNumberId }, messages, { strict: true });
+    await ingestNumberMessages({ organizationId, directNumberId }, messages.filter((m) => !m.group), { strict: true });
     return;
   }
   await ingestDeviceMessages(organizationId, messages, { strict: true });
