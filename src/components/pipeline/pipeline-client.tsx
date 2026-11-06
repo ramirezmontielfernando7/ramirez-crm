@@ -64,6 +64,10 @@ export function PipelineClient() {
    */
   const [abiertoId, setAbiertoId] = useState<string | null>(null);
   const abierto = leads.find((l) => l.id === abiertoId) ?? null;
+  /** El tablero no cargó: se dice y se ofrece reintentar (antes quedaba vacío sin aviso). */
+  const [loadError, setLoadError] = useState(false);
+  /** Un cambio no se guardó: la tarjeta vuelve a su lugar y se avisa (antes, silencio). */
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } })
@@ -71,7 +75,11 @@ export function PipelineClient() {
 
   const refetch = useCallback(async () => {
     const res = await fetch("/api/pipeline/board").catch(() => null);
-    if (!res?.ok) return;
+    if (!res?.ok) {
+      setLoadError(true);
+      return;
+    }
+    setLoadError(false);
     const data = (await res.json()) as {
       stages: StageDto[];
       leads: BoardLead[];
@@ -85,6 +93,28 @@ export function PipelineClient() {
   useEffect(() => {
     void refetch();
   }, [refetch]);
+
+  /**
+   * Guarda un cambio del trato. Si el servidor no lo acepta (error, sin red),
+   * se avisa con el motivo y el tablero se vuelve a leer, así lo optimista
+   * regresa a como está de verdad en la base.
+   */
+  async function persist(leadId: string, body: Record<string, unknown>, what: string) {
+    const res = await fetch(`/api/pipeline/leads/${leadId}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    }).catch(() => null);
+    if (!res?.ok) {
+      const name = leads.find((l) => l.id === leadId)?.contact.name;
+      setSaveError(
+        `No se pudo guardar ${what}${name ? ` de ${name}` : ""}. Lo regresamos a como estaba; intenta de nuevo.`
+      );
+    } else {
+      setSaveError(null);
+    }
+    void refetch();
+  }
 
   function onDragStart(event: DragStartEvent) {
     const lead = leads.find((l) => l.id === event.active.id);
@@ -101,43 +131,32 @@ export function PipelineClient() {
     setLeads((prev) =>
       prev.map((l) => (l.id === leadId ? { ...l, stageId: overStage, position } : l))
     );
-    await fetch(`/api/pipeline/leads/${leadId}`, {
-      method: "PATCH",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
+    await persist(
+      leadId,
+      {
         stageId: overStage,
         position,
         ...(loss
           ? { lossReason: loss.reason, ...(loss.note ? { lossNote: loss.note } : {}) }
           : {}),
-      }),
-    }).catch(() => null);
-    void refetch();
+      },
+      "el cambio de etapa"
+    );
   }
 
   async function guardarMonto(leadId: string, cents: number | null) {
     setLeads((prev) =>
       prev.map((l) => (l.id === leadId ? { ...l, amountCents: cents } : l))
     );
-    await fetch(`/api/pipeline/leads/${leadId}`, {
-      method: "PATCH",
-      headers: { "content-type": "application/json" },
-      // Sin `stageId`: esto NO mueve la tarjeta, solo escribe el importe.
-      body: JSON.stringify({ amountCents: cents }),
-    }).catch(() => null);
-    void refetch();
+    // Sin `stageId`: esto NO mueve la tarjeta, solo escribe el importe.
+    await persist(leadId, { amountCents: cents }, "el monto");
   }
 
   async function guardarPrioridad(leadId: string, priority: PriorityValue | null) {
     setLeads((prev) =>
       prev.map((l) => (l.id === leadId ? { ...l, priority } : l))
     );
-    await fetch(`/api/pipeline/leads/${leadId}`, {
-      method: "PATCH",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ priority }),
-    }).catch(() => null);
-    void refetch();
+    await persist(leadId, { priority }, "la prioridad");
   }
 
   async function onDragEnd(event: DragEndEvent) {
@@ -189,6 +208,26 @@ export function PipelineClient() {
         ) : undefined
       }
     >
+      {saveError && (
+        <div
+          role="alert"
+          className="mx-3 mt-3 flex items-start gap-3 rounded-md border border-danger-soft bg-danger-tint px-3 py-2 text-sm text-danger-text sm:mx-4"
+        >
+          <span className="flex-1">{saveError}</span>
+          <button type="button" className="font-medium underline" onClick={() => setSaveError(null)}>
+            Entendido
+          </button>
+        </div>
+      )}
+      {loadError && stages.length === 0 && (
+        <div role="alert" className="m-6 rounded-lg border bg-card p-6 text-center text-sm">
+          <p className="font-medium">No pudimos cargar tu pipeline.</p>
+          <p className="mt-1 text-muted-foreground">Revisa tu conexión e intenta de nuevo.</p>
+          <Button className="mt-4" size="sm" onClick={() => void refetch()}>
+            Reintentar
+          </Button>
+        </div>
+      )}
       {/* El tablero se arrastra en horizontal; en el teléfono cada columna
           se detiene en su sitio (snap) para no quedar a medio camino. */}
       <div className="flex-1 snap-x snap-mandatory overflow-x-auto p-3 sm:snap-none sm:p-4">
