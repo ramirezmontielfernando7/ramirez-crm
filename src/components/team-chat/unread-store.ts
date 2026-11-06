@@ -108,7 +108,7 @@ export function refreshTeamUnread() {
 
 let audio: AudioContext | null = null;
 
-function ensureAudio() {
+export function ensureAudio() {
   try {
     const Ctx =
       window.AudioContext ??
@@ -121,27 +121,40 @@ function ensureAudio() {
   }
 }
 
+export type ChimeOptions = { tone?: "suave" | "campana" | "burbuja"; volume?: number };
+
 /**
- * Dos notas cortas y suaves generadas en el navegador (sin archivos ni CDN).
+ * Notas cortas generadas en el navegador (sin archivos ni CDN). Por defecto,
+ * las dos notas suaves de siempre; Avisos puede pedir otro tono y volumen.
  * Si la persona aún no tocó la página (el navegador no deja sonar), no suena:
  * el globo basta.
  */
-export function playChime() {
+export function playChime(opts: ChimeOptions = {}) {
+  ensureAudio();
   if (!audio || audio.state !== "running") return;
+  const tone = opts.tone ?? "suave";
+  const peak = Math.max(0.0001, 0.08 * (opts.volume ?? 0.6) / 0.6);
   try {
     const now = audio.currentTime;
-    for (const [i, freq] of [880, 1320].entries()) {
+    const notes =
+      tone === "campana"
+        ? [{ f: 1046, type: "triangle" as const, at: 0, len: 0.7 }, { f: 1568, type: "triangle" as const, at: 0.12, len: 0.6 }]
+        : tone === "burbuja"
+          ? [{ f: 520, to: 980, type: "sine" as const, at: 0, len: 0.16 }]
+          : [{ f: 880, type: "sine" as const, at: 0, len: 0.2 }, { f: 1320, type: "sine" as const, at: 0.11, len: 0.2 }];
+    for (const n of notes) {
       const osc = audio.createOscillator();
       const gain = audio.createGain();
-      osc.type = "sine";
-      osc.frequency.value = freq;
-      const t = now + i * 0.11;
+      osc.type = n.type;
+      const t = now + n.at;
+      osc.frequency.setValueAtTime(n.f, t);
+      if ("to" in n && n.to) osc.frequency.exponentialRampToValueAtTime(n.to, t + n.len);
       gain.gain.setValueAtTime(0.0001, t);
-      gain.gain.exponentialRampToValueAtTime(0.08, t + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.18);
+      gain.gain.exponentialRampToValueAtTime(peak, t + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t + n.len - 0.02);
       osc.connect(gain).connect(audio.destination);
       osc.start(t);
-      osc.stop(t + 0.2);
+      osc.stop(t + n.len);
     }
   } catch {
     // Sin audio disponible: el aviso visual sigue ahí.

@@ -7,6 +7,7 @@ import { SectionTabs, type SectionTab } from "@/components/ui/section-tabs";
  */
 const TABS: readonly SectionTab[] = [
   { href: "/settings/personalization", label: "Apariencia" },
+  { href: "/settings/personalization/notificaciones", label: "Notificaciones" },
   { href: "/settings/personalization/marca", label: "Marca", permission: "settings.manage" },
   { href: "/settings/personalization/navegacion", label: "Navegación", permission: "settings.manage" },
 ];
