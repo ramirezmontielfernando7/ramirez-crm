@@ -123,8 +123,8 @@ async function main() {
   ok("…y con Plus Jakarta Sans también", /Plus Jakarta Sans/.test(await fuente(ap.p)), await fuente(ap.p));
   await elegir(ap.p, "Inter");
   ok("…y con Inter (la de fábrica)", /inter/i.test(await fuente(ap.p)), await fuente(ap.p));
-  // 039: WhatsApp vive en la pestaña «Canales y Meta» de Ajustes.
-  await ap.p.getByRole("link", { name: "Canales y Meta" }).first().click();
+  // WhatsApp vive en «Canales y conexiones» de Ajustes.
+  await ap.p.getByRole("link", { name: "Canales y conexiones" }).first().click();
   await ap.p.waitForURL(/settings\/whatsapp/);
   let volvio = false;
   for (let i = 0; i < 20 && !volvio; i++) {
