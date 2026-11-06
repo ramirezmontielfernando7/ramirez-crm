@@ -313,12 +313,12 @@ const medirColumnas = () =>
 // El panel abre con transición de 220 ms: medir apenas aparece el compositor
 // atraparía un ancho a medio camino.
 const columnasOk = (t) =>
-  // Lista = clamp(340px, 30vw, 460px): a 1440 de ancho son 432.
-  t.aside === 232 && t.secs[0] === 432 && t.secs.at(-1) === 320;
+  // Ronda 3 (maqueta): lista fija de 360 px y Detalles de 330 px.
+  t.aside === 232 && t.secs[0] === 360 && t.secs.at(-1) === 330;
 await until(async () => columnasOk(await medirColumnas()), 8000);
 const tres = await medirColumnas();
 ok(
-  "escritorio conserva lateral 232px + lista 432px (30vw) + hilo + detalles 320px",
+  "escritorio conserva lateral 232px + lista 360px + hilo + detalles 330px (ronda 3)",
   columnasOk(tres),
   JSON.stringify(tres)
 );
