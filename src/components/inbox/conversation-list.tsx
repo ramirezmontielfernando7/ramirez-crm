@@ -12,7 +12,7 @@ import {
 } from "react";
 import dynamic from "next/dynamic";
 import { useVirtualizer, type VirtualItem } from "@tanstack/react-virtual";
-import { Bot, CheckSquare, Megaphone, Plus, Send, Sparkles } from "lucide-react";
+import { Bot, CheckSquare, Megaphone, Search, Send, Sparkles } from "lucide-react";
 import type { ConversationDto, StageDto } from "@/lib/types";
 import type { TagDto } from "@/lib/tags";
 import type { MenuAnchor } from "./floating-menu";
@@ -387,6 +387,20 @@ export const ConversationList = memo(function ConversationList({
     quick.push({ id: "campaigns", label: "Campañas", on: showCampaigns, pick: () => setFilter("campaigns") });
   }
   const searchRef = useRef<HTMLInputElement>(null);
+  // Ronda 4: la búsqueda es una lupa en el encabezado; el cuadro aparece al
+  // tocarla (o con «/») y se queda mientras haya texto.
+  const [searchOpen, setSearchOpen] = useState(false);
+  const showSearch = searchOpen || query !== "";
+  useEffect(() => {
+    const onKey = (e: globalThis.KeyboardEvent) => {
+      if (e.key !== "/" || e.metaKey || e.ctrlKey || e.altKey) return;
+      const t = e.target as HTMLElement | null;
+      if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+      setSearchOpen(true);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   return (
     <div className="flex h-full flex-col">
@@ -405,6 +419,16 @@ export const ConversationList = memo(function ConversationList({
                 <CheckSquare className="h-4 w-4" strokeWidth={1.75} />
               </button>
             )}
+            <button
+              type="button"
+              onClick={() => (searchOpen ? (setQuery(""), setSearchOpen(false)) : setSearchOpen(true))}
+              aria-label="Buscar conversación (tecla /)"
+              aria-pressed={searchOpen}
+              title="Buscar (/)"
+              className={cn("btn-r3 g ic", searchOpen && "soft")}
+            >
+              <Search className="h-4 w-4" strokeWidth={1.75} />
+            </button>
             <FilterMenu
               variant="icon"
               filtros={filtros}
@@ -420,31 +444,39 @@ export const ConversationList = memo(function ConversationList({
               owner={owner}
               onOwner={setOwner}
             />
-            <button
-              type="button"
-              onClick={() => searchRef.current?.focus()}
-              aria-label="Nuevo chat: busca o escribe un teléfono"
-              title="Nuevo chat: busca o escribe un teléfono"
-              className="btn-r3 p ic h-[34px] w-[34px]"
-            >
-              <Plus className="h-4 w-4" strokeWidth={2} />
-            </button>
           </>
         }
       />
-      <div className="flex shrink-0 flex-col gap-2.5 px-4 pb-2 pt-3">
+      <div className="flex shrink-0 flex-col gap-2 px-4 pb-2.5 pt-1">
+        {showSearch && (
         <ListSearch
           ref={searchRef}
+          autoFocus
+          onClose={() => setSearchOpen(false)}
           query={query}
           onQuery={setQuery}
           placeholder="Buscar nombre, teléfono o mensaje"
           hint={filtroPuesto}
         />
+        )}
         <div className="flex items-center gap-1.5">
-          <div role="group" aria-label="Mostrar" className="seg">
+          <div role="group" aria-label="Mostrar" className="flex flex-wrap items-center gap-1.5">
             {quick.map((q) => (
-              <button key={q.id} type="button" aria-pressed={q.on} onClick={q.pick} className="seg-item">
+              <button
+                key={q.id}
+                type="button"
+                aria-pressed={q.on}
+                onClick={q.pick}
+                className={cn(
+                  "h-[26px] rounded-full border px-2.5 text-[12.5px] font-medium transition-colors",
+                  FOCO_SEPARADO,
+                  q.on ? "border-brand-soft bg-brand-tint text-brand-ink" : "text-text-2 hover:bg-accent"
+                )}
+              >
                 {q.label}
+                {q.id === "unread" && (counts?.unread ?? 0) > 0 ? (
+                  <b className="ml-1 font-semibold text-brand-text">{counts?.unread ?? 0}</b>
+                ) : null}
               </button>
             ))}
           </div>
@@ -806,7 +838,7 @@ const ConversationRow = memo(function ConversationRow({
           onClick={() => (selecting ? onTogglePick(c.id) : onSelect(c.id))}
           aria-pressed={selecting ? picked : undefined}
           className={cn(
-            "flex w-full items-start gap-3 px-4 pb-0 pt-3 text-left",
+            "flex w-full items-start gap-3 px-4 pb-0 pt-2.5 text-left",
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
           )}
         >
@@ -844,13 +876,13 @@ const ConversationRow = memo(function ConversationRow({
             <span className="flex items-baseline justify-between gap-2">
               <span className="flex min-w-0 items-center gap-1.5 self-center">
                 {multiChannel && <ChannelBadge channel={c.channel} />}
-                <span className="truncate text-[14px] font-semibold leading-5 text-foreground">
+                <span className="truncate text-[13.5px] font-medium leading-5 text-foreground">
                   {contactLabel(c.contact)}
                 </span>
               </span>
               <span
                 className={cn(
-                  "shrink-0 text-[12px] leading-4 tabular-nums",
+                  "shrink-0 text-[11.5px] leading-4 tabular-nums",
                   unread ? "font-semibold text-brand-ink" : "text-text-3"
                 )}
               >
@@ -858,7 +890,7 @@ const ConversationRow = memo(function ConversationRow({
               </span>
             </span>
             <span className="mt-0.5 flex items-center justify-between gap-2">
-              <span className={cn("truncate text-[14px] leading-5", unread ? "text-foreground" : "text-text-3")}>
+              <span className={cn("truncate text-[13px] leading-5", unread ? "text-foreground" : "text-text-3")}>
                 {previewText(c.preview)}
               </span>
               {unread && (
@@ -870,7 +902,7 @@ const ConversationRow = memo(function ConversationRow({
           </span>
         </button>
         {/* Alineadas con el texto (avatar de 36 px + 12 px = 64 px). */}
-        <div className="relative flex flex-col gap-1.5 pb-3 pl-16 pr-4 pt-1.5">
+        <div className="relative flex flex-col gap-1 pb-2 pl-16 pr-4 pt-1">
           <div className="flex min-w-0 items-center gap-1.5">
             <StageCapsule conversation={c} stages={stages} onPatch={onPatchRow} onRefetch={onRefetch} onError={onError} />
             <TagsCapsule
