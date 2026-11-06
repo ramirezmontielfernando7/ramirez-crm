@@ -1,4 +1,4 @@
-import { desc, eq, inArray } from "drizzle-orm";
+import { count, desc, eq, inArray, isNull } from "drizzle-orm";
 import { z } from "zod";
 import { apiError, parseBody, withAuth } from "@/lib/api";
 import { getDb, schema } from "@/lib/db";
@@ -20,6 +20,14 @@ export const GET = withAuth(async (session, req: Request) => {
   const q = url.searchParams.get("q")?.trim();
   const stage = url.searchParams.get("stage")?.trim();
   const includeArchived = url.searchParams.get("archived") === "true";
+  // Paginación real: `page` (desde 1) y `pageSize` (máx. 200). Antes se cortaba
+  // en 200 ANTES de quitar los archivados, así que la lista podía mostrar menos
+  // de los que había y nunca dejaba ver del 201 en adelante.
+  const page = Math.max(1, Math.floor(Number(url.searchParams.get("page")) || 1));
+  const pageSize = Math.min(
+    200,
+    Math.max(1, Math.floor(Number(url.searchParams.get("pageSize")) || 100))
+  );
   // 021: filtros por etiqueta, fuente y consentimiento (los mismos del CSV).
   const filter = filterFromSearchParams(url.searchParams);
   if ("error" in filter) return apiError(422, "invalid_filter", filter.error);
@@ -57,25 +65,39 @@ export const GET = withAuth(async (session, req: Request) => {
   const stageContactIds = stage
     ? leadStages.filter((r) => r.stageName === stage).map((r) => r.contactId)
     : null;
-  if (stageContactIds?.length === 0) return Response.json({ contacts: [] });
+  if (stageContactIds?.length === 0)
+    return Response.json({ contacts: [], total: 0, page, pageSize });
 
-  const rows = await db
-    .select()
-    .from(schema.contact)
-    .where(
-      scopedContacts(
-        schema.contact.organizationId,
-        session.access,
-        schema.contact.id,
-        search,
-        stageContactIds ? inArray(schema.contact.id, stageContactIds) : undefined,
-        ...contactFilterConditions(filter)
+  // Los archivados se quitan EN la consulta, antes del corte de la página.
+  // Mismas condiciones para la página y para el total (cada consulta lleva su
+  // scopedContacts() a la vista: lo vigila tenant-query-guard).
+  const conditions = [
+    search,
+    stageContactIds ? inArray(schema.contact.id, stageContactIds) : undefined,
+    includeArchived ? undefined : isNull(schema.contact.archivedAt),
+    ...contactFilterConditions(filter),
+  ];
+
+  const [rows, totals] = await Promise.all([
+    db
+      .select()
+      .from(schema.contact)
+      .where(
+        scopedContacts(schema.contact.organizationId, session.access, schema.contact.id, ...conditions)
       )
-    )
-    .orderBy(desc(schema.contact.updatedAt))
-    .limit(200);
+      .orderBy(desc(schema.contact.updatedAt), desc(schema.contact.id))
+      .limit(pageSize)
+      .offset((page - 1) * pageSize),
+    db
+      .select({ n: count() })
+      .from(schema.contact)
+      .where(
+        scopedContacts(schema.contact.organizationId, session.access, schema.contact.id, ...conditions)
+      ),
+  ]);
+  const total = Number(totals[0]?.n ?? 0);
 
-  const visible = rows.filter((c) => includeArchived || !c.archivedAt);
+  const visible = rows;
   const tagsByContact = await tagsForContacts(
     session.organizationId,
     visible.map((c) => c.id)
@@ -89,7 +111,7 @@ export const GET = withAuth(async (session, req: Request) => {
       tagsByContact.get(c.id) ?? []
     )
   );
-  return Response.json({ contacts });
+  return Response.json({ contacts, total, page, pageSize });
 });
 
 /** 020 — Lo que ve un asesor cuando el teléfono choca con un contacto que NO es suyo. */

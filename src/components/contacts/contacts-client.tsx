@@ -33,6 +33,8 @@ import { NewContactDialog } from "./new-contact-dialog";
 import { StartConversation } from "./start-conversation";
 import { PageShell } from "@/components/ui/page-shell";
 
+const PAGE_SIZE = 50;
+
 export function ContactsClient() {
   const router = useRouter();
   const [contacts, setContacts] = useState<ContactDto[]>([]);
@@ -51,6 +53,9 @@ export function ContactsClient() {
   const [allTags, setAllTags] = useState<TagDto[]>([]);
   const [importando, setImportando] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** Paginación real del servidor (antes se veían solo los primeros 200). */
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
   const viewer = useViewer();
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -92,14 +97,23 @@ export function ContactsClient() {
     return params;
   }, [query, stage, showArchived, tagFilter, sourceFilter, consentFilter]);
 
+  // Al cambiar un filtro se vuelve a la primera página.
+  useEffect(() => {
+    setPage(1);
+  }, [filterParams]);
+
   const refetch = useCallback(async () => {
-    const res = await fetchJson<{ contacts: ContactDto[] }>(`/api/contacts?${filterParams()}`);
+    const params = filterParams();
+    params.set("page", String(page));
+    params.set("pageSize", String(PAGE_SIZE));
+    const res = await fetchJson<{ contacts: ContactDto[]; total?: number }>(`/api/contacts?${params}`);
     if (!res.ok) {
       setError(`No se pudo cargar la lista: ${res.error}`);
       return;
     }
     setError(null);
     const data = res.data;
+    setTotal(data.total ?? data.contacts.length);
     // A quién llamar primero: alta arriba, sin prioridad al final. El orden lo
     // decide esta lista, no el servidor, porque es una preferencia de trabajo y
     // no un dato del contacto.
@@ -108,7 +122,7 @@ export function ContactsClient() {
         (a, b) => priorityRank(a.priority ?? null) - priorityRank(b.priority ?? null)
       )
     );
-  }, [filterParams]);
+  }, [filterParams, page]);
 
   useEffect(() => {
     const t = setTimeout(() => void refetch(), 250);
@@ -370,6 +384,35 @@ export function ContactsClient() {
               </li>
             ))}
           </ul>
+        )}
+        {total > PAGE_SIZE && (
+          <nav
+            aria-label="Páginas de contactos"
+            className="mt-4 flex items-center justify-between gap-3 border-t pt-3 text-sm"
+          >
+            <span className="text-muted-foreground">
+              {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, total)} de{" "}
+              {total.toLocaleString("es-MX")}
+            </span>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page <= 1}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+              >
+                Anterior
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page * PAGE_SIZE >= total}
+                onClick={() => setPage((p) => p + 1)}
+              >
+                Siguiente
+              </Button>
+            </div>
+          </nav>
         )}
       </div>
 
