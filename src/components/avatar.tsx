@@ -9,7 +9,9 @@ import { cn, contactInitials } from "@/lib/utils";
 export function ContactAvatar({
   name,
   size = "md",
+  className,
 }: {
+  className?: string;
   name: string;
   /** Ya no tiñe el avatar; se acepta para no tocar a quienes aún lo pasan. */
   seed?: string;
@@ -30,7 +32,8 @@ export function ContactAvatar({
         // brand-soft / brand-text: el tono suave del acento con su texto oscuro
         // (claro) o claro (oscuro); el acento white-label los recalcula.
         "flex shrink-0 items-center justify-center rounded-full bg-[var(--accent-wash)] font-semibold text-brand-text",
-        sizes[size]
+        sizes[size],
+        className
       )}
       aria-hidden
     >
