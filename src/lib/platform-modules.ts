@@ -49,7 +49,7 @@ export const PLATFORM_MODULE_LABEL: Record<PlatformModuleToggle, string> = {
 export const PLATFORM_MODULE_PILLAR: Record<PlatformModuleToggle, string> = {
   teamChat: "Bandeja",
   knowledge: "CRM Comercial",
-  results: "Inteligencia",
+  results: "Resultados",
   agent: "Estudio de IA",
   lab: "Estudio de IA",
   campaigns: "Marketing",

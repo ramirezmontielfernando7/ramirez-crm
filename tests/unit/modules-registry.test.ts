@@ -122,8 +122,8 @@ describe("menú por rol", () => {
 
   it("039: el menú son 5 pilares + Ajustes, y cada rol ve los suyos", () => {
     const esperado: Record<Role, string[]> = {
-      owner: ["Bandeja", "CRM Comercial", "Asistente", "Estudio de IA", "Marketing", "Inteligencia"],
-      coordinador: ["Bandeja", "CRM Comercial", "Marketing", "Inteligencia"],
+      owner: ["Bandeja", "CRM Comercial", "Estudio de IA", "Marketing", "Resultados", "Asistente"],
+      coordinador: ["Bandeja", "CRM Comercial", "Marketing", "Resultados"],
       asesor: ["Bandeja", "CRM Comercial"],
     };
     for (const role of ROLES) {
@@ -131,7 +131,7 @@ describe("menú por rol", () => {
       expect(nav.main.map((m) => m.label), role).toEqual(esperado[role]);
       expect(nav.settings, role).toBe(role !== "asesor");
     }
-    expect(NAV_MODULES.map((m) => m.key)).toEqual(["inbox", "pipeline", "asistente", "lab", "campaigns", "results", "settings"]);
+    expect(NAV_MODULES.map((m) => m.key)).toEqual(["inbox", "pipeline", "lab", "campaigns", "results", "asistente", "settings"]);
   });
 
   it("039: las pestañas de cada pilar, en orden y sin rutas repetidas", () => {
@@ -192,7 +192,7 @@ describe("menú por rol", () => {
     expect(activeSection(crm, "/bookings")?.label).toBe("Agenda");
     const lab = moduleDef("lab").sections!;
     expect(activeSection(lab, "/lab/agents/ag_1")?.label).toBe("Mis agentes");
-    expect(activeSection(lab, "/lab/documentos/grp_1")?.label).toBe("Conocimiento y documentos");
+    expect(activeSection(lab, "/lab/documentos/grp_1")?.label).toBe("Conocimiento");
     expect(pillarOfPath("/chat")?.key).toBe("inbox");
     expect(pillarOfPath("/knowledge")?.key).toBe("pipeline");
     expect(pillarOfPath("/asistente")?.key).toBe("asistente");
@@ -206,7 +206,7 @@ describe("menú por rol", () => {
       { key: "results", hidden: false },
       { key: "inbox", hidden: false },
     ];
-    expect(normalizeLayout(viejo, "owner").map((i) => i.key)).toEqual(["results", "inbox", "pipeline", "asistente", "lab", "campaigns", "settings"]);
+    expect(normalizeLayout(viejo, "owner").map((i) => i.key)).toEqual(["results", "inbox", "pipeline", "lab", "campaigns", "asistente", "settings"]);
   });
 
   it("un módulo apagado no aparece aunque el menú guardado lo muestre", () => {
@@ -238,7 +238,7 @@ describe("menú por rol", () => {
       [{ key: "settings", hidden: false }, { key: "x" }, { key: "inbox", hidden: true }, { key: "inbox", hidden: false }, { key: "instagram" }],
       "coordinador"
     );
-    expect(items.map((i) => i.key)).toEqual(["inbox", "pipeline", "asistente", "lab", "campaigns", "results", "settings"]);
+    expect(items.map((i) => i.key)).toEqual(["inbox", "pipeline", "lab", "campaigns", "results", "asistente", "settings"]);
     expect(items[0]).toEqual({ key: "inbox", hidden: true });
   });
 

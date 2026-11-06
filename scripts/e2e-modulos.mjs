@@ -245,15 +245,15 @@ async function main() {
   };
   const navB = await B.pagina("/pipeline");
   const menuB = await menuDe(navB.p);
-  ok("el menú de B solo tiene Bandeja y CRM Comercial (sin Marketing, Estudio de IA ni Inteligencia)", menuB.join() === "Bandeja,CRM Comercial", menuB.join());
+  ok("el menú de B solo tiene Bandeja y CRM Comercial (sin Marketing, Estudio de IA ni Resultados)", menuB.join() === "Bandeja,CRM Comercial", menuB.join());
   const tabsB = await navB.p.getByRole("navigation", { name: "Secciones de CRM Comercial" }).getByRole("link").allInnerTexts();
   ok("…y su CRM Comercial no trae Agenda, Tareas y notas ni Biblioteca", tabsB.join() === "Pipeline,Contactos", tabsB.join());
   await navB.p.close();
   const navA = await A.pagina("/pipeline");
   const menuA = await menuDe(navA.p);
   ok(
-    "el menú de A sí (Marketing, Estudio de IA e Inteligencia)",
-    ["Bandeja", "CRM Comercial", "Estudio de IA", "Marketing", "Inteligencia"].every((n) => menuA.includes(n)),
+    "el menú de A sí (Marketing, Estudio de IA y Resultados)",
+    ["Bandeja", "CRM Comercial", "Estudio de IA", "Marketing", "Resultados"].every((n) => menuA.includes(n)),
     menuA.join()
   );
   const tabsA = await navA.p.getByRole("navigation", { name: "Secciones de CRM Comercial" }).getByRole("link").allInnerTexts();
