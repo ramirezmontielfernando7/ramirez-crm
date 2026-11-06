@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 import { useSearchParams } from "next/navigation";
 import { ChevronLeft, MoreHorizontal, PanelRight } from "lucide-react";
 import { m } from "framer-motion";
-import { cn } from "@/lib/utils";
+import { cn, phoneCompact } from "@/lib/utils";
 import { ContactAvatar } from "@/components/avatar";
 import { ChatModeDot } from "./chat-mode-dot";
 import { effectiveMode, freeTextOutsideWindow, modeDotLabel, type ConnectionMode, type InboxDirectContext } from "@/lib/direct-connection";
@@ -81,13 +81,6 @@ function chipClass(mode: ConnectionMode): string {
     : mode === "directa"
       ? "bg-info-tint text-info-text"
       : "bg-[#8b5cf6]/10 text-[#6d3fd0]";
-}
-
-/** «5255 1234 5678» → «+52 5512345678»: espacio solo tras el prefijo del país. */
-function phoneNoSpaces(raw: string): string {
-  const d = raw.replace(/\D/g, "");
-  if (d.length > 10) return `+${d.slice(0, d.length - 10)} ${d.slice(-10)}`;
-  return `+${d}`;
 }
 
 export function InboxClient({
@@ -769,7 +762,7 @@ export function InboxClient({
                     </p>
                     {selected.contact.phone && (
                       <p className="mt-0.5 truncate font-mono text-[11.5px] text-text-3" data-testid="chat-head-phone">
-                        {phoneNoSpaces(selected.contact.phone)}
+                        {phoneCompact(selected.contact.phone)}
                       </p>
                     )}
                   </div>
