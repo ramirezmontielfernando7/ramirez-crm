@@ -46,8 +46,8 @@ const lost = stages.find((s) => s.kind === "lost");
 ok("existe una etapa de pérdida", !!lost, JSON.stringify(stages.map((s) => s.kind)));
 
 await page.goto(`${BASE}/inbox?contact=${contact.id}`);
-const moveBtn = page.getByRole("button", { name: `Mover a ${lost.name}` });
-await moveBtn.waitFor({ timeout: 20000 });
+const etapaSel = page.getByLabel("Etapa del pipeline");
+await etapaSel.waitFor({ timeout: 20000 });
 
 // 1) Camino infeliz: el servidor falla → el panel lo DICE y no se queda en Perdido.
 await page.route("**/api/pipeline/leads/*", (route) =>
@@ -55,7 +55,7 @@ await page.route("**/api/pipeline/leads/*", (route) =>
     ? route.fulfill({ status: 500, contentType: "application/json", body: JSON.stringify({ error: { code: "internal", message: "Error interno" } }) })
     : route.continue()
 );
-await moveBtn.click();
+await etapaSel.selectOption(lost.id);
 await page.getByRole("dialog", { name: "Motivo de pérdida" }).waitFor();
 ok("al elegir la etapa perdida se pide el motivo", true);
 await page.getByRole("button", { name: "Le pareció caro" }).click();
@@ -67,7 +67,7 @@ await page.unroute("**/api/pipeline/leads/*");
 await page.getByRole("button", { name: "Cerrar aviso" }).click();
 
 // 2) Camino feliz: con motivo, se mueve y PERSISTE.
-await moveBtn.click();
+await etapaSel.selectOption(lost.id);
 await page.getByRole("button", { name: "Nunca contestó" }).click();
 await page.getByRole("dialog", { name: "Motivo de pérdida" }).getByRole("button").last().click();
 let stageId = null;
@@ -78,7 +78,7 @@ for (let i = 0; i < 20; i++) {
 }
 ok("el lead quedó en Perdido en la BD", stageId === lost.id, `stage=${stageId}`);
 await page.reload();
-await page.getByRole("button", { name: `Mover a ${lost.name}` }).waitFor();
+await page.getByLabel("Etapa del pipeline").waitFor();
 // Solo los avisos del panel: Next.js tiene su propio `role="alert"` (el
 // anunciador de rutas) que siempre existe.
 const avisos = await page.locator('aside [role="alert"], div[role="alert"]').allInnerTexts();

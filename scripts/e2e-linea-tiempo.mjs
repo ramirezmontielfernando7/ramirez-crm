@@ -322,13 +322,13 @@ ok("«Quitar filtros» vuelve a Todas", /Todas/.test((await capsula.getAttribute
 // Panel de detalles.
 const y = async (loc) => (await loc.first().boundingBox())?.y ?? -1;
 const kAsign = op.locator("p.kicker", { hasText: "Asignación" });
-const kEtapa = op.locator("p.kicker", { hasText: "Etapa del pipeline" });
+const kEtapa = op.locator("p.kicker", { hasText: /^Venta$/ });
 const bMas = op.getByRole("button", { name: "Más detalles" });
 const kAct = op.locator("p.kicker", { hasText: "Actividad" });
 await kAct.first().waitFor({ timeout: 20000 });
 const orden = [await y(kAsign), await y(kEtapa), await y(bMas), await y(kAct)];
 ok(
-  "orden: Asignación → Etapa → Más detalles → Actividad",
+  "orden: Asignación → Venta → Más detalles → Actividad",
   orden.every((v, i) => v >= 0 && (i === 0 || orden[i - 1] < v)),
   JSON.stringify(orden)
 );

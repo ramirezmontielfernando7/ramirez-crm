@@ -54,7 +54,15 @@ export const GET = withAuth(async (session, _req: Request, ctx: Params) => {
           kind: stageRow.stage.kind,
         }
       : null,
-    lead: stageRow ? { id: stageRow.lead.id } : null,
+    lead: stageRow
+      ? {
+          id: stageRow.lead.id,
+          // El panel de Detalles de la Bandeja muestra y edita monto y prioridad.
+          amountCents: stageRow.lead.amountCents ?? null,
+          currency: stageRow.lead.currency ?? null,
+          priority: stageRow.lead.priority ?? null,
+        }
+      : null,
   });
 });
 
