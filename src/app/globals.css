@@ -1121,3 +1121,9 @@ html[data-lite] .usage-modal { animation: none; }
     display: none;
   }
 }
+
+/* Teléfono (maqueta móvil): la barra de pestañas sustituye a la franja de marca;
+   con un chat abierto se esconde para dejar libre el compositor. */
+@media (max-width: 1023px) {
+  html[data-chat-open] .mobile-tabbar { display: none; }
+}

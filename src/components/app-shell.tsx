@@ -6,6 +6,7 @@ import type { Branding } from "@/lib/branding";
 import type { ThemePreference } from "@/lib/theme";
 import type { ResolvedCommit } from "@/lib/version";
 import { AppNav } from "@/components/app-nav";
+import { MobileTabBar } from "@/components/mobile-tabbar";
 import { cn } from "@/lib/utils";
 import { BrandLogo, BrandTile } from "@/components/brand-mark";
 import { ViewerProvider } from "@/components/viewer-context";
@@ -275,7 +276,7 @@ function ShellFrame({
         >
           {/* Misma pieza que la barra lateral (`nav-dark`): en el teléfono la
               franja azul marino de arriba es lo que queda del bicolor. */}
-          <header className="nav-dark flex h-14 shrink-0 items-center gap-2.5 border-b bg-nav px-2 text-foreground lg:hidden">
+          <header className="nav-dark mobile-brandbar hidden h-14 shrink-0 items-center gap-2.5 border-b bg-nav px-2 text-foreground">
             {/* El logo abre el cajón, como el de la barra lateral en escritorio. */}
             <button
               onClick={() => setNavOpen(true)}
@@ -297,6 +298,7 @@ function ShellFrame({
           {/* 036 (PR 3a): avisos de consumo al 80 % y 100 % de los topes (solo el Propietario). */}
           <UsageAlertBanner />
           <main className="min-h-0 min-w-0 flex-1 overflow-hidden">{children}</main>
+          <MobileTabBar nav={nav} onMore={() => setNavOpen(true)} />
           {/* «Uso y plan» como ventana (solo el Propietario). */}
           <Suspense fallback={null}>
             <UsageDialog />
