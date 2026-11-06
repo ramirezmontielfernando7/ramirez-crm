@@ -314,11 +314,11 @@ const medirColumnas = () =>
 // atraparía un ancho a medio camino.
 const columnasOk = (t) =>
   // Lista = clamp(340px, 30vw, 460px): a 1440 de ancho son 432.
-  t.aside === 216 && t.secs[0] === 432 && t.secs.at(-1) === 320;
+  t.aside === 232 && t.secs[0] === 432 && t.secs.at(-1) === 320;
 await until(async () => columnasOk(await medirColumnas()), 8000);
 const tres = await medirColumnas();
 ok(
-  "escritorio conserva lateral 216px + lista 432px (30vw) + hilo + detalles 320px",
+  "escritorio conserva lateral 232px + lista 432px (30vw) + hilo + detalles 320px",
   columnasOk(tres),
   JSON.stringify(tres)
 );
