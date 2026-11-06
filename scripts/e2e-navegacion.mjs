@@ -280,18 +280,18 @@ async function main() {
   ok("oculto ≠ prohibido: el Asesor sigue abriendo la Bandeja y el chat de equipo (API 200)", (await S.call("GET", "/api/team-chat/threads")).status === 200);
   const chat = await S.pagina("/chat");
   ok("…y la página /chat (200), sin barra de pantalla encima (columnas a altura completa)", chat.status === 200 && (await chat.p.locator("header[data-page-header]").count()) === 0, String(chat.status));
-  // 039: Bandeja ⇄ Chat de equipo con las pestañas Empresa · Equipo, siempre a la vista.
+  // 039: Bandeja ⇄ Chat de equipo con las pestañas Clientes · Equipo, siempre a la vista.
   const tabEquipo = chat.p.getByTestId("inbox-tab-chat");
   await tabEquipo.waitFor({ timeout: 30000 });
   ok(
-    "/chat muestra las pestañas «Empresa» y «Equipo» (la actual marcada), sin menú escondido",
+    "/chat muestra las pestañas «Clientes» y «Equipo» (la actual marcada), sin menú escondido",
     (await tabEquipo.getAttribute("aria-current")) === "page" && (await chat.p.getByTestId("inbox-tab-inbox").count()) === 1
   );
   await chat.p.getByTestId("inbox-tab-inbox").click();
-  ok("tocar «Empresa» lleva a /inbox", await hasta(async () => new URL(chat.p.url()).pathname === "/inbox", 30000), chat.p.url());
+  ok("tocar «Clientes» lleva a /inbox", await hasta(async () => new URL(chat.p.url()).pathname === "/inbox", 30000), chat.p.url());
   const deVuelta = chat.p.getByTestId("inbox-tab-inbox");
   await deVuelta.waitFor({ timeout: 30000 });
-  ok("…donde «Empresa» queda marcada, sin barra encima de la lista", (await deVuelta.getAttribute("aria-current")) === "page" && (await chat.p.locator("header[data-page-header]").count()) === 0);
+  ok("…donde «Clientes» queda marcada, sin barra encima de la lista", (await deVuelta.getAttribute("aria-current")) === "page" && (await chat.p.locator("header[data-page-header]").count()) === 0);
   await chat.p.close();
   ok("sin permiso sigue en 403 (Resultados)", (await S.call("GET", "/api/analytics/sales?from=2026-01-01&to=2026-01-31")).status === 403);
   const coordMenu = await C.pagina("/inbox");
@@ -312,8 +312,8 @@ async function main() {
   await A.call("POST", `/api/platform/organizations/${N.orgId}/modules`, { teamChat: false });
   await sleep(CACHE_MS);
   const sinChat = await S.pagina("/inbox");
-  await sinChat.p.getByRole("heading", { name: "Chats" }).waitFor({ timeout: 30000 });
-  ok("sin `team_chat`: «Bandeja» sin pestañas", (await sinChat.p.getByTestId("inbox-tabs").count()) === 0);
+  await sinChat.p.getByRole("heading", { name: "Clientes" }).waitFor({ timeout: 30000 });
+  ok("sin `team_chat`: solo «Clientes», sin pestañas", (await sinChat.p.getByTestId("inbox-tabs").count()) === 0);
   await sinChat.p.close();
   await A.call("POST", `/api/platform/organizations/${N.orgId}/modules`, { teamChat: true });
   await sleep(CACHE_MS);
