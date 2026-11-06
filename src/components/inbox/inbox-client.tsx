@@ -8,7 +8,7 @@ import { m } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { ContactAvatar } from "@/components/avatar";
 import { ChatModeDot } from "./chat-mode-dot";
-import { freeTextOutsideWindow, type InboxDirectContext } from "@/lib/direct-connection";
+import { effectiveMode, freeTextOutsideWindow, modeDotLabel, type ConnectionMode, type InboxDirectContext } from "@/lib/direct-connection";
 import type { ConversationDto, MessageDto } from "@/lib/types";
 import { type Channel } from "@/lib/channels";
 import { ChannelBadge } from "@/components/channel-badge";
@@ -73,6 +73,22 @@ export type InboxInitial = {
   nextCursor: string | null;
   counts: InboxCounts;
 };
+
+/** Chip suave junto al nombre: verde Oficial, azul Directa, morado Híbrida. */
+function chipClass(mode: ConnectionMode): string {
+  return mode === "meta"
+    ? "bg-success-tint text-success-text"
+    : mode === "directa"
+      ? "bg-info-tint text-info-text"
+      : "bg-[#8b5cf6]/10 text-[#6d3fd0]";
+}
+
+/** «5255 1234 5678» → «+52 5512345678»: espacio solo tras el prefijo del país. */
+function phoneNoSpaces(raw: string): string {
+  const d = raw.replace(/\D/g, "");
+  if (d.length > 10) return `+${d.slice(0, d.length - 10)} ${d.slice(-10)}`;
+  return `+${d}`;
+}
 
 export function InboxClient({
   channels,
@@ -430,7 +446,10 @@ export function InboxClient({
     },
     [refreshConversation]
   );
-  const headerActions = useConversationActions(onRemoved);
+  const headerActions = useConversationActions(onRemoved, () => {
+    togglePanel(true);
+    setTimeout(() => document.getElementById("chat-historial")?.scrollIntoView({ behavior: "smooth", block: "start" }), 350);
+  });
   const select = useCallback(
     (id: string, conv?: ConversationDto) => {
       setSelectedId(id);
@@ -732,10 +751,28 @@ export function InboxClient({
                       size="md"
                     />
                   )}
-                  <p className="flex min-w-0 items-center gap-1.5 text-[15px] font-semibold leading-tight tracking-tight">
-                    {multiChannel && <ChannelBadge channel={selected.channel} />}
-                    <span className="truncate">{contactLabel(selected.contact)}</span>
-                  </p>
+                  <div className="min-w-0">
+                    <p className="flex min-w-0 items-center gap-1.5 text-[15px] font-semibold leading-tight tracking-tight">
+                      {multiChannel && <ChannelBadge channel={selected.channel} />}
+                      <span className="truncate">{contactLabel(selected.contact)}</span>
+                      {direct && !direct.metaless && selected.channel === "whatsapp" && (
+                        <span
+                          data-testid="chat-mode-chip"
+                          className={cn(
+                            "shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold",
+                            chipClass(effectiveMode(selected.connectionMode, direct.defaultMode))
+                          )}
+                        >
+                          {modeDotLabel(effectiveMode(selected.connectionMode, direct.defaultMode))}
+                        </span>
+                      )}
+                    </p>
+                    {selected.contact.phone && (
+                      <p className="mt-0.5 truncate font-mono text-[11.5px] text-text-3" data-testid="chat-head-phone">
+                        {phoneNoSpaces(selected.contact.phone)}
+                      </p>
+                    )}
+                  </div>
                 </div>
                 {/* 034: Archivar / Eliminar del chat abierto (las mismas opciones del
                     clic derecho de la fila; es también el camino con teclado). */}
