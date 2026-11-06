@@ -46,7 +46,7 @@
     --radius-panel: 16px;
     /* Sombras suaves y neutras (sin tinte de color). */
     --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.04), 0 4px 14px -6px rgba(0, 0, 0, 0.08);
-    --shadow-panel: 0 1px 2px rgba(0, 0, 0, 0.04), 0 10px 30px -12px rgba(0, 0, 0, 0.1);
+    --shadow-panel: none;
     /* Letra: familia de interfaz, tamaño base y pesos por función. */
     --font-ui: var(--font-inter), system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
     --text-base: 14px;
@@ -81,10 +81,10 @@
     /* Chat: el cliente entra en verde WhatsApp, el CRM contesta en el acento */
     /* Un punto más claro que el fondo base: el hilo es un panel aparte. */
     --chat-bg: #fafafb;
-    --bubble-in: #eaf7ef;
-    --bubble-in-border: #d7eede;
-    --bubble-out: var(--accent-tint);
-    --bubble-out-border: var(--accent-soft);
+    --bubble-in: #ffffff;
+    --bubble-in-border: #e6e6eb;
+    --bubble-out: color-mix(in srgb, var(--accent) 17%, #ffffff);
+    --bubble-out-border: color-mix(in srgb, var(--accent) 17%, #ffffff);
     --bubble-out-text: var(--text);
 
     /* Acento (default: azul Vocero; el white-label lo sobreescribe) */
@@ -447,9 +447,9 @@
     @apply text-[12px] font-normal text-text-3;
   }
 
-  /* Etiqueta editorial en mono: "01 · BANDEJA", "ETAPA", "NOTAS" */
+  /* Etiqueta editorial en sans: "01 · BANDEJA", "ETAPA", "NOTAS" */
   .kicker {
-    @apply font-mono text-[10.5px] font-medium uppercase tracking-[0.14em] text-text-3;
+    @apply text-[11px] font-semibold uppercase tracking-[0.04em] text-text-3;
   }
 }
 
@@ -674,7 +674,7 @@
 
 /*
   Demfort Premium en el chat (PR 2): burbujas suaves de la maqueta de la ficha
-  (esquinas amplias, sin sombra, hora en mono). Solo cuando el estilo de chat
+  (esquinas amplias, sin sombra, hora en sans). Solo cuando el estilo de chat
   es «Clásico»: si alguien eligió «WhatsApp» o «Premium» de chat, ese gana.
 */
 [data-ui="premium"]:not([data-chat="whatsapp"]):not([data-chat="premium"]) .bubble {
