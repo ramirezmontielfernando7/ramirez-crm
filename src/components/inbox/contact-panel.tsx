@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { AlertTriangle, Bot, Cable, Check, ChevronRight, ListChecks, Sparkles, UserRound } from "lucide-react";
+import { AlertTriangle, Bot, Cable, ChevronRight, ListChecks, Sparkles, UserRound, X } from "lucide-react";
 import {
   externalAnswerLabel,
   externalAnswering,
@@ -16,10 +16,11 @@ import type {
   FichaDto,
   FichaValue,
   LossReason,
+  PriorityValue,
   StageDto,
 } from "@/lib/types";
 import { fetchJson, jsonInit } from "@/lib/fetch-json";
-import { cn, formatPhone } from "@/lib/utils";
+import { cn, phoneCompact } from "@/lib/utils";
 import { AnuncioOrigen } from "@/components/anuncio-origen";
 import { ContactAvatar } from "@/components/avatar";
 import { Button } from "@/components/ui/button";
@@ -29,6 +30,10 @@ import { AssignmentCard } from "@/components/assignment/assignment-card";
 import { ParticipantsCard } from "@/components/assignment/participants-card";
 import { ContactTagsCard } from "@/components/tags/contact-tags-card";
 import { LossReasonDialog } from "@/components/pipeline/loss-reason-dialog";
+import { AmountDialog } from "@/components/pipeline/amount-dialog";
+import { PriorityBadge } from "@/components/pipeline/priority-picker";
+import { formatMoneyCents } from "@/lib/money";
+import { stageDot } from "@/lib/tags";
 import { useViewer } from "@/components/viewer-context";
 import { ChatTimeline } from "@/components/inbox/chat-timeline";
 import { ContactNotes } from "@/components/work/contact-notes";
@@ -79,6 +84,13 @@ export function ContactPanel({
   const [stages, setStages] = useState<StageDto[]>([]);
   const [currentStageId, setCurrentStageId] = useState<string | null>(null);
   const [leadId, setLeadId] = useState<string | null>(null);
+  // Venta: monto y prioridad del lead (se editan desde «Venta»).
+  const [sale, setSale] = useState<{ amountCents: number | null; currency: string | null; priority: PriorityValue | null }>({
+    amountCents: null,
+    currency: null,
+    priority: null,
+  });
+  const [editingSale, setEditingSale] = useState(false);
   // 018: de qué anuncio llegó; null si escribió por su cuenta.
   const [anuncio, setAnuncio] = useState<AnuncioDto | null>(null);
   // Quién responde (agente incluido, cerebro externo o los dos): sin esto, el
@@ -140,6 +152,7 @@ export function ContactPanel({
       setFicha(detail.contact?.ficha ?? {});
       setCurrentStageId(detail.stage?.id ?? null);
       setLeadId(detail.lead?.id ?? null);
+      setSale(saleOf(detail.lead));
       setAnuncio(detail.anuncio ?? null);
       setLoaded(true);
     } else {
@@ -168,6 +181,7 @@ export function ContactPanel({
     setFicha(detail.contact?.ficha ?? {});
     setCurrentStageId(detail.stage?.id ?? null);
     setLeadId(detail.lead?.id ?? null);
+    setSale(saleOf(detail.lead));
     // La imagen del creativo se copia después de que entra el mensaje: este
     // refetch en vivo es lo que la hace aparecer sin recargar.
     setAnuncio(detail.anuncio ?? null);
@@ -239,6 +253,21 @@ export function ContactPanel({
     bumpTimeline();
   }
 
+  /** Monto y prioridad: no mueven al lead de etapa, solo escriben el dato. */
+  async function saveSale(patch: { amountCents?: number | null; priority?: PriorityValue | null }) {
+    if (!leadId) return;
+    const previous = sale;
+    setSale((s) => ({ ...s, ...patch }));
+    const res = await fetchJson(`/api/pipeline/leads/${leadId}`, jsonInit("PATCH", patch));
+    if (!res.ok) {
+      setSale(previous);
+      setError(`No se guardó: ${res.error}`);
+      return;
+    }
+    void refreshLive();
+    bumpTimeline();
+  }
+
   /** Manda SOLO lo que cambió: el servidor hace merge (ver `server/bot/ficha`). */
   async function saveFicha(patch: Record<string, FichaValue | null>) {
     setFicha((prev) => {
@@ -255,20 +284,19 @@ export function ContactPanel({
     void refreshLive();
   }
 
-  const currentIndex = stages.findIndex((s) => s.id === currentStageId);
 
   return (
     <div className="flex h-full flex-col">
       {/* Por debajo de xl el panel flota (bg-popover, ver InboxClient): su
           cabecera va del mismo tono para no dejar una franja más oscura. */}
       <header className="sticky top-0 flex h-14 shrink-0 items-center justify-between border-b bg-background px-4 max-xl:bg-popover">
-        <h3 className="kicker text-text-2">Detalles</h3>
+        <h3 className="text-[17px] font-semibold tracking-tight">Detalles</h3>
         <button
           onClick={onClose}
           aria-label="Ocultar panel"
           className="rounded p-1 text-text-3 hover:bg-accent hover:text-foreground"
         >
-          <ChevronRight className="h-4 w-4" strokeWidth={1.7} />
+          <X className="h-4 w-4" strokeWidth={1.7} />
         </button>
       </header>
 
@@ -295,14 +323,14 @@ export function ContactPanel({
             <ContactAvatar
               name={contactLabel(conversation.contact)}
               seed={conversation.contact.id}
-              size="md"
+              size="lg"
             />
             <div className="min-w-0">
-              <p className="truncate text-sm font-bold tracking-tight">
+              <p className="truncate text-[17px] font-semibold tracking-tight">
                 {contactLabel(conversation.contact)}
               </p>
-              <p className="text-xs text-text-3">
-                {formatPhone(conversation.contact.phone)}
+              <p className="text-[13px] text-text-2">
+                {phoneCompact(conversation.contact.phone)}
               </p>
             </div>
           </div>
@@ -457,49 +485,61 @@ export function ContactPanel({
           onChanged={bumpTimeline}
         />
 
-        {/* Stepper de etapa */}
+        {/* Venta: etapa, monto, prioridad y quién lo atiende (lo de siempre, en un bloque). */}
         {stages.length > 0 && leadId && (
-          <section className="border-b p-4">
-            <p className="kicker mb-3">Etapa del pipeline</p>
-            <ol>
-              {stages.map((s, i) => {
-                const done = currentIndex >= 0 && i < currentIndex;
-                const current = s.id === currentStageId;
-                return (
-                  <li key={s.id} className="relative flex gap-3 pb-4 last:pb-0">
-                    {i < stages.length - 1 && (
-                      <span
-                        className={cn(
-                          "absolute left-[7px] top-4 h-full w-px",
-                          done ? "bg-brand" : "bg-border-strong"
-                        )}
-                      />
-                    )}
-                    <button
-                      onClick={() => requestMove(s)}
-                      aria-label={`Mover a ${s.name}`}
-                      className={cn(
-                        "relative z-10 mt-0.5 flex h-[15px] w-[15px] shrink-0 items-center justify-center rounded-full transition-colors",
-                        done && "bg-brand text-brand-fg",
-                        current && "bg-brand ring-4 ring-brand-soft",
-                        !done && !current && "border border-border-strong bg-background hover:border-brand"
-                      )}
+          <section className="border-b p-4" data-testid="panel-sale">
+            <p className="kicker mb-3">Venta</p>
+            <dl className="space-y-2.5 text-[13px]">
+              <div className="flex items-center justify-between gap-3">
+                <dt className="text-text-2">Etapa</dt>
+                <dd>
+                  <span className="relative inline-flex items-center">
+                    <StageDot stage={stages.find((x) => x.id === currentStageId)} />
+                    <select
+                      aria-label="Etapa del pipeline"
+                      value={currentStageId ?? ""}
+                      onChange={(e) => {
+                        const st = stages.find((x) => x.id === e.target.value);
+                        if (st) requestMove(st);
+                      }}
+                      className="h-8 rounded-full border bg-background pl-6 pr-2 text-[13px] font-medium outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     >
-                      {done && <Check className="h-2.5 w-2.5" strokeWidth={3} />}
-                    </button>
-                    <button
-                      onClick={() => requestMove(s)}
-                      className={cn(
-                        "text-left text-[13px]",
-                        current ? "font-[650] text-brand-text" : "text-text-2 hover:text-foreground"
-                      )}
-                    >
-                      {s.name}
-                    </button>
-                  </li>
-                );
-              })}
-            </ol>
+                      {currentStageId === null && <option value="">Sin etapa</option>}
+                      {stages.map((st) => (
+                        <option key={st.id} value={st.id}>
+                          {st.name}
+                        </option>
+                      ))}
+                    </select>
+                  </span>
+                </dd>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <dt className="text-text-2">Monto</dt>
+                <dd>
+                  <button
+                    type="button"
+                    onClick={() => setEditingSale(true)}
+                    className="rounded px-1 font-semibold hover:bg-accent"
+                    data-testid="panel-amount"
+                  >
+                    {sale.amountCents === null ? "Sin monto" : formatMoneyCents(sale.amountCents, sale.currency ?? "MXN")}
+                  </button>
+                </dd>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <dt className="text-text-2">Prioridad</dt>
+                <dd>
+                  <button type="button" onClick={() => setEditingSale(true)} className="rounded px-1 hover:bg-accent">
+                    {sale.priority ? <PriorityBadge value={sale.priority} /> : <span className="text-text-3">Sin prioridad</span>}
+                  </button>
+                </dd>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <dt className="text-text-2">Asignado</dt>
+                <dd className="font-medium">{conversation.assignee?.name ?? <span className="text-text-3">Sin asignar</span>}</dd>
+              </div>
+            </dl>
           </section>
         )}
 
@@ -551,6 +591,20 @@ export function ContactPanel({
         </div>
       </div>
 
+      {editingSale && leadId && (
+        <AmountDialog
+          leadName={contactLabel(conversation.contact)}
+          currency={sale.currency ?? "MXN"}
+          amountCents={sale.amountCents}
+          priority={sale.priority}
+          onPriorityChange={(p) => void saveSale({ priority: p })}
+          onCancel={() => setEditingSale(false)}
+          onSave={(cents) => {
+            setEditingSale(false);
+            void saveSale({ amountCents: cents });
+          }}
+        />
+      )}
       {pendingLoss && (
         <LossReasonDialog
           leadName={contactLabel(conversation.contact)}
@@ -567,9 +621,24 @@ export function ContactPanel({
 }
 
 /** Lo que responde `GET /api/contacts/[id]` y usa este panel. */
+function StageDot({ stage }: { stage: StageDto | undefined }) {
+  const d = stageDot(stage?.color, stage?.name);
+  return (
+    <span
+      aria-hidden
+      className={cn("pointer-events-none absolute left-2.5 h-2 w-2 rounded-full", d.className)}
+      style={d.style}
+    />
+  );
+}
+
+function saleOf(lead: ContactDetail["lead"]) {
+  return { amountCents: lead?.amountCents ?? null, currency: lead?.currency ?? null, priority: lead?.priority ?? null };
+}
+
 type ContactDetail = {
   contact: ContactDto | null;
   stage: { id: string } | null;
-  lead: { id: string } | null;
+  lead: { id: string; amountCents?: number | null; currency?: string | null; priority?: PriorityValue | null } | null;
   anuncio: AnuncioDto | null;
 };
