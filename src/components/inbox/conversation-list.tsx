@@ -40,7 +40,7 @@ import {
   type ListQuery,
   type ListStatus,
 } from "@/lib/inbox-list";
-import { StageCapsule, TagsCapsule, type PatchRow } from "./chat-capsules";
+import { StageCapsule, TagsCapsule, shortName, type PatchRow } from "./chat-capsules";
 import { useConversationActions } from "./conversation-actions";
 import { longPressClass, useLongPress } from "./use-long-press";
 import { useInboxCatalogs } from "./use-inbox-catalogs";
@@ -406,6 +406,7 @@ export const ConversationList = memo(function ConversationList({
     <div className="flex h-full flex-col">
       <InboxListHeader
         current="inbox"
+        flush
         rowRef={rowRef}
         actions={
           <>
@@ -447,7 +448,7 @@ export const ConversationList = memo(function ConversationList({
           </>
         }
       />
-      <div className="flex shrink-0 flex-col gap-2 px-4 pb-2.5 pt-1">
+      <div className="flex shrink-0 flex-col gap-2 px-4 pb-2.5 pt-0">
         {showSearch && (
         <ListSearch
           ref={searchRef}
@@ -902,7 +903,7 @@ const ConversationRow = memo(function ConversationRow({
           </span>
         </button>
         {/* Alineadas con el texto (avatar de 36 px + 12 px = 64 px). */}
-        <div className="relative flex flex-col gap-1 pb-2 pl-16 pr-4 pt-1">
+        <div className="relative flex flex-col gap-1 pb-2 pl-16 pr-4 pt-0.5">
           <div className="flex min-w-0 items-center gap-1.5">
             <StageCapsule conversation={c} stages={stages} onPatch={onPatchRow} onRefetch={onRefetch} onError={onError} />
             <TagsCapsule
@@ -914,6 +915,16 @@ const ConversationRow = memo(function ConversationRow({
               onRefetch={onRefetch}
               onError={onError}
             />
+            {c.assignee && (
+              <span
+                data-row-assignee
+                title={`Atiende: ${c.assignee.name}`}
+                className="ml-auto inline-flex h-5 max-w-[7rem] shrink-0 items-center gap-1 rounded-full border border-border-strong bg-surface py-0 pl-0.5 pr-2 text-[11px] leading-none text-text-2"
+              >
+                <ContactAvatar name={c.assignee.name} size="xs" className="h-4 w-4 text-[8px]" />
+                <span className="truncate">{shortName(c.assignee.name)}</span>
+              </span>
+            )}
           </div>
           {c.campaign && (
             <span
