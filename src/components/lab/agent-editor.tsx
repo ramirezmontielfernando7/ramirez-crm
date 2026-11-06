@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, ChevronDown, Pencil } from "lucide-react";
 import type { CreatorField } from "@/lib/agent-creator";
 import { AgentConfigForm } from "@/components/agent/agent-config-form";
@@ -72,7 +72,10 @@ export function AgentEditor({ id, documents = false }: { id: string; documents?:
   const [summary, setSummary] = useState<AgentSummary | null>(null);
   const [versions, setVersions] = useState<AgentVersion[] | null>(null);
   const [tab, setTab] = useState<"config" | "probar">("config");
-  const [mode, setMode] = useState<"creator" | "form">("creator");
+  // La portada del Estudio manda aquí la idea escrita (?idea=) o pide el formulario (?modo=formulario).
+  const params = useSearchParams();
+  const idea = params.get("idea")?.slice(0, 2000) || undefined;
+  const [mode, setMode] = useState<"creator" | "form">(params.get("modo") === "formulario" ? "form" : "creator");
   const [dialog, setDialog] = useState<Dialog>(null);
   const [restoring, setRestoring] = useState<AgentVersion | null>(null);
   const [busy, setBusy] = useState(false);
@@ -295,7 +298,7 @@ export function AgentEditor({ id, documents = false }: { id: string; documents?:
           </div>
           {mode === "creator" && (
             <div className="min-h-0 flex-1">
-              <AgentCreator config={cfg} onField={setField} />
+              <AgentCreator config={cfg} onField={setField} initialMessage={idea} />
             </div>
           )}
           <div className={cn("min-h-0 flex-1 overflow-y-auto", mode === "creator" && "hidden")}>

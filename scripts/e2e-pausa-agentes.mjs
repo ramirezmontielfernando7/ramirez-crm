@@ -163,7 +163,7 @@ async function main() {
     const aviso = page.getByTestId("agents-paused-banner");
     await aviso.waitFor();
     ok("el Estudio de IA muestra el aviso de pausa", /en pausa/i.test(await aviso.innerText()));
-    const fila = page.locator("ul > li").first();
+    const fila = page.locator('[role="row"]').nth(1);
     ok("los interruptores por agente quedan bloqueados mientras dura la pausa general", await fila.getByRole("switch").isDisabled());
     await page.getByTestId("agents-resume").click();
     await aviso.waitFor({ state: "detached" });
@@ -171,15 +171,15 @@ async function main() {
     ok("…y el servidor ya no está en pausa", (await api("/api/agent/pause")).json?.paused === false);
 
     console.log("\n== 4. Interruptor por agente ==");
-    const sw = page.locator("ul > li").first().getByRole("switch");
+    const sw = page.locator('[role="row"]').nth(1).getByRole("switch");
     ok("el general aparece Activo", (await sw.getAttribute("aria-checked")) === "true");
     await sw.click();
-    await page.locator("ul > li").first().getByText("Apagado").first().waitFor();
+    await page.locator('[role="row"]').nth(1).getByText("Apagado").first().waitFor();
     ok("apagarlo desde la lista lo marca «Apagado»", ((await api("/api/lab/agents")).json?.agents ?? []).find((a) => a.isGeneral)?.paused === true);
     const apagado = await escribe(false);
     ok("con el agente apagado, su chat pasa a una persona (sin respuesta del agente)", apagado.respuesta === null && apagado.fila?.handoff_reason === "pausa", JSON.stringify(apagado.fila));
     await sw.click();
-    await page.waitForFunction(() => document.querySelector("ul > li [role=switch]")?.getAttribute("aria-checked") === "true");
+    await page.waitForFunction(() => document.querySelector('[role="row"]:nth-child(2) [role=switch]')?.getAttribute("aria-checked") === "true");
     ok("encenderlo lo devuelve a Activo", ((await api("/api/lab/agents")).json?.agents ?? []).find((a) => a.isGeneral)?.paused === false);
   } finally {
     await browser.close();
