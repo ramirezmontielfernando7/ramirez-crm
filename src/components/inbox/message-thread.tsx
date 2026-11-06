@@ -58,7 +58,7 @@ export const MessageThread = memo(function MessageThread({ messages }: { message
           new Date(prev.createdAt).toDateString() !==
             new Date(m.createdAt).toDateString();
         const grouped =
-          !newDay && prev !== undefined && prev.direction === m.direction;
+          !newDay && prev !== undefined && prev.direction === m.direction && prev.groupSenderId === m.groupSenderId;
         const out = m.direction === "out";
 
         return (

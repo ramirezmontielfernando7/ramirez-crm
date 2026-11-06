@@ -8,10 +8,10 @@
  */
 
 /** Qué lista pide la Bandeja: la principal o la pestaña «Campañas». */
-export type InboxView = "main" | "campaigns";
+export type InboxView = "main" | "campaigns" | "groups";
 
 export function parseInboxView(value: string | null | undefined): InboxView {
-  return value === "campaigns" ? "campaigns" : "main";
+  return value === "groups" ? "groups" : value === "campaigns" ? "campaigns" : "main";
 }
 
 /**

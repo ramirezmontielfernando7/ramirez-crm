@@ -6,7 +6,7 @@ import { Check, ChevronDown, Filter } from "lucide-react";
 import { SPRING } from "@/components/motion";
 import { cn } from "@/lib/utils";
 
-export type InboxFilter = "all" | "unread" | "anuncios" | "humano" | "archived" | "campaigns";
+export type InboxFilter = "all" | "unread" | "anuncios" | "humano" | "archived" | "campaigns" | "groups";
 
 /**
  * Los filtros de la Bandeja en UNA cápsula junto al título: dice qué se está

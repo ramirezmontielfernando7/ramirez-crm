@@ -102,15 +102,16 @@ export { DIRECT_TIMEOUT_TEXT };
  */
 export async function directRouteFor(
   organizationId: string,
-  conversation: { channel: string; connectionMode: string | null; lastInboundAt: Date | null },
+  conversation: { channel: string; connectionMode: string | null; lastInboundAt: Date | null; groupJid?: string | null },
   allowDirect: boolean,
   now = new Date(),
   opts: { ai?: boolean } = {}
 ): Promise<Route> {
   const ai = opts.ai === true;
+  if (conversation.groupJid && (ai || !allowDirect)) return { via: "unavailable", reason: "disconnected" };
   if ((!allowDirect && !ai) || conversation.channel !== "whatsapp") return { via: "meta" };
   try {
-    if (!(await orgHasConexionDirecta(organizationId))) return { via: "meta" };
+    if (!(await orgHasConexionDirecta(organizationId))) return conversation.groupJid ? { via: "unavailable", reason: "disconnected" } : { via: "meta" };
     const [settings, connection, hasMeta] = await Promise.all([
       getDirectSettings(organizationId),
       getDirectConnection(organizationId),
@@ -120,9 +121,9 @@ export async function directRouteFor(
       moduleOn: true,
       allowDirect,
       ai,
-      hasMeta,
+      hasMeta: conversation.groupJid ? false : hasMeta,
       channel: conversation.channel,
-      chatMode: (conversation.connectionMode as ConnectionMode | null) ?? null,
+      chatMode: conversation.groupJid ? "directa" : (conversation.connectionMode as ConnectionMode | null) ?? null,
       settings,
       connection,
       windowOpen: isWindowOpen(conversation.lastInboundAt, now),
@@ -130,7 +131,7 @@ export async function directRouteFor(
     });
   } catch (err) {
     log.error("no se pudo decidir la vía del envío; sale por Meta", { org: organizationId, err });
-    return { via: "meta" };
+    return conversation.groupJid ? { via: "unavailable", reason: "disconnected" } : { via: "meta" };
   }
 }
 
@@ -352,7 +353,7 @@ async function deliver(organizationId: string, messageId: string): Promise<Outco
     if (isPaused(connection, new Date())) return fail("not_connected", unavailableText("paused"));
     if (connection.status !== "connected") return fail("not_connected", unavailableText("disconnected"));
 
-    const number = directNumber(row.contact.phone);
+    const number = row.contact.waGroupJid ?? directNumber(row.contact.phone);
     if (!number) return fail("meta_error", "Este contacto no tiene teléfono: no se puede enviar por conexión directa.");
 
     const opened = await openDirectTarget(organizationId, numberId);
@@ -385,6 +386,10 @@ async function deliver(organizationId: string, messageId: string): Promise<Outco
         .set({ status: "sent", altMessageId: altId, sentAt: row.message.sentAt ?? new Date(), error: null })
         .where(scoped(schema.message.organizationId, organizationId, eq(schema.message.id, messageId)))
         .returning();
+      if (row.contact.waGroupJid) {
+        await getDb().delete(schema.message).where(scoped(schema.message.organizationId, organizationId,
+          eq(schema.message.waMessageId, `direct.group.${organizationId}.${altId}`), ne(schema.message.id, messageId)));
+      }
       if (numberId) await dropNumberEcho(organizationId, numberId, altId, messageId);
       publishStatus(organizationId, scope, { conversationId: row.message.conversationId, messageId, status: "sent" }, sent, row.media);
       return { ok: true, altId };

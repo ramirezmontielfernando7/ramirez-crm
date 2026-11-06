@@ -90,6 +90,7 @@ function recentMarketingExists(marketing: MarketingRules): SQL {
 function eligibleBase(): SQL[] {
   return [
     eq(schema.contact.channel, "whatsapp"),
+    isNull(schema.contact.waGroupJid),
     isNull(schema.contact.archivedAt),
     notLabContact(schema.contact.id),
     or(isNotNull(schema.contact.phone), isNotNull(schema.contact.waUserId))!,
@@ -158,6 +159,7 @@ export async function audienceBreakdown(
         schema.contact.organizationId,
         organizationId,
         eq(schema.contact.channel, "whatsapp"),
+        isNull(schema.contact.waGroupJid),
         notLabContact(schema.contact.id),
         isNull(schema.contact.privateToNumberId),
         ...filterConditions(audience)
