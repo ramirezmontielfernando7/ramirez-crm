@@ -683,7 +683,7 @@ export function InboxClient({
           hilo en cuanto hay conversación elegida (patrón maestro-detalle). */}
       <section
         className={cn(
-          "w-full shrink-0 overflow-hidden border-r md:w-[clamp(300px,32vw,340px)] lg:w-[360px]",
+          "w-full shrink-0 overflow-hidden border-r md:w-[clamp(340px,36vw,400px)] lg:w-[420px]",
           "lg:rounded-panel lg:border lg:bg-surface lg:shadow-panel",
           selected && "max-md:hidden"
         )}
