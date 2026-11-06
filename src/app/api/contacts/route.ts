@@ -69,25 +69,31 @@ export const GET = withAuth(async (session, req: Request) => {
     return Response.json({ contacts: [], total: 0, page, pageSize });
 
   // Los archivados se quitan EN la consulta, antes del corte de la página.
-  const where = scopedContacts(
-    schema.contact.organizationId,
-    session.access,
-    schema.contact.id,
+  // Mismas condiciones para la página y para el total (cada consulta lleva su
+  // scopedContacts() a la vista: lo vigila tenant-query-guard).
+  const conditions = [
     search,
     stageContactIds ? inArray(schema.contact.id, stageContactIds) : undefined,
     includeArchived ? undefined : isNull(schema.contact.archivedAt),
-    ...contactFilterConditions(filter)
-  );
+    ...contactFilterConditions(filter),
+  ];
 
   const [rows, totals] = await Promise.all([
     db
       .select()
       .from(schema.contact)
-      .where(where)
+      .where(
+        scopedContacts(schema.contact.organizationId, session.access, schema.contact.id, ...conditions)
+      )
       .orderBy(desc(schema.contact.updatedAt), desc(schema.contact.id))
       .limit(pageSize)
       .offset((page - 1) * pageSize),
-    db.select({ n: count() }).from(schema.contact).where(where),
+    db
+      .select({ n: count() })
+      .from(schema.contact)
+      .where(
+        scopedContacts(schema.contact.organizationId, session.access, schema.contact.id, ...conditions)
+      ),
   ]);
   const total = Number(totals[0]?.n ?? 0);
 
