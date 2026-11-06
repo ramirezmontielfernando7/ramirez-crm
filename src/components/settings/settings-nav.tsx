@@ -1,88 +1,152 @@
 "use client";
 
+import { useState } from "react";
+import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Settings } from "lucide-react";
+import {
+  Bell,
+  CalendarDays,
+  Eye,
+  MessageCircle,
+  MessageSquare,
+  Plug,
+  Search,
+  Settings,
+  SlidersHorizontal,
+  Smartphone,
+  Tag,
+  Target,
+  Users,
+  Wallet,
+  X,
+  Zap,
+  type LucideIcon,
+} from "lucide-react";
 import { PageShell } from "@/components/ui/page-shell";
-import { SectionTabs, type SectionTab } from "@/components/ui/section-tabs";
+import { SectionTabs } from "@/components/ui/section-tabs";
 import { pathWithin } from "@/lib/modules/nav-layout";
+import { openUsageDialog } from "@/lib/usage-dialog";
+import { cn } from "@/lib/utils";
 
 /**
- * 039 — Ajustes en 5 pestañas (`SectionTabs` del `PageShell`), cada una con
- * sus páginas de siempre (sus direcciones no cambian):
+ * Ajustes en una columna de secciones a la izquierda (como el resto del CRM
+ * reorganizado), en cuatro grupos: Negocio · Atención y ventas · IA conectada
+ * · Personal. Arriba, «Buscar un ajuste». Las direcciones de cada página
+ * (`/settings/<clave>`) no cambian.
  *
- * 1. Canales y Meta: WhatsApp, Messenger, Plantillas (sin Campañas) y
- *    Anuncios (Atribución / CAPI).
- * 2. Equipo y permisos: Miembros y roles, Chat de equipo.
- * 3. Operación CRM: Etiquetas, Motivos de pérdida, Respuestas rápidas y
- *    Conectores de agenda.
- * 4. Marca y apariencia: Personalización (Apariencia, Marca y Navegación).
- * 5. Uso y plan: el consumo del mes contra los topes (solo el Propietario).
- *
- * Una pestaña aparece si al menos una de sus páginas se puede abrir; con más
- * de una, sus páginas van en una segunda fila dentro del contenido. Qué
- * páginas existen lo decide el servidor y baja por prop (`allowed` y los
- * módulos): este es un componente de cliente y no puede leer variables de
- * entorno. El servidor valida igual cada página y cada ruta.
+ * Un renglón puede reunir varias páginas (Canales y conexiones: WhatsApp,
+ * Messenger, Plantillas y Conexión directa); con más de una se muestran como
+ * control segmentado dentro del contenido. Qué páginas existen lo decide el
+ * servidor y baja por prop (`allowed` y los módulos): este es un componente de
+ * cliente y no puede leer variables de entorno. El servidor valida igual cada
+ * página y cada ruta.
  */
 type Page = { slug: string; label: string };
-type Group = { label: string; pages: readonly Page[] };
+type Item = {
+  id: string;
+  label: string;
+  icon: LucideIcon;
+  /** Páginas que reúne; la primera visible es a donde lleva el renglón. */
+  pages: readonly Page[];
+  /** Otras palabras con las que se encuentra en el buscador. */
+  keywords?: string;
+  /** Sobrescribe el destino y cuándo se enciende (p. ej. Notificaciones dentro de Personalización). */
+  href?: string;
+  match?: (pathname: string) => boolean;
+};
+type Group = { label: string; items: readonly Item[] };
+
+const P = "/settings/personalization";
 
 const GROUPS: readonly Group[] = [
   {
-    label: "Canales y Meta",
-    pages: [
-      { slug: "whatsapp", label: "WhatsApp" },
-      { slug: "messenger", label: "Messenger" },
-      { slug: "templates", label: "Plantillas" },
-      { slug: "ads", label: "Anuncios (CAPI)" },
-      { slug: "direct-connection", label: "Conexión directa" },
+    label: "Negocio",
+    items: [
+      {
+        id: "canales",
+        label: "Canales y conexiones",
+        icon: MessageCircle,
+        keywords: "whatsapp meta número messenger plantillas conexión directa",
+        pages: [
+          { slug: "whatsapp", label: "WhatsApp" },
+          { slug: "messenger", label: "Messenger" },
+          { slug: "templates", label: "Plantillas" },
+          { slug: "direct-connection", label: "Conexión directa" },
+        ],
+      },
+      { id: "team", label: "Equipo y permisos", icon: Users, keywords: "miembros roles personas invitar", pages: [{ slug: "team", label: "Miembros y roles" }] },
+      { id: "ads", label: "Anuncios (Meta)", icon: Target, keywords: "capi atribución anuncios", pages: [{ slug: "ads", label: "Anuncios (CAPI)" }] },
+      { id: "uso", label: "Uso y plan", icon: Wallet, keywords: "consumo ia plan límites", pages: [{ slug: "uso", label: "Uso y plan" }] },
     ],
   },
   {
-    label: "Equipo y permisos",
-    pages: [
-      { slug: "team", label: "Miembros y roles" },
-      { slug: "team-chat", label: "Chat de equipo" },
+    label: "Atención y ventas",
+    items: [
+      { id: "tags", label: "Etiquetas", icon: Tag, pages: [{ slug: "tags", label: "Etiquetas" }] },
+      { id: "quick", label: "Respuestas rápidas", icon: Zap, keywords: "atajos", pages: [{ slug: "quick-replies", label: "Respuestas rápidas" }] },
+      { id: "loss", label: "Motivos de pérdida", icon: X, keywords: "perdidos pipeline", pages: [{ slug: "loss-reasons", label: "Motivos de pérdida" }] },
+      { id: "calendar", label: "Agenda y conectores", icon: CalendarDays, keywords: "zoom meet citas", pages: [{ slug: "calendar", label: "Conectores de agenda" }] },
+      { id: "team-chat", label: "Chat de equipo", icon: MessageSquare, keywords: "grupos supervisión", pages: [{ slug: "team-chat", label: "Chat de equipo" }] },
     ],
   },
-  // 046: «Mi número» (el de quien mira) y los del equipo; solo con el complemento.
-  {
-    label: "Mi número",
-    pages: [
-      { slug: "my-number", label: "Mi número" },
-      { slug: "mi-numero", label: "Números del equipo" },
-    ],
-  },
-  // 047: la IA propia de cada quien y lo que decide el Propietario; solo con el complemento.
   {
     label: "IA conectada",
-    pages: [
-      { slug: "mi-ia", label: "Mi IA" },
-      { slug: "conector-ia", label: "Ajustes del conector" },
+    items: [
+      { id: "mi-ia", label: "Mi IA", icon: Plug, keywords: "conector mcp claude chatgpt", pages: [{ slug: "mi-ia", label: "Mi IA" }] },
+      { id: "conector", label: "Conector del equipo", icon: SlidersHorizontal, keywords: "propietario roles tope", pages: [{ slug: "conector-ia", label: "Ajustes del conector" }] },
     ],
   },
   {
-    label: "Operación CRM",
-    pages: [
-      { slug: "tags", label: "Etiquetas" },
-      { slug: "loss-reasons", label: "Motivos de pérdida" },
-      { slug: "quick-replies", label: "Respuestas rápidas" },
-      { slug: "calendar", label: "Conectores de agenda" },
+    label: "Personal",
+    items: [
+      {
+        id: "numero",
+        label: "Mi número",
+        icon: Smartphone,
+        keywords: "whatsapp personal dispositivo",
+        pages: [
+          { slug: "my-number", label: "Mi número" },
+          { slug: "mi-numero", label: "Números del equipo" },
+        ],
+      },
+      {
+        id: "notif",
+        label: "Notificaciones",
+        icon: Bell,
+        keywords: "sonido avisos no molestar",
+        pages: [{ slug: "personalization", label: "Notificaciones" }],
+        href: `${P}/notificaciones`,
+        match: (p) => pathWithin(`${P}/notificaciones`, p),
+      },
+      {
+        id: "look",
+        label: "Apariencia",
+        icon: Eye,
+        keywords: "tema letra marca navegación colores",
+        pages: [{ slug: "personalization", label: "Apariencia" }],
+        href: P,
+        match: (p) => pathWithin(P, p) && !pathWithin(`${P}/notificaciones`, p),
+      },
     ],
   },
-  // Fase D: Marca y Navegación son subpestañas de Personalización.
-  { label: "Marca y apariencia", pages: [{ slug: "personalization", label: "Personalización" }] },
-  // «Uso y plan» ya es una ventana (ícono del medidor); /settings/uso y /uso la abren.
 ];
 
 const href = (slug: string) => `/settings/${slug}`;
 
-/** Las 5 pestañas, solo con las páginas que existen para quien mira. */
-export function settingsGroups(visible: (slug: string) => boolean): { label: string; pages: Page[] }[] {
-  return GROUPS.map((g) => ({ label: g.label, pages: g.pages.filter((p) => visible(p.slug)) })).filter(
-    (g) => g.pages.length > 0
-  );
+type Resolved = { item: Item; pages: Page[]; to: string };
+
+/** Los grupos con solo los renglones que existen para quien mira. */
+export function settingsGroups(visible: (slug: string) => boolean): { label: string; items: Resolved[] }[] {
+  return GROUPS.map((g) => ({
+    label: g.label,
+    items: g.items.flatMap((item): Resolved[] => {
+      const pages = item.pages.filter((p) => visible(p.slug));
+      return pages.length ? [{ item, pages: [...pages], to: item.href ?? href(pages[0]!.slug) }] : [];
+    }),
+  })).filter((g) => g.items.length > 0);
 }
+
+const norm = (s: string) => s.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
 
 export function SettingsShell({
   agenda = false,
@@ -111,6 +175,7 @@ export function SettingsShell({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const [query, setQuery] = useState("");
   const groups = settingsGroups((slug) => {
     // 015/016/017 — Agenda, Anuncios y Messenger solo con su módulo.
     if (slug === "calendar" && !agenda) return false;
@@ -122,32 +187,91 @@ export function SettingsShell({
     if (slug === "templates" && !templates) return false;
     return !allowed || allowed.includes(slug);
   });
-  const tabs: SectionTab[] = groups.map((g) => ({
-    href: href(g.pages[0]!.slug),
-    label: g.label,
-    // Exacta o subruta: "/settings/team" no debe encender "/settings/team-chat".
-    match: (p) => g.pages.some((page) => pathWithin(href(page.slug), p)),
-  }));
-  const current = groups.find((g) => g.pages.some((page) => pathWithin(href(page.slug), pathname)));
+
+  const isActive = (r: Resolved) =>
+    r.item.match ? r.item.match(pathname) : r.pages.some((p) => pathWithin(href(p.slug), pathname));
+  const current = groups.flatMap((g) => g.items).find(isActive);
+
+  const q = norm(query.trim());
+  const shown = groups
+    .map((g) => ({
+      ...g,
+      items: q ? g.items.filter((r) => norm(`${r.item.label} ${r.item.keywords ?? ""} ${g.label}`).includes(q)) : g.items,
+    }))
+    .filter((g) => g.items.length > 0);
+
+  const search = (
+    <label className="relative block w-56 max-w-full sm:w-64">
+      <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-text-3" strokeWidth={1.8} />
+      <input
+        type="search"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        placeholder="Buscar un ajuste"
+        aria-label="Buscar un ajuste"
+        data-testid="settings-search"
+        className="h-9 w-full rounded-md border bg-background pl-8 pr-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      />
+    </label>
+  );
+
   return (
-    <PageShell title="Ajustes" icon={Settings} pillar={false} tabs={tabs} tabsLabel="Secciones de Ajustes">
-      <div data-premium-area="settings" className="contents">
-      {current && current.pages.length > 1 && (
-        // 039: sub-secciones como control segmentado dentro del contenido (nunca
-        // una segunda barra bajo el encabezado de 56 px).
-        <div className="mb-5">
-          <SectionTabs
-            variant="segmented"
-            tabs={current.pages.map((page) => ({
-              href: href(page.slug),
-              label: page.label,
-              match: (p) => pathWithin(href(page.slug), p),
-            }))}
-            label={`Secciones de ${current.label}`}
-          />
+    <PageShell title="Ajustes" icon={Settings} pillar={false} actions={search}>
+      <div data-premium-area="settings" className="grid gap-6 lg:grid-cols-[220px_minmax(0,1fr)]">
+        <nav aria-label="Secciones de Ajustes" className="lg:sticky lg:top-0 lg:self-start">
+          {shown.length === 0 && <p className="px-2 py-3 text-sm text-text-3">Ningún ajuste coincide con «{query}».</p>}
+          {shown.map((g) => (
+            <div key={g.label} className="mb-4">
+              <p className="mb-1 px-2.5 text-[11px] font-semibold uppercase tracking-wider text-text-3">{g.label}</p>
+              <ul className="flex gap-1 overflow-x-auto lg:flex-col lg:overflow-visible">
+                {g.items.map((r) => {
+                  const Icon = r.item.icon;
+                  const active = isActive(r);
+                  const cls = cn(
+                    "flex w-full items-center gap-2.5 whitespace-nowrap rounded-sm px-2.5 py-2 text-left text-[13.5px] transition-colors",
+                    active ? "bg-brand-soft font-semibold text-brand-text" : "text-foreground hover:bg-accent"
+                  );
+                  const inner = (
+                    <>
+                      <Icon className={cn("h-[16px] w-[16px] shrink-0", active ? "text-brand" : "text-text-3")} strokeWidth={1.8} />
+                      {r.item.label}
+                    </>
+                  );
+                  return (
+                    <li key={r.item.id}>
+                      {r.item.id === "uso" ? (
+                        <button type="button" onClick={() => openUsageDialog()} className={cls}>
+                          {inner}
+                        </button>
+                      ) : (
+                        <Link href={r.to} aria-current={active ? "page" : undefined} className={cls}>
+                          {inner}
+                        </Link>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          ))}
+        </nav>
+        <div className="min-w-0">
+          {current && current.pages.length > 1 && (
+            // Sub-secciones como control segmentado dentro del contenido.
+            <div className="mb-5">
+              <SectionTabs
+                variant="segmented"
+                tabs={current.pages.map((page) => ({
+                  href: href(page.slug),
+                  label: page.label,
+                  match: (p) => pathWithin(href(page.slug), p),
+                }))}
+                label={`Secciones de ${current.item.label}`}
+              />
+            </div>
+          )}
+          {children}
         </div>
-      )}
-      {children}
       </div>
     </PageShell>
   );

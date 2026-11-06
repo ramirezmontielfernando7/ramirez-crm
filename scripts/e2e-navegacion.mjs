@@ -177,12 +177,13 @@ async function main() {
   ok("página 200 con el aviso de por qué no está disponible", pagOff.status === 200 && (await pagOff.p.getByText("Disponible cuando el módulo «Menú personalizable» está encendido").count()) === 1, String(pagOff.status));
   ok("sin custom_nav no hay editor de menú", (await pagOff.p.locator("li[data-nav-key]").count()) === 0);
   await pagOff.p.goto(`${BASE}/settings/whatsapp`);
-  const ajustesTabs = pagOff.p.getByRole("navigation", { name: "Secciones de Ajustes" });
+  const ajustesNav = pagOff.p.getByRole("navigation", { name: "Secciones de Ajustes" });
+  const ajustesLinks = (await ajustesNav.getByRole("link").allInnerTexts()).map((t) => t.trim());
   ok(
-    "Ajustes tiene 4 pestañas («Uso y plan» ya es una ventana) y Marca y Navegación van dentro de «Marca y apariencia»",
-    (await ajustesTabs.getByRole("link").allInnerTexts()).join() === "Canales y Meta,Equipo y permisos,Operación CRM,Marca y apariencia" &&
-      (await pagOff.p.getByRole("link", { name: "Navegación" }).count()) === 0,
-    (await ajustesTabs.getByRole("link").allInnerTexts()).join()
+    "Ajustes es una columna de secciones («Uso y plan» ya es una ventana) y Marca y Navegación van dentro de «Apariencia»",
+    ["Canales y conexiones", "Equipo y permisos", "Etiquetas", "Notificaciones", "Apariencia"].every((n) => ajustesLinks.includes(n)) &&
+      !ajustesLinks.includes("Navegación"),
+    ajustesLinks.join()
   );
   await pagOff.p.close();
   await A.call("POST", `/api/platform/organizations/${N.orgId}/modules`, { customNav: true });
