@@ -355,8 +355,8 @@ const NavSearch = memo(function NavSearch() {
       onClick={() =>
         window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true, bubbles: true }))
       }
-      aria-label="Buscar o preguntar"
-      title="Buscar o preguntar (Ctrl/⌘ K)"
+      aria-label="Abrir el asistente"
+      title="Abrir el asistente (Ctrl/⌘ K)"
       data-testid="nav-search"
       className="mb-3 flex w-full items-center gap-2 rounded-sm border bg-subtle px-2.5 py-2 text-left text-[13px] text-text-3 hover:bg-accent group-data-[mini]/nav:hidden"
     >
