@@ -735,7 +735,9 @@ async function usoYPlan(A, B, orgB) {
   const page = await B.ctx.newPage();
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto(`${BASE}/inbox`);
-  const entrada = page.getByTestId("nav-usage");
+  await page.getByTestId("nav-account").waitFor({ timeout: 30000 });
+  await page.getByTestId("nav-account").click();
+  const entrada = page.getByTestId("nav-usage-menu");
   ok("la Propietaria tiene «Uso y plan» en el menú de su cuenta", await entrada.waitFor({ timeout: 30000 }).then(() => true, () => false));
   await entrada.click();
   // «Uso y plan» es una ventana sobre la pantalla en la que estás.
@@ -786,7 +788,8 @@ async function usoYPlan(A, B, orgB) {
   await pC.goto(`${BASE}/uso`);
   await pC.waitForURL(/\/inbox/, { timeout: 30000 }).catch(() => null);
   ok("asesor → /uso lo regresa a la Bandeja", /\/inbox/.test(pC.url()), pC.url());
-  ok("asesor: sin «Uso y plan» en su menú", (await pC.getByTestId("nav-usage").count()) === 0);
+  await pC.getByTestId("nav-account").click().catch(() => null);
+  ok("asesor: sin «Uso y plan» en su menú", (await pC.getByTestId("nav-usage-menu").count()) === 0 && (await pC.getByTestId("nav-usage").count()) === 0);
   await pC.close();
 
   const reset = await A.call("PUT", `/api/platform/organizations/${orgB}/limits`, { members: null, aiTokens: null, storageBytes: null, usageVisibility: "percent" });

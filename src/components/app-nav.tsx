@@ -7,6 +7,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   AlertTriangle,
+  ChevronsUpDown,
   Gauge,
   LogOut,
   Search,
@@ -399,42 +400,7 @@ const NavFooter = memo(function NavFooter({
   showUsage: boolean;
 }) {
   return (
-    <>
-      <div className="hidden flex-col group-data-[mini]/nav:flex">
-        <ProfileMenu userName={userName} roleText={roleText} theme={theme} onSignOut={onSignOut} showUsage={showUsage} />
-      </div>
-      <div className="mt-1 flex items-center gap-2 rounded-sm px-2 py-2 hover:bg-accent group-data-[mini]/nav:hidden">
-        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-soft text-xs font-bold text-brand-text">
-          {initials(userName)}
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="block truncate text-[13px] font-semibold">{userName}</span>
-          <span className="block truncate text-[11px] text-text-3">{roleText}</span>
-        </span>
-        {showUsage && (
-          <button
-            type="button"
-            onClick={() => openUsageDialog()}
-            aria-label="Uso y plan"
-            title="Uso y plan"
-            aria-haspopup="dialog"
-            data-testid="nav-usage"
-            className="rounded p-1 text-text-3 hover:text-foreground"
-          >
-            <Gauge className="h-4 w-4" strokeWidth={1.7} />
-          </button>
-        )}
-        <ThemeToggle initial={theme} />
-        <button
-          aria-label="Cerrar sesión"
-          title="Cerrar sesión"
-          className="rounded p-1 text-text-3 hover:text-foreground"
-          onClick={() => void onSignOut()}
-        >
-          <LogOut className="h-4 w-4" strokeWidth={1.7} />
-        </button>
-      </div>
-    </>
+    <ProfileMenu userName={userName} roleText={roleText} theme={theme} onSignOut={onSignOut} showUsage={showUsage} />
   );
 });
 
@@ -594,11 +560,17 @@ function ProfileMenu({
         title={`${userName} · ${roleText}`}
         aria-expanded={open}
         aria-haspopup="dialog"
-        className="mt-1 flex items-center justify-center rounded-sm py-2 transition-transform duration-150 hover:bg-accent active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        data-testid="nav-account"
+        className="mt-1 flex w-full items-center gap-2 rounded-sm px-2 py-2 text-left transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring group-data-[mini]/nav:justify-center group-data-[mini]/nav:px-0"
       >
         <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-soft text-xs font-bold text-brand-text">
           {initials(userName)}
         </span>
+        <span className="min-w-0 flex-1 group-data-[mini]/nav:hidden">
+          <span className="block truncate text-[13px] font-semibold">{userName}</span>
+          <span className="block truncate text-[11px] text-text-3">{roleText}</span>
+        </span>
+        <ChevronsUpDown className="h-4 w-4 shrink-0 text-text-3 group-data-[mini]/nav:hidden" strokeWidth={1.7} />
       </button>
       {typeof document !== "undefined" &&
         createPortal(
