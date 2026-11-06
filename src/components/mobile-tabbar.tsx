@@ -49,6 +49,7 @@ export function MobileTabBar({ nav, onMore }: { nav?: NavEntries; onMore: () => 
       <button
         type="button"
         onClick={onMore}
+        aria-label="Abrir el menú"
         className="flex min-h-14 flex-1 flex-col items-center justify-center gap-0.5 text-[11px] font-medium text-text-3"
       >
         <MoreHorizontal className="h-5 w-5" strokeWidth={1.6} />
