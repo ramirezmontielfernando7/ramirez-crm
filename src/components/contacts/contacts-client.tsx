@@ -16,7 +16,8 @@ import {
 import type { ContactDto } from "@/lib/types";
 import { fetchJson, jsonInit } from "@/lib/fetch-json";
 import { WA_CONSENT_LABEL, WA_CONSENT_VALUES, type TagDto, type WaConsent } from "@/lib/tags";
-import { formatPhone } from "@/lib/utils";
+import { cn, phoneCompact } from "@/lib/utils";
+import { stageDot } from "@/lib/tags";
 import { ContactAvatar } from "@/components/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -44,6 +45,14 @@ export function ContactsClient() {
   const [stages, setStages] = useState<string[]>([]);
   const [showArchived, setShowArchived] = useState(false);
   const [editing, setEditing] = useState<ContactDto | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const toggle = (id: string) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   const [creando, setCreando] = useState(false);
   const [escribiendo, setEscribiendo] = useState<ContactDto | null>(null);
   // 021: filtros por etiqueta, fuente y consentimiento (los mismos del CSV).
@@ -100,6 +109,7 @@ export function ContactsClient() {
   // Al cambiar un filtro se vuelve a la primera página.
   useEffect(() => {
     setPage(1);
+    setSelected(new Set());
   }, [filterParams]);
 
   const refetch = useCallback(async () => {
@@ -300,90 +310,134 @@ export function ContactsClient() {
             )}
           </div>
         ) : (
-          <ul className="space-y-2">
-            {contacts.map((c) => (
-              <li
-                key={c.id}
-                data-pm="row"
-                className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border bg-card px-3 py-3 sm:flex-nowrap sm:gap-x-4 sm:px-4"
+          <>
+          {selected.size > 0 && (
+            <div
+              data-pm="bulk-bar"
+              className="mb-3 flex flex-wrap items-center gap-3 rounded-lg bg-brand-tint px-4 py-2.5 text-sm"
+            >
+              <span className="font-semibold text-brand-text">
+                {selected.size} {selected.size === 1 ? "seleccionado" : "seleccionados"}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={async () => {
+                  const ids = [...selected];
+                  await Promise.all(ids.map((id) => patch(id, { archived: true })));
+                  setSelected(new Set());
+                }}
               >
-                <ContactAvatar name={c.name} seed={c.id} />
-                {/* El 60% mínimo es lo que empuja los botones a su propio
-                    renglón en el teléfono en vez de exprimir el nombre. */}
-                <div className="min-w-[60%] flex-1 sm:min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="truncate text-sm font-medium">
-                      {c.name}
-                    </span>
+                <Archive className="h-4 w-4" /> Archivar
+              </Button>
+              <button
+                type="button"
+                className="ml-auto text-[13px] font-medium text-brand-text hover:underline"
+                onClick={() => setSelected(new Set())}
+              >
+                Quitar selección
+              </button>
+            </div>
+          )}
+          <div role="table" aria-label="Contactos" className="overflow-hidden rounded-lg border bg-card">
+            <div
+              role="row"
+              className="hidden items-center gap-3 border-b bg-subtle px-4 py-2.5 text-[12px] font-medium text-text-3 md:grid md:grid-cols-[24px_minmax(0,2fr)_minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1.5fr)_minmax(0,1.1fr)_150px]"
+            >
+              <input
+                type="checkbox"
+                aria-label="Seleccionar todos"
+                checked={contacts.length > 0 && selected.size === contacts.length}
+                onChange={(e) => setSelected(e.target.checked ? new Set(contacts.map((c) => c.id)) : new Set())}
+              />
+              <span>Nombre</span>
+              <span>Teléfono</span>
+              <span>Etapa</span>
+              <span>Etiquetas</span>
+              <span>Consentimiento</span>
+              <span className="w-[150px]" />
+            </div>
+            {contacts.map((c) => {
+              const dot = stageDot(null, c.stageName);
+              const tags = c.tags ?? [];
+              return (
+                <div
+                  key={c.id}
+                  role="row"
+                  data-pm="row"
+                  data-selected={selected.has(c.id) ? "" : undefined}
+                  className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b px-4 py-3 last:border-b-0 data-[selected]:bg-brand-tint md:grid md:grid-cols-[24px_minmax(0,2fr)_minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1.5fr)_minmax(0,1.1fr)_150px]"
+                >
+                  <input
+                    type="checkbox"
+                    aria-label={`Seleccionar a ${c.name}`}
+                    checked={selected.has(c.id)}
+                    onChange={() => toggle(c.id)}
+                  />
+                  <div className="flex min-w-0 flex-1 items-center gap-2.5 md:flex-none">
+                    <ContactAvatar name={c.name} seed={c.id} />
+                    <div className="min-w-0">
+                      <span className="block truncate text-sm font-semibold">{c.name}</span>
+                      {c.archivedAt && <Badge variant="secondary">Archivado</Badge>}
+                    </div>
                     {c.priority && <PriorityBadge value={c.priority} />}
-                    {c.stageName && (
-                      <Badge variant="outline">{c.stageName}</Badge>
-                    )}
-                    {c.archivedAt && (
-                      <Badge variant="secondary">Archivado</Badge>
-                    )}
-                    {/* Solo la fuente que alguien capturó: presentar una
-                        deducción como dato la volvería un número inventado en
-                        cuanto se cuente por fuente. */}
-                    {c.source?.source === "capturada" && (
-                      <Badge variant="secondary">
-                        {SOURCE_LABELS[c.source.value]}
-                      </Badge>
-                    )}
-                    {c.waConsent === "opt_in" && <Badge variant="success">Acepta mensajes</Badge>}
-                    {c.waConsent === "opt_out" && <Badge variant="destructive">No quiere mensajes</Badge>}
-                    {(c.tags ?? []).map((t) => (
-                      <TagChip key={t.id} tag={t} />
-                    ))}
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    {formatPhone(c.phone)}
-                    {c.notes ? ` · ${c.notes.slice(0, 60)}` : ""}
-                  </p>
-                </div>
-                <div className="ml-auto flex shrink-0 items-center gap-1.5">
-                  <Button
-                    data-pm="row-secondary"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setEditing(c)}
-                  >
-                    Editar
-                  </Button>
-                  {/* A quien nunca escribió hay que abrirle la conversación con
-                      una plantilla: es regla de Meta, no del CRM. */}
-                  <Button
-                    data-pm="row-secondary"
-                    variant="ghost"
-                    size="icon"
-                    aria-label="Escribir primero"
-                    title="Escribir primero (con plantilla)"
-                    onClick={() => setEscribiendo(c)}
-                  >
-                    <Send className="h-4 w-4" />
-                  </Button>
-                  <Link href={`/inbox?contact=${c.id}`}>
-                    <Button variant="ghost" size="icon" aria-label="Abrir conversación">
-                      <MessageSquareText className="h-4 w-4" />
-                    </Button>
-                  </Link>
-                  <Button
-                    data-pm="row-secondary"
-                    variant="ghost"
-                    size="icon"
-                    aria-label={c.archivedAt ? "Desarchivar" : "Archivar"}
-                    onClick={() => void patch(c.id, { archived: !c.archivedAt })}
-                  >
-                    {c.archivedAt ? (
-                      <ArchiveRestore className="h-4 w-4" />
-                    ) : (
-                      <Archive className="h-4 w-4" />
+                  <span className="w-full text-[13px] tabular-nums md:w-auto">{phoneCompact(c.phone)}</span>
+                  <span className="min-w-0">
+                    {c.stageName && (
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-subtle px-2 py-0.5 text-[12px]">
+                        <span className={cn("h-2 w-2 rounded-full", dot.className)} style={dot.style} aria-hidden />
+                        {c.stageName}
+                      </span>
                     )}
-                  </Button>
+                  </span>
+                  <span className="flex min-w-0 flex-wrap items-center gap-1">
+                    {tags[0] && <TagChip tag={tags[0]} />}
+                    {tags.length > 1 && <span className="text-[12px] text-text-3">+{tags.length - 1}</span>}
+                  </span>
+                  <span className="min-w-0">
+                    {c.waConsent === "opt_in" && <Badge variant="success">Opt-in</Badge>}
+                    {c.waConsent === "opt_out" && <Badge variant="destructive">Baja</Badge>}
+                    {c.waConsent !== "opt_in" && c.waConsent !== "opt_out" && (
+                      <Badge variant="secondary">Sin respuesta</Badge>
+                    )}
+                  </span>
+                  <div className="ml-auto flex shrink-0 items-center gap-1">
+                    <Button data-pm="row-secondary" variant="ghost" size="sm" onClick={() => setEditing(c)}>
+                      Editar
+                    </Button>
+                    {/* A quien nunca escribió hay que abrirle la conversación con
+                        una plantilla: es regla de Meta, no del CRM. */}
+                    <Button
+                      data-pm="row-secondary"
+                      variant="ghost"
+                      size="icon"
+                      aria-label="Escribir primero"
+                      title="Escribir primero (con plantilla)"
+                      onClick={() => setEscribiendo(c)}
+                    >
+                      <Send className="h-4 w-4" />
+                    </Button>
+                    <Link href={`/inbox?contact=${c.id}`}>
+                      <Button variant="ghost" size="icon" aria-label="Abrir conversación">
+                        <MessageSquareText className="h-4 w-4" />
+                      </Button>
+                    </Link>
+                    <Button
+                      data-pm="row-secondary"
+                      variant="ghost"
+                      size="icon"
+                      aria-label={c.archivedAt ? "Desarchivar" : "Archivar"}
+                      onClick={() => void patch(c.id, { archived: !c.archivedAt })}
+                    >
+                      {c.archivedAt ? <ArchiveRestore className="h-4 w-4" /> : <Archive className="h-4 w-4" />}
+                    </Button>
+                  </div>
                 </div>
-              </li>
-            ))}
-          </ul>
+              );
+            })}
+          </div>
+          </>
         )}
         {total > PAGE_SIZE && (
           <nav

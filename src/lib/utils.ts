@@ -48,3 +48,11 @@ export function formatPhone(phone: string | null | undefined): string {
   // 003: contactos BSUID pueden no tener teléfono.
   return phone ? `+${phone}` : "Sin teléfono";
 }
+
+/** «5215512345678» → «+52 5512345678»: espacio solo tras el prefijo del país. */
+export function phoneCompact(phone: string | null | undefined): string {
+  if (!phone) return "Sin teléfono";
+  const d = phone.replace(/\D/g, "");
+  if (d.length > 10) return `+${d.slice(0, d.length - 10)} ${d.slice(-10)}`;
+  return `+${d}`;
+}
