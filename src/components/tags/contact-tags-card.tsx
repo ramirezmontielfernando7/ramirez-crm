@@ -35,6 +35,7 @@ export function ContactTagsCard({
   onChanged,
   bare = false,
   consentFirst = false,
+  only,
 }: {
   contactId: string;
   refreshKey?: number;
@@ -44,6 +45,8 @@ export function ContactTagsCard({
   bare?: boolean;
   /** 022 — "Mensajes masivos" antes que "Etiquetas" (panel de la Bandeja). */
   consentFirst?: boolean;
+  /** Ronda 3: en Detalles las etiquetas tienen su sección; aquí solo el consentimiento. */
+  only?: "consent";
 }) {
   const viewer = useViewer();
   const [tags, setTags] = useState<TagDto[]>([]);
@@ -257,8 +260,14 @@ export function ContactTagsCard({
 
   return (
     <section className={bare ? "space-y-4" : "space-y-4 border-b p-4"}>
-      {consentFirst ? consentBlock : tagsBlock}
-      {consentFirst ? tagsBlock : consentBlock}
+      {only === "consent" ? (
+        consentBlock
+      ) : (
+        <>
+          {consentFirst ? consentBlock : tagsBlock}
+          {consentFirst ? tagsBlock : consentBlock}
+        </>
+      )}
 
       {error && (
         <p role="alert" className="rounded-md border border-danger-soft bg-danger-tint px-2.5 py-2 text-xs text-danger-text">

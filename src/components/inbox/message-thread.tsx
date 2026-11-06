@@ -49,7 +49,7 @@ export const MessageThread = memo(function MessageThread({ messages }: { message
   return (
     <div
       ref={scrollRef}
-      className="thread-bg flex flex-1 flex-col gap-[3px] overflow-y-auto px-3 py-5 sm:px-[6%]"
+      className="thread-bg flex flex-1 flex-col overflow-y-auto px-3 py-5 sm:px-8"
     >
       {messages.map((m, i) => {
         const prev = messages[i - 1];
@@ -64,8 +64,8 @@ export const MessageThread = memo(function MessageThread({ messages }: { message
         return (
           <div key={m.id}>
             {newDay && (
-              <div className="my-3 flex justify-center">
-                <span className="day-pill kicker rounded-full border border-border-strong bg-background px-3 py-1 text-text-2 shadow-sm">
+              <div className="my-1 flex justify-center">
+                <span className="day-pill rounded-full border bg-surface px-2.5 text-[11px] font-semibold leading-5 text-text-3">
                   {dayLabel(m.createdAt)}
                 </span>
               </div>
@@ -74,7 +74,7 @@ export const MessageThread = memo(function MessageThread({ messages }: { message
               className={cn(
                 "flex",
                 out ? "justify-end" : "justify-start",
-                grouped ? "msg-grouped mt-[3px]" : "msg-first mt-2.5",
+                grouped ? "msg-grouped mt-1.5" : "msg-first mt-1.5",
                 fresh.has(m.id) && "bubble-enter"
               )}
             >

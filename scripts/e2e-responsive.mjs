@@ -206,7 +206,7 @@ ok(
   `${anchoLista}px de ${PHONE.width}`
 );
 await fila.click();
-const composer = phone.getByPlaceholder("Escribe una respuesta");
+const composer = phone.getByPlaceholder("Escribe un mensaje");
 ok(
   "al elegir una conversación se abre el hilo",
   await until(async () => await composer.isVisible(), 15000)
@@ -277,7 +277,7 @@ await tablet.setViewportSize(TABLET);
 await recorrer(tablet, "tablet");
 await tablet.goto(`${BASE}/inbox`);
 await tablet.getByText(NAME).first().click();
-await tablet.getByPlaceholder("Escribe una respuesta").waitFor({ timeout: 20000 });
+await tablet.getByPlaceholder("Escribe un mensaje").waitFor({ timeout: 20000 });
 const dosColumnas = await tablet.evaluate(() => {
   const secs = [...document.querySelectorAll("main > div > section")];
   return secs.slice(0, 2).map((s) => Math.round(s.getBoundingClientRect().width));
@@ -295,7 +295,7 @@ await desk.setViewportSize(DESKTOP);
 await recorrer(desk, "desktop");
 await desk.goto(`${BASE}/inbox`);
 await desk.getByText(NAME).first().click();
-await desk.getByPlaceholder("Escribe una respuesta").waitFor({ timeout: 20000 });
+await desk.getByPlaceholder("Escribe un mensaje").waitFor({ timeout: 20000 });
 ok(
   "el lateral sigue fijo (sin hamburguesa)",
   !(await desk.getByRole("button", { name: "Abrir el menú" }).isVisible()) &&

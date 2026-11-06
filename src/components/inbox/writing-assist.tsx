@@ -131,19 +131,20 @@ export function WritingAssist({
         aria-busy={busy}
         title={title}
         className={cn(
-          "rounded p-1.5 text-text-3 transition-colors hover:bg-secondary hover:text-foreground disabled:pointer-events-none",
+          "flex h-[30px] items-center gap-1.5 whitespace-nowrap rounded-[8px] px-2 text-[13px] font-medium text-text-2 transition-colors hover:bg-secondary hover:text-foreground disabled:pointer-events-none",
           disabled && !busy && "opacity-40",
-          (open || busy) && "bg-secondary text-brand"
+          (open || busy) && "bg-[var(--accent-wash)] text-brand-text"
         )}
       >
         {busy ? (
           <span
-            className="block h-[18px] w-[18px] animate-spin rounded-full border-2 border-border-strong border-t-brand"
+            className="block h-4 w-4 animate-spin rounded-full border-2 border-border-strong border-t-brand"
             aria-label="La IA está escribiendo"
           />
         ) : (
-          <WandSparkles className="h-[18px] w-[18px]" strokeWidth={1.7} />
+          <WandSparkles className="h-4 w-4" strokeWidth={1.75} />
         )}
+        <span className="tool-label">Mejorar redacción</span>
       </button>
 
       <AnimatePresence>

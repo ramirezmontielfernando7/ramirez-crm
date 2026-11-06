@@ -16,7 +16,16 @@ import { NoteCard } from "./notes-client";
  * no cambian. Internas: nunca se envían al cliente, tampoco en chats de
  * prueba (no hay ningún camino de aquí a WhatsApp).
  */
-export function ContactNotes({ contactId, conversationId }: { contactId: string; conversationId: string }) {
+export function ContactNotes({
+  contactId,
+  conversationId,
+  bare = false,
+}: {
+  contactId: string;
+  conversationId: string;
+  /** Ronda 3: dentro de «Tareas y notas» de Detalles (sin borde ni título propios). */
+  bare?: boolean;
+}) {
   const [notes, setNotes] = useState<NoteDto[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [writing, setWriting] = useState(false);
@@ -57,15 +66,22 @@ export function ContactNotes({ contactId, conversationId }: { contactId: string;
   }
 
   return (
-    <section className="border-b px-4 py-3" aria-label="Notas de trabajo">
+    <section className={bare ? "mt-2" : "border-b px-4 py-3"} aria-label="Notas de trabajo">
       <div className="flex items-center justify-between gap-2">
-        <span className="kicker">Notas de trabajo{notes && notes.length > 0 ? ` · ${notes.length}` : ""}</span>
-        {!writing && (
-          <Button size="sm" variant="outline" onClick={() => setWriting(true)}>
-            <Plus className="mr-1 h-3.5 w-3.5" strokeWidth={2} />
-            Nueva nota
-          </Button>
-        )}
+        <span className={bare ? "text-[12px] font-medium text-text-3" : "kicker"}>
+          Notas de trabajo{notes && notes.length > 0 ? ` · ${notes.length}` : ""}
+        </span>
+        {!writing &&
+          (bare ? (
+            <button type="button" onClick={() => setWriting(true)} className="sec-link">
+              + Nueva nota
+            </button>
+          ) : (
+            <Button size="sm" variant="outline" onClick={() => setWriting(true)}>
+              <Plus className="mr-1 h-3.5 w-3.5" strokeWidth={2} />
+              Nueva nota
+            </Button>
+          ))}
       </div>
 
       {writing && (
@@ -91,7 +107,7 @@ export function ContactNotes({ contactId, conversationId }: { contactId: string;
       )}
 
       {/* Quién la ve, en sencillo (pedido del dueño). */}
-      <p className="mt-2 flex items-start gap-1.5 text-[11.5px] leading-snug text-text-2" role="note">
+      <p className={bare ? "sr-only" : "mt-2 flex items-start gap-1.5 text-[11.5px] leading-snug text-text-2"} role="note">
         <Users className="mt-px h-3.5 w-3.5 shrink-0" strokeWidth={2} />
         {NOTE_VISIBILITY_HINT}
       </p>

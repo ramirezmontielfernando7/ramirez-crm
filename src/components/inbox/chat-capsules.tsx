@@ -2,6 +2,7 @@
 
 import { useCallback, useMemo, useRef, useState } from "react";
 import { Check, ChevronDown, Plus, Search } from "lucide-react";
+import { ContactAvatar } from "@/components/avatar";
 import { cn } from "@/lib/utils";
 import type { ConversationDto, StageDto } from "@/lib/types";
 import { stageDot, tagColorClass, tagDotClass, type TagDto } from "@/lib/tags";
@@ -22,12 +23,12 @@ import { FloatingMenu, type MenuAnchor } from "./floating-menu";
 /** El punto de una etapa: su color elegido, o el respaldo por nombre (ver `stageDot`). */
 function StageDotMark({ color, name, className }: { color: string | null | undefined; name: string | null | undefined; className?: string }) {
   const d = stageDot(color, name);
-  return <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", d.className, className)} style={d.style} aria-hidden />;
+  return <span className={cn("h-2 w-2 shrink-0 rounded-full", d.className, className)} style={d.style} aria-hidden />;
 }
 
 /** UNA medida para las cápsulas: 20 px de alto, relleno suave en vez de borde. */
 const CAPSULE =
-  "relative inline-flex h-5 max-w-full items-center gap-1 rounded-full px-2 text-[10.5px] font-medium leading-none transition-colors " +
+  "relative inline-flex h-[18px] max-w-full items-center gap-1 rounded-full px-2 text-[11px] font-medium leading-none transition-colors " +
   // Zona de toque más grande que la píldora (20 px es poco para un dedo).
   "before:absolute before:-inset-x-0.5 before:-inset-y-1.5 before:content-[''] " +
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
@@ -101,7 +102,6 @@ function CapsuleMenu({
         className={cn(CAPSULE, className)}
       >
         {trigger}
-        <ChevronDown className="h-2.5 w-2.5 shrink-0 opacity-70" strokeWidth={2.2} aria-hidden />
       </button>
       {anchor && (
         <FloatingMenu anchor={anchor} onClose={close} label={label} triggerRef={ref} className={menuClassName}>
@@ -246,25 +246,66 @@ export function TagsCapsule({
     if (Array.isArray(data?.tags)) onPatch(c.id, { tags: data.tags });
   }
 
+  // Ronda 3: sin etiquetas no se pinta nada (se agregan desde Detalles).
+  if (!first) return null;
   return (
     <CapsuleMenu
-      label={first ? `Etiquetas: ${c.tags.map((t) => t.name).join(", ")}. Editar` : "Sin etiquetas. Agregar"}
-      className={cn(
-        "min-w-[3.5rem] shrink",
-        // Teñida con el color de la primera etiqueta (gris si no tiene o no es válido).
-        first ? cn(tagColorClass(first.color), "hover:brightness-95 dark:hover:brightness-110") : "pm-empty bg-transparent px-1 font-normal text-text-2 hover:bg-accent"
-      )}
+      label={`Etiquetas: ${c.tags.map((t) => t.name).join(", ")}. Editar`}
+      className="min-w-0 shrink gap-1.5 bg-transparent px-0 before:-inset-x-0.5"
       menuClassName="w-60"
       trigger={
-        first ? (
-          <>
+        <>
+          <span className={cn("inline-flex h-[18px] min-w-0 items-center rounded-full px-2", tagColorClass(first.color))}>
             <span className="truncate">{first.name}</span>
-            {more > 0 && <span className="shrink-0 tabular-nums opacity-70">+{more}</span>}
-          </>
-        ) : (
-          <span className="truncate">Sin etiquetas</span>
-        )
+          </span>
+          {more > 0 && (
+            <span className="inline-flex h-[18px] shrink-0 items-center rounded-full bg-secondary px-2 tabular-nums text-text-2">
+              +{more}
+            </span>
+          )}
+        </>
       }
+    >
+      {() => <TagsMenu conversation={c} catalog={catalog} canCreate={canCreate} onCatalogAdd={onCatalogAdd} save={save} onError={onError} />}
+    </CapsuleMenu>
+  );
+}
+
+/**
+ * Ronda 3 — «+ Agregar» de la sección Etiquetas de Detalles: el MISMO menú
+ * de la cápsula (buscar, marcar, crear), con otro botón.
+ */
+export function TagsAddButton({
+  conversation: c,
+  catalog,
+  canCreate,
+  onCatalogAdd,
+  onPatch,
+  onRefetch,
+  onError,
+  onSaved,
+}: Shared & { catalog: TagDto[]; canCreate: boolean; onCatalogAdd: (tag: TagDto) => void; onSaved?: () => void }) {
+  async function save(next: TagDto[]) {
+    const before = c.tags;
+    onPatch(c.id, { tags: next });
+    const { error, data } = await request(`/api/contacts/${c.contact.id}/tags`, "PUT", {
+      tagIds: next.map((t) => t.id),
+    });
+    if (error) {
+      onPatch(c.id, { tags: before });
+      onError(error);
+      onRefetch();
+      return;
+    }
+    if (Array.isArray(data?.tags)) onPatch(c.id, { tags: data.tags });
+    onSaved?.();
+  }
+  return (
+    <CapsuleMenu
+      label="Agregar o quitar etiquetas"
+      className="h-auto bg-transparent px-0 text-[12px] font-medium normal-case tracking-normal text-brand-ink hover:underline before:hidden"
+      menuClassName="w-60"
+      trigger={<span>+ Agregar</span>}
     >
       {() => <TagsMenu conversation={c} catalog={catalog} canCreate={canCreate} onCatalogAdd={onCatalogAdd} save={save} onError={onError} />}
     </CapsuleMenu>
@@ -366,7 +407,10 @@ export function AssigneeCapsule({
   onPatch,
   onRefetch,
   onError,
+  variant = "capsule",
 }: Shared & {
+  /** Ronda 3: «header» = el selector del encabezado del chat; «plain» = el renglón «Asignado» de Detalles. */
+  variant?: "capsule" | "header" | "plain";
   members: { userId: string; name: string }[];
   /** `assignment.manage`: sin él la cápsula solo informa. */
   canAssign: boolean;
@@ -377,8 +421,33 @@ export function AssigneeCapsule({
     "min-w-[3rem] shrink",
     c.assignee ? "bg-secondary text-text-2" : "pm-empty bg-transparent px-1 font-normal text-text-2"
   );
+  const header = variant !== "capsule";
+  const headerTrigger = (
+    <>
+      {c.assignee ? (
+        <ContactAvatar name={c.assignee.name} size="xs" />
+      ) : null}
+      <span className="truncate">{c.assignee ? shortName(c.assignee.name) : "Sin asignar"}</span>
+      {variant === "header" && <ChevronDown className="h-3.5 w-3.5 shrink-0 text-text-3" strokeWidth={1.75} aria-hidden />}
+    </>
+  );
+  const headerClass =
+    variant === "plain"
+      ? "h-6 max-w-full gap-1.5 rounded-control bg-transparent pl-0 pr-1 text-[13px] font-normal text-foreground hover:bg-row-hover before:hidden"
+      : cn(
+          "h-8 max-w-[11rem] gap-2 rounded-control border border-border-strong bg-surface pr-2 text-[14px] font-normal text-text-2 hover:bg-row-hover before:hidden",
+          c.assignee ? "pl-1" : "pl-2.5"
+        );
 
   if (!canAssign) {
+    if (header) {
+      return (
+        <span className={cn(CAPSULE, headerClass, "cursor-default pr-2.5 hover:bg-surface")} title={`Atiende: ${label}`}>
+          {c.assignee && <ContactAvatar name={c.assignee.name} size="xs" />}
+          <span className="truncate">{c.assignee ? shortName(c.assignee.name) : "Sin asignar"}</span>
+        </span>
+      );
+    }
     return (
       <span className={cn(CAPSULE, tone, "cursor-default before:hidden")} title={`Atiende: ${label}`}>
         <span className="truncate">{label}</span>
@@ -401,9 +470,9 @@ export function AssigneeCapsule({
 
   return (
     <CapsuleMenu
-      label={`Asignado: ${label}. Cambiar`}
-      className={cn(tone, "hover:bg-accent")}
-      trigger={<span className="truncate">{label}</span>}
+      label={header ? `Asignar a: ${label}. Cambiar` : `Asignado: ${label}. Cambiar`}
+      className={header ? headerClass : cn(tone, "hover:bg-accent")}
+      trigger={header ? headerTrigger : <span className="truncate">{label}</span>}
     >
       {(close) => (
         <>
@@ -420,4 +489,12 @@ export function AssigneeCapsule({
       )}
     </CapsuleMenu>
   );
+}
+
+
+/** «Fernando Ramírez» → «Fernando R.»: el nombre corto del encabezado. */
+export function shortName(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length < 2) return parts[0] ?? name;
+  return `${parts[0]} ${parts[1]![0]?.toUpperCase() ?? ""}.`;
 }

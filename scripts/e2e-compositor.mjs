@@ -97,7 +97,7 @@ page.on("request", (r) => {
 });
 await page.goto(`${BASE}/inbox`);
 await page.getByText(NAME).first().click();
-const box = page.getByPlaceholder("Escribe una respuesta");
+const box = page.getByPlaceholder("Escribe un mensaje");
 await box.waitFor({ timeout: 30000 });
 
 console.log("\n== El clip único: un botón, un menú con tres opciones ==");

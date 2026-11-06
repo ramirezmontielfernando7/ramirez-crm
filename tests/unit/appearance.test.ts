@@ -119,14 +119,14 @@ describe("Fase D — estilo del chat", () => {
     expect(css).not.toContain('[data-chat="classic"]');
   });
 
-  it("«Clásico» pinta la burbuja exactamente igual que antes de D2 (mismas clases visuales, mismos elementos)", () => {
-    const antes =
-      "bubble max-w-[85%] rounded-[14px] border px-3 pb-1.5 pt-2 text-[13.5px] leading-[1.45] shadow-sm bubble-out bubble-first sm:max-w-[64%] border-bubble-out-border bg-bubble-out text-bubble-out-text rounded-tr-[5px]";
+  it("«Clásico» pinta la burbuja de la maqueta ronda 3 (radios 12/4, sin sombra) y solo agrega ganchos", () => {
+    const actual =
+      "bubble max-w-[85%] px-3 py-2 text-[14px] leading-5 bubble-out rounded-[12px_4px_12px_12px] bubble-first sm:max-w-[64%] bg-bubble-out text-bubble-out-text";
     const html = renderToStaticMarkup(createElement(MessageBubble, { m: dto("out"), grouped: false }));
-    expect(html).toContain(`class="${antes}"`);
-    // Lo único nuevo son ganchos de estilo (clases) y un contenedor en línea del check.
+    expect(html).toContain(`class="${actual}"`);
+    expect(html).not.toContain("shadow");
     expect(html).toMatch(/<span class="tick inline-flex tick-read text-\[#53bdeb\]"><svg/);
-    expect(html).toMatch(/<span class="bubble-time font-mono text-\[10px\] tracking-\[0\.04em\] text-text-3">/);
+    expect(html).toMatch(/<span class="bubble-time tabular-nums">/);
   });
 
   it("los estilos nuevos solo se activan con su atributo: «Clásico» no escribe reglas y nada se anima en el historial", () => {

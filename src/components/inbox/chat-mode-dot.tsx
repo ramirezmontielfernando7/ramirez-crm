@@ -24,6 +24,14 @@ export function modeDotClass(mode: ConnectionMode): string {
   return DOT_CLASS[CONNECTION_MODE_COLOR[mode]];
 }
 
+/** Ronda 3 (opción 2): la etiqueta tenue junto al nombre. */
+const CHIP_LABEL: Record<ConnectionMode, string> = { meta: "Oficial", directa: "Directa", mixta: "Híbrida" };
+const CHIP_CLASS: Record<ConnectionMode, string> = {
+  meta: "bg-success-tint text-success-text",
+  directa: "bg-info-tint text-info-text",
+  mixta: "bg-[#f1ebfb] text-[#6b3fb8] dark:bg-[#8b5cf6]/15 dark:text-[#c4b0f5]",
+};
+
 /**
  * Conexión directa (PR 5) — El punto de color en la esquina del avatar del
  * chat: Meta (verde), Conexión directa (azul) o Conexión híbrida (morado).
@@ -35,12 +43,15 @@ export function ChatModeDot({
   ctx,
   onChanged,
   children,
+  variant = "dot",
 }: {
   conversation: Pick<ConversationDto, "id" | "channel" | "connectionMode">;
   ctx: InboxDirectContext;
   onChanged: (id: string, mode: ConnectionMode) => void;
-  /** El avatar. */
-  children: ReactNode;
+  /** El avatar (solo con `variant="dot"`). */
+  children?: ReactNode;
+  /** «chip»: la etiqueta Oficial / Directa / Híbrida junto al nombre (ronda 3). */
+  variant?: "dot" | "chip";
 }) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -63,7 +74,7 @@ export function ChatModeDot({
     };
   }, [open]);
 
-  if (conversation.channel !== "whatsapp") return <>{children}</>;
+  if (conversation.channel !== "whatsapp") return variant === "chip" ? null : <>{children}</>;
 
   async function choose(next: ConnectionMode) {
     if (next === mode) return;
@@ -92,10 +103,35 @@ export function ChatModeDot({
       data-mode={mode}
     />
   );
+  const chipClass = cn(
+    "inline-flex h-4 shrink-0 items-center rounded-full px-1.5 text-[11px] font-medium leading-4",
+    CHIP_CLASS[mode]
+  );
   return (
     <span ref={box} className="relative shrink-0">
-      {children}
-      {interactive ? (
+      {variant === "chip" ? (
+        interactive ? (
+          <button
+            type="button"
+            aria-haspopup="dialog"
+            aria-expanded={open}
+            aria-label={`${MODE_PICKER_TEXT.title}: ${modeDotLabel(mode)}`}
+            title={`${modeDotLabel(mode)} · clic para cambiar`}
+            onClick={() => setOpen((v) => !v)}
+            data-testid="chat-mode-chip"
+            data-mode={mode}
+            className={cn(chipClass, "hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring")}
+          >
+            {CHIP_LABEL[mode]}
+          </button>
+        ) : (
+          <span className={chipClass} title={modeDotLabel(mode)} data-testid="chat-mode-chip" data-mode={mode}>
+            {CHIP_LABEL[mode]}
+          </span>
+        )
+      ) : null}
+      {variant === "chip" ? null : children}
+      {variant === "chip" ? null : interactive ? (
         <button
           type="button"
           aria-haspopup="dialog"

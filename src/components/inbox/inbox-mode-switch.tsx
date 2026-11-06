@@ -1,11 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { cn } from "@/lib/utils";
 import { useViewer } from "@/components/viewer-context";
 import { useTeamUnread } from "@/components/team-chat/unread-store";
 import { useInboxUnread } from "./unread-store";
 import { useNumberUnread } from "./number-unread-store";
+import { NavRevealButton } from "@/components/nav-mode";
 
 /**
  * 039 — Las pestañas de la Bandeja: «Empresa» (los clientes) y «Equipo» (el
@@ -27,7 +27,7 @@ const TABS: readonly {
   {
     mode: "inbox",
     href: "/inbox",
-    label: "Empresa",
+    label: "Clientes",
     aria: "Bandeja de clientes",
   },
   {
@@ -48,20 +48,6 @@ const TABS: readonly {
 
 const count = (n: number) => (n > 99 ? "99+" : String(n));
 
-/** El título de la columna: fijo, sin menú. */
-export function InboxModeSwitch({
-  className,
-}: {
-  current?: InboxMode;
-  className?: string;
-}) {
-  return (
-    <h2 className={cn("text-[17px] font-bold tracking-tight", className)}>
-      Chats
-    </h2>
-  );
-}
-
 type Viewer = ReturnType<typeof useViewer>;
 
 const shows = (viewer: Viewer) => (t: (typeof TABS)[number]) =>
@@ -77,72 +63,58 @@ export function useHasInboxTabs() {
 }
 
 /**
- * La tira de pestañas bajo el título; `children` va a la derecha de la misma
- * fila (los botones de seleccionar y buscar). No dibuja nada si solo hay una.
+ * Ronda 3 — El encabezado de 56 px de la columna de chats, igual en Clientes,
+ * Mi número y Equipo: a la izquierda el selector segmentado (Clientes · Mi
+ * número · Equipo, cada uno con su globo de no leídos) y a la derecha las
+ * acciones de esa bandeja. Con una sola bandeja, en lugar del selector va su
+ * nombre. Son rutas (/inbox, /inbox/mi-numero, /chat).
  */
-export function InboxTabs({
+export function InboxListHeader({
   current,
-  children,
+  actions,
   rowRef,
-  className,
 }: {
   current: InboxMode;
-  children?: React.ReactNode;
+  actions?: React.ReactNode;
   rowRef?: React.RefObject<HTMLDivElement | null>;
-  className?: string;
 }) {
   const viewer = useViewer();
   const inboxUnread = useInboxUnread();
   const teamUnread = useTeamUnread(viewer.userId);
   const numberUnread = useNumberUnread(viewer.hasMyNumber);
   const tabs = TABS.filter(shows(viewer));
-  if (tabs.length < 2) return null;
 
   return (
-    <div
-      ref={rowRef}
-      className="relative flex shrink-0 items-center gap-2 px-4 pb-2.5 pt-0.5"
-    >
-      <nav
-        aria-label="Cambiar de bandeja"
-        data-testid="inbox-tabs"
-        className={cn(
-          "flex min-w-0 items-center gap-1 overflow-x-auto [scrollbar-width:none]",
-          className,
-        )}
-      >
-        {tabs.map((t) => {
-          const active = t.mode === current;
-          const n = t.mode === "inbox" ? inboxUnread : t.mode === "number" ? numberUnread : teamUnread;
-          return (
-            <Link
-              key={t.mode}
-              href={t.href}
-              aria-current={active ? "page" : undefined}
-              data-testid={`inbox-tab-${t.mode}`}
-              title={t.aria}
-              className={cn(
-                "flex h-6 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-[8px] border px-2.5 text-[11.5px] font-semibold leading-none antialiased transition-colors",
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                active
-                  ? "border-brand/30 bg-brand-tint text-brand-text"
-                  : "border-transparent bg-secondary text-text-2 hover:bg-accent hover:text-foreground",
-              )}
-            >
-              {labelOf(viewer, t)}
-              {n > 0 && (
-                <span
-                  aria-label={`${n} sin leer`}
-                  className="text-[11.5px] font-semibold leading-none tabular-nums text-brand"
-                >
-                  {count(n)}
-                </span>
-              )}
-            </Link>
-          );
-        })}
-      </nav>
-      {children}
-    </div>
+    <header className="relative flex h-14 shrink-0 items-center gap-2 border-b px-4" ref={rowRef}>
+      <NavRevealButton />
+      {tabs.length < 2 ? (
+        <h2 className="text-[16px] font-semibold">{labelOf(viewer, tabs[0] ?? TABS[0]!)}</h2>
+      ) : (
+        <nav aria-label="Cambiar de bandeja" data-testid="inbox-tabs" className="seg min-w-0 overflow-x-auto [scrollbar-width:none]">
+          {tabs.map((t) => {
+            const active = t.mode === current;
+            const n = t.mode === "inbox" ? inboxUnread : t.mode === "number" ? numberUnread : teamUnread;
+            return (
+              <Link
+                key={t.mode}
+                href={t.href}
+                aria-current={active ? "page" : undefined}
+                data-testid={`inbox-tab-${t.mode}`}
+                title={t.aria}
+                className="seg-item"
+              >
+                {labelOf(viewer, t)}
+                {n > 0 && (
+                  <span aria-label={`${n} sin leer`} className="seg-count">
+                    {count(n)}
+                  </span>
+                )}
+              </Link>
+            );
+          })}
+        </nav>
+      )}
+      <div className="ml-auto flex shrink-0 items-center gap-1.5">{actions}</div>
+    </header>
   );
 }

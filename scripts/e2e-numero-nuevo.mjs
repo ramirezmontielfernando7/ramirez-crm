@@ -177,7 +177,7 @@ try {
     "abre el hilo con el aviso de ventana cerrada",
     await ver(page.getByText("La ventana de 24 horas está cerrada."))
   );
-  ok("sin cuadro de texto libre", (await page.getByPlaceholder("Escribe una respuesta…").count()) === 0);
+  ok("sin cuadro de texto libre", (await page.getByPlaceholder("Escribe un mensaje…").count()) === 0);
   ok("ofrece plantillas", await ver(page.locator("#template-select")));
   ok("el encabezado muestra el teléfono como nombre", await ver(page.getByText(`+${CANON}`)));
   await shot(page, "numero-nuevo-4-chat");

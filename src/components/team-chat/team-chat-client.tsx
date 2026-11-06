@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, m } from "framer-motion";
-import { ChevronLeft, Eye, Megaphone, MessageSquarePlus, Search, ShieldAlert, Users } from "lucide-react";
+import { ChevronLeft, Eye, Megaphone, MessageSquarePlus, Plus, Search, ShieldAlert, Users } from "lucide-react";
 import { fetchJson, jsonInit } from "@/lib/fetch-json";
 import {
   OVERSIGHT_NOTICE,
@@ -16,8 +16,7 @@ import { matchesQuery } from "@/lib/search";
 import { cn } from "@/lib/utils";
 import { ContactAvatar } from "@/components/avatar";
 import { ENTER, SPRING } from "@/components/motion";
-import { NavRevealButton } from "@/components/nav-mode";
-import { InboxModeSwitch, InboxTabs } from "@/components/inbox/inbox-mode-switch";
+import { InboxListHeader } from "@/components/inbox/inbox-mode-switch";
 import { useEvents } from "@/components/use-events";
 import { useViewer } from "@/components/viewer-context";
 import { formatTime } from "@/components/inbox/helpers";
@@ -228,7 +227,7 @@ export function TeamChatClient() {
     <div data-split-panels className="flex h-full lg:gap-3">
       <section
         className={cn(
-          "w-full shrink-0 overflow-hidden border-r md:w-[clamp(300px,32vw,340px)] lg:w-[clamp(340px,30vw,460px)]",
+          "w-full shrink-0 overflow-hidden border-r md:w-[clamp(300px,32vw,340px)] lg:w-[360px]",
           "lg:rounded-panel lg:border lg:bg-surface lg:shadow-panel",
           selectedId && "max-md:hidden"
         )}
@@ -375,23 +374,19 @@ function ThreadList({
 
   return (
     <div className="flex h-full flex-col">
-      <header className="flex h-14 shrink-0 items-center gap-2 px-4">
-        <NavRevealButton />
-        {/* 039: las pestañas Empresa · Equipo van bajo el encabezado. */}
-        <InboxModeSwitch current="chat" />
-        <div className="relative ml-auto">
+      <InboxListHeader
+        current="chat"
+        actions={
+        <div>
           <button
             type="button"
             onClick={() => setNewOpen((v) => !v)}
             aria-label="Nuevo mensaje directo"
             aria-expanded={newOpen}
             title="Nuevo mensaje directo"
-            className={cn(
-              "flex h-7 w-7 items-center justify-center rounded-full border border-border-strong text-text-2 transition-colors hover:border-text-3 hover:text-foreground",
-              newOpen && "border-brand text-brand"
-            )}
+            className="btn-r3 p ic h-[34px] w-[34px]"
           >
-            <MessageSquarePlus className="h-3.5 w-3.5" strokeWidth={1.8} />
+            <Plus className="h-4 w-4" strokeWidth={2} />
           </button>
           <AnimatePresence>
             {newOpen && (
@@ -405,8 +400,8 @@ function ThreadList({
             )}
           </AnimatePresence>
         </div>
-      </header>
-      <InboxTabs current="chat" />
+        }
+      />
 
       {list?.overseeing && (
         <div className="flex items-start gap-2 border-b bg-warning-tint px-4 py-2 text-[12px] leading-snug text-warning-text">

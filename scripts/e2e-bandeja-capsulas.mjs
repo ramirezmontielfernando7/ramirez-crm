@@ -168,13 +168,11 @@ try {
   const cap = (name, prefix) => row(name).getByRole("button", { name: prefix });
   const stageCap = cap(N.a, /^Etapa:/);
   const tagCap = cap(N.a, /^Etiquetas:/);
-  const asignCap = cap(N.a, /^Asignado:/);
   ok("la fila de Ana tiene cápsula de Etapa", await ver(stageCap));
   ok("…de Etiquetas", await ver(tagCap));
-  ok("…y de Asignado", await ver(asignCap));
+  ok("ronda 3: la fila ya no lleva cápsula de Asignado (vive en el encabezado del chat)", (await cap(N.a, /^Asignado:/).count()) === 0);
   const tagText = (await tagCap.innerText()).replace(/\s+/g, " ");
   ok("Etiquetas muestra la primera y «+2»", tagText.includes(`Alumno${RUN}`) && /\+2/.test(tagText), tagText);
-  ok("Asignado dice «Sin asignar»", /Sin asignar/.test(await asignCap.innerText()));
   ok("la fila ya no dice «Requiere humano · sin asignar»", (await row(N.a).innerText()).includes("Requiere humano") === false);
   await shot(page, "capsulas-fila");
 
@@ -233,14 +231,18 @@ try {
   ok("el menú de Etiquetas se cierra al clicar fuera", await oculto(menu));
   ok("…sin abrir el chat", (await abierto().count()) === 0);
 
-  // Asignado.
+  // Asignado: ronda 3, en el encabezado del chat abierto («Asignar a: …»).
+  await row(N.a).click();
+  const asignCap = page.getByRole("button", { name: /^Asignar a:/ }).first();
+  ok("el encabezado del chat trae el selector de Asignado", await ver(asignCap, 30000));
+  ok("Asignado dice «Sin asignar»", /Sin asignar/.test(await asignCap.innerText()));
   await asignCap.click();
   ok("el menú de Asignado lista al equipo", await ver(menu.getByRole("menuitemradio", { name: ASESOR.name })));
   ok("…con «Sin asignar» marcado", (await menu.locator('[role=menuitemradio][aria-checked="true"]').innerText()).includes("Sin asignar"));
   await menu.getByRole("menuitemradio", { name: ASESOR.name }).click();
-  ok("al elegir, la cápsula muestra a la persona", await hasta(async () => (await asignCap.innerText()).includes(ASESOR.name)));
+  // El encabezado abrevia («Asesor B.»); el nombre completo va en su etiqueta.
+  ok("al elegir, el selector muestra a la persona", await hasta(async () => ((await asignCap.getAttribute("aria-label")) ?? "").includes(ASESOR.name)));
   ok("el servidor la asignó", await hasta(async () => (await conv(N.a))?.assignee?.id === asesorId));
-  ok("el chat sigue sin abrirse", (await abierto().count()) === 0);
   await shot(page, "capsulas-asignado");
 
   console.log("== 3. Estado de IA: solo un ícono con punto ==");
@@ -262,7 +264,9 @@ try {
   if (colorActiva) ok("el punto de «activa» es verde (el token --success)", colorActiva === verde, `${colorActiva} vs ${verde}`);
   await shot(page, "capsulas-ia");
   // El texto completo sí está en Detalles.
-  await row(N.a).locator("button").first().click();
+  // Ronda 3: el chat de Ana pudo quedar abierto (se asignó desde su encabezado);
+  // volver a pulsar la fila lo cerraría.
+  if (!(await ver(abierto(), 5000))) await row(N.a).locator("button").first().click();
   ok("al abrir el chat, Detalles dice «Atención humana»", await ver(page.getByText("Atención humana").first()));
   await shot(page, "capsulas-detalles");
   await call("PUT", "/api/agent/profile", { name: "Sofi", enabled: false });

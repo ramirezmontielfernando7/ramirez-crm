@@ -13,14 +13,15 @@ export function ContactAvatar({
   name: string;
   /** Ya no tiñe el avatar; se acepta para no tocar a quienes aún lo pasan. */
   seed?: string;
-  size?: "sm" | "list" | "md" | "lg";
+  size?: "xs" | "sm" | "list" | "md" | "lg";
 }) {
   const sizes = {
+    xs: "h-6 w-6 text-[10px]",
     sm: "h-7 w-7 text-[10px]",
     /** Filas de la Bandeja: densas, como Chatwoot/Twenty. */
     list: "h-8 w-8 text-[11px]",
     md: "h-9 w-9 text-xs",
-    lg: "h-12 w-12 text-sm",
+    lg: "h-14 w-14 text-[18px]",
   } as const;
   const text = contactInitials(name);
   return (
@@ -28,7 +29,7 @@ export function ContactAvatar({
       className={cn(
         // brand-soft / brand-text: el tono suave del acento con su texto oscuro
         // (claro) o claro (oscuro); el acento white-label los recalcula.
-        "flex shrink-0 items-center justify-center rounded-full bg-brand-soft font-semibold text-brand-text",
+        "flex shrink-0 items-center justify-center rounded-full bg-[var(--accent-wash)] font-semibold text-brand-text",
         sizes[size]
       )}
       aria-hidden
