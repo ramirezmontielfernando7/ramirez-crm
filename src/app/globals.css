@@ -80,18 +80,28 @@
 
     /* Chat: el cliente entra en verde WhatsApp, el CRM contesta en el acento */
     /* Un punto más claro que el fondo base: el hilo es un panel aparte. */
-    --chat-bg: #fafafb;
+    /* Ronda 3: el hilo es el hueco gris (#f5f5f7); el cliente en blanco con
+       borde; el equipo en el lavado del acento; la IA en lila. */
+    --chat-bg: var(--surface-sunken);
     --bubble-in: #ffffff;
     --bubble-in-border: #e6e6eb;
     --bubble-out: color-mix(in srgb, var(--accent) 17%, #ffffff);
     --bubble-out-border: color-mix(in srgb, var(--accent) 17%, #ffffff);
-    --bubble-out-text: var(--text);
+    --bubble-out-text: color-mix(in srgb, var(--accent) 45%, #000000);
+    --bubble-out-meta: color-mix(in srgb, var(--accent) 70%, #333333);
+    --bubble-ai: #e9e4fb;
+    --bubble-ai-text: #2c1e5c;
+    --bubble-ai-who: #5b3fb8;
+    --bubble-ai-meta: #6c5ca0;
 
     /* Acento (default: azul Vocero; el white-label lo sobreescribe) */
     --accent: #0e7c80;
     --accent-hover: #0b6a6d;
     --accent-soft: #cfe9ea;
     --accent-tint: #ebf6f6;
+    /* Ronda 3: el «accent-soft» de la maqueta (#e3f3f3 con el teal): elegido,
+       avatar, fila abierta. Sale del acento white-label en vivo. */
+    --accent-wash: color-mix(in srgb, var(--accent) 11%, var(--surface));
     --accent-text: #0a5e61;
     --accent-fg: #ffffff;
     /* El acento como TINTA (una hora, un enlace) y como anillo de foco. En
@@ -191,8 +201,16 @@
 
     /* Chat */
     --chat-bg: var(--surface-sunken);
-    --bubble-in: #173d2c;
-    --bubble-in-border: #2a5e45;
+    --bubble-in: #27324f;
+    --bubble-in-border: #44527a;
+    --bubble-out: color-mix(in srgb, var(--accent) 28%, var(--surface));
+    --bubble-out-border: color-mix(in srgb, var(--accent) 28%, var(--surface));
+    --bubble-out-text: var(--text);
+    --bubble-out-meta: var(--text-3);
+    --bubble-ai: #2f2754;
+    --bubble-ai-text: #ece7ff;
+    --bubble-ai-who: #c4b0f5;
+    --bubble-ai-meta: #b3a6dc;
 
     /* Acento: respaldo con el teal Dashfort calculado para este fondo; el
        white-label lo recalcula (ver resolveAccentSet en lib/branding). */
@@ -200,6 +218,7 @@
     --accent-hover: #38a9ad;
     --accent-soft: #184f5f;
     --accent-tint: #1a3f51;
+    --accent-wash: color-mix(in srgb, var(--accent) 22%, var(--surface));
     --accent-text: #63bcbe;
     --accent-fg: #0f1419;
     --accent-ink: var(--accent-text);
@@ -328,6 +347,59 @@
 }
 
 @layer components {
+  /* ── Ronda 3: piezas de la maqueta (style.css del prototipo) ──────────
+     Mismas medidas que /auditoria-diseno/maquetas/ronda3/fuente/style.css.
+     Los colores salen de los tokens (claro/oscuro y white-label). */
+  .seg {
+    @apply inline-flex shrink-0 gap-[2px] rounded-[10px] bg-secondary p-[3px];
+  }
+  .seg-item {
+    @apply flex h-7 items-center gap-1.5 whitespace-nowrap rounded-[8px] px-3 text-[13px] font-medium text-text-2 transition-colors;
+  }
+  .seg-item:hover {
+    @apply text-foreground;
+  }
+  .seg-item[aria-current="page"],
+  .seg-item[aria-pressed="true"] {
+    @apply bg-surface text-foreground;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+  }
+  .seg-count {
+    @apply rounded-[9px] bg-brand px-1.5 text-[11px] font-semibold leading-[18px] text-brand-fg;
+  }
+  /* Cápsula de la maqueta (.cap): 18 px de alto, 11 px, sin borde. */
+  .cap {
+    @apply inline-flex h-[18px] min-w-0 items-center gap-1 whitespace-nowrap rounded-full bg-secondary px-2 text-[11px] font-medium leading-none text-text-2;
+  }
+  /* Botones de la maqueta: 36 px (o 30 en .sm), radio de control. */
+  .btn-r3 {
+    @apply inline-flex h-9 items-center justify-center gap-1.5 whitespace-nowrap rounded-control border border-border-strong bg-surface px-3.5 text-[14px] font-medium text-foreground transition-colors hover:bg-row-hover;
+  }
+  .btn-r3.sm {
+    @apply h-8 px-2.5 text-[13px];
+  }
+  .btn-r3.ic {
+    @apply w-9 px-0;
+  }
+  .btn-r3.g {
+    @apply border-transparent bg-transparent text-text-2 hover:bg-secondary hover:text-foreground;
+  }
+  .btn-r3.p {
+    @apply border-brand bg-brand text-brand-fg hover:bg-brand-hover;
+  }
+  .btn-r3.soft {
+    @apply border-brand-soft bg-brand-tint text-brand-text;
+  }
+  /* Sección del panel de Detalles (.sec): 14/16 px y título de 12 px. */
+  .sec {
+    @apply border-b px-4 py-3.5;
+  }
+  .sec-h {
+    @apply mb-2.5 flex items-center justify-between text-[12px] font-semibold uppercase tracking-[0.03em] text-text-3;
+  }
+  .sec-link {
+    @apply text-[12px] font-medium normal-case tracking-normal text-brand-ink hover:underline;
+  }
   /*
     Fila de la Bandeja. PR 1 usaba `content-visibility: auto`; desde PR 2 la
     lista es virtual (solo existen las filas que se ven) y ese truco
@@ -1037,3 +1109,15 @@ html[data-lite] .usage-modal { animation: none; }
 }
 .usage-btn-dark:hover { filter: brightness(1.15); }
 .usage-btn-dark:disabled { opacity: 0.6; }
+
+/* Ronda 3 — Caja de escribir: las herramientas llevan nombre («Biblioteca»,
+   «Respuestas», «Mejorar redacción») mientras quepan; en un hilo angosto
+   (Detalles abierto con el menú grande) quedan solo los íconos. */
+.composer-box {
+  container-type: inline-size;
+}
+@container (max-width: 560px) {
+  .composer-box .tool-label {
+    display: none;
+  }
+}

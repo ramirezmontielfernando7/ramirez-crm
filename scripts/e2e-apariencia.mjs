@@ -189,7 +189,9 @@ async function main() {
   const colorOut = await ap.p.evaluate(() => getComputedStyle(document.querySelector("[data-testid=chat-preview] .bubble-out")).backgroundColor);
   ok("WhatsApp: la burbuja saliente es verde claro", colorOut === "rgb(217, 253, 211)", colorOut);
   ok("la vista previa tiene mensajes de ejemplo", (await ap.p.locator("[data-testid=chat-preview] .bubble").count()) === 4);
-  ok("la hora va en la burbuja (abajo a la derecha)", (await ap.p.locator("[data-testid=chat-preview] .bubble .float-right").count()) === 4);
+  // Ronda 3: la hora va en su propio renglón al pie de la burbuja, pegada a la derecha.
+  const metas = await ap.p.$$eval("[data-testid=chat-preview] .bubble .bubble-meta", (els) => els.map((e) => getComputedStyle(e).justifyContent));
+  ok("la hora va en la burbuja (abajo a la derecha)", metas.length === 4 && metas.every((j) => j === "flex-end"), metas.join());
   ok("el separador de día es una píldora centrada", (await ap.p.locator("[data-testid=chat-preview] .day-pill").count()) === 1);
   const filaPill = await ap.p.evaluate(() => getComputedStyle(document.querySelector("[data-testid=chat-preview] .day-pill")).backgroundColor);
   ok("WhatsApp claro: la píldora de día es blanca", filaPill === "rgb(255, 255, 255)", filaPill);

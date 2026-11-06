@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { AlertTriangle, Bot, Cable, ChevronRight, ListChecks, Sparkles, UserRound, X } from "lucide-react";
+import { AlertTriangle, Cable, ChevronDown, ChevronLeft, Sparkles, UserRound, X } from "lucide-react";
 import {
   externalAnswerLabel,
   externalAnswering,
@@ -23,22 +23,26 @@ import { fetchJson, jsonInit } from "@/lib/fetch-json";
 import { cn, phoneCompact } from "@/lib/utils";
 import { AnuncioOrigen } from "@/components/anuncio-origen";
 import { ContactAvatar } from "@/components/avatar";
-import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { FichaPanel } from "@/components/ficha-panel";
-import { AssignmentCard } from "@/components/assignment/assignment-card";
+import { useAssignees } from "@/components/assignment/use-assignees";
+import { AssigneeCapsule, TagsAddButton, type PatchRow } from "@/components/inbox/chat-capsules";
+import { useInboxCatalogs } from "@/components/inbox/use-inbox-catalogs";
+import { dueLabel } from "@/components/work/tasks-client";
+import type { TaskDto } from "@/lib/work";
 import { ParticipantsCard } from "@/components/assignment/participants-card";
 import { ContactTagsCard } from "@/components/tags/contact-tags-card";
 import { LossReasonDialog } from "@/components/pipeline/loss-reason-dialog";
 import { AmountDialog } from "@/components/pipeline/amount-dialog";
-import { PriorityBadge } from "@/components/pipeline/priority-picker";
+import { PRIORITY_LABELS } from "@/server/leads/priority";
 import { formatMoneyCents } from "@/lib/money";
-import { stageDot } from "@/lib/tags";
+import { stageDot, tagColorClass } from "@/lib/tags";
 import { useViewer } from "@/components/viewer-context";
 import { ChatTimeline } from "@/components/inbox/chat-timeline";
 import { ContactNotes } from "@/components/work/contact-notes";
 import { Collapse, DisclosureButton, useDisclosureId } from "@/components/motion";
 import { contactLabel } from "@/lib/phone-search";
+import { OPEN_HISTORY_EVENT } from "./panel-events";
 
 const HANDOFF_LABELS: Record<string, string> = {
   cliente: "El cliente pidió un humano",
@@ -56,8 +60,11 @@ export function ContactPanel({
   onPatchConversation,
   onClose,
   numberAi,
+  onPatchRow,
 }: {
   conversation: ConversationDto;
+  /** Ronda 3: etiquetas y asignado se editan aquí con los mismos menús de la fila. */
+  onPatchRow?: PatchRow;
   /**
    * 046 — Chat de cliente de «Mi número»: la IA de ese chat va por su número
    * (pausar/reanudar propio, o nada) y no por el agente de la empresa. Con
@@ -76,6 +83,13 @@ export function ContactPanel({
   const [loaded, setLoaded] = useState(false);
   // 022: "Más detalles" (consentimiento, etiquetas, ficha) arranca plegado.
   const [moreOpen, setMoreOpen] = useState(false);
+  // Ronda 3: «Ver todo» del Historial cambia el panel a la vista completa.
+  const [view, setView] = useState<"details" | "history">("details");
+  useEffect(() => {
+    const open = () => setView("history");
+    window.addEventListener(OPEN_HISTORY_EVENT, open);
+    return () => window.removeEventListener(OPEN_HISTORY_EVENT, open);
+  }, []);
   const moreId = useDisclosureId("more-details");
   // 022: lo que se cambia DESDE el panel también refresca la línea de tiempo
   // (el SSE solo avisa de lo que cambió en otro lado).
@@ -108,6 +122,8 @@ export function ContactPanel({
 
   const contactId = conversation.contact.id;
   const viewer = useViewer();
+  const catalogs = useInboxCatalogs();
+  const assignees = useAssignees();
   // 020: a quién le toca el handoff. Al asesor asignado se le dice que es a
   // él; sin asignar, quien reparte ve que falta alguien.
   const handoffOwner = !conversation.assignee
@@ -285,18 +301,45 @@ export function ContactPanel({
   }
 
 
+  const stage = stages.find((x) => x.id === currentStageId);
+  const email = typeof ficha.email === "string" ? ficha.email : typeof ficha.correo === "string" ? ficha.correo : null;
+  const aiTitle = conversation.handoffAt
+    ? "Atención humana"
+    : !conversation.aiEnabled
+      ? "IA en pausa en este chat"
+      : attending
+        ? null
+        : agentReady || externalActive
+          ? "Respondiendo"
+          : "Activada";
+
+  if (view === "history") {
+    return (
+      <div className="flex h-full flex-col">
+        <header className="flex h-14 shrink-0 items-center gap-1 border-b bg-surface px-3 max-xl:bg-popover">
+          <button type="button" onClick={() => setView("details")} aria-label="Volver a Detalles" className="btn-r3 g ic h-8 w-8">
+            <ChevronLeft className="h-4 w-4" strokeWidth={1.75} />
+          </button>
+          <h3 className="text-[15px] font-semibold">Historial</h3>
+          <button type="button" onClick={onClose} aria-label="Ocultar panel" className="btn-r3 g ic ml-auto h-8 w-8">
+            <X className="h-4 w-4" strokeWidth={1.75} />
+          </button>
+        </header>
+        <div className="flex-1 overflow-y-auto" id="chat-historial">
+          <ChatTimeline contactId={contactId} refreshKey={refreshKey + timelineRev} mode="full" />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex h-full flex-col">
-      {/* Por debajo de xl el panel flota (bg-popover, ver InboxClient): su
-          cabecera va del mismo tono para no dejar una franja más oscura. */}
-      <header className="sticky top-0 flex h-14 shrink-0 items-center justify-between border-b bg-background px-4 max-xl:bg-popover">
-        <h3 className="text-[17px] font-semibold tracking-tight">Detalles</h3>
-        <button
-          onClick={onClose}
-          aria-label="Ocultar panel"
-          className="rounded p-1 text-text-3 hover:bg-accent hover:text-foreground"
-        >
-          <X className="h-4 w-4" strokeWidth={1.7} />
+      {/* Ronda 3: «Detalles» de 56 px. Por debajo de xl el panel flota
+          (bg-popover): su cabecera va del mismo tono. */}
+      <header className="sticky top-0 flex h-14 shrink-0 items-center justify-between border-b bg-surface pl-4 pr-3 max-xl:bg-popover">
+        <h3 className="text-[15px] font-semibold">Detalles</h3>
+        <button type="button" onClick={onClose} aria-label="Ocultar panel" className="btn-r3 g ic h-8 w-8">
+          <X className="h-4 w-4" strokeWidth={1.75} />
         </button>
       </header>
 
@@ -317,71 +360,158 @@ export function ContactPanel({
             </button>
           </div>
         )}
-        {/* Contacto */}
-        <section className="border-b p-4">
-          <div className="flex items-center gap-3">
-            <ContactAvatar
-              name={contactLabel(conversation.contact)}
-              seed={conversation.contact.id}
-              size="lg"
-            />
-            <div className="min-w-0">
-              <p className="truncate text-[17px] font-semibold tracking-tight">
-                {contactLabel(conversation.contact)}
-              </p>
-              <p className="text-[13px] text-text-2">
-                {phoneCompact(conversation.contact.phone)}
-              </p>
-            </div>
-          </div>
 
-          {numberChat ? (
-            numberAi && <div className="mt-3">{numberAi}</div>
+        {/* Contacto */}
+        <section className="sec flex items-center gap-3">
+          <ContactAvatar name={contactLabel(conversation.contact)} seed={conversation.contact.id} size="lg" />
+          <div className="min-w-0">
+            <p className="truncate text-[15px] font-semibold leading-5">{contactLabel(conversation.contact)}</p>
+            {conversation.contact.phone && (
+              <p className="text-[12px] leading-4 text-text-3">{phoneCompact(conversation.contact.phone)}</p>
+            )}
+            {email && <p className="truncate text-[12px] leading-4 text-text-3">{email}</p>}
+          </div>
+        </section>
+
+        {/* Venta: etapa, monto, prioridad, quién lo atiende y participantes. */}
+        <section className="sec" data-testid="panel-sale">
+          <h3 className="sec-h">Venta</h3>
+          <dl className="grid grid-cols-[96px_1fr] items-center gap-y-2 text-[13px]">
+            {stages.length > 0 && leadId && (
+              <>
+                <dt className="text-text-3">Etapa</dt>
+                <dd>
+                  <span className="relative inline-flex items-center">
+                    <StageDot stage={stage} />
+                    <select
+                      aria-label="Etapa del pipeline"
+                      value={currentStageId ?? ""}
+                      onChange={(e) => {
+                        const st = stages.find((x) => x.id === e.target.value);
+                        if (st) requestMove(st);
+                      }}
+                      className="h-6 cursor-pointer appearance-none rounded-full border bg-surface pl-[22px] pr-6 text-[12px] font-medium text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                      {currentStageId === null && <option value="">Sin etapa</option>}
+                      {stages.map((st) => (
+                        <option key={st.id} value={st.id}>
+                          {st.name}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className="pointer-events-none absolute right-2 h-3 w-3 text-text-3" strokeWidth={2} aria-hidden />
+                  </span>
+                </dd>
+                <dt className="text-text-3">Monto</dt>
+                <dd>
+                  <button
+                    type="button"
+                    onClick={() => setEditingSale(true)}
+                    className={cn("-ml-1 rounded px-1 hover:bg-secondary", sale.amountCents === null && "text-text-3")}
+                    data-testid="panel-amount"
+                  >
+                    {sale.amountCents === null ? "Sin monto" : formatMoneyCents(sale.amountCents, sale.currency ?? "MXN")}
+                  </button>
+                </dd>
+                <dt className="text-text-3">Prioridad</dt>
+                <dd>
+                  <button type="button" onClick={() => setEditingSale(true)} className="-ml-1 rounded px-1 hover:bg-secondary">
+                    {sale.priority ? <PriorityText value={sale.priority} /> : <span className="text-text-3">Sin prioridad</span>}
+                  </button>
+                </dd>
+              </>
+            )}
+            <dt className="text-text-3">Asignado</dt>
+            <dd className="min-w-0">
+              <AssigneeCapsule
+                variant="plain"
+                conversation={conversation}
+                members={assignees}
+                canAssign={viewer.can("assignment.manage")}
+                viewerId={viewer.userId}
+                onPatch={(id, patch) => {
+                  onPatchRow?.(id, patch);
+                  bumpTimeline();
+                }}
+                onRefetch={() => void refreshLive()}
+                onError={(m) => setError(m)}
+              />
+            </dd>
+            {/* 026: quienes también ven y atienden el chat (la asignación no cambia). */}
+            <ParticipantsCard
+              variant="row"
+              contactId={contactId}
+              assignedUserId={conversation.assignee?.id ?? null}
+              refreshKey={refreshKey}
+              onChanged={bumpTimeline}
+            />
+          </dl>
+        </section>
+
+        {/* Etiquetas: todas a la vista; «+ Agregar» abre el mismo menú de la fila. */}
+        <section className="sec" aria-label="Etiquetas">
+          <h3 className="sec-h">
+            Etiquetas
+            {onPatchRow && (
+              <TagsAddButton
+                conversation={conversation}
+                catalog={catalogs.tags}
+                canCreate={viewer.can("tags.manage")}
+                onCatalogAdd={catalogs.addTag}
+                onPatch={onPatchRow}
+                onRefetch={() => void refreshLive()}
+                onError={(m) => setError(m)}
+                onSaved={bumpTimeline}
+              />
+            )}
+          </h3>
+          {conversation.tags.length === 0 ? (
+            <p className="text-[13px] text-text-3">Sin etiquetas</p>
           ) : (
-          <>
-          {conversation.handoffAt && (
-            <div className="mt-3 rounded-md border border-warning-soft bg-warning-tint p-3">
-              <p className="flex items-center gap-1.5 text-[13px] font-medium text-warning-text">
-                <UserRound className="h-4 w-4" strokeWidth={1.7} /> Atención humana
-                <span className="font-normal opacity-80">· {handoffOwner}</span>
-              </p>
-              <p className="mt-1 text-xs text-warning-text opacity-80">
-                {HANDOFF_LABELS[conversation.handoffReason ?? ""] ??
-                  "La IA está en pausa en esta conversación."}
-              </p>
-              <Button
-                size="sm"
-                variant="outline"
-                className="mt-2 w-full"
-                onClick={() => void onPatchConversation({ reactivate: true })}
-              >
-                Reactivar IA
-              </Button>
+            <div className="flex flex-wrap gap-1.5">
+              {conversation.tags.map((t) => (
+                <span key={t.id} className={cn("cap", tagColorClass(t.color))}>
+                  {t.name}
+                </span>
+              ))}
             </div>
           )}
+        </section>
 
-          <div className="mt-3 rounded-md border bg-subtle px-3 py-2.5">
-            <div className="flex items-center justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-[13px] font-medium">IA en esta conversación</p>
-                <p className="text-[11px] text-text-3">
-                  {conversation.handoffAt
-                    ? "En pausa · atención humana"
-                    : !conversation.aiEnabled
-                      ? "En pausa"
-                      : agentReady || externalActive
-                        ? "Respondiendo"
-                        : "Activada"}
-                </p>
-                {attending && (
-                  <p className="mt-0.5 flex items-center gap-1 text-[11px] text-text-3">
-                    <Bot className="h-3 w-3 shrink-0" strokeWidth={1.7} />
-                    <span className="truncate">
-                      Atiende: <span className="font-medium text-foreground">{attending.label}</span> · etapa{" "}
-                      {attending.stageName}
-                    </span>
+        {/* IA en este chat: quién responde, el interruptor y lo que falte. */}
+        {numberChat ? (
+          numberAi && (
+            <section className="sec">
+              <h3 className="sec-h">IA en este chat</h3>
+              {numberAi}
+            </section>
+          )
+        ) : (
+          <section className="sec">
+            <h3 className="sec-h">IA en este chat</h3>
+            <div className="flex items-center gap-3">
+              <div className="min-w-0 flex-1">
+                {aiTitle === "Atención humana" ? (
+                  <p className="text-[13px] font-semibold leading-5 text-warning-text">
+                    <UserRound className="-mt-0.5 mr-1 inline h-3.5 w-3.5" strokeWidth={1.75} aria-hidden />
+                    Atención humana <span className="font-normal opacity-80">· {handoffOwner}</span>
                   </p>
+                ) : attending && aiActive ? (
+                  <p className="truncate text-[13px] font-semibold">
+                    Atiende: {attending.label}
+                  </p>
+                ) : (
+                  <p className="text-[13px] font-semibold">{aiTitle}</p>
                 )}
+                <p className="text-[12px] leading-4 text-text-3">
+                  {conversation.handoffAt
+                    ? (HANDOFF_LABELS[conversation.handoffReason ?? ""] ?? "La IA está en pausa en esta conversación.")
+                    : attending && aiActive
+                      ? `Etapa ${attending.stageName}`
+                      : !conversation.aiEnabled
+                        ? "La IA no contesta este chat"
+                        : "La IA contesta este chat"}
+                </p>
               </div>
               <Switch
                 size="sm"
@@ -394,22 +524,25 @@ export function ContactPanel({
                 }}
               />
             </div>
+            {conversation.handoffAt && (
+              <button
+                type="button"
+                onClick={() => void onPatchConversation({ reactivate: true })}
+                className="btn-r3 sm mt-2.5 w-full"
+              >
+                Reactivar IA
+              </button>
+            )}
 
             {brain?.warning === "doble_respuesta" ? (
               <div className="mt-2.5 flex items-start gap-2 rounded-md border border-danger-soft bg-danger-tint p-2.5">
-                <AlertTriangle
-                  className="mt-0.5 h-3.5 w-3.5 shrink-0 text-danger-text"
-                  strokeWidth={1.7}
-                />
+                <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-danger-text" strokeWidth={1.7} />
                 <div className="text-[11px] leading-relaxed text-danger-text">
                   <p>
-                    <span className="font-semibold">Doble respuesta:</span> el agente
-                    incluido y tu cerebro externo contestan a la vez.
+                    <span className="font-semibold">Doble respuesta:</span> el agente incluido y tu cerebro externo
+                    contestan a la vez.
                   </p>
-                  <Link
-                    href="/agent"
-                    className="mt-1 inline-block font-medium underline underline-offset-2"
-                  >
+                  <Link href="/agent" className="mt-1 inline-block font-medium underline underline-offset-2">
                     Revisar en Agente →
                   </Link>
                 </div>
@@ -420,177 +553,92 @@ export function ContactPanel({
                 {externalAnswerLabel(brain)}
               </p>
             ) : brain && !agentReady && externalDown(brain) ? (
-              <div className="mt-2.5 flex items-start gap-2 rounded-md border border-warning-soft bg-warning-tint p-2.5">
-                <Cable
-                  className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning-text"
-                  strokeWidth={1.7}
-                />
-                <p className="text-[11px] leading-relaxed text-warning-text">
-                  Tu cerebro externo no está en línea: nadie contesta en automático
-                  hasta que vuelva.
-                  <Link
-                    href="/agent"
-                    className="ml-1 whitespace-nowrap font-medium text-brand-text underline underline-offset-2 hover:text-brand"
-                  >
-                    Ver en Agente →
-                  </Link>
-                </p>
-              </div>
-            ) : brain && !agentReady && (
-              <div className="mt-2.5 flex items-start gap-2 rounded-md border border-warning-soft bg-warning-tint p-2.5">
-                <Sparkles
-                  className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning-text"
-                  strokeWidth={1.7}
-                />
-                <p className="text-[11px] leading-relaxed text-warning-text">
-                  {aiConfigured
-                    ? "El agente de IA no responde por su cuenta. Configura lo básico y enciéndelo (o conecta tu propio bot por la API)."
-                    : "Falta la clave de IA de la instancia (OPENROUTER_API_TOKEN) para que el agente responda, o conecta tu propio bot por la API."}
-                  {aiConfigured && (
-                    <Link
-                      href="/agent"
-                      className="ml-1 whitespace-nowrap font-medium text-brand-text underline underline-offset-2 hover:text-brand"
-                    >
-                      Configurar agente →
-                    </Link>
-                  )}
-                </p>
-              </div>
-            )}
-          </div>
-
-          {brainError && (
-            <p role="alert" className="mt-2 text-[11px] text-danger-text">
-              {brainError}
-            </p>
-          )}
-          </>
-          )}
-
-          {anuncio && (
-            <div className="mt-3">
-              <AnuncioOrigen anuncio={anuncio} />
-            </div>
-          )}
-        </section>
-
-        {/* 020: quién atiende y reasignar. 022: el historial, plegado y
-            solo para quien reparte. */}
-        <AssignmentCard contactId={contactId} refreshKey={refreshKey} onChanged={bumpTimeline} />
-        {/* 026: quienes también ven y atienden el chat (la asignación no cambia). */}
-        <ParticipantsCard
-          contactId={contactId}
-          assignedUserId={conversation.assignee?.id ?? null}
-          refreshKey={refreshKey}
-          onChanged={bumpTimeline}
-        />
-
-        {/* Venta: etapa, monto, prioridad y quién lo atiende (lo de siempre, en un bloque). */}
-        {stages.length > 0 && leadId && (
-          <section className="border-b p-4" data-testid="panel-sale">
-            <p className="kicker mb-3">Venta</p>
-            <dl className="space-y-2.5 text-[13px]">
-              <div className="flex items-center justify-between gap-3">
-                <dt className="text-text-2">Etapa</dt>
-                <dd>
-                  <span className="relative inline-flex items-center">
-                    <StageDot stage={stages.find((x) => x.id === currentStageId)} />
-                    <select
-                      aria-label="Etapa del pipeline"
-                      value={currentStageId ?? ""}
-                      onChange={(e) => {
-                        const st = stages.find((x) => x.id === e.target.value);
-                        if (st) requestMove(st);
-                      }}
-                      className="h-8 rounded-full border bg-background pl-6 pr-2 text-[13px] font-medium outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    >
-                      {currentStageId === null && <option value="">Sin etapa</option>}
-                      {stages.map((st) => (
-                        <option key={st.id} value={st.id}>
-                          {st.name}
-                        </option>
-                      ))}
-                    </select>
+              <p className="mt-2 text-[11px] leading-relaxed text-warning-text">
+                Tu cerebro externo no está en línea: nadie contesta en automático hasta que vuelva.{" "}
+                <Link href="/agent" className="font-medium underline underline-offset-2">
+                  Ver en Agente →
+                </Link>
+              </p>
+            ) : (
+              brain &&
+              !agentReady && (
+                <p className="mt-2 flex items-start gap-1.5 text-[11px] leading-relaxed text-text-3">
+                  <Sparkles className="mt-0.5 h-3 w-3 shrink-0 text-warning-text" strokeWidth={1.7} />
+                  <span>
+                    {aiConfigured
+                      ? "El agente de IA aún no responde por su cuenta."
+                      : "Falta la clave de IA de la instancia para que el agente responda."}
+                    {aiConfigured && (
+                      <Link href="/lab" className="ml-1 whitespace-nowrap font-medium text-brand-ink underline-offset-2 hover:underline">
+                        Configurar agente →
+                      </Link>
+                    )}
                   </span>
-                </dd>
-              </div>
-              <div className="flex items-center justify-between gap-3">
-                <dt className="text-text-2">Monto</dt>
-                <dd>
-                  <button
-                    type="button"
-                    onClick={() => setEditingSale(true)}
-                    className="rounded px-1 font-semibold hover:bg-accent"
-                    data-testid="panel-amount"
-                  >
-                    {sale.amountCents === null ? "Sin monto" : formatMoneyCents(sale.amountCents, sale.currency ?? "MXN")}
-                  </button>
-                </dd>
-              </div>
-              <div className="flex items-center justify-between gap-3">
-                <dt className="text-text-2">Prioridad</dt>
-                <dd>
-                  <button type="button" onClick={() => setEditingSale(true)} className="rounded px-1 hover:bg-accent">
-                    {sale.priority ? <PriorityBadge value={sale.priority} /> : <span className="text-text-3">Sin prioridad</span>}
-                  </button>
-                </dd>
-              </div>
-              <div className="flex items-center justify-between gap-3">
-                <dt className="text-text-2">Asignado</dt>
-                <dd className="font-medium">{conversation.assignee?.name ?? <span className="text-text-3">Sin asignar</span>}</dd>
-              </div>
-            </dl>
+                </p>
+              )
+            )}
+            {brainError && (
+              <p role="alert" className="mt-2 text-[11px] text-danger-text">
+                {brainError}
+              </p>
+            )}
           </section>
         )}
 
-        {/* 033: una tarea para el equipo, ya ligada a este chat (Trabajo → Tareas). */}
+        {/* 033: tareas ligadas a este chat y las notas de trabajo del equipo. */}
         {viewer.hasModule("trabajo") && (
-          <section className="border-b">
-            <Link
-              href={`/trabajo/tareas?${new URLSearchParams({
-                nueva: "1",
-                contacto: contactId,
-                conversacion: conversation.id,
-                nombre: conversation.contact.name,
-              })}`}
-              className="flex items-center gap-2 px-4 py-3 text-[13px] font-medium text-text-2 hover:bg-accent hover:text-foreground"
-            >
-              <ListChecks className="h-4 w-4 text-brand" strokeWidth={1.8} />
-              Nueva tarea para este chat
-              <ChevronRight className="ml-auto h-4 w-4 text-text-3" strokeWidth={1.7} />
-            </Link>
+          <section className="sec">
+            <h3 className="sec-h">
+              Tareas y notas
+              <Link
+                href={`/trabajo/tareas?${new URLSearchParams({
+                  nueva: "1",
+                  contacto: contactId,
+                  conversacion: conversation.id,
+                  nombre: conversation.contact.name,
+                })}`}
+                aria-label="Nueva tarea para este chat"
+                className="sec-link"
+              >
+                + Nueva
+              </Link>
+            </h3>
+            <ContactTasks contactId={contactId} refreshKey={refreshKey} />
+            <ContactNotes contactId={contactId} conversationId={conversation.id} bare />
           </section>
         )}
 
-        {/* 033 (PR 2): notas internas del equipo sobre este contacto. */}
-        {viewer.hasModule("trabajo") && (
-          <ContactNotes contactId={contactId} conversationId={conversation.id} />
+        {anuncio && (
+          <section className="sec">
+            <h3 className="sec-h">Llegó por anuncio</h3>
+            <AnuncioOrigen anuncio={anuncio} />
+          </section>
         )}
 
-        {/* 022: lo que se consulta de vez en cuando, plegado. Mensajes
-            masivos, etiquetas y la ficha (lo que se SABE del lead). */}
+        {/* Lo que se consulta de vez en cuando: consentimiento y ficha. */}
         <section className="border-b">
           <DisclosureButton
             open={moreOpen}
             onToggle={() => setMoreOpen((v) => !v)}
             controls={moreId}
-            className="rounded-none px-4 py-3 text-text-2 hover:bg-accent hover:text-foreground"
+            className="rounded-none px-4 py-3 text-text-3 hover:bg-row-hover hover:text-foreground"
           >
-            <span className="kicker">Más detalles</span>
+            <span className="text-[12px] font-semibold uppercase tracking-[0.03em]">Más detalles</span>
           </DisclosureButton>
           <Collapse open={moreOpen} id={moreId} className="border-t">
-            {/* 021: consentimiento para mensajes masivos y etiquetas. */}
-            <ContactTagsCard contactId={contactId} consentFirst onChanged={bumpTimeline} />
+            <ContactTagsCard contactId={contactId} only="consent" onChanged={bumpTimeline} />
             <FichaPanel ficha={ficha} onSave={saveFicha} />
           </Collapse>
         </section>
 
-        {/* 022: todo lo que le pasó a este chat, con su nota al frente. */}
-        <div id="chat-historial">
-          <ChatTimeline contactId={contactId} refreshKey={refreshKey + timelineRev} />
-        </div>
+        {/* 022: los 3 últimos; «Ver todo» abre el historial completo. */}
+        <ChatTimeline
+          contactId={contactId}
+          refreshKey={refreshKey + timelineRev}
+          mode="preview"
+          onSeeAll={() => setView("history")}
+        />
       </div>
-
       {editingSale && leadId && (
         <AmountDialog
           leadName={contactLabel(conversation.contact)}
@@ -642,3 +690,73 @@ type ContactDetail = {
   lead: { id: string; amountCents?: number | null; currency?: string | null; priority?: PriorityValue | null } | null;
   anuncio: AnuncioDto | null;
 };
+
+const PRIORITY_TONE: Record<PriorityValue, string> = {
+  alta: "text-danger-text",
+  media: "text-warning-text",
+  baja: "text-text-2",
+};
+
+function PriorityText({ value }: { value: PriorityValue }) {
+  return <span className={cn("font-semibold", PRIORITY_TONE[value])}>{PRIORITY_LABELS[value]}</span>;
+}
+
+/** 033 — Las tareas abiertas de este contacto; marcar una la cierra. */
+function ContactTasks({ contactId, refreshKey = 0 }: { contactId: string; refreshKey?: number }) {
+  const [tasks, setTasks] = useState<TaskDto[]>([]);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    void fetchJson<{ tasks: TaskDto[] }>(
+      `/api/work/tasks?${new URLSearchParams({ filter: "all", contactId })}`
+    ).then((res) => {
+      if (!alive) return;
+      if (res.ok) setTasks(res.data.tasks.filter((t) => !t.doneAt));
+    });
+    return () => {
+      alive = false;
+    };
+  }, [contactId, refreshKey]);
+
+  async function complete(task: TaskDto) {
+    setTasks((prev) => prev.filter((t) => t.id !== task.id));
+    const res = await fetchJson(`/api/work/tasks/${task.id}`, jsonInit("PATCH", { done: true }));
+    if (!res.ok) {
+      setTasks((prev) => [task, ...prev]);
+      setError(`No se cerró la tarea: ${res.error}`);
+    }
+  }
+
+  if (tasks.length === 0 && !error) return null;
+  const now = new Date();
+  return (
+    <ul className="mb-2.5 space-y-1.5" aria-label="Tareas de este chat">
+      {tasks.map((t) => {
+        const overdue = t.dueAt !== null && new Date(t.dueAt) < now;
+        return (
+          <li key={t.id} className="flex items-start gap-2 text-[13px]">
+            <input
+              type="checkbox"
+              aria-label={`Marcar como hecha: ${t.title}`}
+              disabled={!t.canEdit}
+              onChange={() => void complete(t)}
+              className="mt-0.5 h-3.5 w-3.5 shrink-0 accent-[var(--accent)]"
+            />
+            <span className="min-w-0 flex-1 leading-5">{t.title}</span>
+            {t.dueAt && (
+              <span className={cn("cap shrink-0", overdue ? "bg-warning-tint text-warning-text" : "bg-secondary text-text-2")}>
+                {dueLabel(t.dueAt, now)}
+              </span>
+            )}
+          </li>
+        );
+      })}
+      {error && (
+        <li role="alert" className="text-[11px] text-danger-text">
+          {error}
+        </li>
+      )}
+    </ul>
+  );
+}

@@ -12,7 +12,6 @@ import type { ConversationDto, MessageDto } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { ContactAvatar } from "@/components/avatar";
 import { Button } from "@/components/ui/button";
-import { NavRevealButton } from "@/components/nav-mode";
 import { useEvents } from "@/components/use-events";
 import { useViewer } from "@/components/viewer-context";
 import { useAssignees } from "@/components/assignment/use-assignees";
@@ -21,10 +20,10 @@ import { Composer } from "./composer";
 import { ContactPanel } from "./contact-panel";
 import { useInboxCatalogs } from "./use-inbox-catalogs";
 import { formatTime, previewText } from "./helpers";
-import { InboxModeSwitch, InboxTabs } from "./inbox-mode-switch";
+import { InboxListHeader } from "./inbox-mode-switch";
+import { ListSearch } from "./list-search";
 import { MessageBubble } from "./message-bubble";
 import { NumberNewChatCard } from "./my-number-new-chat";
-import { SearchPill } from "./search-pill";
 import { refreshNumberUnread } from "./number-unread-store";
 import { AccessRequestDialog, OverlapPills, PendingRequestsBanner, SharedChatsSection, useAccessOverview } from "./my-number-access";
 import { CompanyNumbersSection, findCompanyChat, RequestableSection, useTeamNumbers } from "./my-number-team";
@@ -308,21 +307,16 @@ export function MyNumberInbox({ own = true, team = false }: { own?: boolean; tea
     <div data-split-panels className="flex h-full lg:gap-3">
       <section
         className={cn(
-          "w-full shrink-0 overflow-hidden border-r md:w-[clamp(300px,32vw,340px)] lg:w-[clamp(340px,30vw,460px)]",
+          "w-full shrink-0 overflow-hidden border-r md:w-[clamp(300px,32vw,340px)] lg:w-[360px]",
           "lg:rounded-panel lg:border lg:bg-surface lg:shadow-panel",
           selectedId && "max-md:hidden",
         )}
       >
         <div className="flex h-full flex-col">
-          <header className="flex h-14 shrink-0 items-center gap-2 px-4">
-            <NavRevealButton />
-            <InboxModeSwitch current="number" />
-          </header>
-          <InboxTabs current="number" rowRef={rowRef}>
-            <div className="ml-auto flex items-center gap-1">
-              <SearchPill query={query} onQuery={setQuery} rowRef={rowRef} />
-            </div>
-          </InboxTabs>
+          <InboxListHeader current="number" rowRef={rowRef} />
+          <div className="shrink-0 px-4 pb-2 pt-3">
+            <ListSearch query={query} onQuery={setQuery} placeholder="Buscar nombre, teléfono o mensaje" />
+          </div>
           <p className="flex items-start gap-2 border-y bg-secondary px-4 py-2 text-[12px] leading-snug text-text-2">
             <Lock className="mt-[1px] h-3.5 w-3.5 shrink-0" strokeWidth={2} aria-hidden />
             <span>{own ? MY_CHATS_TEXT.privacy : TEAM_TEXT.note}</span>

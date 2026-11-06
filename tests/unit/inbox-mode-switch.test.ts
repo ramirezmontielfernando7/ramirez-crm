@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
 /**
- * 039 — Las pestañas Empresa · Equipo de la Bandeja: siempre visibles con el
+ * 039 / ronda 3 — Las pestañas Clientes · Equipo de la Bandeja: siempre visibles con el
  * módulo `team_chat`, con el conteo de no leídos de cada una; sin el módulo
  * no se dibuja ninguna barra.
  */
@@ -20,22 +20,26 @@ vi.mock("@/components/viewer-context", () => ({
 }));
 vi.mock("@/components/inbox/unread-store", () => ({ useInboxUnread: () => inbox }));
 vi.mock("@/components/team-chat/unread-store", () => ({ useTeamUnread: () => team }));
+vi.mock("@/components/inbox/number-unread-store", () => ({ useNumberUnread: () => 0 }));
+vi.mock("@/components/nav-mode", () => ({ NavRevealButton: () => null }));
 
-const { InboxModeSwitch, InboxTabs } = await import("@/components/inbox/inbox-mode-switch");
-const tabs = (current: "inbox" | "chat") => renderToStaticMarkup(createElement(InboxTabs, { current }));
+const { InboxListHeader } = await import("@/components/inbox/inbox-mode-switch");
+const tabs = (current: "inbox" | "chat") => renderToStaticMarkup(createElement(InboxListHeader, { current }));
 
-describe("InboxTabs", () => {
-  it("sin `team_chat`: no dibuja pestañas", () => {
+describe("InboxListHeader", () => {
+  it("sin `team_chat`: sin pestañas, solo el nombre de la bandeja", () => {
     modulos = [];
-    expect(tabs("inbox")).toBe("");
+    const html = tabs("inbox");
+    expect(html).not.toContain("inbox-tabs");
+    expect(html).toContain(">Clientes</h2>");
   });
 
-  it("con `team_chat`: Empresa y Equipo a la vista, la actual marcada", () => {
+  it("con `team_chat`: Clientes y Equipo a la vista, la actual marcada", () => {
     modulos = ["team_chat"];
     inbox = 0;
     team = 0;
     const html = tabs("inbox");
-    expect(html).toContain("Empresa");
+    expect(html).toContain("Clientes");
     expect(html).toContain("Equipo");
     expect(html).toContain('href="/chat"');
     expect(html).toMatch(/aria-current="page"[^>]*data-testid="inbox-tab-inbox"|data-testid="inbox-tab-inbox"[^>]*aria-current="page"/);
@@ -52,12 +56,5 @@ describe("InboxTabs", () => {
     inbox = 0;
     team = 0;
     expect(tabs("inbox")).not.toContain("sin leer");
-  });
-});
-
-describe("InboxModeSwitch", () => {
-  it("es el título fijo de la columna", () => {
-    expect(renderToStaticMarkup(createElement(InboxModeSwitch, { current: "inbox" }))).toContain(">Chats</h2>");
-    expect(renderToStaticMarkup(createElement(InboxModeSwitch, { current: "chat" }))).toContain(">Chats</h2>");
   });
 });

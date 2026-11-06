@@ -104,10 +104,9 @@ describe("039 — todas las pantallas usan PageShell", () => {
       "components/nav-mode.tsx",
       "components/app-nav.tsx",
       // La Bandeja y el Chat de equipo conservan sus columnas a altura completa
-      // y su encabezado compacto con las pestañas Empresa · Mi número · Equipo.
-      "components/inbox/conversation-list.tsx",
-      "components/inbox/my-number-inbox.tsx",
-      "components/team-chat/team-chat-client.tsx",
+      // y su encabezado de 56 px con Clientes · Mi número · Equipo (ronda 3:
+      // uno solo para las tres columnas).
+      "components/inbox/inbox-mode-switch.tsx",
     ]);
     // Citas sin incrustar (nadie lo usa así hoy) conserva su título propio.
     const legado = new Set(["components/bookings/bookings-client.tsx", "components/bookings/calendar-toolbar.tsx"]);

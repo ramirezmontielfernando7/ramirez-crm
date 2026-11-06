@@ -10,18 +10,16 @@ import {
   type ReactNode,
   type RefObject,
 } from "react";
-import { m } from "framer-motion";
 import dynamic from "next/dynamic";
 import { useVirtualizer, type VirtualItem } from "@tanstack/react-virtual";
-import { Bot, CheckSquare, Megaphone, Send, Sparkles } from "lucide-react";
+import { Bot, CheckSquare, Megaphone, Plus, Send, Sparkles } from "lucide-react";
 import type { ConversationDto, StageDto } from "@/lib/types";
 import type { TagDto } from "@/lib/tags";
 import type { MenuAnchor } from "./floating-menu";
 import { etiquetaDeOrigen, titularDeOrigen } from "@/lib/anuncios";
 import { campaignPendingLabel, campaignReplyLabel } from "@/lib/campaign-inbox";
 import { CHANNEL_LABEL, type Channel } from "@/lib/channels";
-import { effectiveMode, modeDotLabel, type ConnectionMode } from "@/lib/direct-connection";
-import { modeDotClass } from "./chat-mode-dot";
+import type { ConnectionMode } from "@/lib/direct-connection";
 import { ChannelBadge } from "@/components/channel-badge";
 import { contactLabel, looksLikePhone } from "@/lib/phone-search";
 import { cn } from "@/lib/utils";
@@ -30,8 +28,7 @@ import { Button } from "@/components/ui/button";
 import { formatTime, previewText } from "./helpers";
 import { useViewer } from "@/components/viewer-context";
 import { assignContacts, useAssignees } from "@/components/assignment/use-assignees";
-import { NavRevealButton } from "@/components/nav-mode";
-import { InboxModeSwitch, InboxTabs, useHasInboxTabs } from "./inbox-mode-switch";
+import { InboxListHeader } from "./inbox-mode-switch";
 import { FilterMenu, type InboxFilter } from "./filter-menu";
 import { rowAiBadge } from "@/lib/agent-pause";
 import { useAgentsPaused } from "./use-agents-paused";
@@ -43,12 +40,12 @@ import {
   type ListQuery,
   type ListStatus,
 } from "@/lib/inbox-list";
-import { AssigneeCapsule, StageCapsule, TagsCapsule, type PatchRow } from "./chat-capsules";
+import { StageCapsule, TagsCapsule, type PatchRow } from "./chat-capsules";
 import { useConversationActions } from "./conversation-actions";
 import { longPressClass, useLongPress } from "./use-long-press";
 import { useInboxCatalogs } from "./use-inbox-catalogs";
-import { SearchPill } from "./search-pill";
-import { Collapse, SPRING } from "@/components/motion";
+import { ListSearch } from "./list-search";
+import { Collapse } from "@/components/motion";
 
 // La tarjeta de «número sin registrar» solo sale al buscar un teléfono que no
 // existe: su código no se baja en el arranque de la Bandeja.
@@ -87,7 +84,7 @@ const CHIP =
  * El alto de cada fila se mide al pintarla (las de campaña o anuncio llevan
  * una cápsula más); 84 px es el típico y solo sirve hasta medirla.
  */
-const ROW_ESTIMATE = 84;
+const ROW_ESTIMATE = 90;
 const ROW_OVERSCAN = 8;
 /**
  * Fluidez PR 4: el alto que se supone para la caja de la lista ANTES de
@@ -100,8 +97,7 @@ const LOAD_MORE_THRESHOLD = 15;
 /** Respiro de la búsqueda antes de preguntarle al servidor. */
 const SEARCH_DEBOUNCE_MS = 250;
 
-const CONTROL_FILTRO =
-  "box-border h-6 shrink-0 rounded-full border py-0 text-[11.5px] font-semibold leading-none transition-colors";
+
 
 function EmptyState({ onSeeded }: { onSeeded: () => void }) {
   const [seeding, setSeeding] = useState(false);
@@ -169,7 +165,6 @@ export const ConversationList = memo(function ConversationList({
   onSeeded,
   onPatchRow,
   onRemoved,
-  directDefaultMode = null,
 }: {
   /** Fluidez PR 3: lo cargado (páginas ya filtradas por el servidor). */
   conversations: ConversationDto[] | null;
@@ -200,14 +195,6 @@ export const ConversationList = memo(function ConversationList({
   const [stage, setStage] = useState<string>("all");
   const [inbox, setInbox] = useState<Channel | "all">("all");
   const rowRef = useRef<HTMLDivElement>(null);
-  const hasTabs = useHasInboxTabs();
-  // Con el buscador abierto, lo que cubre (título, filtros) se desvanece
-  // mientras el campo se estira: un cruce, no dos capas encimadas.
-  const [searchOpen, setSearchOpen] = useState(false);
-  const bajoBuscador = cn(
-    "transition-opacity duration-200",
-    searchOpen && "pointer-events-none opacity-0"
-  );
   // 020: quién atiende. "all" | "mine" | "unassigned" | <userId>. Solo lo
   // ve quien ve a todo el equipo; al asesor el servidor ya le manda lo suyo.
   const viewer = useViewer();
@@ -370,66 +357,99 @@ export const ConversationList = memo(function ConversationList({
     onSeeded();
   }
 
-  // Seleccionar varios y buscar: dos botones redondos, a la derecha de las
-  // pestañas (o del título si no hay pestañas). La selección múltiple viaja
-  // pegada a la lupa.
-  const tools = (
-    <div data-pm="list-tools" className="ml-auto flex items-center gap-1">
-      <div className={cn("flex items-center gap-1", bajoBuscador)}>
-              {canAssign && !selecting && (
-                <button
-                  onClick={() => setSelecting(true)}
-                  aria-label="Seleccionar varios"
-                  title="Seleccionar varios"
-                  className={cn(
-                    CONTROL_FILTRO,
-                    "flex w-6 items-center justify-center border-border-strong bg-chip text-text-2 transition-[border-color,transform] duration-150 hover:border-text-3 active:scale-90",
-                    FOCO_SEPARADO
-                  )}
-                >
-                  <CheckSquare className="h-3.5 w-3.5" strokeWidth={1.8} />
-                </button>
-              )}
-      </div>
-      <SearchPill
-              query={query}
-              onQuery={setQuery}
-              rowRef={rowRef}
-              onOpenChange={setSearchOpen}
-              hint={filtroPuesto}
-            />
-    </div>
-  );
+  // Ronda 3: «Todos · No leídos · Míos · Campañas» como segmentado bajo el
+  // buscador; lo demás (Archivados, Atención humana, Anuncios, etapa,
+  // etiqueta, persona) vive en el embudo de filtros del encabezado.
+  const quick: { id: string; label: string; on: boolean; pick: () => void }[] = [
+    {
+      id: "all",
+      label: "Todos",
+      on: filter === "all" && (!seesAll || owner === "all"),
+      pick: () => {
+        setFilter("all");
+        if (seesAll) setOwner("all");
+      },
+    },
+    { id: "unread", label: "No leídos", on: filter === "unread", pick: () => setFilter("unread") },
+  ];
+  if (seesAll) {
+    quick.push({
+      id: "mine",
+      label: "Míos",
+      on: owner === "mine" && filter === "all",
+      pick: () => {
+        setFilter("all");
+        setOwner("mine");
+      },
+    });
+  }
+  if (campaignCount > 0 || showCampaigns) {
+    quick.push({ id: "campaigns", label: "Campañas", on: showCampaigns, pick: () => setFilter("campaigns") });
+  }
+  const searchRef = useRef<HTMLInputElement>(null);
 
   return (
     <div className="flex h-full flex-col">
-      {/* 56 px, el mismo alto que el encabezado del chat y el de Detalles: las
-          tres columnas comparten la línea de abajo. */}
-      <header className="flex h-14 shrink-0 flex-col justify-center px-4">
-        {/* `relative`: el panel de filtros se ancla a esta fila, no a su botón,
-            para no salirse nunca de la columna. */}
-        <div ref={hasTabs ? undefined : rowRef} className="relative flex items-center gap-1.5">
-          <NavRevealButton />
-          {/* 039: las pestañas Empresa · Equipo van en la fila de abajo. */}
-          <InboxModeSwitch current="inbox" className={bajoBuscador} />
-          {/* «Todo» tenue a la derecha; con un filtro puesto se pinta del acento. */}
-          <div className={cn("ml-auto flex items-center gap-1", bajoBuscador)}>
+      <InboxListHeader
+        current="inbox"
+        rowRef={rowRef}
+        actions={
+          <>
+            {canAssign && !selecting && (
+              <button
+                onClick={() => setSelecting(true)}
+                aria-label="Seleccionar varios"
+                title="Seleccionar varios"
+                className="btn-r3 g ic"
+              >
+                <CheckSquare className="h-4 w-4" strokeWidth={1.75} />
+              </button>
+            )}
             <FilterMenu
-                filtros={filtros}
-                filter={filter}
-                onFilter={setFilter}
-                stages={stages}
-                stage={stage}
-                onStage={setStage}
-                tags={tagOptions}
-                tag={tag}
-                onTag={setTag}
-                owners={seesAll ? [...owners] : null}
-                owner={owner}
-                onOwner={setOwner}
-              />
+              variant="icon"
+              filtros={filtros}
+              filter={filter}
+              onFilter={setFilter}
+              stages={stages}
+              stage={stage}
+              onStage={setStage}
+              tags={tagOptions}
+              tag={tag}
+              onTag={setTag}
+              owners={seesAll ? [...owners] : null}
+              owner={owner}
+              onOwner={setOwner}
+            />
+            <button
+              type="button"
+              onClick={() => searchRef.current?.focus()}
+              aria-label="Nuevo chat: busca o escribe un teléfono"
+              title="Nuevo chat: busca o escribe un teléfono"
+              className="btn-r3 p ic h-[34px] w-[34px]"
+            >
+              <Plus className="h-4 w-4" strokeWidth={2} />
+            </button>
+          </>
+        }
+      />
+      <div className="flex shrink-0 flex-col gap-2.5 px-4 pb-2 pt-3">
+        <ListSearch
+          ref={searchRef}
+          query={query}
+          onQuery={setQuery}
+          placeholder="Buscar nombre, teléfono o mensaje"
+          hint={filtroPuesto}
+        />
+        <div className="flex items-center gap-1.5">
+          <div role="group" aria-label="Mostrar" className="seg">
+            {quick.map((q) => (
+              <button key={q.id} type="button" aria-pressed={q.on} onClick={q.pick} className="seg-item">
+                {q.label}
+              </button>
+            ))}
+          </div>
           {multiChannel && (
-            <div className={cn("flex items-center gap-1", bajoBuscador)}>
+            <div className="ml-auto flex items-center gap-1">
               {channels.map((ch) => {
                 const on = inbox === ch;
                 return (
@@ -437,61 +457,23 @@ export const ConversationList = memo(function ConversationList({
                     key={ch}
                     onClick={() => setInbox(on ? "all" : ch)}
                     aria-pressed={on}
-                    title={
-                      on
-                        ? "Ver todas las bandejas"
-                        : `Ver solo ${CHANNEL_LABEL[ch]}`
-                    }
+                    title={on ? "Ver todas las bandejas" : `Ver solo ${CHANNEL_LABEL[ch]}`}
                     className={cn(
                       "flex items-center gap-0.5 rounded-full border py-[3px] pl-[5px] pr-1.5 text-[11.5px] font-medium transition-colors",
                       FOCO_SEPARADO,
-                      on
-                        ? "border-brand bg-brand-veil text-foreground"
-                        : "text-text-3 hover:bg-accent",
+                      on ? "border-brand bg-brand-veil text-foreground" : "text-text-3 hover:bg-accent",
                       inbox !== "all" && !on && "opacity-45"
                     )}
                   >
-                    <ChannelBadge
-                      channel={ch}
-                      className="h-[13px] w-[13px] rounded-[4px]"
-                    />
+                    <ChannelBadge channel={ch} className="h-[13px] w-[13px] rounded-[4px]" />
                     {inboxCount(ch)}
                   </button>
                 );
               })}
             </div>
           )}
-          </div>
-          {!hasTabs && tools}
         </div>
-      </header>
-      <InboxTabs current="inbox" rowRef={rowRef} className={bajoBuscador}>
-        {tools}
-      </InboxTabs>
-
-      {/* Premium v2: atajos de dueño («Todos · Mis chats · Sin asignar»). Es el
-          mismo filtro de dueño del menú; en Clásico no se pinta (CSS). */}
-      {seesAll && (
-        <div data-pm="quick-owner" role="group" aria-label="Atajos de dueño" className="hidden shrink-0 items-center gap-1.5 px-4 pb-2">
-          {(
-            [
-              ["all", "Todos"],
-              ["mine", "Mis chats"],
-              ["unassigned", "Sin asignar"],
-            ] as const
-          ).map(([value, label]) => (
-            <button
-              key={value}
-              type="button"
-              aria-pressed={owner === value}
-              onClick={() => setOwner(owner === value ? "all" : value)}
-              className="rounded-full border px-2.5 py-0.5 text-[12px] font-medium transition-colors"
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-      )}
+      </div>
 
       {agentsPaused && (
         <p
@@ -580,14 +562,10 @@ export const ConversationList = memo(function ConversationList({
                 selecting={selecting}
                 picked={picked.has(c.id)}
                 multiChannel={multiChannel}
-                directDefaultMode={directDefaultMode}
-                viewerId={viewer.userId}
                 stages={catalogs.stages}
                 tagCatalog={catalogs.tags}
                 canCreateTags={canCreateTags}
                 onCatalogAdd={catalogs.addTag}
-                members={assignees}
-                canAssign={canAssign}
                 onSelect={onSelect}
                 onTogglePick={togglePick}
                 onPatchRow={onPatchRow}
@@ -753,15 +731,11 @@ const ConversationRow = memo(function ConversationRow({
   selecting,
   picked,
   multiChannel,
-  directDefaultMode,
   agentsPaused,
-  viewerId,
   stages,
   tagCatalog,
   canCreateTags,
   onCatalogAdd,
-  members,
-  canAssign,
   onSelect,
   onTogglePick,
   onPatchRow,
@@ -779,16 +753,12 @@ const ConversationRow = memo(function ConversationRow({
   selecting: boolean;
   picked: boolean;
   multiChannel: boolean;
-  directDefaultMode: ConnectionMode | null;
   /** Pausa general de los agentes (se avisa en el encabezado, no en la fila). */
   agentsPaused: boolean;
-  viewerId: string;
   stages: StageDto[];
   tagCatalog: TagDto[];
   canCreateTags: boolean;
   onCatalogAdd: (tag: TagDto) => void;
-  members: { userId: string; name: string }[];
-  canAssign: boolean;
   onSelect: (id: string) => void;
   onTogglePick: (id: string) => void;
   onPatchRow: PatchRow;
@@ -815,30 +785,20 @@ const ConversationRow = memo(function ConversationRow({
       // Fluidez PR 1: sin animación de entrada (con miles de filas, montar
       // una animación por fila congelaba la Bandeja). PR 2: la lista es
       // virtual; cada fila se coloca en su `start` y se mide al pintarse.
-      // Separador que arranca en el texto (no bajo el avatar): la
-      // columna de avatares queda limpia y el ojo baja por ella.
       ref={measureRef}
       data-index={index}
       data-active={active ? "true" : undefined}
       style={{ transform: `translateY(${start}px)` }}
-      className="inbox-row absolute left-0 top-0 w-full after:absolute after:bottom-0 after:left-[58px] after:right-0 after:h-px after:bg-border"
+      className="inbox-row absolute left-0 top-0 w-full border-b"
     >
-      {active && (
-        // La marca del chat abierto crece desde el centro.
-        <m.span
-          initial={{ scaleY: 0 }}
-          animate={{ scaleY: 1 }}
-          transition={SPRING}
-          className="absolute inset-y-0 left-0 w-[3px] bg-brand"
-        />
-      )}
       <div
         {...press}
         data-conversation-row={c.id}
         className={cn(
           "transition-colors duration-150",
           longPressClass,
-          active ? "bg-[var(--bg-active)]" : "hover:bg-row-hover"
+          // Ronda 3 (.lrow.on): fondo del acento y raya de 3 px a la izquierda.
+          active ? "bg-[var(--accent-wash)] shadow-[inset_3px_0_0_var(--accent)]" : "hover:bg-row-hover"
         )}
       >
         <button
@@ -846,7 +806,7 @@ const ConversationRow = memo(function ConversationRow({
           onClick={() => (selecting ? onTogglePick(c.id) : onSelect(c.id))}
           aria-pressed={selecting ? picked : undefined}
           className={cn(
-            "flex w-full items-start gap-2.5 px-4 pb-0 pt-[var(--row-py)] text-left",
+            "flex w-full items-start gap-3 px-4 pb-0 pt-3 text-left",
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
           )}
         >
@@ -857,118 +817,67 @@ const ConversationRow = memo(function ConversationRow({
               tabIndex={-1}
               checked={picked}
               aria-label={`Seleccionar a ${contactLabel(c.contact)}`}
-              className="mt-2 h-4 w-4 shrink-0 accent-[var(--accent)]"
+              className="mt-2.5 h-4 w-4 shrink-0 accent-[var(--accent)]"
             />
           )}
-          {/* mt-[3px]: el avatar (32 px) queda centrado con el
-              nombre y la vista previa (38 px juntos). */}
-          <span className="relative mt-[3px] shrink-0">
-            <ContactAvatar name={contactLabel(c.contact)} seed={c.contact.id} size="list" />
-            {directDefaultMode && c.channel === "whatsapp" && effectiveMode(c.connectionMode, directDefaultMode) !== "meta" ? (
-              // Conexión directa (PR 5): en Directa o Automática el punto dice el modo (azul / morado).
-              <span
-                className={cn(
-                  "absolute -bottom-px -right-px h-[9px] w-[9px] rounded-full border-2 border-background",
-                  modeDotClass(effectiveMode(c.connectionMode, directDefaultMode))
-                )}
-                title={modeDotLabel(effectiveMode(c.connectionMode, directDefaultMode))}
-              />
-            ) : (
-              c.windowOpen && (
-                <span className="absolute -bottom-px -right-px h-[9px] w-[9px] rounded-full border-2 border-background bg-success" />
-              )
-            )}
-          </span>
-          <span className="min-w-0 flex-1">
-            {/* Nombre y hora en la MISMA línea base; la hora en la
-                letra de la interfaz con cifras tabulares (antes
-                monoespaciada: se veía más grande y fuera de eje). */}
-            <span className="flex items-baseline justify-between gap-2">
-              <span className="flex min-w-0 items-center gap-1.5 self-center">
-                {multiChannel && <ChannelBadge channel={c.channel} />}
-                <span
-                  className={cn(
-                    "truncate text-[13.5px] leading-5 tracking-[-0.01em] text-foreground",
-                    unread ? "font-bold" : "font-semibold"
-                  )}
-                >
-                  {contactLabel(c.contact)}
-                </span>
-              </span>
-              <span
-                className={cn(
-                  "shrink-0 text-[11px] leading-5 tabular-nums",
-                  unread ? "font-semibold text-brand-ink" : "font-medium text-text-3"
-                )}
-              >
-                <RowTime iso={c.lastMessageAt} />
-              </span>
-            </span>
-            <span className="flex items-center justify-between gap-2">
-              <span
-                className={cn(
-                  "truncate text-[12.5px] leading-[18px]",
-                  unread ? "font-medium text-foreground" : "text-text-2"
-                )}
-              >
-                {previewText(c.preview)}
-              </span>
-              {unread && (
-                <span className="flex h-[18px] min-w-[18px] shrink-0 items-center justify-center rounded-full bg-brand px-1.5 text-[10.5px] font-semibold tabular-nums leading-none text-brand-fg">
-                  {c.unreadCount}
-                </span>
-              )}
-            </span>
-          </span>
-        </button>
-        {/* Alineadas con el texto (avatar de 32 px + espacios = 58 px). UNA sola
-            línea: con poco ancho las cápsulas truncan su texto en vez de
-            envolver (los «·» no pueden quedar colgando al final de una línea). */}
-        <div className="relative flex flex-col gap-1.5 pb-[var(--row-py)] pl-[58px] pr-4 pt-2">
-          {aiBadge !== "none" && (
-            // Debajo del círculo del avatar (cuyo punto verde de «ventana
-            // abierta» está en su esquina inferior derecha, sin chocar),
-            // centrado en su columna de 32 px y sin cambiar el alto de la
-            // fila. Punto del ícono: verde = activa, naranja = en pausa.
-            <span className="pointer-events-none absolute left-4 top-1.5 flex h-4 w-8 items-center justify-center">
+          <span className="relative shrink-0">
+            <ContactAvatar name={contactLabel(c.contact)} seed={c.contact.id} size="md" />
+            {aiBadge !== "none" && (
+              // El robot en un círculo blanco en la esquina del avatar: verde =
+              // la IA atiende, naranja = en pausa o esperando a una persona.
               <span
                 role="img"
                 aria-label={aiOn ? "IA activa" : "IA en pausa"}
                 title={aiHint}
                 data-ai-badge={aiBadge}
                 className={cn(
-                  "pointer-events-auto relative inline-flex text-text-3",
-                  !aiOn && "opacity-60"
+                  "absolute -bottom-[3px] -right-[3px] grid h-[18px] w-[18px] place-items-center rounded-full bg-surface",
+                  aiOn ? "text-success-text" : "text-warning-text"
                 )}
               >
-                <Bot className="h-3 w-3" strokeWidth={1.8} aria-hidden />
-                <span
-                  className={cn(
-                    "absolute -right-[3px] -top-[2px] h-[6px] w-[6px] rounded-full border border-background",
-                    aiOn ? "bg-success" : "bg-warning"
-                  )}
-                />
+                <Bot className="h-3 w-3" strokeWidth={1.75} aria-hidden />
+                <span className={cn("sr-only", aiOn ? "bg-success" : "bg-warning")} />
+              </span>
+            )}
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="flex items-baseline justify-between gap-2">
+              <span className="flex min-w-0 items-center gap-1.5 self-center">
+                {multiChannel && <ChannelBadge channel={c.channel} />}
+                <span className="truncate text-[14px] font-semibold leading-5 text-foreground">
+                  {contactLabel(c.contact)}
+                </span>
+              </span>
+              <span
+                className={cn(
+                  "shrink-0 text-[12px] leading-4 tabular-nums",
+                  unread ? "font-semibold text-brand-ink" : "text-text-3"
+                )}
+              >
+                <RowTime iso={c.lastMessageAt} />
               </span>
             </span>
-          )}
+            <span className="mt-0.5 flex items-center justify-between gap-2">
+              <span className={cn("truncate text-[14px] leading-5", unread ? "text-foreground" : "text-text-3")}>
+                {previewText(c.preview)}
+              </span>
+              {unread && (
+                <span className="grid h-5 min-w-5 shrink-0 place-items-center rounded-full bg-brand px-1.5 text-[11px] font-semibold tabular-nums text-brand-fg">
+                  {c.unreadCount}
+                </span>
+              )}
+            </span>
+          </span>
+        </button>
+        {/* Alineadas con el texto (avatar de 36 px + 12 px = 64 px). */}
+        <div className="relative flex flex-col gap-1.5 pb-3 pl-16 pr-4 pt-1.5">
           <div className="flex min-w-0 items-center gap-1.5">
             <StageCapsule conversation={c} stages={stages} onPatch={onPatchRow} onRefetch={onRefetch} onError={onError} />
-            <span aria-hidden data-pm="cap-dot" className="shrink-0 text-[10.5px] text-text-3">·</span>
             <TagsCapsule
               conversation={c}
               catalog={tagCatalog}
               canCreate={canCreateTags}
               onCatalogAdd={onCatalogAdd}
-              onPatch={onPatchRow}
-              onRefetch={onRefetch}
-              onError={onError}
-            />
-            <span aria-hidden data-pm="cap-dot" className="shrink-0 text-[10.5px] text-text-3">·</span>
-            <AssigneeCapsule
-              conversation={c}
-              members={members}
-              canAssign={canAssign}
-              viewerId={viewerId}
               onPatch={onPatchRow}
               onRefetch={onRefetch}
               onError={onError}

@@ -95,7 +95,7 @@ await req.get(`${BASE}/api/conversations/${conv.id}/messages`);
 const page = await ctx.newPage();
 await page.goto(`${BASE}/inbox`);
 await page.getByText(NAME).first().click();
-const box = page.getByPlaceholder("Escribe una respuesta");
+const box = page.getByPlaceholder("Escribe un mensaje");
 await box.waitFor({ timeout: 20000 });
 
 console.log("\n== Enter entrega YA, y el renglón siguiente es otro mensaje ==");
@@ -147,7 +147,7 @@ ok(
 // también repite el texto. Lo que se afirma es el estado en reposo.
 const hilo = page
   .locator("section")
-  .filter({ has: page.getByPlaceholder("Escribe una respuesta") });
+  .filter({ has: page.getByPlaceholder("Escribe un mensaje") });
 const burbujasT1 = async () => hilo.getByText(T1, { exact: true }).count();
 const sinDuplicado = await until(async () => (await burbujasT1()) === 1, 10000);
 ok(

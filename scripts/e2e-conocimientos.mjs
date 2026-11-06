@@ -237,7 +237,7 @@ await shot(ap, "f2-04-asesor");
 // Desde el chat, como el Asesor (el chat ya es suyo).
 await ap.goto(`${BASE}/inbox`);
 await ap.getByText(nombre).first().click();
-const ta = ap.locator("textarea[placeholder^='Escribe una respuesta']");
+const ta = ap.locator("textarea[placeholder^='Escribe un mensaje']");
 await ta.waitFor({ timeout: 15000 });
 await ta.click();
 await ap.keyboard.type("/");

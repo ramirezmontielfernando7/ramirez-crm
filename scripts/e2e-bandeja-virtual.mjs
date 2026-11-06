@@ -96,6 +96,8 @@ const chats = chatsFalsos(N);
 const stats = await bandejaFalsa(ctx, chats);
 const page = await ctx.newPage();
 const fila = (g) => page.locator(`[data-conversation-row="cvfalso_${g}"]`);
+// La fila abierta: su <li> lleva data-active (el color lo pone el diseño).
+const abierta = (g) => fila(g).evaluate((el) => el.closest("li")?.dataset.active === "true").catch(() => false);
 // ¿La fila está dentro del recuadro visible de la lista?
 const aLaVista = (g) =>
   fila(g).evaluate((el) => {
@@ -159,7 +161,7 @@ await fila(g).locator("[data-row-main]").click();
 await page.waitForTimeout(300);
 ok(
   "clic en una fila la marca como abierta",
-  (await fila(g).getAttribute("class"))?.includes("--bg-active") ?? false
+  await abierta(g)
 );
 
 console.log("== Teclado ==");
@@ -184,7 +186,7 @@ const arriba = await page.evaluate(() =>
 ok("↑ ×5 regresa al chat 36", arriba === "cvfalso_36", String(arriba));
 await page.keyboard.press("Enter");
 await page.waitForTimeout(300);
-ok("Enter abre el chat enfocado", (await fila(36).getAttribute("class"))?.includes("--bg-active") ?? false);
+ok("Enter abre el chat enfocado", await abierta(36));
 
 console.log("== Búsqueda ==");
 await page.getByRole("button", { name: /buscar/i }).first().click().catch(() => {});

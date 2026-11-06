@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 
 /**
  * Panel de Detalles de la Bandeja: `ContactPanel` y sus tarjetas
- * (`AssignmentCard`, `ParticipantsCard`, `ContactTagsCard`) guardan estado
+ * (`AssigneeCapsule`, `ParticipantsCard`, `ContactTagsCard`, tareas) guardan estado
  * propio (asignado, historial, participantes, etiquetas). Si el panel no se
  * remonta al cambiar de contacto, durante la carga —o si la carga falla— se
  * ven los datos del contacto ANTERIOR, y agregar una etiqueta copia las del
@@ -23,7 +23,7 @@ describe("ContactPanel se reinicia al cambiar de chat", () => {
 
   it("las tarjetas con estado por contacto siguen dentro del panel (si salen, necesitan su propio key)", () => {
     const panel = leer("src/components/inbox/contact-panel.tsx");
-    for (const card of ["AssignmentCard", "ParticipantsCard", "ContactTagsCard"]) {
+    for (const card of ["AssigneeCapsule", "ParticipantsCard", "ContactTagsCard", "ContactTasks"]) {
       expect(panel).toContain(`<${card}`);
     }
   });

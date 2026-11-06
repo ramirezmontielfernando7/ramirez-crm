@@ -452,7 +452,7 @@ export function Composer({
   const canSubmit = !rewriting && (file !== null || text.trim().length > 0);
 
   return (
-    <div data-pm="composer" className="border-t bg-background px-[18px] pb-3.5 pt-3">
+    <div data-pm="composer" className="border-t bg-surface px-4 pb-3 pt-2.5">
       {!conversation.windowOpen && directHint && !numberChat && (
         <p className="mb-2 flex items-center gap-1.5 text-xs text-text-3" data-testid="composer-direct-hint">
           <Clock3 className="h-3.5 w-3.5 shrink-0" strokeWidth={1.7} />
@@ -619,182 +619,18 @@ export function Composer({
         </div>
       )}
 
-      {/* La caja de escritura en píldora, como la del mockup de la landing */}
-      <div className="flex items-end gap-2 rounded-[23px] border border-border-strong bg-background py-1.5 pl-2 pr-1.5 shadow-sm transition-[border-color,box-shadow] focus-within:border-brand focus-within:ring-[3px] focus-within:ring-brand-soft">
+      {/* Ronda 3: la caja de la maqueta — el texto arriba y, debajo, las
+          herramientas con nombre, el tiempo de la ventana y Enviar. */}
+      <div className="composer-box rounded-[14px] border border-border-strong bg-surface px-3 pb-2 pt-2.5 transition-[border-color,box-shadow] focus-within:border-brand focus-within:ring-[3px] focus-within:ring-brand-soft">
         <input
           ref={fileRef}
           type="file"
           className="hidden"
           onChange={(e) => pickFile(e.target.files?.[0] ?? null)}
         />
-        <div className="flex shrink-0 items-center gap-0.5">
-          {/* Un solo clip: archivo, contacto y ubicación viven en su menú. */}
-          <div ref={attachRef} className="relative">
-            <button
-              ref={attachTrigger}
-              type="button"
-              onClick={() => setPopover(popover === "attach" ? null : "attach")}
-              aria-label="Adjuntar"
-              aria-haspopup="menu"
-              aria-expanded={popover === "attach"}
-              title="Adjuntar archivo, contacto o ubicación"
-              className={cn(
-                "rounded p-1.5 text-text-3 transition-[color,background-color,transform] duration-150 hover:bg-secondary hover:text-foreground active:scale-90",
-                (popover === "attach" || panel === "location" || panel === "contact") &&
-                  "bg-secondary text-brand"
-              )}
-            >
-              <m.span
-                animate={{ rotate: popover === "attach" ? -45 : 0 }}
-                transition={SPRING}
-                className="flex"
-              >
-                <Paperclip className="h-[18px] w-[18px]" strokeWidth={1.7} />
-              </m.span>
-            </button>
-            <AnimatePresence>
-              {popover === "attach" && (
-                <m.div
-                  role="menu"
-                  aria-label="Adjuntar"
-                  initial={{ opacity: 0, y: 6, scale: 0.96 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: 4, scale: 0.98, transition: { duration: 0.1 } }}
-                  transition={SPRING}
-                  style={{ transformOrigin: "bottom left" }}
-                  className="absolute bottom-full left-0 z-30 mb-2.5 w-60 rounded-md border bg-popover p-1.5 text-foreground shadow-pop"
-                >
-                  {(
-                    [
-                      {
-                        id: "file",
-                        label: "Archivo",
-                        hint: "Foto, video, audio o PDF",
-                        Icon: FileText,
-                      },
-                      {
-                        id: "contact",
-                        label: "Contacto",
-                        hint: "Compartir una tarjeta",
-                        Icon: UserRound,
-                      },
-                      {
-                        id: "location",
-                        label: "Ubicación",
-                        hint: "Coordenadas o Google Maps",
-                        Icon: MapPin,
-                      },
-                    ] as const
-                  )
-                    .filter(({ id }) => !numberChat || id === "file")
-                    .map(({ id, label, hint, Icon }) => (
-                    <button
-                      key={id}
-                      type="button"
-                      role="menuitem"
-                      onClick={() => chooseAttach(id)}
-                      className={cn(
-                        "flex w-full items-center gap-2.5 rounded-sm px-2 py-1.5 text-left transition-colors hover:bg-secondary focus-visible:bg-secondary focus-visible:outline-none",
-                        panel === id && "text-brand"
-                      )}
-                    >
-                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-tint text-brand-text">
-                        <Icon className="h-4 w-4" strokeWidth={1.7} />
-                      </span>
-                      <span className="min-w-0">
-                        <span className="block text-sm font-semibold">{label}</span>
-                        <span className="block truncate text-[11.5px] text-text-3">{hint}</span>
-                      </span>
-                    </button>
-                  ))}
-                </m.div>
-              )}
-            </AnimatePresence>
-          </div>
-          <WritingAssist
-            text={text}
-            busy={rewriting}
-            onBusy={(b) => {
-              setRewriting(b);
-              if (b) setError(null);
-            }}
-            onResult={(next) => {
-              setUndoText(text);
-              setText(next);
-            }}
-            onError={(msg) => setError(msg)}
-          />
-          <div ref={emojiRef} className="relative">
-            <button
-              type="button"
-              onClick={() => setPopover(popover === "emoji" ? null : "emoji")}
-              aria-label="Emojis"
-              aria-haspopup="dialog"
-              aria-expanded={popover === "emoji"}
-              title="Emojis"
-              className={cn(
-                "rounded p-1.5 text-text-3 transition-[color,background-color,transform] duration-150 hover:bg-secondary hover:text-foreground active:scale-90",
-                popover === "emoji" && "bg-secondary text-brand"
-              )}
-            >
-              <Smile className="h-[18px] w-[18px]" strokeWidth={1.7} />
-            </button>
-            <AnimatePresence>
-              {popover === "emoji" && (
-                <m.div
-                  role="dialog"
-                  aria-label="Elegir emoji"
-                  initial={{ opacity: 0, y: 6, scale: 0.96 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: 4, scale: 0.98, transition: { duration: 0.1 } }}
-                  transition={SPRING}
-                  style={{ transformOrigin: "bottom left" }}
-                  className="absolute bottom-full left-0 z-30 mb-2.5 overflow-hidden rounded-md border bg-popover text-foreground shadow-pop"
-                >
-                  <EmojiPickerPanel onPick={insertEmoji} />
-                </m.div>
-              )}
-            </AnimatePresence>
-          </div>
-          <button
-            type="button"
-            onClick={() => {
-              setPopover(null);
-              setQuickSlash(false);
-              setQuickActive(0);
-              setPanel(panel === "quick" ? null : "quick");
-            }}
-            aria-label="Respuestas rápidas"
-            title="Respuestas rápidas (o escribe / en el editor vacío)"
-            data-testid="quick-reply-button"
-            className={cn(
-              "rounded p-1.5 text-text-3 transition-[color,background-color,transform] duration-150 hover:bg-secondary hover:text-foreground active:scale-90",
-              panel === "quick" && "bg-secondary text-brand"
-            )}
-          >
-            <Zap className="h-[18px] w-[18px]" strokeWidth={1.7} />
-          </button>
-          {knowledgeOn && (
-          <button
-            type="button"
-            onClick={() => {
-              setPopover(null);
-              setPanel(panel === "knowledge" ? null : "knowledge");
-            }}
-            aria-label="Conocimientos"
-            title="Enviar algo de Conocimientos"
-            className={cn(
-              "rounded p-1.5 text-text-3 transition-[color,background-color,transform] duration-150 hover:bg-secondary hover:text-foreground active:scale-90",
-              panel === "knowledge" && "bg-secondary text-brand"
-            )}
-          >
-            <BookOpen className="h-[18px] w-[18px]" strokeWidth={1.7} />
-          </button>
-          )}
-        </div>
         <textarea
           ref={taRef}
-          placeholder={file ? "Pie del adjunto (opcional)…" : "Escribe una respuesta…"}
+          placeholder={file ? "Pie del adjunto (opcional)…" : "Escribe un mensaje… (escribe / para respuestas rápidas)"}
           value={text}
           rows={1}
           readOnly={rewriting}
@@ -861,23 +697,201 @@ export function Composer({
             }
           }}
           className={cn(
-            "max-h-[120px] w-full resize-none self-center bg-transparent py-1 text-sm leading-relaxed outline-none placeholder:text-text-3 transition-opacity",
+            "block max-h-[160px] min-h-[22px] w-full resize-none bg-transparent text-[14px] leading-[22px] outline-none placeholder:text-text-3 transition-opacity",
             rewriting && "animate-pulse opacity-50"
           )}
         />
-        <button
-          onClick={() => void submit()}
-          disabled={sending || !canSubmit}
-          aria-label="Enviar"
-          className={cn(
-            "flex h-[32px] w-[32px] shrink-0 items-center justify-center rounded-full bg-brand text-brand-fg transition-[opacity,background-color] hover:bg-brand-hover",
-            (sending || !canSubmit) && "opacity-40"
+        <div className="mt-2 flex items-center gap-0.5">
+          {/* Un solo clip: archivo, contacto y ubicación viven en su menú. */}
+          <div ref={attachRef} className="relative">
+            <button
+              ref={attachTrigger}
+              type="button"
+              onClick={() => setPopover(popover === "attach" ? null : "attach")}
+              aria-label="Adjuntar"
+              aria-haspopup="menu"
+              aria-expanded={popover === "attach"}
+              title="Adjuntar archivo, contacto o ubicación"
+              className={cn(
+                "flex h-[30px] items-center gap-1.5 whitespace-nowrap rounded-[8px] px-2 text-[13px] font-medium text-text-2 transition-colors hover:bg-secondary hover:text-foreground",
+                (popover === "attach" || panel === "location" || panel === "contact") &&
+                  "bg-[var(--accent-wash)] text-brand-text"
+              )}
+            >
+              <m.span
+                animate={{ rotate: popover === "attach" ? -45 : 0 }}
+                transition={SPRING}
+                className="flex"
+              >
+                <Paperclip className="h-4 w-4" strokeWidth={1.75} />
+              </m.span>
+            </button>
+            <AnimatePresence>
+              {popover === "attach" && (
+                <m.div
+                  role="menu"
+                  aria-label="Adjuntar"
+                  initial={{ opacity: 0, y: 6, scale: 0.96 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 4, scale: 0.98, transition: { duration: 0.1 } }}
+                  transition={SPRING}
+                  style={{ transformOrigin: "bottom left" }}
+                  className="absolute bottom-full left-0 z-30 mb-2.5 w-60 rounded-md border bg-popover p-1.5 text-foreground shadow-pop"
+                >
+                  {(
+                    [
+                      {
+                        id: "file",
+                        label: "Archivo",
+                        hint: "Foto, video, audio o PDF",
+                        Icon: FileText,
+                      },
+                      {
+                        id: "contact",
+                        label: "Contacto",
+                        hint: "Compartir una tarjeta",
+                        Icon: UserRound,
+                      },
+                      {
+                        id: "location",
+                        label: "Ubicación",
+                        hint: "Coordenadas o Google Maps",
+                        Icon: MapPin,
+                      },
+                    ] as const
+                  )
+                    .filter(({ id }) => !numberChat || id === "file")
+                    .map(({ id, label, hint, Icon }) => (
+                    <button
+                      key={id}
+                      type="button"
+                      role="menuitem"
+                      onClick={() => chooseAttach(id)}
+                      className={cn(
+                        "flex w-full items-center gap-2.5 rounded-sm px-2 py-1.5 text-left transition-colors hover:bg-secondary focus-visible:bg-secondary focus-visible:outline-none",
+                        panel === id && "text-brand"
+                      )}
+                    >
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-tint text-brand-text">
+                        <Icon className="h-4 w-4" strokeWidth={1.7} />
+                      </span>
+                      <span className="min-w-0">
+                        <span className="block text-sm font-semibold">{label}</span>
+                        <span className="block truncate text-[11.5px] text-text-3">{hint}</span>
+                      </span>
+                    </button>
+                  ))}
+                </m.div>
+              )}
+            </AnimatePresence>
+          </div>
+          {knowledgeOn && (
+          <button
+            type="button"
+            onClick={() => {
+              setPopover(null);
+              setPanel(panel === "knowledge" ? null : "knowledge");
+            }}
+            aria-label="Conocimientos"
+            title="Enviar algo de Conocimientos"
+            className={cn(
+              "flex h-[30px] items-center gap-1.5 whitespace-nowrap rounded-[8px] px-2 text-[13px] font-medium text-text-2 transition-colors hover:bg-secondary hover:text-foreground",
+              panel === "knowledge" && "bg-[var(--accent-wash)] text-brand-text"
+            )}
+          >
+            <BookOpen className="h-4 w-4" strokeWidth={1.75} />
+            <span className="tool-label">Biblioteca</span>
+          </button>
           )}
-        >
-          <Send className="h-4 w-4" strokeWidth={1.7} />
-        </button>
+          <button
+            type="button"
+            onClick={() => {
+              setPopover(null);
+              setQuickSlash(false);
+              setQuickActive(0);
+              setPanel(panel === "quick" ? null : "quick");
+            }}
+            aria-label="Respuestas rápidas"
+            title="Respuestas rápidas (o escribe / en el editor vacío)"
+            data-testid="quick-reply-button"
+            className={cn(
+              "flex h-[30px] items-center gap-1.5 whitespace-nowrap rounded-[8px] px-2 text-[13px] font-medium text-text-2 transition-colors hover:bg-secondary hover:text-foreground",
+              panel === "quick" && "bg-[var(--accent-wash)] text-brand-text"
+            )}
+          >
+            <Zap className="h-4 w-4" strokeWidth={1.75} />
+            <span className="tool-label">Respuestas</span>
+          </button>
+          <WritingAssist
+            text={text}
+            busy={rewriting}
+            onBusy={(b) => {
+              setRewriting(b);
+              if (b) setError(null);
+            }}
+            onResult={(next) => {
+              setUndoText(text);
+              setText(next);
+            }}
+            onError={(msg) => setError(msg)}
+          />
+          <div ref={emojiRef} className="relative">
+            <button
+              type="button"
+              onClick={() => setPopover(popover === "emoji" ? null : "emoji")}
+              aria-label="Emojis"
+              aria-haspopup="dialog"
+              aria-expanded={popover === "emoji"}
+              title="Emojis"
+              className={cn(
+                "flex h-[30px] items-center gap-1.5 whitespace-nowrap rounded-[8px] px-2 text-[13px] font-medium text-text-2 transition-colors hover:bg-secondary hover:text-foreground",
+                popover === "emoji" && "bg-[var(--accent-wash)] text-brand-text"
+              )}
+            >
+              <Smile className="h-4 w-4" strokeWidth={1.75} />
+            </button>
+            <AnimatePresence>
+              {popover === "emoji" && (
+                <m.div
+                  role="dialog"
+                  aria-label="Elegir emoji"
+                  initial={{ opacity: 0, y: 6, scale: 0.96 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 4, scale: 0.98, transition: { duration: 0.1 } }}
+                  transition={SPRING}
+                  style={{ transformOrigin: "bottom left" }}
+                  className="absolute bottom-full left-0 z-30 mb-2.5 overflow-hidden rounded-md border bg-popover text-foreground shadow-pop"
+                >
+                  <EmojiPickerPanel onPick={insertEmoji} />
+                </m.div>
+              )}
+            </AnimatePresence>
+          </div>
+          <div className="flex-1" />
+          <span className="mr-2.5 flex items-center gap-1.5 whitespace-nowrap text-[12px] text-text-3" title={numberChat ? "Sale por tu número" : "Tiempo que queda de la ventana de 24 horas"}>
+            {numberChat ? (
+              "Sale por tu número"
+            ) : (
+              <>
+                <Clock3 className="h-[13px] w-[13px]" strokeWidth={1.75} />
+                {formatRemaining(conversation.windowRemainingMs)}
+              </>
+            )}
+          </span>
+          <button
+            onClick={() => void submit()}
+            disabled={sending || !canSubmit}
+            aria-label="Enviar"
+            className={cn(
+              "grid h-[34px] w-[34px] shrink-0 place-items-center rounded-[10px] bg-brand text-brand-fg transition-[opacity,background-color] hover:bg-brand-hover",
+              (sending || !canSubmit) && "opacity-40"
+            )}
+          >
+            <Send className="h-4 w-4" strokeWidth={1.75} />
+          </button>
+        </div>
       </div>
-      <div className="mt-1.5 flex items-center justify-between">
+      <div className="mt-1.5 flex items-center justify-between empty:hidden">
         {error ? (
           <p role="alert" className="text-xs text-destructive">{error}</p>
         ) : rewriting ? (
@@ -897,14 +911,7 @@ export function Composer({
               Deshacer
             </button>
           </p>
-        ) : (
-          <span />
-        )}
-        <p className="font-mono text-[10.5px] tracking-[0.04em] text-text-3">
-          {numberChat
-            ? "Sale por tu número"
-            : `Ventana abierta · quedan ${formatRemaining(conversation.windowRemainingMs)}`}
-        </p>
+        ) : null}
       </div>
     </div>
   );

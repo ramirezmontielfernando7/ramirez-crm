@@ -128,7 +128,7 @@ await owner.call("PATCH", `/api/conversations/${conv?.id}`, { aiEnabled: false }
 const page = owner.page;
 await page.goto(`${BASE}/inbox`);
 await page.getByText(nombre).first().click();
-const ta = page.locator("textarea[placeholder^='Escribe una respuesta']");
+const ta = page.locator("textarea[placeholder^='Escribe un mensaje']");
 await ta.waitFor({ timeout: 15000 });
 const varita = page.getByRole("button", { name: "Asistente de redacción con IA" });
 await varita.waitFor({ timeout: 10000 });

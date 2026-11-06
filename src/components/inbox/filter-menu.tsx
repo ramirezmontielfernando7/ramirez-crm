@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, m } from "framer-motion";
-import { Check, ChevronDown } from "lucide-react";
+import { Check, ChevronDown, Filter } from "lucide-react";
 import { SPRING } from "@/components/motion";
 import { cn } from "@/lib/utils";
 
@@ -31,7 +31,10 @@ export function FilterMenu({
   owner,
   onOwner,
   className,
+  variant = "pill",
 }: {
+  /** Ronda 3: «icon» = el embudo de 36 px del encabezado de la lista. */
+  variant?: "pill" | "icon";
   filtros: { id: InboxFilter; label: string; count: number }[];
   filter: InboxFilter;
   onFilter: (f: InboxFilter) => void;
@@ -86,7 +89,7 @@ export function FilterMenu({
   }
 
   return (
-    <div ref={root} className={cn("flex items-center", className)}>
+    <div ref={root} className={cn("flex items-center", variant === "icon" && "static", className)}>
       <button
         ref={trigger}
         type="button"
@@ -96,14 +99,27 @@ export function FilterMenu({
         aria-label={`Filtrar la bandeja: ${current?.label ?? "Todas"} (${current?.count ?? 0})${
           extra > 0 ? `, ${extra} filtro${extra === 1 ? "" : "s"} más` : ""
         }`}
-        className={cn(
-          "box-border flex h-6 items-center gap-1 whitespace-nowrap rounded-full border py-0 pl-2 pr-1.5 text-[11.5px] font-semibold leading-none transition-[color,background-color,border-color,transform] duration-150 active:scale-95",
-          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-          filtered
-            ? "border-brand bg-brand text-brand-fg"
-            : "border-transparent bg-transparent text-text-3 hover:bg-accent hover:text-text-2"
-        )}
+        className={
+          variant === "icon"
+            ? cn("btn-r3 g ic relative", filtered && "bg-brand-tint text-brand-text hover:bg-brand-tint")
+            : cn(
+                "box-border flex h-6 items-center gap-1 whitespace-nowrap rounded-full border py-0 pl-2 pr-1.5 text-[11.5px] font-semibold leading-none transition-[color,background-color,border-color,transform] duration-150 active:scale-95",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+                filtered
+                  ? "border-brand bg-brand text-brand-fg"
+                  : "border-transparent bg-transparent text-text-3 hover:bg-accent hover:text-text-2"
+              )
+        }
       >
+        {variant === "icon" ? (
+          <>
+            <Filter className="h-4 w-4" strokeWidth={1.75} />
+            {filtered && (
+              <span aria-hidden className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full border-2 border-surface bg-brand" />
+            )}
+          </>
+        ) : (
+          <>
         {/* Al cambiar de filtro, el nombre entra con un desliz corto. */}
         {filtered ? (
           <m.span
@@ -131,6 +147,8 @@ export function FilterMenu({
         <m.span animate={{ rotate: open ? 180 : 0 }} transition={SPRING} className="flex">
           <ChevronDown className="h-3 w-3" strokeWidth={2} />
         </m.span>
+          </>
+        )}
       </button>
 
       <AnimatePresence>
@@ -145,7 +163,7 @@ export function FilterMenu({
             style={{ transformOrigin: "top left" }}
             // Anclado a la fila del título (no a la cápsula): así nunca se sale
             // por la derecha de la columna, venga la cápsula donde venga.
-            className="absolute left-0 top-full z-30 mt-1.5 w-64 max-w-full rounded-md border bg-popover p-1.5 text-foreground shadow-pop"
+            className="absolute left-4 right-4 top-full z-30 mt-1.5 ml-auto w-64 max-w-[calc(100%-2rem)] rounded-md border bg-popover p-1.5 text-foreground shadow-pop"
           >
             <p className="kicker px-2 pb-1 pt-1">Mostrar</p>
             <ul>

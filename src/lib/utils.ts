@@ -53,6 +53,8 @@ export function formatPhone(phone: string | null | undefined): string {
 export function phoneCompact(phone: string | null | undefined): string {
   if (!phone) return "Sin teléfono";
   const d = phone.replace(/\D/g, "");
+  // México: el «1» viejo de celular (521…) ya no se marca; se muestra +52.
+  if (d.length === 13 && d.startsWith("521")) return `+52 ${d.slice(-10)}`;
   if (d.length > 10) return `+${d.slice(0, d.length - 10)} ${d.slice(-10)}`;
   return `+${d}`;
 }

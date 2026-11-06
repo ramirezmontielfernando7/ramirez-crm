@@ -8,7 +8,7 @@ import { m } from "framer-motion";
 import { cn, phoneCompact } from "@/lib/utils";
 import { ContactAvatar } from "@/components/avatar";
 import { ChatModeDot } from "./chat-mode-dot";
-import { effectiveMode, freeTextOutsideWindow, modeDotLabel, type ConnectionMode, type InboxDirectContext } from "@/lib/direct-connection";
+import { freeTextOutsideWindow, type InboxDirectContext } from "@/lib/direct-connection";
 import type { ConversationDto, MessageDto } from "@/lib/types";
 import { type Channel } from "@/lib/channels";
 import { ChannelBadge } from "@/components/channel-badge";
@@ -28,11 +28,15 @@ import {
   type InboxCounts,
   type ListQuery,
 } from "@/lib/inbox-list";
-import type { PatchRow } from "./chat-capsules";
+import { AssigneeCapsule, type PatchRow } from "./chat-capsules";
+import { useAssignees } from "@/components/assignment/use-assignees";
+import { useViewer } from "@/components/viewer-context";
 
 // Panel de Detalles (558 líneas + notas, ficha, línea de tiempo…): se baja en
 // segundo plano, no en el arranque de la Bandeja. Va dentro de una tarjeta que
 // ya tiene su tamaño, así que al llegar solo se llena.
+import { OPEN_HISTORY_EVENT } from "./panel-events";
+
 const ContactPanel = dynamic(
   () => import("./contact-panel").then((mod) => mod.ContactPanel),
   { loading: () => <div className="h-full" aria-hidden /> }
@@ -75,13 +79,6 @@ export type InboxInitial = {
 };
 
 /** Chip suave junto al nombre: verde Oficial, azul Directa, morado Híbrida. */
-function chipClass(mode: ConnectionMode): string {
-  return mode === "meta"
-    ? "bg-success-tint text-success-text"
-    : mode === "directa"
-      ? "bg-info-tint text-info-text"
-      : "bg-[#8b5cf6]/10 text-[#6d3fd0]";
-}
 
 export function InboxClient({
   channels,
@@ -105,6 +102,15 @@ export function InboxClient({
   // ENCIMA del hilo, así que abrirlo por defecto taparía la conversación. El
   // efecto de abajo lo abre solo si de veras hay tres columnas de ancho.
   const [panelOpen, setPanelOpen] = useState(false);
+  const viewer = useViewer();
+  const assignees = useAssignees();
+  // Un fallo del selector de asignado del encabezado se dice aquí.
+  const [headerNotice, setHeaderNotice] = useState<string | null>(null);
+  useEffect(() => {
+    if (!headerNotice) return;
+    const t = setTimeout(() => setHeaderNotice(null), 5000);
+    return () => clearTimeout(t);
+  }, [headerNotice]);
   // Se incrementa con cada evento SSE que puede cambiar la etapa/lead o el
   // estado del agente: el panel de detalles lo observa y refetch en vivo.
   const [detailRev, setDetailRev] = useState(0);
@@ -441,7 +447,8 @@ export function InboxClient({
   );
   const headerActions = useConversationActions(onRemoved, () => {
     togglePanel(true);
-    setTimeout(() => document.getElementById("chat-historial")?.scrollIntoView({ behavior: "smooth", block: "start" }), 350);
+    // El panel puede estar montándose: el aviso espera un instante.
+    setTimeout(() => window.dispatchEvent(new Event(OPEN_HISTORY_EVENT)), 50);
   });
   const select = useCallback(
     (id: string, conv?: ConversationDto) => {
@@ -667,11 +674,16 @@ export function InboxClient({
     // sobre el fondo base (ver `.shell-content` en globals.css).
     <div data-split-panels className="flex h-full lg:gap-3">
       {headerActions.element}
+      {headerNotice && (
+        <p role="status" className="fixed bottom-4 left-1/2 z-[70] -translate-x-1/2 rounded-md border bg-popover px-3 py-2 text-[12.5px] shadow-pop">
+          {headerNotice}
+        </p>
+      )}
       {/* Móvil: una columna a la vez. La lista cede la pantalla completa al
           hilo en cuanto hay conversación elegida (patrón maestro-detalle). */}
       <section
         className={cn(
-          "w-full shrink-0 overflow-hidden border-r md:w-[clamp(300px,32vw,340px)] lg:w-[clamp(340px,30vw,460px)]",
+          "w-full shrink-0 overflow-hidden border-r md:w-[clamp(300px,32vw,340px)] lg:w-[360px]",
           "lg:rounded-panel lg:border lg:bg-surface lg:shadow-panel",
           selected && "max-md:hidden"
         )}
@@ -715,7 +727,9 @@ export function InboxClient({
             >
               {/* 56 px, como la Bandeja y Detalles. Solo el nombre: el teléfono
                   está en Detalles y la ventana de 24 h, bajo el compositor. */}
-              <header data-pm="chat-head" className="flex h-14 shrink-0 items-center justify-between gap-1 border-b bg-background px-2 md:px-4">
+              {/* Ronda 3: 64 px. Avatar · nombre + conexión · teléfono; a la
+                  derecha, asignado, Detalles y ⋯. */}
+              <header data-pm="chat-head" className="flex h-16 shrink-0 items-center gap-3 border-b bg-surface px-3 md:px-5">
                 {/* Volver a la lista: en móvil el hilo ocupa toda la pantalla. */}
                 <button
                   onClick={() => setSelectedId(null)}
@@ -724,75 +738,67 @@ export function InboxClient({
                 >
                   <ChevronLeft className="h-5 w-5" strokeWidth={1.8} />
                 </button>
-                <div className="flex min-w-0 flex-1 items-center gap-3 px-1">
-                  {direct && !direct.metaless ? (
-                    <ChatModeDot
-                      conversation={selected}
-                      ctx={direct}
-                      onChanged={(id, connectionMode) => patchRow(id, { connectionMode })}
-                    >
-                      <ContactAvatar
-                        name={contactLabel(selected.contact)}
-                        seed={selected.contact.id}
-                        size="md"
+                <ContactAvatar name={contactLabel(selected.contact)} seed={selected.contact.id} size="md" />
+                <div className="min-w-0 flex-1">
+                  <p className="flex min-w-0 items-center gap-1.5 text-[15px] font-semibold leading-5">
+                    {multiChannel && <ChannelBadge channel={selected.channel} />}
+                    <span className="truncate">{contactLabel(selected.contact)}</span>
+                    {direct && !direct.metaless && (
+                      <ChatModeDot
+                        variant="chip"
+                        conversation={selected}
+                        ctx={direct}
+                        onChanged={(id, connectionMode) => patchRow(id, { connectionMode })}
                       />
-                    </ChatModeDot>
-                  ) : (
-                    <ContactAvatar
-                      name={contactLabel(selected.contact)}
-                      seed={selected.contact.id}
-                      size="md"
-                    />
-                  )}
-                  <div className="min-w-0">
-                    <p className="flex min-w-0 items-center gap-1.5 text-[15px] font-semibold leading-tight tracking-tight">
-                      {multiChannel && <ChannelBadge channel={selected.channel} />}
-                      <span className="truncate">{contactLabel(selected.contact)}</span>
-                      {direct && !direct.metaless && selected.channel === "whatsapp" && (
-                        <span
-                          data-testid="chat-mode-chip"
-                          className={cn(
-                            "shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold",
-                            chipClass(effectiveMode(selected.connectionMode, direct.defaultMode))
-                          )}
-                        >
-                          {modeDotLabel(effectiveMode(selected.connectionMode, direct.defaultMode))}
-                        </span>
-                      )}
-                    </p>
-                    {selected.contact.phone && (
-                      <p className="mt-0.5 truncate font-mono text-[11.5px] text-text-3" data-testid="chat-head-phone">
-                        {phoneCompact(selected.contact.phone)}
-                      </p>
                     )}
-                  </div>
+                  </p>
+                  {selected.contact.phone && (
+                    <p className="mt-0.5 truncate text-[13px] leading-4 text-text-3" data-testid="chat-head-phone">
+                      {phoneCompact(selected.contact.phone)}
+                    </p>
+                  )}
                 </div>
-                {/* 034: Archivar / Eliminar del chat abierto (las mismas opciones del
-                    clic derecho de la fila; es también el camino con teclado). */}
-                <button
-                  type="button"
-                  aria-haspopup="menu"
-                  aria-label="Opciones del chat"
-                  title="Opciones del chat"
-                  onClick={(e) =>
-                    headerActions.openMenu(selected, {
-                      kind: "rect",
-                      rect: e.currentTarget.getBoundingClientRect(),
-                    })
-                  }
-                  className="shrink-0 rounded-full border border-border-strong p-1.5 text-text-3 transition-colors hover:border-text-3 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  <MoreHorizontal className="h-4 w-4" strokeWidth={1.7} />
-                </button>
-                {!panelOpen && (
+                <div className="flex shrink-0 items-center gap-1.5">
+                  <span className="max-sm:hidden">
+                    <AssigneeCapsule
+                      variant="header"
+                      conversation={selected}
+                      members={assignees}
+                      canAssign={viewer.can("assignment.manage")}
+                      viewerId={viewer.userId}
+                      onPatch={patchRow}
+                      onRefetch={() => refreshConversation(selected.id)}
+                      onError={setHeaderNotice}
+                    />
+                  </span>
                   <button
-                    onClick={() => togglePanel(true)}
-                    aria-label="Mostrar detalles"
-                    className="shrink-0 rounded-full border border-border-strong p-1.5 text-text-3 transition-colors hover:border-text-3 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    type="button"
+                    onClick={() => togglePanel(!panelOpen)}
+                    aria-label={panelOpen ? "Ocultar detalles" : "Mostrar detalles"}
+                    aria-pressed={panelOpen}
+                    title="Detalles"
+                    className={cn("btn-r3 g ic", panelOpen && "soft")}
                   >
-                    <PanelRight className="h-4 w-4" strokeWidth={1.7} />
+                    <PanelRight className="h-4 w-4" strokeWidth={1.75} />
                   </button>
-                )}
+                  {/* 034: Archivar / Eliminar del chat abierto (las mismas opciones del
+                      clic derecho de la fila; es también el camino con teclado). */}
+                  <button
+                    type="button"
+                    aria-haspopup="menu"
+                    aria-label="Opciones del chat"
+                    title="Opciones del chat"
+                    onClick={(e) =>
+                      headerActions.openMenu(selected, {
+                        kind: "rect",
+                        rect: e.currentTarget.getBoundingClientRect(),
+                      })
+                    }
+                    className="btn-r3 g ic"
+                  >
+                    <MoreHorizontal className="h-4 w-4" strokeWidth={1.75} />
+                  </button>
+                </div>
               </header>
               <MessageThread messages={thread} />
             </m.div>
@@ -844,14 +850,14 @@ export function InboxClient({
           "max-xl:fixed max-xl:inset-y-0 max-xl:right-0 max-xl:z-40 max-xl:w-auto max-xl:bg-popover max-xl:transition-transform max-xl:duration-nav max-xl:ease-panel",
           // Cerrado mide 0 y el margen negativo se come el hueco del `gap`.
           panelOpen && selected
-            ? "w-[320px] max-xl:translate-x-0 max-xl:shadow-pop"
+            ? "w-[330px] max-xl:translate-x-0 max-xl:shadow-pop"
             : "w-0 border-l-0 max-xl:translate-x-full xl:-ml-3"
         )}
       >
         {selected && (
           <div
             className={cn(
-              "h-full w-[320px] max-xl:w-[min(320px,88vw)]",
+              "h-full w-[330px] max-xl:w-[min(330px,88vw)]",
               // xl: el tercer panel flotante, que entra y sale deslizándose.
               "xl:overflow-hidden xl:rounded-panel xl:border xl:bg-surface xl:shadow-panel",
               "xl:transition-opacity xl:duration-nav xl:ease-panel",
@@ -867,6 +873,7 @@ export function InboxClient({
               refreshKey={detailRev}
               onPatchConversation={patchConversation}
               onClose={() => togglePanel(false)}
+              onPatchRow={patchRow}
             />
           </div>
         )}

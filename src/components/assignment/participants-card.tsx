@@ -26,7 +26,10 @@ export function ParticipantsCard({
   assignedUserId,
   refreshKey = 0,
   onChanged,
+  variant = "card",
 }: {
+  /** Ronda 3: «row» = un renglón «Participantes» del bloque Venta de Detalles. */
+  variant?: "card" | "row";
   contactId: string;
   assignedUserId: string | null;
   refreshKey?: number;
@@ -101,6 +104,61 @@ export function ParticipantsCard({
   const candidates = people.filter((p) => !taken.has(p.id));
   // Sin nadie y sin poder agregar, la sección no aporta nada.
   if (!canManage && participants !== null && participants.length === 0 && !error) return null;
+
+  if (variant === "row") {
+    if (participants === null && !error) return null;
+    return (
+      <div className="col-span-2 grid grid-cols-[96px_1fr] items-start gap-x-0">
+        <span className="pt-0.5 text-text-3">Participantes</span>
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-1.5">
+            {(participants ?? []).map((p) => (
+              <span
+                key={p.userId}
+                className="cap h-5 bg-secondary pr-1 text-[12px]"
+                title={p.addedBy ? `Lo sumó ${p.addedBy.name}. Ven y responden este chat; el aviso de atención humana es del asignado.` : undefined}
+              >
+                {p.userId === viewer.userId ? `${p.name} (tú)` : p.name}
+                {canManage && (
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => void remove(p)}
+                    aria-label={`Quitar a ${p.name}`}
+                    className="rounded-full p-0.5 text-text-3 hover:text-foreground disabled:opacity-50"
+                  >
+                    <X className="h-3 w-3" strokeWidth={2} />
+                  </button>
+                )}
+              </span>
+            ))}
+            {canManage && candidates.length > 0 && (
+              <select
+                value=""
+                disabled={busy}
+                onChange={(e) => void add(e.target.value)}
+                aria-label="Agregar participante"
+                title="Ven y responden este chat; la asignación no cambia"
+                className="h-6 max-w-[9rem] cursor-pointer appearance-none bg-transparent text-[12px] font-medium text-brand-ink outline-none hover:underline"
+              >
+                <option value="">+ Agregar</option>
+                {candidates.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name} · {p.role}
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
+          {error && (
+            <p role="alert" className="mt-1 text-[11px] text-danger-text">
+              {error}
+            </p>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <section className="border-b p-4">

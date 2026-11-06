@@ -2,6 +2,7 @@
 
 import {
   AlertTriangle,
+  Bot,
   Check,
   CheckCheck,
   Clock3,
@@ -39,7 +40,7 @@ function StatusTicks({ status }: { status: MessageDto["status"] }) {
       ? "text-[#53bdeb]"
       : status === "failed"
         ? "text-destructive"
-        : "text-text-4";
+        : "";
   return (
     <span className={cn("tick inline-flex", `tick-${status}`, color)}>
       <Icon className={cls} strokeWidth={1.7} />
@@ -248,26 +249,43 @@ export function MessageBubble({
   wide?: boolean;
 }) {
   const out = m.direction === "out";
+  // Ronda 3: la IA del negocio contesta en lila con «IA» arriba; la IA
+  // conectada de una persona, con su nombre en azul.
+  const ai = out && m.aiGenerated;
   return (
     <div
       data-media={m.media ? (m.media.caption ? "caption" : "bare") : undefined}
       className={cn(
-        // En el teléfono la burbuja necesita casi todo el renglón:
-        // con 64% cada mensaje se parte en tres líneas.
-        // Burbujas del mockup de la landing: el cliente entra en
-        // verde WhatsApp, el CRM contesta con el lavado del acento.
         // `bubble*`: ganchos de estilo para Personalización → Apariencia
-        // («WhatsApp» los pisa en globals.css; «Clásico» no los usa).
-        "bubble max-w-[85%] rounded-[14px] border px-3 pb-1.5 pt-2 text-[13.5px] leading-[1.45] shadow-sm",
-        out ? "bubble-out" : "bubble-in",
+        // («WhatsApp» y «Premium» los pisan en globals.css).
+        "bubble max-w-[85%] px-3 py-2 text-[14px] leading-5",
+        out ? "bubble-out rounded-[12px_4px_12px_12px]" : "bubble-in rounded-[4px_12px_12px_12px] border",
+        ai && "bubble-ai",
         !grouped && "bubble-first",
         !wide && "sm:max-w-[64%]",
         out
-          ? "border-bubble-out-border bg-bubble-out text-bubble-out-text"
+          ? ai
+            ? "bg-[var(--bubble-ai)] text-[var(--bubble-ai-text)]"
+            : "bg-bubble-out text-bubble-out-text"
           : "border-bubble-in-border bg-bubble-in",
-        !grouped && (out ? "rounded-tr-[5px]" : "rounded-tl-[5px]"),
       )}
     >
+      {ai && (
+        <span className="bubble-who mb-0.5 flex items-center gap-1 text-[11px] font-semibold leading-4 text-[var(--bubble-ai-who)]" title="Respuesta generada por IA">
+          <Bot className="h-[11px] w-[11px]" strokeWidth={2} aria-hidden /> IA
+        </span>
+      )}
+      {m.viaAiConnector && (
+        // 047 — la IA conectada de una persona: su nombre («Joe») en azul,
+        // para no confundirla con el agente interno. Solo la ve el equipo.
+        <span
+          className="bubble-who mb-0.5 flex max-w-[16rem] items-center gap-1 text-[11px] font-semibold leading-4 text-info-text"
+          title={`Enviado por ${m.aiSenderName ?? DEFAULT_ASSISTANT_NAME}, la IA conectada de una persona del equipo. El cliente no ve esta marca.`}
+        >
+          <Sparkles className="h-[11px] w-[11px] shrink-0" strokeWidth={2} aria-hidden />
+          <span className="truncate">{m.aiSenderName ?? DEFAULT_ASSISTANT_NAME}</span>
+        </span>
+      )}
       {m.media ? (
         <span className="block">
           <MediaBlock media={m.media} />
@@ -286,38 +304,18 @@ export function MessageBubble({
           {m.text ? ` — ${m.text}` : ""}
         </span>
       )}
-      <span className="bubble-meta float-right ml-2 mt-1 flex items-center gap-1">
-        {m.aiGenerated && (
-          <span
-            className="inline-flex items-center gap-0.5 text-[10px] font-medium text-brand-ink"
-            title="Respuesta generada por IA"
-          >
-            <Sparkles className="h-3 w-3" strokeWidth={1.7} /> IA
-          </span>
+      <span
+        className={cn(
+          "bubble-meta mt-0.5 flex items-center justify-end gap-1 text-[11px] leading-[14px]",
+          out ? (ai ? "text-[var(--bubble-ai-meta)]" : "text-[var(--bubble-out-meta)]") : "text-text-3"
         )}
-        {m.viaAiConnector && (
-          // 047 — la IA conectada de una persona: su nombre («Joe») en azul,
-          // para no confundirla con el agente interno («IA», color de marca).
-          // Solo la ve el equipo: el cliente recibe un mensaje normal.
-          <span
-            className="inline-flex max-w-[12rem] items-center gap-0.5 text-[10px] font-medium text-info-text"
-            title={`Enviado por ${m.aiSenderName ?? DEFAULT_ASSISTANT_NAME}, la IA conectada de una persona del equipo. El cliente no ve esta marca.`}
-          >
-            <Sparkles className="h-3 w-3 shrink-0" strokeWidth={1.7} />
-            <span className="truncate">{m.aiSenderName ?? DEFAULT_ASSISTANT_NAME}</span>
-          </span>
-        )}
+      >
         {m.origin === "manual" && (
-          <span
-            className="inline-flex items-center gap-0.5 text-[10px] font-medium text-text-3"
-            title="Enviado a mano desde la app de WhatsApp Business"
-          >
-            <Smartphone className="h-3 w-3" strokeWidth={1.7} /> Celular
+          <span className="inline-flex items-center gap-0.5" title="Enviado a mano desde la app de WhatsApp Business">
+            <Smartphone className="h-3 w-3" strokeWidth={1.75} /> Celular ·
           </span>
         )}
-        <span className="bubble-time font-mono text-[10px] tracking-[0.04em] text-text-3">
-          {bubbleTime(m.createdAt)}
-        </span>
+        <span className="bubble-time tabular-nums">{bubbleTime(m.createdAt)}</span>
         {out && <StatusTicks status={m.status} />}
       </span>
       {out && m.status === "failed" && (

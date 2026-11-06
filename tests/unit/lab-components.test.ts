@@ -60,11 +60,14 @@ describe("MessageBubble", () => {
     expect(saliente).toContain("bg-bubble-out");
   });
 
-  it("la esquina con cola solo en el primero de un grupo", () => {
+  it("ronda 3: la esquina de 4 px va del lado de quien habla; la cola solo en el primero", () => {
     const solo = renderToStaticMarkup(createElement(MessageBubble, { m: msg(), grouped: false }));
     const seguido = renderToStaticMarkup(createElement(MessageBubble, { m: msg(), grouped: true }));
-    expect(solo).toContain("rounded-tl-[5px]");
-    expect(seguido).not.toContain("rounded-tl-[5px]");
+    const saliente = renderToStaticMarkup(createElement(MessageBubble, { m: msg({ direction: "out" }), grouped: false }));
+    expect(solo).toContain("rounded-[4px_12px_12px_12px]");
+    expect(saliente).toContain("rounded-[12px_4px_12px_12px]");
+    expect(solo).toContain("bubble-first");
+    expect(seguido).not.toContain("bubble-first");
   });
 
   it("por defecto es idéntica a la de la Bandeja (64 %) y `wide` solo quita ese tope", () => {
@@ -145,7 +148,7 @@ describe("pantallas del Laboratorio", () => {
   it("la burbuja vive en un solo archivo (la Bandeja y la vista previa la comparten)", () => {
     // (El chat de EQUIPO tiene su propia burbuja interna; no es la de clientes.)
     const conBurbuja = archivos(SRC)
-      .filter((f) => readFileSync(f, "utf8").includes("bubble-out-border"))
+      .filter((f) => readFileSync(f, "utf8").includes("bg-bubble-out"))
       .map((f) => path.relative(SRC, f))
       .filter((f) => !f.startsWith("components/team-chat/"));
     expect(conBurbuja).toEqual(["components/inbox/message-bubble.tsx"]);
