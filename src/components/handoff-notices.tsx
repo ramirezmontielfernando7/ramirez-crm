@@ -6,7 +6,6 @@ import { AnimatePresence, m } from "framer-motion";
 import { UserRound, X } from "lucide-react";
 import { HANDOFF_LABEL } from "@/lib/analytics";
 import { useEvents } from "@/components/use-events";
-import { playChime } from "@/components/team-chat/unread-store";
 import { SPRING } from "@/components/motion";
 
 type Notice = { id: string; contactId: string; contactName: string; reason: string };
@@ -48,7 +47,6 @@ export function HandoffNotices() {
         id,
         setTimeout(() => dismiss(id), NOTICE_MS)
       );
-      playChime();
     },
   });
 

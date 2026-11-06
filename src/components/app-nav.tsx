@@ -32,6 +32,7 @@ import { moduleDef, type ModuleKey } from "@/lib/modules/registry";
 import { NAV_ICONS } from "@/components/nav-icons";
 import { useInboxUnread } from "@/components/inbox/unread-store";
 import type { NavEntries } from "@/lib/modules/nav-layout";
+import { AvisosMenu } from "@/components/notifications/avisos-menu";
 import { openUsageDialog } from "@/lib/usage-dialog";
 import {
   BUILD_COMMIT,
@@ -264,6 +265,8 @@ export function AppNav({
       <NavLinks items={items} pathname={pathname} />
 
       <div className="flex-1" />
+
+      <AvisosMenu />
 
       {showSettings && <SettingsLink active={settingsActive} />}
 
