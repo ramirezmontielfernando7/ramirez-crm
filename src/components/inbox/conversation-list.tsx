@@ -422,7 +422,7 @@ export const ConversationList = memo(function ConversationList({
             <button
               type="button"
               onClick={() => (searchOpen ? (setQuery(""), setSearchOpen(false)) : setSearchOpen(true))}
-              aria-label="Buscar"
+              aria-label="Buscar conversación"
               aria-pressed={searchOpen}
               title="Buscar (/)"
               className={cn("btn-r3 g ic", searchOpen && "soft")}
