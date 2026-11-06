@@ -2,10 +2,11 @@
 
 import { useEffect, useRef, useSyncExternalStore } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { X } from "lucide-react";
+import { ArrowLeft, X } from "lucide-react";
+import { UpgradePlans } from "@/components/usage/upgrade-plans";
 import { UsagePlanClient } from "@/components/usage/usage-plan-client";
 import { useViewer } from "@/components/viewer-context";
-import { closeUsageDialog, getUsageDialogState, openUsageDialog, subscribeUsageDialog } from "@/lib/usage-dialog";
+import { closeUsageDialog, getUsageDialogState, openUsageDialog, setUsageDialogView, subscribeUsageDialog } from "@/lib/usage-dialog";
 
 /**
  * «Uso y plan» como ventana centrada que oscurece lo de atrás (solo el
@@ -16,7 +17,7 @@ import { closeUsageDialog, getUsageDialogState, openUsageDialog, subscribeUsageD
 export function UsageDialog() {
   const viewer = useViewer();
   const allowed = viewer.can("usage.read");
-  const { open } = useSyncExternalStore(subscribeUsageDialog, getUsageDialogState, getUsageDialogState);
+  const { open, view } = useSyncExternalStore(subscribeUsageDialog, getUsageDialogState, getUsageDialogState);
   const box = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
   const router = useRouter();
@@ -76,11 +77,16 @@ export function UsageDialog() {
         aria-labelledby="usage-dialog-title"
         tabIndex={-1}
         data-testid="usage-dialog"
-        className="usage-modal relative flex max-h-[calc(100dvh-2rem)] w-full max-w-[760px] flex-col overflow-hidden outline-none"
+        className={`usage-modal relative flex max-h-[calc(100dvh-2rem)] w-full flex-col overflow-hidden outline-none ${view === "planes" ? "max-w-[1000px]" : "max-w-[760px]"}`}
       >
         <div className="flex items-center gap-3 px-6 pb-1 pt-5">
+          {view === "planes" && (
+            <button type="button" onClick={() => setUsageDialogView("uso")} aria-label="Volver a Uso y plan" data-testid="usage-dialog-back" className="-ml-1 rounded-md p-1.5 text-text-3 hover:bg-accent hover:text-foreground">
+              <ArrowLeft className="h-[18px] w-[18px]" />
+            </button>
+          )}
           <h1 id="usage-dialog-title" className="text-lg font-semibold tracking-tight">
-            Uso y plan
+            {view === "planes" ? "Mejora tu plan" : "Uso y plan"}
           </h1>
           <button
             type="button"
@@ -93,7 +99,7 @@ export function UsageDialog() {
           </button>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-6">
-          <UsagePlanClient embedded />
+          {view === "planes" ? <UpgradePlans /> : <UsagePlanClient embedded />}
         </div>
       </div>
     </div>

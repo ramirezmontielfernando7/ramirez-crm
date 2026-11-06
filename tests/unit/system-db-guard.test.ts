@@ -119,6 +119,10 @@ const PERMITIDOS: Record<string, { usos: number; motivo: string }> = {
     usos: 5,
     motivo: "0070: modelos, esfuerzo y tope en USD de la instancia y de cada plan (platform_ai_defaults) y precio por modelo (platform_ai_model_price), tablas de PLATAFORMA sin organización; más el gasto estimado sumado de todas las organizaciones (solo números)",
   },
+  "src/server/plan-catalog/request.ts": {
+    usos: 1,
+    motivo: "0073: la solicitud de cambio de plan del Propietario toma el nombre de su organización y su correo (tablas de plataforma de Better Auth) para la bitácora de plataforma; solo metadatos, nunca contenido",
+  },
   "src/server/plan-catalog/store.ts": {
     usos: 2,
     motivo: "0073: catálogo de planes (platform_plan_catalog), tabla de PLATAFORMA sin organización: lectura con caché y escritura del administrador de plataforma; nunca datos de un negocio",

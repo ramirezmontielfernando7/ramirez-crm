@@ -21,6 +21,7 @@ export type AuditAction =
   | "pricing.changed"
   | "ai_settings.changed"
   | "plans.changed"
+  | "plan.requested"
   | "organization.ai_changed"
   | "link.activation_created"
   | "link.reset_created"
