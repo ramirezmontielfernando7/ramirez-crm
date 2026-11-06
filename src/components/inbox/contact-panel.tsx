@@ -546,7 +546,9 @@ export function ContactPanel({
         </section>
 
         {/* 022: todo lo que le pasó a este chat, con su nota al frente. */}
-        <ChatTimeline contactId={contactId} refreshKey={refreshKey + timelineRev} />
+        <div id="chat-historial">
+          <ChatTimeline contactId={contactId} refreshKey={refreshKey + timelineRev} />
+        </div>
       </div>
 
       {pendingLoss && (

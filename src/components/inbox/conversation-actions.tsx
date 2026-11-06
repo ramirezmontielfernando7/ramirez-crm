@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { Archive, ArchiveRestore, Trash2 } from "lucide-react";
+import { Archive, ArchiveRestore, History, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useViewer } from "@/components/viewer-context";
 import type { ConversationDto } from "@/lib/types";
@@ -116,7 +116,11 @@ type Target = Pick<ConversationDto, "id" | "archivedAt">;
  * archivar, recuperar o eliminar para que la Bandeja se refresque (y suelte el
  * chat abierto si era ese).
  */
-export function useConversationActions(onDone: (id: string, kind: "archive" | "restore" | "delete") => void) {
+export function useConversationActions(
+  onDone: (id: string, kind: "archive" | "restore" | "delete") => void,
+  /** «Ver historial»: solo el menú del encabezado del chat lo pasa. */
+  onViewHistory?: (id: string) => void
+) {
   const viewer = useViewer();
   const canDelete = viewer.can("conversation.delete");
   const [menu, setMenu] = useState<{ target: Target; anchor: MenuAnchor } | null>(null);
@@ -170,6 +174,18 @@ export function useConversationActions(onDone: (id: string, kind: "archive" | "r
     <>
       {menu && (
         <FloatingMenu anchor={menu.anchor} onClose={closeMenu} label="Opciones del chat">
+          {onViewHistory && (
+            <MenuItem
+              onSelect={() => {
+                const id = menu.target.id;
+                setMenu(null);
+                onViewHistory(id);
+              }}
+            >
+              <History className="h-3.5 w-3.5" strokeWidth={1.8} />
+              Ver historial
+            </MenuItem>
+          )}
           <MenuItem onSelect={() => void archive(menu.target)}>
             {isArchived(menu.target) ? (
               <ArchiveRestore className="h-3.5 w-3.5" strokeWidth={1.8} />
