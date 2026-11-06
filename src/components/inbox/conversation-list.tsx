@@ -406,6 +406,7 @@ export const ConversationList = memo(function ConversationList({
     <div className="flex h-full flex-col">
       <InboxListHeader
         current="inbox"
+        flush
         rowRef={rowRef}
         actions={
           <>
@@ -447,7 +448,7 @@ export const ConversationList = memo(function ConversationList({
           </>
         }
       />
-      <div className="flex shrink-0 flex-col gap-2 px-4 pb-2.5 pt-1">
+      <div className="flex shrink-0 flex-col gap-2 px-4 pb-2.5 pt-0">
         {showSearch && (
         <ListSearch
           ref={searchRef}

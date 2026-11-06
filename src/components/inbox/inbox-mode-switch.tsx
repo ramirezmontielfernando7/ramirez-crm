@@ -1,5 +1,6 @@
 "use client";
 
+import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { useViewer } from "@/components/viewer-context";
 import { useTeamUnread } from "@/components/team-chat/unread-store";
@@ -73,7 +74,10 @@ export function InboxListHeader({
   current,
   actions,
   rowRef,
+  flush,
 }: {
+  /** Sin línea inferior: debajo van los chips de filtro y se ve más limpio. */
+  flush?: boolean;
   current: InboxMode;
   actions?: React.ReactNode;
   rowRef?: React.RefObject<HTMLDivElement | null>;
@@ -85,7 +89,7 @@ export function InboxListHeader({
   const tabs = TABS.filter(shows(viewer));
 
   return (
-    <header className="relative flex h-14 shrink-0 items-center gap-2 border-b px-4" ref={rowRef}>
+    <header className={cn("relative flex h-14 shrink-0 items-center gap-2 px-4", !flush && "border-b")} ref={rowRef}>
       <NavRevealButton />
       {tabs.length < 2 ? (
         <h2 className="text-[16px] font-semibold">{labelOf(viewer, tabs[0] ?? TABS[0]!)}</h2>
