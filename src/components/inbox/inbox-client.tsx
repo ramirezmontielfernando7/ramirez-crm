@@ -129,6 +129,13 @@ export function InboxClient({
   }, []);
   const selectedIdRef = useRef<string | null>(null);
   selectedIdRef.current = selectedId;
+  // Teléfono: con un chat abierto se esconde la barra inferior (ver globals.css).
+  useEffect(() => {
+    const el = document.documentElement;
+    if (selectedId) el.setAttribute("data-chat-open", "");
+    else el.removeAttribute("data-chat-open");
+    return () => el.removeAttribute("data-chat-open");
+  }, [selectedId]);
   const tmpSeq = useRef(0);
   // Los envíos salen en fila: el compositor ya no espera, pero WhatsApp debe
   // recibir "hola" antes que el renglón siguiente. Sin esta cadena, dos POST

@@ -55,7 +55,7 @@ type NavItem = {
 
 export { NAV_ICONS } from "@/components/nav-icons";
 
-function navItemOf(key: ModuleKey, href?: string): NavItem {
+export function navItemOf(key: ModuleKey, href?: string): NavItem {
   const def = moduleDef(key);
   return {
     // 039: el pilar lleva a su primera pestaña que se puede abrir (la
