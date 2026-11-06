@@ -9,6 +9,7 @@ import {
   AlertTriangle,
   Gauge,
   LogOut,
+  Search,
   Settings,
   ShieldCheck,
   X,
@@ -204,7 +205,7 @@ export function AppNav({
         "lg:absolute lg:inset-y-3 lg:left-3 lg:z-10 lg:overflow-x-hidden",
         "lg:transition-[width,padding,transform,visibility] lg:duration-nav lg:ease-panel",
         "lg:rounded-panel lg:border lg:shadow-panel",
-        narrow ? "lg:w-14 lg:px-2" : "lg:w-[13.5rem]",
+        narrow ? "lg:w-14 lg:px-2" : "lg:w-[14.5rem]",
         // Oculto sale 68 px fijos (56 de su forma angosta + 12 del margen),
         // no un %: el % cambiaría con el ancho a medio camino y el borde se
         // despegaría del contenido al volver.
@@ -256,6 +257,8 @@ export function AppNav({
         </button>
         <NavBrandText branding={branding} house={house} mini={mini} />
       </div>
+
+      {viewer.can("assistant.use") && <NavSearch />}
 
       <NavLinks items={items} pathname={pathname} />
 
@@ -344,6 +347,26 @@ const NavLinks = memo(function NavLinks({
   );
 });
 
+/** Fila «Buscar o preguntar… ⌘K»: abre el asistente con el mismo atajo. */
+const NavSearch = memo(function NavSearch() {
+  return (
+    <button
+      type="button"
+      onClick={() =>
+        window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true, bubbles: true }))
+      }
+      aria-label="Buscar o preguntar"
+      title="Buscar o preguntar (Ctrl/⌘ K)"
+      data-testid="nav-search"
+      className="mb-3 flex w-full items-center gap-2 rounded-sm border bg-subtle px-2.5 py-2 text-left text-[13px] text-text-3 hover:bg-accent group-data-[mini]/nav:hidden"
+    >
+      <Search className="h-[15px] w-[15px] shrink-0" strokeWidth={1.8} />
+      <span className="flex-1 truncate">Buscar o preguntar…</span>
+      <kbd className="rounded border px-1 font-mono text-[10.5px]">⌘K</kbd>
+    </button>
+  );
+});
+
 const SettingsLink = memo(function SettingsLink({ active }: { active: boolean }) {
   return (
     <Link href="/settings" title="Ajustes" className={navItemClass(active)}>
@@ -386,7 +409,7 @@ const NavFooter = memo(function NavFooter({
         </span>
         <span className="min-w-0 flex-1">
           <span className="block truncate text-[13px] font-semibold">{userName}</span>
-          <span className="block truncate text-[11px] text-text-3">{roleText} · En línea</span>
+          <span className="block truncate text-[11px] text-text-3">{roleText}</span>
         </span>
         {showUsage && (
           <button
@@ -598,7 +621,7 @@ function ProfileMenu({
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-[13px] font-semibold">{userName}</span>
-                    <span className="block truncate text-[11px] text-text-3">{roleText} · En línea</span>
+                    <span className="block truncate text-[11px] text-text-3">{roleText}</span>
                   </span>
                   <ThemeToggle initial={theme} />
                   <button

@@ -133,7 +133,7 @@ export function PageShell({
           {!back && Icon && <Icon aria-hidden className="h-[17px] w-[17px] shrink-0 text-brand" strokeWidth={1.8} />}
           <h1 className="truncate text-[15px] font-semibold tracking-tight text-foreground">{heading}</h1>
           {badge}
-          {subtitle && (
+          {false && subtitle && (
             <p className="hidden min-w-0 truncate text-xs text-text-3 xl:block" data-page-subtitle>
               {subtitle}
             </p>
