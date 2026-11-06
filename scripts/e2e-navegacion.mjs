@@ -295,7 +295,7 @@ async function main() {
   ok("sin permiso sigue en 403 (Resultados)", (await S.call("GET", "/api/analytics/sales?from=2026-01-01&to=2026-01-31")).status === 403);
   const coordMenu = await C.pagina("/inbox");
   const mc = await menu(coordMenu.p);
-  ok("la Coordinadora no cambia (Bandeja, CRM Comercial, Marketing, Inteligencia)", mc.join() === "Bandeja,CRM Comercial,Marketing,Inteligencia", mc.join());
+  ok("la Coordinadora no cambia (Bandeja, CRM Comercial, Marketing, Resultados)", mc.join() === "Bandeja,CRM Comercial,Marketing,Resultados", mc.join());
   await coordMenu.p.close();
 
   console.log("\n== 5 · Módulo apagado por la plataforma ==");

@@ -158,19 +158,6 @@ export const MODULES: readonly ModuleDef[] = [
       { label: "Biblioteca", route: "/knowledge", module: "knowledge" },
     ],
   },
-  // 038 — Asistente interno (premium, solo el Propietario): su propio renglón
-  // del menú, entre el CRM Comercial y el Estudio de IA.
-  {
-    key: "asistente",
-    label: "Asistente",
-    route: "/asistente",
-    icon: "Sparkles",
-    core: false,
-    permissions: ["assistant.use"],
-    defaultRoles: ["owner"],
-    requires: [],
-    sections: [{ label: "Asistente", route: "/asistente", module: "asistente", permissions: ["assistant.use"] }],
-  },
   {
     key: "lab",
     label: "Estudio de IA",
@@ -186,9 +173,9 @@ export const MODULES: readonly ModuleDef[] = [
       { label: "Mis agentes", route: "/lab", module: "lab", permissions: ["agent.manage"], also: ["/lab/agents"] },
       // Sin Laboratorio, el agente general de siempre (/agent sigue vivo).
       { label: "Mi agente", route: "/agent", module: "agent", permissions: ["agent.manage"], unless: "lab" },
-      { label: "Conocimiento y documentos", route: "/lab/documentos", module: "lab", permissions: ["agent.manage"] },
+      { label: "Conocimiento", route: "/lab/documentos", module: "lab", permissions: ["agent.manage"] },
       { label: "Asignación por etapa", route: "/lab/asignacion", module: "lab", permissions: ["agent.manage"] },
-      { label: "Clientes simulados", route: "/lab/evaluaciones", module: "lab", permissions: ["agent.manage"] },
+      { label: "Pruebas", route: "/lab/evaluaciones", module: "lab", permissions: ["agent.manage"] },
     ],
   },
   {
@@ -205,13 +192,13 @@ export const MODULES: readonly ModuleDef[] = [
       { label: "Audiencias", route: "/campaigns/audiences", module: "campaigns", permissions: ["campaigns.manage"] },
       // 030 (PR 4): antes en Ajustes → Plantillas (que ahora redirige aquí).
       { label: "Plantillas WhatsApp", route: "/campaigns/templates", module: "campaigns", permissions: ["templates.manage"] },
-      { label: "Métricas y costos Meta", route: "/campaigns/metrics", module: "campaigns", permissions: ["campaigns.manage"] },
+      { label: "Métricas y costos", route: "/campaigns/metrics", module: "campaigns", permissions: ["campaigns.manage"] },
     ],
   },
   // 019 — Primero se atiende y se organiza, luego se mide.
   {
     key: "results",
-    label: "Inteligencia",
+    label: "Resultados",
     route: "/results",
     icon: "ChartColumn",
     core: false,
@@ -221,6 +208,19 @@ export const MODULES: readonly ModuleDef[] = [
     sections: [
       { label: "Resultados y embudo", route: "/results", module: "results", permissions: ["results.read"] },
     ],
+  },
+  // 038 — Asistente interno (premium, solo el Propietario): su propio renglón
+  // del menú; rediseño 2026-11: al final de los pilares, después de Resultados.
+  {
+    key: "asistente",
+    label: "Asistente",
+    route: "/asistente",
+    icon: "Sparkles",
+    core: false,
+    permissions: ["assistant.use"],
+    defaultRoles: ["owner"],
+    requires: [],
+    sections: [{ label: "Asistente", route: "/asistente", module: "asistente", permissions: ["assistant.use"] }],
   },
   {
     key: "settings",
