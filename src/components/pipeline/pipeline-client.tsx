@@ -1,5 +1,6 @@
 "use client";
 
+import { stageDot } from "@/lib/tags";
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import {
@@ -13,10 +14,10 @@ import {
   type DragEndEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
-import { MessageSquareText, Settings2, Trophy, XCircle } from "lucide-react";
+import { Clock, MessageSquareText, Settings2, Trophy, XCircle } from "lucide-react";
 import type { LossReason, PriorityValue, StageDto } from "@/lib/types";
 import { formatMoneyCents, sumable } from "@/lib/money";
-import { cn } from "@/lib/utils";
+import { cn, initials } from "@/lib/utils";
 import { ContactAvatar } from "@/components/avatar";
 import { Button } from "@/components/ui/button";
 import { formatTime } from "@/components/inbox/helpers";
@@ -194,6 +195,10 @@ export function PipelineClient() {
     void moverLead(leadId, stageId);
   }
 
+  const openStageIds = new Set(stages.filter((x) => x.kind === "open").map((x) => x.id));
+  const openLeads = leads.filter((l) => openStageIds.has(l.stageId));
+  const openTotals = totalesDeEtapa(openLeads, currency);
+
   return (
     <PageShell
       pillar="pipeline"
@@ -227,6 +232,24 @@ export function PipelineClient() {
             Reintentar
           </Button>
         </div>
+      )}
+      {stages.length > 0 && (
+        <p data-pm="board-summary" className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b px-4 py-2.5 text-[13px] text-text-3">
+          <span>
+            {openLeads.length} {openLeads.length === 1 ? "lead abierto" : "leads abiertos"}
+          </span>
+          {openTotals.totalCents > 0 && (
+            <>
+              <span aria-hidden>·</span>
+              <span>
+                Valor abierto{" "}
+                <strong className="font-semibold text-foreground">
+                  {formatMoneyCents(openTotals.totalCents, currency)}
+                </strong>
+              </span>
+            </>
+          )}
+        </p>
       )}
       {/* El tablero se arrastra en horizontal; en el teléfono cada columna
           se detiene en su sitio (snap) para no quedar a medio camino. */}
@@ -352,25 +375,38 @@ function StageColumn({
   onOpen: (lead: BoardLead) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: stage.id });
+  const dot = stageDot(stage.color, stage.name);
+  const { totalCents, sinMonto, otraMoneda } = totalesDeEtapa(leads, currency);
+  const conMonto = leads.length - sinMonto - otraMoneda;
   return (
     <div
       ref={setNodeRef}
       data-pm="col"
       className={cn(
-        "flex h-full w-64 shrink-0 snap-start flex-col rounded-lg border border-border-strong bg-subtle transition-[box-shadow,border-color]",
+        "flex h-full min-w-[12.5rem] flex-1 basis-0 snap-start flex-col rounded-lg border border-border-strong bg-subtle transition-[box-shadow,border-color]",
         isOver && "border-brand ring-[3px] ring-brand-soft"
       )}
     >
-      <div data-pm="col-head" className="flex items-center justify-between px-3 py-2.5">
-        <span className="flex items-center gap-1.5 text-[13.5px] font-bold tracking-tight">
+      <div data-pm="col-head" className="flex items-center justify-between gap-2 px-3 py-2.5">
+        <span className="flex min-w-0 items-center gap-1.5 text-[13.5px] font-bold tracking-tight">
           {stage.kind === "won" && <Trophy className="h-3.5 w-3.5 text-primary" />}
           {stage.kind === "lost" && (
             <XCircle className="h-3.5 w-3.5 text-muted-foreground" />
           )}
-          {stage.name}
+          {stage.kind === "open" && (
+            <span
+              aria-hidden
+              className={cn("h-2 w-2 shrink-0 rounded-full", dot.className)}
+              style={dot.style}
+            />
+          )}
+          <span className="truncate">{stage.name}</span>
+          <span data-pm="col-count" className="rounded-full border border-border-strong bg-background px-2 py-0.5 font-mono text-[11px] font-normal text-text-3">
+            {leads.length}
+          </span>
         </span>
-        <span data-pm="col-count" className="rounded-full border border-border-strong bg-background px-2 py-0.5 font-mono text-[11px] text-text-3">
-          {leads.length}
+        <span data-pm="col-total" className="shrink-0 text-[12px] tabular-nums text-text-3">
+          {conMonto === 0 ? "" : formatMoneyCents(totalCents, currency)}
         </span>
       </div>
       <div className="flex-1 space-y-2 overflow-y-auto p-2">
@@ -389,36 +425,17 @@ function StageColumn({
   );
 }
 
-/** Cuánto dinero hay en esta etapa, y qué quedó fuera de la cuenta. */
+/** El total vive en el encabezado; aquí solo lo que quedó fuera de la cuenta. */
 function StageFooter({ leads, currency }: { leads: BoardLead[]; currency: string }) {
-  const { totalCents, sinMonto, otraMoneda } = totalesDeEtapa(leads, currency);
+  const { sinMonto, otraMoneda } = totalesDeEtapa(leads, currency);
   const conMonto = leads.length - sinMonto - otraMoneda;
-
+  if (otraMoneda === 0 && (sinMonto === 0 || conMonto === 0)) return null;
   return (
-    <div
-      data-pm="stage-footer"
-      data-empty={conMonto === 0 && otraMoneda === 0 ? "" : undefined}
-      className="border-t px-3 py-2 text-[11px]"
-    >
-      {conMonto === 0 ? (
-        // Un "$0.00" aquí se lee como un error del sistema, no como un dato.
-        <p className="text-muted-foreground">Sin montos capturados</p>
-      ) : (
-        <div className="flex items-baseline justify-between gap-2">
-          <span className="text-muted-foreground">
-            Total{sinMonto > 0 ? ` · ${sinMonto} sin monto` : ""}
-          </span>
-          <span className="font-semibold tabular-nums">
-            {formatMoneyCents(totalCents, currency)}
-          </span>
-        </div>
-      )}
+    <div data-pm="stage-footer" className="border-t px-3 py-2 text-[11px] text-muted-foreground">
+      {sinMonto > 0 && conMonto > 0 && <p>{sinMonto} sin monto</p>}
       {otraMoneda > 0 && (
-        // Descartarlos en silencio haría que el total mintiera sin que nadie
-        // pudiera notarlo.
-        <p className="mt-0.5 text-warning-text">
-          {otraMoneda} en otra moneda, fuera del total
-        </p>
+        // Descartarlos en silencio haría que el total mintiera.
+        <p className="text-warning-text">{otraMoneda} en otra moneda, fuera del total</p>
       )}
     </div>
   );
@@ -477,6 +494,10 @@ function LeadCard({
   onEditAmount?: (lead: BoardLead) => void;
 }) {
   const showAssignee = useViewer().can("scope.all");
+  const amountText =
+    lead.amountCents === null
+      ? "+ monto"
+      : formatMoneyCents(lead.amountCents, lead.currency ?? currency);
   return (
     <div
       data-pm={overlay ? "card-overlay" : "card"}
@@ -487,19 +508,50 @@ function LeadCard({
     >
       <div className="flex items-center gap-2.5">
         <ContactAvatar name={lead.contact.name} seed={lead.contact.id} size="sm" />
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5">
-            <p className="truncate text-sm font-semibold">{lead.contact.name}</p>
-            {lead.priority && <PriorityBadge value={lead.priority} />}
-          </div>
-          <p className="truncate text-[11px] text-muted-foreground">
-            {lead.lastActivityAt
-              ? `Actividad: ${formatTime(lead.lastActivityAt)}`
-              : "Sin actividad"}
-            {/* 020: a quién está asignado, visible para quien ve al equipo. */}
-            {showAssignee && ` · ${lead.assignee?.name ?? "Sin asignar"}`}
-          </p>
-        </div>
+        <p className="min-w-0 flex-1 truncate text-sm font-semibold">{lead.contact.name}</p>
+        {!overlay && onEditAmount ? (
+          <button
+            // `stopPropagation` en pointerdown: sin esto, tocar el monto empieza
+            // un arrastre y el diálogo nunca abre. También en `click`, para no
+            // abrir además el cajón.
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              onEditAmount(lead);
+            }}
+            data-pm="amount"
+            data-empty={lead.amountCents === null ? "" : undefined}
+            className={cn(
+              "shrink-0 rounded px-1 py-0.5 text-right text-xs tabular-nums hover:bg-accent",
+              lead.amountCents === null ? "text-text-3" : "font-semibold text-foreground"
+            )}
+          >
+            {amountText}
+          </button>
+        ) : (
+          lead.amountCents !== null && (
+            <span className="shrink-0 text-xs font-semibold tabular-nums">{amountText}</span>
+          )
+        )}
+      </div>
+      <div className="mt-2 flex items-center gap-2 text-[11px] text-muted-foreground">
+        {lead.priority && <PriorityBadge value={lead.priority} />}
+        <span className="flex min-w-0 items-center gap-1 truncate">
+          <Clock className="h-3 w-3 shrink-0" strokeWidth={1.8} />
+          <span className="truncate">
+            {lead.lastActivityAt ? formatTime(lead.lastActivityAt) : "Sin actividad"}
+          </span>
+        </span>
+        <span className="flex-1" />
+        {/* 020: a quién está asignado, visible para quien ve al equipo. */}
+        {showAssignee && (
+          <span
+            title={lead.assignee?.name ?? "Sin asignar"}
+            className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand-soft text-[10px] font-bold text-brand-text"
+          >
+            {lead.assignee ? initials(lead.assignee.name) : "—"}
+          </span>
+        )}
         {lead.conversationId && (
           <Link
             href={`/inbox?contact=${lead.contact.id}`}
@@ -512,36 +564,6 @@ function LeadCard({
           </Link>
         )}
       </div>
-      {!overlay && onEditAmount && (
-        <button
-          // `stopPropagation` en pointerdown: sin esto, tocar el monto empieza
-          // un arrastre y el diálogo nunca abre.
-          onPointerDown={(e) => e.stopPropagation()}
-          // También en `click`: sin esto, tocar el monto abriría además el
-          // cajón, porque el evento sigue subiendo hasta la tarjeta.
-          onClick={(e) => {
-            e.stopPropagation();
-            onEditAmount(lead);
-          }}
-          data-pm="amount"
-          data-empty={lead.amountCents === null ? "" : undefined}
-          className={cn(
-            "mt-1.5 w-full rounded px-1 py-0.5 text-right text-xs tabular-nums hover:bg-accent",
-            lead.amountCents === null
-              ? "text-text-3"
-              : "font-semibold text-foreground"
-          )}
-        >
-          {lead.amountCents === null
-            ? "+ monto"
-            : formatMoneyCents(lead.amountCents, lead.currency ?? currency)}
-        </button>
-      )}
-      {overlay && lead.amountCents !== null && (
-        <p className="mt-1.5 text-right text-xs font-semibold tabular-nums">
-          {formatMoneyCents(lead.amountCents, lead.currency ?? currency)}
-        </p>
-      )}
     </div>
   );
 }
