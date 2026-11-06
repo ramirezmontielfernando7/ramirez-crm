@@ -610,7 +610,8 @@ async function main() {
 
     // Archivar desde la lista, conservándolos en General.
     await page.goto(`${BASE}/lab`);
-    await page.locator("li").filter({ hasText: `Cierre 10 E2E ${RUN}` }).getByRole("button", { name: "Archivar" }).click();
+    await page.getByRole("button", { name: `Más acciones de Cierre 10 E2E ${RUN}` }).click();
+    await page.getByRole("menuitem", { name: "Archivar" }).click();
     const dlg10 = page.getByRole("dialog");
     await dlg10.getByTestId("archive-exclusive-docs").waitFor();
     ok(
@@ -619,7 +620,7 @@ async function main() {
     );
     await dlg10.getByLabel(/Conservarlos pasándolos a General/).check();
     await dlg10.getByRole("button", { name: "Archivar" }).click();
-    await page.locator("li").filter({ hasText: `Cierre 10 E2E ${RUN}` }).waitFor({ state: "detached" });
+    await page.locator('[role="row"]').filter({ hasText: `Cierre 10 E2E ${RUN}` }).waitFor({ state: "detached" });
     const d10b = await estado(A, doc10);
     ok("conservarlos los pasa a General (sin agente ni grupo)", d10b?.status === "ready" && d10b?.groupId === null, JSON.stringify(d10b));
     const ahora10 = await preguntar("¿Qué guion uso para cerrar la venta?");

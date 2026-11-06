@@ -295,9 +295,11 @@ async function main() {
 
     // Menú: con Laboratorio (encendido por defecto en la demo) no hay «Agente».
     await page.goto(`${BASE}/lab`);
-    await page.getByText(/de 20 agentes/).waitFor();
+    // Rediseño: sin agentes propios la portada ES el creador; con ellos, la tabla.
+    await page.locator('[data-testid="creator-landing"], [data-testid="create-agent"]').first().waitFor();
+    const portada = (await page.getByTestId("creator-landing").count()) > 0;
     ok("el menú tiene Laboratorio y ya no «Agente»", (await page.locator('nav a[href="/lab"]').count()) > 0 && (await page.locator('nav a[href="/agent"]').count()) === 0);
-    ok("la lista fija al agente general arriba, con su insignia", /General/.test((await page.locator("ul > li").first().innerText()) ?? ""));
+    ok("portada del creador o lista con el general arriba", portada || /General/.test((await page.locator('[role="row"]').nth(1).innerText()) ?? ""));
 
     // /agent sigue vivo y enlaza al Laboratorio.
     await page.goto(`${BASE}/agent`);
@@ -306,15 +308,14 @@ async function main() {
 
     // Crear desde la pantalla.
     await page.goto(`${BASE}/lab`);
-    await page.getByRole("button", { name: "Crear agente" }).click();
-    await page.fill("#new-agent-name", nombreUi);
-    await page.getByRole("button", { name: "Crear y abrir" }).click();
+    await page.locator('[data-testid="creator-landing"], [data-testid="create-agent"]').first().waitFor();
+    if ((await page.getByTestId("creator-landing").count()) > 0) await page.getByRole("button", { name: "Usar el formulario" }).click();
+    else await page.getByTestId("create-agent").click();
     await page.waitForURL(/\/lab\/agents\//);
-    await page.getByText(nombreUi).first().waitFor();
-    const idUi = page.url().split("/lab/agents/")[1];
-    // El editor abre con el creador conversacional; estos pasos usan el formulario.
-    await page.getByText("Creador del agente").waitFor();
-    await page.getByRole("button", { name: "Formulario" }).click();
+    await page.getByText(/Agente nuevo/).first().waitFor();
+    const idUi = page.url().split("/lab/agents/")[1].split("?")[0];
+    // Sin ?modo=formulario el editor abre con el creador conversacional; estos pasos usan el formulario.
+    if ((await page.getByText("Creador del agente").count()) > 0) await page.getByRole("button", { name: "Formulario" }).click();
     ok("crear un agente lo abre en el editor (borrador, sin nombre de presentación)", Boolean(idUi) && (await page.locator("#agent-display-name").inputValue()) === "");
 
     // Vista previa con lo que hay en el formulario (sin guardar).
@@ -386,7 +387,8 @@ async function main() {
     // Archivar desde la lista.
     await page.goto(`${BASE}/lab`);
     await page.getByRole("link", { name: new RegExp(`${nombreUi} v2`) }).waitFor();
-    await page.locator("li", { hasText: `${nombreUi} v2` }).getByRole("button", { name: "Archivar" }).click();
+    await page.getByRole("button", { name: `Más acciones de ${nombreUi} v2` }).click();
+    await page.getByRole("menuitem", { name: "Archivar" }).click();
     await page.getByRole("dialog").getByRole("button", { name: "Archivar" }).click();
     await page.getByRole("link", { name: new RegExp(`${nombreUi} v2`) }).waitFor({ state: "detached" });
     ok("archivar desde la lista", !((await api("/api/lab/agents")).json?.agents ?? []).some((a) => a.id === idUi));

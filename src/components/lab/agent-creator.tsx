@@ -29,7 +29,17 @@ function preview(text: string): string {
  * borrador» y solo «Publicar» llega a los clientes. «Deshacer» devuelve el
  * campo a como estaba.
  */
-export function AgentCreator({ config, onField }: { config: AgentConfig; onField: (field: CreatorField, value: string | null) => void }) {
+export function AgentCreator({
+  config,
+  onField,
+  initialMessage,
+}: {
+  config: AgentConfig;
+  onField: (field: CreatorField, value: string | null) => void;
+  /** Lo que la persona escribió en la portada del Estudio: se envía una sola vez al abrir. */
+  initialMessage?: string;
+}) {
+  const started = useRef(false);
   const [turns, setTurns] = useState<Turn[]>([]);
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
@@ -39,6 +49,13 @@ export function AgentCreator({ config, onField }: { config: AgentConfig; onField
   useEffect(() => {
     endRef.current?.scrollIntoView({ block: "end" });
   }, [turns.length, sending]);
+
+  useEffect(() => {
+    if (!initialMessage || started.current) return;
+    started.current = true;
+    void send(initialMessage);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialMessage]);
 
   async function send(message: string) {
     const msg = message.trim();

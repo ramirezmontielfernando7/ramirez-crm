@@ -42,7 +42,7 @@ Con navegador real (`scripts/e2e-agentes.mjs`, sección 5b):
    agentes → Laboratorio». Sin Laboratorio (apagado, sin permiso u oculto por
    el Propietario) «Agente» se queda.
 2. **Lista** (`/lab`, pestaña Agentes): el general fijo arriba con su insignia;
-   «Crear agente» pide el nombre interno y abre el editor.
+   «Crear agente» crea un borrador y abre el editor con el creador conversacional; sin agentes propios, la portada ES el creador.
 3. **Editor** (`/lab/agents/[id]`): formulario a la izquierda y vista previa
    tipo chat a la derecha (en el teléfono, pestañas Configurar / Probar). La
    vista previa usa lo que hay en el formulario aunque no esté guardado, muestra
