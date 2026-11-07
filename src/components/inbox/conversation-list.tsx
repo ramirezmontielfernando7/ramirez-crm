@@ -460,8 +460,8 @@ export const ConversationList = memo(function ConversationList({
           hint={filtroPuesto}
         />
         )}
-        <div className="flex items-center gap-1.5">
-          <div role="group" aria-label="Mostrar" className="flex flex-wrap items-center gap-1.5">
+        <div className="inbox-filter-strip flex items-center gap-1.5">
+          <div role="group" aria-label="Mostrar" className="inbox-quick-filters flex flex-wrap items-center gap-1.5">
             {quick.map((q) => (
               <button
                 key={q.id}

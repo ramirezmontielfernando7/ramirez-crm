@@ -1127,3 +1127,80 @@ html[data-lite] .usage-modal { animation: none; }
 @media (max-width: 1023px) {
   html[data-chat-open] .mobile-tabbar { display: none; }
 }
+
+/* T2: el teléfono conserva los controles y filas de la Bandeja clásica.
+   El hilo ocupa el espacio flexible y el compositor su propia fila, fuera
+   del scroll de mensajes; no se superpone a la navegación del cascarón. */
+@media (max-width: 767px) {
+  .inbox-list-header .seg { flex-shrink: 1; }
+  .inbox-list-header .seg-item { padding-inline: 8px; font-size: 12px; }
+  .inbox-list-header .btn-r3.ic { width: 32px; }
+  .inbox-list-header > div:last-child { gap: 2px; }
+  .inbox-filter-strip {
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .inbox-filter-strip::-webkit-scrollbar { display: none; }
+  .inbox-quick-filters {
+    flex-wrap: nowrap;
+    flex-shrink: 0;
+    padding-block: 4px;
+  }
+  .inbox-quick-filters > button { flex-shrink: 0; white-space: nowrap; }
+  [data-pm="chat-head"] { gap: 8px; padding-inline: 12px; }
+  [data-pm="chat-head"] > div > p:first-child { font-weight: 500; }
+  [data-pm="composer"] {
+    flex-shrink: 0;
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
+  }
+}
+
+/* Más y Ajustes: listas verticales con el mismo margen a ambos lados.
+   Estas reglas terminan antes de lg; el menú y las columnas de escritorio
+   siguen usando sus medidas actuales. */
+@media (max-width: 1023px) {
+  .app-nav {
+    width: 100%;
+    border-right: 0;
+    padding: 16px 16px max(16px, env(safe-area-inset-bottom));
+  }
+  .app-nav > nav {
+    gap: 0;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-card);
+    background: var(--surface);
+  }
+  .app-nav > nav > a {
+    min-height: 52px;
+    border-radius: 0;
+    padding-inline: 16px;
+    font-weight: 500;
+  }
+  .app-nav > nav > a + a { border-top: 1px solid var(--border); }
+  .settings-sections .settings-group > ul {
+    flex-direction: column;
+    gap: 0;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-card);
+    background: var(--surface);
+  }
+  .settings-sections li + li { border-top: 1px solid var(--border); }
+  .settings-sections li > :is(a, button) {
+    min-height: 52px;
+    border-radius: 0;
+    padding-inline: 16px;
+    font-weight: 500;
+    white-space: normal;
+  }
+  [data-premium-area="settings"] { gap: 24px; }
+}
+@media (max-width: 639px) {
+  [data-page-header]:has(.settings-search) { padding-bottom: 12px; }
+  [data-page-header]:has(.settings-search) > div:last-child {
+    flex-basis: 100%;
+    padding-left: 0;
+  }
+  .settings-search { width: 100%; }
+}

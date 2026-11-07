@@ -89,7 +89,7 @@ export function InboxListHeader({
   const tabs = TABS.filter(shows(viewer));
 
   return (
-    <header className={cn("relative flex h-14 shrink-0 items-center gap-2 px-4", !flush && "border-b")} ref={rowRef}>
+    <header className={cn("inbox-list-header relative flex h-14 shrink-0 items-center gap-2 px-4", !flush && "border-b")} ref={rowRef}>
       <NavRevealButton />
       {tabs.length < 2 ? (
         <h2 className="text-[16px] font-semibold">{labelOf(viewer, tabs[0] ?? TABS[0]!)}</h2>

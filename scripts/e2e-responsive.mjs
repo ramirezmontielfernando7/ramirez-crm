@@ -182,6 +182,7 @@ ok(
   encima !== null && encima.asideLeft <= 1 && encima.mainLeft <= 1,
   JSON.stringify(encima)
 );
+ok("Más ocupa el ancho completo del teléfono", (await phone.locator("aside").boundingBox())?.width === PHONE.width);
 await phone.screenshot({ path: `${SHOTS}/phone-cajon-abierto.png` });
 await linkBandeja.click();
 await until(async () => phone.url().includes("/inbox"), 15000);
@@ -205,6 +206,15 @@ ok(
   anchoLista >= PHONE.width - 8,
   `${anchoLista}px de ${PHONE.width}`
 );
+const filters = phone.getByRole("group", { name: "Mostrar", exact: true });
+const chips = await filters.getByRole("button").evaluateAll((buttons) => buttons.map((b) => Math.round(b.getBoundingClientRect().top)));
+ok("los chips permanecen en una sola fila", chips.length > 0 && new Set(chips).size === 1);
+await phone.getByRole("button", { name: "Buscar conversación (tecla /)", exact: true }).click();
+const buscar = phone.getByPlaceholder("Buscar nombre, teléfono o mensaje");
+await buscar.fill(NAME);
+ok("la búsqueda móvil encuentra el chat", await until(async () => await fila.isVisible()));
+await buscar.fill("");
+await phone.getByRole("button", { name: "Buscar conversación (tecla /)", exact: true }).click();
 await fila.click();
 const composer = phone.getByPlaceholder("Escribe un mensaje");
 ok(
@@ -216,6 +226,9 @@ ok("la lista cede la pantalla al hilo", !(await phone.locator("main > div > sect
 const volver = phone.getByRole("button", { name: "Volver a las conversaciones" });
 ok("aparece el botón de volver", await volver.isVisible());
 await phone.screenshot({ path: `${SHOTS}/phone-hilo.png` });
+await phone.getByRole("button", { name: "Opciones del chat", exact: true }).click();
+ok("el menú móvil ofrece Ver historial", await phone.getByRole("menuitem", { name: "Ver historial" }).isVisible());
+await phone.keyboard.press("Escape");
 
 // El compositor debe quedar DENTRO de la pantalla (100dvh, no 100vh).
 const compBox = await composer.boundingBox();
@@ -473,14 +486,14 @@ await desk.goto(`${BASE}/inbox`, { waitUntil: "domcontentloaded" });
 await desk.getByRole("button", { name: "Abrir el menú" }).waitFor({ timeout: 20000 });
 const franja = await desk.evaluate(() => {
   const aside = document.querySelector("aside");
-  const barra = document.querySelector("main")?.previousElementSibling;
+  const barra = document.querySelector(".mobile-tabbar");
   return {
     barra: barra ? getComputedStyle(barra).backgroundColor : "",
     lateral: aside ? getComputedStyle(aside).backgroundColor : "",
   };
 });
 ok(
-  "en el teléfono, la franja de arriba es la misma pieza que la barra",
+  "en el teléfono, la navegación inferior usa la superficie del tema",
   franja.barra !== "" && franja.barra === franja.lateral,
   JSON.stringify(franja)
 );
