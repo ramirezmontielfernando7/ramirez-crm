@@ -182,7 +182,13 @@ ok(
   encima !== null && encima.asideLeft <= 1 && encima.mainLeft <= 1,
   JSON.stringify(encima)
 );
-ok("Más ocupa el ancho completo del teléfono", (await phone.locator("aside").boundingBox())?.width === PHONE.width);
+// Medir con el cajón asentado: durante translateX el DOMRect puede tener
+// fracciones de píxel. El ancho debe coincidir y ambos bordes quedar dentro.
+const menuAsentado = await until(async () => {
+  const box = await phone.locator("aside").boundingBox();
+  return box !== null && Math.abs(box.x) <= 1 && Math.abs(box.width - PHONE.width) <= 1;
+}, 3000);
+ok("Más ocupa el ancho completo del teléfono", menuAsentado, JSON.stringify(await phone.locator("aside").boundingBox()));
 await phone.screenshot({ path: `${SHOTS}/phone-cajon-abierto.png` });
 await linkBandeja.click();
 await until(async () => phone.url().includes("/inbox"), 15000);
