@@ -1147,6 +1147,7 @@ html[data-lite] .usage-modal { animation: none; }
     padding-block: 4px;
   }
   .inbox-quick-filters > button { flex-shrink: 0; white-space: nowrap; }
+  .inbox-row [data-row-preview] { color: var(--text-3); }
   [data-pm="chat-head"] { gap: 8px; padding-inline: 12px; }
   [data-pm="chat-head"] > div > p:first-child { font-weight: 500; }
   [data-pm="composer"] {
@@ -1169,7 +1170,7 @@ html[data-lite] .usage-modal { animation: none; }
     overflow: hidden;
     border: 1px solid var(--border);
     border-radius: var(--radius-card);
-    background: var(--surface);
+    background: var(--nav-surface);
   }
   .app-nav > nav > a {
     min-height: 52px;

@@ -891,7 +891,7 @@ const ConversationRow = memo(function ConversationRow({
               </span>
             </span>
             <span className="mt-0.5 flex items-center justify-between gap-2">
-              <span className={cn("truncate text-[13px] leading-5", unread ? "text-foreground" : "text-text-3")}>
+              <span data-row-preview className={cn("truncate text-[13px] leading-5", unread ? "text-foreground" : "text-text-3")}>
                 {previewText(c.preview)}
               </span>
               {unread && (

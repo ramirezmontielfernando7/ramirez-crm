@@ -3,7 +3,7 @@
  * Guion: tests/e2e/responsividad.md
  *
  * Verifica que el CRM se pueda USAR desde el teléfono, no solo que "quepa":
- *  - el lateral se vuelve cajón con hamburguesa y se cierra al navegar;
+ *  - Más abre el menú a ancho completo y se cierra al navegar;
  *  - la Bandeja se comporta como maestro-detalle (lista ↔ hilo con "volver");
  *  - el panel de detalles flota sobre el hilo en vez de robarle ancho;
  *  - ninguna pantalla recorta contenido a lo ancho (main no desborda);
@@ -12,7 +12,7 @@
  *  - la barra lateral es clara con el tema claro, y el pomo de los
  *    interruptores queda dentro de su pista, encendido y apagado (#53);
  *  - con el tema oscuro la barra se despega de la página, lo que flota
- *    se despega y la franja del teléfono es la misma pieza que la barra (R8).
+ *    se despega y la navegación inferior respeta el tema (R8).
  *
  * Uso: node scripts/e2e-responsive.mjs
  * Requiere: app corriendo (pnpm dev) con WA_MOCK_ENABLED=true y Playwright.
@@ -153,11 +153,11 @@ const phone = await ctx.newPage();
 await phone.setViewportSize(PHONE);
 await recorrer(phone, "phone");
 
-console.log("\n== 2. Teléfono: el lateral es un cajón con hamburguesa ==");
+console.log("\n== 2. Teléfono: Más abre el menú ==");
 await phone.goto(`${BASE}/pipeline`);
 const hamburguesa = phone.getByRole("button", { name: "Abrir el menú" });
 await hamburguesa.waitFor({ timeout: 20000 });
-ok("la hamburguesa se ve", await hamburguesa.isVisible());
+ok("el botón Más se ve", await hamburguesa.isVisible());
 const linkBandeja = phone.locator("aside").getByRole("link", { name: /Bandeja/ });
 ok(
   "el lateral arranca oculto (sus enlaces no son alcanzables)",
@@ -165,7 +165,7 @@ ok(
 );
 await hamburguesa.click();
 ok(
-  "al tocar la hamburguesa el cajón abre",
+  "al tocar Más el menú abre",
   await until(async () => await linkBandeja.isVisible(), 3000)
 );
 // El cajón NO debe empujar el contenido: sale encima.
@@ -485,16 +485,17 @@ await desk.setViewportSize(PHONE);
 await desk.goto(`${BASE}/inbox`, { waitUntil: "domcontentloaded" });
 await desk.getByRole("button", { name: "Abrir el menú" }).waitFor({ timeout: 20000 });
 const franja = await desk.evaluate(() => {
-  const aside = document.querySelector("aside");
+  const surface = document.querySelector(".shell-content");
   const barra = document.querySelector(".mobile-tabbar");
   return {
     barra: barra ? getComputedStyle(barra).backgroundColor : "",
-    lateral: aside ? getComputedStyle(aside).backgroundColor : "",
+    superficie: surface ? getComputedStyle(surface).backgroundColor : "",
+    visible: barra ? getComputedStyle(barra).display !== "none" : false,
   };
 });
 ok(
   "en el teléfono, la navegación inferior usa la superficie del tema",
-  franja.barra !== "" && franja.barra === franja.lateral,
+  franja.visible && franja.barra !== "" && franja.barra === franja.superficie,
   JSON.stringify(franja)
 );
 await desk.screenshot({ path: `${SHOTS}/phone-inbox-oscuro.png` });
