@@ -512,6 +512,13 @@
       "when": 1794175200000,
       "tag": "0073_catalogo_de_planes",
       "breakpoints": true
+    },
+    {
+      "idx": 74,
+      "version": "7",
+      "when": 1794261600000,
+      "tag": "0074_grupos_whatsapp",
+      "breakpoints": true
     }
   ]
 }

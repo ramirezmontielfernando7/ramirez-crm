@@ -183,8 +183,8 @@ describe("sin Meta — leer lo que manda el dispositivo", () => {
     expect(only?.message.from).toBeUndefined();
   });
 
-  it("grupos, estados, difusión, reacciones, borrados y basura no entran", () => {
-    expect(parseDeviceMessages(base({}, { remoteJid: "120363000000000000@g.us" }))).toEqual([]);
+  it("grupos se identifican aparte; estados, difusión, reacciones, borrados y basura no entran", () => {
+    expect(parseDeviceMessages(base({}, { remoteJid: "120363000000000000@g.us" }))[0]?.group?.jid).toBe("120363000000000000@g.us");
     expect(parseDeviceMessages(base({}, { remoteJid: "status@broadcast" }))).toEqual([]);
     expect(parseDeviceMessages(base({}, { remoteJid: "120363000000000000@newsletter" }))).toEqual([]);
     expect(parseDeviceMessages(base({ message: { reactionMessage: { text: "👍" } } }))).toEqual([]);

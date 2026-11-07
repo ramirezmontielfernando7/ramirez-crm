@@ -9,6 +9,7 @@ export type ConversationDto = {
   /** 014: canal de la conversacion, para el distintivo de la bandeja. */
   channel: Channel;
   contact: { id: string; name: string; phone: string | null };
+  groupJid?: string | null;
   /**
    * 020: quién del equipo atiende este chat. null = sin asignar. Con
    * `handoffAt` le dice al asesor que el chat lo espera a él.
@@ -91,6 +92,8 @@ export type MessageMediaDto = {
 };
 
 export type MessageDto = {
+  groupSender?: string | null;
+  groupSenderId?: string | null;
   id: string;
   conversationId: string;
   direction: "in" | "out";

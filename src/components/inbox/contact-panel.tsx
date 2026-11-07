@@ -479,7 +479,9 @@ export function ContactPanel({
         </section>
 
         {/* IA en este chat: quién responde, el interruptor y lo que falte. */}
-        {numberChat ? (
+        {conversation.groupJid ? (
+          <section className="sec"><h3 className="sec-h">IA en este grupo</h3><p className="text-[12px] text-text-3">Solo sugerencias manuales. La IA nunca envía mensajes automáticos a grupos.</p></section>
+        ) : numberChat ? (
           numberAi && (
             <section className="sec">
               <h3 className="sec-h">IA en este chat</h3>

@@ -270,6 +270,7 @@ export function MessageBubble({
           : "border-bubble-in-border bg-bubble-in",
       )}
     >
+      {m.groupSender && <span className="bubble-who mb-0.5 block text-[11px] font-semibold text-brand-text">{m.groupSender}</span>}
       {ai && (
         <span className="bubble-who mb-0.5 flex items-center gap-1 text-[11px] font-semibold leading-4 text-[var(--bubble-ai-who)]" title="Respuesta generada por IA">
           <Bot className="h-[11px] w-[11px]" strokeWidth={2} aria-hidden /> IA

@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { isOrgActive } from "@/server/platform-admin/org-status";
-import { asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
 import { scoped } from "@/lib/db/tenant";
@@ -223,7 +223,10 @@ async function loadTurnContext(conversationId: string, opts: TurnOptions): Promi
   const convRows = await db
     .select()
     .from(schema.conversation)
-    .where(eq(schema.conversation.id, conversationId))
+    .where(and(eq(schema.conversation.id, conversationId),
+      // Even a stale queued turn or a manual toggle cannot automate a group.
+      sql`not exists (select 1 from contact g where g.organization_id = ${schema.conversation.organizationId}
+        and g.id = ${schema.conversation.contactId} and g.wa_group_jid is not null)`))
     .limit(1);
   const conversation = convRows[0];
   if (!conversation) return { kind: "silent" };
