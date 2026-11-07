@@ -745,7 +745,7 @@ export function InboxClient({
                 >
                   <ChevronLeft className="h-5 w-5" strokeWidth={1.8} />
                 </button>
-                <ContactAvatar name={contactLabel(selected.contact)} seed={selected.contact.id} size="md" />
+                <ContactAvatar name={contactLabel(selected.contact)} seed={selected.contact.id} size="md" className="mobile-chat-avatar" />
                 <div className="min-w-0 flex-1">
                   <p className="flex min-w-0 items-center gap-1.5 text-[15px] font-semibold leading-5">
                     {multiChannel && <ChannelBadge channel={selected.channel} />}

@@ -216,7 +216,7 @@ export function SettingsShell({
   );
 
   return (
-    <PageShell title="Ajustes" icon={Settings} pillar={false} actions={search}>
+    <PageShell title="Ajustes" icon={Settings} pillar={false} actions={search} className="mobile-settings-page">
       <div data-premium-area="settings" className="grid gap-6 lg:grid-cols-[220px_minmax(0,1fr)]">
         <nav aria-label="Secciones de Ajustes" className="settings-sections lg:sticky lg:top-0 lg:self-start">
           {shown.length === 0 && <p className="px-2 py-3 text-sm text-text-3">Ningún ajuste coincide con «{query}».</p>}
