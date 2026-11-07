@@ -9,6 +9,7 @@ import {
   FileText,
   MapPin,
   Paperclip,
+  Plus,
   Send,
   Smile,
   UserRound,
@@ -701,7 +702,7 @@ export function Composer({
             rewriting && "animate-pulse opacity-50"
           )}
         />
-        <div className="mt-2 flex items-center gap-0.5">
+        <div className="composer-tools mt-2 flex items-center gap-0.5">
           {/* Un solo clip: archivo, contacto y ubicación viven en su menú. */}
           <div ref={attachRef} className="relative">
             <button
@@ -723,7 +724,8 @@ export function Composer({
                 transition={SPRING}
                 className="flex"
               >
-                <Paperclip className="h-4 w-4" strokeWidth={1.75} />
+                <Paperclip className="hidden h-4 w-4 md:block" strokeWidth={1.75} />
+                <Plus className="h-4 w-4 md:hidden" strokeWidth={1.75} />
               </m.span>
             </button>
             <AnimatePresence>

@@ -3,7 +3,7 @@
  * Guion: tests/e2e/responsividad.md
  *
  * Verifica que el CRM se pueda USAR desde el teléfono, no solo que "quepa":
- *  - el lateral se vuelve cajón con hamburguesa y se cierra al navegar;
+ *  - Más abre el menú a ancho completo y se cierra al navegar;
  *  - la Bandeja se comporta como maestro-detalle (lista ↔ hilo con "volver");
  *  - el panel de detalles flota sobre el hilo en vez de robarle ancho;
  *  - ninguna pantalla recorta contenido a lo ancho (main no desborda);
@@ -12,7 +12,7 @@
  *  - la barra lateral es clara con el tema claro, y el pomo de los
  *    interruptores queda dentro de su pista, encendido y apagado (#53);
  *  - con el tema oscuro la barra se despega de la página, lo que flota
- *    se despega y la franja del teléfono es la misma pieza que la barra (R8).
+ *    se despega y la navegación inferior respeta el tema (R8).
  *
  * Uso: node scripts/e2e-responsive.mjs
  * Requiere: app corriendo (pnpm dev) con WA_MOCK_ENABLED=true y Playwright.
@@ -153,11 +153,11 @@ const phone = await ctx.newPage();
 await phone.setViewportSize(PHONE);
 await recorrer(phone, "phone");
 
-console.log("\n== 2. Teléfono: el lateral es un cajón con hamburguesa ==");
+console.log("\n== 2. Teléfono: Más abre el menú ==");
 await phone.goto(`${BASE}/pipeline`);
 const hamburguesa = phone.getByRole("button", { name: "Abrir el menú" });
 await hamburguesa.waitFor({ timeout: 20000 });
-ok("la hamburguesa se ve", await hamburguesa.isVisible());
+ok("el botón Más se ve", await hamburguesa.isVisible());
 const linkBandeja = phone.locator("aside").getByRole("link", { name: /Bandeja/ });
 ok(
   "el lateral arranca oculto (sus enlaces no son alcanzables)",
@@ -165,7 +165,7 @@ ok(
 );
 await hamburguesa.click();
 ok(
-  "al tocar la hamburguesa el cajón abre",
+  "al tocar Más el menú abre",
   await until(async () => await linkBandeja.isVisible(), 3000)
 );
 // El cajón NO debe empujar el contenido: sale encima.
@@ -182,6 +182,13 @@ ok(
   encima !== null && encima.asideLeft <= 1 && encima.mainLeft <= 1,
   JSON.stringify(encima)
 );
+// Medir con el cajón asentado: durante translateX el DOMRect puede tener
+// fracciones de píxel. El ancho debe coincidir y ambos bordes quedar dentro.
+const menuAsentado = await until(async () => {
+  const box = await phone.locator("aside").boundingBox();
+  return box !== null && Math.abs(box.x) <= 1 && Math.abs(box.width - PHONE.width) <= 1;
+}, 3000);
+ok("Más ocupa el ancho completo del teléfono", menuAsentado, JSON.stringify(await phone.locator("aside").boundingBox()));
 await phone.screenshot({ path: `${SHOTS}/phone-cajon-abierto.png` });
 await linkBandeja.click();
 await until(async () => phone.url().includes("/inbox"), 15000);
@@ -205,6 +212,15 @@ ok(
   anchoLista >= PHONE.width - 8,
   `${anchoLista}px de ${PHONE.width}`
 );
+const filters = phone.getByRole("group", { name: "Mostrar", exact: true });
+const chips = await filters.getByRole("button").evaluateAll((buttons) => buttons.map((b) => Math.round(b.getBoundingClientRect().top)));
+ok("los chips permanecen en una sola fila", chips.length > 0 && new Set(chips).size === 1);
+await phone.getByRole("button", { name: "Buscar conversación (tecla /)", exact: true }).click();
+const buscar = phone.getByPlaceholder("Buscar nombre, teléfono o mensaje");
+await buscar.fill(NAME);
+ok("la búsqueda móvil encuentra el chat", await until(async () => await fila.isVisible()));
+await buscar.fill("");
+await phone.getByRole("button", { name: "Buscar conversación (tecla /)", exact: true }).click();
 await fila.click();
 const composer = phone.getByPlaceholder("Escribe un mensaje");
 ok(
@@ -216,6 +232,9 @@ ok("la lista cede la pantalla al hilo", !(await phone.locator("main > div > sect
 const volver = phone.getByRole("button", { name: "Volver a las conversaciones" });
 ok("aparece el botón de volver", await volver.isVisible());
 await phone.screenshot({ path: `${SHOTS}/phone-hilo.png` });
+await phone.getByRole("button", { name: "Opciones del chat", exact: true }).click();
+ok("el menú móvil ofrece Ver historial", await phone.getByRole("menuitem", { name: "Ver historial" }).isVisible());
+await phone.keyboard.press("Escape");
 
 // El compositor debe quedar DENTRO de la pantalla (100dvh, no 100vh).
 const compBox = await composer.boundingBox();
@@ -472,16 +491,17 @@ await desk.setViewportSize(PHONE);
 await desk.goto(`${BASE}/inbox`, { waitUntil: "domcontentloaded" });
 await desk.getByRole("button", { name: "Abrir el menú" }).waitFor({ timeout: 20000 });
 const franja = await desk.evaluate(() => {
-  const aside = document.querySelector("aside");
-  const barra = document.querySelector("main")?.previousElementSibling;
+  const surface = document.querySelector(".shell-content");
+  const barra = document.querySelector(".mobile-tabbar");
   return {
     barra: barra ? getComputedStyle(barra).backgroundColor : "",
-    lateral: aside ? getComputedStyle(aside).backgroundColor : "",
+    superficie: surface ? getComputedStyle(surface).backgroundColor : "",
+    visible: barra ? getComputedStyle(barra).display !== "none" : false,
   };
 });
 ok(
-  "en el teléfono, la franja de arriba es la misma pieza que la barra",
-  franja.barra !== "" && franja.barra === franja.lateral,
+  "en el teléfono, la navegación inferior usa la superficie del tema",
+  franja.visible && franja.barra !== "" && franja.barra === franja.superficie,
   JSON.stringify(franja)
 );
 await desk.screenshot({ path: `${SHOTS}/phone-inbox-oscuro.png` });

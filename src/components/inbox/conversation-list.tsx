@@ -465,8 +465,8 @@ export const ConversationList = memo(function ConversationList({
           hint={filtroPuesto}
         />
         )}
-        <div className="flex items-center gap-1.5">
-          <div role="group" aria-label="Mostrar" className="flex flex-wrap items-center gap-1.5">
+        <div className="inbox-filter-strip flex items-center gap-1.5">
+          <div role="group" aria-label="Mostrar" className="inbox-quick-filters flex flex-wrap items-center gap-1.5">
             {quick.map((q) => (
               <button
                 key={q.id}
@@ -896,7 +896,7 @@ const ConversationRow = memo(function ConversationRow({
               </span>
             </span>
             <span className="mt-0.5 flex items-center justify-between gap-2">
-              <span className={cn("truncate text-[13px] leading-5", unread ? "text-foreground" : "text-text-3")}>
+              <span data-row-preview className={cn("truncate text-[13px] leading-5", unread ? "text-foreground" : "text-text-3")}>
                 {previewText(c.preview)}
               </span>
               {unread && (

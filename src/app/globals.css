@@ -1127,3 +1127,104 @@ html[data-lite] .usage-modal { animation: none; }
 @media (max-width: 1023px) {
   html[data-chat-open] .mobile-tabbar { display: none; }
 }
+
+/* T2: el teléfono conserva los controles y filas de la Bandeja clásica.
+   El hilo ocupa el espacio flexible y el compositor su propia fila, fuera
+   del scroll de mensajes; no se superpone a la navegación del cascarón. */
+@media (max-width: 767px) {
+  .inbox-list-header .seg { flex-shrink: 1; }
+  .inbox-list-header .seg-item { height: 30px; padding-inline: 10px; font-size: 13px; }
+  .inbox-list-header .btn-r3.ic { width: 32px; }
+  .inbox-list-header > div:last-child { gap: 2px; }
+  .inbox-filter-strip {
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .inbox-filter-strip::-webkit-scrollbar { display: none; }
+  .inbox-quick-filters {
+    flex-wrap: nowrap;
+    flex-shrink: 0;
+    padding-block: 4px;
+  }
+  .inbox-quick-filters > button {
+    height: 28px;
+    flex-shrink: 0;
+    white-space: nowrap;
+    border-style: dashed;
+    font-size: 13px;
+  }
+  .inbox-quick-filters > button[aria-pressed="true"] {
+    border-style: solid;
+    border-color: var(--accent-soft);
+    background: var(--accent-wash);
+  }
+  .inbox-row [data-row-main] { padding-top: 12px; }
+  .inbox-row [data-row-main] + div { padding-top: 6px; padding-bottom: 12px; }
+  .inbox-row [data-row-preview] { color: var(--text-3); }
+  [data-pm="chat-head"] { position: relative; height: 48px; gap: 8px; padding-inline: 12px; }
+  [data-pm="chat"] .thread-bg { padding: 14px; }
+  .mobile-chat-avatar { width: 30px; height: 30px; font-size: 11px; }
+  [data-pm="chat-head"] span:has(> [data-testid="chat-mode-chip"]) { position: static; }
+  [data-pm="chat-head"] [data-testid="chat-mode-picker"] { left: 12px; right: 12px; width: auto; }
+  [data-pm="chat-head"] > div > p:first-child { font-weight: 500; }
+  [data-pm="composer"] {
+    flex-shrink: 0;
+    padding: 8px 10px max(10px, env(safe-area-inset-bottom));
+  }
+  [data-pm="composer"] .composer-box { padding: 8px 10px; }
+  [data-pm="composer"] textarea:placeholder-shown { white-space: nowrap; }
+  [data-pm="composer"] .composer-tools { margin-top: 6px; }
+  [data-pm="composer"] .composer-tools button { padding-inline: 6px; }
+  .mobile-tabbar > :is(a, button) { min-height: 60px; }
+}
+
+/* Más y Ajustes: listas verticales con el mismo margen a ambos lados.
+   Estas reglas terminan antes de lg; el menú y las columnas de escritorio
+   siguen usando sus medidas actuales. */
+@media (max-width: 1023px) {
+  .app-nav {
+    width: 100%;
+    border-right: 0;
+    padding: 16px 16px max(16px, env(safe-area-inset-bottom));
+  }
+  .app-nav > nav {
+    gap: 0;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-card);
+    background: var(--nav-surface);
+  }
+  .app-nav > nav > a {
+    min-height: 52px;
+    border-radius: 0;
+    padding-inline: 16px;
+    font-weight: 500;
+  }
+  .app-nav > nav > a + a { border-top: 1px solid var(--border); }
+  .settings-sections .settings-group > ul {
+    flex-direction: column;
+    gap: 0;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-card);
+    background: var(--surface);
+  }
+  .settings-sections li + li { border-top: 1px solid var(--border); }
+  .settings-sections li > :is(a, button) {
+    min-height: 52px;
+    border-radius: 0;
+    padding-inline: 16px;
+    font-weight: 500;
+    white-space: normal;
+  }
+  .mobile-settings-page { min-height: 100%; background: var(--surface-base); }
+  [data-premium-area="settings"] { gap: 24px; }
+}
+@media (max-width: 639px) {
+  [data-page-header]:has(.settings-search) { padding-bottom: 12px; }
+  [data-page-header]:has(.settings-search) > div:last-child {
+    flex-basis: 100%;
+    padding-left: 0;
+  }
+  .settings-search { width: 100%; }
+}

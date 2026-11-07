@@ -201,7 +201,7 @@ export function SettingsShell({
     .filter((g) => g.items.length > 0);
 
   const search = (
-    <label className="relative block w-56 max-w-full sm:w-64">
+    <label className="settings-search relative block w-56 max-w-full sm:w-64">
       <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-text-3" strokeWidth={1.8} />
       <input
         type="search"
@@ -216,12 +216,12 @@ export function SettingsShell({
   );
 
   return (
-    <PageShell title="Ajustes" icon={Settings} pillar={false} actions={search}>
+    <PageShell title="Ajustes" icon={Settings} pillar={false} actions={search} className="mobile-settings-page">
       <div data-premium-area="settings" className="grid gap-6 lg:grid-cols-[220px_minmax(0,1fr)]">
-        <nav aria-label="Secciones de Ajustes" className="lg:sticky lg:top-0 lg:self-start">
+        <nav aria-label="Secciones de Ajustes" className="settings-sections lg:sticky lg:top-0 lg:self-start">
           {shown.length === 0 && <p className="px-2 py-3 text-sm text-text-3">Ningún ajuste coincide con «{query}».</p>}
           {shown.map((g) => (
-            <div key={g.label} className="mb-4">
+            <div key={g.label} className="settings-group mb-4">
               <p className="mb-1 px-2.5 text-[11px] font-semibold uppercase tracking-wider text-text-3">{g.label}</p>
               <ul className="flex gap-1 overflow-x-auto lg:flex-col lg:overflow-visible">
                 {g.items.map((r) => {

@@ -197,7 +197,7 @@ export function AppNav({
         // nombre del usuario, el nombre white-label en BrandLogo) hereda el
         // color YA CALCULADO en <body> con el tema de la página, no el de
         // `.nav-dark` — y un texto oscuro sobre este fondo oscuro se pierde.
-        "group/nav nav-dark fixed inset-y-0 left-0 z-50 flex w-[17rem] shrink-0 flex-col overflow-y-auto border-r bg-nav px-3 pb-3.5 pt-3 text-foreground transition-[transform,visibility] duration-nav ease-panel",
+        "app-nav group/nav nav-dark fixed inset-y-0 left-0 z-50 flex w-[17rem] shrink-0 flex-col overflow-y-auto border-r bg-nav px-3 pb-3.5 pt-3 text-foreground transition-[transform,visibility] duration-nav ease-panel",
         // Escritorio: panel propio que FLOTA (absoluto) sobre un separador
         // que reserva su lugar en el flujo (AppShell). Así el panel anima su
         // ancho (y su salida al ocultarse) con el mismo tiempo y curva que
