@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { cookies } from "next/headers";
 import localFont from "next/font/local";
 import "@fontsource-variable/geist";
@@ -51,6 +51,8 @@ const plexMono = localFont({
 
 export const dynamic = "force-dynamic";
 
+export const viewport: Viewport = { themeColor: "#12999d" };
+
 export async function generateMetadata(): Promise<Metadata> {
   // H11: con sesión, la marca de SU negocio; sin sesión, la de la plataforma.
   const { branding } = await getViewerBrandingContext();
@@ -59,7 +61,8 @@ export async function generateMetadata(): Promise<Metadata> {
     description: "CRM de WhatsApp con agente de IA y Laboratorio de auto-evaluación",
     // El `?v=` cambia con la marca: los navegadores guardan el favicon con una
     // insistencia notable y, sin eso, el logo nuevo tarda días en aparecer.
-    icons: { icon: faviconHref(branding) },
+    icons: { icon: faviconHref(branding), apple: "/icon-192.png" },
+    appleWebApp: { capable: true, title: branding.name, statusBarStyle: "default" },
   };
 }
 
