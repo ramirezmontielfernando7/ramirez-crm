@@ -59,7 +59,8 @@ export async function generateMetadata(): Promise<Metadata> {
     description: "CRM de WhatsApp con agente de IA y Laboratorio de auto-evaluación",
     // El `?v=` cambia con la marca: los navegadores guardan el favicon con una
     // insistencia notable y, sin eso, el logo nuevo tarda días en aparecer.
-    icons: { icon: faviconHref(branding) },
+    icons: { icon: faviconHref(branding), apple: faviconHref(branding) },
+    appleWebApp: { capable: true, title: branding.name, statusBarStyle: "default" },
   };
 }
 
