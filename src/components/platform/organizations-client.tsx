@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ChevronRight, Plus, Search } from "lucide-react";
+import { Plus, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PLAN_KEYS, PLAN_LABEL } from "@/lib/limits";
@@ -43,7 +43,25 @@ export const STATUS_DOT: Record<Org["status"], string> = {
   deleted: "bg-destructive",
 };
 
-const GRID = "sm:grid-cols-[minmax(0,1.5fr)_6.5rem_8rem_4.5rem_minmax(0,1fr)_minmax(0,1fr)_1rem]";
+const GRID = "sm:grid-cols-[minmax(0,1.6fr)_7rem_4.5rem_minmax(0,1.2fr)_minmax(0,1fr)_6rem_4.5rem]";
+
+const STATUS_PILL: Record<Org["status"], string> = {
+  active: "bg-success-tint text-success-text",
+  suspended: "bg-warning-tint text-warning-text",
+  deleted: "bg-danger-tint text-danger-text",
+};
+const PLAN_PILL: Record<string, string> = {
+  ultra: "bg-violet-100 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300",
+  pro: "bg-brand-soft text-brand-text",
+  custom: "bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300",
+};
+const iniciales = (n: string) =>
+  n
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0]?.toUpperCase())
+    .join("");
 
 function Chip({ active, onClick, children, testId }: { active: boolean; onClick: () => void; children: React.ReactNode; testId: string }) {
   return (
@@ -74,14 +92,16 @@ function OrganizationRow({ org }: { org: Org }) {
       <Link
         href={`/platform/organizaciones/${org.id}`}
         className={cn(
-          "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2 px-3 py-3 transition-colors hover:bg-accent sm:gap-x-5 sm:px-4",
+          "grid grid-cols-2 items-center gap-x-4 gap-y-2 px-3 py-3.5 transition-colors hover:bg-accent sm:gap-x-5 sm:px-4",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
           GRID
         )}
         data-testid="platform-org-open"
       >
-        <span className="flex min-w-0 items-center gap-2">
-          <span className={cn("h-2 w-2 shrink-0 rounded-full", STATUS_DOT[org.status])} aria-hidden />
+        <span className="flex min-w-0 items-center gap-3">
+          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-brand-soft text-xs font-semibold text-brand-text" aria-hidden>
+            {iniciales(org.name)}
+          </span>
           <span className="min-w-0">
             <span className="block truncate text-sm font-semibold">{org.name}</span>
             <span className="block truncate text-xs text-text-3">
@@ -103,32 +123,30 @@ function OrganizationRow({ org }: { org: Org }) {
             </span>
           )}
         </span>
-        <ChevronRight className="h-4 w-4 shrink-0 text-text-3 sm:order-last" aria-hidden />
-        <span className="col-span-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs sm:contents">
-          <span className="text-text-2" data-testid="platform-org-status">
+        <span>
+          <span
+            className={cn("rounded-full px-2 py-0.5 text-xs font-medium", PLAN_PILL[plan] ?? "bg-muted text-text-2")}
+            data-testid="platform-org-plan"
+            data-plan={plan}
+          >
+            {PLAN_LABEL[plan]}
+          </span>
+        </span>
+        <span
+          className={cn("text-sm tabular-nums text-text-2", tope !== null && active > tope && "text-warning-text")}
+          title={`${active} de ${total} módulos activos${tope !== null ? ` · tope ${tope}` : ""}`}
+          data-testid="platform-org-modules-count"
+        >
+          {active}/{total}
+        </span>
+        {ai ? <UsageMeter meter={ai} label="IA del mes" testId="platform-org-ai" /> : <span className="text-text-3">—</span>}
+        {storage ? <UsageMeter meter={storage} label={STORAGE_LABEL} testId="platform-org-storage" /> : <span />}
+        <span>
+          <span className={cn("rounded-full px-2 py-0.5 text-xs font-medium", STATUS_PILL[org.status])} data-testid="platform-org-status">
             {STATUS_LABEL[org.status]}
           </span>
-          <span>
-            <span
-              className="rounded-sm bg-muted px-1.5 py-0.5 font-medium text-text-2"
-              data-testid="platform-org-plan"
-              data-plan={plan}
-            >
-              {PLAN_LABEL[plan]}
-            </span>
-          </span>
-          <span
-            className={cn("tabular-nums text-text-2", tope !== null && active > tope && "text-warning-text")}
-            title={`${active} de ${total} módulos activos${tope !== null ? ` · tope ${tope}` : ""}`}
-            data-testid="platform-org-modules-count"
-          >
-            {active}/{total}
-          </span>
         </span>
-        <span className="col-span-2 grid grid-cols-2 gap-3 sm:contents">
-          {ai ? <UsageMeter meter={ai} label="IA del mes" testId="platform-org-ai" /> : <span />}
-          {storage ? <UsageMeter meter={storage} label={STORAGE_LABEL} testId="platform-org-storage" /> : <span />}
-        </span>
+        <span className="hidden justify-self-end rounded-md border px-3 py-1 text-sm font-medium sm:inline-block">Abrir</span>
       </Link>
     </li>
   );
@@ -205,12 +223,12 @@ export function OrganizationsClient() {
 
       <div className="overflow-hidden rounded-md border bg-card">
         <div className={cn("hidden gap-5 border-b px-4 py-2 text-[11px] font-medium text-text-3 sm:grid", GRID)}>
-          <span>Organización</span>
-          <span>Estado</span>
+          <span>Empresa</span>
           <span>Plan</span>
           <span>Módulos</span>
           <span>IA del mes</span>
           <span>{STORAGE_LABEL}</span>
+          <span>Estado</span>
           <span />
         </div>
         {visibles === null ? (

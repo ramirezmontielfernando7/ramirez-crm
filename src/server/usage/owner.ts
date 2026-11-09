@@ -1,4 +1,4 @@
-import { countActiveModules } from "@/lib/platform-modules";
+import { countActiveModules, PLATFORM_MODULE_TOGGLES, type PlatformModuleToggle } from "@/lib/platform-modules";
 import { AI_ALERT_METRICS, alertText, type AlertMetric, type AlertThreshold, type EffectiveLimits, type UsageVisibility } from "@/lib/limits";
 import type { AiUsageKind, StorageUsage } from "@/lib/usage";
 import { projectGauge, projectShares, worstGauge, type Gauge, type ShareLine } from "@/lib/usage-visibility";
@@ -68,7 +68,7 @@ export type OwnerUsage = {
   /** `null` si la organización no usa documentos (instancia sin KB_DOCS o sin Laboratorio). */
   documents: { documents: number; chunks: number } | null;
   members: number;
-  modules: { active: number; total: number };
+  modules: { active: number; total: number; items: { key: PlatformModuleToggle; on: boolean }[] };
   alerts: OwnerAlert[];
 };
 
@@ -114,7 +114,8 @@ export async function getOwnerUsage(organizationId: string, now = new Date()): P
   const documents = kb ? { documents: kb.documents, chunks: kb.chunks } : null;
   const members = await countMembers(organizationId);
   const orgModules = await getOrgModules(organizationId);
-  const modules = countActiveModules(moduleToggles(orgModules));
+  const toggles = moduleToggles(orgModules);
+  const modules = { ...countActiveModules(toggles), items: PLATFORM_MODULE_TOGGLES.map((key) => ({ key, on: toggles[key] })) };
   const assistant = orgModules.asistente
     ? projectGauge(visibility === "usd" ? "percent" : visibility, await assistantTokensUsed(organizationId, now), limits.assistantTokens.value)
     : null;

@@ -6,6 +6,9 @@ import { UsageMeter } from "@/components/usage/usage-meter";
 import { fetchJson } from "@/lib/fetch-json";
 import { setUsageDialogView } from "@/lib/usage-dialog";
 import { PLAN_LABEL, STORAGE_MODE_LABEL } from "@/lib/limits";
+import { PLATFORM_MODULE_LABEL, planToggles } from "@/lib/platform-modules";
+import { MODULE_PROFILES, type ModuleProfile } from "@/lib/modules/registry";
+import { Check, Star } from "lucide-react";
 import {
   AI_KIND_LABEL,
   AI_KINDS,
@@ -34,12 +37,6 @@ import type { OwnerUsage } from "@/server/usage/owner";
  * organización: cifras solo con `tokens`; con `percent`, porcentajes; con
  * `status`, «Disponible» / «Agotado» y sin desglose.
  */
-
-function mesDe(period: string): string {
-  const [y, m] = period.split("-").map(Number);
-  if (!y || !m) return period;
-  return new Date(Date.UTC(y, m - 1, 1)).toLocaleDateString("es-MX", { month: "long", year: "numeric", timeZone: "UTC" });
-}
 
 /** «1 de diciembre»: el primer día del mes siguiente al periodo. */
 function renovacion(period: string): string {
@@ -115,22 +112,23 @@ export function UsagePlanClient({ embedded = false }: { embedded?: boolean } = {
   }, []);
 
   const header = (
-    // 039: vive en Ajustes → Uso y plan; el encabezado de 56 px es el de Ajustes.
-    // 0070 (maqueta 4): el plan como título y una línea con el mes.
-    <div className="mb-4">
-      {embedded ? (
-        <span className="inline-block rounded-md bg-muted px-2 py-0.5 text-xs font-semibold text-text-2" data-testid="usage-plan-name">
-          {usage ? PLAN_LABEL[usage.limits.planKey] : "…"}
+    <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+      <p className="text-sm text-text-2">
+        <span className="font-medium text-foreground" data-testid="usage-plan-name">
+          {usage ? PLAN_LABEL[usage.limits.planKey] : embedded ? "…" : "Uso y plan"}
         </span>
-      ) : (
-        <h2 className="text-lg font-semibold tracking-tight" data-testid="usage-plan-name">
-          {usage ? PLAN_LABEL[usage.limits.planKey] : "Uso y plan"}
-        </h2>
-      )}
-      {usage && (
-        <p className="text-sm text-text-2">
-          Tu consumo de {mesDe(usage.period).replace(/ de \d{4}$/, "")}. Se renueva el {renovacion(usage.period)}.
-        </p>
+        {usage && <> · se renueva el {renovacion(usage.period)}</>}
+      </p>
+      {embedded && usage && usage.limits.planKey !== "ultra" && (
+        <button
+          type="button"
+          onClick={() => setUsageDialogView("planes")}
+          className="inline-flex items-center gap-1.5 rounded-lg bg-brand px-3.5 py-2 text-sm font-medium text-white hover:opacity-90"
+          data-testid="usage-plan-upgrade"
+        >
+          <Star className="h-4 w-4" aria-hidden />
+          Mejora tu plan
+        </button>
       )}
     </div>
   );
@@ -164,14 +162,16 @@ export function UsagePlanClient({ embedded = false }: { embedded?: boolean } = {
   const maxAgente = Math.max(0.0001, ...(ai.byAgent ?? []).map((a) => a.share));
   const fin = renovacion(usage.period);
 
+  const docBytes = storage.byCategory.documents ?? 0;
+  const docsMeter: Meter = storageMeter(docBytes, limits.kbMaxTotalBytes?.value ?? null);
   const filas: { label: string; meter: Meter; testId: string }[] = [
-    { label: "Almacenamiento", meter: storageMeter(storage.totalBytes, limits.storageBytes.value), testId: "usage-plan-storage-meter" },
     {
-      label: "Personas del equipo",
+      label: "Personas",
       meter: countMeter(usage.members, limits.members.value, usage.members === 1 && limits.members.value === null ? "persona" : "personas"),
       testId: "usage-plan-members-meter",
     },
-    { label: "Módulos activos", meter: countMeter(usage.modules.active, limits.modules.value, `de ${usage.modules.total} módulos`), testId: "usage-plan-modules-meter" },
+    { label: "Almacenamiento (aprox.)", meter: storageMeter(storage.totalBytes, limits.storageBytes.value), testId: "usage-plan-storage-meter" },
+    { label: "Documentos de la IA", meter: docsMeter, testId: "usage-plan-docs-meter" },
   ];
 
   return (
@@ -189,7 +189,7 @@ export function UsagePlanClient({ embedded = false }: { embedded?: boolean } = {
         </div>
       )}
 
-      <section className="rounded-xl border bg-card p-5" data-testid="usage-plan-ai">
+      <section className="rounded-xl border bg-brand-soft/40 p-5" data-testid="usage-plan-ai">
         <div className="flex items-start justify-between gap-3">
           <div>
             <h3 className="text-base font-semibold">Inteligencia artificial</h3>
@@ -218,23 +218,14 @@ export function UsagePlanClient({ embedded = false }: { embedded?: boolean } = {
               ? `Te queda ${queda} %. Si llegas al 100 %, los agentes pasan los chats a tu equipo hasta el ${fin}.`
               : "Si llegas al tope, los agentes pasan los chats a tu equipo hasta que se renueve."}
         </p>
-        {embedded && usage.limits.planKey !== "ultra" && (
-          <button
-            type="button"
-            onClick={() => setUsageDialogView("planes")}
-            className="usage-btn-dark mt-3 rounded-lg px-4 py-2 text-sm font-medium"
-            data-testid="usage-plan-upgrade"
-          >
-            Mejorar plan
-          </button>
-        )}
       </section>
 
-      <section className="divide-y rounded-xl border bg-card px-5" data-testid="usage-plan-team">
+      <section className="grid gap-3 sm:grid-cols-3" data-testid="usage-plan-team">
         {filas.map((f) => (
-          <div key={f.testId} className="grid items-center gap-x-4 gap-y-1 py-3.5 sm:grid-cols-[minmax(0,12rem)_minmax(0,1fr)_minmax(0,12rem)]" title={f.meter.detail} data-testid={f.testId} data-tone={f.meter.tone}>
-            <span className="text-sm">{f.label}</span>
-            <div className="h-2 w-full overflow-hidden rounded-full bg-muted" aria-hidden>
+          <div key={f.testId} className="min-w-0 rounded-xl border bg-card p-4" title={f.meter.detail} data-testid={f.testId} data-tone={f.meter.tone}>
+            <p className="text-xs text-text-2">{f.label}</p>
+            <p className={cn("mt-1 text-sm font-semibold tabular-nums", f.meter.tone === "danger" && "text-danger-text")}>{f.meter.text}</p>
+            <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-muted" aria-hidden>
               {f.meter.ratio !== null && (
                 <div
                   className={cn("h-full rounded-full", f.meter.tone === "danger" ? "bg-destructive" : f.meter.tone === "warning" ? "bg-warning" : "bg-brand")}
@@ -242,9 +233,33 @@ export function UsagePlanClient({ embedded = false }: { embedded?: boolean } = {
                 />
               )}
             </div>
-            <span className={cn("text-sm tabular-nums sm:text-right", f.meter.tone === "danger" ? "text-danger-text" : "text-text-2")}>{f.meter.text}</span>
           </div>
         ))}
+      </section>
+
+      <section className="rounded-xl border bg-card p-4" data-testid="usage-plan-modules">
+        <div className="flex items-baseline justify-between gap-3">
+          <h3 className="text-sm font-semibold">Incluido en tu plan</h3>
+          <span className="text-xs text-text-3">
+            {usage.modules.active} de {usage.modules.total} módulos
+          </span>
+        </div>
+        <ul className="mt-3 flex flex-wrap gap-1.5">
+          {usage.modules.items.map(({ key, on }) => {
+            const plan = (Object.keys(MODULE_PROFILES) as ModuleProfile[]).find((p) => planToggles(p)[key]);
+            return on ? (
+              <li key={key} className="inline-flex items-center gap-1 rounded-full bg-brand-soft px-2.5 py-1 text-xs text-brand-text">
+                <Check className="h-3 w-3" aria-hidden />
+                {PLATFORM_MODULE_LABEL[key]}
+              </li>
+            ) : (
+              <li key={key} className="rounded-full border px-2.5 py-1 text-xs text-text-2">
+                {PLATFORM_MODULE_LABEL[key]}
+                {plan ? ` · ${MODULE_PROFILES[plan].label}` : ""}
+              </li>
+            );
+          })}
+        </ul>
       </section>
 
       <details className="group" data-testid="usage-plan-detail">
