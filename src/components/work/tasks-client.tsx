@@ -18,6 +18,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { ContactSearch } from "./contact-search";
+import { noteBackground } from "./notes-client";
+import type { NoteDto } from "@/lib/work";
 
 /**
  * 033 — Tareas, como los Recordatorios del iPhone: una lista con alta rápida
@@ -68,6 +70,75 @@ function fromFields(date: string, time: string): string | null {
   if (!date) return null;
   const d = new Date(`${date}T${time || "23:59"}`);
   return Number.isNaN(d.getTime()) ? null : d.toISOString();
+}
+
+type TaskGroup = { key: string; label: string; tasks: TaskDto[] };
+
+/** Encabezados de la lista: Vencidas · Hoy · Próximas · Sin fecha · Hechas. */
+function groupTasks(tasks: TaskDto[], now: Date, shownDone: (t: TaskDto) => boolean): TaskGroup[] {
+  const groups: Record<string, TaskGroup> = {
+    late: { key: "late", label: "Vencidas", tasks: [] },
+    today: { key: "today", label: "Hoy", tasks: [] },
+    next: { key: "next", label: "Próximas", tasks: [] },
+    none: { key: "none", label: "Sin fecha", tasks: [] },
+    done: { key: "done", label: "Hechas", tasks: [] },
+  };
+  for (const t of tasks) {
+    if (shownDone(t)) groups.done!.tasks.push(t);
+    else if (!t.dueAt) groups.none!.tasks.push(t);
+    else if (isOverdue(t, now)) groups.late!.tasks.push(t);
+    else if (sameDay(new Date(t.dueAt), now)) groups.today!.tasks.push(t);
+    else groups.next!.tasks.push(t);
+  }
+  return Object.values(groups).filter((g) => g.tasks.length > 0);
+}
+
+/** Notas recientes: lo que se ve a la derecha mientras no hay una tarea abierta. */
+function NotesPreview() {
+  const [notes, setNotes] = useState<NoteDto[] | null>(null);
+  useEffect(() => {
+    let alive = true;
+    void fetchJson<{ notes: NoteDto[] }>("/api/work/notes").then((res) => {
+      if (alive) setNotes(res.ok ? res.data.notes : []);
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
+  return (
+    <div className="flex h-full min-h-0 flex-col" aria-label="Notas">
+      <div className="flex items-center justify-between px-4 pb-2 pt-3 sm:px-6">
+        <h2 className="text-lg font-semibold">Notas</h2>
+        <Link href="/trabajo/notas" className="text-sm font-medium text-brand-text hover:underline">
+          Ver todas
+        </Link>
+      </div>
+      <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-6 sm:px-6">
+        {notes === null ? (
+          <p className="text-sm text-text-3">Cargando…</p>
+        ) : notes.length === 0 ? (
+          <div className="mt-10 text-center">
+            <ListChecks className="mx-auto mb-3 h-8 w-8 text-text-3" strokeWidth={1.5} />
+            <p className="text-sm text-text-3">Aún no tienes notas. Toca una tarea para ver sus detalles.</p>
+          </div>
+        ) : (
+          <div className="columns-1 gap-3 lg:columns-2">
+            {notes.slice(0, 8).map((n) => (
+              <Link
+                key={n.id}
+                href={`/trabajo/notas?nota=${n.id}`}
+                className="mb-3 block break-inside-avoid rounded-xl border p-4 transition-shadow hover:shadow-sm"
+                style={{ background: noteBackground(n.color) }}
+              >
+                {n.title && <p className="font-semibold leading-snug">{n.title}</p>}
+                {n.body && <p className="mt-1 line-clamp-5 whitespace-pre-line text-sm text-text-2">{n.body}</p>}
+              </Link>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }
 
 export function TasksClient({
@@ -179,6 +250,14 @@ export function TasksClient({
         aria-label="Tareas"
         aria-busy={!loaded}
       >
+        <div className="flex items-center gap-2 px-4 pt-3">
+          <h2 className="text-lg font-semibold">Tareas</h2>
+          {tasks.filter((t) => !t.doneAt).length > 0 && (
+            <span className="rounded-full bg-brand-tint px-2 py-0.5 text-[12px] font-medium text-brand-text">
+              {tasks.filter((t) => !t.doneAt).length} pendientes
+            </span>
+          )}
+        </div>
         <div className="flex flex-wrap items-center gap-1.5 px-4 pb-2 pt-3">
           {TASK_FILTERS.map((f) => (
             <button
@@ -234,59 +313,66 @@ export function TasksClient({
               </p>
             </div>
           ) : (
-            <ul>
-              {tasks.map((t) => {
-                const shown = justDone[t.id] ?? t;
-                const done = !!shown.doneAt;
-                const late = isOverdue(shown, now);
-                const active = selected?.kind === "task" && selected.id === t.id;
-                return (
-                  <li key={t.id} className={cn("flex items-start gap-3 px-4 py-2.5", active ? "bg-brand-veil" : "hover:bg-accent")}>
-                    <button
-                      onClick={() => t.canEdit && void toggleDone(t)}
-                      disabled={!t.canEdit}
-                      aria-label={done ? `Marcar «${t.title}» como pendiente` : `Marcar «${t.title}» como hecha`}
-                      aria-pressed={done}
-                      className={cn(
-                        "mt-0.5 flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full border-2 transition-colors",
-                        done ? "border-brand bg-brand text-brand-fg" : "border-text-3 hover:border-brand",
-                        !t.canEdit && "opacity-40"
-                      )}
-                    >
-                      {done && <Check className="h-3.5 w-3.5" strokeWidth={3} />}
-                    </button>
-                    <button
-                      onClick={() => setSelected({ kind: "task", id: t.id })}
-                      className="min-w-0 flex-1 border-b pb-2.5 text-left"
-                    >
-                      <span className={cn("block break-words text-[14px] leading-snug", done && "text-text-3 line-through")}>
-                        {t.title}
-                      </span>
-                      <span className="mt-0.5 flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[12px] text-text-3">
-                        {t.dueAt && (
-                          <span className={cn("inline-flex items-center gap-1", late && "font-semibold text-danger-text")}>
-                            <CalendarClock className="h-3 w-3" strokeWidth={2} />
-                            {dueLabel(t.dueAt, now)}
+            <div>
+              {groupTasks(tasks, now, (t) => !!(justDone[t.id] ?? t).doneAt).map((g) => (
+                <div key={g.key}>
+                  <p className="px-4 pb-1 pt-3 text-[11px] font-medium uppercase tracking-wide text-text-3">{g.label}</p>
+                  <ul>
+                    {g.tasks.map((t) => {
+                    const shown = justDone[t.id] ?? t;
+                    const done = !!shown.doneAt;
+                    const late = isOverdue(shown, now);
+                    const active = selected?.kind === "task" && selected.id === t.id;
+                    return (
+                      <li key={t.id} className={cn("flex items-start gap-3 px-4 py-2.5", active ? "bg-brand-veil" : "hover:bg-accent")}>
+                        <button
+                          onClick={() => t.canEdit && void toggleDone(t)}
+                          disabled={!t.canEdit}
+                          aria-label={done ? `Marcar «${t.title}» como pendiente` : `Marcar «${t.title}» como hecha`}
+                          aria-pressed={done}
+                          className={cn(
+                            "mt-0.5 flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full border-2 transition-colors",
+                            done ? "border-brand bg-brand text-brand-fg" : "border-text-3 hover:border-brand",
+                            !t.canEdit && "opacity-40"
+                          )}
+                        >
+                          {done && <Check className="h-3.5 w-3.5" strokeWidth={3} />}
+                        </button>
+                        <button
+                          onClick={() => setSelected({ kind: "task", id: t.id })}
+                          className="min-w-0 flex-1 border-b pb-2.5 text-left"
+                        >
+                          <span className={cn("block break-words text-[14px] leading-snug", done && "text-text-3 line-through")}>
+                            {t.title}
                           </span>
-                        )}
-                        {t.assignee && t.assignee.id !== me && (
-                          <span className="inline-flex items-center gap-1">
-                            <User className="h-3 w-3" strokeWidth={2} />
-                            {t.assignee.name}
+                          <span className="mt-0.5 flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[12px] text-text-3">
+                            {t.dueAt && (
+                              <span className={cn("inline-flex items-center gap-1", late && "font-semibold text-danger-text")}>
+                                <CalendarClock className="h-3 w-3" strokeWidth={2} />
+                                {dueLabel(t.dueAt, now)}
+                              </span>
+                            )}
+                            {t.assignee && t.assignee.id !== me && (
+                              <span className="inline-flex items-center gap-1">
+                                <User className="h-3 w-3" strokeWidth={2} />
+                                {t.assignee.name}
+                              </span>
+                            )}
+                            {t.contact && (
+                              <span className="inline-flex items-center gap-1">
+                                <MessageCircle className="h-3 w-3" strokeWidth={2} />
+                                {t.contact.name}
+                              </span>
+                            )}
                           </span>
-                        )}
-                        {t.contact && (
-                          <span className="inline-flex items-center gap-1">
-                            <MessageCircle className="h-3 w-3" strokeWidth={2} />
-                            {t.contact.name}
-                          </span>
-                        )}
-                      </span>
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
+                        </button>
+                      </li>
+                    );
+                    })}
+                  </ul>
+                </div>
+              ))}
+            </div>
           )}
         </div>
       </section>
@@ -325,12 +411,7 @@ export function TasksClient({
             }}
           />
         ) : (
-          <div className="flex h-full items-center justify-center p-6 text-center">
-            <div className="max-w-xs">
-              <ListChecks className="mx-auto mb-3 h-8 w-8 text-text-3" strokeWidth={1.5} />
-              <p className="text-sm text-text-3">Toca una tarea para ver o cambiar sus detalles.</p>
-            </div>
-          </div>
+          <NotesPreview />
         )}
       </section>
     </div>
