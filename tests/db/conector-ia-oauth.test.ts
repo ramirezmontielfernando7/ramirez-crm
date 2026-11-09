@@ -71,12 +71,12 @@ function pkce() {
   return { verifier, challenge: createHash("sha256").update(verifier).digest("base64url") };
 }
 
-async function iniciarSesion(clientId: string, scopes: string[] = ["read", "write"]) {
+async function iniciarSesion(clientId: string, scopes: string[] = ["read", "write"], redirect = REDIRECT) {
   const { verifier, challenge } = pkce();
   const params = {
     response_type: "code",
     client_id: clientId,
-    redirect_uri: REDIRECT,
+    redirect_uri: redirect,
     code_challenge: challenge,
     code_challenge_method: "S256",
     state: "xyz",
@@ -266,6 +266,76 @@ describe("047 PR 3 — iniciar sesión con OAuth", () => {
     expect(await mcp(tok.body!.access_token)).toBe(200);
     expect((await post("oauth/revoke", { token: tok.body!.refresh_token }, true)).status).toBe(200);
     expect(await mcp(tok.body!.access_token)).toBe(401);
+  });
+
+  it("como ChatGPT: registro, Basic, preflight, initialize y tools/list en stream", async () => {
+    const CHATGPT = "https://chatgpt.com/connector_platform_oauth_redirect";
+    const reg = await post("oauth/register", {
+      client_name: "ChatGPT",
+      redirect_uris: [CHATGPT],
+      token_endpoint_auth_method: "client_secret_basic",
+      grant_types: ["authorization_code", "refresh_token"],
+      response_types: ["code"],
+    });
+    expect(reg.status).toBe(201);
+    const gptId = reg.body!.client_id as string;
+    state.session = sessionContext(u.ana, A.id, "asesor");
+    const { r, verifier } = await iniciarSesion(gptId, ["read", "write"], CHATGPT);
+    const code = new URL(r.body!.redirect).searchParams.get("code")!;
+    const { POST: tokenPost } = await import("@/app/api/oauth/token/route");
+    const tokRes = await tokenPost(
+      new Request("http://localhost/api/oauth/token", {
+        method: "POST",
+        headers: {
+          "content-type": "application/x-www-form-urlencoded",
+          authorization: `Basic ${Buffer.from(`${gptId}:`).toString("base64")}`,
+        },
+        body: new URLSearchParams({ grant_type: "authorization_code", code, redirect_uri: CHATGPT, code_verifier: verifier }).toString(),
+      })
+    );
+    expect(tokRes.status).toBe(200);
+    const access = ((await tokRes.json()) as { access_token: string }).access_token;
+
+    const route = await import("@/app/api/mcp/route");
+    const pre = await route.OPTIONS();
+    expect(pre.status).toBe(204);
+    expect(pre.headers.get("access-control-allow-headers")).toContain("authorization");
+
+    const rpc = (body: unknown, accept = "application/json, text/event-stream") =>
+      route.POST(
+        new Request("http://localhost/api/mcp", {
+          method: "POST",
+          headers: { authorization: `Bearer ${access}`, "content-type": "application/json", accept },
+          body: JSON.stringify(body),
+        })
+      );
+    const init = await rpc({
+      jsonrpc: "2.0", id: 0, method: "initialize",
+      params: { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "openai-mcp", version: "1.0.0" } },
+    });
+    expect(init.status).toBe(200);
+    expect(init.headers.get("access-control-allow-origin")).toBe("*");
+    const initBody = (await init.json()) as any;
+    expect(initBody.result.protocolVersion).toBe("2025-06-18");
+    expect(initBody.result.capabilities.tools).toBeDefined();
+    expect((await rpc({ jsonrpc: "2.0", method: "notifications/initialized" })).status).toBe(202);
+
+    // Solo stream: la respuesta llega como un evento SSE.
+    const list = await rpc({ jsonrpc: "2.0", id: 1, method: "tools/list" }, "text/event-stream");
+    expect(list.status).toBe(200);
+    expect(list.headers.get("content-type")).toContain("text/event-stream");
+    const sse = await list.text();
+    const data = /^data: (.+)$/m.exec(sse)![1]!;
+    const tools = (JSON.parse(data) as any).result.tools as { name: string; inputSchema: { type: string } }[];
+    expect(tools.length).toBeGreaterThan(10);
+    expect(tools.map((t) => t.name)).toEqual(expect.arrayContaining(["list_chats", "read_chat", "send_message"]));
+    for (const t of tools) expect(t.inputSchema.type).toBe("object");
+
+    // Sin llave: 401 que el navegador puede leer (WWW-Authenticate expuesto).
+    const { POST } = route;
+    const sin = await POST(new Request("http://localhost/api/mcp", { method: "POST", body: "{}" }));
+    expect(sin.status).toBe(401);
+    expect(sin.headers.get("access-control-expose-headers")).toContain("www-authenticate");
   });
 
   it("si el Propietario apaga el conector, ni se acepta ni se renueva", async () => {

@@ -296,15 +296,14 @@ const prepareCampaign: ToolSpec<z.infer<typeof prepareArgs>> = {
       variables: {
         type: "array",
         maxItems: 20,
+        // Sin `oneOf` ni `const`: las apps de OpenAI (ChatGPT) no los aceptan y entonces no descubren NINGUNA herramienta.
         items: {
-          oneOf: [
-            {
-              type: "object",
-              properties: { kind: { const: "fixed" }, value: { type: "string" } },
-              required: ["kind", "value"],
-            },
-            { type: "object", properties: { kind: { const: "contact_name" } }, required: ["kind"] },
-          ],
+          type: "object",
+          properties: {
+            kind: { type: "string", enum: ["fixed", "contact_name"], description: "fixed = texto fijo; contact_name = el nombre del contacto" },
+            value: { type: "string", description: "El texto, solo con kind = fixed" },
+          },
+          required: ["kind"],
         },
       },
       tags: { type: "array", items: { type: "string" }, maxItems: 20 },
