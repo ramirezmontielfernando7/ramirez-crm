@@ -516,7 +516,7 @@ async function main() {
     const seen = ((await api("/api/templates")).json?.templates ?? []).find((t) => t.id === createdId);
     ok("«Entendido» lo marca como visto", seen?.categoryChange === null);
     // Adjuntar la imagen a la plantilla importada desde su tarjeta.
-    const extCard = page.getByTestId("template-list").locator(":scope > div", { hasText: extName });
+    const extCard = page.getByTestId("template-list").locator("tbody", { hasText: extName });
     await extCard.getByTestId("template-attach-image").waitFor({ timeout: 30000 });
     ok("tarjeta de la importada: botón «Adjuntar imagen»", await extCard.getByText("No se puede enviar").isVisible());
     await extCard.getByTestId("template-attach-image-input").setInputFiles({ name: "promo.png", mimeType: "image/png", buffer: Buffer.from(png) });
@@ -533,6 +533,7 @@ async function main() {
     const extHeader = outExt?.body?.template?.components?.find((c) => c.type === "header")?.parameters?.[0];
     ok("la importada se envía con la imagen adjuntada", sendExt.res.ok && extHeader?.type === "image" && !!extHeader?.image?.id, JSON.stringify(sendExt.json));
 
+    await page.getByTestId("template-create-open").click();
     await page.getByLabel("Encabezado").selectOption("TEXT");
     await page.getByLabel("Texto del encabezado").fill("Hola");
     await page.getByLabel("Cuerpo").fill("Hola {{1}}");

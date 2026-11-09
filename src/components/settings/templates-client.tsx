@@ -1,7 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, ImagePlus, Plus, RefreshCw, Trash2 } from "lucide-react";
+import { AlertTriangle, ImagePlus, MoreHorizontal, Plus, RefreshCw, Search, Trash2, X } from "lucide-react";
+import type { CampaignDto } from "@/lib/campaigns";
+import { cn } from "@/lib/utils";
+import { CampaignsShell } from "@/components/campaigns/campaigns-tabs";
 import type { TemplateDto } from "@/lib/types";
 import {
   countVariables,
@@ -40,13 +43,57 @@ const META_BADGE: Record<string, { label: string; variant: "warning" | "destruct
 
 const SELECT_CLASS = "flex h-9 w-full rounded-md border border-input bg-card px-3 text-sm";
 
-export function TemplatesClient() {
+type CategoryFilter = "all" | "MARKETING" | "UTILITY" | "paused";
+const CATEGORY_FILTERS: { key: CategoryFilter; label: string }[] = [
+  { key: "all", label: "Todas" },
+  { key: "MARKETING", label: "Marketing" },
+  { key: "UTILITY", label: "Utilidad" },
+  { key: "paused", label: "Pausadas" },
+];
+
+const CATEGORY_LABEL: Record<string, string> = {
+  MARKETING: "Marketing",
+  UTILITY: "Utilidad",
+  AUTHENTICATION: "Autenticación",
+};
+
+const QUALITY_CHIP: Record<string, { label: string; variant: "success" | "warning" | "destructive" }> = {
+  GREEN: { label: "Alta", variant: "success" },
+  YELLOW: { label: "Media", variant: "warning" },
+  RED: { label: "Baja", variant: "destructive" },
+};
+
+const isPausedByMeta = (t: TemplateDto) => t.metaStatus === "PAUSED" || t.metaStatus === "DISABLED";
+
+function languageLabel(code: string): string {
+  if (/^es/i.test(code)) return "Español";
+  if (/^en/i.test(code)) return "Inglés";
+  if (/^pt/i.test(code)) return "Portugués";
+  return code;
+}
+
+/**
+ * Plantillas de WhatsApp. Ronda 3: tabla primero (nombre, categoría, estado de
+ * Meta, idioma, calidad y en cuántas campañas se usa), búsqueda y chips,
+ * «Importar de Meta» y «+ Crear plantilla» (el formulario se abre en una
+ * ventana). Con `shell` pinta el cascarón de Marketing y pone los botones en
+ * su encabezado (y cuenta las campañas); sin él (Ajustes → Plantillas, sin el
+ * módulo Campañas) los botones van en la propia pantalla.
+ */
+export function TemplatesClient({ shell = false }: { shell?: boolean }) {
   const canManage = useViewer().can("templates.manage");
   const [templates, setTemplates] = useState<TemplateDto[]>([]);
+  const [loaded, setLoaded] = useState(false);
   const [headerImageAvailable, setHeaderImageAvailable] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [syncMsg, setSyncMsg] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [filter, setFilter] = useState<CategoryFilter>("all");
+  const [q, setQ] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [open, setOpen] = useState<Record<string, boolean>>({});
+  // Solo con Campañas: cuántas campañas usan cada plantilla.
+  const [usage, setUsage] = useState<Record<string, number> | null>(null);
 
   const refetch = useCallback(async () => {
     const res = await fetchJson<{ templates: TemplateDto[]; headerImageAvailable?: boolean }>("/api/templates");
@@ -56,8 +103,19 @@ export function TemplatesClient() {
     }
     setLoadError(null);
     setTemplates(res.data.templates);
+    setLoaded(true);
     setHeaderImageAvailable(Boolean(res.data.headerImageAvailable));
   }, []);
+
+  useEffect(() => {
+    if (!shell) return;
+    void fetchJson<{ campaigns: CampaignDto[] }>("/api/campaigns").then((res) => {
+      if (!res.ok) return;
+      const counts: Record<string, number> = {};
+      for (const c of res.data.campaigns) if (c.template) counts[c.template.id] = (counts[c.template.id] ?? 0) + 1;
+      setUsage(counts);
+    });
+  }, [shell]);
 
   /**
    * `silent`: sincronización automática al abrir la pantalla. Meta entrega
@@ -94,6 +152,7 @@ export function TemplatesClient() {
   const categoryChanges = templates.filter((t) => t.categoryChange);
   const upcomingChanges = templates.filter((t) => t.upcomingCategory);
   const noticed = [...categoryChanges, ...upcomingChanges];
+  const pausedByMeta = templates.filter(isPausedByMeta);
 
   async function acknowledge() {
     const res = await fetchJson<{ updated: number }>("/api/templates/category-seen", {
@@ -105,24 +164,175 @@ export function TemplatesClient() {
     else setSyncMsg(res.error);
   }
 
-  return (
-    <div className="max-w-3xl space-y-6">
-      <div className="flex items-start justify-between gap-4">
-        <p className="text-sm text-muted-foreground">
-          Las plantillas permiten reabrir conversaciones con la ventana de 24 h
-          cerrada y son las que usan las campañas. Meta las aprueba en horas o
-          días y puede reclasificar la categoría (lo que cambia el costo).
-          Esta pantalla consulta a Meta cada vez que la abres e importa las
-          plantillas que ya existan en tu cuenta; Sincronizar fuerza la
-          consulta sin recargar.
-        </p>
-        <Button variant="outline" size="sm" disabled={syncing} onClick={() => void sync()}>
-          <RefreshCw className={`h-4 w-4 ${syncing ? "animate-spin" : ""}`} />
-          Sincronizar
+  const visible = useMemo(() => {
+    const needle = q.trim().toLowerCase();
+    return templates.filter((t) => {
+      if (filter === "paused" ? !isPausedByMeta(t) : filter !== "all" && t.category !== filter) return false;
+      return !needle || t.name.toLowerCase().includes(needle);
+    });
+  }, [templates, filter, q]);
+
+  const actions = (
+    <>
+      <Button variant="outline" size="sm" disabled={syncing} onClick={() => void sync()}>
+        <RefreshCw className={`mr-1.5 h-4 w-4 ${syncing ? "animate-spin" : ""}`} />
+        Importar de Meta
+      </Button>
+      {canManage && (
+        <Button size="sm" data-testid="template-create-open" onClick={() => setCreating(true)}>
+          <Plus className="mr-1.5 h-4 w-4" />
+          Crear plantilla
         </Button>
-      </div>
+      )}
+    </>
+  );
+
+  const body = (
+    <div className="space-y-4">
+      {!shell && <div className="flex flex-wrap items-center justify-end gap-2">{actions}</div>}
       {syncMsg && <p className="text-xs text-muted-foreground">{syncMsg}</p>}
       {loadError && <p className="text-sm text-destructive">{loadError}</p>}
+
+      <div className="flex flex-wrap items-center gap-3">
+        <label className="relative block w-full max-w-[260px]">
+          <span className="sr-only">Buscar plantilla</span>
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-text-3" />
+          <input
+            type="search"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Buscar plantilla"
+            className="h-9 w-full rounded-md border border-input bg-card pl-8 pr-3 text-sm placeholder:text-text-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          />
+        </label>
+        <div className="flex flex-wrap gap-1.5" role="group" aria-label="Filtrar plantillas">
+          {CATEGORY_FILTERS.map((f) => (
+            <button
+              key={f.key}
+              type="button"
+              aria-pressed={filter === f.key}
+              onClick={() => setFilter(f.key)}
+              className={cn(
+                "rounded-full border px-3 py-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                filter === f.key ? "border-brand bg-brand-tint text-brand-text" : "text-text-2 hover:bg-accent hover:text-foreground"
+              )}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="overflow-x-auto rounded-lg border bg-card" data-testid="template-list">
+        <table className="w-full min-w-[760px] text-sm">
+          <thead className="bg-subtle text-left text-xs text-text-3">
+            <tr>
+              <th className="px-4 py-2.5 font-medium">Nombre</th>
+              <th className="px-3 py-2.5 font-medium">Categoría</th>
+              <th className="px-3 py-2.5 font-medium">Estado</th>
+              <th className="px-3 py-2.5 font-medium">Idioma</th>
+              <th className="px-3 py-2.5 font-medium">Calidad</th>
+              {usage && <th className="px-3 py-2.5 font-medium">Usada en</th>}
+              <th className="w-10 px-3 py-2.5" />
+            </tr>
+          </thead>
+          {visible.map((t) => {
+            const meta = t.metaStatus ? META_BADGE[t.metaStatus] : undefined;
+            const header = headerOf(t.components);
+            const quality = t.qualityScore ? QUALITY_CHIP[t.qualityScore] : undefined;
+            const needsImage = canManage && header?.format === "IMAGE" && !t.hasHeaderImage;
+            const alerts = (t.status === "rejected" && t.rejectionReason) || (t.status === "approved" && !t.sendable && t.unsendableReason);
+            const expanded = open[t.id] === true || needsImage || Boolean(alerts);
+            const n = usage?.[t.id] ?? 0;
+            return (
+              <tbody key={t.id} data-testid="template-row">
+                <tr className="border-t align-middle transition-colors hover:bg-accent/50">
+                  <td className="px-4 py-3 font-mono text-[13px] font-semibold">{t.name}</td>
+                  <td className="px-3 py-3">
+                    <Badge variant={t.category === "MARKETING" ? "default" : "secondary"} className={t.category === "MARKETING" ? "bg-brand-tint text-brand-text border-brand-soft" : undefined}>
+                      {CATEGORY_LABEL[t.category] ?? t.category}
+                    </Badge>
+                  </td>
+                  <td className="px-3 py-3">
+                    {meta ? (
+                      <Badge variant={meta.variant}>{meta.label}</Badge>
+                    ) : (
+                      <Badge variant={STATUS_BADGE[t.status].variant}>{STATUS_BADGE[t.status].label}</Badge>
+                    )}
+                  </td>
+                  <td className="px-3 py-3 text-text-2" title={t.language}>
+                    {languageLabel(t.language)}
+                  </td>
+                  <td className="px-3 py-3">
+                    {quality ? <Badge variant={quality.variant}>{quality.label}</Badge> : <span className="text-text-3">—</span>}
+                  </td>
+                  {usage && <td className="px-3 py-3 text-text-2">{n === 1 ? "1 campaña" : `${n} campañas`}</td>}
+                  <td className="px-3 py-3 text-right">
+                    <button
+                      type="button"
+                      aria-label={`Ver detalle de ${t.name}`}
+                      aria-expanded={expanded}
+                      onClick={() => setOpen((o) => ({ ...o, [t.id]: !expanded }))}
+                      className="inline-flex h-7 w-7 items-center justify-center rounded-md text-text-3 hover:bg-accent hover:text-foreground"
+                    >
+                      <MoreHorizontal className="h-4 w-4" />
+                    </button>
+                  </td>
+                </tr>
+                {expanded && (
+                  <tr className="bg-subtle/60">
+                    <td colSpan={usage ? 7 : 6} className="px-4 py-3">
+                      {header?.format === "TEXT" && header.text && <p className="text-sm font-semibold">{header.text}</p>}
+                      {header?.format === "IMAGE" && <p className="text-xs text-muted-foreground">[Imagen en el encabezado]</p>}
+                      <p className="whitespace-pre-wrap text-sm text-muted-foreground">{t.body}</p>
+                      {t.status === "rejected" && t.rejectionReason && (
+                        <p className="mt-2 text-xs text-destructive">Razón del rechazo: {t.rejectionReason}</p>
+                      )}
+                      {t.status === "approved" && !t.sendable && t.unsendableReason && (
+                        <p className="mt-2 text-xs text-destructive">No se puede enviar: {t.unsendableReason}</p>
+                      )}
+                      {needsImage && <AttachHeaderImage templateId={t.id} onAttached={() => void refetch()} />}
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            );
+          })}
+          {visible.length === 0 && (
+            <tbody>
+              <tr>
+                <td colSpan={usage ? 7 : 6} className="px-4 py-8 text-center text-sm text-text-3">
+                  {loaded && templates.length === 0
+                    ? "Sin plantillas todavía. Crea la primera con «Crear plantilla» — por ejemplo un «seguimos disponibles, ¿retomamos tu cotización?» para conversaciones frías."
+                    : loaded
+                      ? "Ninguna plantilla coincide con la búsqueda."
+                      : "Cargando…"}
+                </td>
+              </tr>
+            </tbody>
+          )}
+        </table>
+      </div>
+
+      {pausedByMeta.length > 0 && (
+        <div
+          role="status"
+          data-testid="template-paused-banner"
+          className="flex items-start gap-3 rounded-lg border border-warning-soft bg-warning-tint px-4 py-3 text-sm text-warning-text"
+        >
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+          <div className="min-w-0 space-y-1">
+            {pausedByMeta.map((t) => (
+              <p key={t.id}>
+                <span className="font-mono font-semibold">{t.name}</span>{" "}
+                {t.metaStatus === "DISABLED" ? "está desactivada por Meta" : "está pausada por Meta"}
+                {t.pausedReason ? ` (${t.pausedReason})` : ""}. Las campañas que la usan se pausaron solas. Te sugerimos
+                editar el texto y volver a enviarla a revisión.
+              </p>
+            ))}
+          </div>
+        </div>
+      )}
 
       {noticed.length > 0 && (
         <div
@@ -168,59 +378,52 @@ export function TemplatesClient() {
         </div>
       )}
 
-      <CreateForm headerImageAvailable={headerImageAvailable} onCreated={() => void refetch()} />
+      {creating && (
+        <CreateDialog onClose={() => setCreating(false)}>
+          <CreateForm
+            headerImageAvailable={headerImageAvailable}
+            onCreated={() => {
+              setCreating(false);
+              void refetch();
+            }}
+          />
+        </CreateDialog>
+      )}
+    </div>
+  );
 
-      <div className="space-y-2" data-testid="template-list">
-        {templates.map((t) => {
-          const meta = t.metaStatus ? META_BADGE[t.metaStatus] : undefined;
-          const header = headerOf(t.components);
-          return (
-            <div key={t.id} className="rounded-lg border bg-card p-4">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <p className="font-mono text-sm font-medium">
-                  {t.name}{" "}
-                  <span className="text-muted-foreground">
-                    ({t.language} · {t.category})
-                  </span>
-                </p>
-                <div className="flex flex-wrap gap-1.5">
-                  {meta ? (
-                    <Badge variant={meta.variant}>{meta.label}</Badge>
-                  ) : (
-                    <Badge variant={STATUS_BADGE[t.status].variant}>{STATUS_BADGE[t.status].label}</Badge>
-                  )}
-                  {/* Solo media o baja: GREEN, UNKNOWN y NA (sinónimo de UNKNOWN) no llevan aviso. */}
-                  {(t.qualityScore === "YELLOW" || t.qualityScore === "RED") && (
-                    <Badge variant={t.qualityScore === "RED" ? "destructive" : "warning"}>
-                      Calidad {t.qualityScore === "RED" ? "baja" : "media"}
-                    </Badge>
-                  )}
-                </div>
-              </div>
-              {header?.format === "TEXT" && header.text && <p className="mt-2 text-sm font-semibold">{header.text}</p>}
-              {header?.format === "IMAGE" && (
-                <p className="mt-2 text-xs text-muted-foreground">[Imagen en el encabezado]</p>
-              )}
-              <p className="mt-1 whitespace-pre-wrap text-sm text-muted-foreground">{t.body}</p>
-              {t.status === "rejected" && t.rejectionReason && (
-                <p className="mt-2 text-xs text-destructive">Razón del rechazo: {t.rejectionReason}</p>
-              )}
-              {t.status === "approved" && !t.sendable && t.unsendableReason && (
-                <p className="mt-2 text-xs text-destructive">No se puede enviar: {t.unsendableReason}</p>
-              )}
-              {canManage && header?.format === "IMAGE" && !t.hasHeaderImage && (
-                <AttachHeaderImage templateId={t.id} onAttached={() => void refetch()} />
-              )}
-            </div>
-          );
-        })}
-        {templates.length === 0 && (
-          <p className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
-            Sin plantillas todavía. Crea la primera arriba — por ejemplo un
-            «seguimos disponibles, ¿retomamos tu cotización?» para
-            conversaciones frías.
-          </p>
-        )}
+  if (!shell) return body;
+  return (
+    <CampaignsShell actions={actions}>
+      <div className="flex-1 overflow-y-auto p-4 sm:p-6">{body}</div>
+    </CampaignsShell>
+  );
+}
+
+/** Ventana del formulario «Nueva plantilla»: Escape o clic fuera la cierran. */
+function CreateDialog({ onClose, children }: { onClose: () => void; children: React.ReactNode }) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+  return (
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-overlay p-4 sm:py-10" onClick={onClose}>
+      <div
+        role="dialog"
+        aria-label="Nueva plantilla"
+        className="relative w-full max-w-3xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button
+          type="button"
+          aria-label="Cerrar"
+          onClick={onClose}
+          className="absolute right-3 top-3 z-10 inline-flex h-8 w-8 items-center justify-center rounded-md text-text-3 hover:bg-accent hover:text-foreground"
+        >
+          <X className="h-4 w-4" />
+        </button>
+        {children}
       </div>
     </div>
   );
