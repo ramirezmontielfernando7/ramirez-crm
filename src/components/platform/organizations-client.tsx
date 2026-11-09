@@ -152,7 +152,7 @@ function OrganizationRow({ org }: { org: Org }) {
   );
 }
 
-export function OrganizationsClient() {
+export function OrganizationsClient({ onCount }: { onCount?: (n: number) => void } = {}) {
   const [orgs, setOrgs] = useState<Org[] | null>(null);
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<OrgStatusFilter>("all");
@@ -161,8 +161,11 @@ export function OrganizationsClient() {
 
   const refetch = useCallback(async () => {
     const o = await api<{ organizations: Org[] }>("/api/platform/organizations");
-    if (o.data) setOrgs(o.data.organizations);
-  }, []);
+    if (o.data) {
+      setOrgs(o.data.organizations);
+      onCount?.(o.data.organizations.length);
+    }
+  }, [onCount]);
 
   useEffect(() => {
     void refetch();
