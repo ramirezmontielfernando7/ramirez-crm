@@ -1,5 +1,6 @@
 ﻿"use client";
 
+import { usePhone } from "@/lib/use-phone";
 import { useEffect, useRef, useState, type RefObject } from "react";
 import dynamic from "next/dynamic";
 import { AnimatePresence, m } from "framer-motion";
@@ -9,7 +10,6 @@ import {
   FileText,
   MapPin,
   Paperclip,
-  Plus,
   Send,
   Smile,
   UserRound,
@@ -125,6 +125,7 @@ export function Composer({
    */
   numberChat?: boolean;
 }) {
+  const phone = usePhone();
   // 030 (PR 4): sin el módulo Conocimientos no se ofrece (la API ya da 404).
   const viewer = useViewer();
   const knowledgeOn = viewer.hasModule("knowledge");
@@ -631,7 +632,7 @@ export function Composer({
         />
         <textarea
           ref={taRef}
-          placeholder={file ? "Pie del adjunto (opcional)…" : "Escribe un mensaje… (escribe / para respuestas rápidas)"}
+          placeholder={file ? "Pie del adjunto (opcional)…" : phone ? "Mensaje" : "Escribe un mensaje… (escribe / para respuestas rápidas)"}
           value={text}
           rows={1}
           readOnly={rewriting}
@@ -724,8 +725,7 @@ export function Composer({
                 transition={SPRING}
                 className="flex"
               >
-                <Paperclip className="hidden h-4 w-4 md:block" strokeWidth={1.75} />
-                <Plus className="h-4 w-4 md:hidden" strokeWidth={1.75} />
+                <Paperclip className="h-4 w-4" strokeWidth={1.75} />
               </m.span>
             </button>
             <AnimatePresence>

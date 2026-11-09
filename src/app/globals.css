@@ -1229,24 +1229,81 @@ html[data-lite] .usage-modal { animation: none; }
   .settings-search { width: 100%; }
 }
 
-/* App móvil (maqueta B): lista de chats, chat y «Más» como WhatsApp.
-   Solo teléfono; el escritorio no cambia. */
+/* App móvil (maqueta B): lista de chats, chat y «Más» IGUALES a la maqueta
+   aprobada (teal #12999d, gris suave, sin líneas entre chats). Solo teléfono. */
 @media (max-width: 1023px) {
-  .inbox-list-header { height: 52px; }
-  .inbox-row .row-avatar > div:first-child { width: 50px; height: 50px; font-size: 16px; }
-  .inbox-row [data-row-main] { gap: 13px; align-items: center; }
-  .inbox-row [data-row-name] { font-size: 16px; line-height: 22px; }
-  .inbox-row [data-row-time] { font-size: 12px; }
-  .inbox-row [data-row-preview] { font-size: 14px; line-height: 20px; color: var(--text-2); }
-  .inbox-row [data-row-main] + div { padding-left: 79px; }
-  .mobile-chat-avatar { width: 40px; height: 40px; font-size: 14px; }
+  :root {
+    --m-teal: #12999d;
+    --m-teal-soft: #e3f4f4;
+    --m-teal-text: #0d7d80;
+    --m-gray: #f3f4f6;
+    --m-line: #dfe2e6;
+  }
+  .inbox-list-header { height: 35px; padding: 6px 18px 0; }
+  .inbox-list-header .btn-r3.ic { width: 30px; height: 30px; color: #3a3f47; }
+  .inbox-list-header > div:last-child { gap: 20px; }
+  .inbox-list-top { padding: 14px 16px 4px; gap: 12px; }
+  .inbox-list-header .btn-r3 svg { width: 22px; height: 22px; }
+  [data-testid="inbox-new-chat-fab"] { background: var(--m-teal); border-radius: 16px; box-shadow: 0 6px 16px rgb(18 153 157 / 0.35); }
+  .inbox-list-top .inbox-quick-filters { padding-block: 0; }
+  .inbox-list-header h1 { color: var(--m-teal); font-size: 24px; line-height: 29px; font-weight: 700; letter-spacing: -0.3px; }
+  /* Buscador: gris sin borde, 44 px, redondo. */
+  .list-search { height: 44px; border-radius: 22px; border-color: transparent; background: var(--m-gray); padding-inline: 16px; gap: 12px; }
+  .list-search:focus-within { border-color: transparent; box-shadow: 0 0 0 2px color-mix(in srgb, var(--m-teal) 30%, transparent); }
+  .list-search input { font-size: 15px; }
+  /* Chips: borde fino continuo; el activo, teal suave. */
+  .inbox-quick-filters > button { height: 31px; border-style: solid; border-color: var(--m-line); padding-inline: 13px; font-size: 13.5px; font-weight: 400; color: #4b5563; background: transparent; }
+  .inbox-quick-filters > button[aria-pressed="true"] { border-color: transparent; background: var(--m-teal-soft); color: var(--m-teal-text); font-weight: 600; }
+  /* Filas: avatar de 50 px, sin líneas entre chats. */
+  .inbox-row { border-bottom: 0; }
+  .inbox-row .row-avatar > div:first-child { width: 50px; height: 50px; font-size: 16px; background: var(--m-teal-soft); color: var(--m-teal-text); }
+  .inbox-row [data-row-main] { gap: 13px; align-items: flex-start; padding-top: 11px; }
+  .inbox-row .row-avatar { margin-top: 7px; margin-bottom: -17px; }
+  .inbox-row [data-row-name] { font-size: 16px; font-weight: 500; line-height: 20px; color: #111827; }
+  .inbox-row [data-row-time] { font-size: 12px; color: #8a8f98; font-weight: 400; }
+  .inbox-row [data-row-time].font-semibold { color: var(--m-teal); font-weight: 600; }
+  .inbox-row [data-row-preview] { font-size: 14px; line-height: 17px; color: #4b5563; }
+  .inbox-row [data-row-main] .bg-brand { background: var(--m-teal); height: 21px; min-width: 21px; font-size: 11.5px; }
+  .inbox-row [data-row-main] + div { padding: 6px 16px 11px 79px; gap: 0; font-size: 12px; }
+  .inbox-row [data-row-main] > span.min-w-0 > span:nth-child(2) { margin-top: 3px; }
+  .inbox-row [data-row-main] + div button, .inbox-row [data-row-main] + div > div > span { font-size: 12px; }
+  .inbox-row [data-row-main] + div > div > button:first-child { height: 22px; border-radius: 11px; background: var(--m-gray); color: #4b5563; padding-inline: 7px 9px; height: 19px; }
+  .inbox-row [data-row-main] + div [class*="h-[18px]"] { height: 19px; font-size: 12px; padding-inline: 9px; }
+  /* Chat. */
+  .mobile-chat-avatar { width: 40px; height: 40px; font-size: 14px; background: var(--m-teal-soft); color: var(--m-teal-text); }
   [data-pm="chat-head"] { height: 58px; }
   [data-pm="chat-head"] > div > p:first-child { font-size: 16px; font-weight: 600; }
-  /* Compositor redondo, como WhatsApp. */
-  [data-pm="composer"] { background: var(--bg-subtle); border-top: 0; }
-  [data-pm="composer"] .composer-box { border-radius: 24px; border-color: transparent; box-shadow: 0 1px 1px rgb(0 0 0 / 0.05); }
-  [data-pm="composer"] .composer-tools button[aria-label="Enviar"] { border-radius: 9999px; width: 40px; height: 40px; }
+  .thread-bg { background: #f4f5f7; }
+  .bubble-in { border-color: transparent; background: #fff; }
+  .bubble-out { background: #d7f0f0; border-color: transparent; }
+  [data-pm="composer"] .composer-tools > :has([aria-label^="Asistente de redacción"]) { display: none; }
+  /* Compositor de UNA fila: emoji · mensaje · rayo · clip · botón redondo. */
+  [data-pm="composer"] { background: #f4f5f7; border-top: 0; padding: 8px 10px max(14px, env(safe-area-inset-bottom)); }
+  [data-pm="composer"] .composer-box { position: relative; display: flex; align-items: center; gap: 4px; min-height: 46px; padding: 0 0 0 10px; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+  [data-pm="composer"] .composer-box:focus-within { border: 0; box-shadow: none; }
+  /* La píldora blanca cubre emoji · mensaje · rayo · clip; el botón queda fuera, a su lado. */
+  [data-pm="composer"] .composer-box::before { content: ""; position: absolute; inset: 0 54px 0 0; border-radius: 24px; background: #fff; box-shadow: 0 1px 1px rgb(0 0 0 / 0.05); }
+  [data-pm="composer"] .composer-box:focus-within::before { box-shadow: 0 1px 1px rgb(0 0 0 / 0.05), 0 0 0 2px color-mix(in srgb, var(--m-teal) 30%, transparent); }
+  [data-pm="composer"] .composer-box > *, [data-pm="composer"] .composer-tools > * { position: relative; z-index: 1; }
+  [data-pm="composer"] .composer-box textarea { order: 1; flex: 1; min-width: 0; padding: 12px 4px; font-size: 15px; }
+  [data-pm="composer"] .composer-tools { display: contents; }
+  [data-pm="composer"] .composer-tools > div:has([aria-label="Emojis"]) { order: 0; }
+  [data-pm="composer"] .composer-tools > div:has([aria-label="Adjuntar"]) { order: 3; }
+  [data-pm="composer"] .composer-tools > button[aria-label="Respuestas rápidas"] { order: 2; }
+  [data-pm="composer"] .composer-tools > button[aria-label="Enviar"] { order: 4; width: 46px; height: 46px; margin-left: 8px; opacity: 1; border-radius: 9999px; background: var(--m-teal); }
+  [data-pm="composer"] .composer-tools > button[aria-label="Conocimientos"],
+  [data-pm="composer"] .composer-tools > :not(div):not(button),
+  [data-pm="composer"] .composer-tools > .flex-1 { display: none; }
+  [data-pm="composer"] .composer-tools > span { display: none; }
+  /* Más. */
+  .mobile-more h1 { color: #111827; }
+  .mobile-more-avisos { padding: 0; }
+  .mobile-more-avisos button { gap: 18px; padding: 13px 18px; border-radius: 0; font-size: 15.5px; font-weight: 400; }
+  .mobile-more-avisos svg { width: 22px; height: 22px; }
   .mobile-more > * { flex-shrink: 0; }
+  /* Barra de abajo: píldora teal suave. */
+  .mobile-tabbar [class*="bg-brand-tint"] { background: var(--m-teal-soft); color: var(--m-teal-text); }
+  .mobile-tabbar [class*="bg-brand "] { background: var(--m-teal); }
 }
 
 /* Animación de apertura: solo en la app instalada y solo la primera vez
@@ -1267,8 +1324,3 @@ html[data-lite] .usage-modal { animation: none; }
 }
 @keyframes splash-in { from { transform: scale(0.6); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 @keyframes splash-out { to { opacity: 0; transform: scale(1.04); visibility: hidden; } }
-@media (max-width: 1023px) {
-  .mobile-more-avisos { padding: 0; }
-  .mobile-more-avisos button { gap: 18px; padding: 13px 18px; border-radius: 0; font-size: 15.5px; font-weight: 400; color: var(--text-1, inherit); }
-  .mobile-more-avisos svg { width: 22px; height: 22px; }
-}

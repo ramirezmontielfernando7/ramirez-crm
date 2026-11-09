@@ -45,6 +45,7 @@ import { useConversationActions } from "./conversation-actions";
 import { longPressClass, useLongPress } from "./use-long-press";
 import { useInboxCatalogs } from "./use-inbox-catalogs";
 import { ListSearch } from "./list-search";
+import { usePhone } from "@/lib/use-phone";
 import { Collapse } from "@/components/motion";
 
 // La tarjeta de «número sin registrar» solo sale al buscar un teléfono que no
@@ -392,6 +393,7 @@ export const ConversationList = memo(function ConversationList({
     quick.push({ id: "groups", label: "Grupos", on: showGroups, pick: () => setFilter("groups") });
   }
   const searchRef = useRef<HTMLInputElement>(null);
+  const phone = usePhone();
   // Ronda 4: la búsqueda es una lupa en el encabezado; el cuadro aparece al
   // tocarla (o con «/») y se queda mientras haya texto.
   const [searchOpen, setSearchOpen] = useState(false);
@@ -453,7 +455,7 @@ export const ConversationList = memo(function ConversationList({
           </>
         }
       />
-      <div className="flex shrink-0 flex-col gap-2 px-4 pb-2.5 pt-0">
+      <div className="inbox-list-top flex shrink-0 flex-col gap-2 px-4 pb-2.5 pt-0">
         {/* En el teléfono (maqueta B) el buscador va siempre a la vista. */}
         <ListSearch
           ref={searchRef}
@@ -462,7 +464,7 @@ export const ConversationList = memo(function ConversationList({
           onClose={() => setSearchOpen(false)}
           query={query}
           onQuery={setQuery}
-          placeholder="Buscar nombre, teléfono o mensaje"
+          placeholder={phone ? "Buscar chats, contactos o etiquetas" : "Buscar nombre, teléfono o mensaje"}
           hint={filtroPuesto}
         />
         <div className="inbox-filter-strip flex items-center gap-1.5">

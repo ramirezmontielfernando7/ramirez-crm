@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { useSearchParams } from "next/navigation";
-import { ChevronLeft, MoreHorizontal, PanelRight } from "lucide-react";
+import { ChevronLeft, EllipsisVertical, MoreHorizontal, PanelRight } from "lucide-react";
+import { usePhone } from "@/lib/use-phone";
 import { m } from "framer-motion";
 import { cn, phoneCompact } from "@/lib/utils";
 import { stageDot } from "@/lib/tags";
@@ -92,6 +93,7 @@ export function InboxClient({
   /** null = el servidor no la trajo: se pide desde el navegador, como antes. */
   initial?: InboxInitial | null;
 }) {
+  const phone = usePhone();
   const multiChannel = channels.length > 1;
   const [conversations, setConversations] = useState<ConversationDto[] | null>(
     initial?.conversations ?? null
@@ -825,7 +827,7 @@ export function InboxClient({
                     }
                     className="btn-r3 g ic"
                   >
-                    <MoreHorizontal className="h-4 w-4" strokeWidth={1.75} />
+                    {phone ? <EllipsisVertical className="h-[22px] w-[22px]" strokeWidth={1.8} /> : <MoreHorizontal className="h-4 w-4" strokeWidth={1.75} />}
                   </button>
                 </div>
               </header>

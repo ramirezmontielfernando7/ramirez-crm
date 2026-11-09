@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronRight, LogOut, Gauge, Settings, ShieldCheck, Sparkles, UsersRound, Smartphone, type LucideIcon } from "lucide-react";
+import { LogOut, Gauge, Moon, Sun, Settings, ShieldCheck, Sparkles, UsersRound, Smartphone, type LucideIcon } from "lucide-react";
 import { useViewer } from "@/components/viewer-context";
 import { ContactAvatar } from "@/components/avatar";
-import { ThemeToggle } from "@/components/theme-toggle";
+import { useState } from "react";
+import { applyThemeBarColor, nextThemePreference, normalizeThemePreference, THEME_COOKIE, THEME_COOKIE_MAX_AGE } from "@/lib/theme";
 import { AvisosMenu } from "@/components/notifications/avisos-menu";
 import { TeamUnreadRowBadge } from "@/components/team-chat/unread-badge";
 import { NAV_ICONS } from "@/components/nav-icons";
@@ -69,7 +70,7 @@ export function MobileMore({
     <div data-testid="mobile-more" className="mobile-more absolute inset-0 z-30 flex flex-col overflow-y-auto bg-surface lg:hidden">
       <h1 className="px-[18px] pb-1.5 pt-3 text-[26px] font-bold leading-tight">Más</h1>
       <div className="flex items-center gap-3.5 border-b-8 border-subtle px-[18px] pb-[18px] pt-3.5">
-        <ContactAvatar name={userName} seed={viewer.userId} size="lg" />
+        <ContactAvatar name={userName} seed={viewer.userId} size="lg" className="!h-[60px] !w-[60px] !text-[20px]" />
         <div className="min-w-0">
           <p className="truncate text-[18px] font-semibold">{userName}</p>
           <p className="mt-0.5 text-[13px] text-text-2">{viewer.roleLabel}</p>
@@ -93,12 +94,7 @@ export function MobileMore({
           Uso y plan
         </button>
       )}
-      <div className={rowClass}>
-        <span className="flex h-[22px] w-[22px] items-center justify-center">
-          <ThemeToggle initial={theme} className="-m-1 text-text-2" />
-        </span>
-        Tema claro / oscuro
-      </div>
+      <ThemeRow initial={theme} />
       <button
         type="button"
         onClick={async () => {
@@ -121,10 +117,35 @@ type Row = { href: string; label: string; icon: LucideIcon; team?: boolean };
 const rowClass =
   "flex w-full items-center gap-[18px] px-[18px] py-[13px] text-left text-[15.5px] transition-colors active:bg-row-hover";
 
+/** «Tema oscuro · Apagado/Encendido», como la maqueta; mismo cookie que el botón de siempre. */
+function ThemeRow({ initial }: { initial: ThemePreference }) {
+  const [pref, setPref] = useState<ThemePreference>(() =>
+    typeof document === "undefined" ? initial : normalizeThemePreference(document.documentElement.getAttribute("data-theme") ?? initial)
+  );
+  const Icon = pref === "dark" ? Sun : Moon;
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        const value = nextThemePreference(pref);
+        setPref(value);
+        document.documentElement.setAttribute("data-theme", value);
+        applyThemeBarColor(value);
+        document.cookie = `${THEME_COOKIE}=${value};path=/;max-age=${THEME_COOKIE_MAX_AGE};samesite=lax`;
+      }}
+      className={rowClass}
+    >
+      <Icon className="h-[22px] w-[22px] text-text-2" strokeWidth={1.7} />
+      <span className="flex-1">Tema oscuro</span>
+      <span className="text-[13px] text-text-3">{pref === "dark" ? "Encendido" : "Apagado"}</span>
+    </button>
+  );
+}
+
 function Group({ title, rows, onClose }: { title: string; rows: Row[]; onClose: () => void }) {
   return (
     <>
-      <p className="px-[18px] pb-1 pt-4 text-[12.5px] font-semibold uppercase tracking-[0.04em] text-text-3">{title}</p>
+      <p className="px-[18px] pb-1 pt-4 text-[12.5px] font-semibold uppercase tracking-[0.4px] text-text-3">{title}</p>
       {rows.map((r) => (
         <RowLink key={r.href} row={r} onClose={onClose} />
       ))}
@@ -140,7 +161,6 @@ function RowLink({ row, onClose }: { row: Row; onClose: () => void }) {
       <Icon className="h-[22px] w-[22px] text-text-2" strokeWidth={1.7} />
       <span className="flex-1">{row.label}</span>
       {row.team && <TeamUnreadRowBadge />}
-      <ChevronRight className="h-4 w-4 text-text-4" strokeWidth={1.7} />
     </Link>
   );
 }
