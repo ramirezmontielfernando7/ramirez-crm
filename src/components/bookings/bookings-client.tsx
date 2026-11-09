@@ -115,7 +115,7 @@ export function BookingsClient({
     setShowCancelled(readPref(CANCELLED_KEY) === "1");
     setShowTests(readPref(TESTS_KEY) === "1");
     const stored = readPref(VIEW_KEY);
-    setView(initialView ?? (isCalendarView(stored) ? stored : "lista"));
+    setView(initialView ?? (isCalendarView(stored) ? stored : "semana"));
     // La línea de "ahora" y el resaltado de hoy se mueven solos.
     setNow(Date.now());
     const t = window.setInterval(() => setNow(Date.now()), 60_000);

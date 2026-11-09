@@ -181,7 +181,7 @@ async function main() {
   const pestañas = await crm.getByRole("link").allInnerTexts();
   ok("con las pestañas Pipeline, Contactos, Agenda, Tareas y notas y Biblioteca", pestañas.join() === "Pipeline,Contactos,Agenda,Tareas y notas,Biblioteca", pestañas.join());
   await crm.getByRole("link", { name: "Agenda" }).click();
-  ok("«Agenda» abre Citas en la vista Lista", await hasta(async () => /\/bookings\?vista=lista/.test(inicio.p.url()), 60000), inicio.p.url());
+  ok("«Agenda» abre Citas en la vista Semana", await hasta(async () => /\/bookings\?vista=semana/.test(inicio.p.url()), 60000), inicio.p.url());
   ok("«CRM Comercial» se ve activo en el menú estando en Citas", (await inicio.p.locator('aside nav a[href="/pipeline"]').first().getAttribute("class"))?.includes("bg-brand-tint"));
   ok("…y la pestaña «Agenda» marcada", (await crm.getByRole("link", { name: "Agenda" }).getAttribute("aria-current")) === "page");
   await hasta(async () => (await inicio.p.getByText("Cargando…").count()) === 0, 20000);
