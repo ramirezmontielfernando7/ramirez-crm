@@ -1269,6 +1269,13 @@ html[data-lite] .usage-modal { animation: none; }
   .inbox-row [data-row-main] + div button, .inbox-row [data-row-main] + div > div > span { font-size: 12px; }
   .inbox-row [data-row-main] + div > div > button:first-child { height: 22px; border-radius: 11px; background: var(--m-gray); color: #4b5563; padding-inline: 7px 9px; height: 19px; }
   .inbox-row [data-row-main] + div [class*="h-[18px]"] { height: 19px; font-size: 12px; padding-inline: 9px; }
+  /* Nitidez de letras y cápsulas: la etapa cede espacio para que se lea la etiqueta. */
+  body { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+  .inbox-row .row-stage { flex-shrink: 1; min-width: 0; max-width: 46%; }
+  .inbox-row .row-tags { flex-shrink: 0; max-width: 52%; }
+  .inbox-row .row-tags > span:first-child { min-width: 0; max-width: 100%; background-color: color-mix(in srgb, currentColor 11%, transparent); font-weight: 500; }
+  .inbox-row .row-tags > span:not(:first-child) { background-color: var(--m-gray); }
+  .inbox-row [data-row-assignee] { flex-shrink: 1; min-width: 0; max-width: 84px; }
   /* Chat. */
   .mobile-chat-avatar { width: 40px; height: 40px; font-size: 14px; background: var(--m-teal-soft); color: var(--m-teal-text); }
   [data-pm="chat-head"] { height: 58px; }

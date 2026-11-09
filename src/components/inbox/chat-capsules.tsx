@@ -179,7 +179,7 @@ export function StageCapsule({ conversation: c, stages, onPatch, onRefetch, onEr
   return (
     <CapsuleMenu
       label={`Etapa: ${name}. Cambiar etapa`}
-      className="shrink-0 bg-secondary text-text-2 hover:bg-accent"
+      className="row-stage shrink-0 bg-secondary text-text-2 hover:bg-accent"
       trigger={
         <>
           <StageDotMark color={c.stageColor} name={name} />
@@ -251,7 +251,7 @@ export function TagsCapsule({
   return (
     <CapsuleMenu
       label={`Etiquetas: ${c.tags.map((t) => t.name).join(", ")}. Editar`}
-      className="min-w-0 shrink gap-1.5 bg-transparent px-0 before:-inset-x-0.5"
+      className="row-tags min-w-0 shrink gap-1.5 bg-transparent px-0 before:-inset-x-0.5"
       menuClassName="w-60"
       trigger={
         <>
