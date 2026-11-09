@@ -15,6 +15,14 @@ import { SalesSection } from "./sales-section";
 import { useViewer } from "@/components/viewer-context";
 import { useAssignees } from "@/components/assignment/use-assignees";
 import { PageShell } from "@/components/ui/page-shell";
+import { cn } from "@/lib/utils";
+
+const TABS = [
+  { key: "ventas", label: "Ventas y embudo" },
+  { key: "atencion", label: "Atención" },
+  { key: "origen", label: "Origen y anuncios" },
+] as const;
+type TabKey = (typeof TABS)[number]["key"];
 
 type Block<T> = { data: T | null; loading: boolean; error: string | null };
 
@@ -75,6 +83,7 @@ export function ResultsClient({
   today: string;
   timezone: string;
 }) {
+  const [tab, setTab] = useState<TabKey>("ventas");
   const [range, setRange] = useState<Range>(() => defaultRange(today));
   const [sales, setSales] = useState<Block<SalesBlockDto>>(inicial);
   const [ads, setAds] = useState<Block<AdsBlockDto>>(inicial);
@@ -104,41 +113,63 @@ export function ResultsClient({
     return () => ctl.abort();
   }, [who]);
 
+  const filtros = (
+    <>
+          {teamView && (
+            <select
+              value={person}
+              onChange={(e) => setPerson(e.target.value)}
+              aria-label="Resultados de"
+              className="h-9 rounded-md border border-input bg-card px-2 text-sm"
+            >
+              <option value="">Todos los asesores</option>
+              {team.map((m) => (
+                <option key={m.userId} value={m.userId}>
+                  {m.name}
+                </option>
+              ))}
+            </select>
+          )}
+          <RangePicker compact value={range} onChange={setRange} today={today} timezone={timezone} />
+    </>
+  );
+
   return (
     <PageShell
       pillar="results"
       variant="fluid"
-      subtitle={
-        teamView
-          ? "Ventas, el trabajo del agente, de dónde llegan y qué se está cayendo."
-          : "Tus resultados: lo de tus chats y leads asignados."
+      tabsLabel="Secciones de Resultados"
+      tabsSlot={
+        <div role="tablist" aria-label="Secciones de Resultados" className="flex items-center gap-0.5 overflow-x-auto">
+          {TABS.map((t) => (
+            <button
+              key={t.key}
+              type="button"
+              role="tab"
+              aria-selected={tab === t.key}
+              onClick={() => setTab(t.key)}
+              className={cn(
+                "shrink-0 whitespace-nowrap rounded-md px-2.5 py-1.5 text-[13px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                tab === t.key ? "bg-brand-tint text-brand-text" : "text-text-2 hover:bg-accent hover:text-foreground"
+              )}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
       }
+      actions={<div className="hidden items-center gap-2 sm:flex">{filtros}</div>}
     >
-      {/* 039: el periodo y la persona, en su fila bajo las pestañas del pilar. */}
-      <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-b px-4 py-2.5 sm:px-6">
-        {teamView && (
-          <select
-            value={person}
-            onChange={(e) => setPerson(e.target.value)}
-            aria-label="Resultados de"
-            className="h-9 rounded-md border border-input bg-card px-2 text-sm"
-          >
-            <option value="">Todo el equipo</option>
-            {team.map((m) => (
-              <option key={m.userId} value={m.userId}>
-                {m.name}
-              </option>
-            ))}
-          </select>
-        )}
-        <RangePicker value={range} onChange={setRange} today={today} timezone={timezone} />
-      </div>
-
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-3 sm:p-6">
-        <SalesSection {...sales} currency={currency} />
-        <AdsSection {...ads} />
-        <BotSection {...bot} agenda={agenda} />
-        <HygieneSection {...hygiene} currency={currency} />
+        <div className="flex flex-wrap items-center gap-2 sm:hidden">{filtros}</div>
+        {tab === "ventas" && (
+          <>
+            <SalesSection {...sales} currency={currency} />
+            <HygieneSection {...hygiene} currency={currency} />
+          </>
+        )}
+        {tab === "atencion" && <BotSection {...bot} agenda={agenda} />}
+        {tab === "origen" && <AdsSection {...ads} />}
       </div>
     </PageShell>
   );

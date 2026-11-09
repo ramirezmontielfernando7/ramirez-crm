@@ -44,6 +44,7 @@ export function PageShell({
   pillar,
   hideSections,
   tabs,
+  tabsSlot,
   tabsLabel,
   hideHeader = false,
   variant = "contained",
@@ -71,6 +72,8 @@ export function PageShell({
   hideSections?: readonly string[];
   /** Pestañas propias (en vez de las del pilar). */
   tabs?: readonly SectionTab[];
+  /** Pestañas internas de la pantalla (estado, no rutas): ocupan el lugar de las del pilar. */
+  tabsSlot?: React.ReactNode;
   tabsLabel?: string;
   /** Sin barra de título en escritorio (el contenido ya se explica solo); en el teléfono queda por el menú. */
   hideHeader?: boolean;
@@ -104,13 +107,14 @@ export function PageShell({
   const heading = title ?? def?.label ?? "";
 
   const tabsNav =
-    shownTabs && shownTabs.length > 0 ? (
+    tabsSlot ??
+    (shownTabs && shownTabs.length > 0 ? (
       <SectionTabs
         tabs={shownTabs}
         label={tabsLabel ?? `Secciones de ${typeof heading === "string" ? heading : "la pantalla"}`}
         variant="pill"
       />
-    ) : null;
+    ) : null);
 
   return (
     <div className="flex h-full min-h-0 flex-col">
