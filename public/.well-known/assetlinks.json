@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.demfort.dashfort",
+      "sha256_cert_fingerprints": [
+        "58:EF:5B:E2:EC:95:E4:CB:BC:9B:68:AB:21:DB:43:FF:68:32:33:07:32:6F:53:15:A2:5A:F1:1B:D4:90:35:11"
+      ]
+    }
+  }
+]
