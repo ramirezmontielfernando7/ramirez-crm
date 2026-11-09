@@ -75,7 +75,10 @@ export function InboxListHeader({
   actions,
   rowRef,
   flush,
+  searchBar,
 }: {
+  /** Teléfono: mientras se busca, el título se vuelve la caja de búsqueda y las pestañas se esconden. */
+  searchBar?: React.ReactNode;
   /** Sin línea inferior: debajo van los chips de filtro y se ve más limpio. */
   flush?: boolean;
   current: InboxMode;
@@ -88,12 +91,17 @@ export function InboxListHeader({
   const numberUnread = useNumberUnread(viewer.hasMyNumber);
   const tabs = TABS.filter(shows(viewer));
 
+  // Teléfono: Clientes · Equipo · Mi número en una cápsula bajo el título.
+  const phoneOrder = [...tabs].sort((a, b) => (a.mode === "number" ? 1 : 0) - (b.mode === "number" ? 1 : 0));
+
   return (
-    <header className={cn("inbox-list-header relative flex h-14 shrink-0 items-center gap-2 px-4", !flush && "border-b")} ref={rowRef}>
+    <>
+    <header className={cn("inbox-list-header relative flex h-14 shrink-0 items-center gap-2 px-4", !flush && "border-b", searchBar && "is-searching")} ref={rowRef}>
+      {searchBar && <div className="min-w-0 flex-1 lg:hidden">{searchBar}</div>}
       <NavRevealButton />
       {/* App móvil (maqueta B): en el teléfono, el título grande como WhatsApp.
           Equipo y Mi número se abren desde «Más». */}
-      <h1 data-testid="inbox-mobile-title" className="text-[24px] font-bold tracking-[-0.3px] text-brand-text lg:hidden">
+      <h1 data-testid="inbox-mobile-title" className={cn("text-[24px] font-bold tracking-[-0.3px] text-brand-text lg:hidden", searchBar && "max-lg:hidden")}>
         {current === "inbox" ? "Bandeja" : current === "chat" ? "Equipo" : labelOf(viewer, TABS[1]!)}
       </h1>
       {tabs.length < 2 ? (
@@ -123,7 +131,32 @@ export function InboxListHeader({
           })}
         </nav>
       )}
-      <div className="ml-auto flex shrink-0 items-center gap-1.5">{actions}</div>
+      <div className={cn("ml-auto flex shrink-0 items-center gap-1.5", searchBar && "max-lg:hidden")}>{actions}</div>
     </header>
+    {tabs.length > 1 && !searchBar && (
+      <nav aria-label="Cambiar de bandeja" data-testid="inbox-phone-tabs" className="phone-tabs lg:hidden">
+        {phoneOrder.map((t) => {
+          const active = t.mode === current;
+          const n = t.mode === "inbox" ? inboxUnread : t.mode === "number" ? numberUnread : teamUnread;
+          return (
+            <Link
+              key={t.mode}
+              href={t.href}
+              aria-current={active ? "page" : undefined}
+              data-testid={`inbox-phone-tab-${t.mode}`}
+              className="phone-tab"
+            >
+              {labelOf(viewer, t)}
+              {n > 0 && (
+                <span aria-label={`${n} sin leer`} className="phone-tab-count">
+                  {count(n)}
+                </span>
+              )}
+            </Link>
+          );
+        })}
+      </nav>
+    )}
+    </>
   );
 }

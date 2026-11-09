@@ -52,9 +52,11 @@ export function MobileTabBar({
   const [tapped, setTapped] = useState<string | null>(null);
   useEffect(() => setTapped(null), [pathname]);
   return (
+    <>
+    <div className="mobile-tabbar-fade lg:hidden" aria-hidden />
     <nav
       aria-label="Navegación principal"
-      className="mobile-tabbar flex shrink-0 items-stretch border-t bg-surface px-1 pb-[env(safe-area-inset-bottom)] lg:hidden"
+      className="mobile-tabbar flex items-stretch bg-surface lg:hidden"
     >
       {items.map((item) => {
         const active =
@@ -73,7 +75,7 @@ export function MobileTabBar({
             }}
             aria-current={active ? "page" : undefined}
             className={cn(
-              "relative flex min-h-[60px] flex-1 flex-col items-center justify-center gap-1 text-[11.5px]",
+              "relative flex min-h-[50px] flex-1 flex-col items-center justify-center gap-1 text-[11.5px]",
               active ? "font-semibold text-foreground" : "font-medium text-text-2"
             )}
           >
@@ -91,7 +93,7 @@ export function MobileTabBar({
         aria-expanded={moreOpen}
         data-testid="mobile-more-tab"
         className={cn(
-          "flex min-h-[60px] flex-1 flex-col items-center justify-center gap-1 text-[11.5px]",
+          "flex min-h-[50px] flex-1 flex-col items-center justify-center gap-1 text-[11.5px]",
           moreOpen ? "font-semibold text-foreground" : "font-medium text-text-2"
         )}
       >
@@ -101,6 +103,7 @@ export function MobileTabBar({
         Más
       </button>
     </nav>
+    </>
   );
 }
 

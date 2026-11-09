@@ -1175,7 +1175,6 @@ html[data-lite] .usage-modal { animation: none; }
   [data-pm="composer"] textarea:placeholder-shown { white-space: nowrap; }
   [data-pm="composer"] .composer-tools { margin-top: 6px; }
   [data-pm="composer"] .composer-tools button { padding-inline: 6px; }
-  .mobile-tabbar > :is(a, button) { min-height: 60px; }
 }
 
 /* Más y Ajustes: listas verticales con el mismo margen a ambos lados.
@@ -1313,9 +1312,21 @@ html[data-lite] .usage-modal { animation: none; }
   .mobile-more-avisos button { gap: 18px; padding: 13px 18px; border-radius: 0; font-size: 15.5px; font-weight: 400; }
   .mobile-more-avisos svg { width: 22px; height: 22px; }
   .mobile-more > * { flex-shrink: 0; }
-  /* Barra de abajo: píldora teal suave. */
+  /* Cápsula de bandejas: Clientes · Equipo · Mi número (pista gris, activa blanca). */
+  .phone-tabs { display: flex; gap: 2px; margin: 10px 16px 0; padding: 3px; border-radius: 12px; background: var(--m-gray); flex-shrink: 0; }
+  .phone-tab { position: relative; display: flex; flex: 1; min-width: 0; height: 34px; align-items: center; justify-content: center; gap: 6px; border-radius: 10px; font-size: 13.5px; font-weight: 500; color: #6b7280; white-space: nowrap; }
+  .phone-tab[aria-current="page"] { background: #fff; color: #111827; font-weight: 600; box-shadow: 0 1px 2px rgb(0 0 0 / 0.1); }
+  .phone-tab-count { min-width: 18px; padding: 0 5px; border-radius: 9px; background: var(--m-teal); color: #fff; font-size: 11px; font-weight: 600; line-height: 18px; text-align: center; }
+  /* Buscando: el encabezado ocupa el ancho entero con la caja. */
+  .inbox-list-header.is-searching { height: 52px; padding: 6px 12px 0; }
+  /* Barra de abajo: píldora ancha flotante (como WhatsApp en iPhone). */
+  .mobile-tabbar { position: absolute; left: 14px; right: 14px; bottom: calc(16px + env(safe-area-inset-bottom)); z-index: 30; height: 62px; padding: 0 6px; border: 0; border-radius: 31px; background: var(--surface); box-shadow: 0 6px 24px rgb(17 24 39 / 0.16), 0 1px 3px rgb(17 24 39 / 0.08); align-items: center; }
+  .mobile-tabbar > :is(a, button) { min-height: 50px; gap: 2px; font-size: 11px; }
   .mobile-tabbar [class*="bg-brand-tint"] { background: var(--m-teal-soft); color: var(--m-teal-text); }
   .mobile-tabbar [class*="bg-brand "] { background: var(--m-teal); }
+  html:not([data-chat-open]) .inbox-scroll { padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
+  .mobile-tabbar-fade { position: absolute; left: 0; right: 0; bottom: 0; height: calc(96px + env(safe-area-inset-bottom)); z-index: 20; pointer-events: none; background: linear-gradient(to top, var(--surface) 35%, color-mix(in srgb, var(--surface) 0%, transparent)); }
+  html[data-chat-open] .mobile-tabbar-fade { display: none; }
 }
 
 /* Animación de apertura: solo en la app instalada y solo la primera vez

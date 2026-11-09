@@ -12,7 +12,16 @@ import {
 } from "react";
 import dynamic from "next/dynamic";
 import { useVirtualizer, type VirtualItem } from "@tanstack/react-virtual";
-import { Bot, CheckSquare, Megaphone, MessageSquarePlus, Search, Send, Sparkles } from "lucide-react";
+import {
+  Bot,
+  ArrowLeft,
+  CheckSquare,
+  Megaphone,
+  MessageSquarePlus,
+  Search,
+  Send,
+  Sparkles,
+} from "lucide-react";
 import type { ConversationDto, StageDto } from "@/lib/types";
 import type { TagDto } from "@/lib/tags";
 import type { MenuAnchor } from "./floating-menu";
@@ -27,7 +36,10 @@ import { ContactAvatar } from "@/components/avatar";
 import { Button } from "@/components/ui/button";
 import { formatTime, previewText } from "./helpers";
 import { useViewer } from "@/components/viewer-context";
-import { assignContacts, useAssignees } from "@/components/assignment/use-assignees";
+import {
+  assignContacts,
+  useAssignees,
+} from "@/components/assignment/use-assignees";
 import { InboxListHeader } from "./inbox-mode-switch";
 import { FilterMenu, type InboxFilter } from "./filter-menu";
 import { rowAiBadge } from "@/lib/agent-pause";
@@ -40,7 +52,12 @@ import {
   type ListQuery,
   type ListStatus,
 } from "@/lib/inbox-list";
-import { StageCapsule, TagsCapsule, shortName, type PatchRow } from "./chat-capsules";
+import {
+  StageCapsule,
+  TagsCapsule,
+  shortName,
+  type PatchRow,
+} from "./chat-capsules";
 import { useConversationActions } from "./conversation-actions";
 import { longPressClass, useLongPress } from "./use-long-press";
 import { useInboxCatalogs } from "./use-inbox-catalogs";
@@ -50,8 +67,8 @@ import { Collapse } from "@/components/motion";
 
 // La tarjeta de «número sin registrar» solo sale al buscar un teléfono que no
 // existe: su código no se baja en el arranque de la Bandeja.
-const UnregisteredNumberCard = dynamic(
-  () => import("./unregistered-number").then((mod) => mod.UnregisteredNumberCard)
+const UnregisteredNumberCard = dynamic(() =>
+  import("./unregistered-number").then((mod) => mod.UnregisteredNumberCard),
 );
 
 /**
@@ -98,8 +115,6 @@ const LOAD_MORE_THRESHOLD = 15;
 /** Respiro de la búsqueda antes de preguntarle al servidor. */
 const SEARCH_DEBOUNCE_MS = 250;
 
-
-
 function EmptyState({ onSeeded }: { onSeeded: () => void }) {
   const [seeding, setSeeding] = useState(false);
   const [failed, setFailed] = useState<string | null>(null);
@@ -107,7 +122,7 @@ function EmptyState({ onSeeded }: { onSeeded: () => void }) {
   async function seed() {
     setSeeding(true);
     const res = await fetch("/api/seed/demo", { method: "POST" }).catch(
-      () => null
+      () => null,
     );
     setSeeding(false);
     if (res?.ok) onSeeded();
@@ -118,7 +133,7 @@ function EmptyState({ onSeeded }: { onSeeded: () => void }) {
       } | null;
       setFailed(
         body?.error?.message ??
-          "No se pudo cargar la demostración. Inténtalo de nuevo."
+          "No se pudo cargar la demostración. Inténtalo de nuevo.",
       );
     }
   }
@@ -254,11 +269,16 @@ export const ConversationList = memo(function ConversationList({
   // La MISMA regla del servidor sobre lo cargado, con la búsqueda tal como
   // se teclea: un cambio propio (archivar, leer, mover de etapa) se ve ya.
   const visibleQuery: ListQuery = { ...listQuery, q: query };
-  const visible = conversations.filter((c) => matchesListQuery(c, visibleQuery, viewer.userId));
+  const visible = conversations.filter((c) =>
+    matchesListQuery(c, visibleQuery, viewer.userId),
+  );
   // «Número no registrado»: parece teléfono y ninguna conversación lo tiene
   // (lo cuenta el servidor, con esta misma búsqueda).
   const sinRegistrar =
-    looksLikePhone(query) && counts !== null && counts.q === query.trim() && counts.queryHits === 0;
+    looksLikePhone(query) &&
+    counts !== null &&
+    counts.q === query.trim() &&
+    counts.queryHits === 0;
   const inboxCount = (ch: Channel) => counts?.channels[ch] ?? 0;
   const humanos = counts?.humano ?? 0;
   const anuncios = counts?.anuncios ?? 0;
@@ -296,10 +316,13 @@ export const ConversationList = memo(function ConversationList({
       count: showCampaigns ? (counts?.campaigns ?? 0) : campaignCount,
     });
   }
-  if (counts?.groupsEnabled) filtros.push({ id: "groups", label: "Grupos", count: counts.groups ?? 0 });
+  if (counts?.groupsEnabled)
+    filtros.push({ id: "groups", label: "Grupos", count: counts.groups ?? 0 });
   // Lo que la cápsula de filtros diría, para el buscador abierto que la tapa.
   const extraFiltros =
-    (stage !== "all" ? 1 : 0) + (seesAll && owner !== "all" ? 1 : 0) + (tag !== ALL_TAGS ? 1 : 0);
+    (stage !== "all" ? 1 : 0) +
+    (seesAll && owner !== "all" ? 1 : 0) +
+    (tag !== ALL_TAGS ? 1 : 0);
   const filtroPuesto =
     filter === "all" && extraFiltros === 0
       ? null
@@ -316,9 +339,14 @@ export const ConversationList = memo(function ConversationList({
   // poder salir de ella aunque ya ningún chat la lleve).
   const tagsPresent = new Map<string, string>(counts?.tags ?? []);
   if (tag !== ALL_TAGS && !tagsPresent.has(tag)) {
-    tagsPresent.set(tag, catalogs.tags.find((t) => t.id === tag)?.name ?? "Etiqueta");
+    tagsPresent.set(
+      tag,
+      catalogs.tags.find((t) => t.id === tag)?.name ?? "Etiqueta",
+    );
   }
-  const tagOptions = [...tagsPresent].sort((a, b) => a[1].localeCompare(b[1], "es"));
+  const tagOptions = [...tagsPresent].sort((a, b) =>
+    a[1].localeCompare(b[1], "es"),
+  );
 
   // Personas en el selector: el equipo (si se puede leer) más quien aparezca
   // asignado en la bandeja.
@@ -363,18 +391,24 @@ export const ConversationList = memo(function ConversationList({
   // Ronda 3: «Todos · No leídos · Míos · Campañas» como segmentado bajo el
   // buscador; lo demás (Archivados, Atención humana, Anuncios, etapa,
   // etiqueta, persona) vive en el embudo de filtros del encabezado.
-  const quick: { id: string; label: string; on: boolean; pick: () => void }[] = [
-    {
-      id: "all",
-      label: "Todos",
-      on: filter === "all" && (!seesAll || owner === "all"),
-      pick: () => {
-        setFilter("all");
-        if (seesAll) setOwner("all");
+  const quick: { id: string; label: string; on: boolean; pick: () => void }[] =
+    [
+      {
+        id: "all",
+        label: "Todos",
+        on: filter === "all" && (!seesAll || owner === "all"),
+        pick: () => {
+          setFilter("all");
+          if (seesAll) setOwner("all");
+        },
       },
-    },
-    { id: "unread", label: "No leídos", on: filter === "unread", pick: () => setFilter("unread") },
-  ];
+      {
+        id: "unread",
+        label: "No leídos",
+        on: filter === "unread",
+        pick: () => setFilter("unread"),
+      },
+    ];
   if (seesAll) {
     quick.push({
       id: "mine",
@@ -387,10 +421,20 @@ export const ConversationList = memo(function ConversationList({
     });
   }
   if (campaignCount > 0 || showCampaigns || counts?.groupsEnabled) {
-    quick.push({ id: "campaigns", label: "Campañas", on: showCampaigns, pick: () => setFilter("campaigns") });
+    quick.push({
+      id: "campaigns",
+      label: "Campañas",
+      on: showCampaigns,
+      pick: () => setFilter("campaigns"),
+    });
   }
   if (counts?.groupsEnabled) {
-    quick.push({ id: "groups", label: "Grupos", on: showGroups, pick: () => setFilter("groups") });
+    quick.push({
+      id: "groups",
+      label: "Grupos",
+      on: showGroups,
+      pick: () => setFilter("groups"),
+    });
   }
   const searchRef = useRef<HTMLInputElement>(null);
   const phone = usePhone();
@@ -398,11 +442,17 @@ export const ConversationList = memo(function ConversationList({
   // tocarla (o con «/») y se queda mientras haya texto.
   const [searchOpen, setSearchOpen] = useState(false);
   const showSearch = searchOpen || query !== "";
+  // Teléfono: al tocar la lupa el título se vuelve la caja de búsqueda.
+  const phoneSearching = phone && searchOpen;
   useEffect(() => {
     const onKey = (e: globalThis.KeyboardEvent) => {
       if (e.key !== "/" || e.metaKey || e.ctrlKey || e.altKey) return;
       const t = e.target as HTMLElement | null;
-      if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+      if (
+        t &&
+        (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))
+      )
+        return;
       setSearchOpen(true);
     };
     window.addEventListener("keydown", onKey);
@@ -415,6 +465,34 @@ export const ConversationList = memo(function ConversationList({
         current="inbox"
         flush
         rowRef={rowRef}
+        searchBar={
+          phoneSearching ? (
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setQuery("");
+                  setSearchOpen(false);
+                }}
+                aria-label="Cerrar búsqueda"
+                data-testid="phone-search-back"
+                className="btn-r3 g ic shrink-0"
+              >
+                <ArrowLeft className="h-4 w-4" strokeWidth={1.75} />
+              </button>
+              <ListSearch
+                ref={searchRef}
+                autoFocus
+                className="min-w-0 flex-1"
+                onClose={() => setSearchOpen(false)}
+                query={query}
+                onQuery={setQuery}
+                placeholder="Buscar chats, contactos o etiquetas"
+                hint={filtroPuesto}
+              />
+            </div>
+          ) : undefined
+        }
         actions={
           <>
             {canAssign && !selecting && (
@@ -429,11 +507,15 @@ export const ConversationList = memo(function ConversationList({
             )}
             <button
               type="button"
-              onClick={() => (searchOpen ? (setQuery(""), setSearchOpen(false)) : setSearchOpen(true))}
+              onClick={() =>
+                searchOpen
+                  ? (setQuery(""), setSearchOpen(false))
+                  : setSearchOpen(true)
+              }
               aria-label="Buscar conversación (tecla /)"
               aria-pressed={searchOpen}
               title="Buscar (/)"
-              className={cn("btn-r3 g ic max-lg:hidden", searchOpen && "soft")}
+              className={cn("btn-r3 g ic", searchOpen && "soft")}
             >
               <Search className="h-4 w-4" strokeWidth={1.75} />
             </button>
@@ -455,20 +537,35 @@ export const ConversationList = memo(function ConversationList({
           </>
         }
       />
-      <div className="inbox-list-top flex shrink-0 flex-col gap-2 px-4 pb-2.5 pt-0">
-        {/* En el teléfono (maqueta B) el buscador va siempre a la vista. */}
-        <ListSearch
-          ref={searchRef}
-          autoFocus={searchOpen}
-          className={showSearch ? undefined : "lg:hidden"}
-          onClose={() => setSearchOpen(false)}
-          query={query}
-          onQuery={setQuery}
-          placeholder={phone ? "Buscar chats, contactos o etiquetas" : "Buscar nombre, teléfono o mensaje"}
-          hint={filtroPuesto}
-        />
+      <div
+        className={cn(
+          "inbox-list-top flex shrink-0 flex-col gap-2 px-4 pb-2.5 pt-0",
+          phoneSearching && "hidden",
+        )}
+      >
+        {/* En el teléfono el buscador vive en el encabezado (lupa → caja). */}
+        {!phone && (
+          <ListSearch
+            ref={searchRef}
+            autoFocus={searchOpen}
+            className={showSearch ? undefined : "hidden"}
+            onClose={() => setSearchOpen(false)}
+            query={query}
+            onQuery={setQuery}
+            placeholder={
+              phone
+                ? "Buscar chats, contactos o etiquetas"
+                : "Buscar nombre, teléfono o mensaje"
+            }
+            hint={filtroPuesto}
+          />
+        )}
         <div className="inbox-filter-strip flex items-center gap-1.5">
-          <div role="group" aria-label="Mostrar" className="inbox-quick-filters flex flex-wrap items-center gap-1.5">
+          <div
+            role="group"
+            aria-label="Mostrar"
+            className="inbox-quick-filters flex flex-wrap items-center gap-1.5"
+          >
             {quick.map((q) => (
               <button
                 key={q.id}
@@ -478,12 +575,21 @@ export const ConversationList = memo(function ConversationList({
                 className={cn(
                   "h-[26px] rounded-full border px-2.5 text-[12.5px] font-medium transition-colors",
                   FOCO_SEPARADO,
-                  q.on ? "border-brand-soft bg-brand-tint text-brand-ink" : "text-text-2 hover:bg-accent"
+                  q.on
+                    ? "border-brand-soft bg-brand-tint text-brand-ink"
+                    : "text-text-2 hover:bg-accent",
                 )}
               >
                 {q.label}
-                {(q.id === "unread" || q.id === "groups") && (q.id === "groups" ? counts?.groupUnread ?? 0 : counts?.unread ?? 0) > 0 ? (
-                  <b className="ml-1 font-semibold text-brand-text">{q.id === "groups" ? counts?.groupUnread ?? 0 : counts?.unread ?? 0}</b>
+                {(q.id === "unread" || q.id === "groups") &&
+                (q.id === "groups"
+                  ? (counts?.groupUnread ?? 0)
+                  : (counts?.unread ?? 0)) > 0 ? (
+                  <b className="ml-1 font-semibold text-brand-text">
+                    {q.id === "groups"
+                      ? (counts?.groupUnread ?? 0)
+                      : (counts?.unread ?? 0)}
+                  </b>
                 ) : null}
               </button>
             ))}
@@ -497,15 +603,24 @@ export const ConversationList = memo(function ConversationList({
                     key={ch}
                     onClick={() => setInbox(on ? "all" : ch)}
                     aria-pressed={on}
-                    title={on ? "Ver todas las bandejas" : `Ver solo ${CHANNEL_LABEL[ch]}`}
+                    title={
+                      on
+                        ? "Ver todas las bandejas"
+                        : `Ver solo ${CHANNEL_LABEL[ch]}`
+                    }
                     className={cn(
                       "flex items-center gap-0.5 rounded-full border py-[3px] pl-[5px] pr-1.5 text-[11.5px] font-medium transition-colors",
                       FOCO_SEPARADO,
-                      on ? "border-brand bg-brand-veil text-foreground" : "text-text-3 hover:bg-accent",
-                      inbox !== "all" && !on && "opacity-45"
+                      on
+                        ? "border-brand bg-brand-veil text-foreground"
+                        : "text-text-3 hover:bg-accent",
+                      inbox !== "all" && !on && "opacity-45",
                     )}
                   >
-                    <ChannelBadge channel={ch} className="h-[13px] w-[13px] rounded-[4px]" />
+                    <ChannelBadge
+                      channel={ch}
+                      className="h-[13px] w-[13px] rounded-[4px]"
+                    />
                     {inboxCount(ch)}
                   </button>
                 );
@@ -530,7 +645,9 @@ export const ConversationList = memo(function ConversationList({
         <div className="space-y-2 border-b bg-subtle px-4 py-2.5">
           <div className="flex items-center justify-between gap-2">
             <span className="text-[12.5px] font-semibold">
-              {picked.size === 1 ? "1 seleccionado" : `${picked.size} seleccionados`}
+              {picked.size === 1
+                ? "1 seleccionado"
+                : `${picked.size} seleccionados`}
             </span>
             <Button size="sm" variant="ghost" onClick={stopSelecting}>
               Cancelar
@@ -558,11 +675,13 @@ export const ConversationList = memo(function ConversationList({
               {bulkBusy ? "Asignando…" : "Asignar"}
             </Button>
           </div>
-          {bulkError && <p className="text-[11px] text-danger-text">{bulkError}</p>}
+          {bulkError && (
+            <p className="text-[11px] text-danger-text">{bulkError}</p>
+          )}
         </div>
       </Collapse>
 
-      <div ref={scrollRef} className="flex-1 overflow-y-auto">
+      <div ref={scrollRef} className="inbox-scroll flex-1 overflow-y-auto">
         {loading || (visible.length === 0 && pending) ? (
           <p className="p-6 text-center text-xs text-text-3">Cargando…</p>
         ) : visible.length === 0 && sinRegistrar ? (
@@ -576,7 +695,10 @@ export const ConversationList = memo(function ConversationList({
               onSelect(id);
             }}
           />
-        ) : counts?.total === 0 && campaignCount === 0 && !showCampaigns && !showGroups ? (
+        ) : counts?.total === 0 &&
+          campaignCount === 0 &&
+          !showCampaigns &&
+          !showGroups ? (
           <EmptyState onSeeded={onSeeded} />
         ) : visible.length === 0 && (hasMore || counts === null) ? (
           <p className="p-6 text-center text-xs text-text-3">Cargando…</p>
@@ -644,7 +766,7 @@ export const ConversationList = memo(function ConversationList({
             setSearchOpen(true);
             searchRef.current?.focus();
           }}
-          className="absolute bottom-4 right-4 z-10 grid h-14 w-14 place-items-center rounded-2xl bg-brand text-brand-fg shadow-[0_6px_16px_color-mix(in_srgb,var(--accent)_35%,transparent)] transition-transform active:scale-95 lg:hidden"
+          className="absolute bottom-[calc(94px+env(safe-area-inset-bottom))] right-4 z-10 grid h-14 w-14 place-items-center rounded-2xl bg-brand text-brand-fg shadow-[0_6px_16px_color-mix(in_srgb,var(--accent)_35%,transparent)] transition-transform active:scale-95 lg:hidden"
         >
           <MessageSquarePlus className="h-6 w-6" strokeWidth={1.8} />
         </button>
@@ -675,7 +797,7 @@ function VirtualRows({
   renderRow: (
     c: ConversationDto,
     v: VirtualItem,
-    measureRef: (el: HTMLElement | null) => void
+    measureRef: (el: HTMLElement | null) => void,
   ) => ReactNode;
 }) {
   const virtualizer = useVirtualizer({
@@ -719,7 +841,8 @@ function VirtualRows({
         if (a.top >= b.top && a.bottom <= b.bottom) return;
       }
       virtualizer.scrollToIndex(i, { align: "auto" });
-      if (intentos > 0) cuadro = requestAnimationFrame(() => traer(intentos - 1));
+      if (intentos > 0)
+        cuadro = requestAnimationFrame(() => traer(intentos - 1));
     };
     traer(10);
     return () => cancelAnimationFrame(cuadro);
@@ -733,17 +856,22 @@ function VirtualRows({
   const focoPendiente = useRef<number | null>(null);
   function onListKeyDown(e: KeyboardEvent<HTMLUListElement>) {
     if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
-    const desde = (e.target as HTMLElement).closest<HTMLElement>("[data-index]");
+    const desde = (e.target as HTMLElement).closest<HTMLElement>(
+      "[data-index]",
+    );
     if (!desde || !(e.target as HTMLElement).matches("[data-row-main]")) return;
     const base = focoPendiente.current ?? Number(desde.dataset.index);
-    const i = Math.min(Math.max(base + (e.key === "ArrowDown" ? 1 : -1), 0), visible.length - 1);
+    const i = Math.min(
+      Math.max(base + (e.key === "ArrowDown" ? 1 : -1), 0),
+      visible.length - 1,
+    );
     e.preventDefault();
     focoPendiente.current = i;
     virtualizer.scrollToIndex(i, { align: "auto" });
     const enfocar = (intentos: number) => {
       if (focoPendiente.current !== i) return; // ya se pidió otra
       const btn = scrollRef.current?.querySelector<HTMLElement>(
-        `[data-index="${i}"] [data-row-main]`
+        `[data-index="${i}"] [data-row-main]`,
       );
       if (btn || intentos === 0) {
         focoPendiente.current = null;
@@ -820,7 +948,10 @@ const ConversationRow = memo(function ConversationRow({
   onPatchRow: PatchRow;
   onRefetch: () => void;
   onError: (message: string) => void;
-  onOpenMenu: (target: Pick<ConversationDto, "id" | "archivedAt">, anchor: MenuAnchor) => void;
+  onOpenMenu: (
+    target: Pick<ConversationDto, "id" | "archivedAt">,
+    anchor: MenuAnchor,
+  ) => void;
 }) {
   const unread = c.unreadCount > 0;
   // Clic derecho (escritorio) y pulsación larga (touch) abren el MISMO menú.
@@ -854,7 +985,9 @@ const ConversationRow = memo(function ConversationRow({
           "transition-colors duration-150",
           longPressClass,
           // Ronda 3 (.lrow.on): fondo del acento y raya de 3 px a la izquierda.
-          active ? "bg-[var(--accent-wash)] shadow-[inset_3px_0_0_var(--accent)]" : "hover:bg-row-hover"
+          active
+            ? "bg-[var(--accent-wash)] shadow-[inset_3px_0_0_var(--accent)]"
+            : "hover:bg-row-hover",
         )}
       >
         <button
@@ -863,7 +996,7 @@ const ConversationRow = memo(function ConversationRow({
           aria-pressed={selecting ? picked : undefined}
           className={cn(
             "flex w-full items-start gap-3 px-4 pb-0 pt-2.5 text-left",
-            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
           )}
         >
           {selecting && (
@@ -877,7 +1010,11 @@ const ConversationRow = memo(function ConversationRow({
             />
           )}
           <span className="row-avatar relative shrink-0">
-            <ContactAvatar name={contactLabel(c.contact)} seed={c.contact.id} size="md" />
+            <ContactAvatar
+              name={contactLabel(c.contact)}
+              seed={c.contact.id}
+              size="md"
+            />
             {aiBadge !== "none" && (
               // El robot en un círculo blanco en la esquina del avatar: verde =
               // la IA atiende, naranja = en pausa o esperando a una persona.
@@ -888,11 +1025,13 @@ const ConversationRow = memo(function ConversationRow({
                 data-ai-badge={aiBadge}
                 className={cn(
                   "absolute -bottom-[3px] -right-[3px] grid h-[18px] w-[18px] place-items-center rounded-full bg-surface",
-                  aiOn ? "text-success-text" : "text-warning-text"
+                  aiOn ? "text-success-text" : "text-warning-text",
                 )}
               >
                 <Bot className="h-3 w-3" strokeWidth={1.75} aria-hidden />
-                <span className={cn("sr-only", aiOn ? "bg-success" : "bg-warning")} />
+                <span
+                  className={cn("sr-only", aiOn ? "bg-success" : "bg-warning")}
+                />
               </span>
             )}
           </span>
@@ -900,7 +1039,10 @@ const ConversationRow = memo(function ConversationRow({
             <span className="flex items-baseline justify-between gap-2">
               <span className="flex min-w-0 items-center gap-1.5 self-center">
                 {multiChannel && <ChannelBadge channel={c.channel} />}
-                <span data-row-name className="truncate text-[13.5px] font-medium leading-5 text-foreground">
+                <span
+                  data-row-name
+                  className="truncate text-[13.5px] font-medium leading-5 text-foreground"
+                >
                   {contactLabel(c.contact)}
                 </span>
               </span>
@@ -908,14 +1050,20 @@ const ConversationRow = memo(function ConversationRow({
                 data-row-time
                 className={cn(
                   "shrink-0 text-[11.5px] leading-4 tabular-nums",
-                  unread ? "font-semibold text-brand-ink" : "text-text-3"
+                  unread ? "font-semibold text-brand-ink" : "text-text-3",
                 )}
               >
                 <RowTime iso={c.lastMessageAt} />
               </span>
             </span>
             <span className="mt-0.5 flex items-center justify-between gap-2">
-              <span data-row-preview className={cn("truncate text-[13px] leading-5", unread ? "text-foreground" : "text-text-3")}>
+              <span
+                data-row-preview
+                className={cn(
+                  "truncate text-[13px] leading-5",
+                  unread ? "text-foreground" : "text-text-3",
+                )}
+              >
                 {previewText(c.preview)}
               </span>
               {unread && (
@@ -929,7 +1077,13 @@ const ConversationRow = memo(function ConversationRow({
         {/* Alineadas con el texto (avatar de 36 px + 12 px = 64 px). */}
         <div className="relative flex flex-col gap-1 pb-2 pl-16 pr-4 pt-0.5">
           <div className="flex min-w-0 items-center gap-1.5">
-            <StageCapsule conversation={c} stages={stages} onPatch={onPatchRow} onRefetch={onRefetch} onError={onError} />
+            <StageCapsule
+              conversation={c}
+              stages={stages}
+              onPatch={onPatchRow}
+              onRefetch={onRefetch}
+              onError={onError}
+            />
             <TagsCapsule
               conversation={c}
               catalog={tagCatalog}
@@ -945,7 +1099,11 @@ const ConversationRow = memo(function ConversationRow({
                 title={`Atiende: ${c.assignee.name}`}
                 className="ml-auto inline-flex h-5 max-w-[7rem] shrink-0 items-center gap-1 rounded-full border border-border-strong bg-surface py-0 pl-0.5 pr-2 text-[11px] leading-none text-text-2"
               >
-                <ContactAvatar name={c.assignee.name} size="xs" className="h-4 w-4 text-[8px]" />
+                <ContactAvatar
+                  name={c.assignee.name}
+                  size="xs"
+                  className="h-4 w-4 text-[8px]"
+                />
                 <span className="truncate">{shortName(c.assignee.name)}</span>
               </span>
             )}
@@ -956,7 +1114,9 @@ const ConversationRow = memo(function ConversationRow({
               className={cn(
                 CHIP,
                 "self-start",
-                c.campaign.state === "replied" ? "bg-brand-tint text-brand-text" : "bg-chip text-text-2"
+                c.campaign.state === "replied"
+                  ? "bg-brand-tint text-brand-text"
+                  : "bg-chip text-text-2",
               )}
             >
               <Send className="h-3 w-3 shrink-0" strokeWidth={2} />
@@ -997,7 +1157,7 @@ function RowTime({ iso }: { iso: string | null }) {
   const enNavegador = useSyncExternalStore(
     sinSuscripcion,
     () => true,
-    () => false
+    () => false,
   );
   return <>{enNavegador ? formatTime(iso) : ""}</>;
 }
