@@ -1,0 +1,72 @@
+name: Android (APK y AAB)
+
+# Se corre a mano: Actions → «Android (APK y AAB)» → Run workflow.
+# Necesita dos secretos del repositorio: ANDROID_KEYSTORE_B64 y ANDROID_KEY_PASSWORD
+# (ver android/README.md). Deja el .apk y el .aab en una Release.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Versión (ej. 1.0.0)"
+        default: "1.0.0"
+      code:
+        description: "Número de versión (sube 1 en cada build)"
+        default: "1"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Instalar Bubblewrap
+        run: npm install -g @bubblewrap/cli@1.24.1
+      - name: Configurar Bubblewrap
+        run: |
+          mkdir -p ~/.bubblewrap
+          cat > ~/.bubblewrap/config.json <<JSON
+          {"jdkPath":"$JAVA_HOME","androidSdkPath":"$ANDROID_HOME"}
+          JSON
+      - name: Preparar proyecto y firma
+        env:
+          KS: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+        run: |
+          test -n "$KS" || { echo "Falta el secreto ANDROID_KEYSTORE_B64"; exit 1; }
+          mkdir -p build-android && cp android/twa-manifest.json build-android/
+          cd build-android
+          echo "$KS" | base64 -d > dashfort-firma.jks
+          sed -i "s/\"appVersion\": \"[^\"]*\"/\"appVersion\": \"${{ inputs.version }}\"/; s/\"appVersionCode\": [0-9]*/\"appVersionCode\": ${{ inputs.code }}/" twa-manifest.json
+      - name: Generar y construir
+        working-directory: build-android
+        env:
+          BUBBLEWRAP_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          BUBBLEWRAP_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          yes | bubblewrap update --skipVersionUpgrade --manifest=twa-manifest.json
+          yes | bubblewrap build --skipPwaValidation --manifest=twa-manifest.json
+          ls -la
+      - name: Publicar en Release
+        working-directory: build-android
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mv app-release-signed.apk dashfort.apk
+          mv app-release-bundle.aab dashfort.aab
+          gh release create "android-v${{ inputs.version }}-${{ inputs.code }}" dashfort.apk dashfort.aab \
+            --title "Dashfort Android ${{ inputs.version }}" --notes "APK para instalar directo y AAB para Play Store."
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dashfort-android
+          path: |
+            build-android/dashfort.apk
+            build-android/dashfort.aab
