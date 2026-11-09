@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { MoreHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -16,6 +17,10 @@ import { pathWithin, type NavEntries } from "@/lib/modules/nav-layout";
 export function MobileTabBar({ nav, onMore }: { nav?: NavEntries; onMore: () => void }) {
   const pathname = usePathname();
   const unread = useInboxUnread();
+  // Al tocar una pestaña se marca AL INSTANTE, como en WhatsApp, sin esperar
+  // a que el servidor mande la pantalla; al llegar, manda la ruta de verdad.
+  const [tapped, setTapped] = useState<string | null>(null);
+  useEffect(() => setTapped(null), [pathname]);
   const keys = (nav?.keys ?? ["inbox", "pipeline"]).slice(0, 4);
   const items = keys.map((k) => navItemOf(k, nav?.hrefs?.[k]));
   return (
@@ -24,12 +29,15 @@ export function MobileTabBar({ nav, onMore }: { nav?: NavEntries; onMore: () => 
       className="mobile-tabbar flex shrink-0 items-stretch border-t bg-surface pb-[env(safe-area-inset-bottom)] lg:hidden"
     >
       {items.map((item) => {
-        const active = [item.href, ...(item.alsoActive ?? [])].some((r) => pathWithin(r, pathname));
+        const active = tapped
+          ? tapped === item.href
+          : [item.href, ...(item.alsoActive ?? [])].some((r) => pathWithin(r, pathname));
         const Icon = item.icon;
         return (
           <Link
             key={item.href}
             href={item.href}
+            onClick={() => setTapped(item.href)}
             aria-current={active ? "page" : undefined}
             className={cn(
               "relative flex min-h-14 flex-1 flex-col items-center justify-center gap-0.5 text-[11px] font-medium",

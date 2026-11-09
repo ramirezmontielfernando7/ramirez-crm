@@ -40,3 +40,21 @@ export function normalizeThemePreference(
 export function nextThemePreference(current: ThemePreference): ThemePreference {
   return current === "dark" ? "light" : "dark";
 }
+
+/**
+ * Color de la barra de estado del teléfono (meta `theme-color`, y la del APK).
+ * Igual que la superficie de arriba de la app, como WhatsApp: blanco en claro
+ * y la superficie oscura en oscuro, nunca el color de la marca.
+ */
+export const THEME_BAR_COLOR: Record<ThemePreference, string> = {
+  light: "#ffffff",
+  dark: "#1c263c",
+};
+
+/** Cambia la barra de estado al vuelo (al cambiar de tema sin recargar). */
+export function applyThemeBarColor(theme: ThemePreference): void {
+  if (typeof document === "undefined") return;
+  document
+    .querySelectorAll('meta[name="theme-color"]')
+    .forEach((m) => m.setAttribute("content", THEME_BAR_COLOR[theme]));
+}

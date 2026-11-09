@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { eq } from "drizzle-orm";
 import { runWithOrganization } from "@/lib/request-context";
 import { getDb, schema } from "@/lib/db";
@@ -36,7 +37,11 @@ function parseMetadata(metadata: string | null): Record<string, unknown> {
  * organización": eso le enseñaba el nombre y el logo de un cliente a
  * cualquiera que abriera el login.
  */
-export async function getBrandingContext(
+/** Una lectura por petición aunque la pidan el layout raíz, sus metadatos y
+ *  el de la app (`cache` no guarda nada fuera de un render de servidor). */
+export const getBrandingContext = cache(readBrandingContext);
+
+async function readBrandingContext(
   organizationId?: string | null
 ): Promise<{ organizationId: string | null; branding: Branding }> {
   if (!organizationId) return { organizationId: null, branding: PLATFORM_BRANDING };

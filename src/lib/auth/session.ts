@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { headers } from "next/headers";
 import { getAuth } from "@/lib/auth";
 import { can, type Permission } from "@/lib/auth/permissions";
@@ -52,8 +53,22 @@ export function sessionContext(
  * Lanza UnauthorizedError si no hay sesión u organización.
  */
 export async function requireSession(): Promise<SessionContext> {
-  const auth = getAuth();
-  const session = await auth.api.getSession({ headers: await headers() });
+  return requireSessionOnce();
+}
+
+/**
+ * La sesión de Better Auth de ESTA petición. Con `cache` de React, una
+ * pantalla la consulta una sola vez aunque la pidan el layout raíz, el de la
+ * app, la página y la marca (antes eran 5 lecturas de sesión por pantalla).
+ * Fuera de un render de servidor (rutas de API) `cache` no guarda nada y se
+ * consulta como siempre.
+ */
+export const getAuthSession = cache(async () =>
+  getAuth().api.getSession({ headers: await headers() })
+);
+
+const requireSessionOnce = cache(async (): Promise<SessionContext> => {
+  const session = await getAuthSession();
   if (!session) throw new UnauthorizedError();
   // La sesión puede crearse antes de que la membresía exista (registro
   // inicial) — la membresía en BD es la fuente de verdad de org + rol. H4:
@@ -79,7 +94,7 @@ export async function requireSession(): Promise<SessionContext> {
       delegatedGrants(membership.organizationId, membership.role)
     )
   );
-}
+});
 
 /** Igual que requireSession pero devuelve null en vez de lanzar. */
 export async function getSessionOrNull(): Promise<SessionContext | null> {
