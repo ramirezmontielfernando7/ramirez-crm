@@ -43,6 +43,8 @@ import {
   esFormatoPropio,
   libpqEnv,
   nombreBasePrueba,
+  PREFIJO_PRUEBA,
+  pruebasHuerfanas,
   tamano,
   triosCifrados,
 } from "./lib/respaldos-core.mjs";
@@ -209,6 +211,15 @@ async function main() {
     console.log(`${ok ? "✔" : "✘"} ${texto}`);
   };
   try {
+    // Lo que dejó una prueba interrumpida (terminal cerrada, reinicio): se borra
+    // antes de empezar para que no se quede ocupando disco. Mismo candado.
+    const viejas = await admin`select datname from pg_database where datname like ${PREFIJO_PRUEBA + "%"}`;
+    for (const vieja of pruebasHuerfanas(viejas.map((r) => r.datname))) {
+      const n = assertBaseDePrueba(vieja, baseProduccion);
+      await admin`select pg_terminate_backend(pid) from pg_stat_activity where datname = ${n} and pid <> pg_backend_pid()`;
+      await admin.unsafe(`drop database if exists "${n}"`);
+      console.log(`· Se borró ${n}, que una prueba anterior dejó a medias.`);
+    }
     await admin.unsafe(`create database "${assertBaseDePrueba(nombre, baseProduccion)}"`);
     creada = true;
     console.log(`Base temporal: ${nombre} (en ${envServidor.PGHOST}; se borra al terminar)`);

@@ -91,6 +91,23 @@ export function assertBaseDePrueba(nombre, baseDeProduccion) {
 }
 
 /**
+ * Bases temporales que una prueba ANTERIOR dejó sin borrar (la terminal se
+ * cerró o el contenedor se reinició a media prueba): cada una es una copia
+ * entera de la base ocupando disco. Solo las de nombre exacto
+ * `vocero_prueba_restauracion_AAAAMMDD_HHMMSS` con más de `minutos` de
+ * antigüedad; una prueba que quizá sigue corriendo no se toca.
+ */
+export function pruebasHuerfanas(nombres, ahora = new Date(), minutos = 60) {
+  const re = new RegExp(`^${PREFIJO_PRUEBA}(\\d{4})(\\d{2})(\\d{2})_(\\d{2})(\\d{2})(\\d{2})$`);
+  return nombres.filter((n) => {
+    const m = re.exec(String(n));
+    if (!m) return false;
+    const t = Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6]);
+    return Number.isFinite(t) && ahora.getTime() - t > minutos * 60_000;
+  });
+}
+
+/**
  * Qué respaldos borrar para quedarse con los `guardar` más nuevos DE CADA
  * TIPO: los que traen la base (`.dump`) y los de solo archivos
  * (`-media.tar.gz` sin `.dump`). Solo cuenta archivos nuestros

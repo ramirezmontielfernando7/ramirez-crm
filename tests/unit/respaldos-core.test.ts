@@ -8,6 +8,7 @@ import {
   nombreBasePrueba,
   nombreRespaldo,
   problemaDeVersion,
+  pruebasHuerfanas,
   triosCifrados,
   versionMayor,
 } from "../../scripts/lib/respaldos-core.mjs";
@@ -54,6 +55,22 @@ describe("respaldos: reglas puras", () => {
       /no es un nombre de base válido/
     );
     expect(() => assertBaseDePrueba("vocero_prueba_restauracion_1", "vocero_prueba_restauracion_1")).toThrow(/producción/);
+  });
+
+  it("solo son huérfanas las bases de prueba de nombre exacto y con más de una hora", () => {
+    const ahora = new Date("2026-10-20T05:00:00Z");
+    expect(
+      pruebasHuerfanas(
+        [
+          "vocero_prueba_restauracion_20261020_030405", // hace 2 h: huérfana
+          "vocero_prueba_restauracion_20261020_043000", // hace 30 min: quizá sigue corriendo
+          "vocero_prueba_restauracion_mia", // no la hizo el guion
+          "vocero",
+          "postgres",
+        ],
+        ahora
+      )
+    ).toEqual(["vocero_prueba_restauracion_20261020_030405"]);
   });
 
   it("la limpieza conserva los N más nuevos y jamás toca archivos ajenos", () => {
