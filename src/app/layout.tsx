@@ -56,7 +56,8 @@ export const dynamic = "force-dynamic";
 export async function generateViewport(): Promise<Viewport> {
   const jar = await cookies();
   const theme = normalizeThemePreference(jar.get(THEME_COOKIE)?.value);
-  return { themeColor: THEME_BAR_COLOR[theme] };
+  // resizes-content: con el teclado abierto el marco se encoge y el compositor sigue a la vista.
+  return { themeColor: THEME_BAR_COLOR[theme], interactiveWidget: "resizes-content" };
 }
 
 export async function generateMetadata(): Promise<Metadata> {

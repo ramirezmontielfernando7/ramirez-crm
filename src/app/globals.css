@@ -1269,6 +1269,11 @@ html[data-lite] .usage-modal { animation: none; }
   .inbox-row [data-row-main] + div button, .inbox-row [data-row-main] + div > div > span { font-size: 12px; }
   .inbox-row [data-row-main] + div > div > button:first-child { height: 22px; border-radius: 11px; background: var(--m-gray); color: #4b5563; padding-inline: 7px 9px; height: 19px; }
   .inbox-row [data-row-main] + div [class*="h-[18px]"] { height: 19px; font-size: 12px; padding-inline: 9px; }
+  /* App instalada: el marco ocupa EXACTO la pantalla visible (position: fixed) y la página
+     no se desliza; antes, con la barra del sistema, el documento crecía unos píxeles y el
+     compositor y la barra de abajo quedaban fuera de vista hasta deslizar. */
+  html:has(.shell-root), body:has(.shell-root) { overflow: hidden; overscroll-behavior: none; }
+  .shell-root { position: fixed; inset: 0; height: auto; }
   /* Nitidez de letras y cápsulas: la etapa cede espacio para que se lea la etiqueta. */
   body { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
   .inbox-row .row-stage { flex-shrink: 1; min-width: 0; max-width: 46%; }
