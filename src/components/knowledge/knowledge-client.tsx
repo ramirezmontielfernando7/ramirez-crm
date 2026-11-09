@@ -156,7 +156,28 @@ export function KnowledgeClient() {
         </p>
       )}
 
-      <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-6">
+      <div className="flex min-h-0 flex-1">
+      {tags.length > 0 && (
+        <aside className="hidden w-56 shrink-0 overflow-y-auto border-r px-3 py-4 md:block" aria-label="Etiquetas de la Biblioteca">
+          <p className="px-2 pb-2 text-[11px] font-medium uppercase tracking-wide text-text-3">Etiquetas</p>
+          {["all", ...tags].map((t) => (
+            <button
+              key={t}
+              type="button"
+              onClick={() => setTag(t)}
+              aria-pressed={tag === t}
+              className={
+                "flex w-full items-center justify-between rounded-md px-2.5 py-2 text-left text-sm transition-colors " +
+                (tag === t ? "bg-brand-tint font-medium text-brand-text" : "text-text-2 hover:bg-accent")
+              }
+            >
+              <span className="truncate">{t === "all" ? "Todo" : t}</span>
+              {t === "all" && <span className="text-xs text-text-3">{entries.length}</span>}
+            </button>
+          ))}
+        </aside>
+      )}
+      <div className="min-w-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6">
         {loaded && entries.length === 0 ? (
           <div className="mx-auto mt-16 max-w-sm text-center">
             <BookOpen className="mx-auto mb-3 h-8 w-8 text-text-3" strokeWidth={1.5} />
@@ -172,9 +193,18 @@ export function KnowledgeClient() {
             </p>
           </div>
         ) : (
-          <ul className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {entries.map((e) => (
-              <li key={e.id} className="flex flex-col rounded-lg border bg-card p-4 shadow-sm" data-testid="knowledge-card" data-title={e.title}>
+              <li key={e.id} className="flex flex-col overflow-hidden rounded-xl border bg-card" data-testid="knowledge-card" data-title={e.title}>
+                <div className="flex h-28 items-center justify-center bg-muted/60">
+                  {e.file?.kind === "image" ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={e.file.url} alt="" className="h-full w-full object-cover" />
+                  ) : (
+                    <FileText className="h-9 w-9 text-text-3" strokeWidth={1.4} />
+                  )}
+                </div>
+                <div className="flex flex-1 flex-col p-4">
                 <div className="flex items-start justify-between gap-2">
                   <h3 className="min-w-0 break-words font-semibold leading-snug">{e.title}</h3>
                   {canManage && (
@@ -259,10 +289,12 @@ export function KnowledgeClient() {
                 <p className="mt-auto pt-3 font-mono text-[10.5px] tracking-[0.04em] text-text-3">
                   Actualizado {DATE.format(new Date(e.updatedAt))}
                 </p>
+                </div>
               </li>
             ))}
           </ul>
         )}
+      </div>
       </div>
 
       {editing && (
