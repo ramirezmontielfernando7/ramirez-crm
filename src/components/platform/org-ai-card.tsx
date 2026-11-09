@@ -272,7 +272,7 @@ export function OrgAiCard({ orgId }: { orgId: string }) {
                   ? "—"
                   : `= ${formatUsd2(usd)}${price ? ` · ${formatMtok(usdToMtok(usd, price))} tokens` : ""}${effectiveCap ? ` · ${Math.round((usd / effectiveCap) * 100)} %` : ""}`;
             return (
-              <li key={fn} className="grid gap-2 py-2 sm:grid-cols-[minmax(0,9rem)_minmax(0,9rem)_minmax(0,7rem)_minmax(0,1fr)_minmax(0,7.5rem)] sm:items-center">
+              <li key={fn} className="grid gap-x-2 gap-y-1 py-2.5 sm:grid-cols-[minmax(0,7.5rem)_minmax(0,1fr)_minmax(0,6.5rem)_minmax(0,7.5rem)] sm:items-center">
                 <span className="text-sm">{label}</span>
                 <select
                   className="h-9 rounded-sm border bg-background px-2 text-sm"
@@ -294,9 +294,6 @@ export function OrgAiCard({ orgId }: { orgId: string }) {
                   onChange={(e) => setFnCaps({ ...fnCaps, [fn]: { ...fnCaps[fn], value: e.target.value } })}
                   data-testid={`platform-org-ai-fncap-${fn}`}
                 />
-                <span className="text-xs text-text-3" data-testid={`platform-org-ai-fneq-${fn}`}>
-                  {eq}
-                </span>
                 <select
                   className="h-9 rounded-sm border bg-background px-2 text-sm"
                   value={fnModes[fn]}
@@ -307,6 +304,10 @@ export function OrgAiCard({ orgId }: { orgId: string }) {
                   <option value="block">Bloquear</option>
                   <option value="warn">Solo avisar</option>
                 </select>
+                {/* El equivalente va en su propia línea: en media tarjeta no cabe como columna. */}
+                <span className="text-xs text-text-3 sm:col-span-3 sm:col-start-2" data-testid={`platform-org-ai-fneq-${fn}`}>
+                  {eq}
+                </span>
               </li>
             );
           })}
@@ -352,7 +353,7 @@ export function OrgAiCard({ orgId }: { orgId: string }) {
             const from = inh.origin === "plan" ? "Del plan" : "De Dashfort";
             const isOwn = draft[MODEL_KEY[fn]] !== null || (fn !== "assistant" && draft[EFFORT_KEY[fn]] !== null);
             return (
-              <li key={fn} className="grid gap-2 py-3 sm:grid-cols-[minmax(0,10rem)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,13rem)] sm:items-center">
+              <li key={fn} className="grid gap-2 py-3 sm:grid-cols-[minmax(0,7.5rem)_minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-center">
                 <span className="text-sm">{label}</span>
                 <ModelSelect
                   value={draft[MODEL_KEY[fn]]}

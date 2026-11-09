@@ -183,7 +183,7 @@ export function LimitsForm({ orgId, onSaved }: { orgId: string; onSaved: () => v
 
       <div className="space-y-2">
         <p className="text-sm font-medium">Qué ve el cliente de su consumo de IA</p>
-        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4" role="radiogroup" aria-label="Qué ve el cliente de su consumo de IA">
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-2" role="radiogroup" aria-label="Qué ve el cliente de su consumo de IA">
           {USAGE_VISIBILITIES.map((v) => (
             <label
               key={v}
@@ -209,7 +209,7 @@ export function LimitsForm({ orgId, onSaved }: { orgId: string; onSaved: () => v
         <p className="text-[11px] text-text-3">Se ve en «Uso y plan», en los avisos y en el asistente. Tú siempre ves todo.</p>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-2">
         {MAIN_FIELDS.map((f) => (
           <FieldInput key={f.key} f={f} orgId={orgId} limits={limits} draft={draft} setDraft={setDraft} />
         ))}
@@ -237,7 +237,7 @@ export function LimitsForm({ orgId, onSaved }: { orgId: string; onSaved: () => v
 
       <details className="rounded-md border px-3 py-2" data-testid="platform-limits-advanced">
         <summary className="cursor-pointer text-sm text-brand-text">Topes de seguridad (avanzado)</summary>
-        <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-2">
           {ADVANCED_FIELDS.map((f) => (
             <FieldInput key={f.key} f={f} orgId={orgId} limits={limits} draft={draft} setDraft={setDraft} />
           ))}
