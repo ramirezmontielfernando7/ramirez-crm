@@ -6,7 +6,10 @@ import { Check, FileText, MoreHorizontal, Pencil, Plus, RefreshCw, Trash2, Uploa
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { SectionTabs, type SectionTab } from "@/components/ui/section-tabs";
+import Link from "next/link";
+import type { SectionTab } from "@/components/ui/section-tabs";
+import { LabActions } from "@/components/lab/lab-shell";
+import { cn } from "@/lib/utils";
 import { FloatingMenu, MenuItem, type MenuAnchor } from "@/components/inbox/floating-menu";
 import { ConfirmDialog } from "@/components/lab/confirm-dialog";
 import { call, formatDate } from "@/components/lab/agents-api";
@@ -172,109 +175,111 @@ export function DocumentsClient({ groupKey: activeKey = GENERAL_GROUP_KEY }: { g
   const atGroupLimit = groups.groups.length - 1 >= groups.maxGroups;
   const tabs: SectionTab[] = groups.groups.map((g) => ({ href: hrefOf(g.id), label: g.name }));
 
+  const fileInput = (
+    <input
+      ref={fileRef}
+      type="file"
+      accept={data.accept}
+      className="hidden"
+      data-testid="kb-docs-file"
+      onChange={(e) => {
+        const f = e.target.files?.[0];
+        if (f) void upload(f);
+      }}
+    />
+  );
+  const cols = "md:grid-cols-[minmax(0,2fr)_110px_120px_130px_minmax(0,1.3fr)_auto]";
+  const readers = (d: DocRow) => (d.agentId ? "Solo un agente (exclusivo)" : active?.id ? `Agentes que leen ${active.name}` : "Todos los agentes");
+
   return (
     <div className="flex h-full min-h-0 flex-col">
-      {/* Subpestañas de grupos + «Grupo» (se desplazan solas en móvil) */}
-      <div className="flex items-end gap-1 border-b px-4 sm:px-6">
-        <div className="min-w-0 flex-1">
-          <SectionTabs tabs={tabs} label="Grupos de documentos" />
-        </div>
+      <LabActions>
         <Button
           size="sm"
-          variant="ghost"
-          className="mb-1 shrink-0"
-          onClick={() => setNaming({ mode: "create" })}
-          disabled={atGroupLimit}
-          title={atGroupLimit ? `Llegaste al máximo de ${groups.maxGroups} grupos` : "Crear un grupo"}
+          onClick={() => fileRef.current?.click()}
+          disabled={uploading || atLimit || !active}
+          title={atLimit ? "Llegaste al máximo de documentos" : undefined}
         >
-          <Plus className="h-4 w-4" /> Grupo
+          <Upload className="h-4 w-4" /> {uploading ? "Subiendo…" : "Subir documento"}
         </Button>
+      </LabActions>
+      {fileInput}
+
+      {/* Grupos en cápsulas (son rutas) + «Grupo»; a la derecha, el uso */}
+      <div className="flex flex-wrap items-center gap-2 border-b px-4 py-2.5 sm:px-6">
+        <nav aria-label="Grupos de documentos" className="flex min-w-0 flex-wrap items-center gap-1.5">
+          {tabs.map((t) => {
+            const on = (t.href === "/lab/documentos" ? activeId === null : hrefOf(activeId) === t.href);
+            return (
+              <Link
+                key={t.href}
+                href={t.href}
+                aria-current={on ? "page" : undefined}
+                className={cn(
+                  "rounded-full border px-3 py-1 text-[13px]",
+                  on ? "border-brand-soft bg-brand-tint font-medium text-brand-ink" : "text-text-2 hover:bg-accent hover:text-foreground"
+                )}
+              >
+                {t.label}
+              </Link>
+            );
+          })}
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-7 rounded-full border border-dashed px-3 text-[13px]"
+            onClick={() => setNaming({ mode: "create" })}
+            disabled={atGroupLimit}
+            title={atGroupLimit ? `Llegaste al máximo de ${groups.maxGroups} grupos` : "Crear un grupo"}
+          >
+            <Plus className="h-3.5 w-3.5" /> Grupo
+          </Button>
+        </nav>
+        <span className="ml-auto text-xs text-text-2">
+          <span data-testid="kb-docs-usage">{plural(data.usage.documents, "documento", "documentos")}</span>
+          {data.usage.exclusive > 0 && (
+            <span data-testid="kb-docs-exclusive"> · {plural(data.usage.exclusive, "exclusivo de un agente", "exclusivos de agentes")}</span>
+          )}
+          {" · "}
+          {data.embeddings.enabled ? "búsqueda por significado y por texto" : "búsqueda por texto"}
+        </span>
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto">
         {!active ? (
-          <div className="mx-auto max-w-3xl p-4 text-sm sm:p-6">
+          <div className="p-4 text-sm sm:p-6">
             <p className="text-muted-foreground">Ese grupo ya no existe.</p>
             <Button className="mt-3" variant="outline" onClick={() => router.push("/lab/documentos")}>
               Ir a General
             </Button>
           </div>
         ) : (
-          <div className="mx-auto max-w-3xl space-y-4 p-4 sm:p-6">
-            <div className="flex items-start gap-2">
-              <div className="min-w-0 flex-1 space-y-1">
-                <h3 className="truncate text-[15px] font-semibold text-foreground" data-testid="kb-group-title">
-                  {active.name}
-                </h3>
-                <p className="text-sm">
-                  Sube manuales, listas de precios, preguntas frecuentes o políticas. Antes de responder, el agente busca
-                  aquí lo que viene al caso. <span className="text-muted-foreground">Tus clientes nunca ven esta pestaña.</span>
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  Formatos: .txt, .md y .pdf con texto (no escaneado), hasta {bytes(data.limits.maxFileBytes)} cada uno. El
-                  contenido se usa como información, nunca como instrucciones para el agente.
-                </p>
-              </div>
+          <div className="space-y-4 p-4 sm:p-6">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+              <h3 className="truncate text-[15px] font-semibold text-foreground" data-testid="kb-group-title">
+                {active.name}
+              </h3>
               {active.id && (
                 <button
                   ref={groupMenuBtn}
                   type="button"
                   aria-label={`Opciones del grupo ${active.name}`}
-                  className="shrink-0 rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+                  className="shrink-0 rounded-md p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
                   onClick={(e) => setGroupMenu({ kind: "rect", rect: e.currentTarget.getBoundingClientRect() })}
                 >
                   <MoreHorizontal className="h-4 w-4" />
                 </button>
               )}
-            </div>
-
-            <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-card px-4 py-3">
-              <div className="text-sm">
-                <span className="font-medium" data-testid="kb-docs-usage">
-                  {plural(data.usage.documents, "documento", "documentos")}
-                </span>
-                <span className="text-muted-foreground">
-                  {data.usage.exclusive > 0 && (
-                    <span data-testid="kb-docs-exclusive"> · {plural(data.usage.exclusive, "exclusivo de un agente", "exclusivos de agentes")}</span>
-                  )}
-                </span>
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  {data.embeddings.enabled
-                    ? "Búsqueda por significado y por texto."
-                    : "Búsqueda por texto (el servicio de embeddings no está configurado)."}
-                </p>
-              </div>
-              <input
-                ref={fileRef}
-                type="file"
-                accept={data.accept}
-                className="hidden"
-                data-testid="kb-docs-file"
-                onChange={(e) => {
-                  const f = e.target.files?.[0];
-                  if (f) void upload(f);
-                }}
-              />
-              <div className="flex flex-wrap items-center gap-3">
-                {data.library.chat && (
-                  <label className="flex items-center gap-2 text-xs text-text-2" data-testid="kb-docs-to-chat">
-                    <Switch
-                      size="sm"
-                      checked={toChat}
-                      label="Disponible en Bandeja para envío rápido de asesores"
-                      onCheckedChange={setToChat}
-                    />
-                    Disponible en Bandeja para envío rápido de asesores
-                  </label>
-                )}
-                <Button
-                  onClick={() => fileRef.current?.click()}
-                  disabled={uploading || atLimit}
-                  title={atLimit ? "Llegaste al máximo de documentos" : undefined}
-                >
-                  <Upload className="h-4 w-4" /> {uploading ? "Subiendo…" : "Subir documento"}
-                </Button>
-              </div>
+              <p className="min-w-0 flex-1 basis-80 text-xs text-text-2">
+                .txt, .md y .pdf con texto (no escaneado), hasta {bytes(data.limits.maxFileBytes)} cada uno. Se usa como información, nunca como
+                instrucciones. Tus clientes nunca ven esto.
+              </p>
+              {data.library.chat && (
+                <label className="flex items-center gap-2 text-xs text-text-2" data-testid="kb-docs-to-chat">
+                  <Switch size="sm" checked={toChat} label="Disponible en Bandeja para envío rápido de asesores" onCheckedChange={setToChat} />
+                  Lo que subas, también disponible en Bandeja
+                </label>
+              )}
             </div>
 
             {error && (
@@ -298,49 +303,80 @@ export function DocumentsClient({ groupKey: activeKey = GENERAL_GROUP_KEY }: { g
                     : "Aún no hay documentos en General."}
               </div>
             ) : (
-              <ul className="divide-y rounded-lg border bg-card" data-testid="kb-docs-list">
-                {data.documents.map((d) => (
-                  <li key={d.id} className="flex items-center gap-x-3 px-4 py-3" data-doc-id={d.id}>
-                    <div className="min-w-0 flex-1">
-                      <span className="flex flex-wrap items-center gap-2">
-                        <span className="truncate font-medium">{d.title}</span>
+              <div className="overflow-hidden rounded-lg border bg-card">
+                <div className={cn("hidden gap-4 border-b bg-subtle px-4 py-2 text-xs font-medium text-text-2 md:grid", cols)}>
+                  <span>Documento</span>
+                  <span>Grupo</span>
+                  <span>Estado</span>
+                  <span>Tamaño para la IA</span>
+                  <span>Quién lo lee</span>
+                  <span className="w-8" />
+                </div>
+                <ul className="divide-y" data-testid="kb-docs-list">
+                  {data.documents.map((d) => (
+                    <li key={d.id} className={cn("grid grid-cols-1 items-center gap-x-4 gap-y-1.5 px-4 py-3", cols)} data-doc-id={d.id}>
+                      <div className="min-w-0">
+                        <span className="flex min-w-0 items-center gap-2">
+                          <FileText className="h-4 w-4 shrink-0 text-destructive" strokeWidth={1.7} />
+                          <span className="truncate text-[14px] font-medium">{d.title}</span>
+                        </span>
+                        <span className="mt-0.5 block truncate pl-6 text-xs text-muted-foreground">
+                          {bytes(d.byteSize)} · {formatDate(d.createdAt)}
+                        </span>
+                        {d.errorMessage && d.status === "failed" && <span className="mt-1 block pl-6 text-xs text-destructive">{d.errorMessage}</span>}
+                        <span className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 pl-6">
+                          <DestinationBadges chat={d.inChat} rag />
+                          {data.library.chat && (
+                            <DestinationToggle
+                              destination="chat"
+                              name={d.title}
+                              checked={d.inChat}
+                              disabled={chatBusy === d.id || (!d.hasOriginal && !d.inChat)}
+                              hint={!d.hasOriginal ? "Se subió solo para la IA: vuelve a subirlo con «Disponible en Bandeja»" : null}
+                              onChange={(next) => void setInChat(d, next)}
+                            />
+                          )}
+                        </span>
+                      </div>
+                      <span>
+                        <span
+                          className={cn(
+                            "rounded-full px-2 py-0.5 text-[11px] font-medium",
+                            d.agentId ? "bg-violet-50 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300" : "bg-muted text-text-2"
+                          )}
+                        >
+                          {d.agentId ? "Exclusivo" : active.name}
+                        </span>
+                      </span>
+                      <span>
                         <Badge variant={badgeVariant(d)} data-testid="kb-doc-status">
                           {d.statusLabel}
                         </Badge>
                       </span>
-                      <span className="mt-0.5 block truncate text-xs text-muted-foreground">
-                        {d.filename} · {bytes(d.byteSize)} · {formatDate(d.createdAt)}
-                        {d.status === "ready" && ` · ${plural(d.chunkCount, "fragmento", "fragmentos")}`}
-                      </span>
-                      {d.errorMessage && d.status === "failed" && (
-                        <span className="mt-1 block text-xs text-destructive">{d.errorMessage}</span>
-                      )}
-                      <span className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1">
-                        <DestinationBadges chat={d.inChat} rag />
-                        {data.library.chat && (
-                          <DestinationToggle
-                            destination="chat"
-                            name={d.title}
-                            checked={d.inChat}
-                            disabled={chatBusy === d.id || (!d.hasOriginal && !d.inChat)}
-                            hint={!d.hasOriginal ? "Se subió solo para la IA: vuelve a subirlo con «Disponible en Bandeja»" : null}
-                            onChange={(next) => void setInChat(d, next)}
-                          />
-                        )}
-                      </span>
-                    </div>
-                    <button
-                      type="button"
-                      aria-label={`Opciones de ${d.title}`}
-                      className="shrink-0 rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
-                      onClick={(e) => setDocMenu({ doc: d, anchor: { kind: "rect", rect: e.currentTarget.getBoundingClientRect() } })}
-                    >
-                      <MoreHorizontal className="h-4 w-4" />
-                    </button>
-                  </li>
-                ))}
-              </ul>
+                      <span className="text-xs text-text-2">{d.status === "ready" ? plural(d.chunkCount, "fragmento", "fragmentos") : "—"}</span>
+                      <span className="truncate text-[13px]">{readers(d)}</span>
+                      <button
+                        type="button"
+                        aria-label={`Opciones de ${d.title}`}
+                        className="shrink-0 justify-self-end rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+                        onClick={(e) => setDocMenu({ doc: d, anchor: { kind: "rect", rect: e.currentTarget.getBoundingClientRect() } })}
+                      >
+                        <MoreHorizontal className="h-4 w-4" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             )}
+
+            <div className="grid gap-3 md:grid-cols-3">
+              <InfoCard title="¿Qué es?">
+                La IA busca aquí antes de contestar: manuales, precios, preguntas frecuentes o políticas. Si no encuentra, pasa el chat a una
+                persona.
+              </InfoCard>
+              <InfoCard title="Exclusivos">Un documento puede ser solo de un agente (por ejemplo, su guion). Se sube desde el editor del agente.</InfoCard>
+              <InfoCard title="Desde la Biblioteca">Lo que marques con «Lectura IA» en la Biblioteca aparece aquí solo.</InfoCard>
+            </div>
           </div>
         )}
       </div>
@@ -604,5 +640,14 @@ function DeleteGroupDialog({
       )}
       {error && <p role="alert" className="text-destructive">{error}</p>}
     </ConfirmDialog>
+  );
+}
+
+function InfoCard({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="rounded-lg border bg-card px-4 py-3">
+      <p className="text-[13px] font-semibold">{title}</p>
+      <p className="mt-1 text-xs text-text-2">{children}</p>
+    </div>
   );
 }

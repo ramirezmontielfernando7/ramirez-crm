@@ -8,10 +8,12 @@ import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { ArchiveExclusiveDocsChoice } from "@/components/lab/agent-doc-sources";
-import { PAUSE_CHANGED_EVENT } from "@/components/lab/agent-pause-bar";
+import { PAUSE_CHANGED_EVENT, PauseAllButton } from "@/components/lab/agent-pause-bar";
+import { LabActions } from "@/components/lab/lab-shell";
+import type { AgentStatsDto } from "@/server/agents/stats";
 import { Switch } from "@/components/ui/switch";
 import { ConfirmDialog } from "@/components/lab/confirm-dialog";
-import { call, formatDate, NO_NAME_LABEL, STATUS_LABEL, type AgentSummary } from "@/components/lab/agents-api";
+import { call, type AgentSummary } from "@/components/lab/agents-api";
 
 type StageView = { stageName: string; agent: { id: string } | null };
 
@@ -33,6 +35,8 @@ export function AgentsList() {
   const [data, setData] = useState<Listing | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [stages, setStages] = useState<StageView[]>([]);
+  const [stats, setStats] = useState<AgentStatsDto | null>(null);
+  const [aiPercent, setAiPercent] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [toArchive, setToArchive] = useState<AgentSummary | null>(null);
@@ -47,6 +51,11 @@ export function AgentsList() {
     } else setLoadError(r.message);
     const st = await call<{ stages: StageView[] }>("/api/lab/assignments");
     if (st.ok) setStages(st.data.stages);
+    const sx = await call<AgentStatsDto>("/api/lab/agents/stats");
+    if (sx.ok) setStats(sx.data);
+    // Solo el Propietario ve «Uso y plan»; a los demás la tarjeta no aparece.
+    const u = await call<{ usage: { ai: { total: { percent: number | null } } } }>("/api/usage");
+    setAiPercent(u.ok ? u.data.usage.ai.total.percent : null);
   }, []);
 
   useEffect(() => {
@@ -126,8 +135,31 @@ export function AgentsList() {
     );
   }
 
+  const statFor = (a: AgentSummary) => {
+    const own = stats?.perAgent[a.id] ?? { chats: 0, resolved: 0 };
+    if (!a.isGeneral || !stats) return own;
+    return { chats: own.chats + stats.unassigned.chats, resolved: own.resolved + stats.unassigned.resolved };
+  };
+  const trend =
+    stats && stats.totals.previousChats > 0
+      ? Math.round(((stats.totals.chats - stats.totals.previousChats) / stats.totals.previousChats) * 100)
+      : null;
+  const handedPct = stats && stats.totals.chats > 0 ? Math.round((stats.totals.handedOff / stats.totals.chats) * 100) : null;
+  const cols = "md:grid-cols-[minmax(0,2fr)_150px_minmax(0,1.5fr)_90px_150px_auto]";
+
   return (
     <div className="h-full overflow-y-auto">
+      <LabActions>
+        <Button
+          size="sm"
+          onClick={() => void startCreator({})}
+          disabled={atLimit || busy}
+          title={atLimit ? "Llegaste al máximo de agentes" : undefined}
+          data-testid="create-agent"
+        >
+          <Sparkles className="h-4 w-4" /> Crear agente
+        </Button>
+      </LabActions>
       <div className="flex flex-wrap items-center gap-3 border-b px-5 py-3 sm:px-6">
         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-brand-soft text-brand-text">
           <Bot className="h-[18px] w-[18px]" strokeWidth={1.7} />
@@ -137,17 +169,10 @@ export function AgentsList() {
           <p className="text-xs text-text-2">
             {data.orgPaused
               ? "Los chats pasan a una persona hasta que la reanudes."
-              : `${published} ${published === 1 ? "agente publicado" : "agentes publicados"} · ${data.agents.length} de ${data.maxAgents} agentes`}
+              : `${published} ${published === 1 ? "agente publicado respondió" : "agentes publicados respondieron"} ${stats?.totals.chats ?? 0} chats esta semana · si la pausas, los chats pasan a una persona`}
           </p>
         </div>
-        <Button
-          onClick={() => void startCreator({})}
-          disabled={atLimit || busy}
-          title={atLimit ? "Llegaste al máximo de agentes" : undefined}
-          data-testid="create-agent"
-        >
-          <Sparkles className="h-4 w-4" /> Crear agente
-        </Button>
+        <PauseAllButton />
       </div>
 
       <div className="space-y-4 p-4 sm:p-6">
@@ -158,18 +183,22 @@ export function AgentsList() {
         )}
 
         <div role="table" aria-label="Agentes" className="overflow-hidden rounded-lg border bg-card">
-          <div role="row" className="hidden grid-cols-[minmax(0,2fr)_150px_minmax(0,1.5fr)_130px_auto] gap-4 border-b bg-subtle px-4 py-2 text-xs font-medium text-text-2 md:grid">
+          <div role="row" className={cn("hidden gap-4 border-b bg-subtle px-4 py-2 text-xs font-medium text-text-2 md:grid", cols)}>
             <span>Agente</span>
             <span>Estado</span>
             <span>Atiende</span>
-            <span>Evaluación</span>
-            <span className="w-[210px]" />
+            <span>Chats (7 días)</span>
+            <span>Resueltos sin persona</span>
+            <span className="w-[150px]" />
           </div>
-          {data.agents.map((a) => (
+          {data.agents.map((a) => {
+            const st = statFor(a);
+            const pct = st.chats > 0 ? Math.round((st.resolved / st.chats) * 100) : null;
+            return (
             <div
               key={a.id}
               role="row"
-              className="grid grid-cols-1 items-center gap-x-4 gap-y-2 border-b px-4 py-3 last:border-b-0 md:grid-cols-[minmax(0,2fr)_150px_minmax(0,1.5fr)_130px_auto]"
+              className={cn("grid grid-cols-1 items-center gap-x-4 gap-y-2 border-b px-4 py-3 last:border-b-0", cols)}
             >
               <Link href={`/lab/agents/${a.id}`} className="flex min-w-0 items-center gap-3 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring">
                 <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-brand-soft text-brand-text">
@@ -178,24 +207,35 @@ export function AgentsList() {
                 <span className="min-w-0">
                   <span className="block truncate text-[14px] font-semibold">{a.internalName}</span>
                   <span className="block truncate text-xs text-text-2">
-                    {a.isGeneral ? "General" : (a.displayName ?? NO_NAME_LABEL)}
+                    {a.isGeneral ? "General" : `Etapa: ${servesLabel(a, stages)}`}
                   </span>
                 </span>
               </Link>
-              <span className="flex flex-wrap items-center gap-1.5">
-                <Badge variant={a.status === "published" ? "success" : a.status === "changes" ? "warning" : "secondary"}>
-                  {STATUS_LABEL[a.status]}
-                </Badge>
-                {a.paused && <Badge variant="destructive">Apagado</Badge>}
+              <span className="flex flex-col items-start gap-1">
+                <span className="flex flex-wrap items-center gap-1.5">
+                  <Badge variant={a.status === "draft" ? "secondary" : "success"}>
+                    {a.status === "draft" ? "Borrador" : "Publicado"}
+                  </Badge>
+                  {a.paused && <Badge variant="destructive">Apagado</Badge>}
+                </span>
+                {a.status === "changes" && (
+                  <span className="flex items-center gap-1 text-[11px] text-warning-text">
+                    <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-warning" /> borrador con cambios
+                  </span>
+                )}
               </span>
               <span className="truncate text-[13px] text-text-2">{servesLabel(a, stages)}</span>
-              <span className="text-xs text-text-2">
-                {a.lastRun ? (
-                  <>
-                    <span className="font-semibold text-foreground">{a.lastRun.score ?? "—"}</span> · {formatDate(a.lastRun.at)}
-                  </>
+              <span className="text-[14px] font-semibold tabular-nums">{a.status === "draft" ? 0 : st.chats}</span>
+              <span className="flex items-center gap-2 text-[13px] tabular-nums">
+                {pct === null || a.status === "draft" ? (
+                  <span className="text-text-3">—</span>
                 ) : (
-                  "Sin evaluar"
+                  <>
+                    <span className="h-1.5 w-16 overflow-hidden rounded-full bg-secondary">
+                      <span className="block h-full rounded-full bg-brand" style={{ width: `${pct}%` }} />
+                    </span>
+                    {pct} %
+                  </>
                 )}
               </span>
               <span className="flex flex-wrap items-center justify-end gap-1">
@@ -222,8 +262,30 @@ export function AgentsList() {
                 />
               </span>
             </div>
-          ))}
+            );
+          })}
         </div>
+
+        {stats && (
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <StatCard
+              label="Chats atendidos por IA"
+              value={stats.totals.chats.toLocaleString("es-MX")}
+              hint={trend === null ? "Últimos 7 días" : `${trend >= 0 ? "+" : ""}${trend} % vs. semana pasada`}
+            />
+            <StatCard
+              label="Pasados a una persona"
+              value={stats.totals.handedOff.toLocaleString("es-MX")}
+              hint={handedPct === null ? "Últimos 7 días" : `${handedPct} % de los chats de la semana`}
+            />
+            <StatCard
+              label="Agentes publicados"
+              value={String(published)}
+              hint={`${data.agents.length} de ${data.maxAgents} agentes`}
+            />
+            {aiPercent !== null && <StatCard label="IA usada este mes" value={`${aiPercent} %`} hint="De lo que incluye tu plan" />}
+          </div>
+        )}
 
         <p className="flex items-start gap-2 rounded-lg border border-brand-soft bg-brand-tint px-4 py-3 text-[13px] text-brand-ink">
           <Info className="mt-0.5 h-4 w-4 shrink-0" strokeWidth={1.8} />
@@ -387,6 +449,16 @@ function AgentMenu({
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+function StatCard({ label, value, hint }: { label: string; value: string; hint: string }) {
+  return (
+    <div className="rounded-lg border bg-card px-4 py-3">
+      <p className="text-xs text-text-2">{label}</p>
+      <p className="mt-1 text-[26px] font-semibold leading-tight tabular-nums">{value}</p>
+      <p className="mt-1 text-xs text-text-3">{hint}</p>
     </div>
   );
 }

@@ -3,11 +3,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Loader2, Play, RotateCw, Sparkles, User } from "lucide-react";
+import { Loader2, Play, RotateCw, ShieldCheck, Sparkles } from "lucide-react";
 import { useEvents } from "@/components/use-events";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { AgentReview, type ReviewSuggestionDto } from "@/components/lab/agent-review";
+import { LabActions } from "@/components/lab/lab-shell";
 import { cn } from "@/lib/utils";
 
 /**
@@ -166,98 +167,129 @@ export function LabClient() {
   const reviewed = cases.filter((c) => c.veredicto).length;
   const isRunning = selectedRun?.status === "running";
 
-  return (
-    <div className="grid h-full min-h-0 lg:grid-cols-[minmax(0,26rem)_minmax(0,1fr)]" data-testid="lab-sim">
-      {/* Columna izquierda: agente, prueba y clientes. */}
-      <div className="flex min-h-0 flex-col border-b lg:border-b-0 lg:border-r">
-        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4 sm:p-5">
-          <div className="space-y-1.5">
-            <label htmlFor="lab-sim-agent" className="text-sm text-text-2">Agente que se prueba</label>
-            <select
-              id="lab-sim-agent"
-              data-testid="lab-agent-select"
-              className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-              value={agentId ?? ""}
-              onChange={(e) => setAgentId(e.target.value || null)}
-            >
-              {agents.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.internalName}
-                  {a.isGeneral ? " (general)" : ""}
-                  {a.status === "draft" ? " · borrador" : ""}
-                </option>
-              ))}
-            </select>
-            {chosen?.status === "changes" && (
-              <div className="inline-flex rounded-md bg-muted p-0.5 text-xs" role="radiogroup" aria-label="Qué versión se prueba">
-                {(["published", "draft"] as const).map((s) => (
-                  <button
-                    key={s}
-                    type="button"
-                    role="radio"
-                    aria-checked={source === s}
-                    onClick={() => setSource(s)}
-                    className={cn("rounded px-2.5 py-1", source === s ? "bg-card font-medium shadow-sm" : "text-text-2")}
-                    data-testid={`lab-source-${s}`}
-                  >
-                    {s === "published" ? "Lo publicado" : "El borrador"}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-          <p className="rounded-lg bg-muted px-4 py-3 text-sm text-text-2">
-            Inventamos clientes con lo que sabe tu agente: instrucciones, conocimiento y documentos. Nada sale a WhatsApp.
-          </p>
+  const bad = cases.filter((c) => c.veredicto === "rojo").length;
+  const warn = cases.filter((c) => c.veredicto === "amarillo").length;
+  const DOT: Record<"verde" | "amarillo" | "rojo", string> = { verde: "bg-success", amarillo: "bg-warning", rojo: "bg-destructive" };
 
+  return (
+    <div className="flex h-full min-h-0 flex-col" data-testid="lab-sim">
+      <LabActions>
+        <label htmlFor="lab-sim-agent" className="sr-only">
+          Agente que se prueba
+        </label>
+        <select
+          id="lab-sim-agent"
+          data-testid="lab-agent-select"
+          className="h-8 max-w-[14rem] rounded-md border border-input bg-background px-2 text-[13px]"
+          value={agentId ?? ""}
+          onChange={(e) => setAgentId(e.target.value || null)}
+        >
+          {agents.map((a) => (
+            <option key={a.id} value={a.id}>
+              {a.internalName}
+              {a.isGeneral ? " (general)" : ""}
+              {a.status === "draft" ? " · borrador" : ""}
+            </option>
+          ))}
+        </select>
+        {chosen?.status === "changes" && (
+          <div className="hidden rounded-md border bg-subtle p-0.5 text-xs xl:inline-flex" role="radiogroup" aria-label="Qué versión se prueba">
+            {(["published", "draft"] as const).map((src) => (
+              <button
+                key={src}
+                type="button"
+                role="radio"
+                aria-checked={source === src}
+                onClick={() => setSource(src)}
+                className={cn("rounded px-2 py-1", source === src ? "bg-card font-medium shadow-sm" : "text-text-2")}
+                data-testid={`lab-source-${src}`}
+              >
+                {src === "published" ? "Lo publicado" : "El borrador"}
+              </button>
+            ))}
+          </div>
+        )}
+        <div role="radiogroup" aria-label="Cuántos clientes" className="inline-flex rounded-md border bg-subtle p-0.5" data-testid="lab-sim-count">
+          {COUNTS.map((n) => (
+            <button
+              key={n}
+              type="button"
+              role="radio"
+              aria-checked={count === n}
+              onClick={() => setCount(n)}
+              className={cn("min-w-7 rounded px-2 py-0.5 text-[13px]", count === n ? "bg-card font-medium shadow-sm" : "text-text-2")}
+            >
+              {n}
+            </button>
+          ))}
+        </div>
+        <Button size="sm" onClick={() => void launch()} disabled={!aiConfigured || running || launching || !agentId} data-testid="lab-run">
+          <Play className="h-4 w-4" aria-hidden /> {running ? "Probando…" : `Probar con ${count} clientes`}
+        </Button>
+      </LabActions>
+
+      <p className="flex items-center gap-2 border-b border-warning-soft bg-warning-tint px-4 py-2 text-[13px] text-warning-text sm:px-6">
+        <ShieldCheck className="h-4 w-4 shrink-0" aria-hidden /> Sandbox: estos clientes son simulados; nada se envía ni se agenda de verdad.
+        {running && progress && progress.total > 0 && (
+          <span className="ml-auto text-xs" data-testid="lab-sim-progress">
+            {progress.done} de {progress.total}
+          </span>
+        )}
+      </p>
+      {error && <p className="border-b px-4 py-2 text-sm text-destructive sm:px-6">{error}</p>}
+
+      <div className="grid min-h-0 flex-1 lg:grid-cols-[minmax(0,20rem)_minmax(0,1fr)_minmax(0,20rem)]">
+        {/* Izquierda: la prueba y sus clientes. */}
+        <div className="flex min-h-0 flex-col border-b lg:border-b-0 lg:border-r">
           {!aiConfigured ? (
-            <p className="rounded-lg border border-dashed p-4 text-sm text-text-2">
-              Configura el proveedor de IA de la instancia para probar a tus agentes.
-            </p>
+            <p className="m-4 rounded-lg border border-dashed p-4 text-sm text-text-2">Configura el proveedor de IA de la instancia para probar a tus agentes.</p>
           ) : !loaded ? (
-            <p className="text-sm text-text-3">Cargando…</p>
+            <p className="p-4 text-sm text-text-3">Cargando…</p>
           ) : !selectedRun ? (
-            <p className="rounded-lg border border-dashed p-6 text-center text-sm text-text-2" data-testid="lab-sim-empty">
-              Todavía no pruebas a este agente. Elige cuántos clientes y pulsa «Nueva prueba».
+            <p className="m-4 rounded-lg border border-dashed p-6 text-center text-sm text-text-2" data-testid="lab-sim-empty">
+              Todavía no pruebas a este agente. Inventamos clientes con lo que sabe tu agente (instrucciones, conocimiento y documentos): elige
+              cuántos y pulsa «Probar».
             </p>
           ) : (
-            <section className="space-y-2">
-              <div className="flex items-center justify-between gap-2">
-                <h2 className="text-sm font-semibold">
-                  Prueba del {fecha(selectedRun.startedAt)} · {cases.length || progress?.total || "…"} {cases.length === 1 ? "cliente" : "clientes"}
-                </h2>
-                {reviewed > 0 && (
-                  <Badge variant="secondary" className="whitespace-nowrap text-brand-text" data-testid="lab-sim-score">
-                    {good} de {cases.length} bien
-                  </Badge>
+            <>
+              <div className="space-y-2 border-b px-4 py-3">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <h2 className="mr-auto text-sm font-semibold">Prueba del {fecha(selectedRun.startedAt)}</h2>
+                  {reviewed > 0 && (
+                    <span className="flex flex-wrap gap-1" data-testid="lab-sim-score">
+                      <Badge variant="success">{good} bien</Badge>
+                      {warn > 0 && <Badge variant="warning">{warn} revisar</Badge>}
+                      {bad > 0 && <Badge variant="destructive">{bad} falló</Badge>}
+                    </span>
+                  )}
+                </div>
+                {agentRuns.length > 1 && (
+                  <select
+                    aria-label="Pruebas anteriores"
+                    className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs text-text-2"
+                    value={runId ?? ""}
+                    onChange={(e) => {
+                      setRunId(e.target.value);
+                      setCaseId(null);
+                    }}
+                    data-testid="lab-sim-history"
+                  >
+                    {agentRuns.map((r) => (
+                      <option key={r.id} value={r.id}>
+                        {fecha(r.startedAt)} · {r.status === "running" ? "en curso" : r.status === "failed" ? "falló" : r.score === null ? "sin revisar" : `${r.score} %`}
+                        {r.source === "draft" ? " · borrador" : ""}
+                      </option>
+                    ))}
+                  </select>
+                )}
+                {selectedRun.status === "failed" && <p className="text-sm text-destructive">La prueba no terminó: {selectedRun.error}</p>}
+                {isRunning && cases.length === 0 && (
+                  <p className="flex items-center gap-2 text-sm text-text-2" data-testid="lab-sim-generating">
+                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> Inventando clientes con lo que sabe tu agente…
+                  </p>
                 )}
               </div>
-              {agentRuns.length > 1 && (
-                <select
-                  aria-label="Pruebas anteriores"
-                  className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs text-text-2"
-                  value={runId ?? ""}
-                  onChange={(e) => {
-                    setRunId(e.target.value);
-                    setCaseId(null);
-                  }}
-                  data-testid="lab-sim-history"
-                >
-                  {agentRuns.map((r) => (
-                    <option key={r.id} value={r.id}>
-                      {fecha(r.startedAt)} · {r.status === "running" ? "en curso" : r.status === "failed" ? "falló" : r.score === null ? "sin revisar" : `${r.score} %`}
-                      {r.source === "draft" ? " · borrador" : ""}
-                    </option>
-                  ))}
-                </select>
-              )}
-              {selectedRun.status === "failed" && <p className="text-sm text-destructive">La prueba no terminó: {selectedRun.error}</p>}
-              {isRunning && cases.length === 0 && (
-                <p className="flex items-center gap-2 text-sm text-text-2" data-testid="lab-sim-generating">
-                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> Inventando clientes con lo que sabe tu agente…
-                </p>
-              )}
-              <ul className="space-y-2" data-testid="lab-sim-cases">
+              <ul className="min-h-0 flex-1 divide-y overflow-y-auto" data-testid="lab-sim-cases">
                 {cases.map((c) => (
                   <li key={c.id}>
                     <button
@@ -265,17 +297,18 @@ export function LabClient() {
                       onClick={() => setCaseId(c.id)}
                       aria-current={c.id === caseId ? "true" : undefined}
                       className={cn(
-                        "flex w-full items-center gap-3 rounded-lg border bg-card px-3 py-2.5 text-left hover:border-primary/60",
-                        c.id === caseId && "border-primary bg-brand-tint"
+                        "flex w-full items-start gap-2.5 border-l-2 border-transparent px-4 py-2.5 text-left hover:bg-accent",
+                        c.id === caseId && "border-l-brand bg-brand-tint hover:bg-brand-tint"
                       )}
                       data-testid="lab-sim-case"
                     >
-                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-soft text-brand-text">
-                        <User className="h-4 w-4" aria-hidden />
-                      </span>
+                      <span
+                        aria-hidden
+                        className={cn("mt-1.5 h-2 w-2 shrink-0 rounded-full", c.veredicto ? DOT[c.veredicto] : "bg-text-4")}
+                      />
                       <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm font-medium">{c.personaLabel}</span>
-                        {c.summary && <span className="line-clamp-2 text-xs text-text-3">{c.summary}</span>}
+                        <span className="block truncate text-[13px] font-medium">{c.personaLabel}</span>
+                        {c.summary && <span className="line-clamp-1 text-xs text-text-3">{c.summary}</span>}
                       </span>
                       {c.veredicto ? (
                         <Badge variant={VERDICT[c.veredicto].variant}>{VERDICT[c.veredicto].label}</Badge>
@@ -290,37 +323,11 @@ export function LabClient() {
                   </li>
                 ))}
               </ul>
-            </section>
+            </>
           )}
         </div>
-        <div className="flex flex-wrap items-center gap-2 border-t p-4 sm:px-5">
-          {error && <p className="w-full text-sm text-destructive">{error}</p>}
-          <Button onClick={() => void launch()} disabled={!aiConfigured || running || launching || !agentId} data-testid="lab-run">
-            <Play className="h-4 w-4" aria-hidden /> {running ? "Probando…" : "Nueva prueba"}
-          </Button>
-          <select
-            aria-label="Cuántos clientes"
-            className="h-9 rounded-md border border-input bg-background px-2 text-sm"
-            value={count}
-            onChange={(e) => setCount(Number(e.target.value) as (typeof COUNTS)[number])}
-            data-testid="lab-sim-count"
-          >
-            {COUNTS.map((n) => (
-              <option key={n} value={n}>
-                {n} clientes
-              </option>
-            ))}
-          </select>
-          {running && progress && progress.total > 0 && (
-            <span className="text-xs text-text-3" data-testid="lab-sim-progress">
-              {progress.done} de {progress.total}
-            </span>
-          )}
-        </div>
-      </div>
 
-      {/* Columna derecha: la conversación y su revisión. */}
-      <div className="min-h-0 overflow-y-auto">
+        {/* Centro y derecha: la conversación y su revisión. */}
         {current ? (
           <CaseView
             key={current.id}
@@ -331,7 +338,7 @@ export function LabClient() {
             repeatDisabled={running || launching}
           />
         ) : (
-          <div className="flex h-full min-h-[12rem] items-center justify-center p-8 text-center text-sm text-text-3">
+          <div className="flex min-h-[12rem] items-center justify-center p-8 text-center text-sm text-text-3 lg:col-span-2">
             {selectedRun ? "Elige un cliente para ver su conversación." : "Aquí verás cada conversación y lo que encontró la revisión."}
           </div>
         )}
@@ -398,79 +405,79 @@ function CaseView({
     .join("\n")}`.slice(0, 990);
 
   return (
-    <div className="flex min-h-full flex-col" data-testid="lab-sim-case-view">
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b px-5 py-3">
-        <p className="text-sm">
+    <>
+      <div className="min-h-0 overflow-y-auto border-b bg-muted/30 lg:border-b-0 lg:border-r" data-testid="lab-sim-case-view">
+        <p className="border-b bg-card px-5 py-2.5 text-sm">
           <strong>{c.personaLabel}</strong>
           <span className="text-text-3"> · {clientMsgs} {clientMsgs === 1 ? "mensaje" : "mensajes"} del cliente</span>
         </p>
-        {run.status !== "running" && c.summary !== null && (
-          <Button size="sm" variant="outline" onClick={onRepeat} disabled={repeatDisabled} data-testid="lab-sim-repeat">
-            <RotateCw className="h-4 w-4" aria-hidden /> Repetir con este cliente
-          </Button>
-        )}
+        <div className="space-y-3 p-5">
+          {c.transcript.length === 0 && <p className="text-sm text-text-3">{c.status === "pending" ? "En espera…" : "Conversando…"}</p>}
+          {c.transcript.map((m, i) => (
+            <div key={i} className={cn("flex", m.role === "agente" && "justify-end")}>
+              <p
+                className={cn(
+                  "max-w-[80%] whitespace-pre-wrap break-words rounded-2xl px-4 py-2.5 text-sm",
+                  m.role === "cliente" ? "border bg-card" : "bg-[hsl(var(--bubble-ai,262_83%_96%))] bg-brand-tint"
+                )}
+                data-testid={m.role === "cliente" ? "lab-sim-msg-client" : "lab-sim-msg-agent"}
+              >
+                {m.text}
+                <span className="mt-1 block text-right text-[10px] text-text-3">{m.role === "cliente" ? "simulado" : "agente"}</span>
+              </p>
+            </div>
+          ))}
+        </div>
       </div>
-      <div className="flex-1 space-y-3 bg-muted/30 p-5">
-        {c.transcript.length === 0 && <p className="text-sm text-text-3">{c.status === "pending" ? "En espera…" : "Conversando…"}</p>}
-        {c.transcript.map((m, i) => (
-          <div key={i} className={cn("flex", m.role === "agente" && "justify-end")}>
-            <p
-              className={cn(
-                "max-w-[80%] whitespace-pre-wrap break-words rounded-2xl px-4 py-2.5 text-sm",
-                m.role === "cliente" ? "border bg-card" : "bg-brand-tint"
-              )}
-              data-testid={m.role === "cliente" ? "lab-sim-msg-client" : "lab-sim-msg-agent"}
-            >
-              {m.text}
-            </p>
-          </div>
-        ))}
-        {(verdict || c.status === "judge_failed") && (
-          <section
-            className={cn(
-              "rounded-xl border p-4",
-              c.veredicto === "rojo" ? "border-danger-soft bg-danger-tint/40" : c.veredicto === "amarillo" ? "border-warning-soft bg-warning-tint/40" : "bg-card"
-            )}
-            data-testid="lab-sim-review"
-          >
+
+      <div className="min-h-0 space-y-4 overflow-y-auto p-4">
+        {verdict || c.status === "judge_failed" ? (
+          <section data-testid="lab-sim-review" className="space-y-2">
             <div className="flex items-center gap-2">
-              <Sparkles className="h-4 w-4 text-warning-text" aria-hidden />
-              <h3 className="text-sm font-semibold">Revisión del asistente</h3>
               {verdict ? <Badge variant={verdict.variant}>{verdict.label}</Badge> : <Badge variant="secondary">Sin revisar</Badge>}
+              <h3 className="text-sm font-semibold">Qué pasó</h3>
             </div>
             {review.notas.length > 0 ? (
-              <ul className="mt-2 list-disc space-y-1 pl-5 text-sm">
+              <ul className="list-disc space-y-1 pl-5 text-[13px] text-text-2">
                 {review.notas.map((n, i) => (
                   <li key={i}>{n}</li>
                 ))}
               </ul>
             ) : (
-              <p className="mt-2 text-sm text-text-2">
+              <p className="text-[13px] text-text-2">
                 {c.status === "judge_failed" ? "La IA no pudo revisar esta conversación." : "Atendió bien a este cliente."}
               </p>
             )}
-            {review.arreglo && (
-              <p className="mt-2 text-sm text-text-2">
-                Sugerencia: <em>{review.arreglo}</em>
-              </p>
-            )}
-            {c.veredicto && c.veredicto !== "verde" && (
-              <div className="mt-3 flex flex-wrap items-center gap-2">
-                <Button size="sm" onClick={() => void proposeFix()} disabled={busy || !agentId} data-testid="lab-sim-fix">
-                  {busy && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />} Proponer arreglo en las instrucciones
-                </Button>
-                <Link href={`/asistente?q=${encodeURIComponent(question)}`} className={buttonVariants({ size: "sm", variant: "outline" })} data-testid="lab-sim-assistant">
-                  Abrir en el asistente
-                </Link>
-              </div>
-            )}
-            {msg && <p className="mt-2 text-sm text-text-2" data-testid="lab-sim-fix-msg">{msg}</p>}
+          </section>
+        ) : (
+          <p className="text-sm text-text-3">La revisión aparece cuando termina la conversación.</p>
+        )}
+        {review.arreglo && (
+          <section className="space-y-1.5">
+            <h4 className="kicker">Arreglo sugerido</h4>
+            <p className="rounded-lg border bg-card px-3 py-2.5 text-[13px]">{review.arreglo}</p>
           </section>
         )}
-        {fix && (
-          <AgentReview summary={fix.summary} suggestions={fix.suggestions} onApply={(s) => void applyFix(s)} onClose={() => setFix(null)} />
-        )}
+        <div className="flex flex-col gap-2">
+          {c.veredicto && c.veredicto !== "verde" && (
+            <Button size="sm" onClick={() => void proposeFix()} disabled={busy || !agentId} data-testid="lab-sim-fix">
+              {busy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <Sparkles className="h-4 w-4" aria-hidden />} Proponer arreglo en el borrador
+            </Button>
+          )}
+          {run.status !== "running" && c.summary !== null && (
+            <Button size="sm" variant="outline" onClick={onRepeat} disabled={repeatDisabled} data-testid="lab-sim-repeat">
+              <RotateCw className="h-4 w-4" aria-hidden /> Repetir con este cliente
+            </Button>
+          )}
+          {c.veredicto && c.veredicto !== "verde" && (
+            <Link href={`/asistente?q=${encodeURIComponent(question)}`} className={buttonVariants({ size: "sm", variant: "outline" })} data-testid="lab-sim-assistant">
+              <Sparkles className="h-4 w-4" aria-hidden /> Abrir en el Asistente
+            </Link>
+          )}
+        </div>
+        {msg && <p className="text-sm text-text-2" data-testid="lab-sim-fix-msg">{msg}</p>}
+        {fix && <AgentReview summary={fix.summary} suggestions={fix.suggestions} onApply={(x) => void applyFix(x)} onClose={() => setFix(null)} />}
       </div>
-    </div>
+    </>
   );
 }
