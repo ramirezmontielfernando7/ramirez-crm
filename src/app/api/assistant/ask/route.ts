@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { apiError, parseBody, withAuth } from "@/lib/api";
 import { ASSISTANT_SPEEDS, MAX_QUESTION_CHARS } from "@/lib/assistant-engine";
+import { isMockEnabled } from "@/lib/env";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { askQuestion } from "@/server/assistant/ask";
 import { moduleOff } from "@/server/modules";
@@ -11,6 +12,8 @@ export const maxDuration = 120;
 
 /** 038 (PR 2) — Preguntas por persona y minuto (además de una a la vez). */
 const ASK_PER_MINUTE = 6;
+/** Con los mocks encendidos (CI/pruebas; en producción nunca) no se frena: los guiones e2e dejaban de esperar 61 s por cada minuto. */
+const ASK_PER_MINUTE_MOCKS = 1000;
 
 const body = z.object({
   threadId: z.string().min(1).max(64).nullable().optional(),
@@ -27,7 +30,7 @@ export const POST = withAuth(
   async (session, req: Request) => {
     const off = await moduleOff(session.organizationId, "asistente");
     if (off) return off;
-    const limit = checkRateLimit(`assistant-ask:${session.userId}`, { windowMs: 60_000, max: ASK_PER_MINUTE });
+    const limit = checkRateLimit(`assistant-ask:${session.userId}`, { windowMs: 60_000, max: isMockEnabled() ? ASK_PER_MINUTE_MOCKS : ASK_PER_MINUTE });
     if (!limit.allowed) {
       return apiError(429, "assistant_rate_limited", `Vas muy rápido: el asistente admite ${ASK_PER_MINUTE} preguntas por minuto. Espera un momento.`);
     }

@@ -1136,8 +1136,7 @@ async function asistenteMotor(A, B, orgB) {
   await page.getByTestId("assistant-question").waitFor({ timeout: 30000 });
   // El Chat general ya trae lo preguntado antes (p. ej. desde el panel rápido): se espera la respuesta NUEVA.
   const antesBurbujas = await page.getByTestId("assistant-msg-answer").count();
-  // El límite es de 6 preguntas por minuto y persona: se deja pasar el minuto de las preguntas de arriba.
-  await sleep(61_000);
+  // (El límite de 6 por minuto no corre con los mocks: ya no hay que esperar el minuto.)
   // Selector de modo: Rápido por defecto; «Análisis profundo» se puede elegir y se recuerda.
   ok("el selector arranca en «Normal»", (await page.getByTestId("assistant-speed-normal").getAttribute("aria-checked")) === "true");
   await page.getByTestId("assistant-speed-deep").click();
@@ -1289,7 +1288,6 @@ async function asistenteAnalisis(A, B, orgB) {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(`${BASE}/asistente`);
   await page.getByTestId("assistant-question").waitFor({ timeout: 30000 });
-  await sleep(61_000); // límite de preguntas por minuto
   await page.getByTestId("assistant-question").fill("Analiza mis conversaciones: ¿por qué pierdo ventas?");
   await page.getByTestId("assistant-ask").click();
   const burbuja = page.getByTestId("assistant-msg-answer").last();
