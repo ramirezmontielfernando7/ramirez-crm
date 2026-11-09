@@ -4,6 +4,7 @@ import { getSessionOrNull } from "@/lib/auth/session";
 import { campaignsEnabled } from "@/server/campaigns/flag";
 import { hasMyNumber } from "@/server/mi-numero/numbers";
 import { orgHasMiNumero } from "@/server/modules";
+import { DesktopRedirect } from "@/components/settings/desktop-redirect";
 
 export const dynamic = "force-dynamic";
 
@@ -11,15 +12,19 @@ export const dynamic = "force-dynamic";
 export default async function SettingsPage() {
   const session = await getSessionOrNull();
   if (!session) redirect("/login");
-  if (can(session, "settings.manage")) redirect("/settings/whatsapp");
+  return <DesktopRedirect to={await firstTab(session)} />;
+}
+
+async function firstTab(session: NonNullable<Awaited<ReturnType<typeof getSessionOrNull>>>): Promise<string> {
+  if (can(session, "settings.manage")) return "/settings/whatsapp";
   // 030 (PR 4): con Campañas, Plantillas ya no es una pestaña de Ajustes.
   if (can(session, "templates.manage") && !(await campaignsEnabled(session.organizationId))) {
-    redirect("/settings/templates");
+    return "/settings/templates";
   }
-  if (can(session, "users.read")) redirect("/settings/team");
+  if (can(session, "users.read")) return "/settings/team";
   // 046: quien solo tiene un «Mi número» autorizado aterriza en él.
   if ((await orgHasMiNumero(session.organizationId)) && (await hasMyNumber(session.organizationId, session.userId))) {
-    redirect("/settings/my-number");
+    return "/settings/my-number";
   }
-  redirect("/inbox");
+  return "/inbox";
 }

@@ -88,6 +88,8 @@ function createAuth() {
     // se apaga, igual que en `next dev`, que es como siempre corrieron los
     // guiones. El freno propio por IP (FR-062, abajo) sigue en todos los casos.
     ...(isMockEnabled() ? { rateLimit: { enabled: false } } : {}),
+    // App instalada: la sesión dura 30 días y se renueva cada día de uso (antes 7), como una app de mensajería.
+    session: { expiresIn: 60 * 60 * 24 * 30, updateAge: 60 * 60 * 24 },
     emailAndPassword: {
       enabled: true,
       requireEmailVerification: false,

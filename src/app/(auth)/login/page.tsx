@@ -40,7 +40,7 @@ export default function LoginPage() {
       return;
     }
     // 047 PR 3: «Iniciar sesión» de una app de IA regresa a su pantalla de aceptar.
-    router.push(safeNext(new URLSearchParams(window.location.search).get("next")) ?? "/inbox");
+    router.replace(safeNext(new URLSearchParams(window.location.search).get("next")) ?? "/inbox");
     router.refresh();
   }
 

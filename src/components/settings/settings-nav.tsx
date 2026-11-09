@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  ArrowLeft,
   Bell,
   CalendarDays,
   Eye,
@@ -191,6 +192,8 @@ export function SettingsShell({
   const isActive = (r: Resolved) =>
     r.item.match ? r.item.match(pathname) : r.pages.some((p) => pathWithin(href(p.slug), pathname));
   const current = groups.flatMap((g) => g.items).find(isActive);
+  // Teléfono: lista de secciones en «/settings» y cada sección en su propia pantalla.
+  const mobileList = pathname === "/settings";
 
   const q = norm(query.trim());
   const shown = groups
@@ -201,7 +204,7 @@ export function SettingsShell({
     .filter((g) => g.items.length > 0);
 
   const search = (
-    <label className="settings-search relative block w-56 max-w-full sm:w-64">
+    <label className={cn("settings-search relative block w-56 max-w-full sm:w-64", !mobileList && "max-lg:hidden")}>
       <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-text-3" strokeWidth={1.8} />
       <input
         type="search"
@@ -218,7 +221,7 @@ export function SettingsShell({
   return (
     <PageShell title="Ajustes" icon={Settings} pillar={false} actions={search} className="mobile-settings-page">
       <div data-premium-area="settings" className="grid gap-6 lg:grid-cols-[220px_minmax(0,1fr)]">
-        <nav aria-label="Secciones de Ajustes" className="settings-sections lg:sticky lg:top-0 lg:self-start">
+        <nav aria-label="Secciones de Ajustes" className={cn("settings-sections lg:sticky lg:top-0 lg:self-start", !mobileList && "max-lg:hidden")}>
           {shown.length === 0 && <p className="px-2 py-3 text-sm text-text-3">Ningún ajuste coincide con «{query}».</p>}
           {shown.map((g) => (
             <div key={g.label} className="settings-group mb-4">
@@ -255,7 +258,15 @@ export function SettingsShell({
             </div>
           ))}
         </nav>
-        <div className="min-w-0">
+        <div className={cn("min-w-0", mobileList && "max-lg:hidden")}>
+          {current && (
+            <div className="mb-3 flex items-center gap-2 lg:hidden" data-testid="settings-detail-head">
+              <Link href="/settings" aria-label="Volver a Ajustes" className="-ml-2 flex h-10 w-10 items-center justify-center rounded-full active:bg-row-hover">
+                <ArrowLeft className="h-[22px] w-[22px]" strokeWidth={1.8} />
+              </Link>
+              <h2 className="text-[18px] font-semibold">{current.item.label}</h2>
+            </div>
+          )}
           {current && current.pages.length > 1 && (
             // Sub-secciones como control segmentado dentro del contenido.
             <div className="mb-5">
