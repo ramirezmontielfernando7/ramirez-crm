@@ -508,7 +508,7 @@ function DirectServerPicker({ orgId, disabled }: { orgId: string; disabled: bool
 export function LimitsSection() {
   const { org, refetch } = useOrg();
   return (
-    <div className="grid items-start gap-4 xl:grid-cols-2">
+    <div className="space-y-4">
       <OrgAiCard orgId={org.id} />
       <Section
         title="Otros topes y qué ve el cliente"

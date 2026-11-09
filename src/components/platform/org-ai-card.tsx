@@ -157,7 +157,7 @@ export function OrgAiCard({ orgId }: { orgId: string }) {
   const factor = ownPrice && inheritedPrice && inheritedPrice.inputUsdPerMtok > 0 ? ownPrice.inputUsdPerMtok / inheritedPrice.inputUsdPerMtok : null;
 
   return (
-    <div className="space-y-4 xl:contents">
+    <div className="space-y-4">
       <section className="space-y-4 rounded-lg border bg-card p-4" data-testid="platform-org-ai-cap">
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div>
