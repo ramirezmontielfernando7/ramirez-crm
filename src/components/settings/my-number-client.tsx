@@ -3,14 +3,27 @@
 import { cn } from "@/lib/utils";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
+import { Smartphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { CONNECTION_STATUS_LABEL, DIRECT_TEXT, type DirectConnectionStatus } from "@/lib/direct-connection";
 import { useAccessOverview } from "@/components/inbox/my-number-access";
-import { ACCESS_TEXT, KIND_LABEL, MI_NUMERO_TEXT, SWITCH_TEXT, visibleSwitches, type NumberSwitch } from "@/lib/mi-numero";
+import {
+  ACCESS_TEXT,
+  KIND_LABEL,
+  MI_NUMERO_TEXT,
+  SWITCH_TEXT,
+  visibleSwitches,
+  type NumberSwitch,
+} from "@/lib/mi-numero";
 
-type Connection = { status: DirectConnectionStatus; phoneNumber: string | null; pausedUntil: string | null; canLink?: boolean };
+type Connection = {
+  status: DirectConnectionStatus;
+  phoneNumber: string | null;
+  pausedUntil: string | null;
+  canLink?: boolean;
+};
 type MyNumber = {
   id: string;
   kind: "personal" | "empresa";
@@ -124,7 +137,11 @@ export function MyNumberClient() {
           <h2 className="text-xl font-semibold">Mi número</h2>
           <p className="text-sm text-muted-foreground">{MI_NUMERO_TEXT.pageIntro}</p>
         </div>
-        <Badge variant={connected ? "default" : "secondary"} data-testid="my-number-status">
+        <Badge
+          variant={connected ? "default" : "secondary"}
+          data-testid="my-number-status"
+          className={connected ? "bg-success-tint text-success-text hover:bg-success-tint" : undefined}
+        >
           {CONNECTION_STATUS_LABEL[conn.status]}
         </Badge>
       </div>
@@ -142,44 +159,67 @@ export function MyNumberClient() {
 
       <Card>
         <CardHeader className="flex-row flex-wrap items-center justify-between gap-4 space-y-0">
-          <div className="min-w-0 space-y-1.5">
-            <CardTitle className="flex flex-wrap items-center gap-2 text-xl">
-              {connected ? (conn.phoneNumber ? `+${conn.phoneNumber}` : "Conectado") : "Tu número"}
-              <Badge variant="outline" data-testid="my-number-kind" className="text-xs font-normal">
-                {KIND_LABEL[mine.kind]}
-              </Badge>
-            </CardTitle>
-            <CardDescription>
-              {connected
-                ? mine.label ?? "Tu WhatsApp vinculado"
-                : "Vincula tu WhatsApp escaneando un código, como en WhatsApp Web."}
-            </CardDescription>
-          </div>
-          {accepted && (
-            <div className="flex flex-wrap gap-2">
-              {!connected && (
-                <Button onClick={() => void link("POST")} disabled={busy || paused} data-testid="my-number-link">
-                  {conn.status === "pending" ? "Vincular mi número" : "Mostrar código de nuevo"}
-                </Button>
-              )}
-              {connected && (
-                <Button variant="outline" onClick={() => void link("POST")} disabled={busy}>
-                  Reconectar
-                </Button>
-              )}
-              {conn.status !== "pending" && (
-                <Button
-                  variant="outline"
-                  disabled={busy}
-                  onClick={() => {
-                    if (window.confirm("¿Desvincular tu número? Dejarás de recibir y contestar sus chats aquí.")) void link("DELETE");
-                  }}
-                >
-                  Desvincular
-                </Button>
-              )}
+          <div className="flex min-w-0 items-center gap-4">
+            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-info-tint text-info-text">
+              <Smartphone className="h-6 w-6" strokeWidth={1.6} />
+            </span>
+            <div className="min-w-0 space-y-1">
+              <CardTitle className="text-xl">
+                {connected ? (conn.phoneNumber ? `+${conn.phoneNumber}` : "Conectado") : "Tu número"}
+              </CardTitle>
+              <CardDescription>
+                {connected
+                  ? `${KIND_LABEL[mine.kind]} · ${mine.label ?? "Tu WhatsApp vinculado"}`
+                  : "Vincula tu WhatsApp escaneando un código, como en WhatsApp Web."}
+              </CardDescription>
             </div>
-          )}
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <span
+              data-testid="my-number-kind"
+              className="inline-flex rounded-md border bg-subtle p-0.5 text-[12.5px] font-medium"
+              aria-label={`Tipo de número: ${KIND_LABEL[mine.kind]}`}
+            >
+              {(["personal", "empresa"] as const).map((k) => (
+                <span
+                  key={k}
+                  className={cn(
+                    "rounded px-3 py-1",
+                    mine.kind === k ? "bg-background text-foreground shadow-sm" : "text-text-3",
+                  )}
+                >
+                  {KIND_LABEL[k]}
+                </span>
+              ))}
+            </span>
+            {accepted && (
+              <>
+                {!connected && (
+                  <Button onClick={() => void link("POST")} disabled={busy || paused} data-testid="my-number-link">
+                    {conn.status === "pending" ? "Vincular mi número" : "Mostrar código de nuevo"}
+                  </Button>
+                )}
+                {connected && (
+                  <Button variant="outline" onClick={() => void link("POST")} disabled={busy}>
+                    Reconectar
+                  </Button>
+                )}
+                {conn.status !== "pending" && (
+                  <Button
+                    variant="outline"
+                    className="border-danger-soft text-danger-text hover:bg-danger-tint"
+                    disabled={busy}
+                    onClick={() => {
+                      if (window.confirm("¿Desvincular tu número? Dejarás de recibir y contestar sus chats aquí."))
+                        void link("DELETE");
+                    }}
+                  >
+                    Desvincular
+                  </Button>
+                )}
+              </>
+            )}
+          </div>
         </CardHeader>
         {(!accepted || (qr && !connected) || error) && (
           <CardContent className="space-y-4">
@@ -191,21 +231,33 @@ export function MyNumberClient() {
                     <li key={t}>{t}</li>
                   ))}
                 </ul>
-                <Button onClick={() => void patch({ acceptNotice: true })} disabled={busy} data-testid="my-number-accept">
+                <Button
+                  onClick={() => void patch({ acceptNotice: true })}
+                  disabled={busy}
+                  data-testid="my-number-accept"
+                >
                   {MI_NUMERO_TEXT.noticeAccept}
                 </Button>
               </div>
             )}
             {qr && !connected && (
               <div className="space-y-2" data-testid="my-number-qr">
-                <p className="text-sm">En tu teléfono: WhatsApp → Dispositivos vinculados → Vincular un dispositivo, y escanea este código.</p>
+                <p className="text-sm">
+                  En tu teléfono: WhatsApp → Dispositivos vinculados → Vincular un dispositivo, y escanea este código.
+                </p>
                 {qr.image ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={qr.image} alt="Código QR para vincular" className="h-56 w-56 rounded-md border bg-white p-2" />
+                  <img
+                    src={qr.image}
+                    alt="Código QR para vincular"
+                    className="h-56 w-56 rounded-md border bg-white p-2"
+                  />
                 ) : (
                   <p className="text-sm text-muted-foreground">Preparando el código…</p>
                 )}
-                {qr.pairingCode && <p className="text-xs text-muted-foreground">Código para vincular sin escanear: {qr.pairingCode}</p>}
+                {qr.pairingCode && (
+                  <p className="text-xs text-muted-foreground">Código para vincular sin escanear: {qr.pairingCode}</p>
+                )}
               </div>
             )}
             {error && (
@@ -219,8 +271,15 @@ export function MyNumberClient() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Privacidad</CardTitle>
-          <CardDescription>{mine.canEditSwitches ? MI_NUMERO_TEXT.personalOnly : MI_NUMERO_TEXT.companyDecides}</CardDescription>
+          <CardTitle className="flex items-baseline gap-2">
+            Privacidad
+            {visibleSwitches(mine.aiConnectorOffered).every((k) => !mine.switches[k]) && (
+              <span className="text-[13px] font-normal text-text-3">Todo apagado de fábrica</span>
+            )}
+          </CardTitle>
+          <CardDescription>
+            {mine.canEditSwitches ? MI_NUMERO_TEXT.personalOnly : MI_NUMERO_TEXT.companyDecides}
+          </CardDescription>
         </CardHeader>
         <CardContent className="divide-y [&>div]:py-4">
           {visibleSwitches(mine.aiConnectorOffered).map((key) => {
@@ -229,18 +288,26 @@ export function MyNumberClient() {
             return (
               <div
                 key={key}
-                className={cn("flex items-start justify-between gap-4 py-3 first:pt-0 last:pb-0", key === "clientByDefault" && "ml-4 border-l-[3px] border-brand-soft pl-4")}
+                className={cn(
+                  "flex items-start justify-between gap-4 py-3 first:pt-0 last:pb-0",
+                  key === "clientByDefault" && "ml-4 border-l-[3px] border-brand-soft pl-4",
+                )}
                 data-testid={`my-number-switch-${key}`}
               >
                 <div className="min-w-0 space-y-1">
                   <p className="text-sm font-medium">{t.title}</p>
-                  <p className="text-sm text-muted-foreground">{t.on}</p>
-                  <p className="text-xs text-text-3">{t.off}</p>
+                  <p className="text-[13px] text-muted-foreground" title={`${t.on} ${t.off}`}>
+                    {t.on.split(/(?<=[.»])\s/)[0]}
+                  </p>
                 </div>
                 <Switch
                   checked={on}
                   label={t.title}
-                  disabled={busy || !mine.canEditSwitches || ((key === "clientByDefault" || key === "aiConnector") && !mine.switches.shareClients)}
+                  disabled={
+                    busy ||
+                    !mine.canEditSwitches ||
+                    ((key === "clientByDefault" || key === "aiConnector") && !mine.switches.shareClients)
+                  }
                   onCheckedChange={(next) => void patch({ [key]: next })}
                 />
               </div>
@@ -271,7 +338,9 @@ export function MyNumberClient() {
         <CardContent className="space-y-4">
           {overview && overview.granted.length > 0 && (
             <div className="space-y-2" data-testid="my-number-grants">
-              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{ACCESS_TEXT.grantsTitle}</p>
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                {ACCESS_TEXT.grantsTitle}
+              </p>
               {overview.granted.map((g) => (
                 <div key={g.id} className="flex items-center justify-between gap-3 rounded-md border px-3 py-2 text-sm">
                   <span>{ACCESS_TEXT.grantRow(g.userName, g.contactName)}</span>

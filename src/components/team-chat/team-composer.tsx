@@ -26,9 +26,7 @@ import { useViewer } from "@/components/viewer-context";
 const EmojiPickerPanel = dynamic(() => import("@/components/inbox/emoji-picker"), {
   ssr: false,
   loading: () => (
-    <div className="flex h-[340px] w-[304px] items-center justify-center text-xs text-text-3">
-      Cargando emojis…
-    </div>
+    <div className="flex h-[340px] w-[304px] items-center justify-center text-xs text-text-3">Cargando emojis…</div>
   ),
 });
 
@@ -163,10 +161,7 @@ export function TeamComposer({
     } else {
       init = jsonInit("POST", { body });
     }
-    const res = await fetchJson<{ message: TeamMessageDto }>(
-      `/api/team-chat/threads/${threadId}/messages`,
-      init
-    );
+    const res = await fetchJson<{ message: TeamMessageDto }>(`/api/team-chat/threads/${threadId}/messages`, init);
     setSending(false);
     if (!res.ok) {
       setError(`No se envió: ${res.error}`);
@@ -191,7 +186,7 @@ export function TeamComposer({
     setError(null);
     const res = await fetchJson<{ messageId: string }>(
       `/api/team-chat/threads/${threadId}/messages/knowledge`,
-      jsonInit("POST", { entryId: entry.id, mode: action })
+      jsonInit("POST", { entryId: entry.id, mode: action }),
     );
     setSending(false);
     if (!res.ok) {
@@ -227,7 +222,10 @@ export function TeamComposer({
   return (
     <div className="shrink-0 border-t bg-background px-3 pb-3 pt-2.5 sm:px-4">
       {error && (
-        <p role="alert" className="mb-2 rounded-md border border-danger-soft bg-danger-tint px-2.5 py-1.5 text-[12px] text-danger-text">
+        <p
+          role="alert"
+          className="mb-2 rounded-md border border-danger-soft bg-danger-tint px-2.5 py-1.5 text-[12px] text-danger-text"
+        >
           {error}
         </p>
       )}
@@ -258,13 +256,13 @@ export function TeamComposer({
           }}
         />
       )}
-      <div className="flex items-end gap-1.5 rounded-md border border-border-strong bg-background px-2 py-1.5 transition-[border-color,box-shadow] focus-within:border-brand focus-within:ring-[3px] focus-within:ring-brand-soft">
+      <div className="flex flex-col rounded-[14px] border border-border-strong bg-background px-3 pb-2 pt-2 transition-[border-color,box-shadow] focus-within:border-brand focus-within:ring-[3px] focus-within:ring-brand-soft">
         <textarea
           ref={taRef}
           value={text}
           rows={1}
           aria-label="Mensaje para el equipo"
-          placeholder="Escribe al equipo…"
+          placeholder="Escribe al equipo… (@ para mencionar, # para citar un chat)"
           onChange={(e) => {
             setText(e.target.value);
             autogrow();
@@ -280,114 +278,123 @@ export function TeamComposer({
               void send();
             }
           }}
-          className="max-h-[140px] min-h-[36px] flex-1 resize-none bg-transparent px-1 py-1.5 text-[14px] leading-[1.45] outline-none placeholder:text-text-3 max-sm:text-base"
+          className="max-h-[140px] min-h-[36px] w-full resize-none bg-transparent px-1 py-1.5 text-[15px] leading-[1.45] outline-none placeholder:text-text-3 max-sm:text-base"
         />
-        <button
-          type="button"
-          onClick={() => void send()}
-          disabled={sending || over || (!text.trim() && !file)}
-          aria-label="Enviar"
-          title="Enviar (Enter)"
-          className="mb-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-brand text-brand-fg transition-[opacity,transform] duration-150 active:scale-95 disabled:opacity-40"
-        >
-          <SendHorizontal className="h-4 w-4" strokeWidth={1.9} />
-        </button>
-      </div>
-      <div className="mt-1.5 flex items-center gap-0.5">
-        <input
-          ref={fileRef}
-          type="file"
-          className="hidden"
-          onChange={(e) => {
-            pickFile(e.target.files?.[0] ?? null);
-            e.target.value = "";
-          }}
-        />
-        <button
-          type="button"
-          onClick={() => fileRef.current?.click()}
-          aria-label="Adjuntar archivo"
-          title="Adjuntar archivo (máx. 50 MB; no SVG ni HTML)"
-          className="rounded p-1.5 text-text-3 transition-[color,background-color,transform] duration-150 hover:bg-secondary hover:text-foreground active:scale-90"
-        >
-          <Paperclip className="h-[18px] w-[18px]" strokeWidth={1.7} />
-        </button>
-        <div ref={emojiRef} className="relative">
+
+        <div className="flex items-center gap-0.5 pt-1">
+          <input
+            ref={fileRef}
+            type="file"
+            className="hidden"
+            onChange={(e) => {
+              pickFile(e.target.files?.[0] ?? null);
+              e.target.value = "";
+            }}
+          />
           <button
             type="button"
-            onClick={() => setEmojiOpen((v) => !v)}
-            aria-label="Emojis"
-            aria-haspopup="dialog"
-            aria-expanded={emojiOpen}
-            title="Emojis"
-            className={cn(
-              "rounded p-1.5 text-text-3 transition-[color,background-color,transform] duration-150 hover:bg-secondary hover:text-foreground active:scale-90",
-              emojiOpen && "bg-secondary text-brand"
-            )}
+            onClick={() => fileRef.current?.click()}
+            aria-label="Adjuntar archivo"
+            title="Adjuntar archivo (máx. 50 MB; no SVG ni HTML)"
+            className="rounded p-1.5 text-text-3 transition-[color,background-color,transform] duration-150 hover:bg-secondary hover:text-foreground active:scale-90"
           >
-            <Smile className="h-[18px] w-[18px]" strokeWidth={1.7} />
+            <Paperclip className="h-[18px] w-[18px]" strokeWidth={1.7} />
           </button>
-          <AnimatePresence>
-            {emojiOpen && (
-              <m.div
-                role="dialog"
-                aria-label="Elegir emoji"
-                initial={{ opacity: 0, y: 6, scale: 0.96 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 4, scale: 0.98, transition: { duration: 0.1 } }}
-                transition={SPRING}
-                style={{ transformOrigin: "bottom left" }}
-                className="absolute bottom-full left-0 z-30 mb-2.5 overflow-hidden rounded-md border bg-popover text-foreground shadow-pop"
-              >
-                <EmojiPickerPanel onPick={insertEmoji} />
-              </m.div>
-            )}
-          </AnimatePresence>
-        </div>
-        <div className="relative">
-          <button
-            type="button"
-            onClick={() => setMentionOpen((v) => !v)}
-            aria-label="Mencionar"
-            aria-haspopup="dialog"
-            aria-expanded={mentionOpen}
-            title="Mencionar a un compañero o un chat de cliente"
-            className={cn(
-              "rounded p-1.5 text-text-3 transition-[color,background-color,transform] duration-150 hover:bg-secondary hover:text-foreground active:scale-90",
-              mentionOpen && "bg-secondary text-brand"
-            )}
-          >
-            <AtSign className="h-[18px] w-[18px]" strokeWidth={1.7} />
-          </button>
-          <AnimatePresence>
-            {mentionOpen && (
-              <MentionPicker
-                kind={kind}
-                members={members}
-                userId={viewer.userId}
-                onPick={insertMention}
-                onClose={() => setMentionOpen(false)}
-              />
-            )}
-          </AnimatePresence>
-        </div>
-        {knowledgeOn && (
-        <button
-          type="button"
-          onClick={() => setKnowledgeOpen((v) => !v)}
-          aria-label="Conocimientos"
-          title="Compartir algo de Conocimientos"
-          className={cn(
-            "rounded p-1.5 text-text-3 transition-[color,background-color,transform] duration-150 hover:bg-secondary hover:text-foreground active:scale-90",
-            knowledgeOpen && "bg-secondary text-brand"
+          <div ref={emojiRef} className="relative">
+            <button
+              type="button"
+              onClick={() => setEmojiOpen((v) => !v)}
+              aria-label="Emojis"
+              aria-haspopup="dialog"
+              aria-expanded={emojiOpen}
+              title="Emojis"
+              className={cn(
+                "rounded p-1.5 text-text-3 transition-[color,background-color,transform] duration-150 hover:bg-secondary hover:text-foreground active:scale-90",
+                emojiOpen && "bg-secondary text-brand",
+              )}
+            >
+              <Smile className="h-[18px] w-[18px]" strokeWidth={1.7} />
+            </button>
+            <AnimatePresence>
+              {emojiOpen && (
+                <m.div
+                  role="dialog"
+                  aria-label="Elegir emoji"
+                  initial={{ opacity: 0, y: 6, scale: 0.96 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{
+                    opacity: 0,
+                    y: 4,
+                    scale: 0.98,
+                    transition: { duration: 0.1 },
+                  }}
+                  transition={SPRING}
+                  style={{ transformOrigin: "bottom left" }}
+                  className="absolute bottom-full left-0 z-30 mb-2.5 overflow-hidden rounded-md border bg-popover text-foreground shadow-pop"
+                >
+                  <EmojiPickerPanel onPick={insertEmoji} />
+                </m.div>
+              )}
+            </AnimatePresence>
+          </div>
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setMentionOpen((v) => !v)}
+              aria-label="Mencionar"
+              aria-haspopup="dialog"
+              aria-expanded={mentionOpen}
+              title="Mencionar a un compañero o un chat de cliente"
+              className={cn(
+                "rounded p-1.5 text-text-3 transition-[color,background-color,transform] duration-150 hover:bg-secondary hover:text-foreground active:scale-90",
+                mentionOpen && "bg-secondary text-brand",
+              )}
+            >
+              <AtSign className="h-[18px] w-[18px]" strokeWidth={1.7} />
+            </button>
+            <AnimatePresence>
+              {mentionOpen && (
+                <MentionPicker
+                  kind={kind}
+                  members={members}
+                  userId={viewer.userId}
+                  onPick={insertMention}
+                  onClose={() => setMentionOpen(false)}
+                />
+              )}
+            </AnimatePresence>
+          </div>
+          {knowledgeOn && (
+            <button
+              type="button"
+              onClick={() => setKnowledgeOpen((v) => !v)}
+              aria-label="Conocimientos"
+              title="Compartir algo de Conocimientos"
+              className={cn(
+                "flex items-center rounded p-1.5 text-text-3 transition-[color,background-color,transform] duration-150 hover:bg-secondary hover:text-foreground active:scale-90",
+                knowledgeOpen && "bg-secondary text-brand",
+              )}
+            >
+              <BookOpen className="h-[18px] w-[18px]" strokeWidth={1.7} />
+              <span className="ml-1.5 text-[13.5px] font-medium text-text-2">Biblioteca</span>
+            </button>
           )}
-        >
-          <BookOpen className="h-[18px] w-[18px]" strokeWidth={1.7} />
-        </button>
-        )}
-        <span className={cn("ml-auto text-[11px] tabular-nums", over ? "text-danger-text" : "text-text-3")}>
-          {text.length > TEAM_MESSAGE_MAX * 0.8 ? `${text.length}/${TEAM_MESSAGE_MAX}` : "Enter envía · Shift+Enter salto"}
-        </span>
+          <button
+            type="button"
+            onClick={() => void send()}
+            disabled={sending || over || (!text.trim() && !file)}
+            aria-label="Enviar"
+            title="Enviar (Enter)"
+            className="ml-auto flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand text-brand-fg transition-[opacity,transform] duration-150 active:scale-95 disabled:opacity-40"
+          >
+            <SendHorizontal className="h-4 w-4" strokeWidth={1.9} />
+          </button>
+          {text.length > TEAM_MESSAGE_MAX * 0.8 && (
+            <span className={cn("ml-2 text-[11px] tabular-nums", over ? "text-danger-text" : "text-text-3")}>
+              {text.length}/{TEAM_MESSAGE_MAX}
+            </span>
+          )}
+        </div>
       </div>
     </div>
   );

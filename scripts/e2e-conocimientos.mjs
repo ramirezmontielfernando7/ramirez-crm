@@ -206,7 +206,7 @@ ok("la página lista las entradas", (await op.getByText(`Política de envíos ${
 await shot(op, "f2-01-lista");
 
 // Crear desde la UI con archivo.
-await op.getByRole("button", { name: "Nueva entrada" }).click();
+await op.getByRole("button", { name: "Subir archivo" }).click();
 const dlg = op.getByRole("dialog", { name: "Nueva entrada" });
 await dlg.getByLabel("Título").fill(`Garantía ${RUN}`);
 await dlg.getByLabel("Contenido").fill("Todos nuestros equipos tienen 12 meses de garantía directa con nosotros.");
@@ -230,7 +230,7 @@ await ap.goto(`${BASE}/knowledge`);
 await ap.getByText(`Catálogo ${RUN}`).waitFor({ timeout: 15000 });
 ok("el Asesor ve la página", (await ap.getByText(`Catálogo ${RUN}`).count()) === 1);
 ok("…sin «Nueva entrada» ni editar/borrar",
-  (await ap.getByRole("button", { name: "Nueva entrada" }).count()) === 0 &&
+  (await ap.getByRole("button", { name: "Subir archivo" }).count()) === 0 &&
   (await ap.getByRole("button", { name: /^(Editar|Borrar) / }).count()) === 0);
 await shot(ap, "f2-04-asesor");
 
@@ -299,7 +299,7 @@ if (!libOwner.json?.library?.rag) {
   const sinRag = await owner.call("POST", "/api/knowledge", { title: `IA ${RUN}`, body: "x", rag: true });
   ok("sin Documentos del agente, «Entrenar también al Agente» → 403", sinRag.status === 403, `status=${sinRag.status}`);
   await op.goto(`${BASE}/knowledge`);
-  await op.getByRole("button", { name: "Nueva entrada" }).click();
+  await op.getByRole("button", { name: "Subir archivo" }).click();
   ok("…y el formulario no ofrece el interruptor de la IA", (await op.getByTestId("knowledge-rag-option").count()) === 0);
 }
 await op.goto(`${BASE}/knowledge`);
