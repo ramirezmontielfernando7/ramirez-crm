@@ -113,6 +113,27 @@ export function ResultsClient({
     return () => ctl.abort();
   }, [who]);
 
+  const filtros = (
+    <>
+          {teamView && (
+            <select
+              value={person}
+              onChange={(e) => setPerson(e.target.value)}
+              aria-label="Resultados de"
+              className="h-9 rounded-md border border-input bg-card px-2 text-sm"
+            >
+              <option value="">Todos los asesores</option>
+              {team.map((m) => (
+                <option key={m.userId} value={m.userId}>
+                  {m.name}
+                </option>
+              ))}
+            </select>
+          )}
+          <RangePicker compact value={range} onChange={setRange} today={today} timezone={timezone} />
+    </>
+  );
+
   return (
     <PageShell
       pillar="results"
@@ -137,33 +158,10 @@ export function ResultsClient({
           ))}
         </div>
       }
-      actions={
-        <>
-          {teamView && (
-            <select
-              value={person}
-              onChange={(e) => setPerson(e.target.value)}
-              aria-label="Resultados de"
-              className="h-9 rounded-md border border-input bg-card px-2 text-sm"
-            >
-              <option value="">Todos los asesores</option>
-              {team.map((m) => (
-                <option key={m.userId} value={m.userId}>
-                  {m.name}
-                </option>
-              ))}
-            </select>
-          )}
-          <RangePicker compact value={range} onChange={setRange} today={today} timezone={timezone} />
-        </>
-      }
-      subtitle={
-        teamView
-          ? "Ventas, el trabajo del agente, de dónde llegan y qué se está cayendo."
-          : "Tus resultados: lo de tus chats y leads asignados."
-      }
+      actions={<div className="hidden items-center gap-2 sm:flex">{filtros}</div>}
     >
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-3 sm:p-6">
+        <div className="flex flex-wrap items-center gap-2 sm:hidden">{filtros}</div>
         {tab === "ventas" && (
           <>
             <SalesSection {...sales} currency={currency} />
