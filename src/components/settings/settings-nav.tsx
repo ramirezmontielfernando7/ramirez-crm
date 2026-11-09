@@ -13,6 +13,7 @@ import {
   Plug,
   Search,
   Settings,
+  Shield,
   SlidersHorizontal,
   Smartphone,
   Tag,
@@ -75,7 +76,7 @@ const GROUPS: readonly Group[] = [
           { slug: "direct-connection", label: "Conexión directa" },
         ],
       },
-      { id: "team", label: "Equipo y permisos", icon: Users, keywords: "miembros roles personas invitar", pages: [{ slug: "team", label: "Miembros y roles" }] },
+      { id: "team", label: "Equipo y permisos", icon: Users, keywords: "miembros roles personas invitar asesores chats nuevos", pages: [{ slug: "team", label: "Miembros y roles" }] },
       { id: "ads", label: "Anuncios (Meta)", icon: Target, keywords: "capi atribución anuncios", pages: [{ slug: "ads", label: "Anuncios (CAPI)" }] },
       { id: "uso", label: "Uso y plan", icon: Wallet, keywords: "consumo ia plan límites", pages: [{ slug: "uso", label: "Uso y plan" }] },
     ],
@@ -88,6 +89,7 @@ const GROUPS: readonly Group[] = [
       { id: "loss", label: "Motivos de pérdida", icon: X, keywords: "perdidos pipeline", pages: [{ slug: "loss-reasons", label: "Motivos de pérdida" }] },
       { id: "calendar", label: "Agenda y conectores", icon: CalendarDays, keywords: "zoom meet citas", pages: [{ slug: "calendar", label: "Conectores de agenda" }] },
       { id: "team-chat", label: "Chat de equipo", icon: MessageSquare, keywords: "grupos supervisión", pages: [{ slug: "team-chat", label: "Chat de equipo" }] },
+      { id: "opt-out", label: "Bajas automáticas", icon: Shield, keywords: "stop baja darse de baja palabras respuesta", pages: [{ slug: "opt-out", label: "Bajas automáticas" }] },
     ],
   },
   {
@@ -146,6 +148,9 @@ export function settingsGroups(visible: (slug: string) => boolean): { label: str
     }),
   })).filter((g) => g.items.length > 0);
 }
+
+/** Las páginas que se muestran como control segmentado de un renglón. */
+const tabPages = (r: Resolved) => (r.item.id === "canales" ? r.pages.filter((p) => p.slug !== "direct-connection") : r.pages);
 
 const norm = (s: string) => s.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
 
@@ -267,12 +272,13 @@ export function SettingsShell({
               <h2 className="text-[18px] font-semibold">{current.item.label}</h2>
             </div>
           )}
-          {current && current.pages.length > 1 && (
+          {/* Ronda 3: en Canales y conexiones el teléfono vinculado se abre desde su tarjeta, no como pestaña. */}
+          {current && tabPages(current).length > 1 && (
             // Sub-secciones como control segmentado dentro del contenido.
             <div className="mb-5">
               <SectionTabs
                 variant="segmented"
-                tabs={current.pages.map((page) => ({
+                tabs={tabPages(current).map((page) => ({
                   href: href(page.slug),
                   label: page.label,
                   match: (p) => pathWithin(href(page.slug), p),

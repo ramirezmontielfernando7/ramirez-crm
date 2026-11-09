@@ -6,17 +6,17 @@ import { currentPlatformAdmin } from "@/server/platform-admin/admins";
 export const dynamic = "force-dynamic";
 
 /**
- * 036 (PR 3b) — Plataforma → Costos: cuánto cuesta la IA de cada
- * organización este mes (estimado y real), su proyección, en USD y en la
- * moneda local, y los precios con su historial. Solo el administrador de
- * plataforma (404 a los demás).
+ * 036 (PR 3b) — Plataforma → IA: modelos y costos (ronda 3): las tarjetas
+ * del mes arriba, los modelos de la instancia, y «Gasto por empresa» junto a
+ * la calculadora. Solo el administrador de plataforma (404 a los demás).
  */
 export default async function PlatformCostsPage() {
   if (!(await currentPlatformAdmin())) notFound();
   return (
-    <div className="mx-auto max-w-5xl space-y-4">
-      <AiModelsClient />
-      <CostsClient />
+    <div className="mx-auto max-w-6xl">
+      <CostsClient>
+        <AiModelsClient />
+      </CostsClient>
     </div>
   );
 }

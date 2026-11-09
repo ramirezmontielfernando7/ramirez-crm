@@ -1,23 +1,25 @@
-import { SectionTabs, type SectionTab } from "@/components/ui/section-tabs";
+import Link from "next/link";
+import { ChevronLeft } from "lucide-react";
+import { PersonalizationBack } from "@/components/settings/personalization-back";
 
 /**
- * Fase D — Ajustes → Personalización. Subpestañas (rutas, compartibles):
- * Apariencia (cada persona) · Marca y Navegación (solo quien administra; el
- * servidor valida igual en cada página y ruta).
+ * Ajustes → Apariencia (ronda 3). Apariencia y Notificaciones son renglones
+ * propios del menú de Ajustes; «Más de la marca» (Marca) y Navegación son
+ * páginas de detalle a las que se llega desde Apariencia y llevan un «volver».
  */
-const TABS: readonly SectionTab[] = [
-  { href: "/settings/personalization", label: "Apariencia" },
-  { href: "/settings/personalization/notificaciones", label: "Notificaciones" },
-  { href: "/settings/personalization/marca", label: "Marca", permission: "settings.manage" },
-  { href: "/settings/personalization/navegacion", label: "Navegación", permission: "settings.manage" },
-];
-
 export default function PersonalizationLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <div data-pm="subtabs-host" className="space-y-5">
-      <div data-pm="subtabs" className="border-b">
-        <SectionTabs tabs={TABS} label="Secciones de Personalización" />
-      </div>
+      <PersonalizationBack>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px] text-text-2">
+          <Link href="/settings/personalization" className="inline-flex items-center gap-1 hover:text-foreground">
+            <ChevronLeft className="h-4 w-4" strokeWidth={1.8} />
+            Apariencia
+          </Link>
+          <Link href="/settings/personalization/marca" className="hover:text-foreground">Marca</Link>
+          <Link href="/settings/personalization/navegacion" className="hover:text-foreground">Navegación</Link>
+        </div>
+      </PersonalizationBack>
       {children}
     </div>
   );
