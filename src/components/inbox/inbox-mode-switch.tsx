@@ -91,10 +91,15 @@ export function InboxListHeader({
   return (
     <header className={cn("inbox-list-header relative flex h-14 shrink-0 items-center gap-2 px-4", !flush && "border-b")} ref={rowRef}>
       <NavRevealButton />
+      {/* App móvil (maqueta B): en el teléfono, el título grande como WhatsApp.
+          Equipo y Mi número se abren desde «Más». */}
+      <h1 data-testid="inbox-mobile-title" className="text-[24px] font-bold tracking-[-0.3px] text-brand-text lg:hidden">
+        {current === "inbox" ? "Bandeja" : current === "chat" ? "Equipo" : labelOf(viewer, TABS[1]!)}
+      </h1>
       {tabs.length < 2 ? (
-        <h2 className="text-[16px] font-semibold">{labelOf(viewer, tabs[0] ?? TABS[0]!)}</h2>
+        <h2 className="text-[16px] font-semibold max-lg:hidden">{labelOf(viewer, tabs[0] ?? TABS[0]!)}</h2>
       ) : (
-        <nav aria-label="Cambiar de bandeja" data-testid="inbox-tabs" className="seg min-w-0 overflow-x-auto [scrollbar-width:none]">
+        <nav aria-label="Cambiar de bandeja" data-testid="inbox-tabs" className="seg min-w-0 overflow-x-auto [scrollbar-width:none] max-lg:hidden">
           {tabs.map((t) => {
             const active = t.mode === current;
             const n = t.mode === "inbox" ? inboxUnread : t.mode === "number" ? numberUnread : teamUnread;

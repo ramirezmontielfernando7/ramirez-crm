@@ -7,6 +7,7 @@ import type { ThemePreference } from "@/lib/theme";
 import type { ResolvedCommit } from "@/lib/version";
 import { AppNav } from "@/components/app-nav";
 import { MobileTabBar } from "@/components/mobile-tabbar";
+import { MobileMore } from "@/components/mobile-more";
 import { cn } from "@/lib/utils";
 import { BrandLogo, BrandTile } from "@/components/brand-mark";
 import { ViewerProvider } from "@/components/viewer-context";
@@ -143,6 +144,8 @@ function ShellFrame({
 }) {
   const pathname = usePathname();
   const [navOpen, setNavOpen] = useState(false);
+  // Teléfono: la pantalla «Más» (maqueta D) en lugar del cajón lateral.
+  const [moreOpen, setMoreOpen] = useState(false);
   const [savedMode, setMode] = useState<NavMode>(navMode);
   // En el Asistente el menú nunca se oculta del todo (sin encabezado no habría cómo reabrirlo):
   // solo completo o con íconos.
@@ -217,6 +220,7 @@ function ShellFrame({
   // de la pantalla recién cargada.
   useEffect(() => {
     setNavOpen(false);
+    setMoreOpen(false);
   }, [pathname]);
 
   useEffect(() => {
@@ -297,8 +301,24 @@ function ShellFrame({
           <CampaignPauseBanner campaigns={campaigns} />
           {/* 036 (PR 3a): avisos de consumo al 80 % y 100 % de los topes (solo el Propietario). */}
           <UsageAlertBanner />
-          <main className="min-h-0 min-w-0 flex-1 overflow-hidden">{children}</main>
-          <MobileTabBar nav={nav} onMore={() => setNavOpen(true)} />
+          <main className="relative min-h-0 min-w-0 flex-1 overflow-hidden">
+            {children}
+            {moreOpen && (
+              <MobileMore
+                nav={nav}
+                userName={userName}
+                theme={theme}
+                platform={platform}
+                onClose={() => setMoreOpen(false)}
+              />
+            )}
+          </main>
+          <MobileTabBar
+            nav={nav}
+            moreOpen={moreOpen}
+            onMore={() => setMoreOpen((v) => !v)}
+            onNavigate={() => setMoreOpen(false)}
+          />
           {/* «Uso y plan» como ventana (solo el Propietario). */}
           <Suspense fallback={null}>
             <UsageDialog />

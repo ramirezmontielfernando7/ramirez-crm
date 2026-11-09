@@ -272,9 +272,10 @@ async function main() {
   const tel = await persona({ width: 390, height: 844 });
   await tel.entrar(ASESOR.email, PASS);
   const vt = await tel.pagina("/inbox");
-  await vt.p.getByRole("button", { name: "Abrir el menú" }).click();
-  const enTel = await menu(vt.p);
-  ok("oculto en escritorio → en el teléfono el cajón tiene el mismo menú", enTel.join() === modos.expanded.join(), enTel.join());
+  // App móvil: el cajón lateral se cambió por la barra de abajo + la pantalla «Más».
+  await vt.p.getByTestId("mobile-more-tab").waitFor({ timeout: 30000 });
+  const enTel = await vt.p.locator(".mobile-tabbar a").evaluateAll((as) => as.map((a) => a.getAttribute("href")));
+  ok("oculto en escritorio → en el teléfono la barra de abajo trae el mismo menú (solo CRM Comercial)", enTel.join() === "/pipeline", enTel.join());
   await vt.p.close();
   await S.call("PUT", "/api/preferences", { navMode: null });
   ok("oculto ≠ prohibido: el Asesor sigue abriendo la Bandeja y el chat de equipo (API 200)", (await S.call("GET", "/api/team-chat/threads")).status === 200);

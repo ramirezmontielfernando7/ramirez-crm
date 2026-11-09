@@ -16,7 +16,7 @@ import {
 import { getOrgAppearance } from "@/server/appearance";
 import { accentCssVariables, DEFAULT_BRANDING, sidebarCssVariables } from "@/lib/branding";
 import { faviconHref } from "@/lib/favicon";
-import { normalizeThemePreference, THEME_COOKIE } from "@/lib/theme";
+import { normalizeThemePreference, THEME_BAR_COLOR, THEME_COOKIE } from "@/lib/theme";
 import { getViewerBrandingContext } from "@/server/branding";
 import "./globals.css";
 
@@ -51,7 +51,13 @@ const plexMono = localFont({
 
 export const dynamic = "force-dynamic";
 
-export const viewport: Viewport = { themeColor: "#12999d" };
+/** Barra de estado del teléfono: blanca en claro, la superficie en oscuro
+ *  (como WhatsApp), según el tema guardado de este dispositivo. */
+export async function generateViewport(): Promise<Viewport> {
+  const jar = await cookies();
+  const theme = normalizeThemePreference(jar.get(THEME_COOKIE)?.value);
+  return { themeColor: THEME_BAR_COLOR[theme] };
+}
 
 export async function generateMetadata(): Promise<Metadata> {
   // H11: con sesión, la marca de SU negocio; sin sesión, la de la plataforma.

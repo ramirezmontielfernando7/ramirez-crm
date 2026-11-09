@@ -146,7 +146,7 @@ export function AssistantLauncher() {
           aria-label="Abrir el asistente (Ctrl+K)"
           title="Asistente · Ctrl+K"
           data-testid="assistant-launcher"
-          className="fixed bottom-4 right-4 z-40 flex h-10 w-10 items-center justify-center rounded-full bg-surface text-brand-text opacity-60 shadow-card transition-opacity hover:opacity-100 focus-visible:opacity-100"
+          className="fixed bottom-4 right-4 z-40 hidden h-10 w-10 items-center justify-center rounded-full bg-surface text-brand-text opacity-60 shadow-card transition-opacity hover:opacity-100 lg:flex focus-visible:opacity-100"
           onContextMenu={(e) => {
             e.preventDefault();
             hideButton();

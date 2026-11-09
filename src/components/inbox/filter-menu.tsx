@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, m } from "framer-motion";
-import { Check, ChevronDown, Filter } from "lucide-react";
+import { Check, ChevronDown, EllipsisVertical, Filter } from "lucide-react";
+import { usePhone } from "@/lib/use-phone";
 import { SPRING } from "@/components/motion";
 import { cn } from "@/lib/utils";
 
@@ -53,6 +54,7 @@ export function FilterMenu({
   onOwner: (o: string) => void;
   className?: string;
 }) {
+  const phone = usePhone();
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
@@ -113,7 +115,11 @@ export function FilterMenu({
       >
         {variant === "icon" ? (
           <>
-            <Filter className="h-4 w-4" strokeWidth={1.75} />
+            {phone ? (
+              <EllipsisVertical className="h-[22px] w-[22px]" strokeWidth={1.8} />
+            ) : (
+              <Filter className="h-4 w-4" strokeWidth={1.75} />
+            )}
             {filtered && (
               <span aria-hidden className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full border-2 border-surface bg-brand" />
             )}

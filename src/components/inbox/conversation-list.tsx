@@ -12,7 +12,7 @@ import {
 } from "react";
 import dynamic from "next/dynamic";
 import { useVirtualizer, type VirtualItem } from "@tanstack/react-virtual";
-import { Bot, CheckSquare, Megaphone, Search, Send, Sparkles } from "lucide-react";
+import { Bot, CheckSquare, Megaphone, MessageSquarePlus, Search, Send, Sparkles } from "lucide-react";
 import type { ConversationDto, StageDto } from "@/lib/types";
 import type { TagDto } from "@/lib/tags";
 import type { MenuAnchor } from "./floating-menu";
@@ -45,6 +45,7 @@ import { useConversationActions } from "./conversation-actions";
 import { longPressClass, useLongPress } from "./use-long-press";
 import { useInboxCatalogs } from "./use-inbox-catalogs";
 import { ListSearch } from "./list-search";
+import { usePhone } from "@/lib/use-phone";
 import { Collapse } from "@/components/motion";
 
 // La tarjeta de «número sin registrar» solo sale al buscar un teléfono que no
@@ -392,6 +393,7 @@ export const ConversationList = memo(function ConversationList({
     quick.push({ id: "groups", label: "Grupos", on: showGroups, pick: () => setFilter("groups") });
   }
   const searchRef = useRef<HTMLInputElement>(null);
+  const phone = usePhone();
   // Ronda 4: la búsqueda es una lupa en el encabezado; el cuadro aparece al
   // tocarla (o con «/») y se queda mientras haya texto.
   const [searchOpen, setSearchOpen] = useState(false);
@@ -408,7 +410,7 @@ export const ConversationList = memo(function ConversationList({
   }, []);
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="relative flex h-full flex-col">
       <InboxListHeader
         current="inbox"
         flush
@@ -431,7 +433,7 @@ export const ConversationList = memo(function ConversationList({
               aria-label="Buscar conversación (tecla /)"
               aria-pressed={searchOpen}
               title="Buscar (/)"
-              className={cn("btn-r3 g ic", searchOpen && "soft")}
+              className={cn("btn-r3 g ic max-lg:hidden", searchOpen && "soft")}
             >
               <Search className="h-4 w-4" strokeWidth={1.75} />
             </button>
@@ -453,18 +455,18 @@ export const ConversationList = memo(function ConversationList({
           </>
         }
       />
-      <div className="flex shrink-0 flex-col gap-2 px-4 pb-2.5 pt-0">
-        {showSearch && (
+      <div className="inbox-list-top flex shrink-0 flex-col gap-2 px-4 pb-2.5 pt-0">
+        {/* En el teléfono (maqueta B) el buscador va siempre a la vista. */}
         <ListSearch
           ref={searchRef}
-          autoFocus
+          autoFocus={searchOpen}
+          className={showSearch ? undefined : "lg:hidden"}
           onClose={() => setSearchOpen(false)}
           query={query}
           onQuery={setQuery}
-          placeholder="Buscar nombre, teléfono o mensaje"
+          placeholder={phone ? "Buscar chats, contactos o etiquetas" : "Buscar nombre, teléfono o mensaje"}
           hint={filtroPuesto}
         />
-        )}
         <div className="inbox-filter-strip flex items-center gap-1.5">
           <div role="group" aria-label="Mostrar" className="inbox-quick-filters flex flex-wrap items-center gap-1.5">
             {quick.map((q) => (
@@ -630,6 +632,22 @@ export const ConversationList = memo(function ConversationList({
             Cerrar
           </button>
         </p>
+      )}
+      {/* App móvil (maqueta B): «Nuevo chat» abajo a la derecha, como WhatsApp.
+          Abre el buscador: al escribir un número nuevo sale su tarjeta. */}
+      {!selecting && !viewer.newChatsBlocked && (
+        <button
+          type="button"
+          aria-label="Nuevo chat"
+          data-testid="inbox-new-chat-fab"
+          onClick={() => {
+            setSearchOpen(true);
+            searchRef.current?.focus();
+          }}
+          className="absolute bottom-4 right-4 z-10 grid h-14 w-14 place-items-center rounded-2xl bg-brand text-brand-fg shadow-[0_6px_16px_color-mix(in_srgb,var(--accent)_35%,transparent)] transition-transform active:scale-95 lg:hidden"
+        >
+          <MessageSquarePlus className="h-6 w-6" strokeWidth={1.8} />
+        </button>
       )}
     </div>
   );
@@ -858,7 +876,7 @@ const ConversationRow = memo(function ConversationRow({
               className="mt-2.5 h-4 w-4 shrink-0 accent-[var(--accent)]"
             />
           )}
-          <span className="relative shrink-0">
+          <span className="row-avatar relative shrink-0">
             <ContactAvatar name={contactLabel(c.contact)} seed={c.contact.id} size="md" />
             {aiBadge !== "none" && (
               // El robot en un círculo blanco en la esquina del avatar: verde =
@@ -882,11 +900,12 @@ const ConversationRow = memo(function ConversationRow({
             <span className="flex items-baseline justify-between gap-2">
               <span className="flex min-w-0 items-center gap-1.5 self-center">
                 {multiChannel && <ChannelBadge channel={c.channel} />}
-                <span className="truncate text-[13.5px] font-medium leading-5 text-foreground">
+                <span data-row-name className="truncate text-[13.5px] font-medium leading-5 text-foreground">
                   {contactLabel(c.contact)}
                 </span>
               </span>
               <span
+                data-row-time
                 className={cn(
                   "shrink-0 text-[11.5px] leading-4 tabular-nums",
                   unread ? "font-semibold text-brand-ink" : "text-text-3"

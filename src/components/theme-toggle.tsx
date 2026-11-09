@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Moon, Sun } from "lucide-react";
 import {
+  applyThemeBarColor,
   nextThemePreference,
   normalizeThemePreference,
   THEME_COOKIE,
@@ -35,6 +36,7 @@ export function ThemeToggle({
     const value = nextThemePreference(pref);
     setPref(value);
     document.documentElement.setAttribute("data-theme", value);
+    applyThemeBarColor(value);
     document.cookie = `${THEME_COOKIE}=${value};path=/;max-age=${THEME_COOKIE_MAX_AGE};samesite=lax`;
   }
 
