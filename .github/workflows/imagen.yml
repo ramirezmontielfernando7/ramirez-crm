@@ -16,9 +16,23 @@ name: Imagen
 # /api/health diga `commitVerified: true`.
 on:
   pull_request:
+    paths-ignore:
+      - "docs/maquetas/**"
+      - "android/**"
+      - "app-android/**"
+      - ".claude/**"
+      - "**/*.png"
+      - "**/*.jpg"
   push:
     branches: [main]
     tags: ["v*"]
+    paths-ignore:
+      - "docs/maquetas/**"
+      - "android/**"
+      - "app-android/**"
+      - ".claude/**"
+      - "**/*.png"
+      - "**/*.jpg"
 
 # Tres pushes seguidos a un PR no necesitan tres builds: manda el último. En
 # main y en los tags no se cancela nada.
