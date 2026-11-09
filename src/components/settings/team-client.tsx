@@ -24,9 +24,9 @@ type Member = {
 
 /** Qué puede hacer cada rol, dicho en una línea (para elegir con criterio). */
 const ROLE_HINT: Record<Role, string> = {
-  owner: "Acceso total.",
-  coordinador: "Ve a todo el equipo, reparte chats y edita etapas y plantillas.",
-  asesor: "Solo ve los chats y leads que tiene asignados.",
+  owner: "Ve y cambia todo, incluido el plan y la conexión.",
+  coordinador: "Ve todos los chats, asigna y administra el día a día.",
+  asesor: "Ve solo sus chats y los que le comparten.",
 };
 
 export function TeamClient() {
@@ -42,6 +42,7 @@ export function TeamClient() {
   const [created, setCreated] = useState<{ email: string; password: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [showForm, setShowForm] = useState(false);
 
   const refetch = useCallback(async () => {
     const res = await fetch("/api/settings/team").catch(() => null);
@@ -142,8 +143,23 @@ export function TeamClient() {
   }
 
   return (
-    <div className="max-w-2xl space-y-6">
-      {canManage && (
+    <div className="max-w-4xl space-y-6">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h2 className="text-xl font-semibold">Equipo y permisos</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {members.length} {members.length === 1 ? "persona" : "personas"} en tu equipo. Los roles se explican con palabras, no con una matriz.
+          </p>
+        </div>
+        {canManage && (
+          <Button onClick={() => setShowForm((v) => !v)}>
+            <UserPlus className="h-4 w-4" />
+            Invitar persona
+          </Button>
+        )}
+      </div>
+
+      {canManage && showForm && (
         <Card>
           <CardHeader>
             <CardTitle>Crear cuenta de equipo</CardTitle>
@@ -234,31 +250,36 @@ export function TeamClient() {
       )}
       {!canManage && error && <p className="text-sm text-destructive">{error}</p>}
 
-      <div className="space-y-2">
-        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          Miembros
-        </p>
-        {members.map((m) => (
-          <div
-            key={m.id}
-            className="flex items-center gap-3 rounded-lg border bg-card px-4 py-3"
-          >
-            <ContactAvatar name={m.name} seed={m.id} size="sm" />
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium">{m.name}</p>
-              <p className="text-xs text-muted-foreground">
-                {m.email} · {m.assignedCount}{" "}
-                {m.assignedCount === 1 ? "chat asignado" : "chats asignados"}
-              </p>
-              {/* 020: acciones por persona. Solo aparecen si el rol puede. */}
-              {m.role !== "owner" && (canManage || canAssign) && (
-                <div className="mt-2 flex flex-wrap items-center gap-2">
-                  {canManage && (
+      <div className="overflow-x-auto rounded-xl border bg-card">
+        <table className="w-full min-w-[640px] text-sm">
+          <thead>
+            <tr className="border-b bg-muted/40 text-left text-xs font-medium text-muted-foreground">
+              <th className="px-4 py-3">Persona</th>
+              <th className="px-4 py-3">Rol</th>
+              <th className="px-4 py-3">Chats asignados</th>
+              <th className="px-4 py-3">En el equipo desde</th>
+              <th className="px-4 py-3 text-right">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            {members.map((m) => (
+              <tr key={m.id} className="border-b last:border-b-0">
+                <td className="px-4 py-3">
+                  <div className="flex items-center gap-3">
+                    <ContactAvatar name={m.name} seed={m.id} size="sm" />
+                    <div className="min-w-0">
+                      <p className="truncate font-medium">{m.name}</p>
+                      <p className="truncate text-xs text-muted-foreground">{m.email}</p>
+                    </div>
+                  </div>
+                </td>
+                <td className="px-4 py-3">
+                  {m.role !== "owner" && canManage ? (
                     <select
                       value={m.role}
                       onChange={(e) => changeRole(m, e.target.value as Role)}
                       aria-label={`Rol de ${m.name}`}
-                      className="h-8 rounded-md border border-input bg-card px-2 text-xs"
+                      className="h-8 rounded-md border border-input bg-card px-2 text-sm"
                     >
                       {ASSIGNABLE_ROLES.map((r) => (
                         <option key={r} value={r}>
@@ -266,38 +287,57 @@ export function TeamClient() {
                         </option>
                       ))}
                     </select>
+                  ) : (
+                    <Badge variant={m.role === "owner" ? "default" : "secondary"}>{roleLabel(m.role)}</Badge>
                   )}
-                  {canAssign && m.assignedCount > 0 && (
-                    <select
-                      value="__"
-                      onChange={(e) => reassignAll(m, e.target.value)}
-                      aria-label={`Reasignar todos los chats de ${m.name}`}
-                      className="h-8 min-w-0 rounded-md border border-input bg-card px-2 text-xs"
-                    >
-                      <option value="__" disabled>
-                        Reasignar todos sus chats a…
-                      </option>
-                      <option value="">Sin asignar</option>
-                      {members
-                        .filter((x) => x.userId !== m.userId)
-                        .map((x) => (
-                          <option key={x.userId} value={x.userId}>
-                            {x.name}
+                </td>
+                <td className="px-4 py-3 text-muted-foreground">{m.assignedCount}</td>
+                <td className="px-4 py-3 text-muted-foreground">
+                  {new Date(m.createdAt).toLocaleDateString("es-MX", { day: "numeric", month: "short", year: "numeric" })}
+                </td>
+                <td className="px-4 py-3">
+                  {/* 020: acciones por persona. Solo aparecen si el rol puede. */}
+                  {m.role !== "owner" && (canManage || canAssign) && (
+                    <div className="flex flex-wrap items-center justify-end gap-2">
+                      {canAssign && m.assignedCount > 0 && (
+                        <select
+                          value="__"
+                          onChange={(e) => reassignAll(m, e.target.value)}
+                          aria-label={`Reasignar todos los chats de ${m.name}`}
+                          className="h-8 min-w-0 max-w-[11rem] rounded-md border border-input bg-card px-2 text-xs"
+                        >
+                          <option value="__" disabled>
+                            Reasignar todos sus chats a…
                           </option>
-                        ))}
-                    </select>
+                          <option value="">Sin asignar</option>
+                          {members
+                            .filter((x) => x.userId !== m.userId)
+                            .map((x) => (
+                              <option key={x.userId} value={x.userId}>
+                                {x.name}
+                              </option>
+                            ))}
+                        </select>
+                      )}
+                      {canManage && (
+                        <Button size="sm" variant="ghost" onClick={() => remove(m)}>
+                          Quitar del equipo
+                        </Button>
+                      )}
+                    </div>
                   )}
-                  {canManage && (
-                    <Button size="sm" variant="ghost" onClick={() => remove(m)}>
-                      Quitar del equipo
-                    </Button>
-                  )}
-                </div>
-              )}
-            </div>
-            <Badge variant={m.role === "owner" ? "default" : "secondary"}>
-              {roleLabel(m.role)}
-            </Badge>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-3">
+        {(["owner", "coordinador", "asesor"] as const).map((r) => (
+          <div key={r} className="rounded-xl border bg-card p-4">
+            <p className="font-medium">{ROLE_LABEL[r]}</p>
+            <p className="mt-1 text-sm text-muted-foreground">{ROLE_HINT[r]}</p>
           </div>
         ))}
       </div>
