@@ -1,11 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { fetchJson, jsonInit } from "@/lib/fetch-json";
 import { BODY_MAX, normalizeShortcut, SHORTCUT_MAX, type QuickReplyDto } from "@/lib/quick-replies";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -22,6 +22,8 @@ export function QuickRepliesClient() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [draft, setDraft] = useState<Draft>(EMPTY);
   const [creating, setCreating] = useState(false);
+  const [showNew, setShowNew] = useState(false);
+  const [query, setQuery] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState<(Draft & { id: string }) | null>(null);
 
@@ -46,6 +48,7 @@ export function QuickRepliesClient() {
     setCreating(false);
     if (!res.ok) return setError(res.error);
     setDraft(EMPTY);
+    setShowNew(false);
     void refetch();
   }
 
@@ -68,51 +71,74 @@ export function QuickRepliesClient() {
 
   const ready = (d: Draft) => d.shortcut.length > 0 && d.body.trim().length > 0;
 
+  const q = query.trim().toLowerCase().replace(/^\//, "");
+  const shown = (replies ?? []).filter((r) => !q || r.shortcut.includes(q) || r.body.toLowerCase().includes(q));
+
   return (
-    <div className="max-w-3xl space-y-6">
-      <p className="text-sm text-muted-foreground">
-        Mensajes que usas seguido (precios, horarios, ubicación, datos para pagar). En cualquier chat, de
-        Empresa o de Mi número, tócalos con el botón del rayo o escribe <span className="font-mono">/</span> y
-        su atajo: el texto queda en el cuadro para revisarlo y enviarlo. Escribe{" "}
-        <span className="font-mono">{"{nombre}"}</span> y se cambia por el nombre del cliente.
-      </p>
+    <div className="max-w-5xl space-y-5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="text-xl font-semibold tracking-tight">Respuestas rápidas</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Textos que tu equipo usa seguido. Se usan con <span className="font-mono">/</span> o con el rayo en la caja
+            de escribir; <span className="font-mono">{"{nombre}"}</span> se cambia por el nombre del cliente.
+          </p>
+        </div>
+        <Button onClick={() => setShowNew((v) => !v)} data-testid="quick-reply-new">
+          <Plus className="mr-1.5 h-4 w-4" />
+          Nueva respuesta
+        </Button>
+      </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Nueva respuesta</CardTitle>
-          <CardDescription>El atajo va sin espacios ni acentos. Ej.: precios, horario, cuenta.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <ReplyFields idPrefix="qr-new" value={draft} onChange={setDraft} />
-          {error && !editing && (
-            <p role="alert" className="text-sm text-danger-text">
-              {error}
-            </p>
-          )}
-          <Button disabled={!ready(draft) || creating} onClick={() => void create()} data-testid="quick-reply-create">
-            {creating ? "Guardando…" : "Guardar respuesta"}
-          </Button>
-        </CardContent>
-      </Card>
+      {showNew && (
+        <Card>
+          <CardContent className="space-y-3 pt-6">
+            <p className="text-xs text-text-3">El atajo va sin espacios ni acentos. Ej.: precios, horario, cuenta.</p>
+            <ReplyFields idPrefix="qr-new" value={draft} onChange={setDraft} />
+            {error && !editing && (
+              <p role="alert" className="text-sm text-danger-text">
+                {error}
+              </p>
+            )}
+            <Button disabled={!ready(draft) || creating} onClick={() => void create()} data-testid="quick-reply-create">
+              {creating ? "Guardando…" : "Guardar respuesta"}
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Respuestas</CardTitle>
-          <CardDescription>Las ve y las usa todo el equipo.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {loadError ? (
-            <p role="alert" className="text-sm text-danger-text">
-              {loadError}
-            </p>
-          ) : replies === null ? (
-            <p className="text-sm text-muted-foreground">Cargando…</p>
-          ) : replies.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Aún no hay respuestas rápidas.</p>
-          ) : (
+      <div className="relative max-w-sm">
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-3" />
+        <Input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Buscar atajo o texto"
+          aria-label="Buscar atajo o texto"
+          className="pl-9"
+        />
+      </div>
+
+      <div className="overflow-hidden rounded-xl border bg-card">
+        {loadError ? (
+          <p role="alert" className="p-4 text-sm text-danger-text">
+            {loadError}
+          </p>
+        ) : replies === null ? (
+          <p className="p-4 text-sm text-muted-foreground">Cargando…</p>
+        ) : shown.length === 0 ? (
+          <p className="p-4 text-sm text-muted-foreground">
+            {replies.length === 0 ? "Aún no hay respuestas rápidas." : "Ninguna respuesta coincide."}
+          </p>
+        ) : (
+          <>
+            <div className="grid grid-cols-[8rem_1fr_5rem] gap-3 border-b bg-muted/30 px-4 py-2.5 text-xs font-medium text-text-3 sm:grid-cols-[10rem_1fr_6rem]">
+              <span>Atajo</span>
+              <span>Texto</span>
+              <span />
+            </div>
             <ul className="divide-y" data-testid="quick-reply-list">
-              {replies.map((r) => (
-                <li key={r.id} className="py-3">
+              {shown.map((r) => (
+                <li key={r.id} className="px-4 py-3">
                   {editing?.id === r.id ? (
                     <div className="space-y-2">
                       <ReplyFields idPrefix={`qr-${r.id}`} value={editing} onChange={(d) => setEditing({ ...editing, ...d })} />
@@ -138,12 +164,10 @@ export function QuickRepliesClient() {
                       </div>
                     </div>
                   ) : (
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="font-mono text-[13px] font-semibold text-brand-text">/{r.shortcut}</p>
-                        <p className="mt-0.5 line-clamp-2 whitespace-pre-line text-sm text-text-2">{r.body}</p>
-                      </div>
-                      <div className="flex shrink-0 gap-1">
+                    <div className="grid grid-cols-[8rem_1fr_5rem] items-start gap-3 sm:grid-cols-[10rem_1fr_6rem]">
+                      <p className="truncate font-mono text-[13px] font-semibold">/{r.shortcut}</p>
+                      <p className="line-clamp-2 whitespace-pre-line text-sm text-text-2">{r.body}</p>
+                      <div className="flex justify-end gap-1">
                         <Button
                           variant="ghost"
                           size="icon"
@@ -164,9 +188,9 @@ export function QuickRepliesClient() {
                 </li>
               ))}
             </ul>
-          )}
-        </CardContent>
-      </Card>
+          </>
+        )}
+      </div>
     </div>
   );
 }

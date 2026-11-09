@@ -369,8 +369,11 @@ function ThreadList({
 }) {
   const viewer = useViewer();
   const [newOpen, setNewOpen] = useState(false);
-  const own = list?.threads.filter((t) => t.relation === "member") ?? [];
-  const supervised = list?.threads.filter((t) => t.relation === "oversight") ?? [];
+  const [search, setSearch] = useState("");
+  const needle = search.trim().toLowerCase();
+  const matches = (t: TeamThreadDto) => !needle || t.title.toLowerCase().includes(needle);
+  const own = list?.threads.filter((t) => t.relation === "member" && matches(t)) ?? [];
+  const supervised = list?.threads.filter((t) => t.relation === "oversight" && matches(t)) ?? [];
 
   return (
     <div className="flex h-full flex-col">
@@ -402,6 +405,18 @@ function ThreadList({
         </div>
         }
       />
+      <div className="border-b px-3 py-2">
+        <div className="flex items-center gap-2 rounded-md border bg-background px-2.5">
+          <Search className="h-4 w-4 shrink-0 text-text-3" strokeWidth={1.7} />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Buscar persona o grupo"
+            aria-label="Buscar persona o grupo"
+            className="h-9 min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-text-3 max-sm:text-base"
+          />
+        </div>
+      </div>
 
       {list?.overseeing && (
         <div className="flex items-start gap-2 border-b bg-warning-tint px-4 py-2 text-[12px] leading-snug text-warning-text">
@@ -434,7 +449,7 @@ function ThreadList({
         ) : (
           <>
             <Rows threads={own} selectedId={selectedId} onSelect={onSelect} userId={viewer.userId} />
-            {own.length <= 1 && (
+            {!needle && own.length <= 1 && (
               <p className="px-4 py-4 text-center text-[12px] text-text-3">
                 Abre un directo con <MessageSquarePlus className="inline h-3.5 w-3.5" strokeWidth={1.8} /> para escribirle a
                 alguien del equipo.
