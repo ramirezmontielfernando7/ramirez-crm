@@ -13,7 +13,7 @@ import type { NavMode } from "@/lib/preferences";
  * con el menú oculto, el logo para volver vive en el encabezado de cada
  * pantalla, en la fila de su título (no flotando en una esquina).
  */
-type NavModeContext = { mode: NavMode; cycle: () => void; branding: BrandingMark };
+type NavModeContext = { mode: NavMode; cycle: () => void; setMode: (mode: NavMode) => void; branding: BrandingMark };
 
 const Ctx = createContext<NavModeContext | null>(null);
 
@@ -25,6 +25,11 @@ export function NavModeProvider({
   children: React.ReactNode;
 }) {
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
+}
+
+/** El estado del menú lateral y cómo cambiarlo (Ajustes → Apariencia). `null` fuera del armazón. */
+export function useNavMode(): NavModeContext | null {
+  return useContext(Ctx);
 }
 
 /**

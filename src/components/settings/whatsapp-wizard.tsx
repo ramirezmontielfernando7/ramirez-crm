@@ -1,8 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import {
   AlertTriangle,
+  ChevronRight,
+  MessageCircle,
+  Plus,
+  SlidersHorizontal,
+  Smartphone,
   Copy,
   ShieldAlert,
   ShieldCheck,
@@ -12,11 +18,13 @@ import { fetchJson } from "@/lib/fetch-json";
 import { messagingLimitLabel, QUALITY_LABEL } from "@/lib/phone-health";
 import type { HealthSummaryDto } from "@/components/number-health";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import type { WebhookSettingsDto } from "@/lib/webhook-settings";
 import { Label } from "@/components/ui/label";
+import { CONNECTION_STATUS_LABEL, type ConnectionMode } from "@/lib/direct-connection";
+import { phoneCompact } from "@/lib/utils";
 import { EmbeddedSignupCard, type EmbeddedSignupConfig } from "@/components/settings/embedded-signup-card";
 
 type Connection = {
@@ -31,11 +39,21 @@ type Connection = {
 type WebhookInfo = WebhookSettingsDto;
 type PlatformWebhookInfo = Extract<WebhookSettingsDto, { managedByPlatform: false }>;
 
-export function WhatsappWizard() {
+export function WhatsappWizard({
+  direct = null,
+  templatesHref = null,
+}: {
+  /** Teléfono vinculado (complemento + permiso de vincular); `canMode` = puede elegir por dónde salen los chats nuevos. */
+  direct?: { canMode: boolean } | null;
+  /** A dónde lleva el renglón «Plantillas» (Marketing o Ajustes); `null` = sin renglón. */
+  templatesHref?: string | null;
+}) {
   const [connection, setConnection] = useState<Connection | null>(null);
   const [webhook, setWebhook] = useState<WebhookInfo | null>(null);
   const [embeddedSignup, setEmbeddedSignup] = useState<EmbeddedSignupConfig | null>(null);
   const [loaded, setLoaded] = useState(false);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
+  const advancedRef = useRef<HTMLDivElement>(null);
 
   const refetch = useCallback(async () => {
     const [c, w] = await Promise.all([
@@ -63,6 +81,10 @@ export function WhatsappWizard() {
   }
 
   const connected = connection?.status === "connected";
+  // Plegado salvo que algo pida atención: sin número, token vencido o firma del webhook sin configurar.
+  const needsAttention =
+    !connected || (webhook !== null && (!webhook.signatureLayer || (webhook.managedByPlatform && webhook.platformConfigMissing)));
+  const showAdvanced = advancedOpen || needsAttention;
   const advanced = (
     <>
       <ConnectForm existing={connection} onSaved={() => void refetch()} />
@@ -70,14 +92,26 @@ export function WhatsappWizard() {
         (webhook.managedByPlatform ? <ManagedWebhookCard webhook={webhook} /> : <WebhookCard webhook={webhook} />)}
     </>
   );
+  function openAdvanced() {
+    setAdvancedOpen(true);
+    requestAnimationFrame(() => advancedRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
+  }
 
   return (
     <div className="max-w-5xl space-y-5">
-      <div className="space-y-1">
-        <h2 className="text-xl font-semibold">Canales y conexiones</h2>
-        <p className="text-sm text-muted-foreground">
-          {connected ? "Tus números y dónde salen los mensajes." : "Conecta tu WhatsApp para recibir y contestar chats desde Dashfort."}
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="space-y-1">
+          <h2 className="text-[22px] font-semibold tracking-tight">Canales y conexiones</h2>
+          <p className="text-[13.5px] text-text-2">
+            {connected ? "Tus números y por dónde salen los mensajes." : "Conecta tu WhatsApp para recibir y contestar chats desde Dashfort."}
+          </p>
+        </div>
+        {connected && (
+          <Button variant="outline" onClick={openAdvanced} data-testid="conectar-otro-numero">
+            <Plus className="h-4 w-4" strokeWidth={1.8} />
+            Conectar otro número
+          </Button>
+        )}
       </div>
 
       {connection?.status === "reconnect_required" && (
@@ -95,30 +129,211 @@ export function WhatsappWizard() {
         </div>
       )}
 
-      {connection && connected && <OfficialNumberCard connection={connection} />}
+      {((connection && connected) || direct) && (
+        <div className="grid items-stretch gap-4 lg:grid-cols-2">
+          {connection && connected && <OfficialNumberCard connection={connection} />}
+          {direct && <LinkedPhoneCard />}
+        </div>
+      )}
 
-      {embeddedSignup ? (
-        <>
-          <EmbeddedSignupCard
-            config={embeddedSignup}
-            connected={connected}
-            onConnected={() => void refetch()}
-          />
-          {/* Tech Provider: la conexión manual queda como opción avanzada. */}
-          <details className="group rounded-lg border bg-card" data-testid="conexion-manual">
-            <summary className="cursor-pointer select-none px-5 py-4 text-sm font-medium">
-              Opciones avanzadas
-              <span className="ml-2 font-normal text-muted-foreground">
-                Conexión manual con token de Meta, webhook y PIN · solo si tu técnico te lo pide
-              </span>
-            </summary>
-            <div className="space-y-4 border-t p-4">{advanced}</div>
-          </details>
-        </>
-      ) : (
-        advanced
+      {direct?.canMode && connected && <NewChatsModeCard />}
+
+      {embeddedSignup && !connected && (
+        <EmbeddedSignupCard config={embeddedSignup} connected={connected} onConnected={() => void refetch()} />
+      )}
+
+      {connected && (
+        <div className="grid gap-4 lg:grid-cols-2">
+          {templatesHref ? (
+            <Link
+              href={templatesHref}
+              className="flex min-w-0 items-center gap-3 rounded-card border bg-surface px-4 py-3.5 hover:bg-subtle"
+              data-testid="canales-plantillas"
+            >
+              <MessageCircle className="h-[18px] w-[18px] shrink-0 text-text-2" strokeWidth={1.8} />
+              <span className="text-[14px] font-semibold">Plantillas</span>
+              <TemplatesSummary />
+              <ChevronRight className="h-4 w-4 shrink-0 text-text-3" />
+            </Link>
+          ) : (
+            <span className="max-lg:hidden" />
+          )}
+          <button
+            type="button"
+            onClick={() => (showAdvanced && !needsAttention ? setAdvancedOpen(false) : openAdvanced())}
+            aria-expanded={showAdvanced}
+            className="flex min-w-0 items-center gap-3 rounded-card border bg-surface px-4 py-3.5 text-left hover:bg-subtle"
+            data-testid="conexion-manual"
+          >
+            <SlidersHorizontal className="h-[18px] w-[18px] shrink-0 text-text-2" strokeWidth={1.8} />
+            <span className="text-[14px] font-semibold">Opciones avanzadas</span>
+            <span className="ml-auto truncate text-[13px] text-text-2">Webhook, token y PIN</span>
+            <ChevronRight className={`h-4 w-4 shrink-0 text-text-3 transition-transform ${showAdvanced ? "rotate-90" : ""}`} />
+          </button>
+        </div>
+      )}
+
+      {connected && embeddedSignup && showAdvanced && (
+        <EmbeddedSignupCard config={embeddedSignup} connected={connected} onConnected={() => void refetch()} />
+      )}
+
+      {(showAdvanced || !connected) && (
+        <div ref={advancedRef} className="space-y-4" data-testid="opciones-avanzadas">
+          {embeddedSignup && !connected ? (
+            <details className="group rounded-lg border bg-card">
+              <summary className="cursor-pointer select-none px-5 py-4 text-sm font-medium">
+                Conexión manual
+                <span className="ml-2 font-normal text-muted-foreground">
+                  Token de Meta, webhook y PIN · solo si tu técnico te lo pide
+                </span>
+              </summary>
+              <div className="space-y-4 border-t p-4">{advanced}</div>
+            </details>
+          ) : (
+            advanced
+          )}
+        </div>
       )}
     </div>
+  );
+}
+
+/** «12 aprobadas · se administran en Marketing»: cuántas plantillas aprobadas hay. */
+function TemplatesSummary() {
+  const [approved, setApproved] = useState<number | null>(null);
+  useEffect(() => {
+    void fetchJson<{ templates: { status: string }[] }>("/api/templates").then((r) => {
+      if (r.ok) setApproved(r.data.templates.filter((t) => t.status === "approved").length);
+    });
+  }, []);
+  return (
+    <span className="ml-auto truncate text-[13px] text-text-2">
+      {approved === null ? "" : `${approved.toLocaleString("es-MX")} ${approved === 1 ? "aprobada" : "aprobadas"} · `}se administran en Marketing
+    </span>
+  );
+}
+
+type LinkedStatus = { status: string; phoneNumber: string | null; connectedAt: string | null; pausedUntil: string | null };
+
+/** «Teléfono vinculado»: el dispositivo de la conexión directa, su estado y el acceso a sus límites. */
+function LinkedPhoneCard() {
+  const [st, setSt] = useState<LinkedStatus | null>(null);
+  useEffect(() => {
+    void fetchJson<{ connection: LinkedStatus }>("/api/settings/direct-connection").then((r) => {
+      if (r.ok) setSt(r.data.connection);
+    });
+  }, []);
+  const label = st ? (CONNECTION_STATUS_LABEL as Record<string, string>)[st.status] ?? st.status : "…";
+  const ok = st?.status === "connected";
+  return (
+    <section className="min-w-0 rounded-card border bg-surface" data-testid="linked-phone-card">
+      <div className="flex items-center gap-2 border-b px-4 py-3">
+        <Smartphone className="h-[18px] w-[18px] text-brand" strokeWidth={1.8} />
+        <h3 className="text-[14px] font-semibold">Teléfono vinculado</h3>
+        {st && <Badge variant={ok ? "success" : "secondary"}>{label}</Badge>}
+      </div>
+      <div className="flex flex-wrap items-end justify-between gap-3 p-4">
+        <div className="min-w-0">
+          <p className="text-xl font-semibold">{st?.phoneNumber ? phoneCompact(st.phoneNumber) : ok ? "Conectado" : "Sin vincular"}</p>
+          <p className="text-sm text-text-2">
+            {st?.pausedUntil
+              ? "Envíos en pausa de seguridad"
+              : st?.connectedAt
+                ? `Vinculado el ${new Date(st.connectedAt).toLocaleDateString("es-MX", { day: "numeric", month: "short" })}`
+                : "Vincúlalo con código QR"}
+          </p>
+        </div>
+        <Link href="/settings/direct-connection" className={buttonVariants({ size: "sm", variant: "outline" })}>
+          <SlidersHorizontal className="h-4 w-4" strokeWidth={1.8} />
+          {ok ? "Límites" : "Vincular"}
+        </Link>
+      </div>
+    </section>
+  );
+}
+
+const MODE_CHOICES: { mode: ConnectionMode; label: string; hint: string; dot: string }[] = [
+  { mode: "meta", label: "Oficial", hint: "Entra y sale por WhatsApp oficial (Meta). Lo más seguro.", dot: "bg-success" },
+  { mode: "directa", label: "Directa", hint: "Entra y sale por el teléfono vinculado.", dot: "bg-[#1f5fd1]" },
+  { mode: "mixta", label: "Híbrida", hint: "Entra por oficial y sale por el teléfono.", dot: "bg-[#6d3fc0]" },
+];
+
+/**
+ * «¿Por dónde salen los chats nuevos?»: el modo por defecto de la conexión
+ * directa (el mismo de su página de Ajustes), guardado al elegir. Los demás
+ * ajustes de esa página viajan tal cual en el mismo PUT.
+ */
+function NewChatsModeCard() {
+  const [adv, setAdv] = useState<Record<string, unknown> & { defaultMode: ConnectionMode } | null>(null);
+  const [hidden, setHidden] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    void fetchJson<{ advanced: Record<string, unknown> & { defaultMode: ConnectionMode }; metaless: boolean }>(
+      "/api/settings/direct-connection/advanced"
+    ).then((r) => {
+      if (!r.ok) return setHidden(true);
+      if (r.data.metaless) return setHidden(true);
+      setAdv(r.data.advanced);
+    });
+  }, []);
+  if (hidden || !adv) return null;
+  async function pick(mode: ConnectionMode) {
+    if (!adv || mode === adv.defaultMode) return;
+    const before = adv;
+    setAdv({ ...adv, defaultMode: mode });
+    setBusy(true);
+    setError(null);
+    const r = await fetchJson<{ advanced: typeof before }>("/api/settings/direct-connection/advanced", {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ ...before, defaultMode: mode }),
+    });
+    setBusy(false);
+    if (r.ok) setAdv(r.data.advanced);
+    else {
+      setAdv(before);
+      setError("No se pudo guardar. Inténtalo de nuevo.");
+    }
+  }
+  return (
+    <section className="rounded-card border bg-surface" data-testid="new-chats-mode">
+      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 border-b px-4 py-3">
+        <h3 className="text-[14px] font-semibold">¿Por dónde salen los chats nuevos?</h3>
+        <p className="text-[12.5px] text-text-2">Cada chat se puede cambiar después desde su encabezado</p>
+      </div>
+      <div role="radiogroup" aria-label="¿Por dónde salen los chats nuevos?" className="grid gap-3 p-4 md:grid-cols-3">
+        {MODE_CHOICES.map((c) => {
+          const on = adv.defaultMode === c.mode;
+          return (
+            <button
+              key={c.mode}
+              type="button"
+              role="radio"
+              aria-checked={on}
+              disabled={busy}
+              onClick={() => void pick(c.mode)}
+              className={`flex min-w-0 items-start gap-3 rounded-md border p-3 text-left transition-colors ${on ? "border-brand ring-1 ring-brand" : "hover:bg-accent"}`}
+            >
+              <span
+                aria-hidden
+                className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${on ? "border-brand" : "border-border-strong"}`}
+              >
+                {on && <span className="h-2 w-2 rounded-full bg-brand" />}
+              </span>
+              <span className="min-w-0">
+                <span className="flex items-center gap-1.5 text-[14px] font-semibold">
+                  <span className={`h-2 w-2 rounded-full ${c.dot}`} aria-hidden />
+                  {c.label}
+                </span>
+                <span className="mt-0.5 block text-[12.5px] text-text-2">{c.hint}</span>
+              </span>
+            </button>
+          );
+        })}
+      </div>
+      {error && <p className="px-4 pb-3 text-[13px] text-destructive">{error}</p>}
+    </section>
   );
 }
 
@@ -143,14 +358,22 @@ function OfficialNumberCard({ connection }: { connection: Connection }) {
   const limit = today?.messagingLimitValue ?? null;
   const tile = "rounded-lg bg-subtle px-3 py-2.5";
   return (
-    <Card className="max-w-xl" data-testid="phone-health-card">
-      <CardHeader className="flex-row items-center justify-between space-y-0 border-b border-border">
-        <CardTitle className="flex items-center gap-2 text-sm">
+    <Card className="min-w-0" data-testid="phone-health-card">
+      <CardHeader className="flex-row items-center justify-between space-y-0 border-b border-border py-3">
+        <CardTitle className="flex items-center gap-2 text-[14px]">
+          <MessageCircle className="h-[18px] w-[18px] text-success" strokeWidth={1.8} />
           WhatsApp oficial
           <Badge variant="success">Conectado</Badge>
         </CardTitle>
-        <Button size="sm" variant="ghost" disabled={busy} onClick={() => void refresh()}>
-          <RefreshCw className={`h-4 w-4 ${busy ? "animate-spin" : ""}`} /> Actualizar
+        <Button
+          size="sm"
+          variant="ghost"
+          disabled={busy}
+          onClick={() => void refresh()}
+          aria-label="Actualizar la lectura de Meta"
+          title="Actualizar la lectura de Meta"
+        >
+          <RefreshCw className={`h-4 w-4 ${busy ? "animate-spin" : ""}`} />
         </Button>
       </CardHeader>
       <CardContent className="space-y-4 pt-4">

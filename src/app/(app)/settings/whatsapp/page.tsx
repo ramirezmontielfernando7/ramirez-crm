@@ -1,37 +1,26 @@
-import { AdvisorNewChatsCard } from "@/components/settings/advisor-new-chats-card";
-import { OptOutSettings } from "@/components/settings/opt-out-settings";
 import { WhatsappWizard } from "@/components/settings/whatsapp-wizard";
-import Link from "next/link";
 import { requirePagePermission } from "@/lib/auth/page-guard";
 import { can } from "@/lib/auth/permissions";
+import { campaignsEnabled } from "@/server/campaigns/flag";
 import { orgHasConexionDirecta } from "@/server/modules";
 
 export const dynamic = "force-dynamic";
 
+/**
+ * Ajustes → Canales y conexiones (ronda 3): el número oficial y el teléfono
+ * vinculado con su estado, «¿Por dónde salen los chats nuevos?», y los
+ * renglones Plantillas y Opciones avanzadas (reconectar, webhook y PIN,
+ * plegados salvo que algo pida atención). Las bajas viven en «Bajas
+ * automáticas» y «Chats nuevos de los asesores» en Equipo y permisos.
+ */
 export default async function WhatsappSettingsPage() {
   // 020: sin permiso, de vuelta a la Bandeja (la API ya responde 403).
   const session = await requirePagePermission("settings.manage");
-  const direct = can(session, "direct_connection.link") && (await orgHasConexionDirecta(session.organizationId));
-  return (
-    <div className="space-y-6">
-      <WhatsappWizard />
-      {direct && (
-        <Link
-          href="/settings/direct-connection"
-          className="flex max-w-5xl items-center justify-between rounded-lg border bg-card px-5 py-4 text-sm hover:bg-subtle"
-        >
-          <span>
-            <span className="font-semibold">Teléfono vinculado</span>
-            <span className="ml-2 rounded-full border px-2 py-0.5 text-xs">Complemento</span>
-            <span className="mt-1 block text-muted-foreground">
-              Vincula un celular con código QR y elige por dónde salen los chats nuevos.
-            </span>
-          </span>
-          <span aria-hidden>›</span>
-        </Link>
-      )}
-      <OptOutSettings />
-      <AdvisorNewChatsCard />
-    </div>
-  );
+  const [hasDirect, campaigns] = await Promise.all([
+    orgHasConexionDirecta(session.organizationId),
+    campaignsEnabled(session.organizationId),
+  ]);
+  const direct = hasDirect && can(session, "direct_connection.link") ? { canMode: can(session, "direct_connection.limits") } : null;
+  const templatesHref = campaigns ? "/campaigns/templates" : can(session, "templates.manage") ? "/settings/templates" : null;
+  return <WhatsappWizard direct={direct} templatesHref={templatesHref} />;
 }

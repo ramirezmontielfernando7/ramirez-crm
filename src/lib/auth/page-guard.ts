@@ -36,6 +36,8 @@ export const SETTINGS_TAB_PERMISSION = {
   uso: "usage.read",
   // 047 PR 3: el Propietario enciende el conector de IA; solo con el complemento.
   "conector-ia": "settings.manage",
+  // Ronda 3: «Bajas automáticas» (STOP/BAJA), antes dentro de Canales.
+  "opt-out": "settings.manage",
 } as const satisfies Record<string, Permission>;
 
 /**

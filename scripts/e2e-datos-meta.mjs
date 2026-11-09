@@ -545,7 +545,7 @@ async function main() {
     // restarting"); eso corta las peticiones de la página. Si los tres
     // elementos no aparecen, se espera a que el servidor vuelva y se recarga
     // UNA vez. No es un reintento del producto: es del servidor de desarrollo.
-    const IDS = ["health-limit", "opt-out-settings", "number-health-banner"];
+    const IDS = ["health-limit", "number-health-banner"];
     const allVisible = async () => {
       const found = {};
       for (const id of IDS) {
@@ -568,9 +568,12 @@ async function main() {
       seenIds = await allVisible();
     }
     ok("Ajustes → WhatsApp: tarjeta de salud del número", seenIds["health-limit"]);
-    ok("Ajustes → WhatsApp: bajas por palabra clave", seenIds["opt-out-settings"]);
+    // Ronda 3: las bajas viven en su propia sección «Bajas automáticas».
+    await page.goto(`${BASE}/settings/opt-out`, { timeout: 180000 });
+    ok("Ajustes → Bajas automáticas: bajas por palabra clave", await page.getByTestId("opt-out-settings").waitFor({ timeout: 45000 }).then(() => true, () => false));
+    await page.goto(`${BASE}/settings/whatsapp`, { timeout: 180000 });
     const alertBanner = page.getByTestId("number-health-banner");
-    ok("aviso global de salud del número (calidad baja / restricción)", seenIds["number-health-banner"] && (await alertBanner.isVisible()));
+    ok("aviso global de salud del número (calidad baja / restricción)", seenIds["number-health-banner"] && (await alertBanner.waitFor({ timeout: 45000 }).then(() => true, () => false)));
   } finally {
     await browser.close();
   }

@@ -34,6 +34,7 @@ export default async function AppearancePage() {
       })}
       canManageOrg={can(session, "settings.manage")}
       brandName={branding.name}
+      branding={branding}
     />
   );
 }

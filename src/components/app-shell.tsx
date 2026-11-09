@@ -165,9 +165,9 @@ function ShellFrame({
   modeRef.current = mode;
   const noHiddenRef = useRef(noHidden);
   noHiddenRef.current = noHidden;
-  const cycleNav = useCallback(() => {
-    let next = nextNavMode(modeRef.current);
-    if (noHiddenRef.current && next === "hidden") next = "expanded";
+  const setNavMode = useCallback((wanted: NavMode) => {
+    const next: NavMode = noHiddenRef.current && wanted === "hidden" ? "collapsed" : wanted;
+    if (next === modeRef.current) return;
     leftBefore.current = content.current?.getBoundingClientRect().left ?? null;
     setMode(next);
     // Por usuario y en BD: la elección lo sigue a otro dispositivo. Si no se
@@ -183,8 +183,13 @@ function ShellFrame({
       }).catch(() => undefined);
     }, 300);
   }, []);
+  const cycleNav = useCallback(() => {
+    let next = nextNavMode(modeRef.current);
+    if (noHiddenRef.current && next === "hidden") next = "expanded";
+    setNavMode(next);
+  }, [setNavMode]);
   const closeNav = useCallback(() => setNavOpen(false), []);
-  const navCtx = useMemo(() => ({ mode, cycle: cycleNav, branding }), [mode, cycleNav, branding]);
+  const navCtx = useMemo(() => ({ mode, cycle: cycleNav, setMode: setNavMode, branding }), [mode, cycleNav, setNavMode, branding]);
 
   // El lugar del menú (el separador) cambia de golpe; el menú anima su ancho
   // por CSS (AppNav) y la columna de contenido ENTERA se desliza pegada a su

@@ -85,7 +85,7 @@ describe("Fase D — selector de tipografía", () => {
     const none = { font: null, chatStyle: null, uiStyle: null };
     const soloYo = renderToStaticMarkup(createElement(AppearanceClient, { org, personal: none, canManageOrg: false }));
     for (const label of Object.values(FONT_LABELS)) expect(soloYo).toContain(label);
-    expect(soloYo).toContain("solo en este navegador por ahora");
+    expect(soloYo).toContain("en este navegador");
     expect(soloYo).not.toContain("Toda la organización");
     const admin = renderToStaticMarkup(createElement(AppearanceClient, { org, personal: none, canManageOrg: true }));
     expect(admin).toContain("Toda la organización");
@@ -240,13 +240,13 @@ describe("Demfort Premium — estilo de interfaz", () => {
     expect(css).not.toContain('[data-ui="classic"]');
   });
 
-  it("la pantalla ofrece el selector con vista previa de cada estilo", () => {
+  it("la pantalla ofrece el selector de estilo (ronda 3: Clásico y Premium en «Para ti»)", () => {
     const html = renderToStaticMarkup(
       createElement(AppearanceClient, { org: DEFAULT_APPEARANCE, personal: { font: null, chatStyle: null, uiStyle: null }, canManageOrg: false })
     );
     expect(html).toContain("Estilo de interfaz");
     expect(html).toContain("Demfort Premium");
-    expect(html).toContain('data-ui="premium"');
+    expect(html).toContain("Degradados y brillo suave");
   });
 });
 

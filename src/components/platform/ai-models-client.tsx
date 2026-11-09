@@ -637,8 +637,8 @@ export function AiModelsClient() {
   if (!data) return <p className="text-sm text-text-2">{error ?? "Cargando modelos…"}</p>;
   return (
     <div className="space-y-4" data-testid="platform-ai-settings">
-      <CreditsCard data={data} onSaved={() => void load()} />
       <InstanceModelsCard data={data} onSaved={() => void load()} />
+      <CreditsCard data={data} onSaved={() => void load()} />
       <PlansCard data={data} onSaved={() => void load()} />
       <PricesCard data={data} onSaved={() => void load()} />
     </div>

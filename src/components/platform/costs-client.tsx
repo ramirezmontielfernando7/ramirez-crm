@@ -45,41 +45,49 @@ function Money({ usd, pricing, testId, strong }: { usd: number | null; pricing: 
   );
 }
 
-function Tile({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
+/** Tarjeta grande de arriba (maqueta ronda 3): etiqueta, monto en USD y nota. */
+function Kpi({ label, usd, pricing, note, testId }: { label: string; usd: number | null; pricing: Pricing | null; note: string; testId: string }) {
   return (
-    <div className="min-w-0 rounded-md border p-3">
-      <p className="text-xs text-text-2">{label}</p>
-      <div className="mt-1">{children}</div>
-      {hint && <p className="mt-1 text-[11px] text-text-3">{hint}</p>}
+    <div className="min-w-0 rounded-card border bg-surface px-4 py-3.5">
+      <p className="text-[12.5px] text-text-2">{label}</p>
+      <p className="mt-1 truncate text-[26px] font-semibold tabular-nums tracking-tight" data-testid={testId} data-usd={usd ?? ""}>
+        {usd === null ? "—" : `$ ${usd.toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+        <span className="sr-only"> USD</span>
+        {hasExchangeRate(pricing) && usd !== null && <span className="sr-only"> · {formatLocal(usd, pricing)}</span>}
+      </p>
+      <p className="mt-1 truncate text-[12px] text-text-3">
+        {note}
+        {hasExchangeRate(pricing) && usd !== null ? ` · ${formatLocal(usd, pricing)}` : ""}
+      </p>
     </div>
   );
 }
 
-function OrgRow({ row, pricing }: { row: OrgCostLine; pricing: Pricing | null }) {
+/** Lo que cuenta en la barra: el estimado (con precios) o, si no hay, lo reportado. */
+const spendOf = (r: OrgCostLine) => r.estimatedUsd ?? r.realUsd ?? 0;
+
+/** «Gasto por empresa»: nombre, barra contra la que más gasta y monto; al abrirla, el detalle. */
+function OrgRow({ row, pricing, max }: { row: OrgCostLine; pricing: Pricing | null; max: number }) {
   const [open, setOpen] = useState(false);
+  const spend = spendOf(row);
+  const pct = max > 0 ? Math.max(2, Math.round((spend / max) * 100)) : 0;
   return (
-    <li className="py-2" data-testid={`platform-cost-org-${row.organizationId}`}>
+    <li className="py-1.5" data-testid={`platform-cost-org-${row.organizationId}`}>
       <button
         type="button"
-        className="grid w-full grid-cols-2 items-start gap-x-3 gap-y-2 text-left sm:grid-cols-[minmax(0,1.4fr)_repeat(3,minmax(0,1fr))_1rem]"
+        className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-1 rounded-sm text-left hover:bg-subtle sm:grid-cols-[minmax(0,11rem)_minmax(0,1fr)_auto_1rem]"
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
       >
-        <span className="col-span-2 min-w-0 sm:col-span-1">
-          <span className="block truncate text-sm font-medium">{row.name}</span>
+        <span className="min-w-0">
+          <span className="block truncate text-[13.5px]">{row.name}</span>
           {row.status !== "active" && <span className="text-xs text-text-3">{row.status === "suspended" ? "Suspendida" : "Borrada"}</span>}
         </span>
-        <span className="min-w-0">
-          <span className="block text-[11px] text-text-3 sm:hidden">Estimado</span>
-          <Money usd={row.estimatedUsd} pricing={pricing} testId="cost-estimated" />
+        <span className="order-last col-span-2 h-2 overflow-hidden rounded-full bg-muted sm:order-none sm:col-span-1" aria-hidden>
+          <span className="block h-full rounded-full bg-brand" style={{ width: `${pct}%` }} />
         </span>
-        <span className="min-w-0">
-          <span className="block text-[11px] text-text-3 sm:hidden">Real (OpenRouter)</span>
-          <Money usd={row.realUsd} pricing={pricing} testId="cost-real" />
-        </span>
-        <span className="min-w-0">
-          <span className="block text-[11px] text-text-3 sm:hidden">Proyección del mes</span>
-          <Money usd={row.projectedUsd} pricing={pricing} testId="cost-projected" />
+        <span className="min-w-0 text-right">
+          <Money usd={row.estimatedUsd ?? row.realUsd} pricing={pricing} testId="cost-estimated" strong />
         </span>
         {open ? (
           <ChevronUp className="hidden h-4 w-4 text-text-3 sm:block" aria-hidden />
@@ -88,18 +96,34 @@ function OrgRow({ row, pricing }: { row: OrgCostLine; pricing: Pricing | null })
         )}
       </button>
       {open && (
-        <ul className="mt-2 divide-y rounded-md bg-muted/40 px-3 text-sm" data-testid="platform-cost-kinds">
-          {row.byKind.map((k) => (
-            <li key={k.kind} className="flex flex-wrap items-baseline justify-between gap-x-3 py-1.5">
-              <span className="min-w-0">
-                {COST_KIND_LABEL[k.kind]} <span className="text-xs text-text-3">· {formatTokens(k.tokens)} tokens</span>
-              </span>
-              <span className="tabular-nums text-text-2">
-                {formatUsd(k.estimatedUsd)} est. · {k.realUsd > 0 ? `${formatUsd(k.realUsd)} real` : "sin reporte"}
-              </span>
-            </li>
-          ))}
-        </ul>
+        <div className="mt-2 space-y-2 rounded-md bg-muted/40 px-3 py-2 text-sm">
+          <div className="grid grid-cols-3 gap-3 text-xs">
+            <span>
+              <span className="block text-text-3">Estimado</span>
+              <Money usd={row.estimatedUsd} pricing={pricing} />
+            </span>
+            <span>
+              <span className="block text-text-3">Real (proveedor)</span>
+              <Money usd={row.realUsd} pricing={pricing} testId="cost-real" />
+            </span>
+            <span>
+              <span className="block text-text-3">Proyección</span>
+              <Money usd={row.projectedUsd} pricing={pricing} testId="cost-projected" />
+            </span>
+          </div>
+          <ul className="divide-y" data-testid="platform-cost-kinds">
+            {row.byKind.map((k) => (
+              <li key={k.kind} className="flex flex-wrap items-baseline justify-between gap-x-3 py-1.5">
+                <span className="min-w-0">
+                  {COST_KIND_LABEL[k.kind]} <span className="text-xs text-text-3">· {formatTokens(k.tokens)} tokens</span>
+                </span>
+                <span className="tabular-nums text-text-2">
+                  {formatUsd(k.estimatedUsd)} est. · {k.realUsd > 0 ? `${formatUsd(k.realUsd)} real` : "sin reporte"}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
     </li>
   );
@@ -531,7 +555,13 @@ function CapacityCard({ pricing }: { pricing: Pricing | null }) {
   );
 }
 
-export function CostsClient() {
+/**
+ * Ronda 3 — «IA: modelos y costos»: arriba las tarjetas del mes (estimado,
+ * real y proyección), luego `children` (los modelos de la instancia), y abajo
+ * «Gasto por empresa» junto a la calculadora; al final los precios. «Ahorro
+ * por caché» de la maqueta aún no se guarda en la base (solo va al log).
+ */
+export function CostsClient({ children }: { children?: React.ReactNode }) {
   const [report, setReport] = useState<CostReport | null>(null);
   const [history, setHistory] = useState<Pricing[]>([]);
   const [models, setModels] = useState<ModelsInUse | null>(null);
@@ -558,64 +588,67 @@ export function CostsClient() {
     void load();
   }, [load]);
 
-  if (!report) return <p className="text-sm text-text-2">{error ?? "Cargando costos…"}</p>;
-  const { pricing, totals } = report;
-  const pct = Math.round(report.elapsed * 100);
+  const pricing = report?.pricing ?? null;
+  const totals = report?.totals ?? null;
+  const pct = report ? Math.round(report.elapsed * 100) : 0;
+  const rows = report ? [...report.rows].sort((x, y) => spendOf(y) - spendOf(x)) : [];
+  const max = rows.reduce((n, r) => Math.max(n, spendOf(r)), 0);
 
   return (
-    <div className="mx-auto max-w-5xl space-y-4">
-      <Card data-testid="platform-costs">
-        <CardHeader>
-          <CardTitle>Costo de IA · {mesDe(report.period)}</CardTitle>
-          <CardDescription>
-            Mes en UTC, va el {pct} %.{" "}
-            {!pricing
-              ? "Captura los precios abajo para ver el estimado."
-              : hasExchangeRate(pricing)
-                ? `Moneda local con 1 USD = ${pricing.usdToLocal} ${pricing.localCurrency}.`
-                : "Solo USD (sin tipo de cambio capturado)."}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid gap-3 sm:grid-cols-3">
-            <Tile label="Estimado (tus precios)">
-              <Money usd={totals.estimatedUsd} pricing={pricing} testId="platform-cost-total-estimated" strong />
-            </Tile>
-            <Tile label="Real (OpenRouter)" hint={totals.realUsd === null ? "Sin reportes todavía" : undefined}>
-              <Money usd={totals.realUsd} pricing={pricing} testId="platform-cost-total-real" strong />
-            </Tile>
-            <Tile label="Proyección a fin de mes" hint="El mayor entre estimado y real, al ritmo del mes">
-              <Money usd={totals.projectedUsd} pricing={pricing} testId="platform-cost-total-projected" strong />
-            </Tile>
-          </div>
-          <p className="text-xs text-text-3">{ESTIMATE_NOTE}</p>
-
-          <div>
-            <div className="hidden grid-cols-[minmax(0,1.4fr)_repeat(3,minmax(0,1fr))_1rem] gap-x-3 border-b pb-1 text-xs text-text-3 sm:grid">
-              <span>Organización</span>
-              <span>Estimado</span>
-              <span>Real (OpenRouter)</span>
-              <span>Proyección del mes</span>
-              <span />
+    <div className="space-y-4">
+      <div data-testid="platform-costs" className="space-y-2">
+        {report && totals ? (
+          <>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <Kpi label="Gasto estimado" usd={totals.estimatedUsd} pricing={pricing} note="USD este mes" testId="platform-cost-total-estimated" />
+              <Kpi
+                label="Gasto real (proveedor)"
+                usd={totals.realUsd}
+                pricing={pricing}
+                note={totals.realUsd === null ? "Sin reportes todavía" : "USD este mes"}
+                testId="platform-cost-total-real"
+              />
+              <Kpi label="Proyección al cierre" usd={totals.projectedUsd} pricing={pricing} note="USD" testId="platform-cost-total-projected" />
             </div>
-            {report.rows.length === 0 ? (
-              <p className="py-3 text-sm text-text-3">Ninguna organización ha usado IA este mes.</p>
-            ) : (
-              <ul className="divide-y" data-testid="platform-cost-rows">
-                {report.rows.map((row) => (
-                  <OrgRow key={row.organizationId} row={row} pricing={pricing} />
-                ))}
-              </ul>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+            <p className="text-[11.5px] text-text-3">
+              {mesDe(report.period)} (UTC), va el {pct} %.{" "}
+              {!pricing ? "Captura los precios abajo para ver el estimado. " : ""}
+              {ESTIMATE_NOTE}
+            </p>
+          </>
+        ) : (
+          <p className="text-sm text-text-2">{error ?? "Cargando costos…"}</p>
+        )}
+      </div>
+
+      {children}
+
+      {report && (
+        <div className="grid items-start gap-4 xl:grid-cols-2">
+          <Card data-testid="platform-cost-by-org">
+            <CardHeader className="border-b py-3">
+              <CardTitle className="text-[14px]">Gasto por empresa</CardTitle>
+            </CardHeader>
+            <CardContent className="pt-3">
+              {rows.length === 0 ? (
+                <p className="py-3 text-sm text-text-3">Ninguna organización ha usado IA este mes.</p>
+              ) : (
+                <ul data-testid="platform-cost-rows">
+                  {rows.map((row) => (
+                    <OrgRow key={row.organizationId} row={row} pricing={pricing} max={max} />
+                  ))}
+                </ul>
+              )}
+            </CardContent>
+          </Card>
+
+          <CapacityCard pricing={pricing} />
+        </div>
+      )}
 
       <ModelsCard models={models} />
 
-      <CapacityCard pricing={pricing} />
-
-      <PricingForm current={pricing} history={history} models={models} onSaved={() => void load()} />
+      {report && <PricingForm current={pricing} history={history} models={models} onSaved={() => void load()} />}
     </div>
   );
 }
