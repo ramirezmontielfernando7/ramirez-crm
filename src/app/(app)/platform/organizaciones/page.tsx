@@ -1,6 +1,5 @@
 import { notFound } from "next/navigation";
-import { OrganizationsClient } from "@/components/platform/organizations-client";
-import { PlanCatalogCard } from "@/components/platform/plan-catalog-client";
+import { OrganizationsAndPlans } from "@/components/platform/organizations-and-plans";
 import { currentPlatformAdmin } from "@/server/platform-admin/admins";
 
 export const dynamic = "force-dynamic";
@@ -13,9 +12,8 @@ export const dynamic = "force-dynamic";
 export default async function PlatformOrganizationsPage() {
   if (!(await currentPlatformAdmin())) notFound();
   return (
-    <div className="space-y-6">
-      <OrganizationsClient />
-      <PlanCatalogCard />
+    <div className="p-4 sm:p-6">
+      <OrganizationsAndPlans />
     </div>
   );
 }

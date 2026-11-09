@@ -2,11 +2,10 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { CATALOG_SCOPES, formatMxn, freeMonths, yearlyPrice, type CatalogScope, type PlanCatalog, type PlanCatalogEntry } from "@/lib/plan-catalog";
+import { CATALOG_SCOPES, type CatalogScope, type PlanCatalog, type PlanCatalogEntry } from "@/lib/plan-catalog";
 import { api } from "./api";
 
 /**
@@ -20,102 +19,52 @@ type Data = { catalog: PlanCatalog; defaults: PlanCatalog };
 
 const num = (s: string): number | null => (s.trim() === "" ? null : Number(s.replace(/[,\s$]/g, "")));
 
-function PlanRow({ scope, data, onSaved }: { scope: CatalogScope; data: Data; onSaved: (d: Data) => void }) {
-  const row = data.catalog[scope];
-  const base = data.defaults[scope];
-  const [open, setOpen] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [f, setF] = useState(() => toForm(row));
+type Form = ReturnType<typeof toForm>;
 
-  useEffect(() => setF(toForm(row)), [row]);
-
-  async function send(body: Record<string, unknown>) {
-    const r = await api<Data>("/api/platform/plans", { method: "PUT", body: JSON.stringify({ scope, ...body }) });
-    if (!r.ok || !r.data) return setError(r.error ?? "No se pudo guardar.");
-    setError(null);
-    setOpen(false);
-    onSaved(r.data);
-  }
-
-  async function save() {
-    const monthly = num(f.monthly);
-    const yearly = num(f.yearly);
-    const fee = num(f.fee);
-    const people = num(f.people);
-    const storage = num(f.storage);
-    for (const [label, v] of [["Precio mensual", monthly], ["Precio anual", yearly], ["Implementación", fee], ["Personas", people], ["Almacenamiento", storage]] as const) {
-      if (v !== null && (!Number.isFinite(v) || v < 0 || !Number.isInteger(v))) return setError(`${label}: escribe un número entero (o déjalo vacío para el valor de fábrica).`);
-    }
-    await send({
-      name: f.name.trim() || null,
-      tagline: f.tagline.trim() || null,
-      priceMonthlyMxn: monthly,
-      priceYearlyMxn: yearly,
-      implementationFeeMxn: fee,
-      peopleLimit: people,
-      storageGb: storage,
-      features: f.features.split("\n").map((l) => l.trim()).filter(Boolean),
-      recommended: f.recommended,
-    });
-  }
-
-  const field = (id: string, label: string, value: string, onChange: (v: string) => void, placeholder: string, hint?: string) => (
-    <div className="space-y-1">
-      <Label className="text-xs" htmlFor={`plan-${scope}-${id}`}>{label}</Label>
-      <Input id={`plan-${scope}-${id}`} inputMode={id === "name" || id === "tagline" ? "text" : "numeric"} value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} data-testid={`platform-plan-${scope}-${id}`} />
+/** Un plan como tarjeta: nombre, frase, precios, implementación y lo que incluye. */
+function PlanCard({ scope, base, f, setF }: { scope: CatalogScope; base: PlanCatalogEntry; f: Form; setF: (f: Form) => void }) {
+  const field = (id: keyof Form & string, label: string, placeholder: string, hint?: string) => (
+    <div className="min-w-0 space-y-1">
+      <Label className="text-sm" htmlFor={`plan-${scope}-${id}`}>{label}</Label>
+      <Input
+        id={`plan-${scope}-${id}`}
+        inputMode={id === "name" || id === "tagline" ? "text" : "numeric"}
+        value={f[id] as string}
+        placeholder={placeholder}
+        onChange={(e) => setF({ ...f, [id]: e.target.value })}
+        data-testid={`platform-plan-${scope}-${id}`}
+      />
       {hint && <p className="text-[11px] text-text-3">{hint}</p>}
     </div>
   );
-
   return (
-    <li className="py-3" data-testid={`platform-plan-${scope}`}>
-      <div className="grid grid-cols-2 items-center gap-x-4 gap-y-1 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto]">
-        <span className="text-sm font-medium">
-          {row.name}
-          {row.recommended && <span className="ml-2 rounded-md bg-brand-tint px-1.5 py-0.5 text-[11px] font-medium text-brand-text">Recomendado</span>}
-        </span>
-        <span className="text-sm tabular-nums" data-testid={`platform-plan-${scope}-price`}>{formatMxn(row.priceMonthlyMxn)} / mes</span>
-        <span className="text-sm tabular-nums text-text-2">{formatMxn(yearlyPrice(row))} / año ({freeMonths(row)} meses gratis)</span>
-        <span className="text-sm text-text-2">{row.peopleLimit} personas · {row.storageGb} GB</span>
-        <Button size="sm" variant="ghost" className="justify-self-end text-brand-text" onClick={() => setOpen((o) => !o)} data-testid={`platform-plan-${scope}-edit`}>
-          {open ? "Cerrar" : "Editar"}
-        </Button>
+    <li
+      className={`space-y-3 rounded-xl border bg-card p-5 ${f.recommended ? "border-brand ring-1 ring-brand/30" : ""}`}
+      data-testid={`platform-plan-${scope}`}
+    >
+      <div className="flex items-center gap-2">
+        <h3 className="text-lg font-semibold">{f.name || base.name}</h3>
+        {f.recommended && <span className="rounded-full bg-brand-soft px-2 py-0.5 text-xs font-medium text-brand-text">Más elegido</span>}
       </div>
-      {open && (
-        <div className="mt-3 space-y-3 rounded-md border bg-muted/30 p-3">
-          <div className="grid gap-3 sm:grid-cols-2">
-            {field("name", "Nombre", f.name, (v) => setF({ ...f, name: v }), base.name)}
-            {field("tagline", "Frase corta", f.tagline, (v) => setF({ ...f, tagline: v }), base.tagline)}
-            {field("monthly", "Precio mensual (MXN + IVA)", f.monthly, (v) => setF({ ...f, monthly: v }), String(base.priceMonthlyMxn))}
-            {field("yearly", "Precio anual (MXN + IVA)", f.yearly, (v) => setF({ ...f, yearly: v }), "10 mensualidades", "Vacío = «2 meses gratis» (10 mensualidades).")}
-            {field("fee", "Cuota de implementación (MXN, una vez)", f.fee, (v) => setF({ ...f, fee: v }), String(base.implementationFeeMxn), "0 = sin cuota.")}
-            {field("people", "Personas del equipo", f.people, (v) => setF({ ...f, people: v }), String(base.peopleLimit))}
-            {field("storage", "Almacenamiento (GB)", f.storage, (v) => setF({ ...f, storage: v }), String(base.storageGb))}
-          </div>
-          <div className="space-y-1">
-            <Label className="text-xs" htmlFor={`plan-${scope}-features`}>Qué incluye (una línea por viñeta, máximo 8)</Label>
-            <Textarea id={`plan-${scope}-features`} rows={5} value={f.features} onChange={(e) => setF({ ...f, features: e.target.value })} data-testid={`platform-plan-${scope}-features`} />
-          </div>
-          <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={f.recommended} onChange={(e) => setF({ ...f, recommended: e.target.checked })} data-testid={`platform-plan-${scope}-recommended`} />
-            Marcar como «Recomendado» (solo uno a la vez)
-          </label>
-          <div className="flex flex-wrap items-center gap-2">
-            <Button size="sm" onClick={() => void save()} data-testid={`platform-plan-${scope}-save`}>Guardar plan {row.name}</Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() =>
-                void send({ name: null, tagline: null, priceMonthlyMxn: null, priceYearlyMxn: null, implementationFeeMxn: null, peopleLimit: null, storageGb: null, features: null, recommended: null })
-              }
-              data-testid={`platform-plan-${scope}-reset`}
-            >
-              Volver a los valores de fábrica
-            </Button>
-            {error && <span className="text-sm text-destructive">{error}</span>}
-          </div>
-        </div>
-      )}
+      {field("name", "Nombre", base.name)}
+      {field("tagline", "Descripción corta", base.tagline)}
+      <div className="grid grid-cols-2 gap-3">
+        {field("monthly", "Mensual (MXN + IVA)", String(base.priceMonthlyMxn))}
+        {field("yearly", "Anual", "10 mensualidades", "Vacío = 2 meses gratis.")}
+      </div>
+      {field("fee", "Implementación (una vez)", String(base.implementationFeeMxn), "0 = sin cuota.")}
+      <div className="grid grid-cols-2 gap-3">
+        {field("people", "Personas", String(base.peopleLimit))}
+        {field("storage", "Almacenamiento (GB)", String(base.storageGb))}
+      </div>
+      <div className="space-y-1">
+        <Label className="text-sm" htmlFor={`plan-${scope}-features`}>Qué incluye (una línea por viñeta, máximo 8)</Label>
+        <Textarea id={`plan-${scope}-features`} rows={6} value={f.features} onChange={(e) => setF({ ...f, features: e.target.value })} data-testid={`platform-plan-${scope}-features`} />
+      </div>
+      <label className="flex items-center gap-2 text-sm">
+        <input type="checkbox" checked={f.recommended} onChange={(e) => setF({ ...f, recommended: e.target.checked })} data-testid={`platform-plan-${scope}-recommended`} />
+        Marcar como «Más elegido» (solo uno a la vez)
+      </label>
     </li>
   );
 }
@@ -136,36 +85,85 @@ function toForm(e: PlanCatalogEntry) {
 
 export function PlanCatalogCard() {
   const [data, setData] = useState<Data | null>(null);
+  const [forms, setForms] = useState<Record<string, Form> | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
 
   const load = useCallback(async () => {
     const r = await api<Data>("/api/platform/plans");
-    if (r.ok && r.data) setData(r.data);
-    else setError(r.error);
+    if (r.ok && r.data) {
+      setData(r.data);
+      setForms(Object.fromEntries(CATALOG_SCOPES.map((k) => [k, toForm(r.data!.catalog[k])])));
+    } else setError(r.error);
   }, []);
   useEffect(() => {
     void load();
   }, [load]);
 
+  function parse(f: Form) {
+    const monthly = num(f.monthly);
+    const yearly = num(f.yearly);
+    const fee = num(f.fee);
+    const people = num(f.people);
+    const storage = num(f.storage);
+    for (const [label, v] of [["Precio mensual", monthly], ["Precio anual", yearly], ["Implementación", fee], ["Personas", people], ["Almacenamiento", storage]] as const) {
+      if (v !== null && (!Number.isFinite(v) || v < 0 || !Number.isInteger(v))) return `${label}: escribe un número entero (o déjalo vacío para el valor de fábrica).`;
+    }
+    return {
+      name: f.name.trim() || null,
+      tagline: f.tagline.trim() || null,
+      priceMonthlyMxn: monthly,
+      priceYearlyMxn: yearly,
+      implementationFeeMxn: fee,
+      peopleLimit: people,
+      storageGb: storage,
+      features: f.features.split("\n").map((l) => l.trim()).filter(Boolean),
+      recommended: f.recommended,
+    };
+  }
+
+  async function saveAll() {
+    if (!forms) return;
+    setSaved(false);
+    let last: Data | null = null;
+    for (const scope of CATALOG_SCOPES) {
+      const body = parse(forms[scope]!);
+      if (typeof body === "string") return setError(`${scope}: ${body}`);
+      const r = await api<Data>("/api/platform/plans", { method: "PUT", body: JSON.stringify({ scope, ...body }) });
+      if (!r.ok || !r.data) return setError(r.error ?? "No se pudo guardar.");
+      last = r.data;
+    }
+    setError(null);
+    if (last) {
+      setData(last);
+      setForms(Object.fromEntries(CATALOG_SCOPES.map((k) => [k, toForm(last!.catalog[k])])));
+    }
+    setSaved(true);
+  }
+
   return (
-    <Card data-testid="platform-plans">
-      <CardHeader>
-        <CardTitle>Planes y precios</CardTitle>
-        <CardDescription>
-          Lo que el Propietario ve en «Mejora tu plan». Precios en pesos más IVA. Los topes reales de cada empresa (personas, almacenamiento, IA) se fijan en su ficha.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        {!data ? (
-          <p className={error ? "text-sm text-destructive" : "text-sm text-text-2"}>{error ?? "Cargando…"}</p>
-        ) : (
-          <ul className="divide-y">
-            {CATALOG_SCOPES.map((scope) => (
-              <PlanRow key={scope} scope={scope} data={data} onSaved={setData} />
-            ))}
-          </ul>
-        )}
-      </CardContent>
-    </Card>
+    <div className="space-y-4" data-testid="platform-plans">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm text-text-2">
+          Lo que el Propietario ve en «Mejora tu plan». Precios en pesos + IVA · anual = 10 meses (2 gratis). Los topes de cada empresa se fijan en su ficha.
+        </p>
+        <div className="flex items-center gap-3">
+          {error && <span className="text-sm text-destructive">{error}</span>}
+          {saved && !error && <span className="text-sm text-text-2">Guardado</span>}
+          <Button onClick={() => void saveAll()} disabled={!forms} data-testid="platform-plans-save">
+            Guardar cambios
+          </Button>
+        </div>
+      </div>
+      {!data || !forms ? (
+        <p className={error ? "text-sm text-destructive" : "text-sm text-text-2"}>{error ?? "Cargando…"}</p>
+      ) : (
+        <ul className="grid gap-4 lg:grid-cols-3">
+          {CATALOG_SCOPES.map((scope) => (
+            <PlanCard key={scope} scope={scope} base={data.defaults[scope]} f={forms[scope]!} setF={(f) => setForms({ ...forms, [scope]: f })} />
+          ))}
+        </ul>
+      )}
+    </div>
   );
 }
