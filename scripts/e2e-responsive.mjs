@@ -188,13 +188,13 @@ const filters = phone.getByRole("group", { name: "Mostrar", exact: true });
 const chips = await filters.getByRole("button").evaluateAll((buttons) => buttons.map((b) => Math.round(b.getBoundingClientRect().top)));
 ok("los chips permanecen en una sola fila", chips.length > 0 && new Set(chips).size === 1);
 // App móvil: el buscador va siempre a la vista (sin lupa).
-const buscar = phone.getByPlaceholder("Buscar nombre, teléfono o mensaje");
+const buscar = phone.getByPlaceholder("Buscar chats, contactos o etiquetas");
 await buscar.fill(NAME);
 ok("la búsqueda móvil encuentra el chat", await until(async () => await fila.isVisible()));
 await buscar.fill("");
 // App móvil: el buscador va siempre a la vista (sin lupa).
 await fila.click();
-const composer = phone.getByPlaceholder("Escribe un mensaje");
+const composer = phone.getByPlaceholder("Mensaje");
 ok(
   "al elegir una conversación se abre el hilo",
   await until(async () => await composer.isVisible(), 15000)
@@ -268,7 +268,7 @@ await tablet.setViewportSize(TABLET);
 await recorrer(tablet, "tablet");
 await tablet.goto(`${BASE}/inbox`);
 await tablet.getByText(NAME).first().click();
-await tablet.getByPlaceholder("Escribe un mensaje").waitFor({ timeout: 20000 });
+await tablet.getByPlaceholder("Mensaje", { exact: true }).waitFor({ timeout: 20000 });
 const dosColumnas = await tablet.evaluate(() => {
   const secs = [...document.querySelectorAll("main > div > section")];
   return secs.slice(0, 2).map((s) => Math.round(s.getBoundingClientRect().width));
