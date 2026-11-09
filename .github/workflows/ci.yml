@@ -156,6 +156,81 @@ jobs:
       - name: migraciones ×2 + pruebas con BD real
         run: pnpm test:db
 
+  # Un solo build para todas las filas e2e: antes cada fila lo repetía (~2 min
+  # cada una, en paralelo). Se empaqueta con tar (el standalone lleva symlinks
+  # de pnpm que un artifact normal perdería).
+  build-e2e:
+    name: build para e2e
+    if: ${{ github.event_name == 'pull_request' && github.base_ref == 'main' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CAMPAIGNS: "on"
+      AGENDA: "on"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: .env de pruebas (mocks, secretos desechables)
+        run: |
+          {
+            echo "APP_BASE_URL=http://localhost:3000"
+            # PR 3: roles de producción y modo estricto (ver job db).
+            echo "DATABASE_URL_MIGRATE=postgresql://postgres:postgres@localhost:5432/vocero"
+            echo "DATABASE_URL=postgresql://vocero_app:app-ci-password-0123456789@localhost:5432/vocero"
+            echo "DATABASE_URL_SYSTEM=postgresql://vocero_system:system-ci-password-0123456789@localhost:5432/vocero"
+            echo "VOCERO_APP_DB_PASSWORD=app-ci-password-0123456789"
+            echo "VOCERO_SYSTEM_DB_PASSWORD=system-ci-password-0123456789"
+            echo "DB_TENANT_STRICT=true"
+            echo "BETTER_AUTH_SECRET=$(openssl rand -hex 24)"
+            echo "ENCRYPTION_KEY=$(openssl rand -base64 32)"
+            echo "META_WEBHOOK_VERIFY_TOKEN=tok_$(openssl rand -hex 12)"
+            echo "META_APP_SECRET=$(openssl rand -hex 16)"
+            echo "WA_MOCK_ENABLED=true"
+            echo "FACEBOOK_UI_ENABLED=true"
+            # La app COMPILADA (`next start`, NODE_ENV=production) solo abre
+            # los mocks con este candado Y APP_BASE_URL en localhost
+            # (`isMockEnabled`, src/lib/env.ts). En un despliegue real, 404.
+            echo "ALLOW_CI_MOCKS=true"
+            echo "META_GRAPH_BASE_URL=http://localhost:3000/api/dev/wa-mock/graph"
+            echo "OPENROUTER_BASE_URL=http://localhost:3000/api/dev/ai-mock"
+            # Fase 3: con proveedor "configurado" (el ai-mock) para probar la
+            # cuota de IA por organización de punta a punta.
+            echo "OPENROUTER_API_TOKEN=sk-mock-ci"
+            echo "OPENROUTER_MODEL=mock/modelo"
+            echo "BOT_API_KEY=$(openssl rand -hex 20)"
+            echo "CAMPAIGNS=on"
+            echo "AGENDA=on"
+            echo "MEDIA_DIR=./.dev-media"
+            # Campañas v2: con App ID se prueba la plantilla con imagen.
+            echo "META_APP_ID=1234567890"
+            # Tech Provider: «Conectar con Facebook» (Registro insertado).
+            echo "META_EMBEDDED_SIGNUP_CONFIG_ID=555444333"
+          } > .env
+      - uses: actions/cache@v4
+        with:
+          path: .next/cache
+          key: next-e2e-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ hashFiles('src/**') }}
+          restore-keys: |
+            next-e2e-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-
+            next-e2e-${{ runner.os }}-
+      - name: build
+        run: |
+          set -a; . ./.env; set +a
+          pnpm build
+      - name: empaquetar .next
+        run: tar --exclude=.next/cache -cf next-build.tar .next
+      - uses: actions/upload-artifact@v4
+        with:
+          name: next-build
+          path: next-build.tar
+          retention-days: 1
+          compression-level: 1
+
   # E2E contra la app real con los mocks. Antes era UNA fila de ~19 guiones en
   # serie (~13 min). Ahora se reparten en filas paralelas, cada una con su
   # propia base y su propio servidor: tardan lo que tarde la más larga.
@@ -165,6 +240,7 @@ jobs:
   # las filas son exactamente los guiones de antes.
   e2e:
     name: e2e · ${{ matrix.shard.name }}
+    needs: build-e2e
     if: ${{ github.event_name == 'pull_request' && github.base_ref == 'main' }}
     runs-on: ubuntu-latest
     timeout-minutes: 40
@@ -172,9 +248,10 @@ jobs:
       fail-fast: false
       matrix:
         shard:
-          - name: plataforma y módulos
-            main: true
-            scripts: "e2e-multiorg e2e-credenciales e2e-plataforma e2e-modulos"
+          - name: organizaciones y módulos
+            scripts: "e2e-multiorg e2e-credenciales e2e-modulos"
+          - name: plataforma
+            scripts: "e2e-plataforma"
           - name: campañas y datos de Meta
             scripts: "e2e-datos-meta e2e-campanas-v2 e2e-etiquetas-limpias"
           - name: agentes, navegación y trabajo
@@ -247,19 +324,11 @@ jobs:
             # Tech Provider: «Conectar con Facebook» (Registro insertado).
             echo "META_EMBEDDED_SIGNUP_CONFIG_ID=555444333"
           } > .env
-      - uses: actions/cache@v4
+      - uses: actions/download-artifact@v4
         with:
-          path: .next/cache
-          key: next-e2e-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ hashFiles('src/**') }}
-          restore-keys: |
-            next-e2e-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-
-            next-e2e-${{ runner.os }}-
-      # Un solo build y `next start` (no `next dev`): todas las rutas ya
-      # compiladas, memoria estable y velocidad de producción.
-      - name: build
-        run: |
-          set -a; . ./.env; set +a
-          pnpm build
+          name: next-build
+      - name: desempaquetar .next
+        run: tar -xf next-build.tar
       # Preludio SIN PLATFORM_ORG_ID: nadie ve el token del webhook y la
       # pantalla avisa que falta configurarla. Además crea la organización
       # del operador que usan las vueltas siguientes. La fila principal lo
