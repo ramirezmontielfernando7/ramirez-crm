@@ -8,8 +8,22 @@ name: CI
 # llega pegado al PR y el colaborador lo ve antes que el mantenedor.
 on:
   pull_request:
+    paths-ignore:
+      - "docs/maquetas/**"
+      - "android/**"
+      - "app-android/**"
+      - ".claude/**"
+      - "**/*.png"
+      - "**/*.jpg"
   push:
     branches: [main]
+    paths-ignore:
+      - "docs/maquetas/**"
+      - "android/**"
+      - "app-android/**"
+      - ".claude/**"
+      - "**/*.png"
+      - "**/*.jpg"
 
 # Tres pushes seguidos a un PR no necesitan tres corridas: manda la última.
 # En `main` no se cancela nada — ahí el historial de qué pasó importa.
@@ -89,6 +103,15 @@ jobs:
       # Va al final porque es el más lento, y porque ya atrapó cosas que los
       # otros tres no ven: Next rechaza exports que no son handlers en un
       # `route.ts`, y eso solo aparece al construir.
+      # Caché de Next: sin ella cada build recompila todo desde cero.
+      - uses: actions/cache@v4
+        with:
+          path: .next/cache
+          key: next-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ hashFiles('src/**') }}
+          restore-keys: |
+            next-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-
+            next-${{ runner.os }}-
+
       - name: build
         if: ${{ !cancelled() }}
         run: pnpm build
@@ -133,14 +156,36 @@ jobs:
       - name: migraciones ×2 + pruebas con BD real
         run: pnpm test:db
 
-  # E2E de dos organizaciones contra la app real con los mocks. Es el más
-  # lento (build + arranque), así que solo corre en PRs hacia main, no en
-  # cada push.
-  e2e-multiorg:
-    name: e2e · dos organizaciones
+  # E2E contra la app real con los mocks. Antes era UNA fila de ~19 guiones en
+  # serie (~13 min). Ahora se reparten en filas paralelas, cada una con su
+  # propia base y su propio servidor: tardan lo que tarde la más larga.
+  # Cada fila arranca con el mismo preludio (migrar + `e2e-multiorg` sin
+  # PLATFORM_ORG_ID, que crea la organización del operador) y luego repite el
+  # servidor CON PLATFORM_ORG_ID para sus guiones. Nada se quitó: la unión de
+  # las filas son exactamente los guiones de antes.
+  e2e:
+    name: e2e · ${{ matrix.shard.name }}
     if: ${{ github.event_name == 'pull_request' && github.base_ref == 'main' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        shard:
+          - name: plataforma y módulos
+            main: true
+            scripts: "e2e-multiorg e2e-credenciales e2e-plataforma e2e-modulos"
+          - name: campañas y datos de Meta
+            scripts: "e2e-datos-meta e2e-campanas-v2 e2e-etiquetas-limpias"
+          - name: agentes, navegación y trabajo
+            scripts: "e2e-navegacion e2e-apariencia e2e-agentes e2e-pausa-agentes e2e-trabajo"
+          - name: Bandeja y responsive
+            # conectar-facebook va al final: su login cuenta contra el freno por
+            # IP (FR-062) que usan los guiones de arriba.
+            scripts: "e2e-numero-nuevo e2e-bandeja-capsulas e2e-bandeja-virtual e2e-bandeja-paginada e2e-responsive e2e-conectar-facebook"
+          - name: documentos (RAG) y apagado
+            rag: true
+            scripts: ""
     services:
       postgres:
         image: postgres:18-alpine
@@ -202,17 +247,25 @@ jobs:
             # Tech Provider: «Conectar con Facebook» (Registro insertado).
             echo "META_EMBEDDED_SIGNUP_CONFIG_ID=555444333"
           } > .env
+      - uses: actions/cache@v4
+        with:
+          path: .next/cache
+          key: next-e2e-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ hashFiles('src/**') }}
+          restore-keys: |
+            next-e2e-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-
+            next-e2e-${{ runner.os }}-
       # Un solo build y `next start` (no `next dev`): todas las rutas ya
-      # compiladas, memoria estable y velocidad de producción. Los mocks
-      # responden porque el .env lleva ALLOW_CI_MOCKS=true y APP_BASE_URL en
-      # localhost; sin eso, la app compilada los deja en 404.
+      # compiladas, memoria estable y velocidad de producción.
       - name: build
         run: |
           set -a; . ./.env; set +a
           pnpm build
-      # Primera vuelta SIN PLATFORM_ORG_ID: nadie ve el token del webhook y la
-      # pantalla avisa que falta configurarla.
-      - name: e2e sin PLATFORM_ORG_ID
+      # Preludio SIN PLATFORM_ORG_ID: nadie ve el token del webhook y la
+      # pantalla avisa que falta configurarla. Además crea la organización
+      # del operador que usan las vueltas siguientes. La fila principal lo
+      # corre como su guion `e2e-multiorg` de la lista (por eso ya no está
+      # allí abajo la segunda vez).
+      - name: preludio (migrar + e2e sin PLATFORM_ORG_ID)
         run: |
           set -a; . ./.env; set +a
           MIGRATIONS_DIR=drizzle node scripts/migrate.mjs
@@ -221,11 +274,10 @@ jobs:
           for i in $(seq 1 120); do curl -sf localhost:3000/api/health >/dev/null && break; sleep 1; done
           node --env-file=.env scripts/e2e-multiorg.mjs
           kill -- -"$(cat app.pid)"; sleep 2
-      # Segunda vuelta CON PLATFORM_ORG_ID = la organización que creó la
-      # primera: solo esa ve el token; la organización B sigue sin verlo. Un
-      # solo servidor para todos los guiones que comparten este .env (con
-      # KB_DOCS apagado).
+      # Vuelta CON PLATFORM_ORG_ID = la organización que creó el preludio:
+      # solo esa ve el token; la organización B sigue sin verlo.
       - name: e2e con PLATFORM_ORG_ID
+        if: ${{ matrix.shard.scripts != '' }}
         run: |
           set -a; . ./.env; set +a
           export PLATFORM_ORG_ID=$(psql "$DATABASE_URL_MIGRATE" -Atc "select m.organization_id from member m join \"user\" u on u.id = m.user_id where u.email = 'e2e@vocero.test'")
@@ -233,61 +285,17 @@ jobs:
           setsid node_modules/.bin/next start -p 3000 > app2.log 2>&1 &
           echo $! > app.pid
           for i in $(seq 1 120); do curl -sf localhost:3000/api/health >/dev/null && break; sleep 1; done
-          node --env-file=.env scripts/e2e-multiorg.mjs
-          # Fase 3, PR 1: credenciales, webhooks sin organización y cuota de IA.
-          node --env-file=.env scripts/e2e-credenciales.mjs
-          # Fase 3, PR 2: administrador de plataforma, alta y suspensión (y
-          # desde 036/038 consumo, topes, costos, «Uso y plan» y el asistente).
-          node --env-file=.env scripts/e2e-plataforma.mjs
-          # Fase 3, PR 3: módulos por organización.
-          node --env-file=.env scripts/e2e-modulos.mjs
-          # Campañas v2, PR 1: datos de Meta (estados, bajas, salud, plantillas).
-          # El freno de «Actualizar» lo resuelve el guion (envejece la lectura
-          # de arranque en la BD): sin esperas muertas.
-          node --env-file=.env scripts/e2e-datos-meta.mjs
-          # Campañas v2, PR 2: audiencias, asistente, cola por número, pausas.
-          node --env-file=.env scripts/e2e-campanas-v2.mjs
-          # Etiquetas limpias: la automática de importación es de sistema; fusión.
-          node --env-file=.env scripts/e2e-etiquetas-limpias.mjs
-          # Campañas v2, PR 4: módulos nuevos y navegación personalizable.
-          node --env-file=.env scripts/e2e-navegacion.mjs
-          # Fase D: Personalización → Apariencia (letra, chat, dos niveles).
-          node --env-file=.env scripts/e2e-apariencia.mjs
-          # 031: Laboratorio como Centro de Agentes (agentes, vista previa sin
-          # efectos, borrador/publicado, evaluación con snapshot y que
-          # producción la siga atendiendo el general).
-          node --env-file=.env scripts/e2e-agentes.mjs
-          # 042: interruptores de los agentes (general y por agente): en
-          # pausa los chats pasan a una persona; aviso en el Estudio de IA.
-          node --env-file=.env scripts/e2e-pausa-agentes.mjs
-          # 033: «Trabajo» (Citas + Tareas + Notas): menú, alta rápida, marcar
-          # hecha, tarea desde un chat, permisos y módulos.
-          node --env-file=.env scripts/e2e-trabajo.mjs
-          # «Número no registrado» de la Bandeja: buscar un teléfono nuevo,
-          # registrar, abrir chat y enviar plantilla (con el wa-mock).
-          node --env-file=.env scripts/e2e-numero-nuevo.mjs
-          # 034: cápsulas de la fila, punto de IA, filtro por etiqueta,
-          # archivar y eliminar (clic derecho y pulsación larga).
-          node --env-file=.env scripts/e2e-bandeja-capsulas.mjs
-          # Fluidez PR 2: la lista virtual con 3,000 chats falsos (teclado,
-          # clic, búsqueda y enlace directo a un chat lejano).
-          node --env-file=.env scripts/e2e-bandeja-virtual.mjs
-          # Fluidez PR 3: la Bandeja paginada con 180 chats reales en la BD
-          # (más de tres páginas): contadores, bajar, búsqueda, en vivo.
-          node --env-file=.env scripts/e2e-bandeja-paginada.mjs
-          # Responsividad: teléfono (cajón, maestro-detalle, detalles flotantes),
-          # tableta y escritorio, interruptores y temas claro/oscuro (~1 min).
-          node --env-file=.env scripts/e2e-responsive.mjs
-          # Tech Provider: «Conectar con Facebook» cambia el código por el
-          # token del negocio, registra el número y lo deja conectado. Va al final: su login cuenta
-          # contra el freno por IP (FR-062) que usan los guiones de arriba.
-          node --env-file=.env scripts/e2e-conectar-facebook.mjs
+          for s in ${{ matrix.shard.scripts }}; do
+            echo "::group::$s"
+            node --env-file=.env scripts/$s.mjs
+            echo "::endgroup::"
+          done
           kill -- -"$(cat app.pid)"; sleep 2
       # 035: Documentos del agente (RAG) ENCENDIDOS, con el mock de embeddings
-      # (exige los prefijos e5). Las vueltas de arriba corren con KB_DOCS
-      # apagado: así CI prueba el conector apagado y encendido. KB_DOCS se lee
-      # en runtime (`flag.ts`), así que basta reiniciar el mismo build.
+      # (exige los prefijos e5). Las demás filas corren con KB_DOCS apagado:
+      # así CI prueba el conector apagado y encendido.
       - name: e2e de Documentos del agente (RAG)
+        if: ${{ matrix.shard.rag }}
         run: |
           set -a; . ./.env; set +a
           export KB_DOCS=on EMBEDDINGS_BASE_URL=http://localhost:3000/api/dev/ai-mock
@@ -296,10 +304,11 @@ jobs:
           for i in $(seq 1 120); do curl -sf localhost:3000/api/health >/dev/null && break; sleep 1; done
           node --env-file=.env scripts/e2e-documentos.mjs
           kill -- -"$(cat app.pid)"; sleep 2
-      # Operación 1 (spec 043): APAGADO LIMPIO con el server.js standalone (el
-      # de la imagen) y un SIGTERM de verdad a mitad de una campaña. El guion
-      # arranca y apaga la app él mismo (dos veces), así que va solo.
+      # Operación 1 (spec 043): APAGADO LIMPIO con el server.js standalone y
+      # un SIGTERM de verdad a mitad de una campaña. Arranca y apaga la app él
+      # mismo (dos veces), así que va solo.
       - name: e2e de apagado limpio (SIGTERM a mitad de una campaña)
+        if: ${{ matrix.shard.rag }}
         run: node --env-file=.env scripts/e2e-apagado.mjs
       - name: logs de la app
         if: ${{ failure() }}
