@@ -177,6 +177,10 @@ export type ContactDto = {
   waMarketingOptOutAt?: string | null;
   /** 021 — etiquetas del contacto. */
   tags?: TagDto[];
+  /** Quién lo atiende (lista de Contactos); null = sin asignar. */
+  assignee?: { id: string; name: string } | null;
+  /** Último mensaje del chat de la empresa (lista de Contactos). */
+  lastMessageAt?: string | null;
 };
 
 /* ============================================================

@@ -1,4 +1,4 @@
-import { count, desc, eq, inArray, isNull } from "drizzle-orm";
+import { count, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
 import { apiError, parseBody, withAuth } from "@/lib/api";
 import { getDb, schema } from "@/lib/db";
@@ -80,7 +80,24 @@ export const GET = withAuth(async (session, req: Request) => {
 
   const [rows, totals] = await Promise.all([
     db
-      .select()
+      .select({
+        contact: schema.contact,
+        // Quién lo atiende y cuándo fue el último mensaje del chat de la
+        // EMPRESA (los de «Mi número» no cuentan): columnas «Asesor» y
+        // «Último mensaje» de la tabla. Columnas con su tabla escrita a mano:
+        // dentro de un select de una sola tabla, Drizzle las pinta sin
+        // calificar y `"id"` se resolvería contra `cv`.
+        assigneeName: sql<string | null>`(
+          select u."name" from "user" u where u."id" = "contact"."assigned_user_id"
+        )`,
+        lastMessageAt: sql<string | Date | null>`(
+          select max(cv."last_message_at") from "conversation" cv
+          where cv."contact_id" = "contact"."id"
+            and cv."organization_id" = "contact"."organization_id"
+            and cv."direct_number_id" is null
+            and cv."is_test" = false
+        )`,
+      })
       .from(schema.contact)
       .where(
         scopedContacts(schema.contact.organizationId, session.access, schema.contact.id, ...conditions)
@@ -97,20 +114,29 @@ export const GET = withAuth(async (session, req: Request) => {
   ]);
   const total = Number(totals[0]?.n ?? 0);
 
-  const visible = rows;
+  const visible = rows.map((r) => r.contact);
+  const extraById = new Map(rows.map((r) => [r.contact.id, r]));
   const tagsByContact = await tagsForContacts(
     session.organizationId,
     visible.map((c) => c.id)
   );
-  const contacts = visible.map((c) =>
-    serializeContact(
-      c,
-      stageByContact.get(c.id) ?? null,
-      priorityByContact.get(c.id) ?? null,
-      false,
-      tagsByContact.get(c.id) ?? []
-    )
-  );
+  const contacts = visible.map((c) => {
+    const extra = extraById.get(c.id);
+    const last = extra?.lastMessageAt ?? null;
+    return {
+      ...serializeContact(
+        c,
+        stageByContact.get(c.id) ?? null,
+        priorityByContact.get(c.id) ?? null,
+        false,
+        tagsByContact.get(c.id) ?? []
+      ),
+      assignee: c.assignedUserId
+        ? { id: c.assignedUserId, name: extra?.assigneeName ?? "" }
+        : null,
+      lastMessageAt: last ? new Date(last).toISOString() : null,
+    };
+  });
   return Response.json({ contacts, total, page, pageSize });
 });
 

@@ -6,17 +6,23 @@ import { useRouter } from "next/navigation";
 import {
   Archive,
   ArchiveRestore,
+  ChevronLeft,
+  ChevronRight,
   Download,
   MessageSquareText,
+  Plus,
   Search,
   Send,
   Upload,
-  UserPlus,
+  UserRound,
+  X,
 } from "lucide-react";
 import type { ContactDto } from "@/lib/types";
 import { fetchJson, jsonInit } from "@/lib/fetch-json";
 import { WA_CONSENT_LABEL, WA_CONSENT_VALUES, type TagDto, type WaConsent } from "@/lib/tags";
-import { cn, phoneCompact } from "@/lib/utils";
+import { cn, initials, phoneCompact } from "@/lib/utils";
+import { dayShort } from "@/lib/relative-day";
+import { assignContacts, useAssignees } from "@/components/assignment/use-assignees";
 import { stageDot } from "@/lib/tags";
 import { ContactAvatar } from "@/components/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -40,7 +46,6 @@ export function ContactsClient() {
   const router = useRouter();
   const [contacts, setContacts] = useState<ContactDto[]>([]);
   const [query, setQuery] = useState("");
-  const [filtersOpen, setFiltersOpen] = useState(false);
   const [stage, setStage] = useState("all");
   const [stages, setStages] = useState<string[]>([]);
   const [showArchived, setShowArchived] = useState(false);
@@ -59,6 +64,9 @@ export function ContactsClient() {
   const [tagFilter, setTagFilter] = useState("all");
   const [sourceFilter, setSourceFilter] = useState("all");
   const [consentFilter, setConsentFilter] = useState<"all" | WaConsent>("all");
+  /** Ronda 3: filtro por asesor (`none` = sin asignar). */
+  const [assigneeFilter, setAssigneeFilter] = useState("all");
+  const assignees = useAssignees();
   const [allTags, setAllTags] = useState<TagDto[]>([]);
   const [importando, setImportando] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -103,8 +111,9 @@ export function ContactsClient() {
     if (tagFilter !== "all") params.set("tag", tagFilter);
     if (sourceFilter !== "all") params.set("source", sourceFilter);
     if (consentFilter !== "all") params.set("consent", consentFilter);
+    if (assigneeFilter !== "all") params.set("assignee", assigneeFilter);
     return params;
-  }, [query, stage, showArchived, tagFilter, sourceFilter, consentFilter]);
+  }, [query, stage, showArchived, tagFilter, sourceFilter, consentFilter, assigneeFilter]);
 
   // Al cambiar un filtro se vuelve a la primera página.
   useEffect(() => {
@@ -150,7 +159,14 @@ export function ContactsClient() {
   }
 
   const filtering =
-    !!query.trim() || stage !== "all" || tagFilter !== "all" || sourceFilter !== "all" || consentFilter !== "all";
+    !!query.trim() ||
+    stage !== "all" ||
+    tagFilter !== "all" ||
+    sourceFilter !== "all" ||
+    consentFilter !== "all" ||
+    assigneeFilter !== "all";
+  const seesTeam = viewer.can("scope.all");
+  const canAssign = viewer.can("assignment.manage");
 
   return (
     <PageShell
@@ -158,11 +174,6 @@ export function ContactsClient() {
       variant="fluid"
       actions={
         <>
-          <Button size="sm" onClick={() => setCreando(true)}>
-            <UserPlus className="h-4 w-4 sm:mr-1.5" strokeWidth={1.8} />
-            <span className="hidden sm:inline">Nuevo contacto</span>
-            <span className="sr-only sm:hidden">Nuevo contacto</span>
-          </Button>
           {viewer.can("contacts.import") && (
             <Button size="sm" variant="outline" onClick={() => setImportando(true)}>
               <Upload className="h-4 w-4 sm:mr-1.5" strokeWidth={1.8} />
@@ -174,110 +185,103 @@ export function ContactsClient() {
             // Descarga directa: el navegador guarda el CSV que arma el
             // servidor con los MISMOS filtros que se ven en la lista.
             <a href={`/api/contacts/export?${filterParams()}`} download className="inline-flex">
-              <Button size="sm" variant="outline" type="button">
+              <Button size="sm" variant="outline" type="button" title={filtering ? "Exporta solo los filtrados" : undefined}>
                 <Download className="h-4 w-4 sm:mr-1.5" strokeWidth={1.8} />
-                <span className="hidden sm:inline">Exportar{filtering ? " filtrados" : ""}</span>
+                <span className="hidden sm:inline">Exportar</span>
                 <span className="sr-only sm:hidden">Exportar{filtering ? " filtrados" : ""}</span>
               </Button>
             </a>
           )}
+          <Button size="sm" onClick={() => setCreando(true)}>
+            <Plus className="h-4 w-4 sm:mr-1" strokeWidth={2} />
+            <span className="hidden sm:inline">Nuevo contacto</span>
+            <span className="sr-only sm:hidden">Nuevo contacto</span>
+          </Button>
         </>
       }
     >
-      {/* 039: los filtros, en su propia fila bajo las pestañas del pilar. */}
-      <div className="border-b px-4 py-2.5 sm:px-6">
-        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:gap-3">
-          <button
-            type="button"
-            data-pm="filters-toggle"
-            aria-expanded={filtersOpen}
-            onClick={() => setFiltersOpen((v) => !v)}
-            className="hidden h-9 items-center gap-1.5 rounded-md border border-input bg-card px-3 text-sm"
-          >
-            Filtros
-          </button>
-          <div data-pm="filters-group" data-open={filtersOpen ? "" : undefined} className="contents">
-          <label className="flex items-center gap-2 text-xs text-muted-foreground">
-            <input
-              type="checkbox"
-              checked={showArchived}
-              onChange={(e) => setShowArchived(e.target.checked)}
-              className="accent-primary"
-            />
-            Ver archivados
-          </label>
+      {/* Ronda 3: buscador + filtros en cápsulas (cada una es un <select>
+          nativo encima de la cápsula: teclado y teléfono funcionan solos). */}
+      <div className="flex flex-wrap items-center gap-2 px-4 pb-1 pt-3 sm:px-6">
+        <div data-pm="search" className="relative w-full sm:w-72">
+          <Search className="absolute left-2.5 top-2 h-4 w-4 text-muted-foreground" />
+          <Input
+            ref={inputRef}
+            placeholder="Buscar nombre o teléfono"
+            aria-label="Buscar contacto"
+            defaultValue=""
+            onChange={(e) => setQuery(e.target.value)}
+            className="h-8 w-full pl-8 text-sm"
+          />
+        </div>
+        <div data-pm="filters-group" className="flex flex-wrap items-center gap-1.5">
           {stages.length > 0 && (
-            <select
+            <FilterChip
+              label="Etapa"
+              ariaLabel="Filtrar por etapa del embudo"
               value={stage}
-              onChange={(e) => setStage(e.target.value)}
-              aria-label="Filtrar por etapa del embudo"
-              className="h-9 rounded-md border border-input bg-card px-2 text-sm"
-            >
-              <option value="all">Toda etapa</option>
-              {stages.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </select>
+              onChange={setStage}
+              options={stages.map((s) => ({ value: s, label: s }))}
+            />
           )}
           {allTags.length > 0 && (
-            <select
+            <FilterChip
+              label="Etiqueta"
+              ariaLabel="Filtrar por etiqueta"
               value={tagFilter}
-              onChange={(e) => setTagFilter(e.target.value)}
-              aria-label="Filtrar por etiqueta"
-              className="h-9 max-w-[12rem] rounded-md border border-input bg-card px-2 text-sm"
-            >
-              <option value="all">Toda etiqueta</option>
-              {allTags.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}
-                </option>
-              ))}
-            </select>
-          )}
-          <select
-            value={sourceFilter}
-            onChange={(e) => setSourceFilter(e.target.value)}
-            aria-label="Filtrar por fuente"
-            className="h-9 rounded-md border border-input bg-card px-2 text-sm"
-          >
-            <option value="all">Toda fuente</option>
-            {(["anuncio", "organico", "referido", "conocido", "otro", "desconocida"] as const).map((s) => (
-              <option key={s} value={s}>
-                {SOURCE_LABELS[s]}
-              </option>
-            ))}
-          </select>
-          <select
-            value={consentFilter}
-            onChange={(e) => setConsentFilter(e.target.value as "all" | WaConsent)}
-            aria-label="Filtrar por consentimiento"
-            className="h-9 rounded-md border border-input bg-card px-2 text-sm"
-          >
-            <option value="all">Todo consentimiento</option>
-            {WA_CONSENT_VALUES.map((v) => (
-              <option key={v} value={v}>
-                {WA_CONSENT_LABEL[v]}
-              </option>
-            ))}
-          </select>
-          </div>
-          <div data-pm="search" className="relative w-full sm:w-auto">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              ref={inputRef}
-              placeholder="Buscar por nombre o teléfono…"
-              aria-label="Buscar contacto"
-              defaultValue=""
-              onChange={(e) => setQuery(e.target.value)}
-              className="w-full pl-8 sm:w-72"
+              onChange={setTagFilter}
+              options={allTags.map((t) => ({ value: t.id, label: t.name }))}
             />
-          </div>
+          )}
+          {seesTeam && canAssign && assignees.length > 0 && (
+            <FilterChip
+              label="Asesor"
+              ariaLabel="Filtrar por asesor"
+              value={assigneeFilter}
+              onChange={setAssigneeFilter}
+              options={[
+                ...assignees.map((m) => ({ value: m.userId, label: m.name })),
+                { value: "none", label: "Sin asignar" },
+              ]}
+            />
+          )}
+          <FilterChip
+            label="Consentimiento"
+            ariaLabel="Filtrar por consentimiento"
+            value={consentFilter}
+            onChange={(v) => setConsentFilter(v as "all" | WaConsent)}
+            options={WA_CONSENT_VALUES.map((v) => ({ value: v, label: WA_CONSENT_LABEL[v] }))}
+          />
+          <FilterChip
+            label="Fuente"
+            ariaLabel="Filtrar por fuente"
+            value={sourceFilter}
+            onChange={setSourceFilter}
+            options={(["anuncio", "organico", "referido", "conocido", "otro", "desconocida"] as const).map((s) => ({
+              value: s,
+              label: SOURCE_LABELS[s],
+            }))}
+          />
+          <button
+            type="button"
+            aria-pressed={showArchived}
+            onClick={() => setShowArchived((v) => !v)}
+            className={cn(
+              "inline-flex h-7 items-center gap-1 rounded-full border px-2.5 text-[12.5px]",
+              showArchived
+                ? "border-brand-soft bg-brand-tint font-medium text-brand-text"
+                : "border-dashed border-border-strong text-text-2 hover:bg-accent"
+            )}
+          >
+            {showArchived ? "Con archivados" : "+ Archivados"}
+          </button>
         </div>
+        <span data-pm="total" className="ml-auto text-[12.5px] tabular-nums text-text-3">
+          {total.toLocaleString("es-MX")} {total === 1 ? "contacto" : "contactos"}
+        </span>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+      <div className="flex-1 overflow-y-auto px-4 pb-4 pt-2 sm:px-6">
         {error && (
           <p role="alert" className="mb-3 rounded-md border border-danger-soft bg-danger-tint px-3 py-2 text-sm text-danger-text">
             {error}
@@ -319,6 +323,32 @@ export function ContactsClient() {
               <span className="font-semibold text-brand-text">
                 {selected.size} {selected.size === 1 ? "seleccionado" : "seleccionados"}
               </span>
+              {canAssign && assignees.length > 0 && (
+                <label className="relative inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-md border border-input bg-card px-3 text-sm font-medium hover:bg-accent">
+                  <UserRound className="h-4 w-4" /> Asignar
+                  <select
+                    aria-label="Asignar a"
+                    value=""
+                    onChange={async (e) => {
+                      const v = e.target.value;
+                      if (!v) return;
+                      const err = await assignContacts([...selected], v === "none" ? null : v);
+                      if (err) setError(`No se pudo asignar: ${err}`);
+                      setSelected(new Set());
+                      void refetch();
+                    }}
+                    className="absolute inset-0 cursor-pointer opacity-0"
+                  >
+                    <option value="">Asignar a…</option>
+                    {assignees.map((m) => (
+                      <option key={m.userId} value={m.userId}>
+                        {m.name}
+                      </option>
+                    ))}
+                    <option value="none">Sin asignar</option>
+                  </select>
+                </label>
+              )}
               <Button
                 variant="outline"
                 size="sm"
@@ -342,7 +372,7 @@ export function ContactsClient() {
           <div role="table" aria-label="Contactos" className="overflow-hidden rounded-lg border bg-card">
             <div
               role="row"
-              className="hidden items-center gap-3 border-b bg-subtle px-4 py-2.5 text-[12px] font-medium text-text-3 md:grid md:grid-cols-[24px_minmax(0,2fr)_minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1.5fr)_minmax(0,1.1fr)_150px]"
+              className="hidden items-center gap-3 border-b bg-subtle px-4 py-2.5 text-[12px] font-medium text-text-3 md:grid md:grid-cols-[24px_minmax(0,2fr)_minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1.4fr)_56px_minmax(0,1fr)_minmax(0,0.9fr)_120px]"
             >
               <input
                 type="checkbox"
@@ -354,8 +384,10 @@ export function ContactsClient() {
               <span>Teléfono</span>
               <span>Etapa</span>
               <span>Etiquetas</span>
+              <span>Asesor</span>
               <span>Consentimiento</span>
-              <span className="w-[150px]" />
+              <span>Último mensaje</span>
+              <span className="w-[120px]" />
             </div>
             {contacts.map((c) => {
               const dot = stageDot(null, c.stageName);
@@ -366,7 +398,7 @@ export function ContactsClient() {
                   role="row"
                   data-pm="row"
                   data-selected={selected.has(c.id) ? "" : undefined}
-                  className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b px-4 py-3 last:border-b-0 data-[selected]:bg-brand-tint md:grid md:grid-cols-[24px_minmax(0,2fr)_minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1.5fr)_minmax(0,1.1fr)_150px]"
+                  className="group flex flex-wrap items-center gap-x-3 gap-y-2 border-b px-4 py-3 last:border-b-0 data-[selected]:bg-brand-tint md:grid md:grid-cols-[24px_minmax(0,2fr)_minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1.4fr)_56px_minmax(0,1fr)_minmax(0,0.9fr)_120px]"
                 >
                   <input
                     type="checkbox"
@@ -385,7 +417,7 @@ export function ContactsClient() {
                   <span className="w-full text-[13px] tabular-nums md:w-auto">{phoneCompact(c.phone)}</span>
                   <span className="min-w-0">
                     {c.stageName && (
-                      <span className="inline-flex items-center gap-1.5 rounded-full bg-subtle px-2 py-0.5 text-[12px]">
+                      <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full bg-subtle px-2 py-0.5 text-[12px]">
                         <span className={cn("h-2 w-2 rounded-full", dot.className)} style={dot.style} aria-hidden />
                         {c.stageName}
                       </span>
@@ -395,6 +427,21 @@ export function ContactsClient() {
                     {tags[0] && <TagChip tag={tags[0]} />}
                     {tags.length > 1 && <span className="text-[12px] text-text-3">+{tags.length - 1}</span>}
                   </span>
+                  <span data-pm="assignee" className="hidden md:block">
+                    {c.assignee ? (
+                      <span
+                        title={c.assignee.name}
+                        aria-label={`Asesor: ${c.assignee.name}`}
+                        className="flex h-6 w-6 items-center justify-center rounded-full bg-brand-soft text-[10px] font-bold text-brand-text"
+                      >
+                        {initials(c.assignee.name)}
+                      </span>
+                    ) : (
+                      <span title="Sin asignar" className="text-[12px] text-text-3">
+                        —
+                      </span>
+                    )}
+                  </span>
                   <span className="min-w-0">
                     {c.waConsent === "opt_in" && <Badge variant="success">Opt-in</Badge>}
                     {c.waConsent === "opt_out" && <Badge variant="destructive">Baja</Badge>}
@@ -402,8 +449,13 @@ export function ContactsClient() {
                       <Badge variant="secondary">Sin respuesta</Badge>
                     )}
                   </span>
-                  <div className="ml-auto flex shrink-0 items-center gap-1">
-                    <Button data-pm="row-secondary" variant="ghost" size="sm" onClick={() => setEditing(c)}>
+                  <span data-pm="last-message" className="text-[12.5px] text-text-3">
+                    {dayShort(c.lastMessageAt)}
+                  </span>
+                  {/* Las acciones de la fila aparecen al pasar el ratón (como en
+                      la maqueta, la tabla queda limpia); en el teléfono, siempre. */}
+                  <div className="ml-auto flex shrink-0 items-center gap-0.5 md:opacity-0 md:transition-opacity md:focus-within:opacity-100 md:group-hover:opacity-100">
+                    <Button data-pm="row-secondary" variant="ghost" size="sm" className="px-2" onClick={() => setEditing(c)}>
                       Editar
                     </Button>
                     {/* A quien nunca escribió hay que abrirle la conversación con
@@ -439,31 +491,35 @@ export function ContactsClient() {
           </div>
           </>
         )}
-        {total > PAGE_SIZE && (
+        {total > 0 && (
           <nav
             aria-label="Páginas de contactos"
-            className="mt-4 flex items-center justify-between gap-3 border-t pt-3 text-sm"
+            className="mt-3 flex items-center justify-between gap-3 text-[12.5px] text-text-3"
           >
-            <span className="text-muted-foreground">
+            <span className="tabular-nums">
               {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, total)} de{" "}
               {total.toLocaleString("es-MX")}
             </span>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
               <Button
                 variant="outline"
-                size="sm"
+                size="icon"
+                className="h-7 w-7"
+                aria-label="Anterior"
                 disabled={page <= 1}
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
               >
-                Anterior
+                <ChevronLeft className="h-4 w-4" />
               </Button>
               <Button
                 variant="outline"
-                size="sm"
+                size="icon"
+                className="h-7 w-7"
+                aria-label="Siguiente"
                 disabled={page * PAGE_SIZE >= total}
                 onClick={() => setPage((p) => p + 1)}
               >
-                Siguiente
+                <ChevronRight className="h-4 w-4" />
               </Button>
             </div>
           </nav>
@@ -538,6 +594,65 @@ export function ContactsClient() {
         />
       )}
     </PageShell>
+  );
+}
+
+/**
+ * Cápsula de filtro (ronda 3): «+ Etapa» apagada; «Etapa: Nuevo ×» puesta.
+ * El <select> nativo va encima, invisible: da teclado, lector de pantalla y
+ * el selector del teléfono sin un menú propio.
+ */
+function FilterChip({
+  label,
+  ariaLabel,
+  value,
+  onChange,
+  options,
+}: {
+  label: string;
+  ariaLabel: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: { value: string; label: string }[];
+}) {
+  const active = value !== "all";
+  const current = options.find((o) => o.value === value)?.label ?? value;
+  return (
+    <span
+      data-pm="filter-chip"
+      data-active={active ? "" : undefined}
+      className={cn(
+        "relative inline-flex h-7 max-w-[16rem] items-center gap-1 rounded-full border text-[12.5px]",
+        active
+          ? "border-brand-soft bg-brand-tint pl-2.5 pr-1 font-medium text-brand-text"
+          : "border-dashed border-border-strong px-2.5 text-text-2 hover:bg-accent"
+      )}
+    >
+      <span className="truncate">{active ? `${label}: ${current}` : `+ ${label}`}</span>
+      <select
+        aria-label={ariaLabel}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className={cn("absolute inset-0 cursor-pointer opacity-0", active && "right-6")}
+      >
+        <option value="all">Todas</option>
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+      {active && (
+        <button
+          type="button"
+          aria-label={`Quitar filtro ${label}`}
+          onClick={() => onChange("all")}
+          className="relative z-10 rounded-full p-0.5 hover:bg-brand-soft"
+        >
+          <X className="h-3 w-3" />
+        </button>
+      )}
+    </span>
   );
 }
 
