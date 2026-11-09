@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Copy, KeyRound, Pencil, Plug, Sparkles, Trash2 } from "lucide-react";
+import { Copy, KeyRound, Pencil, Plug, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -38,6 +38,7 @@ export function MyAiClient() {
   const [write, setWrite] = useState(false);
   const [newKey, setNewKey] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
+  const [tab, setTab] = useState<"claude" | "chatgpt" | "key">("claude");
 
   const refetch = useCallback(async () => {
     const res = await fetchJson<Data>("/api/ai-connector/connections");
@@ -103,140 +104,182 @@ export function MyAiClient() {
     );
   }
 
+  const stepsFor: Record<"claude" | "chatgpt", string[]> = {
+    claude: [
+      "Abre Configuración → Conectores.",
+      "Toca «Agregar conector personalizado» y pega la dirección.",
+      "Entra con tu cuenta de Dashfort y toca «Aceptar».",
+    ],
+    chatgpt: [
+      "Abre Configuración → Apps y conectores → Avanzado y enciende el modo desarrollador.",
+      "Toca «Crear», pega la dirección y elige OAuth.",
+      "Entra con tu cuenta de Dashfort y toca «Aceptar».",
+    ],
+  };
+  const TABS: { key: "claude" | "chatgpt" | "key"; label: string }[] = [
+    { key: "claude", label: "Claude" },
+    { key: "chatgpt", label: "ChatGPT" },
+    { key: "key", label: "Otra (llave)" },
+  ];
+
   return (
-    <div className="max-w-3xl space-y-6">
-      <p className="text-sm text-muted-foreground">
-        Conecta tu propia IA para que haga tareas por ti: revisar tus chats, contestar, etiquetar o crear tareas. Tu
-        IA entra con tu cuenta y solo ve y hace lo que tú puedes en Dashfort. La IA la pagas tú en tu plan de Claude
-        o ChatGPT.
-      </p>
+    <div className="max-w-5xl space-y-5">
+      <div className="flex items-start justify-between gap-4">
+        <div className="space-y-1">
+          <h2 className="text-xl font-semibold">Mi IA</h2>
+          <p className="text-sm text-muted-foreground">
+            Conecta tu Claude o ChatGPT para que lea y trabaje en Dashfort como tú: solo ve y hace lo que tú puedes. La
+            IA la pagas tú en tu plan de Claude o ChatGPT.
+          </p>
+        </div>
+        <span className="shrink-0 rounded-full bg-success-tint px-2.5 py-0.5 text-xs text-success-text">
+          Conector encendido por tu empresa
+        </span>
+      </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Plug className="h-4 w-4 text-brand-text" aria-hidden />
-            Conectar Claude o ChatGPT
-          </CardTitle>
-          <CardDescription>Copia esta dirección y pégala en tu IA como conector personalizado.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex gap-2">
-            <Input readOnly value={data.connectorUrl} aria-label="Dirección del conector" className="font-mono text-[13px]" />
-            <Button variant="outline" onClick={() => void copy(data.connectorUrl, "url")}>
-              <Copy className="mr-1.5 h-4 w-4" aria-hidden />
-              {copied === "url" ? "Copiada" : "Copiar"}
-            </Button>
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Steps
-              title="Claude"
-              steps={[
-                "Abre Configuración → Conectores.",
-                "Toca «Agregar conector personalizado» y pega la dirección.",
-                "Entra con tu cuenta de Dashfort y toca «Aceptar».",
-              ]}
-            />
-            <Steps
-              title="ChatGPT (Plus o superior)"
-              steps={[
-                "Abre Configuración → Apps y conectores → Avanzado y enciende el modo desarrollador.",
-                "Toca «Crear», pega la dirección y elige OAuth.",
-                "Entra con tu cuenta de Dashfort y toca «Aceptar».",
-              ]}
-            />
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Tus IAs conectadas</CardTitle>
-          <CardDescription>Desconéctala cuando quieras: deja de entrar al instante.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {data.connections.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Aún no conectas ninguna IA.</p>
-          ) : (
-            <ul className="divide-y" data-testid="ai-connections">
-              {data.connections.map((c) => (
-                <li key={c.id} className="flex items-center justify-between gap-3 py-3">
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium">{c.name}</p>
-                    <p className="text-xs text-text-3">
-                      {c.scopes.includes("write") ? "Lee y actúa" : "Solo lee"}
-                      {c.kind === "key" && c.tokenPrefix ? ` · llave ${c.tokenPrefix}…` : ""}
-                      {" · "}
-                      {c.lastUsedAt ? `usada ${fmt.format(new Date(c.lastUsedAt))}` : "sin usar todavía"}
-                    </p>
-                    <AssistantNameRow connection={c} onSave={(next) => rename(c, next)} />
-                  </div>
-                  <Button variant="ghost" size="sm" onClick={() => void disconnect(c)}>
-                    <Trash2 className="mr-1.5 h-4 w-4" aria-hidden />
-                    Desconectar
-                  </Button>
-                </li>
+      <div className="grid items-start gap-4 lg:grid-cols-[3fr_2fr]">
+        <Card>
+          <CardHeader className="flex-row flex-wrap items-center justify-between gap-3 space-y-0 border-b border-border">
+            <CardTitle className="flex items-center gap-2 text-sm">
+              <Plug className="h-4 w-4 text-brand-text" aria-hidden />
+              Conectar una IA nueva
+            </CardTitle>
+            <div role="tablist" className="inline-flex rounded-lg bg-subtle p-0.5 text-sm">
+              {TABS.map((t) => (
+                <button
+                  key={t.key}
+                  type="button"
+                  role="tab"
+                  aria-selected={tab === t.key}
+                  onClick={() => setTab(t.key)}
+                  className={
+                    "rounded-md px-3 py-1 " + (tab === t.key ? "bg-card font-medium shadow-sm" : "text-text-2 hover:text-foreground")
+                  }
+                >
+                  {t.label}
+                </button>
               ))}
-            </ul>
-          )}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <KeyRound className="h-4 w-4 text-brand-text" aria-hidden />
-            Llave personal
-          </CardTitle>
-          <CardDescription>
-            Para herramientas que no tienen «Iniciar sesión», como n8n, Make o Cursor. Trátala como una contraseña.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {newKey ? (
-            <div className="space-y-2 rounded-md border border-border bg-subtle p-3">
-              <p className="text-sm font-medium">Cópiala ahora: no se vuelve a mostrar.</p>
-              <div className="flex gap-2">
-                <Input readOnly value={newKey} aria-label="Llave personal" className="font-mono text-[13px]" />
-                <Button variant="outline" onClick={() => void copy(newKey, "key")}>
-                  {copied === "key" ? "Copiada" : "Copiar"}
-                </Button>
-              </div>
-              <Button variant="ghost" size="sm" onClick={() => setNewKey(null)}>
-                Listo
-              </Button>
             </div>
-          ) : (
-            <>
-              <div className="space-y-1.5">
-                <Label htmlFor="ai-key-name">Nombre</Label>
-                <Input id="ai-key-name" placeholder="Ej.: n8n de seguimiento" value={name} maxLength={80} onChange={(e) => setName(e.target.value)} />
+          </CardHeader>
+          <CardContent className="space-y-4 pt-4">
+            {tab !== "key" ? (
+              <>
+                <div className="space-y-1.5">
+                  <Label>Dirección del conector</Label>
+                  <div className="flex gap-2">
+                    <Input readOnly value={data.connectorUrl} aria-label="Dirección del conector" className="font-mono text-[13px]" />
+                    <Button variant="outline" onClick={() => void copy(data.connectorUrl, "url")}>
+                      <Copy className="mr-1.5 h-4 w-4" aria-hidden />
+                      {copied === "url" ? "Copiada" : "Copiar"}
+                    </Button>
+                  </div>
+                </div>
+                <ol className="space-y-2.5">
+                  {stepsFor[tab].map((t, i) => (
+                    <li key={t} className="flex items-start gap-3 text-sm">
+                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand-soft text-xs font-medium text-brand-text">
+                        {i + 1}
+                      </span>
+                      <span className="pt-0.5">{t}</span>
+                    </li>
+                  ))}
+                </ol>
+                {tab === "chatgpt" && <p className="text-xs text-text-3">Requiere ChatGPT Plus o superior.</p>}
+              </>
+            ) : (
+              <div className="space-y-3">
+                <p className="flex items-center gap-2 text-sm text-text-2">
+                  <KeyRound className="h-4 w-4 text-brand-text" aria-hidden />
+                  Para herramientas sin «Iniciar sesión», como n8n, Make o Cursor. Trátala como una contraseña.
+                </p>
+                {newKey ? (
+                  <div className="space-y-2 rounded-md border border-border bg-subtle p-3">
+                    <p className="text-sm font-medium">Cópiala ahora: no se vuelve a mostrar.</p>
+                    <div className="flex gap-2">
+                      <Input readOnly value={newKey} aria-label="Llave personal" className="font-mono text-[13px]" />
+                      <Button variant="outline" onClick={() => void copy(newKey, "key")}>
+                        {copied === "key" ? "Copiada" : "Copiar"}
+                      </Button>
+                    </div>
+                    <Button variant="ghost" size="sm" onClick={() => setNewKey(null)}>
+                      Listo
+                    </Button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="ai-key-name">Nombre</Label>
+                      <Input id="ai-key-name" placeholder="Ej.: n8n de seguimiento" value={name} maxLength={80} onChange={(e) => setName(e.target.value)} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="ai-key-assistant">Nombre de tu IA en la Bandeja (opcional)</Label>
+                      <Input
+                        id="ai-key-assistant"
+                        placeholder={`Ej.: Joe · sin nombre dirá «${DEFAULT_ASSISTANT_NAME}»`}
+                        value={assistantName}
+                        maxLength={ASSISTANT_NAME_MAX}
+                        onChange={(e) => setAssistantName(e.target.value)}
+                      />
+                    </div>
+                    <label className="flex items-center justify-between gap-3 text-sm">
+                      <span>Permitir que también actúe (enviar, etiquetar, crear tareas)</span>
+                      <Switch checked={write} onCheckedChange={setWrite} label="Permitir que también actúe" size="sm" />
+                    </label>
+                    <Button disabled={name.trim().length === 0} onClick={() => void createKey()}>
+                      Crear llave
+                    </Button>
+                  </>
+                )}
               </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="ai-key-assistant">Nombre de tu IA en la Bandeja (opcional)</Label>
-                <Input
-                  id="ai-key-assistant"
-                  placeholder={`Ej.: Joe · sin nombre dirá «${DEFAULT_ASSISTANT_NAME}»`}
-                  value={assistantName}
-                  maxLength={ASSISTANT_NAME_MAX}
-                  onChange={(e) => setAssistantName(e.target.value)}
-                />
-              </div>
-              <label className="flex items-center justify-between gap-3 text-sm">
-                <span>Permitir que también actúe (enviar, etiquetar, crear tareas)</span>
-                <Switch checked={write} onCheckedChange={setWrite} label="Permitir que también actúe" size="sm" />
-              </label>
-              <Button disabled={name.trim().length === 0} onClick={() => void createKey()}>
-                Crear llave
-              </Button>
-            </>
-          )}
-          {error && (
-            <p role="alert" className="text-sm text-danger-text">
-              {error}
-            </p>
-          )}
-        </CardContent>
-      </Card>
+            )}
+            {error && (
+              <p role="alert" className="text-sm text-danger-text">
+                {error}
+              </p>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="border-b border-border">
+            <CardTitle className="text-sm">Tus IAs conectadas</CardTitle>
+          </CardHeader>
+          <CardContent className="pt-2">
+            {data.connections.length === 0 ? (
+              <p className="py-3 text-sm text-muted-foreground">Aún no conectas ninguna IA.</p>
+            ) : (
+              <ul className="divide-y" data-testid="ai-connections">
+                {data.connections.map((c) => (
+                  <li key={c.id} className="flex items-center justify-between gap-3 py-3">
+                    <div className="flex min-w-0 items-start gap-3">
+                      <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-subtle">
+                        {c.kind === "key" ? (
+                          <KeyRound className="h-4 w-4 text-text-2" aria-hidden />
+                        ) : (
+                          <Sparkles className="h-4 w-4 text-brand-text" aria-hidden />
+                        )}
+                      </span>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium">{c.name}</p>
+                        <p className="text-xs text-text-3">
+                          {c.scopes.includes("write") ? "Lee y actúa" : "Solo lee"}
+                          {c.kind === "key" && c.tokenPrefix ? ` · llave ${c.tokenPrefix}…` : ""}
+                          {" · "}
+                          {c.lastUsedAt ? `usada ${fmt.format(new Date(c.lastUsedAt))}` : "sin usar todavía"}
+                        </p>
+                        <AssistantNameRow connection={c} onSave={(next) => rename(c, next)} />
+                      </div>
+                    </div>
+                    <Button variant="outline" size="sm" className="text-danger-text" onClick={() => void disconnect(c)}>
+                      Desconectar
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
+      </div>
 
       <ActionsLog
         url="/api/ai-connector/activity"
@@ -300,18 +343,5 @@ function AssistantNameRow({ connection: c, onSave }: { connection: Connection; o
         Cancelar
       </Button>
     </form>
-  );
-}
-
-function Steps({ title, steps }: { title: string; steps: string[] }) {
-  return (
-    <div className="rounded-md border border-border p-3">
-      <p className="mb-2 text-sm font-semibold">{title}</p>
-      <ol className="list-decimal space-y-1 pl-4 text-sm text-text-2">
-        {steps.map((s) => (
-          <li key={s}>{s}</li>
-        ))}
-      </ol>
-    </div>
   );
 }

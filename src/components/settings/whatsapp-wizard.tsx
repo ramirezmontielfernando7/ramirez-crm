@@ -3,11 +3,14 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   AlertTriangle,
-  CheckCircle2,
   Copy,
   ShieldAlert,
   ShieldCheck,
 } from "lucide-react";
+import { RefreshCw } from "lucide-react";
+import { fetchJson } from "@/lib/fetch-json";
+import { messagingLimitLabel, QUALITY_LABEL } from "@/lib/phone-health";
+import type { HealthSummaryDto } from "@/components/number-health";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -59,8 +62,24 @@ export function WhatsappWizard() {
     return <p className="text-sm text-muted-foreground">Cargando…</p>;
   }
 
+  const connected = connection?.status === "connected";
+  const advanced = (
+    <>
+      <ConnectForm existing={connection} onSaved={() => void refetch()} />
+      {webhook &&
+        (webhook.managedByPlatform ? <ManagedWebhookCard webhook={webhook} /> : <WebhookCard webhook={webhook} />)}
+    </>
+  );
+
   return (
-    <div className="max-w-3xl space-y-6">
+    <div className="max-w-5xl space-y-5">
+      <div className="space-y-1">
+        <h2 className="text-xl font-semibold">Canales y conexiones</h2>
+        <p className="text-sm text-muted-foreground">
+          {connected ? "Tus números y dónde salen los mensajes." : "Conecta tu WhatsApp para recibir y contestar chats desde Dashfort."}
+        </p>
+      </div>
+
       {connection?.status === "reconnect_required" && (
         <div className="flex items-start gap-2 rounded-lg border border-danger-soft bg-danger-tint p-4 text-sm">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
@@ -76,53 +95,103 @@ export function WhatsappWizard() {
         </div>
       )}
 
-      {connection && connection.status === "connected" && (
-        <div className="flex items-center gap-3 rounded-lg border border-success-soft bg-success-tint p-4">
-          <CheckCircle2 className="h-5 w-5 text-success" />
-          <div className="flex-1 text-sm">
-            <p className="font-medium text-success-text">
-              Número conectado: {connection.displayPhoneNumber ?? connection.phoneNumberId}
-            </p>
-            <p className="text-success-text opacity-80">
-              {connection.verifiedName ? `${connection.verifiedName} · ` : ""}
-              token …{connection.tokenLast4}
-            </p>
-          </div>
-          <Badge variant="success">Conectado</Badge>
-        </div>
-      )}
+      {connection && connected && <OfficialNumberCard connection={connection} />}
 
       {embeddedSignup ? (
         <>
           <EmbeddedSignupCard
             config={embeddedSignup}
-            connected={connection?.status === "connected"}
+            connected={connected}
             onConnected={() => void refetch()}
           />
           {/* Tech Provider: la conexión manual queda como opción avanzada. */}
           <details className="group rounded-lg border bg-card" data-testid="conexion-manual">
             <summary className="cursor-pointer select-none px-5 py-4 text-sm font-medium">
-              Conexión manual (avanzado)
+              Opciones avanzadas
               <span className="ml-2 font-normal text-muted-foreground">
-                Para agencias o si ya tienes tus IDs y token de Meta
+                Conexión manual con token de Meta, webhook y PIN · solo si tu técnico te lo pide
               </span>
             </summary>
-            <div className="border-t p-4">
-              <ConnectForm existing={connection} onSaved={() => void refetch()} />
-            </div>
+            <div className="space-y-4 border-t p-4">{advanced}</div>
           </details>
         </>
       ) : (
-        <ConnectForm existing={connection} onSaved={() => void refetch()} />
+        advanced
       )}
-
-      {webhook &&
-        (webhook.managedByPlatform ? (
-          <ManagedWebhookCard webhook={webhook} />
-        ) : (
-          <WebhookCard webhook={webhook} />
-        ))}
     </div>
+  );
+}
+
+/** «WhatsApp oficial · Conectado»: el número y su salud (lo que Meta reportó hoy, de la base propia). */
+function OfficialNumberCard({ connection }: { connection: Connection }) {
+  const [summary, setSummary] = useState<HealthSummaryDto | null>(null);
+  const [busy, setBusy] = useState(false);
+  const load = useCallback(async () => {
+    const res = await fetchJson<HealthSummaryDto>("/api/number-health");
+    if (res.ok) setSummary(res.data);
+  }, []);
+  useEffect(() => {
+    void load();
+  }, [load]);
+  async function refresh() {
+    setBusy(true);
+    const res = await fetchJson<HealthSummaryDto>("/api/number-health", { method: "POST" });
+    setBusy(false);
+    if (res.ok) setSummary(res.data);
+  }
+  const today = summary?.today ?? null;
+  const limit = today?.messagingLimitValue ?? null;
+  const tile = "rounded-lg bg-subtle px-3 py-2.5";
+  return (
+    <Card className="max-w-xl" data-testid="phone-health-card">
+      <CardHeader className="flex-row items-center justify-between space-y-0 border-b border-border">
+        <CardTitle className="flex items-center gap-2 text-sm">
+          WhatsApp oficial
+          <Badge variant="success">Conectado</Badge>
+        </CardTitle>
+        <Button size="sm" variant="ghost" disabled={busy} onClick={() => void refresh()}>
+          <RefreshCw className={`h-4 w-4 ${busy ? "animate-spin" : ""}`} /> Actualizar
+        </Button>
+      </CardHeader>
+      <CardContent className="space-y-4 pt-4">
+        <div>
+          <p className="text-xl font-semibold">{connection.displayPhoneNumber ?? connection.phoneNumberId}</p>
+          <p className="text-sm text-muted-foreground">
+            {connection.verifiedName ? `${connection.verifiedName} · ` : ""}token …{connection.tokenLast4}
+          </p>
+        </div>
+        {today ? (
+          <dl className="grid grid-cols-3 gap-3 text-sm">
+            <div className={tile}>
+              <dt className="text-xs text-muted-foreground">Calidad</dt>
+              <dd className="font-medium" data-testid="health-quality">
+                {QUALITY_LABEL[today.qualityRating ?? ""] ?? today.qualityRating ?? "Sin dato"}
+              </dd>
+            </div>
+            <div className={tile}>
+              <dt className="text-xs text-muted-foreground">Límite diario</dt>
+              <dd className="font-medium" data-testid="health-limit">
+                {messagingLimitLabel(today.messagingLimit)}
+              </dd>
+            </div>
+            <div className={tile}>
+              <dt className="text-xs text-muted-foreground">Usados (24 h)</dt>
+              <dd className="font-medium" data-testid="health-usage">
+                {summary!.usage.toLocaleString("es-MX")}
+                {limit ? ` de ${limit.toLocaleString("es-MX")}` : ""}
+              </dd>
+            </div>
+          </dl>
+        ) : (
+          <p className="text-sm text-muted-foreground">Todavía no hay lectura de hoy. Pulsa «Actualizar».</p>
+        )}
+        {summary?.alerts.map((a) => (
+          <p key={a.code} className={a.level === "danger" ? "text-sm text-danger-text" : "text-sm text-warning-text"}>
+            {a.message}
+          </p>
+        ))}
+      </CardContent>
+    </Card>
   );
 }
 

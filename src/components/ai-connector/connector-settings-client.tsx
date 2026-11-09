@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { ActionsLog } from "./actions-log";
 import { Switch } from "@/components/ui/switch";
 import { ADVANCED_AREA_TEXT, ADVANCED_AREAS, type AdvancedArea } from "@/lib/ai-connector";
@@ -64,31 +63,39 @@ export function ConnectorSettingsClient() {
     setAdv({ areas: on ? [...adv.areas, a] : adv.areas.filter((x) => x !== a) });
   const advOff = !s.enabled || !adv.enabled;
 
+  const rowCls = "flex items-center justify-between gap-3 border-t border-border py-3 text-sm first:border-t-0";
   return (
-    <div className="max-w-3xl space-y-6">
-      <p className="text-sm text-muted-foreground">
-        Cada persona puede conectar su propia IA (Claude, ChatGPT u otra) para que trabaje por ella en Dashfort. La IA
-        entra con la cuenta de esa persona: ve y hace solo lo que esa persona puede, y nunca ve chats privados de «Mi
-        número». Cada quien paga su IA; a tu negocio no le cuesta.
-      </p>
+    <div className="max-w-5xl space-y-5">
+      <div className="flex items-start justify-between gap-4">
+        <div className="space-y-1">
+          <h2 className="text-xl font-semibold">Conector del equipo</h2>
+          <p className="text-sm text-muted-foreground">
+            Decide si tu equipo puede conectar su propia IA y qué puede hacer. La IA entra con la cuenta de cada
+            persona y nunca ve chats privados de «Mi número». Cada quien paga su IA.
+          </p>
+        </div>
+        <label className="flex shrink-0 items-center gap-2 text-sm font-medium">
+          {s.enabled ? "Encendido" : "Apagado"}
+          <Switch checked={s.enabled} onCheckedChange={(v) => setS({ ...s, enabled: v })} label="Conector de IA" />
+        </label>
+      </div>
 
-      <Card>
-        <CardHeader>
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <CardTitle>Conector de IA</CardTitle>
-              <CardDescription>Apagado, nadie puede conectar su IA y las conectadas dejan de entrar.</CardDescription>
+      <div className="grid gap-4 md:grid-cols-2">
+        <Card>
+          <CardHeader className="border-b border-border">
+            <CardTitle className="text-sm">¿Quiénes pueden conectar su IA?</CardTitle>
+          </CardHeader>
+          <CardContent className="pt-2">
+            <div className={rowCls}>
+              <span>
+                <span className="block font-medium">Propietario</span>
+                <span className="block text-xs text-text-3">Tú siempre puedes.</span>
+              </span>
+              <span className="rounded-full bg-success-tint px-2 py-0.5 text-xs text-success-text">Siempre</span>
             </div>
-            <Switch checked={s.enabled} onCheckedChange={(v) => setS({ ...s, enabled: v })} label="Conector de IA" />
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-5">
-          <div className="space-y-2">
-            <p className="text-sm font-medium">¿Quiénes pueden conectar su IA?</p>
-            <p className="text-xs text-text-3">Tú, como Propietario, siempre puedes.</p>
             {ROLES.map((r) => (
-              <label key={r.key} className="flex items-center justify-between gap-3 rounded-md border border-border px-3 py-2 text-sm">
-                <span>{r.label}</span>
+              <label key={r.key} className={rowCls}>
+                <span className="font-medium">{r.label}</span>
                 <Switch
                   size="sm"
                   checked={s.allowedRoles.includes(r.key)}
@@ -98,80 +105,88 @@ export function ConnectorSettingsClient() {
                 />
               </label>
             ))}
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="ai-daily-limit">Mensajes a clientes por persona al día</Label>
-            <Input
-              id="ai-daily-limit"
-              type="number"
-              min={0}
-              max={1000}
-              className="w-32"
-              value={s.dailyMessageLimit}
-              disabled={!s.enabled}
-              onChange={(e) => setS({ ...s, dailyMessageLimit: Math.max(0, Math.min(1000, Number(e.target.value) || 0)) })}
-            />
-            <p className="text-xs text-text-3">Con 0, la IA solo lee y propone; no envía nada.</p>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="border-b border-border">
+            <CardTitle className="text-sm">¿Qué puede hacer?</CardTitle>
+          </CardHeader>
+          <CardContent className="pt-2">
+            <div className={rowCls}>
+              <span>
+                <span className="block font-medium">Mensajes a clientes por persona al día</span>
+                <span className="block text-xs text-text-3">Con 0, la IA solo lee y propone; no envía nada.</span>
+              </span>
+              <Input
+                id="ai-daily-limit"
+                aria-label="Mensajes a clientes por persona al día"
+                type="number"
+                min={0}
+                max={1000}
+                className="w-20 text-center"
+                value={s.dailyMessageLimit}
+                disabled={!s.enabled}
+                onChange={(e) => setS({ ...s, dailyMessageLimit: Math.max(0, Math.min(1000, Number(e.target.value) || 0)) })}
+              />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
       <Card data-testid="ai-advanced">
-        <CardHeader>
-          <div className="flex items-start justify-between gap-4">
+        <CardHeader className="border-b border-border">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <CardTitle>Funciones avanzadas</CardTitle>
+              <CardTitle className="text-sm">Funciones avanzadas</CardTitle>
               <CardDescription>
-                Tareas de administración. Apagadas, la IA solo atiende chats. Encendidas, cada persona sigue limitada
-                a lo que su rol puede hacer en Dashfort.
+                Tareas de administración. Apagadas, la IA solo atiende chats. Cada persona sigue limitada a lo que su
+                rol puede hacer. Tú siempre; los Asesores, nunca.
               </CardDescription>
             </div>
-            <Switch
-              checked={adv.enabled}
-              onCheckedChange={(v) => setAdv({ enabled: v })}
-              label="Funciones avanzadas"
-              disabled={!s.enabled}
-            />
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-5">
-          <div className="space-y-2">
-            <p className="text-sm font-medium">¿Quiénes?</p>
-            <p className="text-xs text-text-3">Tú, como Propietario, siempre. Los Asesores, nunca.</p>
-            <label className="flex items-center justify-between gap-3 rounded-md border border-border px-3 py-2 text-sm">
-              <span>También los Coordinadores</span>
-              <Switch
-                size="sm"
-                checked={adv.roles.includes("coordinador")}
-                onCheckedChange={(v) => setAdv({ roles: v ? ["coordinador"] : [] })}
-                label="También los Coordinadores"
-                disabled={advOff}
-              />
-            </label>
-          </div>
-          <div className="space-y-2">
-            <p className="text-sm font-medium">¿Qué puede hacer?</p>
-            {ADVANCED_AREAS.map((a) => (
-              <label key={a} className="flex items-center justify-between gap-3 rounded-md border border-border px-3 py-2 text-sm">
-                <span className="min-w-0">
-                  <span className="block">{ADVANCED_AREA_TEXT[a].label}</span>
-                  <span className="block text-xs text-text-3">{ADVANCED_AREA_TEXT[a].hint}</span>
-                </span>
+            <div className="flex items-center gap-4 text-sm">
+              <label className="flex items-center gap-2">
+                También los Coordinadores
                 <Switch
                   size="sm"
-                  checked={adv.areas.includes(a)}
-                  onCheckedChange={(v) => toggleArea(a, v)}
-                  label={ADVANCED_AREA_TEXT[a].label}
+                  checked={adv.roles.includes("coordinador")}
+                  onCheckedChange={(v) => setAdv({ roles: v ? ["coordinador"] : [] })}
+                  label="También los Coordinadores"
                   disabled={advOff}
                 />
               </label>
-            ))}
+              <label className="flex items-center gap-2 font-medium">
+                {adv.enabled ? "Encendidas" : "Apagadas"}
+                <Switch
+                  checked={adv.enabled}
+                  onCheckedChange={(v) => setAdv({ enabled: v })}
+                  label="Funciones avanzadas"
+                  disabled={!s.enabled}
+                />
+              </label>
+            </div>
           </div>
-          <label className="flex items-center justify-between gap-3 rounded-md border border-warning-soft bg-warning-tint px-3 py-2 text-sm">
+        </CardHeader>
+        <CardContent className="grid gap-3 pt-4 sm:grid-cols-2 lg:grid-cols-3">
+          {ADVANCED_AREAS.map((a) => (
+            <label key={a} className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2.5 text-sm">
+              <span className="min-w-0">
+                <span className="block font-medium">{ADVANCED_AREA_TEXT[a].label}</span>
+                <span className="block text-xs text-text-3">{ADVANCED_AREA_TEXT[a].hint}</span>
+              </span>
+              <Switch
+                size="sm"
+                checked={adv.areas.includes(a)}
+                onCheckedChange={(v) => toggleArea(a, v)}
+                label={ADVANCED_AREA_TEXT[a].label}
+                disabled={advOff}
+              />
+            </label>
+          ))}
+          <label className="flex items-center justify-between gap-3 rounded-lg border border-warning-soft bg-warning-tint px-3 py-2.5 text-sm">
             <span className="min-w-0">
               <span className="block font-medium">Puede lanzar campañas</span>
               <span className="block text-xs text-text-2">
-                Apagado, la IA deja la campaña lista y una persona la lanza. Encendido, la IA también puede lanzarla.
+                Apagado, la IA deja la campaña lista y una persona la lanza.
               </span>
             </span>
             <Switch
@@ -185,6 +200,12 @@ export function ConnectorSettingsClient() {
         </CardContent>
       </Card>
 
+      <p className="rounded-lg border border-warning-soft bg-warning-tint px-4 py-3 text-sm text-text-2">
+        <span className="font-semibold">Lo que la IA nunca puede hacer:</span> borrar chats o contactos, tocar la
+        conexión de WhatsApp, cambiar roles, el equipo o las llaves, ni leer chats privados de «Mi número» de otra
+        persona.
+      </p>
+
       <div className="space-y-2">
         {error && (
           <p role="alert" className="text-sm text-danger-text">
@@ -195,16 +216,6 @@ export function ConnectorSettingsClient() {
           {busy ? "Guardando…" : "Guardar"}
         </Button>
       </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Lo que la IA nunca puede hacer</CardTitle>
-          <CardDescription>
-            Borrar chats o contactos, tocar la conexión de WhatsApp, cambiar roles, el equipo o las llaves, ni ver chats
-            privados de «Mi número» de nadie. Esas herramientas no existen en el conector.
-          </CardDescription>
-        </CardHeader>
-      </Card>
 
       <ActionsLog
         team

@@ -118,10 +118,15 @@ export function MyNumberClient() {
   const accepted = mine.noticeAcceptedAt !== null;
 
   return (
-    <div className="max-w-3xl space-y-4" data-testid="my-number">
-      <div className="space-y-1">
-        <h2 className="text-lg font-semibold">Mi número</h2>
-        <p className="text-sm text-muted-foreground">{MI_NUMERO_TEXT.pageIntro}</p>
+    <div className="max-w-5xl space-y-5" data-testid="my-number">
+      <div className="flex items-start justify-between gap-4">
+        <div className="space-y-1">
+          <h2 className="text-xl font-semibold">Mi número</h2>
+          <p className="text-sm text-muted-foreground">{MI_NUMERO_TEXT.pageIntro}</p>
+        </div>
+        <Badge variant={connected ? "default" : "secondary"} data-testid="my-number-status">
+          {CONNECTION_STATUS_LABEL[conn.status]}
+        </Badge>
       </div>
 
       {conn.status === "disconnected" && (
@@ -138,20 +143,15 @@ export function MyNumberClient() {
       <Card>
         <CardHeader className="flex-row flex-wrap items-center justify-between gap-4 space-y-0">
           <div className="min-w-0 space-y-1.5">
-            <CardTitle className="flex flex-wrap items-center gap-2">
-              1 · Tu número
-              <Badge variant={connected ? "default" : "secondary"} data-testid="my-number-status">
-                {CONNECTION_STATUS_LABEL[conn.status]}
-              </Badge>
-              <Badge variant="outline" data-testid="my-number-kind">
+            <CardTitle className="flex flex-wrap items-center gap-2 text-xl">
+              {connected ? (conn.phoneNumber ? `+${conn.phoneNumber}` : "Conectado") : "Tu número"}
+              <Badge variant="outline" data-testid="my-number-kind" className="text-xs font-normal">
                 {KIND_LABEL[mine.kind]}
               </Badge>
             </CardTitle>
             <CardDescription>
               {connected
-                ? conn.phoneNumber
-                  ? `+${conn.phoneNumber}`
-                  : "Conectado"
+                ? mine.label ?? "Tu WhatsApp vinculado"
                 : "Vincula tu WhatsApp escaneando un código, como en WhatsApp Web."}
             </CardDescription>
           </div>
@@ -219,10 +219,10 @@ export function MyNumberClient() {
 
       <Card>
         <CardHeader>
-          <CardTitle>2 · ¿Qué compartes con la empresa?</CardTitle>
+          <CardTitle>Privacidad</CardTitle>
           <CardDescription>{mine.canEditSwitches ? MI_NUMERO_TEXT.personalOnly : MI_NUMERO_TEXT.companyDecides}</CardDescription>
         </CardHeader>
-        <CardContent className="divide-y">
+        <CardContent className="divide-y [&>div]:py-4">
           {visibleSwitches(mine.aiConnectorOffered).map((key) => {
             const on = mine.switches[key];
             const t = SWITCH_TEXT[key];
@@ -265,7 +265,7 @@ export function MyNumberClient() {
 
       <Card>
         <CardHeader>
-          <CardTitle>3 · Quién ha visto tus chats</CardTitle>
+          <CardTitle>Quién ha visto tus chats</CardTitle>
           <CardDescription>{MI_NUMERO_TEXT.viewsIntro}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -316,7 +316,7 @@ export function MyNumberClient() {
 
       <Card>
         <CardHeader>
-          <CardTitle>4 · Si dejas la empresa</CardTitle>
+          <CardTitle>Si dejas la empresa</CardTitle>
           <CardDescription>{MI_NUMERO_TEXT.leaving}</CardDescription>
         </CardHeader>
         <CardContent>
