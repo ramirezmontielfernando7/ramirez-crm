@@ -32,6 +32,8 @@ export type ContactFilter = {
   tagIds?: string[];
   source?: SourceFilter;
   consent?: WaConsent;
+  /** Quién lo atiende: un `user.id`, o `"none"` = sin asignar. */
+  assignee?: string;
 };
 
 /** Lee el filtro de la query string (`?tag=a&tag=b&source=…&consent=…`). */
@@ -43,6 +45,8 @@ export function filterFromSearchParams(params: URLSearchParams): ContactFilter |
     .filter(Boolean);
   const source = params.get("source")?.trim() || undefined;
   const consent = params.get("consent")?.trim() || undefined;
+  const assignee = params.get("assignee")?.trim() || undefined;
+  if (assignee && assignee.length > 100) return { error: "Asesor no válido" };
   if (source && !(SOURCE_FILTER_VALUES as readonly string[]).includes(source)) {
     return { error: `Fuente no válida: ${source}` };
   }
@@ -53,6 +57,7 @@ export function filterFromSearchParams(params: URLSearchParams): ContactFilter |
     tagIds: tagIds.length ? tagIds.slice(0, 50) : undefined,
     source: source as SourceFilter | undefined,
     consent: consent as WaConsent | undefined,
+    assignee,
   };
 }
 
@@ -99,6 +104,8 @@ export function contactFilterConditions(filter: ContactFilter): SQL[] {
     }
   }
   if (filter.consent) out.push(eq(schema.contact.waConsent, filter.consent));
+  if (filter.assignee === "none") out.push(isNull(schema.contact.assignedUserId));
+  else if (filter.assignee) out.push(eq(schema.contact.assignedUserId, filter.assignee));
   return out;
 }
 

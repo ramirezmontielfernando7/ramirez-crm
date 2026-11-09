@@ -2,7 +2,6 @@
 
 import { stageDot } from "@/lib/tags";
 import { useCallback, useEffect, useState } from "react";
-import Link from "next/link";
 import {
   DndContext,
   DragOverlay,
@@ -14,13 +13,18 @@ import {
   type DragEndEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
-import { Clock, MessageSquareText, Settings2, Trophy, XCircle } from "lucide-react";
+import { Clock, Plus, Search, SlidersHorizontal, Trophy, X, XCircle } from "lucide-react";
 import type { LossReason, PriorityValue, StageDto } from "@/lib/types";
+import type { TagDto } from "@/lib/tags";
 import { formatMoneyCents, sumable } from "@/lib/money";
 import { cn, initials } from "@/lib/utils";
+import { matchesQuery } from "@/lib/search";
+import { agoShort } from "@/lib/relative-day";
+import { TagChip } from "@/components/tags/tag-chip";
+import { NewContactDialog } from "@/components/contacts/new-contact-dialog";
+import { useRouter } from "next/navigation";
 import { ContactAvatar } from "@/components/avatar";
 import { Button } from "@/components/ui/button";
-import { formatTime } from "@/components/inbox/helpers";
 import { StageManager } from "./stage-manager";
 import { LossReasonDialog } from "./loss-reason-dialog";
 import { AmountDialog } from "./amount-dialog";
@@ -36,6 +40,8 @@ export type BoardLead = {
   lastActivityAt: string | null;
   contact: { id: string; name: string; phone: string | null };
   conversationId: string | null;
+  /** Etiquetas del contacto (ronda 3: se ven en la tarjeta). */
+  tags?: Pick<TagDto, "id" | "name" | "color">[];
   amountCents: number | null;
   currency: string | null;
   priority: PriorityValue | null;
@@ -45,6 +51,13 @@ export type BoardLead = {
 
 export function PipelineClient() {
   const viewer = useViewer();
+  const router = useRouter();
+  /** Buscador y filtro de asesor (ronda 3): solo filtran lo que se ve. */
+  const [query, setQuery] = useState("");
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [assigneeFilter, setAssigneeFilter] = useState("all");
+  /** «Nuevo lead» abierto; `stageId` = la columna de su «+ Agregar». */
+  const [creating, setCreating] = useState<{ stageId?: string } | null>(null);
   const [stages, setStages] = useState<StageDto[]>([]);
   const [currency, setCurrency] = useState("MXN");
   const [leads, setLeads] = useState<BoardLead[]>([]);
@@ -195,8 +208,22 @@ export function PipelineClient() {
     void moverLead(leadId, stageId);
   }
 
+  const showAssignees = viewer.can("scope.all");
+  // El filtro de asesor se arma con quienes atienden algo del tablero: no
+  // hace falta pedir el equipo aparte (y al asesor ni se le muestra).
+  const assigneeOptions = [
+    ...new Map(
+      leads.flatMap((l) => (l.assignee ? [[l.assignee.id, l.assignee.name] as const] : []))
+    ).entries(),
+  ].sort((a, b) => a[1].localeCompare(b[1], "es"));
+  const visibleLeads = leads.filter(
+    (l) =>
+      matchesQuery(query, { text: [l.contact.name], phone: l.contact.phone }) &&
+      (assigneeFilter === "all" ||
+        (assigneeFilter === "none" ? !l.assignee : l.assignee?.id === assigneeFilter))
+  );
   const openStageIds = new Set(stages.filter((x) => x.kind === "open").map((x) => x.id));
-  const openLeads = leads.filter((l) => openStageIds.has(l.stageId));
+  const openLeads = visibleLeads.filter((l) => openStageIds.has(l.stageId));
   const openTotals = totalesDeEtapa(openLeads, currency);
 
   return (
@@ -204,13 +231,85 @@ export function PipelineClient() {
       pillar="pipeline"
       variant="fluid"
       actions={
-        // 020: crear, editar y borrar etapas no es del asesor (la API lo
-        // niega igual); mover sus tarjetas sí.
-        viewer.can("pipeline.edit") ? (
-          <Button variant="outline" size="sm" onClick={() => setManaging(true)}>
-            <Settings2 className="h-4 w-4" /> Gestionar etapas
+        <>
+          {searchOpen ? (
+            <div data-pm="search" className="relative">
+              <Search className="absolute left-2.5 top-2 h-4 w-4 text-muted-foreground" />
+              <input
+                autoFocus
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Escape") {
+                    setQuery("");
+                    setSearchOpen(false);
+                  }
+                }}
+                placeholder="Buscar lead…"
+                aria-label="Buscar lead"
+                className="h-8 w-40 rounded-md border border-input bg-card pl-8 pr-7 text-sm sm:w-56"
+              />
+              <button
+                type="button"
+                aria-label="Cerrar búsqueda"
+                onClick={() => {
+                  setQuery("");
+                  setSearchOpen(false);
+                }}
+                className="absolute right-1.5 top-1.5 rounded p-0.5 text-muted-foreground hover:bg-accent"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          ) : (
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-8 w-8"
+              aria-label="Buscar lead"
+              title="Buscar"
+              onClick={() => setSearchOpen(true)}
+            >
+              <Search className="h-4 w-4" />
+            </Button>
+          )}
+          {showAssignees && (
+            <select
+              data-pm="assignee-filter"
+              value={assigneeFilter}
+              onChange={(e) => setAssigneeFilter(e.target.value)}
+              aria-label="Filtrar por asesor"
+              className="hidden h-8 rounded-md border border-input bg-card px-2 text-sm sm:block"
+            >
+              <option value="all">Todos los asesores</option>
+              {assigneeOptions.map(([id, name]) => (
+                <option key={id} value={id}>
+                  {name || "Sin nombre"}
+                </option>
+              ))}
+              <option value="none">Sin asignar</option>
+            </select>
+          )}
+          {/* 020: crear, editar y borrar etapas no es del asesor (la API lo
+              niega igual); mover sus tarjetas sí. */}
+          {viewer.can("pipeline.edit") && (
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-8 w-8"
+              aria-label="Gestionar etapas"
+              title="Gestionar etapas"
+              onClick={() => setManaging(true)}
+            >
+              <SlidersHorizontal className="h-4 w-4" />
+            </Button>
+          )}
+          <Button size="sm" data-pm="new-lead" onClick={() => setCreating({})}>
+            <Plus className="h-4 w-4" />
+            <span className="hidden sm:inline">Nuevo lead</span>
+            <span className="sr-only sm:hidden">Nuevo lead</span>
           </Button>
-        ) : undefined
+        </>
       }
     >
       {saveError && (
@@ -244,7 +343,7 @@ export function PipelineClient() {
               <span>
                 Valor abierto{" "}
                 <strong className="font-semibold text-foreground">
-                  {formatMoneyCents(openTotals.totalCents, currency)}
+                  {moneyShort(openTotals.totalCents, currency)}
                 </strong>
               </span>
             </>
@@ -267,7 +366,8 @@ export function PipelineClient() {
                 currency={currency}
                 onEditAmount={setEditandoMonto}
                 onOpen={(l) => setAbiertoId(l.id)}
-                leads={leads
+                onAdd={stage.kind === "lost" ? undefined : () => setCreating({ stageId: stage.id })}
+                leads={visibleLeads
                   .filter((l) => l.stageId === stage.id)
                   .sort((a, b) => a.position - b.position)}
               />
@@ -280,6 +380,22 @@ export function PipelineClient() {
           </DragOverlay>
         </DndContext>
       </div>
+
+      {creating && (
+        <NewContactDialog
+          title="Nuevo lead"
+          initialStageId={creating.stageId}
+          onClose={() => setCreating(null)}
+          onCreated={() => {
+            setCreating(null);
+            void refetch();
+          }}
+          onOpenExisting={(contactId) => {
+            setCreating(null);
+            router.push(`/inbox?contact=${contactId}`);
+          }}
+        />
+      )}
 
       {managing && (
         <StageManager
@@ -367,17 +483,19 @@ function StageColumn({
   currency,
   onEditAmount,
   onOpen,
+  onAdd,
 }: {
   stage: StageDto;
   leads: BoardLead[];
   currency: string;
   onEditAmount: (lead: BoardLead) => void;
   onOpen: (lead: BoardLead) => void;
+  /** «+ Agregar» al pie: un lead nuevo directo en esta etapa. */
+  onAdd?: () => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: stage.id });
   const dot = stageDot(stage.color, stage.name);
-  const { totalCents, sinMonto, otraMoneda } = totalesDeEtapa(leads, currency);
-  const conMonto = leads.length - sinMonto - otraMoneda;
+  const { totalCents } = totalesDeEtapa(leads, currency);
   return (
     <div
       ref={setNodeRef}
@@ -401,12 +519,12 @@ function StageColumn({
             />
           )}
           <span className="truncate">{stage.name}</span>
-          <span data-pm="col-count" className="rounded-full border border-border-strong bg-background px-2 py-0.5 font-mono text-[11px] font-normal text-text-3">
+          <span data-pm="col-count" className="ml-1 text-[12px] font-normal tabular-nums text-text-3">
             {leads.length}
           </span>
         </span>
         <span data-pm="col-total" className="shrink-0 text-[12px] tabular-nums text-text-3">
-          {conMonto === 0 ? "" : formatMoneyCents(totalCents, currency)}
+          {moneyShort(totalCents, currency)}
         </span>
       </div>
       <div className="flex-1 space-y-2 overflow-y-auto p-2">
@@ -419,6 +537,26 @@ function StageColumn({
             onOpen={onOpen}
           />
         ))}
+        {stage.kind === "lost" && leads.length === 0 && (
+          <p
+            data-pm="lost-empty"
+            className="rounded-md border border-dashed border-border-strong px-3 py-4 text-center text-[12px] leading-relaxed text-text-3"
+          >
+            Arrastra aquí los que no avanzaron.
+            <br />
+            Te pediremos el motivo.
+          </p>
+        )}
+        {onAdd && (
+          <button
+            type="button"
+            data-pm="col-add"
+            onClick={onAdd}
+            className="w-full rounded-md py-1.5 text-center text-[12.5px] font-medium text-brand-text hover:bg-brand-tint"
+          >
+            + Agregar
+          </button>
+        )}
       </div>
       <StageFooter leads={leads} currency={currency} />
     </div>
@@ -497,7 +635,8 @@ function LeadCard({
   const amountText =
     lead.amountCents === null
       ? "+ monto"
-      : formatMoneyCents(lead.amountCents, lead.currency ?? currency);
+      : moneyShort(lead.amountCents, lead.currency ?? currency);
+  const tags = lead.tags ?? [];
   return (
     <div
       data-pm={overlay ? "card-overlay" : "card"}
@@ -506,9 +645,12 @@ function LeadCard({
         overlay && "rotate-2 shadow-pop"
       )}
     >
-      <div className="flex items-center gap-2.5">
+      <div className="flex items-start gap-2.5">
         <ContactAvatar name={lead.contact.name} seed={lead.contact.id} size="sm" />
-        <p className="min-w-0 flex-1 truncate text-sm font-semibold">{lead.contact.name}</p>
+        {/* Ronda 3: el nombre completo, en dos renglones si hace falta. */}
+        <p data-pm="card-name" lang="es" className="min-w-0 flex-1 hyphens-auto pt-0.5 text-[13.5px] font-semibold leading-snug">
+          {lead.contact.name}
+        </p>
         {!overlay && onEditAmount ? (
           <button
             // `stopPropagation` en pointerdown: sin esto, tocar el monto empieza
@@ -522,48 +664,67 @@ function LeadCard({
             data-pm="amount"
             data-empty={lead.amountCents === null ? "" : undefined}
             className={cn(
-              "shrink-0 rounded px-1 py-0.5 text-right text-xs tabular-nums hover:bg-accent",
-              lead.amountCents === null ? "text-text-3" : "font-semibold text-foreground"
+              "shrink-0 rounded px-1 py-0.5 text-right text-[12.5px] tabular-nums hover:bg-accent",
+              lead.amountCents === null ? "text-xs text-text-3" : "font-semibold text-foreground"
             )}
           >
             {amountText}
           </button>
         ) : (
           lead.amountCents !== null && (
-            <span className="shrink-0 text-xs font-semibold tabular-nums">{amountText}</span>
+            <span className="shrink-0 text-[12.5px] font-semibold tabular-nums">{amountText}</span>
           )
         )}
       </div>
-      <div className="mt-2 flex items-center gap-2 text-[11px] text-muted-foreground">
-        {lead.priority && <PriorityBadge value={lead.priority} />}
+      {(tags.length > 0 || lead.priority) && (
+        <div data-pm="card-tags" className="mt-2 flex flex-wrap items-center gap-1">
+          {tags.slice(0, 2).map((t) => (
+            <TagChip key={t.id} tag={t} className="text-[10.5px]" />
+          ))}
+          {tags.length > 2 && (
+            <span className="text-[11px] text-text-3">+{tags.length - 2}</span>
+          )}
+          {lead.priority && <PriorityBadge value={lead.priority} />}
+        </div>
+      )}
+      <div className="mt-2 flex items-center gap-2 text-[11.5px] text-muted-foreground">
         <span className="flex min-w-0 items-center gap-1 truncate">
           <Clock className="h-3 w-3 shrink-0" strokeWidth={1.8} />
           <span className="truncate">
-            {lead.lastActivityAt ? formatTime(lead.lastActivityAt) : "Sin actividad"}
+            {lead.lastActivityAt ? agoShort(lead.lastActivityAt) : "Sin actividad"}
           </span>
         </span>
         <span className="flex-1" />
         {/* 020: a quién está asignado, visible para quien ve al equipo. */}
         {showAssignee && (
-          <span
-            title={lead.assignee?.name ?? "Sin asignar"}
-            className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand-soft text-[10px] font-bold text-brand-text"
-          >
-            {lead.assignee ? initials(lead.assignee.name) : "—"}
-          </span>
-        )}
-        {lead.conversationId && (
-          <Link
-            href={`/inbox?contact=${lead.contact.id}`}
-            onPointerDown={(e) => e.stopPropagation()}
-            onClick={(e) => e.stopPropagation()}
-            aria-label="Abrir conversación"
-            className="rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
-          >
-            <MessageSquareText className="h-4 w-4" />
-          </Link>
+          <AssigneeDot name={lead.assignee?.name ?? null} />
         )}
       </div>
     </div>
+  );
+}
+
+/** «$ 412,800» como en la maqueta: sin «.00» cuando el monto es cerrado. */
+function moneyShort(cents: number, currency: string): string {
+  const full = formatMoneyCents(cents, currency) ?? "";
+  return cents % 100 === 0 ? full.replace(/[.,]00(?=\D*$)/, "") : full;
+}
+
+/** Iniciales de quien atiende; sin nadie, un guion discreto (sin círculo). */
+function AssigneeDot({ name }: { name: string | null }) {
+  if (!name) {
+    return (
+      <span title="Sin asignar" className="w-6 shrink-0 text-center text-[11px] text-text-3">
+        —
+      </span>
+    );
+  }
+  return (
+    <span
+      title={name}
+      className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand-soft text-[10px] font-bold text-brand-text"
+    >
+      {initials(name)}
+    </span>
   );
 }

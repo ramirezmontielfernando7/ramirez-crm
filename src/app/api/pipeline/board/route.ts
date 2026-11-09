@@ -4,6 +4,7 @@ import { getDb, schema } from "@/lib/db";
 import { companyChat, scoped, scopedContacts } from "@/lib/db/tenant";
 import { getBranding } from "@/server/branding";
 import { isTagColor } from "@/lib/tags";
+import { tagsForContacts } from "@/server/tags/tags";
 
 export const dynamic = "force-dynamic";
 
@@ -44,6 +45,11 @@ export const GET = withAuth(async (session) => {
   // La moneda del negocio viaja con el tablero: el cliente suma sus columnas y
   // necesita saber cuál es la única sumable, sin adivinarla ni pedirla aparte.
   const { currency } = await getBranding(session.organizationId);
+  // Etiquetas de cada tarjeta (ronda 3): una sola consulta para todo el tablero.
+  const tagsByContact = await tagsForContacts(
+    session.organizationId,
+    leads.map((r) => r.contact.id)
+  );
 
   return Response.json({
     currency,
@@ -68,6 +74,11 @@ export const GET = withAuth(async (session) => {
         phone: r.contact.phone,
       },
       conversationId: r.conversationId,
+      tags: (tagsByContact.get(r.contact.id) ?? []).map((t) => ({
+        id: t.id,
+        name: t.name,
+        color: t.color,
+      })),
       assignee: r.contact.assignedUserId
         ? { id: r.contact.assignedUserId, name: r.assigneeName ?? "" }
         : null,

@@ -24,7 +24,13 @@ export function NewContactDialog({
   onClose,
   onCreated,
   onOpenExisting,
+  initialStageId,
+  title = "Nuevo contacto",
 }: {
+  /** Etapa ya elegida (el «+ Agregar» de una columna del Pipeline). */
+  initialStageId?: string;
+  /** «Nuevo lead» desde el Pipeline; «Nuevo contacto» desde Contactos. */
+  title?: string;
   onClose: () => void;
   onCreated: () => void;
   /** Duplicado: en vez de un error seco, se ofrece ir a quien ya existe. */
@@ -49,9 +55,10 @@ export function NewContactDialog({
       const data = (await res.json()) as { stages: StageDto[] };
       const abiertas = data.stages.filter((s) => s.kind === "open");
       setStages(abiertas);
-      setStageId(abiertas[0]?.id ?? "");
+      const elegida = abiertas.find((s) => s.id === initialStageId);
+      setStageId(elegida?.id ?? abiertas[0]?.id ?? "");
     })();
-  }, []);
+  }, [initialStageId]);
 
   async function guardar() {
     setSaving(true);
@@ -101,11 +108,11 @@ export function NewContactDialog({
     >
       <div
         role="dialog"
-        aria-label="Nuevo contacto"
+        aria-label={title}
         className="w-full max-w-md rounded-lg border bg-popover p-5 shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <h3 className="mb-1 font-semibold">Nuevo contacto</h3>
+        <h3 className="mb-1 font-semibold">{title}</h3>
         <p className="mb-4 text-xs text-text-3">
           Para prospectos que no llegaron por WhatsApp: referidos, gente que te
           escribió por otra red, conocidos.
