@@ -690,7 +690,7 @@ async function main() {
     const ultimo = await A.api(`/api/knowledge/${solo?.id}/destinations`, { method: "PATCH", body: JSON.stringify({ chat: false }) });
     ok("un destino al menos: apagar el último → 422", ultimo.status === 422, ultimo.text.slice(0, 200));
     // El nuevo con el interruptor de la pantalla.
-    await page.getByRole("button", { name: "Nueva entrada" }).click();
+    await page.getByRole("button", { name: "Subir archivo" }).click();
     const dlg11 = page.getByRole("dialog", { name: "Nueva entrada" });
     ok("el formulario ofrece «Entrenar también al Agente de IA con este documento (RAG)»", (await dlg11.getByTestId("knowledge-rag-option").count()) === 1);
     await page.keyboard.press("Escape").catch(() => null);

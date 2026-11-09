@@ -5,15 +5,10 @@ import dynamic from "next/dynamic";
 import { AnimatePresence, m } from "framer-motion";
 import { FileText, Pencil, SmilePlus, Trash2 } from "lucide-react";
 import { fetchJson, jsonInit } from "@/lib/fetch-json";
-import {
-  isMine,
-  reactedByMe,
-  TEAM_MESSAGE_MAX,
-  type TeamMessageDto,
-  type TeamThreadKind,
-} from "@/lib/team-chat";
+import { isMine, reactedByMe, TEAM_MESSAGE_MAX, type TeamMessageDto } from "@/lib/team-chat";
 import { cn } from "@/lib/utils";
 import { SPRING } from "@/components/motion";
+import { ContactAvatar } from "@/components/avatar";
 import { formatBytes } from "@/components/inbox/helpers";
 import { useRouter } from "next/navigation";
 import { encodeMentions, splitBody, MENTION_SLOT, userMentionRef } from "@/lib/team-chat-mentions";
@@ -41,9 +36,7 @@ function draftFromMessage(message: TeamMessageDto): { text: string; map: Map<str
 const EmojiPickerPanel = dynamic(() => import("@/components/inbox/emoji-picker"), {
   ssr: false,
   loading: () => (
-    <div className="flex h-[340px] w-[304px] items-center justify-center text-xs text-text-3">
-      Cargando emojis…
-    </div>
+    <div className="flex h-[340px] w-[304px] items-center justify-center text-xs text-text-3">Cargando emojis…</div>
   ),
 });
 
@@ -60,7 +53,11 @@ function dayLabel(iso: string): string {
 }
 
 function bubbleTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit", hour12: false });
+  return new Date(iso).toLocaleTimeString("es-MX", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
 }
 
 /**
@@ -69,7 +66,6 @@ function bubbleTime(iso: string): string {
  * acción fallida se explica bajo su mensaje.
  */
 export function TeamThread({
-  kind,
   userId,
   messages,
   hasMore,
@@ -79,7 +75,6 @@ export function TeamThread({
   onChanged,
   onOpenDirect,
 }: {
-  kind: TeamThreadKind;
   userId: string;
   messages: TeamMessageDto[];
   hasMore: boolean;
@@ -147,7 +142,7 @@ export function TeamThread({
           <div key={msg.id}>
             {newDay && (
               <div className="my-3 flex justify-center">
-                <span className="kicker rounded-full border border-border-strong bg-background px-3 py-1 text-text-2 shadow-sm">
+                <span className="rounded-full border border-border-strong bg-background px-3 py-1 text-[12.5px] font-medium text-text-2">
                   {dayLabel(msg.createdAt)}
                 </span>
               </div>
@@ -157,7 +152,6 @@ export function TeamThread({
               mine={isMine(msg, userId)}
               userId={userId}
               grouped={grouped}
-              showAuthor={kind !== "direct" && !grouped}
               canReact={canReact}
               onChanged={onChanged}
               onOpenDirect={onOpenDirect}
@@ -174,7 +168,6 @@ function Bubble({
   mine,
   userId,
   grouped,
-  showAuthor,
   canReact,
   onChanged,
   onOpenDirect,
@@ -183,7 +176,6 @@ function Bubble({
   mine: boolean;
   userId: string;
   grouped: boolean;
-  showAuthor: boolean;
   canReact: boolean;
   onChanged: (message: TeamMessageDto) => void;
   onOpenDirect: (userId: string) => Promise<string | null>;
@@ -226,7 +218,7 @@ function Bubble({
     await call(
       `/api/team-chat/messages/${message.id}/reactions`,
       jsonInit(had ? "DELETE" : "PUT", { emoji }),
-      had ? "quitar la reacción" : "reaccionar"
+      had ? "quitar la reacción" : "reaccionar",
     );
   }
 
@@ -250,237 +242,271 @@ function Bubble({
   const actions = !message.deleted && !editing && (canReact || mine);
 
   return (
-    <div className={cn("group/msg flex flex-col", mine ? "items-end" : "items-start", grouped ? "mt-[3px]" : "mt-2.5")}>
-      {showAuthor && !mine && message.author && (
-        <span className="mb-0.5 px-1 text-[11.5px] font-semibold text-text-2">{message.author.name}</span>
+    <div
+      className={cn("group/msg flex gap-2.5", mine ? "justify-end" : "justify-start", grouped ? "mt-[3px]" : "mt-3")}
+    >
+      {!mine && (
+        <span className="w-8 shrink-0 pt-0.5">
+          {!grouped && message.author && (
+            <ContactAvatar name={message.author.name} seed={message.author.id} size="list" />
+          )}
+        </span>
       )}
-      <div className={cn("relative flex max-w-[85%] items-center gap-1 sm:max-w-[64%]", mine && "flex-row-reverse")}>
-        <div
-          className={cn(
-            "min-w-0 rounded-[14px] border px-3 pb-1.5 pt-2 text-[13.5px] leading-[1.45] shadow-sm",
-            mine
-              ? "border-bubble-out-border bg-bubble-out text-bubble-out-text"
-              : "border-bubble-in-border bg-bubble-in",
-            !grouped && (mine ? "rounded-tr-[5px]" : "rounded-tl-[5px]"),
-            message.deleted && "italic text-text-3"
-          )}
-        >
-          {message.deleted ? (
-            <span>Mensaje eliminado</span>
-          ) : editing ? (
-            <span className="flex flex-col gap-1.5">
-              <textarea
-                value={draft}
-                autoFocus
-                rows={Math.min(6, Math.max(2, draft.split("\n").length))}
-                aria-label="Editar mensaje"
-                onChange={(e) => setDraft(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    void saveEdit();
-                  }
-                  if (e.key === "Escape") setEditing(false);
-                }}
-                className="w-[min(60vw,420px)] resize-none rounded-md border border-border-strong bg-background px-2 py-1.5 text-[13.5px] text-foreground outline-none focus:border-brand"
-              />
-              <span className="flex justify-end gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEditing(false);
-                    setDraft(message.body);
-                  }}
-                  className="rounded px-2 py-1 text-[12px] font-medium text-text-2 hover:bg-secondary"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => void saveEdit()}
-                  className="rounded bg-brand px-2 py-1 text-[12px] font-semibold text-brand-fg disabled:opacity-50"
-                >
-                  Guardar
-                </button>
-              </span>
-            </span>
-          ) : (
-            <>
-              {message.attachment && <Attachment attachment={message.attachment} />}
-              {message.body && (
-                <span className={cn("block whitespace-pre-wrap break-words", message.attachment && "mt-1")}>
-                  {splitBody(message.body, message.mentions).map((part, i) =>
-                    part.type === "text" ? (
-                      <span key={i}>{part.text}</span>
-                    ) : message.needsResolve ? (
-                      // Todavía sin resolver para esta persona: ni "sin acceso" ni nombre.
-                      <span key={i} className="mx-0.5 inline-flex rounded-full bg-secondary px-1.5 py-px text-[12.5px] text-text-3">
-                        @…
-                      </span>
-                    ) : (
-                      <MentionChip
-                        key={i}
-                        mention={part.mention}
-                        viewerId={userId}
-                        onOpen={(contactId) => router.push(`/inbox?contact=${encodeURIComponent(contactId)}`)}
-                        onOpenUser={async (mateId) => {
-                          // Un compañero: su directo en el chat de equipo, nunca un chat de cliente.
-                          const err = await onOpenDirect(mateId);
-                          if (err) setError(`No se pudo abrir el directo: ${err}`);
-                        }}
-                      />
-                    )
-                  )}
-                </span>
-              )}
-            </>
-          )}
-          {!editing && (
-            <span className="float-right ml-2 mt-1 flex items-center gap-1">
-              {message.editedAt && !message.deleted && (
-                <span className="text-[10px] font-medium text-text-3">editado</span>
-              )}
-              <span className="font-mono text-[10px] tracking-[0.04em] text-text-3">{bubbleTime(message.createdAt)}</span>
-            </span>
-          )}
-        </div>
-
-        {actions && (
-          // Aparecen con hover o foco (teclado); en pantallas táctiles, siempre.
+      <div
+        className={cn(
+          "flex min-w-0 max-w-[85%] flex-col sm:max-w-[min(72%,680px)]",
+          mine ? "items-end" : "items-start",
+        )}
+      >
+        {!mine && !grouped && message.author && (
+          <span className="mb-1 px-0.5 text-[13px] text-text-3">
+            <span className="font-semibold text-foreground">{message.author.name}</span> ·{" "}
+            {bubbleTime(message.createdAt)}
+          </span>
+        )}
+        <div className={cn("relative flex max-w-full items-center gap-1", mine && "flex-row-reverse")}>
           <div
             className={cn(
-              "flex shrink-0 items-center gap-0.5 transition-opacity duration-150",
-              "opacity-0 group-hover/msg:opacity-100 group-focus-within/msg:opacity-100 [@media(hover:none)]:opacity-100",
-              pickerOpen && "opacity-100"
+              "min-w-0 rounded-[16px] border px-4 py-2.5 text-[15px] leading-[1.45]",
+              mine
+                ? "border-bubble-out-border bg-bubble-out text-bubble-out-text"
+                : "border-bubble-in-border bg-bubble-in",
+              message.deleted && "italic text-text-3",
             )}
           >
-            {canReact && (
-              <div ref={pickerRef} className="relative">
-                <button
-                  type="button"
-                  onClick={() => setPickerOpen((v) => !v)}
-                  aria-label="Reaccionar"
-                  title="Reaccionar"
-                  className="rounded p-1 text-text-3 hover:bg-secondary hover:text-foreground"
-                >
-                  <SmilePlus className="h-4 w-4" strokeWidth={1.7} />
-                </button>
-                <AnimatePresence>
-                  {pickerOpen && (
-                    <m.div
-                      role="dialog"
-                      aria-label="Elegir reacción"
-                      initial={{ opacity: 0, y: 6, scale: 0.96 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: 4, scale: 0.98, transition: { duration: 0.1 } }}
-                      transition={SPRING}
-                      style={{ transformOrigin: mine ? "bottom right" : "bottom left" }}
-                      className={cn(
-                        "absolute bottom-full z-30 mb-2 overflow-hidden rounded-md border bg-popover text-foreground shadow-pop",
-                        mine ? "right-0" : "left-0"
-                      )}
-                    >
-                      <div className="flex gap-0.5 border-b p-1.5">
-                        {QUICK.map((e) => (
-                          <button
-                            key={e}
-                            type="button"
-                            onClick={() => void toggleReaction(e)}
-                            aria-label={`Reaccionar con ${e}`}
-                            className="rounded-md px-1.5 py-1 text-lg transition-transform hover:bg-secondary active:scale-90"
-                          >
-                            {e}
-                          </button>
-                        ))}
-                      </div>
-                      <EmojiPickerPanel onPick={(e) => void toggleReaction(e)} />
-                    </m.div>
-                  )}
-                </AnimatePresence>
-              </div>
-            )}
-            {mine && (
-              <>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const d = draftFromMessage(message);
-                    if (!d) {
-                      setError("Este mensaje menciona un chat que ya no ves: bórralo y vuelve a escribirlo");
-                      return;
-                    }
-                    setDraft(d.text);
-                    setDraftMap(d.map);
-                    setEditing(true);
-                  }}
+            {message.deleted ? (
+              <span>Mensaje eliminado</span>
+            ) : editing ? (
+              <span className="flex flex-col gap-1.5">
+                <textarea
+                  value={draft}
+                  autoFocus
+                  rows={Math.min(6, Math.max(2, draft.split("\n").length))}
                   aria-label="Editar mensaje"
-                  title="Editar"
-                  className="rounded p-1 text-text-3 hover:bg-secondary hover:text-foreground"
-                >
-                  <Pencil className="h-3.5 w-3.5" strokeWidth={1.7} />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setConfirmDelete(true)}
-                  aria-label="Borrar mensaje"
-                  title="Borrar"
-                  className="rounded p-1 text-text-3 hover:bg-danger-tint hover:text-danger-text"
-                >
-                  <Trash2 className="h-3.5 w-3.5" strokeWidth={1.7} />
-                </button>
+                  onChange={(e) => setDraft(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      void saveEdit();
+                    }
+                    if (e.key === "Escape") setEditing(false);
+                  }}
+                  className="w-[min(60vw,420px)] resize-none rounded-md border border-border-strong bg-background px-2 py-1.5 text-[13.5px] text-foreground outline-none focus:border-brand"
+                />
+                <span className="flex justify-end gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditing(false);
+                      setDraft(message.body);
+                    }}
+                    className="rounded px-2 py-1 text-[12px] font-medium text-text-2 hover:bg-secondary"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => void saveEdit()}
+                    className="rounded bg-brand px-2 py-1 text-[12px] font-semibold text-brand-fg disabled:opacity-50"
+                  >
+                    Guardar
+                  </button>
+                </span>
+              </span>
+            ) : (
+              <>
+                {message.attachment && <Attachment attachment={message.attachment} />}
+                {message.body && (
+                  <span className={cn("block whitespace-pre-wrap break-words", message.attachment && "mt-1")}>
+                    {splitBody(message.body, message.mentions).map((part, i) =>
+                      part.type === "text" ? (
+                        <span key={i}>{part.text}</span>
+                      ) : message.needsResolve ? (
+                        // Todavía sin resolver para esta persona: ni "sin acceso" ni nombre.
+                        <span
+                          key={i}
+                          className="mx-0.5 inline-flex rounded-full bg-secondary px-1.5 py-px text-[12.5px] text-text-3"
+                        >
+                          @…
+                        </span>
+                      ) : (
+                        <MentionChip
+                          key={i}
+                          mention={part.mention}
+                          viewerId={userId}
+                          onOpen={(contactId) => router.push(`/inbox?contact=${encodeURIComponent(contactId)}`)}
+                          onOpenUser={async (mateId) => {
+                            // Un compañero: su directo en el chat de equipo, nunca un chat de cliente.
+                            const err = await onOpenDirect(mateId);
+                            if (err) setError(`No se pudo abrir el directo: ${err}`);
+                          }}
+                        />
+                      ),
+                    )}
+                  </span>
+                )}
               </>
             )}
+            {!editing && (mine || grouped || message.editedAt) && (
+              <span className="float-right ml-3 mt-1.5 flex items-center gap-1">
+                {message.editedAt && !message.deleted && (
+                  <span className="text-[10px] font-medium text-text-3">editado</span>
+                )}
+                <span className="text-[12px] text-text-3">{bubbleTime(message.createdAt)}</span>
+              </span>
+            )}
+          </div>
+
+          {actions && (
+            // Aparecen con hover o foco (teclado); en pantallas táctiles, siempre.
+            <div
+              className={cn(
+                "flex shrink-0 items-center gap-0.5 transition-opacity duration-150",
+                "opacity-0 group-hover/msg:opacity-100 group-focus-within/msg:opacity-100 [@media(hover:none)]:opacity-100",
+                pickerOpen && "opacity-100",
+              )}
+            >
+              {canReact && (
+                <div ref={pickerRef} className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setPickerOpen((v) => !v)}
+                    aria-label="Reaccionar"
+                    title="Reaccionar"
+                    className="rounded p-1 text-text-3 hover:bg-secondary hover:text-foreground"
+                  >
+                    <SmilePlus className="h-4 w-4" strokeWidth={1.7} />
+                  </button>
+                  <AnimatePresence>
+                    {pickerOpen && (
+                      <m.div
+                        role="dialog"
+                        aria-label="Elegir reacción"
+                        initial={{ opacity: 0, y: 6, scale: 0.96 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{
+                          opacity: 0,
+                          y: 4,
+                          scale: 0.98,
+                          transition: { duration: 0.1 },
+                        }}
+                        transition={SPRING}
+                        style={{
+                          transformOrigin: mine ? "bottom right" : "bottom left",
+                        }}
+                        className={cn(
+                          "absolute bottom-full z-30 mb-2 overflow-hidden rounded-md border bg-popover text-foreground shadow-pop",
+                          mine ? "right-0" : "left-0",
+                        )}
+                      >
+                        <div className="flex gap-0.5 border-b p-1.5">
+                          {QUICK.map((e) => (
+                            <button
+                              key={e}
+                              type="button"
+                              onClick={() => void toggleReaction(e)}
+                              aria-label={`Reaccionar con ${e}`}
+                              className="rounded-md px-1.5 py-1 text-lg transition-transform hover:bg-secondary active:scale-90"
+                            >
+                              {e}
+                            </button>
+                          ))}
+                        </div>
+                        <EmojiPickerPanel onPick={(e) => void toggleReaction(e)} />
+                      </m.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              )}
+              {mine && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const d = draftFromMessage(message);
+                      if (!d) {
+                        setError("Este mensaje menciona un chat que ya no ves: bórralo y vuelve a escribirlo");
+                        return;
+                      }
+                      setDraft(d.text);
+                      setDraftMap(d.map);
+                      setEditing(true);
+                    }}
+                    aria-label="Editar mensaje"
+                    title="Editar"
+                    className="rounded p-1 text-text-3 hover:bg-secondary hover:text-foreground"
+                  >
+                    <Pencil className="h-3.5 w-3.5" strokeWidth={1.7} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setConfirmDelete(true)}
+                    aria-label="Borrar mensaje"
+                    title="Borrar"
+                    className="rounded p-1 text-text-3 hover:bg-danger-tint hover:text-danger-text"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" strokeWidth={1.7} />
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+        </div>
+
+        {message.reactions.length > 0 && (
+          <div className={cn("mt-1 flex flex-wrap gap-1", mine ? "justify-end" : "justify-start")}>
+            {message.reactions.map((r) => {
+              const me = reactedByMe(r, userId);
+              return (
+                <button
+                  key={r.emoji}
+                  type="button"
+                  disabled={!canReact || busy}
+                  onClick={() => void toggleReaction(r.emoji)}
+                  aria-pressed={me}
+                  aria-label={`${r.emoji} ${r.userIds.length}${me ? " (tuya)" : ""}`}
+                  className={cn(
+                    "flex h-6 items-center gap-1 rounded-full border px-2 text-[12px] tabular-nums transition-colors disabled:cursor-default",
+                    me
+                      ? "border-brand bg-brand-tint text-brand-text"
+                      : "border-border-strong bg-background text-text-2 enabled:hover:border-text-3",
+                  )}
+                >
+                  <span>{r.emoji}</span>
+                  <span className="font-semibold">{r.userIds.length}</span>
+                </button>
+              );
+            })}
           </div>
         )}
+
+        {confirmDelete && (
+          <div className="mt-1 flex items-center gap-2 rounded-md border border-danger-soft bg-danger-tint px-2.5 py-1.5 text-[12px] text-danger-text">
+            ¿Borrar este mensaje para todos?
+            <button
+              type="button"
+              onClick={() => setConfirmDelete(false)}
+              className="rounded px-1.5 py-0.5 font-medium hover:bg-background"
+            >
+              No
+            </button>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => void remove()}
+              className="rounded bg-danger px-1.5 py-0.5 font-semibold text-white disabled:opacity-50"
+            >
+              Sí, borrar
+            </button>
+          </div>
+        )}
+        {error && (
+          <p role="alert" className="mt-1 text-[11.5px] text-danger-text">
+            {error}
+          </p>
+        )}
       </div>
-
-      {message.reactions.length > 0 && (
-        <div className={cn("mt-1 flex flex-wrap gap-1", mine ? "justify-end" : "justify-start")}>
-          {message.reactions.map((r) => {
-            const me = reactedByMe(r, userId);
-            return (
-              <button
-                key={r.emoji}
-                type="button"
-                disabled={!canReact || busy}
-                onClick={() => void toggleReaction(r.emoji)}
-                aria-pressed={me}
-                aria-label={`${r.emoji} ${r.userIds.length}${me ? " (tuya)" : ""}`}
-                className={cn(
-                  "flex h-6 items-center gap-1 rounded-full border px-2 text-[12px] tabular-nums transition-colors disabled:cursor-default",
-                  me ? "border-brand bg-brand-tint text-brand-text" : "border-border-strong bg-background text-text-2 enabled:hover:border-text-3"
-                )}
-              >
-                <span>{r.emoji}</span>
-                <span className="font-semibold">{r.userIds.length}</span>
-              </button>
-            );
-          })}
-        </div>
-      )}
-
-      {confirmDelete && (
-        <div className="mt-1 flex items-center gap-2 rounded-md border border-danger-soft bg-danger-tint px-2.5 py-1.5 text-[12px] text-danger-text">
-          ¿Borrar este mensaje para todos?
-          <button type="button" onClick={() => setConfirmDelete(false)} className="rounded px-1.5 py-0.5 font-medium hover:bg-background">
-            No
-          </button>
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => void remove()}
-            className="rounded bg-danger px-1.5 py-0.5 font-semibold text-white disabled:opacity-50"
-          >
-            Sí, borrar
-          </button>
-        </div>
-      )}
-      {error && (
-        <p role="alert" className="mt-1 text-[11.5px] text-danger-text">
-          {error}
-        </p>
-      )}
     </div>
   );
 }
@@ -490,7 +516,12 @@ function Attachment({ attachment }: { attachment: NonNullable<TeamMessageDto["at
     return (
       <a href={attachment.url} target="_blank" rel="noreferrer noopener" title="Ver completa">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={attachment.url} alt={attachment.name} loading="lazy" className="max-h-72 max-w-full rounded-md object-contain" />
+        <img
+          src={attachment.url}
+          alt={attachment.name}
+          loading="lazy"
+          className="max-h-72 max-w-full rounded-md object-contain"
+        />
       </a>
     );
   }

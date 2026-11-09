@@ -78,7 +78,12 @@ export function MentionPicker({
     .sort((a, b) => a.name.localeCompare(b.name, "es"))
     .slice(0, 30);
   const shown = (chats ?? [])
-    .filter((c) => matchesQuery(query, { text: [c.contact.name], phone: c.contact.phone ?? undefined }))
+    .filter((c) =>
+      matchesQuery(query, {
+        text: [c.contact.name],
+        phone: c.contact.phone ?? undefined,
+      }),
+    )
     .slice(0, 30);
 
   return (
@@ -115,7 +120,9 @@ export function MentionPicker({
           {people === null && !error && <li className="px-3 py-1.5 text-xs text-text-3">Cargando…</li>}
           {people !== null && mates.length === 0 && (
             <li className="px-3 py-1.5 text-xs text-text-3">
-              {people.some((p) => p.id !== userId) ? "Ningún compañero coincide" : "No hay más compañeros en esta conversación"}
+              {people.some((p) => p.id !== userId)
+                ? "Ningún compañero coincide"
+                : "No hay más compañeros en esta conversación"}
             </li>
           )}
           {mates.map((p) => (
@@ -136,7 +143,9 @@ export function MentionPicker({
         <ul aria-label="Chats de clientes">
           {chats === null && !error && <li className="px-3 py-1.5 text-xs text-text-3">Cargando…</li>}
           {chats !== null && shown.length === 0 && (
-            <li className="px-3 py-1.5 text-xs text-text-3">{chats.length === 0 ? "No ves ningún chat de cliente" : "Ningún chat coincide"}</li>
+            <li className="px-3 py-1.5 text-xs text-text-3">
+              {chats.length === 0 ? "No ves ningún chat de cliente" : "Ningún chat coincide"}
+            </li>
           )}
           {shown.map((c) => (
             <li key={c.id}>
@@ -174,10 +183,7 @@ export function MentionChip({
     const me = mention.userId === viewerId;
     if (me) {
       return (
-        <span
-          title="Te mencionaron"
-          className="mx-0.5 inline-flex items-center gap-1 rounded-full bg-brand px-1.5 py-px align-baseline text-[12.5px] font-semibold text-brand-fg"
-        >
+        <span title="Te mencionaron" className="inline font-semibold text-violet-600 dark:text-violet-300">
           @{mention.label}
         </span>
       );
@@ -187,7 +193,7 @@ export function MentionChip({
         type="button"
         onClick={() => onOpenUser(mention.userId)}
         title={`Abrir el chat directo con ${mention.label}`}
-        className="mx-0.5 inline-flex items-center gap-1 rounded-full bg-brand-tint px-1.5 py-px align-baseline text-[12.5px] font-semibold text-brand-text hover:underline"
+        className="inline font-semibold text-violet-600 hover:underline dark:text-violet-300"
       >
         @{mention.label}
       </button>
@@ -208,9 +214,10 @@ export function MentionChip({
       type="button"
       onClick={() => onOpen(mention.contactId)}
       title={`Abrir el chat de ${mention.label}`}
-      className="mx-0.5 inline-flex items-center gap-1 rounded-full bg-brand-tint px-1.5 py-px align-baseline text-[12.5px] font-semibold text-brand-text hover:underline"
+      className="mx-0.5 inline-flex items-center gap-1 rounded-md bg-brand-tint px-1.5 py-px align-baseline font-medium text-brand-text hover:underline"
     >
-      @{mention.label}
+      <span aria-hidden>💬</span>
+      {mention.label}
     </button>
   );
 }

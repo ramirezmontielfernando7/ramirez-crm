@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, m } from "framer-motion";
-import { ChevronLeft, Eye, Megaphone, MessageSquarePlus, Plus, Search, ShieldAlert, Users } from "lucide-react";
+import { ChevronLeft, Eye, MessageSquarePlus, MoreHorizontal, Plus, Search, ShieldAlert, Users } from "lucide-react";
 import { fetchJson, jsonInit } from "@/lib/fetch-json";
 import {
   OVERSIGHT_NOTICE,
@@ -54,9 +54,11 @@ export function TeamChatClient() {
 
   const select = useCallback(
     (id: string | null) => {
-      router.replace(id ? `/chat?t=${encodeURIComponent(id)}` : "/chat", { scroll: false });
+      router.replace(id ? `/chat?t=${encodeURIComponent(id)}` : "/chat", {
+        scroll: false,
+      });
     },
-    [router]
+    [router],
   );
 
   const refetchList = useCallback(async () => {
@@ -78,7 +80,7 @@ export function TeamChatClient() {
       select(res.data.threadId);
       return null;
     },
-    [refetchList, select]
+    [refetchList, select],
   );
 
   const markRead = useCallback(async (id: string) => {
@@ -91,7 +93,12 @@ export function TeamChatClient() {
     if (res.data.marked) {
       refreshTeamUnread();
       setList((l) =>
-        l ? { ...l, threads: l.threads.map((t) => (t.id === id ? { ...t, unread: 0 } : t)) } : l
+        l
+          ? {
+              ...l,
+              threads: l.threads.map((t) => (t.id === id ? { ...t, unread: 0 } : t)),
+            }
+          : l,
       );
     }
   }, []);
@@ -103,7 +110,7 @@ export function TeamChatClient() {
       if (!res.ok) {
         setThread(null);
         setThreadError(
-          res.status === 404 ? "Esta conversación no existe o ya no tienes acceso." : `No se pudo abrir: ${res.error}`
+          res.status === 404 ? "Esta conversación no existe o ya no tienes acceso." : `No se pudo abrir: ${res.error}`,
         );
         return;
       }
@@ -111,7 +118,7 @@ export function TeamChatClient() {
       setThread({ threadId: id, ...res.data });
       if (res.data.relation === "member") void markRead(id);
     },
-    [markRead]
+    [markRead],
   );
 
   useEffect(() => {
@@ -161,7 +168,12 @@ export function TeamChatClient() {
       // que llegue la versión propia.
       const next =
         prev && message.needsResolve && !prev.needsResolve && message.editedAt === prev.editedAt && !message.deleted
-          ? { ...message, body: prev.body, mentions: prev.mentions, needsResolve: false }
+          ? {
+              ...message,
+              body: prev.body,
+              mentions: prev.mentions,
+              needsResolve: false,
+            }
           : message;
       const messages = i === -1 ? [...t.messages, next] : t.messages.map((x) => (x.id === message.id ? next : x));
       return { ...t, messages };
@@ -204,8 +216,11 @@ export function TeamChatClient() {
   async function loadOlder() {
     if (!thread || loadingOlder || !thread.messages[0]) return;
     setLoadingOlder(true);
-    const res = await fetchJson<{ messages: TeamMessageDto[]; hasMore: boolean }>(
-      `/api/team-chat/threads/${thread.threadId}/messages?limit=50&before=${encodeURIComponent(thread.messages[0].id)}`
+    const res = await fetchJson<{
+      messages: TeamMessageDto[];
+      hasMore: boolean;
+    }>(
+      `/api/team-chat/threads/${thread.threadId}/messages?limit=50&before=${encodeURIComponent(thread.messages[0].id)}`,
     );
     setLoadingOlder(false);
     if (!res.ok) {
@@ -214,8 +229,12 @@ export function TeamChatClient() {
     }
     setThread((t) =>
       t && t.threadId === thread.threadId
-        ? { ...t, messages: [...res.data.messages, ...t.messages], hasMore: res.data.hasMore }
-        : t
+        ? {
+            ...t,
+            messages: [...res.data.messages, ...t.messages],
+            hasMore: res.data.hasMore,
+          }
+        : t,
     );
   }
 
@@ -229,7 +248,7 @@ export function TeamChatClient() {
         className={cn(
           "w-full shrink-0 overflow-hidden border-r md:w-[clamp(300px,32vw,340px)] lg:w-[360px]",
           "lg:rounded-panel lg:border lg:bg-surface lg:shadow-panel",
-          selectedId && "max-md:hidden"
+          selectedId && "max-md:hidden",
         )}
       >
         <ThreadList
@@ -249,7 +268,7 @@ export function TeamChatClient() {
         className={cn(
           "flex min-w-0 flex-1 flex-col",
           "lg:overflow-hidden lg:rounded-panel lg:border lg:bg-surface lg:shadow-panel",
-          !selectedId && "max-md:hidden"
+          !selectedId && "max-md:hidden",
         )}
       >
         {selectedId ? (
@@ -269,8 +288,12 @@ export function TeamChatClient() {
                     <p className="truncate text-[15px] font-semibold leading-tight tracking-tight">{selected.title}</p>
                     <p className="truncate text-[11.5px] text-text-3">{subtitle(selected, viewer.userId)}</p>
                   </div>
+                  <MembersMenu
+                    thread={selected}
+                    onMarkRead={selected.relation === "member" ? () => void markRead(selected.id) : undefined}
+                  />
                   {selected.relation === "oversight" && (
-                    <span className="ml-auto flex shrink-0 items-center gap-1 rounded-full bg-warning-tint px-2 py-0.5 text-[11px] font-semibold text-warning-text">
+                    <span className="ml-2 flex shrink-0 items-center gap-1 rounded-full bg-warning-tint px-2 py-0.5 text-[11px] font-semibold text-warning-text">
                       <Eye className="h-3 w-3" strokeWidth={2} /> Supervisión · solo lectura
                     </span>
                   )}
@@ -278,7 +301,10 @@ export function TeamChatClient() {
               )}
             </header>
             {threadError && (
-              <p role="alert" className="border-b border-danger-soft bg-danger-tint px-4 py-2 text-[12.5px] text-danger-text">
+              <p
+                role="alert"
+                className="border-b border-danger-soft bg-danger-tint px-4 py-2 text-[12.5px] text-danger-text"
+              >
                 {threadError}
               </p>
             )}
@@ -292,7 +318,6 @@ export function TeamChatClient() {
                   className="flex min-h-0 flex-1 flex-col"
                 >
                   <TeamThread
-                    kind={selected.kind}
                     userId={viewer.userId}
                     messages={thread.messages}
                     hasMore={thread.hasMore}
@@ -330,13 +355,98 @@ export function TeamChatClient() {
   );
 }
 
+function MembersMenu({ thread, onMarkRead }: { thread: TeamThreadDto; onMarkRead?: () => void }) {
+  const [open, setOpen] = useState<"members" | "more" | null>(null);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(null);
+    };
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(null);
+    document.addEventListener("mousedown", onDown);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+  const btn =
+    "flex h-8 w-8 items-center justify-center rounded-md text-text-2 hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+  return (
+    <div ref={ref} className="relative ml-auto flex shrink-0 items-center gap-0.5">
+      <button
+        type="button"
+        aria-label="Participantes"
+        title="Participantes"
+        aria-expanded={open === "members"}
+        onClick={() => setOpen((o) => (o === "members" ? null : "members"))}
+        className={btn}
+      >
+        <Users className="h-[18px] w-[18px]" strokeWidth={1.7} />
+      </button>
+      <button
+        type="button"
+        aria-label="Más opciones"
+        title="Más opciones"
+        aria-expanded={open === "more"}
+        onClick={() => setOpen((o) => (o === "more" ? null : "more"))}
+        className={btn}
+      >
+        <MoreHorizontal className="h-[18px] w-[18px]" strokeWidth={1.7} />
+      </button>
+      {open && (
+        <div
+          role="dialog"
+          aria-label={open === "members" ? "Participantes" : "Más opciones"}
+          className="absolute right-0 top-full z-30 mt-2 w-64 overflow-hidden rounded-md border bg-popover py-1 text-foreground shadow-pop"
+        >
+          {open === "members" ? (
+            thread.members.map((p) => (
+              <div key={p.id} className="flex items-center gap-2.5 px-3 py-1.5">
+                <ContactAvatar name={p.name} seed={p.id} size="sm" />
+                <span className="min-w-0">
+                  <span className="block truncate text-[13px] font-semibold">{p.name}</span>
+                  <span className="block truncate text-[11px] text-text-3">{p.role}</span>
+                </span>
+              </div>
+            ))
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={() => setOpen("members")}
+                className="block w-full px-3 py-2 text-left text-[13px] hover:bg-row-hover"
+              >
+                Ver participantes
+              </button>
+              {onMarkRead && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onMarkRead();
+                    setOpen(null);
+                  }}
+                  className="block w-full px-3 py-2 text-left text-[13px] hover:bg-row-hover"
+                >
+                  Marcar como leído
+                </button>
+              )}
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function subtitle(t: TeamThreadDto, userId: string): string {
   if (t.kind === "announcements") return "Todo el equipo · canal de avisos";
   if (t.kind === "direct") {
     const other = t.members.find((p) => p.id !== userId);
     return t.relation === "oversight" ? "Directo entre dos personas del equipo" : (other?.role ?? "Directo");
   }
-  return `${t.members.length} ${t.members.length === 1 ? "participante" : "participantes"}`;
+  return `${t.members.length} ${t.members.length === 1 ? "persona" : "personas"}`;
 }
 
 function ThreadAvatar({ thread, userId }: { thread: TeamThreadDto; userId: string }) {
@@ -344,10 +454,29 @@ function ThreadAvatar({ thread, userId }: { thread: TeamThreadDto; userId: strin
     const other = thread.members.find((p) => p.id !== userId);
     return <ContactAvatar name={thread.title} seed={other?.id ?? thread.id} size="list" />;
   }
-  const Icon = thread.kind === "announcements" ? Megaphone : thread.kind === "group" ? Users : Eye;
+  if (thread.kind === "announcements") {
+    return (
+      <span
+        aria-hidden
+        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-soft text-[15px]"
+      >
+        📣
+      </span>
+    );
+  }
+  if (thread.kind === "group") {
+    return (
+      <span
+        aria-hidden
+        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-[15px] font-semibold text-brand-text"
+      >
+        #
+      </span>
+    );
+  }
   return (
     <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-soft text-brand-text">
-      <Icon className="h-4 w-4" strokeWidth={1.8} />
+      <Eye className="h-4 w-4" strokeWidth={1.8} />
     </span>
   );
 }
@@ -380,29 +509,29 @@ function ThreadList({
       <InboxListHeader
         current="chat"
         actions={
-        <div>
-          <button
-            type="button"
-            onClick={() => setNewOpen((v) => !v)}
-            aria-label="Nuevo mensaje directo"
-            aria-expanded={newOpen}
-            title="Nuevo mensaje directo"
-            className="btn-r3 p ic h-[34px] w-[34px]"
-          >
-            <Plus className="h-4 w-4" strokeWidth={2} />
-          </button>
-          <AnimatePresence>
-            {newOpen && (
-              <NewDirect
-                onClose={() => setNewOpen(false)}
-                onOpened={(id) => {
-                  setNewOpen(false);
-                  onOpened(id);
-                }}
-              />
-            )}
-          </AnimatePresence>
-        </div>
+          <div>
+            <button
+              type="button"
+              onClick={() => setNewOpen((v) => !v)}
+              aria-label="Nuevo mensaje directo"
+              aria-expanded={newOpen}
+              title="Nuevo mensaje directo"
+              className="btn-r3 p ic h-[34px] w-[34px]"
+            >
+              <Plus className="h-4 w-4" strokeWidth={2} />
+            </button>
+            <AnimatePresence>
+              {newOpen && (
+                <NewDirect
+                  onClose={() => setNewOpen(false)}
+                  onOpened={(id) => {
+                    setNewOpen(false);
+                    onOpened(id);
+                  }}
+                />
+              )}
+            </AnimatePresence>
+          </div>
         }
       />
       <div className="border-b px-3 py-2">
@@ -419,12 +548,12 @@ function ThreadList({
       </div>
 
       {list?.overseeing && (
-        <div className="flex items-start gap-2 border-b bg-warning-tint px-4 py-2 text-[12px] leading-snug text-warning-text">
-          <Eye className="mt-[1px] h-3.5 w-3.5 shrink-0" strokeWidth={2} />
-          <span>
-            <span className="font-semibold">Supervisión activa.</span> Ves también los directos y grupos del equipo, en
-            solo lectura. Se desactiva en Ajustes → Chat de equipo.
-          </span>
+        <div
+          title="Ves también los directos y grupos del equipo, en solo lectura. Se desactiva en Ajustes → Chat de equipo."
+          className="flex items-center gap-2 border-b bg-warning-tint px-4 py-1.5 text-[12px] text-warning-text"
+        >
+          <Eye className="h-3.5 w-3.5 shrink-0" strokeWidth={2} />
+          <span className="font-semibold">Supervisión activa · solo lectura</span>
         </div>
       )}
       {list?.oversightNotice && (
@@ -440,7 +569,11 @@ function ThreadList({
             <p role="alert" className="text-[12.5px] text-danger-text">
               {error}
             </p>
-            <button type="button" onClick={onRetry} className="mt-2 text-[12.5px] font-semibold text-brand-ink hover:underline">
+            <button
+              type="button"
+              onClick={onRetry}
+              className="mt-2 text-[12.5px] font-semibold text-brand-ink hover:underline"
+            >
               Reintentar
             </button>
           </div>
@@ -451,8 +584,8 @@ function ThreadList({
             <Rows threads={own} selectedId={selectedId} onSelect={onSelect} userId={viewer.userId} />
             {!needle && own.length <= 1 && (
               <p className="px-4 py-4 text-center text-[12px] text-text-3">
-                Abre un directo con <MessageSquarePlus className="inline h-3.5 w-3.5" strokeWidth={1.8} /> para escribirle a
-                alguien del equipo.
+                Abre un directo con <MessageSquarePlus className="inline h-3.5 w-3.5" strokeWidth={1.8} /> para
+                escribirle a alguien del equipo.
               </p>
             )}
             {supervised.length > 0 && (
@@ -505,7 +638,7 @@ function Rows({
               className={cn(
                 "flex w-full items-start gap-2.5 px-4 py-[var(--row-py)] text-left transition-colors duration-150",
                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
-                active ? "bg-[var(--bg-active)]" : "hover:bg-row-hover"
+                active ? "bg-[var(--bg-active)]" : "hover:bg-row-hover",
               )}
             >
               <span className="mt-[3px] shrink-0">
@@ -515,8 +648,8 @@ function Rows({
                 <span className="flex items-baseline justify-between gap-2">
                   <span
                     className={cn(
-                      "truncate text-[13.5px] leading-5 tracking-[-0.01em] text-foreground",
-                      unread ? "font-bold" : "font-semibold"
+                      "truncate text-[14.5px] leading-5 tracking-[-0.01em] text-foreground",
+                      unread ? "font-bold" : "font-semibold",
                     )}
                   >
                     {t.title}
@@ -524,15 +657,21 @@ function Rows({
                   <span
                     className={cn(
                       "shrink-0 text-[11px] leading-5 tabular-nums",
-                      unread ? "font-semibold text-brand-ink" : "font-medium text-text-3"
+                      unread ? "font-semibold text-brand-ink" : "font-medium text-text-3",
                     )}
                   >
                     {formatTime(t.lastMessageAt)}
                   </span>
                 </span>
                 <span className="flex items-center justify-between gap-2">
-                  <span className={cn("truncate text-[12.5px] leading-[18px]", unread ? "font-medium text-foreground" : "text-text-2")}>
-                    {t.lastMessagePreview || (t.kind === "announcements" ? "Avisos para todo el equipo" : "Sin mensajes todavía")}
+                  <span
+                    className={cn(
+                      "truncate text-[13.5px] leading-[20px]",
+                      unread ? "font-medium text-foreground" : "text-text-2",
+                    )}
+                  >
+                    {t.lastMessagePreview ||
+                      (t.kind === "announcements" ? "Avisos para todo el equipo" : "Sin mensajes todavía")}
                   </span>
                   {unread && (
                     <span className="flex h-[18px] min-w-[18px] shrink-0 items-center justify-center rounded-full bg-brand px-1.5 text-[10.5px] font-semibold tabular-nums leading-none text-brand-fg">
