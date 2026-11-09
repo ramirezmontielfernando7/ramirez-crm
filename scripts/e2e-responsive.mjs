@@ -187,12 +187,15 @@ ok(
 const filters = phone.getByRole("group", { name: "Mostrar", exact: true });
 const chips = await filters.getByRole("button").evaluateAll((buttons) => buttons.map((b) => Math.round(b.getBoundingClientRect().top)));
 ok("los chips permanecen en una sola fila", chips.length > 0 && new Set(chips).size === 1);
-// App móvil: el buscador va siempre a la vista (sin lupa).
+// App móvil: la lupa convierte el título en la caja de búsqueda (sin las pestañas ni los chips).
+ok("la cápsula de bandejas se ve al inicio", await phone.getByTestId("inbox-phone-tab-inbox").isVisible());
+await phone.getByRole("button", { name: /Buscar conversación/ }).click();
 const buscar = phone.getByPlaceholder("Buscar chats, contactos o etiquetas");
+ok("al tocar la lupa sale la caja y se esconden las pestañas", (await buscar.isVisible()) && !(await phone.getByTestId("inbox-phone-tab-inbox").isVisible()));
 await buscar.fill(NAME);
 ok("la búsqueda móvil encuentra el chat", await until(async () => await fila.isVisible()));
-await buscar.fill("");
-// App móvil: el buscador va siempre a la vista (sin lupa).
+await phone.getByTestId("phone-search-back").click();
+ok("la flecha cierra la búsqueda y vuelven las pestañas", await until(async () => await phone.getByTestId("inbox-phone-tab-inbox").isVisible()));
 await fila.click();
 const composer = phone.getByPlaceholder("Mensaje");
 ok(
