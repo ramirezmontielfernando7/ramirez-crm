@@ -15,7 +15,10 @@ export function RangePicker({
   onChange,
   today,
   timezone,
+  compact = false,
 }: {
+  /** Un solo menú con los atajos (y «Personalizado»), como la maqueta. */
+  compact?: boolean;
   value: Range;
   onChange: (r: Range) => void;
   /** `YYYY-MM-DD` de hoy en la zona del negocio. */
@@ -26,6 +29,45 @@ export function RangePicker({
   const activo = atajos.find(
     (a) => a.range.from === value.from && a.range.to === value.to
   );
+
+  if (compact) {
+    return (
+      <div className="flex flex-wrap items-center gap-2">
+        <select
+          aria-label="Periodo"
+          value={activo?.label ?? "custom"}
+          onChange={(e) => {
+            const a = atajos.find((x) => x.label === e.target.value);
+            if (a) onChange(a.range);
+          }}
+          className="h-9 rounded-md border border-input bg-card px-2 text-sm"
+        >
+          {atajos.map((a) => (
+            <option key={a.label} value={a.label}>
+              {a.label}
+            </option>
+          ))}
+          {!activo && <option value="custom">Personalizado</option>}
+        </select>
+        <input
+          type="date"
+          value={value.from}
+          max={value.to}
+          onChange={(e) => e.target.value && onChange({ ...value, from: e.target.value })}
+          className="h-9 rounded-md border border-input bg-card px-2 text-xs"
+          aria-label="Desde"
+        />
+        <input
+          type="date"
+          value={value.to}
+          min={value.from}
+          onChange={(e) => e.target.value && onChange({ ...value, to: e.target.value })}
+          className="h-9 rounded-md border border-input bg-card px-2 text-xs"
+          aria-label="Hasta"
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-wrap items-center gap-2">
