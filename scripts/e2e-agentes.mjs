@@ -341,7 +341,7 @@ async function main() {
     await page.getByText(/Borrador guardado/).waitFor();
     const trasGuardar = (await api(`/api/lab/agents/${idUi}`)).json?.agent;
     ok("guardar borrador no publica", trasGuardar?.status === "draft" && trasGuardar?.published === null, JSON.stringify(trasGuardar?.status));
-    await page.getByRole("button", { name: "Publicar", exact: true }).click();
+    await page.getByRole("button", { name: /^Publicar( v\d+)?$/ }).click();
     await page.getByRole("dialog").getByText(/primera vez/).waitFor();
     await page.getByRole("dialog").getByRole("button", { name: "Publicar" }).click();
     await page.getByText(/^Publicado\.$/).waitFor();
@@ -359,7 +359,7 @@ async function main() {
     await page.fill("#lab-agent-instructions", "Texto que luego se revierte.");
     await page.getByRole("button", { name: "Guardar borrador" }).click();
     await page.getByText(/Borrador guardado/).waitFor();
-    await page.getByText("Historial de versiones").click();
+    await page.getByRole("button", { name: "Versiones", exact: true }).click();
     await page.getByRole("button", { name: "Cargar al borrador" }).first().click();
     await page.getByRole("dialog").getByRole("button", { name: "Cargar al borrador" }).click();
     await page.getByText(/Versión cargada en el borrador/).waitFor();
@@ -370,7 +370,7 @@ async function main() {
     );
 
     // Hacer general: advierte del cerebro externo y, al cancelar, no cambia nada.
-    await page.getByText("Más opciones").click();
+    await page.getByRole("button", { name: "Formulario", exact: true }).click();
     await page.getByRole("button", { name: "Hacer general" }).click();
     ok("«Hacer general» avisa que cambia lo que recibe el cerebro externo", (await page.getByRole("dialog").getByText(/cerebro externo/).count()) > 0);
     await page.getByRole("dialog").getByRole("button", { name: "Cancelar" }).click();

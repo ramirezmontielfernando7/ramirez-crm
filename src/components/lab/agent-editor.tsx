@@ -3,18 +3,17 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, ChevronDown, Pencil } from "lucide-react";
+import { Bot, Pencil } from "lucide-react";
 import type { CreatorField } from "@/lib/agent-creator";
-import { AgentConfigForm } from "@/components/agent/agent-config-form";
 import { AgentDocSources, AgentExclusiveDocs, ArchiveExclusiveDocsChoice } from "@/components/lab/agent-doc-sources";
 import { AgentCreator } from "@/components/lab/agent-creator";
 import { AgentKbPanel } from "@/components/lab/agent-kb-panel";
+import { AgentPauseBar } from "@/components/lab/agent-pause-bar";
 import { AgentPreview } from "@/components/lab/agent-preview";
 import { ConfirmDialog } from "@/components/lab/confirm-dialog";
 import {
   call,
   formatDate,
-  NO_NAME_LABEL,
   STATUS_LABEL,
   type AgentConfig,
   type AgentDetail,
@@ -22,10 +21,12 @@ import {
   type AgentVersion,
 } from "@/components/lab/agents-api";
 import { Badge } from "@/components/ui/badge";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
+import { PageShell } from "@/components/ui/page-shell";
 import { cn } from "@/lib/utils";
 
 const FIELD_LABEL: Record<string, string> = {
@@ -75,7 +76,8 @@ export function AgentEditor({ id, documents = false }: { id: string; documents?:
   // La portada del Estudio manda aquí la idea escrita (?idea=) o pide el formulario (?modo=formulario).
   const params = useSearchParams();
   const idea = params.get("idea")?.slice(0, 2000) || undefined;
-  const [mode, setMode] = useState<"creator" | "form">(params.get("modo") === "formulario" ? "form" : "creator");
+  const [mode, setMode] = useState<"creator" | "form" | "versions">(params.get("modo") === "formulario" ? "form" : "creator");
+  const [section, setSection] = useState("identidad");
   const [dialog, setDialog] = useState<Dialog>(null);
   const [restoring, setRestoring] = useState<AgentVersion | null>(null);
   const [busy, setBusy] = useState(false);
@@ -108,7 +110,9 @@ export function AgentEditor({ id, documents = false }: { id: string; documents?:
 
   useEffect(() => {
     void load();
-  }, [load]);
+    // Las versiones dan el número («Publicado v3», «Publicar v4») y la pestaña «Versiones».
+    void loadVersions();
+  }, [load, loadVersions]);
 
   const dirty = useMemo(() => !!agent && !!cfg && JSON.stringify(norm(cfg)) !== JSON.stringify(norm(agent.draft)), [agent, cfg]);
 
@@ -164,7 +168,7 @@ export function AgentEditor({ id, documents = false }: { id: string; documents?:
     setAgent(r.data.agent);
     setCfg(r.data.agent.draft);
     setNote(agent?.isGeneral ? "Publicado. Ya atiende a tus clientes." : "Publicado.");
-    setVersions(null);
+    void loadVersions();
     void load();
   }
 
@@ -217,53 +221,128 @@ export function AgentEditor({ id, documents = false }: { id: string; documents?:
 
   const kbKey = String(cfg.useSharedKb);
   const status = dirty ? "Cambios sin guardar" : STATUS_LABEL[agent.status];
+  const publishedCount = versions?.filter((v) => v.action === "publish").length ?? null;
+  const vLabel = (n: number | null) => (n ? ` v${n}` : "");
+  const sections = [
+    { id: "identidad", label: "Identidad" },
+    { id: "tono", label: "Tono" },
+    { id: "instrucciones", label: "Instrucciones" },
+    { id: "persona", label: "Cuándo pasa a persona" },
+    { id: "conocimiento", label: "Conocimiento" },
+    ...(documents ? [{ id: "documentos", label: "Documentos" }] : []),
+    { id: "opciones", label: "Más opciones" },
+  ];
+  const goTo = (sid: string) => {
+    setSection(sid);
+    document.getElementById(`sec-${sid}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  const title = renaming ? (
+    <form
+      className="flex items-center gap-2"
+      onSubmit={(e) => {
+        e.preventDefault();
+        void rename();
+      }}
+    >
+      <label htmlFor="agent-internal-name" className="sr-only">
+        Nombre interno
+      </label>
+      <Input id="agent-internal-name" autoFocus maxLength={60} className="h-8 w-56" value={nameDraft} onChange={(e) => setNameDraft(e.target.value)} />
+      <Button size="sm" type="submit" disabled={!nameDraft.trim()}>
+        Guardar
+      </Button>
+      <Button size="sm" type="button" variant="ghost" onClick={() => setRenaming(false)}>
+        Cancelar
+      </Button>
+    </form>
+  ) : (
+    <span className="flex min-w-0 items-center gap-1.5">
+      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-brand-soft text-brand-text">
+        <Bot className="h-4 w-4" strokeWidth={1.7} />
+      </span>
+      <span className="truncate">{agent.internalName}</span>
+      <button
+        type="button"
+        aria-label="Renombrar"
+        title="Cambiar el nombre interno"
+        className="rounded-md p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
+        onClick={() => {
+          setNameDraft(agent.internalName);
+          setRenaming(true);
+        }}
+      >
+        <Pencil className="h-3.5 w-3.5" />
+      </button>
+    </span>
+  );
+
+  const badges = renaming ? null : (
+    <span className="hidden shrink-0 items-center gap-1.5 md:flex">
+      {agent.isGeneral && <Badge variant="default">General</Badge>}
+      {agent.status !== "draft" ? (
+        <Badge variant="success">Publicado{vLabel(publishedCount)}</Badge>
+      ) : (
+        <Badge variant="secondary">Borrador</Badge>
+      )}
+      {(agent.status === "changes" || dirty) && agent.status !== "draft" && (
+        <span className="flex items-center gap-1 rounded-full bg-warning-tint px-2 py-0.5 text-[11px] font-medium text-warning-text">
+          <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-warning" /> Borrador con cambios
+        </span>
+      )}
+    </span>
+  );
+
+  const modeTabs = (
+    <div role="group" aria-label="Cómo configurar" className="inline-flex rounded-lg border bg-subtle p-0.5">
+      {(
+        [
+          ["creator", "Creador"],
+          ["form", "Formulario"],
+          ["versions", "Versiones"],
+        ] as const
+      ).map(([m, label]) => (
+        <button
+          key={m}
+          type="button"
+          aria-pressed={mode === m}
+          onClick={() => {
+            setMode(m);
+            setTab("config");
+          }}
+          className={cn(
+            "rounded-md px-3 py-1 text-[13px] font-medium",
+            mode === m ? "bg-card text-foreground shadow-sm" : "text-text-2 hover:text-foreground"
+          )}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+
+  const actions = (
+    <>
+      <span className="hidden text-xs text-text-3 lg:inline" title={status}>
+        {dirty ? "Cambios sin guardar" : `Guardado ${timeAgo(agent.updatedAt)}`}
+      </span>
+      <Button variant="outline" size="sm" onClick={() => void saveDraft()} disabled={busy || !dirty}>
+        Guardar borrador
+      </Button>
+      <Button size="sm" onClick={() => setDialog("publish")} disabled={busy || !pending}>
+        Publicar{vLabel(publishedCount === null ? null : publishedCount + 1)}
+      </Button>
+    </>
+  );
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
-      {/* Encabezado del agente */}
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b px-4 py-2.5 sm:px-6">
-        <Link href="/lab" aria-label="Volver a los agentes" className={buttonVariants({ variant: "ghost", size: "icon" })}>
-          <ArrowLeft className="h-4 w-4" />
-        </Link>
-        {renaming ? (
-          <form
-            className="flex items-center gap-2"
-            onSubmit={(e) => {
-              e.preventDefault();
-              void rename();
-            }}
-          >
-            <label htmlFor="agent-internal-name" className="sr-only">
-              Nombre interno
-            </label>
-            <Input id="agent-internal-name" autoFocus maxLength={60} className="h-8 w-56" value={nameDraft} onChange={(e) => setNameDraft(e.target.value)} />
-            <Button size="sm" type="submit" disabled={!nameDraft.trim()}>
-              Guardar
-            </Button>
-            <Button size="sm" type="button" variant="ghost" onClick={() => setRenaming(false)}>
-              Cancelar
-            </Button>
-          </form>
-        ) : (
-          <>
-            <span className="text-base font-semibold text-foreground">{agent.internalName}</span>
-            <button
-              type="button"
-              aria-label="Renombrar"
-              title="Cambiar el nombre interno"
-              className="rounded-md p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
-              onClick={() => {
-                setNameDraft(agent.internalName);
-                setRenaming(true);
-              }}
-            >
-              <Pencil className="h-3.5 w-3.5" />
-            </button>
-          </>
-        )}
-        {agent.isGeneral && <Badge variant="default">General</Badge>}
-        <Badge variant={dirty ? "warning" : agent.status === "published" ? "success" : agent.status === "changes" ? "warning" : "secondary"}>{status}</Badge>
-      </div>
+    <PageShell pillar={false} variant="fluid" back={{ href: "/lab", label: "Volver a los agentes" }} title={title} icon={null} badge={badges} tabsSlot={modeTabs} actions={actions}>
+      <AgentPauseBar />
+      {(error || note) && (
+        <p className="border-b px-4 py-2 text-sm sm:px-6" role="status">
+          {error ? <span className="text-destructive">{error}</span> : <span className="text-text-2">{note}</span>}
+        </p>
+      )}
 
       {/* Pestañas solo en pantallas chicas */}
       <div role="tablist" aria-label="Editor y vista previa" className="flex border-b lg:hidden">
@@ -280,95 +359,54 @@ export function AgentEditor({ id, documents = false }: { id: string; documents?:
         ))}
       </div>
 
-      <div className="grid min-h-0 flex-1 lg:grid-cols-[45fr_55fr]">
-        {/* Izquierda: formulario */}
+      <div className={cn("grid min-h-0 flex-1", mode === "creator" ? "lg:grid-cols-[45fr_55fr]" : "lg:grid-cols-[190px_minmax(0,1fr)_minmax(0,1fr)]")}>
+        {/* Índice de secciones (solo formulario) */}
+        {mode !== "creator" && (
+          <nav aria-label="Secciones" className="hidden min-h-0 overflow-y-auto border-r px-3 py-4 lg:block">
+            {mode === "form" ? (
+              <>
+                <p className="kicker mb-2 px-2">Secciones</p>
+                <ul className="space-y-0.5">
+                  {sections.map((x) => (
+                    <li key={x.id}>
+                      <button
+                        type="button"
+                        onClick={() => goTo(x.id)}
+                        className={cn(
+                          "w-full rounded-md px-2 py-1.5 text-left text-[13px]",
+                          section === x.id ? "bg-brand-tint font-medium text-brand-ink" : "text-text-2 hover:bg-accent hover:text-foreground"
+                        )}
+                      >
+                        {x.label}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            ) : (
+              <p className="px-2 text-xs text-text-2">Cada vez que publicas se guarda una versión. Puedes cargar cualquiera al borrador y volver a publicarla.</p>
+            )}
+          </nav>
+        )}
+
+        {/* Centro: creador, formulario o versiones */}
         <div className={cn("flex min-h-0 flex-col", tab === "probar" && "hidden lg:flex")}>
-          <div role="group" aria-label="Cómo configurar" className="flex gap-1.5 border-b px-4 py-2 sm:px-6">
-            {(["creator", "form"] as const).map((m) => (
-              <button
-                key={m}
-                type="button"
-                aria-pressed={mode === m}
-                onClick={() => setMode(m)}
-                className={cn("rounded-full px-3 py-1 text-xs font-medium", mode === m ? "bg-brand-tint text-brand-ink" : "text-muted-foreground hover:bg-accent")}
-              >
-                {m === "creator" ? "Creador conversacional" : "Formulario"}
-              </button>
-            ))}
-          </div>
           {mode === "creator" && (
             <div className="min-h-0 flex-1">
               <AgentCreator config={cfg} onField={setField} initialMessage={idea} />
             </div>
           )}
-          <div className={cn("min-h-0 flex-1 overflow-y-auto", mode === "creator" && "hidden")}>
-          <div className="mx-auto max-w-xl space-y-5 p-4 sm:p-6">
-            {agent.isGeneral && (
-              <p className="rounded-md bg-brand-tint px-3 py-2 text-sm">
-                Este es tu agente <b>general</b>: es el que atiende a tus clientes. Solo cambia cuando pulsas «Publicar».
-              </p>
-            )}
-
-            <section className="space-y-3">
-              <h4 className="kicker">Identidad</h4>
-              <div className="space-y-1.5">
-                <Label htmlFor="agent-display-name">Nombre de presentación (opcional)</Label>
-                <Input
-                  id="agent-display-name"
-                  maxLength={60}
-                  placeholder={NO_NAME_LABEL}
-                  value={cfg.displayName ?? ""}
-                  onChange={(e) => setCfg({ ...cfg, displayName: e.target.value })}
-                />
-                <p className="text-xs text-muted-foreground">Con nombre, el agente se presenta con él. Sin nombre, habla como el equipo del negocio.</p>
-              </div>
-            </section>
-
-            <section className="space-y-3">
-              <h4 className="kicker">Comportamiento</h4>
-              <AgentConfigForm
-                idPrefix="lab-agent"
-                showName={false}
-                value={{ name: cfg.displayName ?? "", tone: cfg.tone, instructions: cfg.instructions, escalationRules: cfg.escalationRules, greeting: cfg.greeting }}
-                onChange={(n) => setCfg({ ...cfg, tone: n.tone, instructions: n.instructions, escalationRules: n.escalationRules, greeting: n.greeting })}
-              />
-            </section>
-
-            <Collapsible title="Conocimiento">
-              <div className="space-y-4">
-                {agent.isGeneral ? (
-                  <p className="text-sm text-muted-foreground">El agente general siempre lee el conocimiento compartido (se edita en «Agente»).</p>
-                ) : (
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <p className="text-sm font-medium">Usar el conocimiento compartido</p>
-                      <p className="text-xs text-muted-foreground">Lo mismo que lee el agente general, además del propio.</p>
-                    </div>
-                    <Switch checked={cfg.useSharedKb} label="Usar el conocimiento compartido" onCheckedChange={(v) => setCfg({ ...cfg, useSharedKb: v })} />
-                  </div>
-                )}
-                {!agent.isGeneral && <AgentKbPanel agentId={id} refreshKey={kbKey} />}
-              </div>
-            </Collapsible>
-
-            {documents && (
-              <Collapsible title="Documentos">
-                <div className="space-y-4">
-                  <AgentDocSources value={cfg.docSources} onChange={(docSources) => setCfg({ ...cfg, docSources })} />
-                  <AgentExclusiveDocs agentId={id} />
-                </div>
-              </Collapsible>
-            )}
-
-            <Collapsible title="Historial de versiones" onOpen={() => versions === null && void loadVersions()}>
+          {mode === "versions" && (
+            <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
+              <h4 className="kicker mb-3">Versiones publicadas</h4>
               {versions === null ? (
                 <p className="text-sm text-muted-foreground">Cargando…</p>
               ) : versions.length === 0 ? (
                 <p className="text-sm text-muted-foreground">Todavía no hay versiones publicadas.</p>
               ) : (
-                <ul className="divide-y rounded-md border">
+                <ul className="divide-y rounded-lg border bg-card">
                   {versions.map((v) => (
-                    <li key={v.id} className="flex items-center justify-between gap-3 px-3 py-2 text-sm">
+                    <li key={v.id} className="flex items-center justify-between gap-3 px-3 py-2.5 text-sm">
                       <span>
                         {ACTION_LABEL[v.action]}
                         <span className="block text-xs text-muted-foreground">
@@ -383,45 +421,127 @@ export function AgentEditor({ id, documents = false }: { id: string; documents?:
                   ))}
                 </ul>
               )}
-            </Collapsible>
+            </div>
+          )}
+          <div className={cn("min-h-0 flex-1 overflow-y-auto", mode !== "form" && "hidden")}>
+            <div className="mx-auto max-w-2xl space-y-6 p-4 sm:p-6">
+              {agent.isGeneral && (
+                <p className="rounded-md bg-brand-tint px-3 py-2 text-sm">
+                  Este es tu agente <b>general</b>: es el que atiende a tus clientes. Solo cambia cuando pulsas «Publicar».
+                </p>
+              )}
 
-            <Collapsible title="Más opciones">
-              <div className="flex flex-wrap gap-2">
-                {!agent.isGeneral && (
-                  <Button variant="outline" size="sm" disabled={draftOnly} title={draftOnly ? "Primero publica este agente" : undefined} onClick={() => setDialog("general")}>
-                    Hacer general
-                  </Button>
-                )}
-                {!agent.isGeneral && (
-                  <Button variant="outline" size="sm" onClick={() => setDialog("archive")}>
-                    Archivar agente
-                  </Button>
-                )}
-                {agent.isGeneral && <p className="text-sm text-muted-foreground">El agente general no se archiva.</p>}
-              </div>
-            </Collapsible>
-          </div>
+              <FormSection id="identidad" title="Identidad">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="agent-display-name">Nombre de presentación (opcional)</Label>
+                    <Input
+                      id="agent-display-name"
+                      maxLength={60}
+                      placeholder="Habla como el equipo"
+                      value={cfg.displayName ?? ""}
+                      onChange={(e) => setCfg({ ...cfg, displayName: e.target.value })}
+                    />
+                    <p className="text-xs text-muted-foreground">Con nombre, se presenta con él. Sin nombre, habla como el equipo del negocio.</p>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="lab-agent-greeting">Saludo</Label>
+                    <Input
+                      id="lab-agent-greeting"
+                      placeholder="Saludo para conversaciones nuevas"
+                      value={cfg.greeting ?? ""}
+                      onChange={(e) => setCfg({ ...cfg, greeting: e.target.value })}
+                    />
+                  </div>
+                </div>
+              </FormSection>
+
+              <FormSection id="tono" title="Tono">
+                <Label htmlFor="lab-agent-tone" className="sr-only">
+                  Tono
+                </Label>
+                <Input
+                  id="lab-agent-tone"
+                  placeholder="p. ej. cercano y directo, con usted"
+                  value={cfg.tone ?? ""}
+                  onChange={(e) => setCfg({ ...cfg, tone: e.target.value })}
+                />
+              </FormSection>
+
+              <FormSection id="instrucciones" title="Instrucciones">
+                <Label htmlFor="lab-agent-instructions" className="sr-only">
+                  Instrucciones
+                </Label>
+                <Textarea
+                  id="lab-agent-instructions"
+                  rows={6}
+                  placeholder="Qué hace tu negocio, qué debe lograr el agente y qué no debe hacer…"
+                  value={cfg.instructions ?? ""}
+                  onChange={(e) => setCfg({ ...cfg, instructions: e.target.value })}
+                />
+              </FormSection>
+
+              <FormSection id="persona" title="Cuándo pasa a persona">
+                <Label htmlFor="lab-agent-escalation" className="sr-only">
+                  Reglas de escalado
+                </Label>
+                <Textarea
+                  id="lab-agent-escalation"
+                  rows={3}
+                  placeholder="Cuándo pasar la conversación a un humano…"
+                  value={cfg.escalationRules ?? ""}
+                  onChange={(e) => setCfg({ ...cfg, escalationRules: e.target.value })}
+                />
+              </FormSection>
+
+              <FormSection id="conocimiento" title="Conocimiento">
+                <div className="space-y-4">
+                  {agent.isGeneral ? (
+                    <p className="text-sm text-muted-foreground">El agente general siempre lee el conocimiento compartido.</p>
+                  ) : (
+                    <div className="flex items-center justify-between gap-3 rounded-lg border px-3 py-2.5">
+                      <div>
+                        <p className="text-sm font-medium">Usar el conocimiento compartido</p>
+                        <p className="text-xs text-muted-foreground">Lo mismo que lee el agente general, además del propio.</p>
+                      </div>
+                      <Switch checked={cfg.useSharedKb} label="Usar el conocimiento compartido" onCheckedChange={(v) => setCfg({ ...cfg, useSharedKb: v })} />
+                    </div>
+                  )}
+                  {!agent.isGeneral && <AgentKbPanel agentId={id} refreshKey={kbKey} />}
+                </div>
+              </FormSection>
+
+              {documents && (
+                <FormSection id="documentos" title="Documentos">
+                  <div className="space-y-4">
+                    <AgentDocSources value={cfg.docSources} onChange={(docSources) => setCfg({ ...cfg, docSources })} />
+                    <AgentExclusiveDocs agentId={id} />
+                  </div>
+                </FormSection>
+              )}
+
+              <FormSection id="opciones" title="Más opciones">
+                <div className="flex flex-wrap gap-2">
+                  {!agent.isGeneral && (
+                    <Button variant="outline" size="sm" disabled={draftOnly} title={draftOnly ? "Primero publica este agente" : undefined} onClick={() => setDialog("general")}>
+                      Hacer general
+                    </Button>
+                  )}
+                  {!agent.isGeneral && (
+                    <Button variant="outline" size="sm" onClick={() => setDialog("archive")}>
+                      Archivar agente
+                    </Button>
+                  )}
+                  {agent.isGeneral && <p className="text-sm text-muted-foreground">El agente general no se archiva.</p>}
+                </div>
+              </FormSection>
+            </div>
           </div>
         </div>
 
         {/* Derecha: vista previa */}
         <div className={cn("min-h-0 border-l", tab === "config" && "hidden lg:block")}>
           <AgentPreview agentId={id} config={cfg} onApplyField={setField} />
-        </div>
-      </div>
-
-      {/* Pie fijo */}
-      <div className="flex flex-wrap items-center justify-between gap-2 border-t bg-background px-4 py-2.5 sm:px-6">
-        <p className="text-sm" role="status">
-          {error ? <span className="text-destructive">{error}</span> : <span className="text-muted-foreground">{note ?? status}</span>}
-        </p>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => void saveDraft()} disabled={busy || !dirty}>
-            Guardar borrador
-          </Button>
-          <Button onClick={() => setDialog("publish")} disabled={busy || !pending}>
-            Publicar
-          </Button>
         </div>
       </div>
 
@@ -462,24 +582,27 @@ export function AgentEditor({ id, documents = false }: { id: string; documents?:
           <p>No cambia lo que atiende a tus clientes hasta que pulses «Publicar».</p>
         </ConfirmDialog>
       )}
-    </div>
+    </PageShell>
   );
 }
 
-/** Sección plegable (opciones avanzadas fuera de la vista principal). */
-function Collapsible({ title, children, onOpen }: { title: string; children: React.ReactNode; onOpen?: () => void }) {
+/** Una sección del formulario (el índice de la izquierda salta a ella). */
+function FormSection({ id, title, children }: { id: string; title: string; children: React.ReactNode }) {
   return (
-    <details
-      className="group rounded-lg border"
-      onToggle={(e) => {
-        if ((e.currentTarget as HTMLDetailsElement).open) onOpen?.();
-      }}
-    >
-      <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3 text-sm font-medium">
+    <section id={`sec-${id}`} aria-labelledby={`sec-${id}-t`} className="scroll-mt-4 space-y-3">
+      <h4 id={`sec-${id}-t`} className="kicker">
         {title}
-        <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-open:rotate-180" />
-      </summary>
-      <div className="border-t px-4 py-3">{children}</div>
-    </details>
+      </h4>
+      {children}
+    </section>
   );
+}
+
+/** «hace 5 s», «hace 3 min»… (para «Guardado hace …»). */
+function timeAgo(iso: string): string {
+  const s = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 1000));
+  if (s < 60) return `hace ${s} s`;
+  if (s < 3600) return `hace ${Math.round(s / 60)} min`;
+  if (s < 86_400) return `hace ${Math.round(s / 3600)} h`;
+  return formatDate(iso);
 }

@@ -125,6 +125,7 @@ const PROTEGIDAS: [string, Method, Permission][] = [
   // 031 — Laboratorio como Centro de Agentes: solo el Propietario.
   ["lab/agents", "GET", "agent.manage"],
   ["lab/agents", "POST", "agent.manage"],
+  ["lab/agents/stats", "GET", "agent.manage"],
   ["lab/agents/[id]", "GET", "agent.manage"],
   ["lab/agents/[id]", "PATCH", "agent.manage"],
   ["lab/agents/[id]", "DELETE", "agent.manage"],

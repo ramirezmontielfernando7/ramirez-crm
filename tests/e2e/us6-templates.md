@@ -4,7 +4,7 @@
 
 ## Ciclo de aprobación
 
-1. En `/settings/templates`: crear `seguimiento_cotizacion` (es_MX, UTILITY,
+1. En `/settings/templates` (botón «Crear plantilla»): crear `seguimiento_cotizacion` (es_MX, UTILITY,
    cuerpo con `{{1}}`).
    ✅ Queda en estado "Pendiente de Meta" (el mock devuelve PENDING).
 2. Simular la aprobación: `POST /api/dev/wa-mock/template-status`

@@ -467,14 +467,13 @@ async function main() {
     // Editor: «Documentos» → «Solo estos grupos» → Ventas 9 → Guardar → Publicar.
     await page.goto(`${BASE}/lab/agents/${agente9.id}`);
     await page.getByRole("button", { name: "Formulario" }).click();
-    await page.locator("summary", { hasText: /^Documentos$/ }).click();
     await page.getByLabel(/Solo estos grupos/).check();
     await page.getByTestId("agent-doc-sources-empty").waitFor();
     ok("sin grupos elegidos, el editor avisa", true);
     await page.getByRole("button", { name: new RegExp(`Ventas 9 ${RUN}`) }).click();
     await page.getByRole("button", { name: "Guardar borrador" }).click();
     await page.getByRole("status").filter({ hasText: /Borrador guardado/ }).waitFor();
-    await page.getByRole("button", { name: "Publicar" }).click();
+    await page.getByRole("button", { name: /^Publicar( v\d+)?$/ }).click();
     await page.getByRole("dialog").getByRole("button", { name: "Publicar" }).click();
     await page.getByRole("status").filter({ hasText: /^Publicado/ }).waitFor();
     const pub9 = (await A.api(`/api/lab/agents/${agente9.id}`)).json?.agent;
@@ -577,7 +576,6 @@ async function main() {
     await A.post(`/api/lab/agents/${agente10?.id}/publish`);
     await page.goto(`${BASE}/lab/agents/${agente10.id}`);
     await page.getByRole("button", { name: "Formulario" }).click();
-    await page.locator("summary", { hasText: /^Documentos$/ }).click();
     await page.getByText(/Se aplican al momento, sin publicar/).waitFor();
     ok("el editor avisa que los exclusivos aplican al momento", true);
     await page

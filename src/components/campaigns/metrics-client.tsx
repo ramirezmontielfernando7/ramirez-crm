@@ -4,7 +4,9 @@ import { useEffect, useState } from "react";
 import { Download, Info } from "lucide-react";
 import { fetchJson } from "@/lib/fetch-json";
 import {
+  formatMoney,
   formatPct,
+  pct,
   syncLabel,
   type CampaignMetricsDto,
   type MetaSyncInfo,
@@ -26,24 +28,26 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 
 const nf = new Intl.NumberFormat("es-MX");
 
-function money(v: number | null, currency: string | null): string {
-  if (v === null) return "—";
-  if (currency && /^[A-Z]{3}$/.test(currency)) {
-    try {
-      return new Intl.NumberFormat("es-MX", { style: "currency", currency, maximumFractionDigits: 2 }).format(v);
-    } catch {
-      // moneda que el navegador no conoce: número y código
-    }
-  }
-  return `${v.toLocaleString("es-MX", { maximumFractionDigits: 2 })}${currency ? ` ${currency}` : ""}`;
-}
+const money = formatMoney;
 
-function Kpi({ label, value, hint, testId }: { label: string; value: string; hint?: string; testId: string }) {
+function Kpi({
+  label,
+  value,
+  hint,
+  testId,
+  good,
+}: {
+  label: string;
+  value: string;
+  hint?: string;
+  testId: string;
+  good?: boolean;
+}) {
   return (
-    <div className="min-w-0 rounded-md border bg-subtle px-3 py-2.5" data-testid={testId}>
-      <p className="text-xs font-medium text-text-2">{label}</p>
-      <p className="mt-0.5 truncate text-xl font-semibold">{value}</p>
-      {hint && <p className="mt-1 text-[11px] text-text-3">{hint}</p>}
+    <div className="min-w-0 rounded-lg border bg-card px-4 py-3" data-testid={testId}>
+      <p className="text-xs text-text-2">{label}</p>
+      <p className="mt-1 truncate text-2xl font-semibold tracking-tight">{value}</p>
+      {hint && <p className={`mt-0.5 text-xs ${good ? "text-success-text" : "text-text-3"}`}>{hint}</p>}
     </div>
   );
 }
@@ -87,6 +91,12 @@ export function MetricsClient({ today, timezone }: { today: string; timezone: st
 
   const t = data?.totals;
   const cur = data?.cost.estimatedCurrency ?? data?.cost.reportedCurrency ?? null;
+  // El servidor no trae costo por día: se reparte el estimado según lo enviado cada día.
+  const costBars =
+    data && data.cost.estimated !== null && data.totals.sent > 0
+      ? data.series.map((s) => ({ bucket: s.bucket, value: (s.sent / data.totals.sent) * (data.cost.estimated ?? 0) }))
+      : [];
+  const costMax = Math.max(0, ...costBars.map((b) => b.value)) || 1;
 
   return (
     <div className="flex-1 space-y-4 overflow-y-auto p-4 sm:p-6" data-testid="metrics-page">
@@ -124,20 +134,132 @@ export function MetricsClient({ today, timezone }: { today: string; timezone: st
 
       {data && t && (
         <div className={loading ? "space-y-4 opacity-60 transition-opacity" : "space-y-4"}>
-          <section aria-label="Indicadores" className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
+          <section aria-label="Indicadores" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             <Kpi testId="kpi-sent" label="Enviados" value={nf.format(t.sent)} hint="aceptados por Meta" />
-            <Kpi testId="kpi-delivered" label="Entregados" value={formatPct(t.delivered, t.sent)} hint={`${nf.format(t.delivered)} de ${nf.format(t.sent)}`} />
-            <Kpi testId="kpi-read" label="Leídos" value={formatPct(t.read, t.sent)} hint={`${nf.format(t.read)} de ${nf.format(t.sent)}`} />
+            <Kpi testId="kpi-delivered" label="Entregados" value={nf.format(t.delivered)} hint={formatPct(t.delivered, t.sent)} good />
+            <Kpi testId="kpi-read" label="Leídos" value={nf.format(t.read)} hint={formatPct(t.read, t.sent)} good />
             <Kpi
               testId="kpi-replied"
               label="Respondieron"
-              value={formatPct(t.replied, t.sent)}
-              hint={`${nf.format(t.replied)} en ${data.replyWindowHours} h`}
+              value={nf.format(t.replied)}
+              hint={`${formatPct(t.replied, t.sent)} · en ${data.replyWindowHours} h`}
+              good
             />
-            <Kpi testId="kpi-failed" label="Fallidos" value={nf.format(t.failed)} />
-            <Kpi testId="kpi-optouts" label="Bajas" value={nf.format(t.optOuts)} hint="tras recibirla" />
-            <Kpi testId="kpi-cost" label="Costo" value={money(data.cost.estimated, cur)} hint="Estimado" />
           </section>
+
+          <div className="grid gap-4 lg:grid-cols-2">
+            <Card data-testid="campaign-funnel">
+              <CardHeader>
+                <CardTitle className="text-sm">Embudo de la campaña</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {(
+                  [
+                    ["Enviados", t.sent],
+                    ["Entregados", t.delivered],
+                    ["Leídos", t.read],
+                    ["Respondieron", t.replied],
+                  ] as const
+                ).map(([label, n]) => {
+                  const p = pct(n, t.sent);
+                  return (
+                    <div key={label}>
+                      <div className="mb-1 flex items-baseline justify-between text-xs">
+                        <span className="text-text-2">{label}</span>
+                        <span className="font-medium tabular-nums">{p === null ? "—" : `${p.toLocaleString("es-MX", { maximumFractionDigits: 1 })} %`}</span>
+                      </div>
+                      <div className="h-2 overflow-hidden rounded-full bg-muted" aria-hidden>
+                        <div className="h-full rounded-full bg-brand" style={{ width: `${Math.min(100, p ?? 0)}%` }} />
+                      </div>
+                    </div>
+                  );
+                })}
+                <p className="flex gap-4 border-t pt-2 text-xs text-text-3">
+                  <span data-testid="kpi-failed">Fallidos: {nf.format(t.failed)}</span>
+                  <span data-testid="kpi-optouts">Bajas tras recibirla: {nf.format(t.optOuts)}</span>
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card data-testid="cost-reconciliation">
+              <CardHeader className="flex-row items-center justify-between space-y-0">
+                <CardTitle className="text-sm">Costo</CardTitle>
+                {cur && <Badge variant="secondary">{cur}</Badge>}
+              </CardHeader>
+              <CardContent className="space-y-3 text-sm">
+                <dl className="grid grid-cols-2 gap-3">
+                  <div data-testid="kpi-cost">
+                    <dt className="text-xs text-text-2">Estimado por Dashfort</dt>
+                    <dd className="text-xl font-semibold" data-testid="cost-estimated">
+                      {money(data.cost.estimated, data.cost.estimatedCurrency)}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs text-text-2">Reportado por Meta</dt>
+                    <dd className="text-xl font-semibold" data-testid="cost-reported">
+                      {money(data.cost.reported, data.cost.reportedCurrency)}
+                    </dd>
+                  </div>
+                </dl>
+                {costBars.length > 0 && (
+                  <div data-testid="cost-bars">
+                    <div className="flex h-24 items-end gap-0.5" aria-hidden>
+                      {costBars.map((b) => (
+                        <div
+                          key={b.bucket}
+                          title={`${b.bucket}: ${money(b.value, data.cost.estimatedCurrency)}`}
+                          className="min-w-0 flex-1 rounded-t-[3px] bg-brand"
+                          style={{ height: `${Math.max(4, (b.value / costMax) * 100)}%` }}
+                        />
+                      ))}
+                    </div>
+                    <p className="mt-1 text-[11px] text-text-3">
+                      Gasto estimado por {data.period.granularity === "month" ? "mes" : "día"}, repartido según lo enviado ·
+                      Meta lo cobra directo a tu tarjeta
+                    </p>
+                  </div>
+                )}
+                <p className="text-xs text-text-3">
+                  Diferencia (Meta − estimado):{" "}
+                  <span className="font-medium text-foreground" data-testid="cost-difference">
+                    {data.cost.difference === null
+                      ? "—"
+                      : `${data.cost.difference > 0 ? "+" : ""}${money(data.cost.difference, data.cost.reportedCurrency ?? data.cost.estimatedCurrency)}`}
+                  </span>
+                </p>
+                {data.cost.differenceNote && (
+                  <p className="flex items-center gap-1.5 text-xs text-text-3">
+                    <Info className="h-3.5 w-3.5 shrink-0" /> {data.cost.differenceNote}
+                  </p>
+                )}
+                <p className="text-xs text-text-3">
+                  El estimado sale de tus tarifas (Ajustes de envío) y solo cubre campañas. Lo reportado por Meta incluye
+                  todos los mensajes cobrados del número y se corta por días UTC.
+                </p>
+                {data.cost.byCategory.length > 0 && (
+                  <table className="w-full text-xs">
+                    <thead className="text-left text-text-3">
+                      <tr>
+                        <th className="py-1 font-medium">Categoría (Meta)</th>
+                        <th className="py-1 text-right font-medium">Mensajes</th>
+                        <th className="py-1 text-right font-medium">Costo</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {data.cost.byCategory.map((c) => (
+                        <tr key={c.category} className="border-t">
+                          <td className="py-1">{RATE_CATEGORY_LABEL[c.category.toLowerCase()] ?? c.category}</td>
+                          <td className="py-1 text-right">{nf.format(c.volume)}</td>
+                          <td className="py-1 text-right">{money(c.cost, data.cost.reportedCurrency)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+                <SyncLine kind="pricing" info={data.sync.pricing} />
+              </CardContent>
+            </Card>
+          </div>
 
           <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
             <Card>
@@ -170,66 +292,6 @@ export function MetricsClient({ today, timezone }: { today: string; timezone: st
               </CardContent>
             </Card>
           </div>
-
-          <Card data-testid="cost-reconciliation">
-            <CardHeader>
-              <CardTitle className="text-sm">Costo del periodo</CardTitle>
-              <CardDescription>
-                El estimado sale de tus tarifas (Ajustes de envío) y solo cubre campañas. Lo reportado por Meta incluye
-                todos los mensajes cobrados del número y se corta por días UTC.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3 text-sm">
-              <dl className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                <div>
-                  <dt className="text-xs text-muted-foreground">Estimado</dt>
-                  <dd className="text-lg font-semibold" data-testid="cost-estimated">
-                    {money(data.cost.estimated, data.cost.estimatedCurrency)}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-xs text-muted-foreground">Reportado por Meta</dt>
-                  <dd className="text-lg font-semibold" data-testid="cost-reported">
-                    {money(data.cost.reported, data.cost.reportedCurrency)}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-xs text-muted-foreground">Diferencia (Meta − estimado)</dt>
-                  <dd className="text-lg font-semibold" data-testid="cost-difference">
-                    {data.cost.difference === null
-                      ? "—"
-                      : `${data.cost.difference > 0 ? "+" : ""}${money(data.cost.difference, data.cost.reportedCurrency ?? data.cost.estimatedCurrency)}`}
-                  </dd>
-                </div>
-              </dl>
-              {data.cost.differenceNote && (
-                <p className="flex items-center gap-1.5 text-xs text-text-3">
-                  <Info className="h-3.5 w-3.5 shrink-0" /> {data.cost.differenceNote}
-                </p>
-              )}
-              {data.cost.byCategory.length > 0 && (
-                <table className="w-full text-xs">
-                  <thead className="text-left text-text-3">
-                    <tr>
-                      <th className="py-1 font-medium">Categoría (Meta)</th>
-                      <th className="py-1 text-right font-medium">Mensajes</th>
-                      <th className="py-1 text-right font-medium">Costo</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {data.cost.byCategory.map((c) => (
-                      <tr key={c.category} className="border-t">
-                        <td className="py-1">{RATE_CATEGORY_LABEL[c.category.toLowerCase()] ?? c.category}</td>
-                        <td className="py-1 text-right">{nf.format(c.volume)}</td>
-                        <td className="py-1 text-right">{money(c.cost, data.cost.reportedCurrency)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-              <SyncLine kind="pricing" info={data.sync.pricing} />
-            </CardContent>
-          </Card>
 
           <Card>
             <CardHeader>

@@ -100,6 +100,19 @@ export function formatPct(part: number, total: number): string {
   return p === null ? "—" : `${p.toLocaleString("es-MX", { maximumFractionDigits: 1 })} %`;
 }
 
+/** Dinero para pantalla: moneda ISO si el navegador la conoce; si no, número y código. «—» sin dato. */
+export function formatMoney(v: number | null, currency: string | null): string {
+  if (v === null) return "—";
+  if (currency && /^[A-Z]{3}$/.test(currency)) {
+    try {
+      return new Intl.NumberFormat("es-MX", { style: "currency", currency, maximumFractionDigits: 2 }).format(v);
+    } catch {
+      // moneda que el navegador no conoce: número y código
+    }
+  }
+  return `${v.toLocaleString("es-MX", { maximumFractionDigits: 2 })}${currency ? ` ${currency}` : ""}`;
+}
+
 const round4 = (n: number) => Math.round(n * 10_000) / 10_000;
 
 /**
