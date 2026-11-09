@@ -26,7 +26,7 @@
   "isChromeOSOnly": false,
   "isMetaQuest": false,
   "fullScopeUrl": "https://dash.demfort.com/",
-  "minSdkVersion": 21,
+  "minSdkVersion": 24,
   "shortcuts": [],
   "generatorApp": "bubblewrap-cli"
 }

@@ -31,6 +31,12 @@ jobs:
           node-version: "22"
       - name: Instalar Bubblewrap
         run: npm install -g @bubblewrap/cli@1.24.1
+      - name: Preparar Android SDK
+        run: |
+          sudo chown -R "$USER" "$ANDROID_HOME"
+          ln -sfn "$ANDROID_HOME/cmdline-tools/latest/bin" "$ANDROID_HOME/bin"
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "build-tools;34.0.0" "platforms;android-35"
       - name: Configurar Bubblewrap
         run: |
           mkdir -p ~/.bubblewrap
