@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { ChevronLeft, MoreHorizontal, PanelRight } from "lucide-react";
 import { m } from "framer-motion";
 import { cn, phoneCompact } from "@/lib/utils";
+import { stageDot } from "@/lib/tags";
 import { ContactAvatar } from "@/components/avatar";
 import { ChatModeDot } from "./chat-mode-dot";
 import { freeTextOutsideWindow, type InboxDirectContext } from "@/lib/direct-connection";
@@ -760,8 +761,29 @@ export function InboxClient({
                     )}
                   </p>
                   {selected.contact.phone && (
-                    <p className="mt-0.5 truncate text-[13px] leading-4 text-text-3" data-testid="chat-head-phone">
+                    <p
+                      className={cn(
+                        "mt-0.5 truncate text-[13px] leading-4 text-text-3",
+                        (selected.stageName || selected.assignee) && "max-lg:hidden"
+                      )}
+                      data-testid="chat-head-phone"
+                    >
                       {phoneCompact(selected.contact.phone)}
+                    </p>
+                  )}
+                  {/* App móvil (maqueta C): bajo el nombre, la etapa y quién atiende. */}
+                  {(selected.stageName || selected.assignee) && (
+                    <p data-testid="chat-head-sub" className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[12.5px] leading-4 text-text-3 lg:hidden">
+                      {selected.stageName && (
+                        <span
+                          aria-hidden
+                          className={cn("h-2 w-2 shrink-0 rounded-full", stageDot(selected.stageColor, selected.stageName).className)}
+                          style={stageDot(selected.stageColor, selected.stageName).style}
+                        />
+                      )}
+                      <span className="truncate">
+                        {[selected.stageName, selected.assignee?.name].filter(Boolean).join(" · ")}
+                      </span>
                     </p>
                   )}
                 </div>

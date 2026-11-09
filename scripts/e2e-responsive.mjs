@@ -3,7 +3,7 @@
  * Guion: tests/e2e/responsividad.md
  *
  * Verifica que el CRM se pueda USAR desde el teléfono, no solo que "quepa":
- *  - Más abre el menú a ancho completo y se cierra al navegar;
+ *  - Más abre su pantalla y se cierra al navegar;
  *  - la Bandeja se comporta como maestro-detalle (lista ↔ hilo con "volver");
  *  - el panel de detalles flota sobre el hilo en vez de robarle ancho;
  *  - ninguna pantalla recorta contenido a lo ancho (main no desborda);
@@ -153,50 +153,22 @@ const phone = await ctx.newPage();
 await phone.setViewportSize(PHONE);
 await recorrer(phone, "phone");
 
-console.log("\n== 2. Teléfono: Más abre el menú ==");
+console.log("\n== 2. Teléfono: Más abre su pantalla ==");
 await phone.goto(`${BASE}/pipeline`);
-const hamburguesa = phone.getByRole("button", { name: "Abrir el menú" });
+const hamburguesa = phone.getByTestId("mobile-more-tab");
 await hamburguesa.waitFor({ timeout: 20000 });
 ok("el botón Más se ve", await hamburguesa.isVisible());
-const linkBandeja = phone.locator("aside").getByRole("link", { name: /Bandeja/ });
-ok(
-  "el lateral arranca oculto (sus enlaces no son alcanzables)",
-  !(await linkBandeja.isVisible())
-);
+const pantallaMas = phone.getByTestId("mobile-more");
+ok("la pantalla Más arranca cerrada", (await pantallaMas.count()) === 0);
 await hamburguesa.click();
-ok(
-  "al tocar Más el menú abre",
-  await until(async () => await linkBandeja.isVisible(), 3000)
-);
-// El cajón NO debe empujar el contenido: sale encima.
-const encima = await phone.evaluate(() => {
-  const aside = document.querySelector("aside");
-  const main = document.querySelector("main");
-  if (!aside || !main) return null;
-  const a = aside.getBoundingClientRect();
-  const m = main.getBoundingClientRect();
-  return { asideLeft: Math.round(a.left), mainLeft: Math.round(m.left) };
-});
-ok(
-  "el cajón flota encima del contenido (no lo empuja)",
-  encima !== null && encima.asideLeft <= 1 && encima.mainLeft <= 1,
-  JSON.stringify(encima)
-);
-// Medir con el cajón asentado: durante translateX el DOMRect puede tener
-// fracciones de píxel. El ancho debe coincidir y ambos bordes quedar dentro.
-const menuAsentado = await until(async () => {
-  const box = await phone.locator("aside").boundingBox();
-  return box !== null && Math.abs(box.x) <= 1 && Math.abs(box.width - PHONE.width) <= 1;
-}, 3000);
-ok("Más ocupa el ancho completo del teléfono", menuAsentado, JSON.stringify(await phone.locator("aside").boundingBox()));
-await phone.screenshot({ path: `${SHOTS}/phone-cajon-abierto.png` });
-await linkBandeja.click();
+ok("al tocar Más abre su pantalla", await until(async () => await pantallaMas.isVisible(), 3000));
+const ajustes = pantallaMas.getByRole("link", { name: /Ajustes/ });
+ok("…con Ajustes y la barra de abajo sigue a la vista", (await ajustes.count()) === 1 && (await phone.locator(".mobile-tabbar").isVisible()));
+await phone.screenshot({ path: `${SHOTS}/phone-mas-abierto.png` });
+await phone.locator(".mobile-tabbar").getByRole("link", { name: /Bandeja/ }).click();
 await until(async () => phone.url().includes("/inbox"), 15000);
-ok("navegar desde el cajón lleva a la Bandeja", phone.url().includes("/inbox"));
-ok(
-  "el cajón se cierra solo al navegar",
-  await until(async () => !(await linkBandeja.isVisible()), 5000)
-);
+ok("navegar desde la barra lleva a la Bandeja", phone.url().includes("/inbox"));
+ok("Más se cierra solo al navegar", await until(async () => (await pantallaMas.count()) === 0, 5000));
 
 console.log("\n== 3. Teléfono: la Bandeja es maestro-detalle ==");
 await phone.goto(`${BASE}/inbox`);
@@ -215,12 +187,12 @@ ok(
 const filters = phone.getByRole("group", { name: "Mostrar", exact: true });
 const chips = await filters.getByRole("button").evaluateAll((buttons) => buttons.map((b) => Math.round(b.getBoundingClientRect().top)));
 ok("los chips permanecen en una sola fila", chips.length > 0 && new Set(chips).size === 1);
-await phone.getByRole("button", { name: "Buscar conversación (tecla /)", exact: true }).click();
+// App móvil: el buscador va siempre a la vista (sin lupa).
 const buscar = phone.getByPlaceholder("Buscar nombre, teléfono o mensaje");
 await buscar.fill(NAME);
 ok("la búsqueda móvil encuentra el chat", await until(async () => await fila.isVisible()));
 await buscar.fill("");
-await phone.getByRole("button", { name: "Buscar conversación (tecla /)", exact: true }).click();
+// App móvil: el buscador va siempre a la vista (sin lupa).
 await fila.click();
 const composer = phone.getByPlaceholder("Escribe un mensaje");
 ok(
@@ -489,7 +461,7 @@ ok(
 await desk.keyboard.press("Escape");
 await desk.setViewportSize(PHONE);
 await desk.goto(`${BASE}/inbox`, { waitUntil: "domcontentloaded" });
-await desk.getByRole("button", { name: "Abrir el menú" }).waitFor({ timeout: 20000 });
+await desk.getByTestId("mobile-more-tab").waitFor({ timeout: 20000 });
 const franja = await desk.evaluate(() => {
   const surface = document.querySelector(".shell-content");
   const barra = document.querySelector(".mobile-tabbar");

@@ -19,6 +19,7 @@ import { orgHasMiNumero } from "@/server/modules";
 import { hasMyNumber } from "@/server/mi-numero/numbers";
 import { seesTeamNumbers } from "@/server/mi-numero/supervise";
 import { can } from "@/lib/auth/permissions";
+import { AppSplash, SPLASH_COOKIE } from "@/components/app-splash";
 
 export default async function AppLayout({
   children,
@@ -81,6 +82,7 @@ export default async function AppLayout({
       teamNumbers={teamNumbers}
       newChatsBlocked={newChatsBlocked}
     >
+      {!cookieJar.get(SPLASH_COOKIE) && <AppSplash />}
       <DirectDisconnectNotice session={session} />
       <MyNumberSetupNotice session={session} />
       {children}

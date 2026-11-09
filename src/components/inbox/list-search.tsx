@@ -2,6 +2,7 @@
 
 import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
 import { Search, X } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 /**
  * Ronda 3 — El buscador de la columna de chats, siempre a la vista: 36 px,
@@ -20,8 +21,9 @@ export const ListSearch = forwardRef<
     hint?: string | null;
     autoFocus?: boolean;
     onClose?: () => void;
+    className?: string;
   }
->(function ListSearch({ query, onQuery, placeholder, label = "Buscar conversación", hint, autoFocus, onClose }, ref) {
+>(function ListSearch({ query, onQuery, placeholder, label = "Buscar conversación", hint, autoFocus, onClose, className }, ref) {
   const input = useRef<HTMLInputElement>(null);
   useImperativeHandle(ref, () => input.current as HTMLInputElement);
   useEffect(() => {
@@ -36,7 +38,7 @@ export const ListSearch = forwardRef<
     return () => window.removeEventListener("keydown", onKey);
   }, []);
   return (
-    <label className="flex h-9 items-center gap-2 rounded-control border border-border-strong bg-surface px-3 text-text-3 focus-within:border-brand focus-within:ring-2 focus-within:ring-brand-soft">
+    <label className={cn("list-search flex h-9 items-center gap-2 rounded-control border border-border-strong bg-surface px-3 text-text-3 focus-within:border-brand focus-within:ring-2 focus-within:ring-brand-soft", className)}>
       <Search className="h-4 w-4 shrink-0" strokeWidth={1.75} aria-hidden />
       <input
         ref={input}

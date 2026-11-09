@@ -49,7 +49,9 @@ export const AvisosMenu = memo(function AvisosMenu() {
 
   function toggle() {
     const r = button.current?.getBoundingClientRect();
-    if (r) setPos({ left: r.right + 10, bottom: Math.max(12, window.innerHeight - r.bottom - 8) });
+    // Teléfono (pantalla «Más»): la tarjeta sale arriba del renglón, a lo ancho.
+    if (r && window.innerWidth < 1024) setPos({ left: 12, bottom: Math.max(12, window.innerHeight - r.top + 6) });
+    else if (r) setPos({ left: r.right + 10, bottom: Math.max(12, window.innerHeight - r.bottom - 8) });
     setOpen((v) => !v);
   }
 
@@ -90,7 +92,7 @@ export const AvisosMenu = memo(function AvisosMenu() {
                 exit={{ opacity: 0, scale: 0.98, transition: { duration: 0.1 } }}
                 transition={SPRING}
                 style={{ left: pos.left, bottom: pos.bottom, transformOrigin: "bottom left" }}
-                className="fixed z-50 flex max-h-[min(480px,calc(100vh-24px))] w-[340px] flex-col overflow-hidden rounded-md border bg-popover text-foreground shadow-pop"
+                className="fixed z-50 flex max-h-[min(480px,calc(100vh-24px))] w-[340px] max-w-[calc(100vw-24px)] flex-col overflow-hidden rounded-md border bg-popover text-foreground shadow-pop"
               >
                 <div className="flex items-center gap-2 border-b px-3.5 py-2.5">
                   <span className="text-[14px] font-semibold">Avisos</span>
