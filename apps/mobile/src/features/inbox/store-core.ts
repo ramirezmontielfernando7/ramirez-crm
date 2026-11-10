@@ -25,6 +25,7 @@ export class InboxStore {
     selected: new Set(),
     status: "normal",
   };
+  anchor: { id: string; index: number; within: number } | null = null;
   scrollToTop = () => {};
   offset = 0;
   constructor(readonly actor: Actor) {
@@ -42,6 +43,7 @@ export class InboxStore {
     this.listeners.forEach((f) => f());
   };
   filter = (patch: Partial<Filters>) => {
+    this.anchor = null;
     this.offset = 0;
     this.patch({ filters: { ...this.state.filters, ...patch } });
   };

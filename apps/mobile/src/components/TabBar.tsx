@@ -1,3 +1,4 @@
+import { useInboxUnread, useOptionalInbox } from "../features/inbox/store";
 import { Pressable, View, useWindowDimensions } from "react-native";
 import {
   Inbox,
@@ -12,7 +13,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { type Module, visibleModules } from "../domain/access";
 import { useSession } from "../state/SessionProvider";
 import { useTheme } from "../theme/ThemeProvider";
-import { Text } from "./ui";
+import { Text, UnreadBadge } from "./ui";
 const labels: Record<Module, string> = {
   inbox: "Bandeja",
   crm: "CRM",
@@ -28,6 +29,8 @@ const icons: Record<Module, LucideIcon> = {
   more: Menu,
 };
 export function TabBar({ state, emitter, navigateToTab }: BottomTabBarProps) {
+  const unread = useInboxUnread();
+  const inbox = useOptionalInbox();
   const { session, disabled } = useSession();
   const { colors: c } = useTheme();
   const insets = useSafeAreaInsets();
@@ -37,6 +40,7 @@ export function TabBar({ state, emitter, navigateToTab }: BottomTabBarProps) {
   return (
     <View
       accessibilityRole="tablist"
+      accessibilityLabel="Navegación principal"
       style={{
         position: "absolute",
         bottom: insets.bottom + 4,
@@ -66,6 +70,7 @@ export function TabBar({ state, emitter, navigateToTab }: BottomTabBarProps) {
               accessibilityState={{ selected }}
               aria-selected={selected}
               onPress={() => {
+                if (selected && route.name === "inbox") inbox?.scrollToTop();
                 const event = emitter.emit({
                   type: "tabPress",
                   target: route.key,
@@ -87,6 +92,11 @@ export function TabBar({ state, emitter, navigateToTab }: BottomTabBarProps) {
                 backgroundColor: selected ? c.wash : "transparent",
               }}
             >
+              {route.name === "inbox" && unread > 0 && (
+                <View style={{ position: "absolute", top: 0, right: 4 }}>
+                  <UnreadBadge count={unread} />
+                </View>
+              )}
               <Icon
                 size={22}
                 color={selected ? c.accentInk : c.text3}

@@ -12,8 +12,10 @@ import { SessionProvider, useSession } from "../src/state/SessionProvider";
 import { LayerProvider, useLayers } from "../src/components/Layers";
 import { Skeleton } from "../src/components/ui";
 import { resolveBack } from "../src/domain/access";
+import { InboxProvider, useOptionalInbox } from "../src/features/inbox/store";
 function RootNavigator() {
   const { ready, session } = useSession();
+  const inbox = useOptionalInbox();
   const { colors, dark } = useTheme();
   const { layer, close, toast } = useLayers();
   const pathname = usePathname();
@@ -32,6 +34,18 @@ function RootNavigator() {
     const subscription = BackHandler.addEventListener(
       "hardwareBackPress",
       () => {
+        if (!layer && pathname === "/inbox" && inbox) {
+          const state = inbox.snapshot();
+          if (state.selecting) {
+            inbox.cancel();
+            return true;
+          }
+          if (state.searching) {
+            inbox.patch({ searching: false });
+            inbox.filter({ query: "" });
+            return true;
+          }
+        }
         const roots = ["/inbox", "/crm", "/studio", "/marketing", "/more"];
         const nested = !roots.includes(pathname) && router.canGoBack();
         const action = resolveBack(
@@ -54,7 +68,7 @@ function RootNavigator() {
       },
     );
     return () => subscription.remove();
-  }, [pathname, layer, close, session, toast]);
+  }, [pathname, layer, close, session, toast, inbox]);
   if (!ready || (!fonts && !fontError))
     return (
       <View
@@ -88,6 +102,7 @@ function RootNavigator() {
         </Stack.Protected>
         <Stack.Protected guard={!!session}>
           <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="conversation/[id]" />
         </Stack.Protected>
         <Stack.Screen name="demo" />
         <Stack.Screen name="design/[id]" />
@@ -100,9 +115,11 @@ export default function Layout() {
     <SafeAreaProvider>
       <ThemeProvider>
         <SessionProvider>
-          <LayerProvider>
-            <RootNavigator />
-          </LayerProvider>
+          <InboxProvider>
+            <LayerProvider>
+              <RootNavigator />
+            </LayerProvider>
+          </InboxProvider>
         </SessionProvider>
       </ThemeProvider>
     </SafeAreaProvider>

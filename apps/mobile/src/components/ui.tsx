@@ -589,9 +589,11 @@ export function FilterChips({
   options,
   value,
   onChange,
+  counts,
 }: {
   options: readonly string[];
   value: string;
+  counts?: Record<string, number>;
   onChange: (value: string) => void;
 }) {
   const { colors: c } = useTheme();
@@ -605,6 +607,7 @@ export function FilterChips({
         <Pressable
           key={label}
           accessibilityRole="button"
+          accessibilityLabel={label}
           accessibilityState={{ selected: label === value }}
           aria-pressed={label === value}
           onPress={() => onChange(label)}
@@ -627,6 +630,7 @@ export function FilterChips({
               style={{ color: value === label ? c.accentInk : c.text2 }}
             >
               {label}
+              {counts?.[label] !== undefined ? ` ${counts[label]}` : ""}
             </Text>
           </View>
         </Pressable>

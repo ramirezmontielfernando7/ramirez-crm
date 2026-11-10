@@ -115,9 +115,17 @@ test("roles, route guards, recovery and logout", async ({ page }) => {
   await page
     .getByRole("button", { name: "Entrar como Propietario", exact: true })
     .click();
-  await expect(page.getByRole("tab")).toHaveCount(5);
+  await expect(
+    page
+      .getByRole("tablist", { name: "Navegación principal" })
+      .getByRole("tab"),
+  ).toHaveCount(5);
   await page.reload();
-  await expect(page.getByRole("tab")).toHaveCount(5);
+  await expect(
+    page
+      .getByRole("tablist", { name: "Navegación principal" })
+      .getByRole("tab"),
+  ).toHaveCount(5);
   await page.goto("/demo");
   await page
     .getByRole("switch", { name: "Estudio IA disponible en el plan" })
@@ -135,13 +143,21 @@ test("roles, route guards, recovery and logout", async ({ page }) => {
   await page
     .getByRole("button", { name: "Entrar como Coordinador", exact: true })
     .click();
-  await expect(page.getByRole("tab")).toHaveCount(4);
+  await expect(
+    page
+      .getByRole("tablist", { name: "Navegación principal" })
+      .getByRole("tab"),
+  ).toHaveCount(4);
   await expect(page.getByRole("tab", { name: "Estudio IA" })).toHaveCount(0);
   await page.goto("/demo");
   await page
     .getByRole("button", { name: "Entrar como Asesor", exact: true })
     .click();
-  await expect(page.getByRole("tab")).toHaveCount(3);
+  await expect(
+    page
+      .getByRole("tablist", { name: "Navegación principal" })
+      .getByRole("tab"),
+  ).toHaveCount(3);
   await page.goto("/marketing");
   await expect(
     page.getByText("Acceso no permitido", { exact: true }),
@@ -206,7 +222,11 @@ test("single-use activation and reset, invalid link, repeated password", async (
     .getByLabel("Repite la contraseña", { exact: true })
     .fill("12345678");
   await page.getByRole("button", { name: "Activar y entrar" }).click();
-  await expect(page.getByRole("tab")).toHaveCount(3);
+  await expect(
+    page
+      .getByRole("tablist", { name: "Navegación principal" })
+      .getByRole("tab"),
+  ).toHaveCount(3);
   await page.goto("/demo");
   await page.getByRole("button", { name: "Simular sesión caducada" }).click();
   await page.goto("/activar/demo-activate");
@@ -227,7 +247,11 @@ test("single-use activation and reset, invalid link, repeated password", async (
   for (const label of ["Contraseña nueva", "Repite la contraseña"])
     await page.getByLabel(label, { exact: true }).fill("12345678");
   await page.getByRole("button", { name: "Guardar y entrar" }).click();
-  await expect(page.getByRole("tab")).toHaveCount(3);
+  await expect(
+    page
+      .getByRole("tablist", { name: "Navegación principal" })
+      .getByRole("tab"),
+  ).toHaveCount(3);
 });
 test("layers, simulated composer and recoverable data states", async ({
   page,
