@@ -1,4 +1,4 @@
-import { requireSession, UnauthorizedError } from "@/lib/auth/session";
+import { requireSession, sessionFromHeaders, UnauthorizedError } from "@/lib/auth/session";
 import { logger } from "@/lib/log";
 import { runWithOrganization } from "@/lib/request-context";
 import { isAudienceEvent, subscribe, type SseEvent } from "@/server/events/bus";
@@ -12,6 +12,13 @@ import { canSeeEvent, canSeeTeamEvent } from "@/server/events/visibility";
 export const dynamic = "force-dynamic";
 
 const HEARTBEAT_MS = 25_000;
+/**
+ * La conexión vive horas, pero la sesión con la que se abrió puede dejar de
+ * valer (cerró sesión, la sacaron del equipo, le bajaron el rol, se suspendió
+ * la organización). Cada minuto se vuelve a preguntar: si ya no vale, se
+ * cierra; si cambió el rol, desde ahí solo le llega lo que hoy puede ver.
+ */
+const REVALIDATE_MS = 60_000;
 const log = logger("sse");
 const encoder = new TextEncoder();
 
@@ -25,7 +32,10 @@ export async function GET(req: Request) {
     }
     throw err;
   }
-  const { organizationId, access } = session;
+  const { organizationId, userId } = session;
+  let access = session.access;
+  // Copia: las cabeceras de la petición se releen mientras viva el stream.
+  const reqHeaders = new Headers(req.headers);
 
   let cleanup: (() => void) | null = null;
 
@@ -82,8 +92,24 @@ export async function GET(req: Request) {
 
       const heartbeat = setInterval(() => send(`: ping\n\n`), HEARTBEAT_MS);
 
+      const revalidate = setInterval(() => {
+        void sessionFromHeaders(reqHeaders)
+          .then((now) => {
+            if (!now || now.userId !== userId || now.organizationId !== organizationId) {
+              cleanup?.();
+              return;
+            }
+            access = now.access;
+          })
+          .catch((err: unknown) => {
+            // La base no contestó: no se sabe. Se reintenta en el siguiente minuto.
+            log.warn("no se pudo revalidar la sesión de un canal SSE", { org: organizationId, err });
+          });
+      }, REVALIDATE_MS);
+
       cleanup = () => {
         clearInterval(heartbeat);
+        clearInterval(revalidate);
         unsubscribe();
         try {
           controller.close();

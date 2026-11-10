@@ -67,9 +67,10 @@ export const getAuthSession = cache(async () =>
   getAuth().api.getSession({ headers: await headers() })
 );
 
-const requireSessionOnce = cache(async (): Promise<SessionContext> => {
-  const session = await getAuthSession();
-  if (!session) throw new UnauthorizedError();
+type AuthSession = NonNullable<Awaited<ReturnType<typeof getAuthSession>>>;
+
+/** De la sesión de Better Auth al contexto: membresía de HOY, organización activa y delegaciones. */
+async function contextOf(session: AuthSession): Promise<SessionContext> {
   // La sesión puede crearse antes de que la membresía exista (registro
   // inicial) — la membresía en BD es la fuente de verdad de org + rol. H4:
   // la organización activa de la sesión manda, validada contra `member`.
@@ -94,7 +95,31 @@ const requireSessionOnce = cache(async (): Promise<SessionContext> => {
       delegatedGrants(membership.organizationId, membership.role)
     )
   );
+}
+
+const requireSessionOnce = cache(async (): Promise<SessionContext> => {
+  const session = await getAuthSession();
+  if (!session) throw new UnauthorizedError();
+  return contextOf(session);
 });
+
+/**
+ * Para conexiones que viven horas (el canal SSE): la sesión de HOY a partir
+ * de las cabeceras con las que se abrió la conexión, fuera de un render (no
+ * usa `headers()` ni `cache`). null = ya no hay sesión, salió de la
+ * organización o la organización dejó de operar. Un fallo de la base LANZA
+ * (no es lo mismo que «ya no tiene sesión»).
+ */
+export async function sessionFromHeaders(h: Headers): Promise<SessionContext | null> {
+  const session = await getAuth().api.getSession({ headers: h });
+  if (!session) return null;
+  try {
+    return await contextOf(session);
+  } catch (err) {
+    if (err instanceof UnauthorizedError) return null;
+    throw err;
+  }
+}
 
 /** Igual que requireSession pero devuelve null en vez de lanzar. */
 export async function getSessionOrNull(): Promise<SessionContext | null> {

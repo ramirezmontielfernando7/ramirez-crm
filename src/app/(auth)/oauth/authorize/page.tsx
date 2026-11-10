@@ -3,6 +3,7 @@ import { ConsentCard } from "@/components/ai-connector/consent-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getSessionOrNull } from "@/lib/auth/session";
 import { runWithOrganization } from "@/lib/request-context";
+import { redirectHost } from "@/lib/ai-connector";
 import { authorizeSchema, checkAuthorizeRequest, requestedScopes } from "@/server/ai-connector/oauth";
 import { mayConnect } from "@/server/ai-connector/keys";
 
@@ -43,18 +44,10 @@ export default async function AuthorizePage({
     <ConsentCard
       params={parsed.data}
       clientName={check.client.clientName}
-      clientHost={hostOf(check.client.redirectUris[0] ?? parsed.data.redirect_uri)}
+      clientHost={redirectHost(parsed.data.redirect_uri)}
       canWrite={requestedScopes(parsed.data).includes("write")}
     />
   );
-}
-
-function hostOf(uri: string): string {
-  try {
-    return new URL(uri).hostname;
-  } catch {
-    return "";
-  }
 }
 
 function Problem({ text }: { text: string }) {
