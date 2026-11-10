@@ -208,6 +208,20 @@ export function isAllowedRedirectUri(raw: string): boolean {
   return u.protocol === "http:" && (u.hostname === "localhost" || u.hostname === "127.0.0.1" || u.hostname === "[::1]");
 }
 
+/**
+ * El sitio que la pantalla de aceptar le enseña a la persona: el de la
+ * `redirect_uri` de ESTA solicitud, que es a donde de verdad viaja el código.
+ * Nunca el de otra dirección registrada por la app: una app puede registrar
+ * varias (una de un sitio conocido y otra suya) y pedir el regreso a la suya.
+ */
+export function redirectHost(redirectUri: string): string {
+  try {
+    return new URL(redirectUri).hostname;
+  } catch {
+    return "";
+  }
+}
+
 /** Un `client_id` que es una URL https = documento de metadatos del cliente (CIMD). */
 export function isCimdClientId(clientId: string): boolean {
   try {
