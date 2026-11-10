@@ -38,7 +38,7 @@ contenedor; vienen campañas masivas de WhatsApp.
 5. Guía [docs/respaldos.md](../../docs/respaldos.md) para quien no programa:
    respaldos programados de Coolify v4 (14 locales), tarea programada para
    `/data/media`, guardar la `ENCRYPTION_KEY` aparte, bajar copias a la
-   computadora, prueba mensual con registro, R2/B2 opcional, y restauración
+   computadora, prueba mensual con registro, copias fuera del servidor (Backups de Hetzner o R2/B2), avisos de fallo, y restauración
    de emergencia (servidor vivo / servidor perdido), incluida la pausa de
    campañas tras restaurar (si no, se reenviaría a quien ya recibió).
 

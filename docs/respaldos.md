@@ -44,7 +44,7 @@ otra llave, la app arranca pero queda desconectada de WhatsApp.
    - Si ves una opción para respaldar **todas las bases** («all
      databases» / `pg_dumpall`), déjala **apagada**: ese formato no lo puede
      revisar la prueba de restauración del Paso 5.
-   - **S3 storage**: déjalo **sin elegir** por ahora (es el Paso 6, opcional).
+   - **S3 storage**: déjalo **sin elegir** por ahora (es el Paso 6B).
 6. En la parte de retención (**Local backups**) pon:
    - **Backups to keep**: `14` → dos semanas de copias diarias en el servidor.
    - **Days to keep**: `14`.
@@ -94,20 +94,23 @@ para eso (`ops/respaldo.mjs`).
    **Scheduled Tasks** → **+ Add**.
 2. Llena:
    - **Name**: `Respaldo de archivos`
-   - **Command**: `node ops/respaldo.mjs --solo-media --guardar 4`
-   - **Frequency**: `0 4 * * 0` (domingos a las 4:00 a. m.)
+   - **Command**: `node ops/respaldo.mjs --solo-media --guardar 7`
+   - **Frequency**: `0 4 * * *` (todos los días a las 4:00 a. m.)
 3. Guarda. Para probarlo ya, abre la pestaña **Terminal** de la app, elige el
    contenedor de la app y escribe el mismo comando:
 
    ```sh
-   node ops/respaldo.mjs --solo-media --guardar 4
+   node ops/respaldo.mjs --solo-media --guardar 7
    ```
 
 - **Debes ver**: `✔ Archivos respaldados: /data/backups/dashfort-…-media.tar.gz (… MB)`.
 - **Si falla**: copia el mensaje que empieza con `Error:`.
 
 Quedan en `/data/backups/` **dentro del contenedor de la app** (el volumen
-de la app; sobrevive a los despliegues). El guion conserva los 4 más nuevos.
+de la app; sobrevive a los despliegues). El guion conserva los 7 más nuevos.
+
+> Cada copia pesa más o menos lo que pesan tus archivos. Si el disco se
+> aprieta, baja `--guardar` a `3`; no bajes la frecuencia.
 
 ### Respaldo completo a mano (antes de algo delicado)
 
@@ -135,7 +138,16 @@ node ops/respaldo.mjs
    «Dashfort ENCRYPTION_KEY v1 — desde <fecha de hoy>».
 3. Si tienes `ENCRYPTION_KEY_VERSION`, anota también su número.
 
-- **Debes ver**: el valor guardado en el gestor, completo.
+4. **Guarda también TODAS las demás variables de la app.** Si el servidor se
+   pierde, para levantar Dashfort en otro hacen falta las mismas
+   (`BETTER_AUTH_SECRET`, `VOCERO_APP_DB_PASSWORD`, `VOCERO_SYSTEM_DB_PASSWORD`,
+   `META_APP_SECRET`, `META_WEBHOOK_VERIFY_TOKEN`, la llave de la IA…) y
+   Coolify las guarda **solo en ese servidor**. En **Environment Variables**
+   pulsa **Developer view**: aparecen todas juntas como texto. Copia todo a
+   una nota segura del gestor: «Dashfort variables — <fecha de hoy>».
+   Repítelo cada vez que cambies una variable.
+
+- **Debes ver**: la llave y la nota con todas las variables en el gestor.
 - **Nunca** la guardes junto a las copias de la base (si alguien se lleva
   las dos cosas, puede leer los tokens).
 - Si algún día **rotas** la llave ([credenciales.md](credenciales.md)),
@@ -260,12 +272,44 @@ Copia esta tabla donde lleves tus notas y agrega una fila cada mes:
 |---|---|---|---|
 | | | APROBADA / FALLIDA | |
 
+Simulacro del 2026-11-09 (fuera de producción, con datos de demostración):
+respaldo, servidor «perdido» y restauración en un servidor nuevo siguiendo
+el Caso B. Las 107 tablas y los archivos quedaron idénticos, la app arrancó
+sobre la copia y la prueba falló con una llave distinta, como debe. **No
+sustituye** la prueba mensual con un respaldo real de producción.
+
 ---
 
-## Paso 6 (opcional) — Copias fuera del servidor en Cloudflare R2 o Backblaze B2
+## Paso 6 — Copias fuera del servidor (obligatorio antes de tener datos reales de clientes)
 
-Con esto Coolify sube cada respaldo automáticamente a un almacenamiento
-externo y ya no dependes de bajarlo a mano.
+Sin este paso, todas las copias viven en el mismo servidor que la base: si
+el servidor se pierde, solo te queda lo último que bajaste a mano (Paso 4).
+Hay dos formas; con datos reales ten **al menos una** (las dos es mejor).
+
+### 6A — Backups de Hetzner (lo más fácil: un clic, sin terminal)
+
+Hetzner guarda cada día una foto del servidor **completo** (base, archivos,
+Coolify y sus variables) fuera del servidor, y conserva las 7 últimas.
+Cuesta el 20 % del precio mensual del servidor.
+
+1. Entra a [console.hetzner.cloud](https://console.hetzner.cloud) → tu
+   proyecto → tu servidor.
+2. Pestaña **Backups** → **Enable backups** (Activar).
+   - Debes ver: «Backups enabled» y, al día siguiente, la primera copia en
+     la lista.
+3. Para recuperar: en esa lista, **Rebuild from backup** devuelve el servidor
+   entero a como estaba ese día (se pierde lo posterior). **No lo pulses para
+   probar**: reemplaza el servidor.
+
+Es una foto del disco, no un respaldo de la base revisado: por eso **no
+sustituye** al Paso 1 ni a la prueba del Paso 5; es la red de seguridad por
+si el servidor entero se daña.
+
+### 6B — Cloudflare R2 o Backblaze B2 (las copias de la base, en otra empresa)
+
+Con esto Coolify sube cada respaldo de la base automáticamente a un
+almacenamiento externo y ya no dependes de bajarlo a mano. No sube los
+archivos de `/data/media`: esos van con el 6A o con el Paso 4.
 
 1. Crea una cuenta y un **bucket privado** en
    [Cloudflare R2](https://developers.cloudflare.com/r2/) o
@@ -285,6 +329,36 @@ externo y ya no dependes de bajarlo a mano.
 
 Las copias en R2/B2 también se prueban con el Paso 5: descarga una a tu
 computadora y súbela al servidor con `scp`, luego sigue desde el punto 2.
+
+---
+
+## Paso 7 — Que Coolify te avise si un respaldo falla
+
+Un respaldo que falla en silencio es el peor caso: te enteras el día que lo
+necesitas.
+
+1. En Coolify, menú **Notifications**.
+2. Elige un canal que sí leas (**Email**, **Telegram** o **Discord**),
+   llénalo y pulsa **Send Test Notification**.
+   - Debes ver: el mensaje de prueba en tu correo o teléfono.
+3. En la lista de eventos de ese canal enciende **Backup Failure** y
+   **Scheduled Task Failure** (y, si quieres, **Server Disk Usage**).
+
+Aun así, una vez por semana abre **PostgreSQL → Backups → Executions** y
+comprueba que el de anoche salió con éxito.
+
+---
+
+## Cuánto se pierde en el peor caso
+
+| Qué pasa | Con Pasos 1 y 2 nada más | Con el Paso 6 también |
+|---|---|---|
+| Se borran o dañan datos, el servidor vive | Base: hasta **24 h**. Archivos: hasta **24 h** | Igual |
+| Se pierde el servidor entero | **Todo** desde la última copia que bajaste a mano (Paso 4) | Base y archivos: hasta **24 h** |
+
+Los mensajes de WhatsApp que entraron después de la copia no vuelven: Meta
+no los reenvía. Tiempo para volver a operar: de 1 a 3 horas con el servidor
+vivo (Caso A); medio día si hay que montar uno nuevo (Caso B).
 
 ---
 
@@ -322,7 +396,7 @@ a mandar los mensajes que ya entregó. Por eso:
    **Terminal**) y corre, cambiando `NOMBRE_BASE`:
 
    ```sh
-   psql -U postgres -d template1 -c 'DROP DATABASE "NOMBRE_BASE" WITH (FORCE)'
+   psql -U postgres -d template1 -c 'DROP DATABASE IF EXISTS "NOMBRE_BASE" WITH (FORCE)'
    psql -U postgres -d template1 -c 'CREATE DATABASE "NOMBRE_BASE"'
    pg_restore -U postgres --no-owner --no-acl --exit-on-error -d NOMBRE_BASE /tmp/restaurar.dmp
    ```
@@ -384,11 +458,13 @@ a mandar los mensajes que ya entregó. Por eso:
 ## Resumen (para pegar en la pared)
 
 - **Diario 3 a. m.**: Coolify respalda la base (14 copias).
-- **Domingo 4 a. m.**: tarea de la app respalda los archivos (4 copias).
+- **Diario 4 a. m.**: tarea de la app respalda los archivos (7 copias).
+- **Fuera del servidor**: Backups de Hetzner y/o R2/B2 (Paso 6), y avisos
+  de fallo encendidos (Paso 7).
 - **Cada mes**: baja una copia a tu computadora **y** haz la prueba de
   restauración (Paso 5). Anótala.
-- **Siempre**: la `ENCRYPTION_KEY` guardada aparte, en tu gestor de
-  contraseñas.
+- **Siempre**: la `ENCRYPTION_KEY` y todas las variables de la app guardadas
+  aparte, en tu gestor de contraseñas.
 
 Referencia técnica: `scripts/respaldo.mjs`, `scripts/probar-restauracion.mjs`
 (en la imagen: `/app/ops/`), reglas en `scripts/lib/respaldos-core.mjs`.
