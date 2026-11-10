@@ -6,6 +6,7 @@ import { newId } from "@/lib/db/ids";
 import { getEnv } from "@/lib/env";
 import { runWithOrganization } from "@/lib/request-context";
 import { logger } from "@/lib/log";
+import { revokeConnectionsOfUser } from "@/server/ai-connector/keys";
 import { postSystemNotice } from "@/server/team-chat/messages";
 import { recordPlatformAudit, type AuditActor } from "./audit";
 
@@ -159,6 +160,8 @@ export async function consumeAccountLink(input: {
     }
     // Contraseña nueva: ninguna sesión vieja sigue valiendo.
     await tx.delete(schema.session).where(eq(schema.session.userId, used.userId));
+    // Ni ninguna IA conectada: quien hubiera entrado a la cuenta pudo dejar una.
+    await revokeConnectionsOfUser(tx, used.userId, now);
   });
 
   const [person] = await sys()

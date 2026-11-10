@@ -272,3 +272,36 @@ export async function touchConnection(connectionId: string, organizationId: stri
     log.error("no se pudo anotar el uso de la conexión", { org: organizationId, err });
   }
 }
+
+/** Algo que ejecuta consultas: el pool de sistema o una transacción suya. */
+type SystemExecutor = Pick<ReturnType<typeof getSystemDb>, "update">;
+
+/**
+ * Auditoría 2026-11 (S-05) — La contraseña de una persona se restableció:
+ * TODAS sus IA conectadas (llaves personales y conexiones de «Iniciar
+ * sesión») dejan de valer, igual que sus sesiones. Si alguien entró a su
+ * cuenta y conectó una IA, no se queda adentro. Es de la PERSONA, no de una
+ * organización: corre en la transacción de sistema del restablecimiento.
+ * Devuelve cuántas conexiones cerró.
+ */
+export async function revokeConnectionsOfUser(db: SystemExecutor, userId: string, now = new Date()): Promise<number> {
+  const closed = await db
+    .update(schema.aiConnection)
+    .set({ revokedAt: now })
+    .where(and(eq(schema.aiConnection.userId, userId), isNull(schema.aiConnection.revokedAt)))
+    .returning({ id: schema.aiConnection.id, organizationId: schema.aiConnection.organizationId });
+  for (const c of closed) {
+    await db
+      .update(schema.aiToken)
+      .set({ revokedAt: now })
+      .where(
+        scoped(
+          schema.aiToken.organizationId,
+          c.organizationId,
+          eq(schema.aiToken.connectionId, c.id),
+          isNull(schema.aiToken.revokedAt)
+        )
+      );
+  }
+  return closed.length;
+}

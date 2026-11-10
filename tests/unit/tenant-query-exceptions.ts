@@ -64,9 +64,9 @@ export const TENANT_QUERY_EXCEPTIONS: Record<string, { max: number; motivo: stri
       "Ruteo del cerebro externo: el hash de la llave (único) DESCUBRE la organización; y el arranque liga la BOT_API_KEY a PLATFORM_ORG_ID (filas source='env', de la plataforma).",
   },
   "server/ai-connector/keys.ts": {
-    max: 1,
+    max: 2,
     motivo:
-      "047: el hash de la llave del conector de IA (único) DESCUBRE la organización y la persona de /api/mcp (como el cerebro externo).",
+      "047: el hash de la llave del conector de IA (único) DESCUBRE la organización y la persona de /api/mcp (como el cerebro externo). Auditoría 2026-11 (S-05): revokeConnectionsOfUser cierra TODAS las IA conectadas de una PERSONA cuando se restablece su contraseña (igual que sus sesiones); va por usuario, no por organización, dentro de la transacción de sistema del enlace de plataforma.",
   },
   "server/ai-connector/oauth.ts": {
     max: 6,
