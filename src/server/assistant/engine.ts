@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { MAX_PROPOSALS } from "@/lib/assistant-actions";
+import { MAX_PROPOSALS, SENDING_LABEL_MAX } from "@/lib/assistant-actions";
 import {
   type AssistantProposal,
   ASSISTANT_MARKER,
@@ -326,7 +326,7 @@ export async function askAssistant(input: AskInput): Promise<AskResult> {
       for (const p of accepted) {
         if (input.session) {
           const exact = await sendingLabel(input.session, p.tool, p.args);
-          if (exact) p.label = exact.slice(0, 600);
+          if (exact) p.label = exact.slice(0, SENDING_LABEL_MAX);
         }
       }
       proposals.push(...accepted);

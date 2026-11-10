@@ -7,6 +7,7 @@ import {
   isExcludedTool,
   isSendingTool,
   MAX_PROPOSALS,
+  SENDING_TEXT_MAX,
   shortDescription,
 } from "@/lib/assistant-actions";
 import type { SessionContext } from "@/lib/auth/session";
@@ -46,7 +47,8 @@ export async function sendingLabel(session: SessionContext, tool: string, args: 
   const id = typeof args.conversation_id === "string" ? args.conversation_id : "";
   const found = id ? await getConversation(session.access, id) : null;
   const who = found ? (found.contact.name ?? found.contact.phone ?? "el chat") : "un chat de Mi número";
-  if (tool === "send_message") return `Enviar a ${who}: «${cut(args.text, 500)}»`;
+  // El mensaje COMPLETO (auditoría 2026-11, S-07): lo que no se ve no se puede aprobar.
+  if (tool === "send_message") return `Enviar a ${who}: «${cut(args.text, SENDING_TEXT_MAX)}»`;
   if (tool === "send_template") {
     const vars = Array.isArray(args.variables) && args.variables.length ? ` (${args.variables.map((v) => cut(v, 40)).join(", ")})` : "";
     return `Enviar a ${who} la plantilla «${cut(args.template, 80)}»${vars}`;

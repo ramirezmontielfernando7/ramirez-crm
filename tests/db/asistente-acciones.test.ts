@@ -9,6 +9,7 @@ import { resolveProposals } from "@/server/assistant/apply";
 import { saveExchange } from "@/server/assistant/threads";
 import { saveConnectorSettings } from "@/server/ai-connector/settings";
 import { forgetOrgModules } from "@/server/modules/store";
+import { SENDING_LABEL_MAX } from "@/lib/assistant-actions";
 import { assistantTools, sendingLabel } from "@/server/assistant/tools";
 import { toolsFor } from "@/server/ai-connector/tools";
 import { borrarOrganizaciones, crearOrganizacion } from "./fixtures";
@@ -177,6 +178,13 @@ describe("asistente — enviar mensajes solo con «Aplicar»", () => {
     const label = await runWithOrganization(A.id, () => sendingLabel(session(), "send_message", { conversation_id: conversationId, text: "Hola\n  Laura" }));
     expect(label).toBe("Enviar a Laura: «Hola Laura»");
     expect(await runWithOrganization(A.id, () => sendingLabel(session(), "add_note", {}))).toBeNull();
+  });
+
+  it("auditoría S-07: un mensaje largo se enseña ENTERO antes de «Aplicar»", async () => {
+    const text = `${"a".repeat(3000)} FINAL-QUE-ANTES-NO-SE-VEIA`;
+    const label = await runWithOrganization(A.id, () => sendingLabel(session(), "send_message", { conversation_id: conversationId, text }));
+    expect(label).toContain("FINAL-QUE-ANTES-NO-SE-VEIA");
+    expect(label!.length).toBeLessThanOrEqual(SENDING_LABEL_MAX);
   });
 });
 

@@ -20,6 +20,14 @@ export const ASSISTANT_EXCLUDED_TOOLS = ["create_upload_link", "check_upload_lin
 /** Las que mandan algo a un cliente o a un público: la propuesta siempre dice qué y a quién. */
 export const SENDING_TOOLS = ["send_message", "send_template", "send_material", "launch_campaign"] as const;
 
+/**
+ * Lo más largo que manda `send_message` (el tope de la herramienta): la
+ * propuesta enseña el texto ENTERO, nunca un recorte que esconda el final.
+ */
+export const SENDING_TEXT_MAX = 4096;
+/** Tope de la etiqueta de un envío: el texto entero más «Enviar a <nombre>: «…»». */
+export const SENDING_LABEL_MAX = SENDING_TEXT_MAX + 300;
+
 export function isSendingTool(name: string): boolean {
   return (SENDING_TOOLS as readonly string[]).includes(name);
 }
