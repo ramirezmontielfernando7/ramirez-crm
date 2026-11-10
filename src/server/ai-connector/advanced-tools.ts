@@ -1,5 +1,6 @@
 import { eq, inArray } from "drizzle-orm";
 import { z } from "zod";
+import { ASSISTANT_CONNECTION_ID } from "@/lib/assistant-actions";
 import { CONSENT_ANSWERS } from "@/lib/import-consent";
 import { getDb, schema } from "@/lib/db";
 import { scoped, scopedContacts } from "@/lib/db/tenant";
@@ -137,7 +138,7 @@ const importArgs = z.object({
 const importContactsTool: ToolSpec<z.infer<typeof importArgs>> = {
   name: "import_contacts",
   title: "Importar contactos",
-  description: `Crea o actualiza hasta ${AI_IMPORT_MAX} contactos (nombre, teléfono y etiquetas). OBLIGATORIO consent: "yes" solo si esas personas aceptaron recibir WhatsApp del negocio; si no lo sabes, "unknown" (no recibirán campañas). Quien pidió no recibir mensajes se respeta siempre. Todos quedan con la etiqueta tag_name (o «Import: IA»).`,
+  description: `Crea o actualiza hasta ${AI_IMPORT_MAX} contactos (nombre, teléfono y etiquetas). OBLIGATORIO consent: "yes" solo si esas personas aceptaron recibir WhatsApp del negocio; si no lo sabes, "unknown" (no recibirán campañas). Desde una IA conectada el "yes" NO se anota: los contactos entran como "no se sabe" y una persona lo confirma en Contactos → Importar (la respuesta trae consent_recorded). Quien pidió no recibir mensajes se respeta siempre. Todos quedan con la etiqueta tag_name (o «Import: IA»).`,
   inputSchema: {
     type: "object",
     properties: {
@@ -167,7 +168,13 @@ const importContactsTool: ToolSpec<z.infer<typeof importArgs>> = {
   permission: "contacts.import",
   area: "contacts",
   serial: true,
-  run: async ({ session }, args) => {
+  run: async ({ session, connectionId }, args) => {
+    // Auditoría 2026-11 (S-03): que alguien «aceptó recibir WhatsApp» lo declara
+    // una PERSONA, nunca una IA por ella. Por el conector (sin nadie que lo
+    // apruebe, y con el texto de los clientes a la vista de la IA) un «sí» se
+    // guarda como «no se sabe». En el asistente interno corre solo tras el
+    // «Aplicar» de la persona, que es quien lo declara.
+    const consent = connectionId === ASSISTANT_CONNECTION_ID ? args.consent : "unknown";
     const text = toCsv(
       ["name", "phone", "tags"],
       // Solo dígitos: `toCsv` protege un «+» inicial como fórmula y la importación lo rechazaría.
@@ -181,7 +188,7 @@ const importContactsTool: ToolSpec<z.infer<typeof importArgs>> = {
         text,
         tagName: args.tag_name ?? null,
         createLeads: args.create_leads,
-        consentAnswer: args.consent,
+        consentAnswer: consent,
         optOutTreatment: "respect",
       });
       return {
@@ -192,6 +199,14 @@ const importContactsTool: ToolSpec<z.infer<typeof importArgs>> = {
           failed: s.failed,
           tag: s.tag.name,
           failures: s.failures.slice(0, 20),
+          consent_recorded: consent,
+          ...(consent !== args.consent
+            ? {
+                note:
+                  "El consentimiento quedó como «no se sabe»: una IA conectada no puede declararlo. " +
+                  "Si de verdad aceptaron, una persona lo confirma en Contactos → Importar.",
+              }
+            : {}),
         },
         summary: `importó ${s.created + s.updated} contactos (${s.failed} con error)`,
       };

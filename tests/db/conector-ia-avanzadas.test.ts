@@ -251,6 +251,22 @@ describe("funciones avanzadas — lo que hacen", () => {
     expect(sin.error ?? sin.result.isError).toBeTruthy();
   });
 
+  it("auditoría S-03: la IA conectada no puede declarar que alguien «aceptó» recibir WhatsApp", async () => {
+    const r = await herramienta(k.owner, "import_contacts", {
+      contacts: [{ name: "Dora Declarada", phone: "+52 462 555 0177" }],
+      consent: "yes",
+    });
+    expect(r.isError, JSON.stringify(r.structuredContent)).toBe(false);
+    expect(r.structuredContent).toMatchObject({ created: 1, consent_recorded: "unknown" });
+    expect(String(r.structuredContent.note)).toContain("no se sabe");
+    const [c] = await sys()
+      .select()
+      .from(schema.contact)
+      .where(and(eq(schema.contact.organizationId, A.id), eq(schema.contact.name, "Dora Declarada")));
+    // Sin «opt_in» no entra al público de una campaña ni recibe una plantilla como primer mensaje.
+    expect(c?.waConsent).toBe("desconocido");
+  });
+
   it("crea, edita y pone etiquetas solo a contactos que ve", async () => {
     expect((await herramienta(k.coord, "create_tag", { name: "Otoño", color: "verde" })).isError).toBe(false);
     expect((await herramienta(k.coord, "update_tag", { name: "Otoño", new_name: "Otoño 2026" })).isError).toBe(false);
