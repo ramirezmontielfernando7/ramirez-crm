@@ -82,6 +82,18 @@ async function until(fn, ms = 30000) {
   }
 }
 
+/**
+ * Espera a que el servidor termine de procesar los webhooks ya recibidos (la
+ * fila de `webhook_inbox` se borra al procesarse). Sin esto, dos estados
+ * mandados seguidos pueden aplicarse en cualquier orden.
+ */
+async function procesados() {
+  return until(async () => {
+    const [r] = await sql`select count(*)::int as n from webhook_inbox where status = 'pending'`;
+    return r.n === 0;
+  });
+}
+
 async function outbox() {
   return (await api("/api/dev/wa-mock/outbox")).json?.outbox ?? [];
 }
@@ -142,6 +154,8 @@ async function main() {
     pricing: { billable: true, pricing_model: "PMP", category: "service", type: "regular" },
   });
   await post("/api/dev/wa-mock/status", { waMessageId: out1.waMessageId, status: "delivered", timestamp: t0 + 5 });
+  // El caso es un failed TARDÍO: el delivered ya debe estar aplicado cuando llega.
+  ok("el delivered se procesa antes de mandar el failed", await procesados());
   await post("/api/dev/wa-mock/status", {
     waMessageId: out1.waMessageId,
     status: "failed",
@@ -149,6 +163,7 @@ async function main() {
     errorCode: 131049,
     errorMessage: "healthy ecosystem",
   });
+  ok("…y el failed también se procesa antes de mirar", await procesados());
   const m1 = await until(async () => {
     const [r] = await sql`select * from message where wa_message_id = ${out1.waMessageId}`;
     return r?.delivered_at ? r : null;

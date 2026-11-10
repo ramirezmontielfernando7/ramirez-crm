@@ -165,6 +165,11 @@ try {
   await campo.fill(`Pagina ${RUN} 170`);
   await fila(170).waitFor({ timeout: 10_000 }).catch(() => {});
   ok("la búsqueda encuentra el chat 170 (no estaba cargado)", (await fila(170).count()) === 1);
+  // La fila 170 puede pintarse un instante antes de que la lista filtrada
+  // sustituya a la anterior: se espera a que quede sola.
+  await page
+    .waitForFunction(() => document.querySelectorAll("[data-conversation-row]").length === 1, null, { timeout: 10_000 })
+    .catch(() => {});
   ok("…y solo ese", (await page.locator("[data-conversation-row]").count()) === 1);
   await campo.fill("");
   await page.keyboard.press("Escape");

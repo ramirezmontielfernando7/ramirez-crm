@@ -147,7 +147,11 @@ try {
   const echo = await call("POST", "/api/dev/wa-mock/echo", { phoneNumberId: PN, to: ECHO_NAME_TEL, text: "te escribo desde mi teléfono", waMessageId: `wamid.cap.echo.${RUN}` });
   ok("echo entregado al webhook", echo.status < 400, JSON.stringify(echo.json));
   ok("el chat del echo aparece", await hasta(async () => (await convs()).some((c) => c.contact.phone === ECHO_NAME_TEL)));
-  const ec = (await convs()).find((c) => c.contact.phone === ECHO_NAME_TEL);
+  // El lead se crea justo después de la conversación (sentencias separadas):
+  // se espera a que el chat traiga ya su etapa en vez de leerla una sola vez.
+  const delEcho = async () => (await convs()).find((c) => c.contact.phone === ECHO_NAME_TEL);
+  await hasta(async () => Boolean((await delEcho())?.stageName));
+  const ec = await delEcho();
   ok("…y trae etapa (la inicial de la organización)", Boolean(ec?.stageName) && Boolean(ec?.leadId), JSON.stringify({ stage: ec?.stageName, lead: ec?.leadId }));
   const entrante = await conv(N.a);
   ok("la etapa del entrante normal es la misma inicial", ec?.stageName === entrante?.stageName, `${ec?.stageName} vs ${entrante?.stageName}`);
