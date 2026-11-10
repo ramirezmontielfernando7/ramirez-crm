@@ -1,0 +1,50 @@
+Starting Metro Bundler
+
+| (node:4465) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+| (node:4465) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+Web Bundled 3323ms node_modules/expo-router/entry.js (2934 modules)
+
+› Assets (21):
+node_modules/@expo-google-fonts/inter/400Regular/Inter_400Regular.51b6ad87261f18b6433ec52871ddfabc.ttf (342KB)
+node_modules/@expo-google-fonts/inter/500Medium/Inter_500Medium.137ab18bace28dd0bd83eb3b8ed2bc54.ttf (343KB)
+node_modules/@expo-google-fonts/inter/600SemiBold/Inter_600SemiBold.a5f35888d2da465de352e0dcfaf33324.ttf (344KB)
+node_modules/expo-router/assets/arrow_down.017bc6ba3fc25503e5eb5e53826d48a8.png (9.5KB)
+node_modules/expo-router/assets/error.d1ea1496f9057eb392d5bbf3732a61b7.png (469B)
+node_modules/expo-router/assets/file.19eeb73b9593a38f8e9f418337fc7d10.png (138B)
+node_modules/expo-router/assets/forward.d8b800c443b8972542883e0b9de2bdc6.png (188B)
+node_modules/expo-router/assets/pkg.ab19f4cbc543357183a20571f68380a3.png (364B)
+node_modules/expo-router/assets/react-navigation/elements/back-icon-mask.0a328cd9c1afd0afe8e3b1ec5165b1b4.png (653B)
+node_modules/expo-router/assets/react-navigation/elements/back-icon.35ba0eaec5a4f5ed12ca16fabeae451d.png (207B)
+node_modules/expo-router/assets/react-navigation/elements/clear-icon.c94f6478e7ae0cdd9f15de1fcb9e5e55.png (4 variations | 425B)
+node_modules/expo-router/assets/react-navigation/elements/close-icon.808e1b1b9b53114ec2838071a7e6daa7.png (4 variations | 235B)
+node_modules/expo-router/assets/react-navigation/elements/search-icon.286d67d3f74808a60a78d3ebf1a5fb57.png (928B)
+node_modules/expo-router/assets/sitemap.412dd9275b6b48ad28f5e3d81bb1f626.png (465B)
+node_modules/expo-router/assets/unmatched.20e71bdf79e3a97bf55fd9e164041578.png (4.8KB)
+
+› web bundles (18):
+_expo/static/js/web/__common-5cb5878fbde4dfb2ed7697e60e290da0.js (2.7MB)
+_expo/static/js/web/__expo-metro-runtime-8c088df87a31e4e6accd81c554ec290d.js (3.8KB)
+_expo/static/js/web/_layout-d0bea3f670a2738dcaf55aa0c54169c6.js (30KB)
+_expo/static/js/web/_layout-ef615c61630ea2feec46ad7302462ba7.js (2.5KB)
+_expo/static/js/web/[id]-54e8bdc2b7868e34e503bba3d275f1e3.js (11KB)
+_expo/static/js/web/[token]-4a385b11a2f2664ad121244fab0a67c9.js (270B)
+_expo/static/js/web/[token]-ccfe770128fe27b55cfc748874da2a0e.js (273B)
+_expo/static/js/web/+not-found-64209db906985b20a0ab63faceffe9c6.js (495B)
+_expo/static/js/web/crm-22b10a5077701e8d0484847deb4131ab.js (289B)
+_expo/static/js/web/demo-3f4ae626e4b536e640d336b481f70ab3.js (3.8KB)
+_expo/static/js/web/entry-2478805671a974d50b3ba4ed691a2793.js (1.1MB)
+_expo/static/js/web/inbox-83be1729900f9b5c8fdbb769febf7c64.js (295B)
+_expo/static/js/web/index-c262b95666315ecc5056e5f7c0172d76.js (330B)
+_expo/static/js/web/login-7524a3f161f385ea4baf411ef25f222d.js (204B)
+_expo/static/js/web/marketing-205922772765179c61c6fad35afaefac.js (302B)
+_expo/static/js/web/more-c592fcbb2e105aaac7b32589eb59ef8f.js (293B)
+_expo/static/js/web/register-182584ceb8120504265a0fccab1ffb10.js (207B)
+_expo/static/js/web/studio-a4244cb9a65889e76090620d81132b2a.js (300B)
+
+› Files (2):
+index.html (1.4KB)
+metadata.json (49B)
+
+Exported: dist

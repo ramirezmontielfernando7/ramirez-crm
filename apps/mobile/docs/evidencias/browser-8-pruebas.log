@@ -1,0 +1,19 @@
+
+> dashfort-mobile-dev@0.1.0 test:browser
+> playwright test
+
+
+Running 8 tests using 1 worker
+
+(node:5024) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 tests/browser/foundation.spec.ts:40:5 › T-M1 galleries and access light-390x844 (15.0s)
+  ✓  2 tests/browser/foundation.spec.ts:40:5 › T-M1 galleries and access dark-390x844 (12.5s)
+  ✓  3 tests/browser/foundation.spec.ts:40:5 › T-M1 galleries and access light-360x640 (13.4s)
+  ✓  4 tests/browser/foundation.spec.ts:40:5 › T-M1 galleries and access dark-360x640 (18.6s)
+  ✓  5 tests/browser/foundation.spec.ts:110:1 › roles, route guards, recovery and logout (11.6s)
+  ✓  6 tests/browser/foundation.spec.ts:161:1 › form validation, generic auth failure and expired session (5.2s)
+  ✓  7 tests/browser/foundation.spec.ts:192:1 › single-use activation and reset, invalid link, repeated password (11.1s)
+  ✓  8 tests/browser/foundation.spec.ts:229:1 › layers, simulated composer and recoverable data states (8.0s)
+
+  8 passed (1.7m)

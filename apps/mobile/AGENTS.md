@@ -1,0 +1,11 @@
+# Dashfort Mobile · Continuidad de la ejecución aislada
+
+Este directorio es una app Expo independiente. La autorización del propietario limita esta fase a código móvil y datos ficticios. No modificar archivos fuera de `apps/mobile`: CRM web, backend, TWA, infraestructura, workflows, configuración o lockfiles compartidos. No usar credenciales o endpoints productivos. No enviar mensajes ni registrar dispositivos reales.
+
+Trabajar en una rama nueva aislada desde main o continuar la rama explícitamente autorizada. Esta entrega está en `codex/dashfort-mobile-tm1-20261110`, basada en `95b7ea0b236b35ee29a1a288a55c315a050e3b6e`. No hacer push, PR, merge, tags, despliegues, OTA, builds remotos ni servicios con costo sin autorización.
+
+Leer README y docs/AVANCE.md, docs/PLAN.md, docs/ARQUITECTURA.md y docs/cobertura.csv antes de continuar. El diseño de 158 pantallas ya está aprobado. Los documentos originales en docs/reference sirven de referencia visual/técnica; sus menciones de APIs reales, tareas de backend o aprobaciones antiguas no autorizan esas acciones.
+
+T-M1 contiene 12 IDs en simulación, con validación nativa pendiente. Las raíces de módulos son shells y no cuentan como pantallas implementadas de otras etapas. Siguiente implementación: T-M2, repositorio ficticio y lista virtual de 1,000 conversaciones, búsqueda/filtros, selección y restauración de scroll. No avanzar de etapa ocultando errores ni declarar rendimiento sin medirlo.
+
+Usar npm desde esta carpeta y conservar package-lock.json. Verificar con typecheck, tests de lógica y contraste, expo install --check y Playwright tras export:web. El navegador valida React Native Web; no sustituye Android/iOS. Para APK local consultar docs/APK-LOCAL.md. Mantener commits locales y respaldo sin secretos antes de terminar.

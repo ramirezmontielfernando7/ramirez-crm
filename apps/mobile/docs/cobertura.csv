@@ -1,0 +1,159 @@
+ID,Pantalla,Tarea,Estado,Validacion nativa
+AUTH-01,Animación de apertura,T-M13,Pendiente,Pendiente
+AUTH-02,Iniciar sesión,T-M1,Implementada con simulacion / QA navegador,Pendiente
+AUTH-03,Activar cuenta (enlace),T-M1,Implementada con simulacion / QA navegador,Pendiente
+AUTH-04,Nueva contraseña (enlace),T-M1,Implementada con simulacion / QA navegador,Pendiente
+AUTH-05,Crear cuenta (cerrado),T-M1,Implementada con simulacion / QA navegador,Pendiente
+AUTH-06,¿Olvidaste tu contraseña?,T-M1,Implementada con simulacion / QA navegador,Pendiente
+INB-01,Bandeja · lista de Clientes,T-M2,Pendiente,Pendiente
+INB-02,Búsqueda en la Bandeja,T-M2,Pendiente,Pendiente
+INB-03,Selección múltiple de chats,T-M2,Pendiente,Pendiente
+INB-06,Bandeja · cargando,T-M2,Pendiente,Pendiente
+INB-07,Bandeja · vacía,T-M2,Pendiente,Pendiente
+INB-08,Bandeja · sin conexión,T-M2,Pendiente,Pendiente
+INB-09,Bandeja · pestaña Campañas,T-M2,Pendiente,Pendiente
+INB-04,Menú ⋮ de la Bandeja,T-M2,Pendiente,Pendiente
+INB-05,Filtros de la Bandeja,T-M2,Pendiente,Pendiente
+INB-10,Nuevo chat,T-M2,Pendiente,Pendiente
+INB-11,Chat abierto,T-M3,Pendiente,Pendiente
+INB-12,Menú ⋮ del chat,T-M3,Pendiente,Pendiente
+INB-13,Adjuntar,T-M3,Pendiente,Pendiente
+INB-14,Respuestas rápidas,T-M3,Pendiente,Pendiente
+INB-15,Biblioteca · enviar material,T-M3,Pendiente,Pendiente
+INB-16,Emojis,T-M3,Pendiente,Pendiente
+INB-17,Enviar plantilla (ventana cerrada),T-M3,Pendiente,Pendiente
+INB-18,Asistente de redacción,T-M3,Pendiente,Pendiente
+INB-19,Detalles del contacto,T-M4,Pendiente,Pendiente
+INB-20,Historial del chat,T-M4,Pendiente,Pendiente
+INB-21,Cambiar etapa,T-M4,Pendiente,Pendiente
+INB-22,Asignar chat,T-M4,Pendiente,Pendiente
+INB-23,Etiquetas del contacto,T-M4,Pendiente,Pendiente
+INB-24,IA en este chat,T-M4,Pendiente,Pendiente
+INB-30,Conexión del chat,T-M4,Pendiente,Pendiente
+INB-25,Motivo de pérdida,T-M4,Pendiente,Pendiente
+INB-26,Nueva tarea para este chat,T-M4,Pendiente,Pendiente
+INB-27,Visor de imagen,T-M3,Pendiente,Pendiente
+INB-28,Eliminar chat,T-M3,Pendiente,Pendiente
+INB-29,Mensaje no entregado,T-M3,Pendiente,Pendiente
+EQP-01,Equipo · lista de conversaciones,T-M6,Pendiente,Pendiente
+EQP-02,Chat de equipo,T-M6,Pendiente,Pendiente
+EQP-06,Chat de equipo · supervisión,T-M6,Pendiente,Pendiente
+EQP-03,Nuevo mensaje o grupo,T-M6,Pendiente,Pendiente
+EQP-04,Información del grupo,T-M6,Pendiente,Pendiente
+EQP-05,Mencionar,T-M6,Pendiente,Pendiente
+NUM-01,Mi número · lista,T-M6,Pendiente,Pendiente
+NUM-02,Mi número · chat,T-M6,Pendiente,Pendiente
+NUM-03,Mi número · opciones del chat,T-M6,Pendiente,Pendiente
+NUM-04,Nuevo chat desde Mi número,T-M6,Pendiente,Pendiente
+CRM-01,Pipeline,T-M7,Pendiente,Pendiente
+CRM-02,Detalle del trato,T-M7,Pendiente,Pendiente
+CRM-03,Mover a otra etapa,T-M7,Pendiente,Pendiente
+CRM-04,Editar monto,T-M7,Pendiente,Pendiente
+CRM-05,Motivo de pérdida (trato),T-M7,Pendiente,Pendiente
+CRM-06,Nuevo lead,T-M7,Pendiente,Pendiente
+CRM-08,Buscar lead,T-M7,Pendiente,Pendiente
+CRM-09,Menú ⋮ del Pipeline,T-M7,Pendiente,Pendiente
+CRM-07,Gestionar etapas,T-M7,Pendiente,Pendiente
+CRM-07C,Color de la etapa,T-M7,Pendiente,Pendiente
+CRM-07D,Eliminar etapa,T-M7,Pendiente,Pendiente
+CRM-10,Contactos,T-M7,Pendiente,Pendiente
+CRM-11,Ficha del contacto,T-M7,Pendiente,Pendiente
+CRM-12,Nuevo contacto / editar,T-M7,Pendiente,Pendiente
+CRM-13,Menú ⋮ del contacto,T-M7,Pendiente,Pendiente
+CRM-14,Filtros de contactos,T-M7,Pendiente,Pendiente
+CRM-15,Acciones con seleccionados,T-M7,Pendiente,Pendiente
+CRM-16,Menú ⋮ de Contactos,T-M7,Pendiente,Pendiente
+CRM-17,Importar contactos,T-M7,Pendiente,Pendiente
+CRM-20,Agenda · día,T-M9,Pendiente,Pendiente
+CRM-21,Detalle de la cita,T-M9,Pendiente,Pendiente
+CRM-22,Bloquear horario,T-M9,Pendiente,Pendiente
+CRM-23,Mover cita,T-M9,Pendiente,Pendiente
+CRM-24,Agenda · mes,T-M9,Pendiente,Pendiente
+CRM-25,Menú ⋮ de Agenda,T-M9,Pendiente,Pendiente
+CRM-30,Tareas,T-M9,Pendiente,Pendiente
+CRM-31,Detalle de la tarea,T-M9,Pendiente,Pendiente
+CRM-32,Notas,T-M9,Pendiente,Pendiente
+CRM-33,Editor de nota,T-M9,Pendiente,Pendiente
+CRM-40,Biblioteca,T-M9,Pendiente,Pendiente
+CRM-41,Entrada de la Biblioteca,T-M9,Pendiente,Pendiente
+CRM-42,Menú ⋮ de Biblioteca,T-M9,Pendiente,Pendiente
+LAB-01,Agentes,T-M10,Pendiente,Pendiente
+LAB-02,Creador de agentes (chat),T-M10,Pendiente,Pendiente
+LAB-03,Editor del agente,T-M10,Pendiente,Pendiente
+LAB-04,Vista previa del agente,T-M10,Pendiente,Pendiente
+LAB-05,Publicar agente,T-M10,Pendiente,Pendiente
+LAB-06,Versiones publicadas,T-M10,Pendiente,Pendiente
+LAB-06C,Cargar versión al borrador,T-M10,Pendiente,Pendiente
+LAB-07,Pausar todos los agentes,T-M10,Pendiente,Pendiente
+LAB-08,Menú ⋮ de Agentes,T-M10,Pendiente,Pendiente
+LAB-09,Menú ⋮ del agente,T-M10,Pendiente,Pendiente
+LAB-09A,Archivar agente,T-M10,Pendiente,Pendiente
+LAB-10,Conocimiento y documentos,T-M10,Pendiente,Pendiente
+LAB-11,Subir documento,T-M10,Pendiente,Pendiente
+LAB-12,Detalle del documento,T-M10,Pendiente,Pendiente
+LAB-20,Asignación por etapa,T-M10,Pendiente,Pendiente
+LAB-21,Elegir agente de la etapa,T-M10,Pendiente,Pendiente
+LAB-30,Pruebas · clientes simulados,T-M10,Pendiente,Pendiente
+LAB-31,Detalle de la prueba,T-M10,Pendiente,Pendiente
+MKT-01,Campañas,T-M11,Pendiente,Pendiente
+MKT-02,Detalle de la campaña,T-M11,Pendiente,Pendiente
+MKT-03,Nueva campaña (asistente),T-M11,Pendiente,Pendiente
+MKT-04,Confirmar el envío,T-M11,Pendiente,Pendiente
+MKT-05,Menú ⋮ de Campañas,T-M11,Pendiente,Pendiente
+MKT-06,Menú ⋮ de la campaña,T-M11,Pendiente,Pendiente
+MKT-31,Ajustes de campañas,T-M11,Pendiente,Pendiente
+MKT-10,Audiencias,T-M11,Pendiente,Pendiente
+MKT-11,Detalle de la base,T-M11,Pendiente,Pendiente
+MKT-12,Subir una base (desde el teléfono),T-M11,Pendiente,Pendiente
+MKT-20,Plantillas de WhatsApp,T-M11,Pendiente,Pendiente
+MKT-21,Detalle de la plantilla,T-M11,Pendiente,Pendiente
+MKT-22,Nueva plantilla,T-M11,Pendiente,Pendiente
+MKT-30,Métricas y costos,T-M11,Pendiente,Pendiente
+MORE-01,Más,T-M8,Pendiente,Pendiente
+MORE-08,Cerrar sesión,T-M1,Implementada con simulacion / QA navegador,Pendiente
+MORE-05,Avisos,T-M8,Pendiente,Pendiente
+RES-01,Resultados,T-M12,Pendiente,Pendiente
+RES-02,Periodo y asesor,T-M12,Pendiente,Pendiente
+AST-01,Asistente,T-M12,Pendiente,Pendiente
+AST-02,Conversaciones del asistente,T-M12,Pendiente,Pendiente
+AST-03,Modo y crédito,T-M12,Pendiente,Pendiente
+AST-04,Asistente · sin crédito,T-M12,Pendiente,Pendiente
+MORE-06,Uso y plan,T-M12,Pendiente,Pendiente
+MORE-07,Mejora tu plan,T-M12,Pendiente,Pendiente
+MORE-09,Solicitar cambio de plan,T-M12,Pendiente,Pendiente
+MORE-10,Aviso «a este ritmo»,T-M12,Pendiente,Pendiente
+SET-01,Ajustes,T-M8,Pendiente,Pendiente
+SET-02,Canales y conexiones,T-M8,Pendiente,Pendiente
+SET-02A,Conectar con Facebook,T-M8,Pendiente,Pendiente
+SET-02B,Salud del número,T-M8,Pendiente,Pendiente
+SET-02C,Conexión directa,T-M8,Pendiente,Pendiente
+SET-03,Equipo y permisos,T-M8,Pendiente,Pendiente
+SET-03A,Invitar persona,T-M8,Pendiente,Pendiente
+SET-03B,Persona del equipo,T-M8,Pendiente,Pendiente
+SET-04,Anuncios (Meta),T-M13,Pendiente,Pendiente
+SET-05,Etiquetas,T-M13,Pendiente,Pendiente
+SET-05A,Editar etiqueta,T-M13,Pendiente,Pendiente
+SET-06,Respuestas rápidas,T-M13,Pendiente,Pendiente
+SET-06A,Editar respuesta rápida,T-M13,Pendiente,Pendiente
+SET-07,Motivos de pérdida,T-M13,Pendiente,Pendiente
+SET-08,Agenda y conectores,T-M13,Pendiente,Pendiente
+SET-09,Chat de equipo (ajustes),T-M13,Pendiente,Pendiente
+SET-10,Bajas automáticas,T-M13,Pendiente,Pendiente
+SET-11,Mi IA,T-M13,Pendiente,Pendiente
+SET-11A,Qué hizo tu IA,T-M13,Pendiente,Pendiente
+SET-12,Conector del equipo,T-M13,Pendiente,Pendiente
+SET-13,Mi número,T-M6,Pendiente,Pendiente
+SET-13A,Vincular dispositivo,T-M6,Pendiente,Pendiente
+SET-14,Notificaciones,T-M5,Pendiente,Pendiente
+SET-15,Apariencia,T-M8,Pendiente,Pendiente
+SET-16,Marca,T-M8,Pendiente,Pendiente
+SET-17,Navegación,T-M13,Pendiente,Pendiente
+PLT-01,Mi panel,T-M13,Pendiente,Pendiente
+PLT-02,Organizaciones,T-M13,Pendiente,Pendiente
+PLT-03,Ficha de la organización,T-M13,Pendiente,Pendiente
+DS-01,Colores y modo oscuro,T-M1,Implementada con simulacion / QA navegador,Pendiente
+DS-02,"Tipografía, espaciado y radios",T-M1,Implementada con simulacion / QA navegador,Pendiente
+DS-03,"Botones, campos y controles",T-M1,Implementada con simulacion / QA navegador,Pendiente
+DS-04,Componentes de chat,T-M1,Implementada con simulacion / QA navegador,Pendiente
+DS-05,"Estados: cargando, vacío, error y avisos",T-M1,Implementada con simulacion / QA navegador,Pendiente
+DS-06,"Navegación: barra, hoja, menú y diálogo",T-M1,Implementada con simulacion / QA navegador,Pendiente

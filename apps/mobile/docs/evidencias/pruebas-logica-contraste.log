@@ -1,0 +1,22 @@
+
+> dashfort-mobile-dev@0.1.0 test
+> tsx --test tests/*.test.ts
+
+✔ WCAG AA text, buttons, capsules and message metadata in light (1.454324ms)
+✔ WCAG AA text, buttons, capsules and message metadata in dark (0.648762ms)
+✔ navigation exposes exactly 5 / 4 / 3 modules and checks direct access (3.721797ms)
+✔ login validates form and never accepts arbitrary accounts or empty passwords (1.21733ms)
+✔ session lasts 30 days, survives a new repository and is removed on logout (0.519208ms)
+✔ expired, corrupt and forged sessions fail closed and are cleared (0.474721ms)
+✔ activation and reset enforce valid single-use links independently (1.014012ms)
+✔ storage errors do not report successful login or logout (2.16823ms)
+✔ Android Back closes layer before stack, then inbox, then requires double press (0.22911ms)
+✔ simultaneous redemption cannot create two sessions and a failed save rolls back consumption (2.336433ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 421.642548
