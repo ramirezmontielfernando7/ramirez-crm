@@ -1,0 +1,6 @@
+
+> dashfort-mobile-dev@0.1.0 format:check
+> prettier --check app src tests *.json playwright.config.ts
+
+Checking formatting...
+All matched files use Prettier code style!

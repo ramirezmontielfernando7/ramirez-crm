@@ -1,0 +1,14 @@
+
+Running 7 tests using 1 worker
+
+(node:14026) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 tests/browser/inbox.spec.ts:36:5 › T-M2 reference matrix light-390 (8.0s)
+  ✓  2 tests/browser/inbox.spec.ts:36:5 › T-M2 reference matrix dark-390 (6.3s)
+  ✓  3 tests/browser/inbox.spec.ts:36:5 › T-M2 reference matrix light-360 (7.0s)
+  ✓  4 tests/browser/inbox.spec.ts:36:5 › T-M2 reference matrix dark-360 (7.6s)
+  ✓  5 tests/browser/inbox.spec.ts:91:1 › combined filters, archive, assign and preserved selection across tabs (5.0s)
+  ✓  6 tests/browser/inbox.spec.ts:124:1 › advisor cannot enter other conversation and new contact validation is functional (7.0s)
+  ✓  7 tests/browser/inbox.spec.ts:157:1 › virtualized list restores scroll and query after conversation return (7.7s)
+
+  7 passed (51.5s)

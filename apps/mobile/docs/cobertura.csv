@@ -5,16 +5,16 @@ AUTH-03,Activar cuenta (enlace),T-M1,Implementada con simulacion / QA navegador,
 AUTH-04,Nueva contraseña (enlace),T-M1,Implementada con simulacion / QA navegador,Pendiente
 AUTH-05,Crear cuenta (cerrado),T-M1,Implementada con simulacion / QA navegador,Pendiente
 AUTH-06,¿Olvidaste tu contraseña?,T-M1,Implementada con simulacion / QA navegador,Pendiente
-INB-01,Bandeja · lista de Clientes,T-M2,Pendiente,Pendiente
-INB-02,Búsqueda en la Bandeja,T-M2,Pendiente,Pendiente
-INB-03,Selección múltiple de chats,T-M2,Pendiente,Pendiente
-INB-06,Bandeja · cargando,T-M2,Pendiente,Pendiente
-INB-07,Bandeja · vacía,T-M2,Pendiente,Pendiente
-INB-08,Bandeja · sin conexión,T-M2,Pendiente,Pendiente
-INB-09,Bandeja · pestaña Campañas,T-M2,Pendiente,Pendiente
-INB-04,Menú ⋮ de la Bandeja,T-M2,Pendiente,Pendiente
-INB-05,Filtros de la Bandeja,T-M2,Pendiente,Pendiente
-INB-10,Nuevo chat,T-M2,Pendiente,Pendiente
+INB-01,Bandeja · lista de Clientes,T-M2,Implementada con simulacion T-M2 / QA navegador,Pendiente dispositivo
+INB-02,Búsqueda en la Bandeja,T-M2,Implementada con simulacion T-M2 / QA navegador,Pendiente dispositivo
+INB-03,Selección múltiple de chats,T-M2,Implementada con simulacion T-M2 / QA navegador,Pendiente dispositivo
+INB-06,Bandeja · cargando,T-M2,Implementada con simulacion T-M2 / QA navegador,Pendiente dispositivo
+INB-07,Bandeja · vacía,T-M2,Implementada con simulacion T-M2 / QA navegador,Pendiente dispositivo
+INB-08,Bandeja · sin conexión,T-M2,Implementada con simulacion T-M2 / QA navegador,Pendiente dispositivo
+INB-09,Bandeja · pestaña Campañas,T-M2,Implementada con simulacion T-M2 / QA navegador,Pendiente dispositivo
+INB-04,Menú ⋮ de la Bandeja,T-M2,Implementada con simulacion T-M2 / QA navegador,Pendiente dispositivo
+INB-05,Filtros de la Bandeja,T-M2,Implementada con simulacion T-M2 / QA navegador,Pendiente dispositivo
+INB-10,Nuevo chat,T-M2,Implementada con simulacion T-M2 / QA navegador,Pendiente dispositivo
 INB-11,Chat abierto,T-M3,Pendiente,Pendiente
 INB-12,Menú ⋮ del chat,T-M3,Pendiente,Pendiente
 INB-13,Adjuntar,T-M3,Pendiente,Pendiente

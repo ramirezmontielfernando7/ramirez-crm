@@ -9,3 +9,6 @@ Leer README y docs/AVANCE.md, docs/PLAN.md, docs/ARQUITECTURA.md y docs/cobertur
 T-M1 contiene 12 IDs en simulación, con validación nativa pendiente. Las raíces de módulos son shells y no cuentan como pantallas implementadas de otras etapas. Siguiente implementación: T-M2, repositorio ficticio y lista virtual de 1,000 conversaciones, búsqueda/filtros, selección y restauración de scroll. No avanzar de etapa ocultando errores ni declarar rendimiento sin medirlo.
 
 Usar npm desde esta carpeta y conservar package-lock.json. Verificar con typecheck, tests de lógica y contraste, expo install --check y Playwright tras export:web. El navegador valida React Native Web; no sustituye Android/iOS. Para APK local consultar docs/APK-LOCAL.md. Mantener commits locales y respaldo sin secretos antes de terminar.
+
+## Ejecución actual T-M2
+La autorización más reciente crea `codex/dashfort-mobile-tm2-20261110` desde la rama móvil T-M1 en `5b4c7e5`. T-M2 implementa INB-01…10; consultar docs/tm2. No iniciar T-M3 ni hacer push, PR, merge o deploy. El destino conversation/[id] solo comprueba el regreso y no cuenta como INB-11. Las notas T-M1 anteriores son históricas.

@@ -1,0 +1,24 @@
+
+Running 15 tests using 2 workers
+
+(node:12552) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:12553) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 tests/browser/inbox.spec.ts:36:5 › T-M2 reference matrix light-390 (8.8s)
+  ✓   3 tests/browser/inbox.spec.ts:36:5 › T-M2 reference matrix dark-390 (11.4s)
+  ✓   2 tests/browser/foundation.spec.ts:43:5 › T-M1 galleries and access light-390x844 (21.5s)
+  ✓   4 tests/browser/inbox.spec.ts:36:5 › T-M2 reference matrix light-360 (16.6s)
+  ✓   5 tests/browser/foundation.spec.ts:43:5 › T-M1 galleries and access dark-390x844 (25.0s)
+  ✓   6 tests/browser/inbox.spec.ts:36:5 › T-M2 reference matrix dark-360 (10.4s)
+  ✓   8 tests/browser/inbox.spec.ts:91:1 › combined filters, archive, assign and preserved selection across tabs (10.6s)
+  ✓   7 tests/browser/foundation.spec.ts:43:5 › T-M1 galleries and access light-360x640 (19.6s)
+  ✓   9 tests/browser/inbox.spec.ts:124:1 › advisor cannot enter other conversation and new contact validation is functional (14.8s)
+  ✓  10 tests/browser/foundation.spec.ts:43:5 › T-M1 galleries and access dark-360x640 (18.1s)
+  ✓  11 tests/browser/inbox.spec.ts:157:1 › virtualized list restores scroll and query after conversation return (25.1s)
+  ✓  12 tests/browser/foundation.spec.ts:113:1 › roles, route guards, recovery and logout (19.5s)
+  ✓  13 tests/browser/foundation.spec.ts:180:1 › form validation, generic auth failure and expired session (4.8s)
+  ✓  14 tests/browser/foundation.spec.ts:211:1 › single-use activation and reset, invalid link, repeated password (7.7s)
+  ✓  15 tests/browser/foundation.spec.ts:256:1 › layers, simulated composer and recoverable data states (4.9s)
+
+  15 passed (2.1m)
