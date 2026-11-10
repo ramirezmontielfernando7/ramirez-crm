@@ -9,6 +9,7 @@ import type { WebhookValue } from "@/server/inbox/webhook";
 import { sendText } from "@/server/inbox/send";
 import { reauthenticate, REAUTH_MAX_FAILURES, type PlatformAdmin } from "@/server/platform-admin/admins";
 import { listPlatformAudit } from "@/server/platform-admin/audit";
+import { generateToken, hashToken, resolveToken } from "@/server/ai-connector/keys";
 import { consumeAccountLink, createAccountLink, inspectAccountLink } from "@/server/platform-admin/links";
 import {
   changeOrganizationStatus,
@@ -104,6 +105,30 @@ describe("alta de organizaciones", () => {
     expect(await verifyPassword({ hash: fila!.hash!, password: "una-contraseña-larga" })).toBe(true);
     const usado = await getSystemDb().select().from(schema.accountLinkToken).where(eq(schema.accountLinkToken.purpose, "activate"));
     expect(usado.some((u) => u.usedIp === "1.1.1.1" && u.usedUserAgent === "ua-prueba")).toBe(true);
+  });
+
+  it("auditoría S-05: restablecer la contraseña desconecta las IA de esa persona (y solo las suyas)", async () => {
+    const r = await createOrganization({ name: "Reset IA", ownerName: "Rita", ownerEmail: `rita.${Date.now()}@reset-ia.test` }, ACTOR, null);
+    creadas.push(r.organizationId);
+    const [dueña] = await getSystemDb().select().from(schema.member).where(eq(schema.member.organizationId, r.organizationId));
+    const otra = newId("user");
+    await getSystemDb().insert(schema.user).values({ id: otra, name: "Otra", email: `${otra}@reset-ia.test`, emailVerified: true });
+    await getSystemDb().insert(schema.member).values({ id: newId("member"), organizationId: r.organizationId, userId: otra, role: "asesor" });
+    const conexion = async (userId: string) => {
+      const id = newId("aiConnection");
+      const key = generateToken("dfk_");
+      await getSystemDb().insert(schema.aiConnection).values({ id, organizationId: r.organizationId, userId, kind: "key", name: "n8n", scopes: ["read", "write"] });
+      await getSystemDb().insert(schema.aiToken).values({ id: newId("aiToken"), organizationId: r.organizationId, connectionId: id, kind: "key", tokenHash: hashToken(key), tokenPrefix: key.slice(0, 10) });
+      return key;
+    };
+    const suya = await conexion(dueña!.userId);
+    const ajena = await conexion(otra);
+    expect(await resolveToken(suya)).not.toBeNull();
+
+    const token = r.activationUrl.split("/").pop()!;
+    expect(await consumeAccountLink({ token, password: "una-contraseña-larga", ip: null, userAgent: null })).toMatchObject({ ok: true });
+    expect(await resolveToken(suya)).toBeNull();
+    expect(await resolveToken(ajena)).not.toBeNull();
   });
 
   it("dos usos a la vez del mismo enlace: solo uno gana", async () => {
