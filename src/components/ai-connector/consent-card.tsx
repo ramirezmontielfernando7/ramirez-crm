@@ -17,7 +17,10 @@ export function ConsentCard({
   clientName,
   clientHost,
   canWrite,
+  advanced,
 }: {
+  /** Las «Funciones avanzadas» que el Propietario le abrió a la IA de este rol (vacío = ninguna). */
+  advanced: { labels: string[]; launch: boolean };
   params: Record<string, string | undefined>;
   clientName: string;
   clientHost: string;
@@ -54,7 +57,17 @@ export function ConsentCard({
         <ul className="space-y-2 text-sm text-text-2">
           <Item ok>Ver tus chats, contactos, etapas y tareas, igual que tú en la Bandeja</Item>
           <Item ok={write}>Enviar mensajes, poner etiquetas, mover etapas y crear tareas por ti</Item>
-          <Item ok={false}>Exportar contactos, mandar campañas, borrar o cambiar ajustes</Item>
+          {advanced.labels.length > 0 ? (
+            <>
+              <Item ok>
+                Además, porque tu empresa encendió las funciones avanzadas: {advanced.labels.join(" · ")}
+                {advanced.launch ? " · Lanzar campañas" : ""}
+              </Item>
+              <Item ok={false}>{advanced.launch ? "Borrar contactos, chats o ajustes" : "Lanzar campañas o borrar"}</Item>
+            </>
+          ) : (
+            <Item ok={false}>Exportar contactos, mandar campañas, borrar o cambiar ajustes</Item>
+          )}
         </ul>
         {canWrite && (
           <label className="flex items-center justify-between gap-3 rounded-md border border-border bg-subtle px-3 py-2.5 text-sm">

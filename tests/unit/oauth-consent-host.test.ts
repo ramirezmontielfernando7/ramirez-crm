@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { redirectHost } from "@/lib/ai-connector";
+import { advancedConsent, DEFAULT_CONNECTOR_SETTINGS, redirectHost, type ConnectorSettings } from "@/lib/ai-connector";
 
 /**
  * Auditoría de seguridad (2026-11) — La pantalla «X quiere actuar como tú»
@@ -30,5 +30,40 @@ describe("pantalla de aceptar: el sitio que se enseña", () => {
     );
     expect(page).toContain("clientHost={redirectHost(parsed.data.redirect_uri)}");
     expect(page).not.toMatch(/clientHost=\{[^}]*redirectUris/);
+  });
+});
+
+/**
+ * Auditoría 2026-11 (S-06) — La pantalla no promete «no puede exportar
+ * contactos ni mandar campañas» cuando el Propietario sí lo encendió.
+ */
+describe("pantalla de aceptar: funciones avanzadas", () => {
+  const on: ConnectorSettings = {
+    ...DEFAULT_CONNECTOR_SETTINGS,
+    enabled: true,
+    advanced: { enabled: true, roles: ["coordinador"], areas: ["contacts", "campaigns"], launchCampaigns: true },
+  };
+
+  it("apagadas (lo de fábrica): nada que avisar", () => {
+    expect(advancedConsent("owner", DEFAULT_CONNECTOR_SETTINGS)).toEqual({ labels: [], launch: false });
+    expect(advancedConsent("owner", { ...on, advanced: { ...on.advanced, enabled: false } }).labels).toEqual([]);
+  });
+
+  it("encendidas: se dicen las áreas abiertas y si puede lanzar campañas", () => {
+    expect(advancedConsent("owner", on)).toEqual({
+      labels: ["Exportar e importar contactos", "Preparar campañas"],
+      launch: true,
+    });
+    expect(advancedConsent("coordinador", on).labels).toHaveLength(2);
+    expect(advancedConsent("owner", { ...on, advanced: { ...on.advanced, launchCampaigns: false } }).launch).toBe(false);
+  });
+
+  it("el Asesor nunca las tiene; el Coordinador solo si se le dieron", () => {
+    expect(advancedConsent("asesor", on)).toEqual({ labels: [], launch: false });
+    expect(advancedConsent("coordinador", { ...on, advanced: { ...on.advanced, roles: [] } }).labels).toEqual([]);
+  });
+
+  it("sin el área de campañas no hay «lanzar», aunque el interruptor esté encendido", () => {
+    expect(advancedConsent("owner", { ...on, advanced: { ...on.advanced, areas: ["contacts"] } }).launch).toBe(false);
   });
 });

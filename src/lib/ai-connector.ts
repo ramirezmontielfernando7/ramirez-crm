@@ -98,6 +98,21 @@ export function advancedAllows(role: string, settings: ConnectorSettings, area: 
 }
 
 /**
+ * Auditoría 2026-11 (S-06) — Lo que la pantalla de aceptar le dice a la
+ * persona sobre las «Funciones avanzadas»: las áreas que SU rol tiene
+ * abiertas hoy, en palabras de la pantalla, y si su IA podría lanzar
+ * campañas. Antes la pantalla decía siempre que la IA no puede exportar
+ * contactos ni mandar campañas, aunque el Propietario lo hubiera encendido.
+ */
+export function advancedConsent(role: string, settings: ConnectorSettings): { labels: string[]; launch: boolean } {
+  const areas = ADVANCED_AREAS.filter((a) => advancedAllows(role, settings, a));
+  return {
+    labels: areas.map((a) => ADVANCED_AREA_TEXT[a].label),
+    launch: areas.includes("campaigns") && settings.advanced.launchCampaigns,
+  };
+}
+
+/**
  * ¿Puede esta persona usar su IA? El Propietario enciende el conector y
  * elige los roles (él siempre puede). Decisión 1 de Fer.
  */

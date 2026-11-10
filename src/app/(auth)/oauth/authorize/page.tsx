@@ -3,9 +3,10 @@ import { ConsentCard } from "@/components/ai-connector/consent-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getSessionOrNull } from "@/lib/auth/session";
 import { runWithOrganization } from "@/lib/request-context";
-import { redirectHost } from "@/lib/ai-connector";
+import { advancedConsent, redirectHost } from "@/lib/ai-connector";
 import { authorizeSchema, checkAuthorizeRequest, requestedScopes } from "@/server/ai-connector/oauth";
 import { mayConnect } from "@/server/ai-connector/keys";
+import { getConnectorSettings } from "@/server/ai-connector/settings";
 
 export const dynamic = "force-dynamic";
 
@@ -40,9 +41,14 @@ export default async function AuthorizePage({
       <Problem text="Tu organización todavía no permite conectar una IA a tu cuenta. Pídeselo al Propietario: se enciende en Ajustes → IA conectada." />
     );
   }
+  const advanced = advancedConsent(
+    session.role,
+    await runWithOrganization(session.organizationId, () => getConnectorSettings(session.organizationId))
+  );
   return (
     <ConsentCard
       params={parsed.data}
+      advanced={advanced}
       clientName={check.client.clientName}
       clientHost={redirectHost(parsed.data.redirect_uri)}
       canWrite={requestedScopes(parsed.data).includes("write")}
