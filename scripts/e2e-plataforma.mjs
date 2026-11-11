@@ -169,6 +169,8 @@ async function main() {
   await page.fill("#org-name", NAME_B);
   await page.fill("#owner-name", OWNER_B.name);
   await page.fill("#owner-email", OWNER_B.email);
+  // Auditoría UX 2026-11 (21): el plan se elige siempre; «Personalizado» = los de fábrica de la instancia.
+  await page.getByTestId("platform-create-profile").selectOption("personalizado");
   await page.getByTestId("platform-create-org").click();
   await page.getByTestId("platform-link-url").waitFor({ timeout: 20000 });
   const activacion = (await page.getByTestId("platform-link-url").innerText()).trim();

@@ -4,6 +4,7 @@ import {
   CATALOG_SCOPES,
   cleanFeatures,
   mergeCatalog,
+  normalizeContactPhone,
   type CatalogScope,
   type PlanCatalog,
   type PlanCatalogOverride,
@@ -19,7 +20,13 @@ import { recordPlatformAudit, type AuditActor } from "@/server/platform-admin/au
  */
 
 const TTL_MS = 60_000;
-let cache: { at: number; catalog: PlanCatalog; overrides: Partial<Record<CatalogScope, PlanCatalogOverride>> } | null = null;
+let cache: {
+  at: number;
+  catalog: PlanCatalog;
+  overrides: Partial<Record<CatalogScope, PlanCatalogOverride>>;
+  /** 0077: el WhatsApp de contacto de «¿Necesitas más?» (solo dígitos) o null. */
+  contactWhatsapp: string | null;
+} | null = null;
 
 export function clearPlanCatalogCache(): void {
   cache = null;
@@ -41,16 +48,39 @@ const overrideOf = (r: Row): PlanCatalogOverride => ({
 
 async function load() {
   if (cache && Date.now() - cache.at < TTL_MS) return cache;
-  const rows = await getSystemDb().select().from(schema.platformPlanCatalog);
+  const db = getSystemDb();
+  const rows = await db.select().from(schema.platformPlanCatalog);
+  const settings = await db.select().from(schema.platformSetting);
   const overrides: Partial<Record<CatalogScope, PlanCatalogOverride>> = {};
   for (const r of rows) if ((CATALOG_SCOPES as readonly string[]).includes(r.scope)) overrides[r.scope as CatalogScope] = overrideOf(r);
-  cache = { at: Date.now(), catalog: mergeCatalog(overrides), overrides };
+  const contact = settings.find((r) => r.key === "contact_whatsapp")?.value ?? null;
+  cache = { at: Date.now(), catalog: mergeCatalog(overrides), overrides, contactWhatsapp: normalizeContactPhone(contact) };
   return cache;
 }
 
 /** Los tres planes tal como los ve el cliente (fábrica + lo guardado). */
 export async function getPlanCatalog(): Promise<PlanCatalog> {
   return (await load()).catalog;
+}
+
+/** 0077: el WhatsApp de contacto de la plataforma (solo dígitos) o null si no hay. */
+export async function getPlatformContact(): Promise<string | null> {
+  return (await load()).contactWhatsapp;
+}
+
+/** Guarda (o borra con `null`/vacío) el WhatsApp de contacto. Devuelve lo guardado. */
+export async function changePlatformContact(input: string | null, actor: AuditActor, ip: string | null): Promise<string | null> {
+  const value = input && input.trim() ? normalizeContactPhone(input) : null;
+  if (input && input.trim() && !value) throw new Error("invalid_phone");
+  const db = getSystemDb();
+  const set = { value, updatedAt: new Date(), updatedBy: actor?.userId ?? null };
+  await db
+    .insert(schema.platformSetting)
+    .values({ key: "contact_whatsapp", ...set })
+    .onConflictDoUpdate({ target: schema.platformSetting.key, set });
+  clearPlanCatalogCache();
+  await recordPlatformAudit({ actor, action: "plans.changed", detail: { contactoWhatsapp: value ? `…${value.slice(-4)}` : null }, ip });
+  return value;
 }
 
 /** Cambio parcial de un plan: un campo ausente no se toca; `null` vuelve al valor de fábrica. */

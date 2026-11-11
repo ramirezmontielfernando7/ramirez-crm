@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -68,8 +69,16 @@ export function SectionTabs({
 }) {
   const pathname = usePathname();
   const viewer = useViewer();
+  const edges = useScrollEdges(pathname);
   return (
-    <nav aria-label={label} className={cn(NAV_CLASS[variant], className)}>
+    <nav
+      ref={edges.ref}
+      aria-label={label}
+      className={cn(NAV_CLASS[variant], className)}
+      style={edges.style}
+      data-more-left={edges.left || undefined}
+      data-more-right={edges.right || undefined}
+    >
       {tabs
         .filter((t) => !t.permission || viewer.can(t.permission))
         .map((t) => {
@@ -87,4 +96,51 @@ export function SectionTabs({
         })}
     </nav>
   );
+}
+
+/**
+ * Auditoría UX 2026-11 (22) — En el celular las pestañas se cortaban («Bibl»,
+ * «Métric») sin pista de que hay más. Con más pestañas que ancho, el borde
+ * que esconde algo se desvanece, y la pestaña activa se trae a la vista al
+ * entrar (sin mover la página, solo la tira).
+ */
+const FADE = "28px";
+function useScrollEdges(pathname: string) {
+  const ref = useRef<HTMLElement>(null);
+  const [edge, setEdge] = useState({ left: false, right: false });
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const active = el.querySelector<HTMLElement>('[aria-current="page"]');
+    if (active && el.scrollWidth > el.clientWidth) {
+      const start = active.getBoundingClientRect().left - el.getBoundingClientRect().left + el.scrollLeft;
+      const end = start + active.offsetWidth;
+      if (start < el.scrollLeft || end > el.scrollLeft + el.clientWidth) {
+        el.scrollLeft = Math.max(0, start - 24);
+      }
+    }
+    const update = () => {
+      const left = el.scrollLeft > 2;
+      const right = el.scrollLeft + el.clientWidth < el.scrollWidth - 2;
+      setEdge((p) => (p.left === left && p.right === right ? p : { left, right }));
+    };
+    update();
+    el.addEventListener("scroll", update, { passive: true });
+    const ro = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(update);
+    ro?.observe(el);
+    return () => {
+      el.removeEventListener("scroll", update);
+      ro?.disconnect();
+    };
+  }, [pathname]);
+  const mask =
+    edge.left || edge.right
+      ? `linear-gradient(to right, ${edge.left ? "transparent" : "#000"} 0, #000 ${edge.left ? FADE : "0px"}, #000 calc(100% - ${edge.right ? FADE : "0px"}), ${edge.right ? "transparent" : "#000"} 100%)`
+      : undefined;
+  return {
+    ref,
+    left: edge.left,
+    right: edge.right,
+    style: mask ? { maskImage: mask, WebkitMaskImage: mask } : undefined,
+  };
 }

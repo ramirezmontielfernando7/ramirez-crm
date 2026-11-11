@@ -78,6 +78,28 @@ export async function createAccountLink(
   return { url: linkUrl(purpose, token), expiresAt };
 }
 
+/**
+ * Auditoría UX 2026-11 (13) — El Propietario invita a alguien de SU equipo (o
+ * le da un enlace nuevo si olvidó su contraseña) sin pasar contraseñas a
+ * mano: un enlace `activate` de 72 h que él manda por WhatsApp. Solo para
+ * cuentas que pertenecen ÚNICAMENTE a esa organización: el correo es único
+ * en toda la instancia, y el dueño de un negocio jamás debe poder fijarle la
+ * contraseña a alguien que también trabaja en otro.
+ */
+export async function createTeamLink(
+  organizationId: string,
+  userId: string,
+  createdBy: string
+): Promise<{ url: string; expiresAt: Date } | { error: "other_org" | "not_member" }> {
+  const memberships = await sys()
+    .select({ organizationId: schema.member.organizationId })
+    .from(schema.member)
+    .where(eq(schema.member.userId, userId));
+  if (!memberships.some((m) => m.organizationId === organizationId)) return { error: "not_member" };
+  if (memberships.some((m) => m.organizationId !== organizationId)) return { error: "other_org" };
+  return createAccountLink(userId, "activate", createdBy);
+}
+
 export type LinkInfo =
   | { ok: true; purpose: LinkPurpose; name: string; emailMasked: string }
   | { ok: false; reason: "invalid" | "used" | "expired" };

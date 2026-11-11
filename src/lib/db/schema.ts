@@ -4513,6 +4513,25 @@ export const platformPlanCatalog = pgTable(
 );
 
 /**
+ * 0077 — Ajustes de la PLATAFORMA (sin organización), clave → valor. Hoy solo
+ * `contact_whatsapp`: el número que el cliente ve en «¿Necesitas más?». Solo
+ * pool de sistema; ÚNICA puerta `src/server/plan-catalog/store.ts`.
+ */
+export const platformSetting = pgTable(
+  "platform_setting",
+  {
+    key: text("key", { enum: ["contact_whatsapp"] }).primaryKey(),
+    value: text("value"),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+    updatedBy: text("updated_by").references(() => user.id, { onDelete: "set null" }),
+  },
+  (t) => [
+    check("platform_setting_key_chk", sql`${t.key} in ('contact_whatsapp')`),
+    check("platform_setting_value_chk", sql`${t.value} is null or length(${t.value}) <= 200`),
+  ]
+);
+
+/**
  * 0070 — Precio de cada MODELO (USD por millón de tokens de entrada y de
  * salida) para estimar el costo de cada llamada y el tope en dólares. Sin
  * fila, vale la lista conocida del código (`KNOWN_PRICES`). Tabla de

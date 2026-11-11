@@ -183,6 +183,7 @@ const PROTEGIDAS: [string, Method, Permission][] = [
   ["settings/team", "POST", "users.manage"],
   ["settings/team/[id]", "PATCH", "users.manage"],
   ["settings/team/[id]", "DELETE", "users.manage"],
+  ["settings/team/[id]/link", "POST", "users.manage"],
   // Pipeline y plantillas.
   ["pipeline/stages", "POST", "pipeline.edit"],
   ["pipeline/stages/[id]", "PATCH", "pipeline.edit"],

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { ChevronRight } from "lucide-react";
 import { UsageMeter } from "@/components/usage/usage-meter";
+import { ContactUs } from "@/components/usage/contact-us";
 import { fetchJson } from "@/lib/fetch-json";
 import { setUsageDialogView } from "@/lib/usage-dialog";
 import { PLAN_LABEL, STORAGE_MODE_LABEL } from "@/lib/limits";
@@ -207,9 +208,9 @@ export function UsagePlanClient({ embedded = false }: { embedded?: boolean } = {
             <h3 className="text-base font-semibold">Inteligencia artificial</h3>
             <p className="text-sm text-text-2">Agentes, asistente y creador de agentes</p>
           </div>
-          <div className="text-right" data-testid="usage-plan-ai-meter" title={iaMes.detail}>
+          <div className="shrink-0 whitespace-nowrap text-right" data-testid="usage-plan-ai-meter" title={iaMes.detail}>
             <p className={cn("text-2xl font-semibold tabular-nums", iaMes.tone === "danger" && "text-danger-text", iaMes.tone === "warning" && "text-warning-text")}>
-              {pct !== null ? `${Math.min(pct, 100)} %` : iaMes.text}
+              {pct !== null ? `${Math.min(pct, 100)}\u00a0%` : iaMes.text}
             </p>
             {/* El texto exacto del medidor (cifras con `tokens`; «% del tope» si no). */}
             <span className={cn(cifras ? "block text-xs text-text-3" : "sr-only")}>{iaMes.text}</span>
@@ -225,9 +226,9 @@ export function UsagePlanClient({ embedded = false }: { embedded?: boolean } = {
         )}
         <p className="mt-3 text-sm text-text-2">
           {ai.total.state === "exhausted"
-            ? `Llegaste al 100 %: los agentes pasan los chats a tu equipo hasta el ${fin}.`
+            ? `Llegaste al 100\u00a0%: los agentes pasan los chats a tu equipo hasta el ${fin}.`
             : queda !== null
-              ? `Te queda ${queda} %. Si llegas al 100 %, los agentes pasan los chats a tu equipo hasta el ${fin}.`
+              ? `Te queda ${queda}\u00a0%. Si llegas al 100\u00a0%, los agentes pasan los chats a tu equipo hasta el ${fin}.`
               : "Si llegas al tope, los agentes pasan los chats a tu equipo hasta que se renueve."}
         </p>
       </section>
@@ -277,7 +278,7 @@ export function UsagePlanClient({ embedded = false }: { embedded?: boolean } = {
             <ChevronRight className="h-4 w-4 transition-transform group-open:rotate-90" aria-hidden />
             Ver detalle por agente y función
           </span>
-          <span className="text-text-3">¿Necesitas algo distinto? Escríbenos y armamos un plan a tu medida.</span>
+          <ContactUs className="text-text-3" />
         </summary>
         <div className="mt-4 grid gap-4 md:grid-cols-2">
           {funciones && ai.byAgent && (

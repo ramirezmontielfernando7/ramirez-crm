@@ -44,9 +44,9 @@ export const TENANT_QUERY_EXCEPTIONS: Record<string, { max: number; motivo: stri
       "Fase 3, PR 3 — Relleno al arrancar: a TODA organización sin fila de módulos le pone los de las variables de entorno (insert … select de organization where not exists). Pool de sistema, una vez por arranque, nunca pisa una fila existente. 036 PR 4 — getManyOrgModules: los módulos de las organizaciones de la lista de /platform en UNA consulta (inArray de sus ids) en vez de una por organización; solo interruptores, pool de sistema.",
   },
   "server/platform-admin/links.ts": {
-    max: 1,
+    max: 2,
     motivo:
-      "Fase 3, PR 2 — Al usar un enlace de un solo uso: de qué organización es la persona (para la bitácora y el aviso). Aún no hay sesión; el usuario lo dice el token.",
+      "Fase 3, PR 2 — Al usar un enlace de un solo uso: de qué organización es la persona (para la bitácora y el aviso). Aún no hay sesión; el usuario lo dice el token. Auditoría UX 2026-11 (13): `createTeamLink` mira TODAS las membresías de la persona para negarse si también está en otra empresa (solo cuenta filas, nunca devuelve datos de la otra).",
   },
   "server/instagram/credentials.ts": {
     max: 1,

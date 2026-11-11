@@ -167,3 +167,20 @@ export function cleanFeatures(lines: string[]): string[] {
   }
   return out;
 }
+
+/**
+ * 0077 — WhatsApp de contacto de la plataforma («¿Necesitas más?»). Se guarda
+ * solo con dígitos, con lada de país (10 dígitos de México → 52 delante).
+ * `null` = sin número válido.
+ */
+export function normalizeContactPhone(input: string | null | undefined): string | null {
+  const digits = (input ?? "").replace(/\D/g, "");
+  if (digits.length === 10) return `52${digits}`;
+  if (digits.length >= 11 && digits.length <= 15) return digits;
+  return null;
+}
+
+/** Enlace de WhatsApp al número de contacto, con un mensaje listo. */
+export function contactWhatsAppUrl(phone: string, text: string): string {
+  return `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
+}

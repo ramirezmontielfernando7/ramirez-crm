@@ -316,7 +316,12 @@ export function MessageBubble({
             <Smartphone className="h-3 w-3" strokeWidth={1.75} /> Celular ·
           </span>
         )}
-        <span className="bubble-time tabular-nums">{bubbleTime(m.createdAt)}</span>
+        {/* La hora sale en la zona de quien mira: el servidor (UTC) la pinta
+            distinta (Personalización la pinta en el servidor; auditoría UX
+            2026-11, punto 20). */}
+        <span className="bubble-time tabular-nums" suppressHydrationWarning>
+          {bubbleTime(m.createdAt)}
+        </span>
         {out && <StatusTicks status={m.status} />}
       </span>
       {out && m.status === "failed" && (

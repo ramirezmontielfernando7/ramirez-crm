@@ -145,7 +145,13 @@ export function CampaignsClient({ today }: { today: string }) {
             testId="camp-stat-cost"
             label="Costo estimado"
             value={metrics ? formatMoney(metrics.cost.estimated, cur) : "—"}
-            hint={metrics?.cost.estimated === null ? "captura tus tarifas en Ajustes de envío" : "Meta cobra aparte"}
+            hint={
+              metrics?.cost.estimated === null && (t?.sent ?? 0) > 0
+                ? "sin tarifas: revísalas en Ajustes de envío"
+                : metrics?.cost.estimated === null
+                  ? "se calcula al enviar · tarifas de México"
+                  : "aproximado · Meta cobra aparte"
+            }
           />
         </section>
 

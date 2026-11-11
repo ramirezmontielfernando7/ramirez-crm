@@ -124,8 +124,8 @@ const PERMITIDOS: Record<string, { usos: number; motivo: string }> = {
     motivo: "0073: la solicitud de cambio de plan del Propietario toma el nombre de su organización y su correo (tablas de plataforma de Better Auth) para la bitácora de plataforma; solo metadatos, nunca contenido",
   },
   "src/server/plan-catalog/store.ts": {
-    usos: 2,
-    motivo: "0073: catálogo de planes (platform_plan_catalog), tabla de PLATAFORMA sin organización: lectura con caché y escritura del administrador de plataforma; nunca datos de un negocio",
+    usos: 3,
+    motivo: "0073: catálogo de planes (platform_plan_catalog) y 0077: WhatsApp de contacto (platform_setting), tablas de PLATAFORMA sin organización: lectura con caché y escritura del administrador de plataforma; nunca datos de un negocio",
   },
   "src/server/ai-settings/admin.ts": {
     usos: 1,
