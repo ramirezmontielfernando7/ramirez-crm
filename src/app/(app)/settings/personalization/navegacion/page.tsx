@@ -16,7 +16,7 @@ export default async function NavigationSettingsPage() {
   if (!(await orgHasCustomNav(session.organizationId))) {
     return (
       <div className="space-y-4" data-testid="nav-unavailable">
-        <SettingsHeader title="Navegación" description="Qué entradas del menú ve cada rol y en qué orden." />
+        <SettingsHeader mobileTitle title="Navegación" description="Qué entradas del menú ve cada rol y en qué orden." />
         <div className="rounded-card border bg-surface p-5">
           <h3 className="text-[15px] font-semibold">Navegación no disponible</h3>
           <p className="mt-1 text-[13.5px] text-text-2">

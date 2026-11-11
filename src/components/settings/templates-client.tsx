@@ -310,6 +310,8 @@ export function TemplatesClient({ shell = false }: { shell?: boolean }) {
             <tbody>
               <tr>
                 <td colSpan={usage ? 7 : 6} className="px-4 text-center text-sm text-text-3">
+                  {/* En el teléfono la tabla se desliza de lado: el aviso se queda fijo a la vista. */}
+                  <div className="sticky left-0 max-w-[calc(100vw-4rem)] sm:max-w-none">
                   {loaded && templates.length === 0 ? (
                     <EmptyState
                       compact
@@ -322,6 +324,7 @@ export function TemplatesClient({ shell = false }: { shell?: boolean }) {
                   ) : (
                     <p className="py-8">Cargando…</p>
                   )}
+                  </div>
                 </td>
               </tr>
             </tbody>

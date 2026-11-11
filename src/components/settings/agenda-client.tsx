@@ -179,7 +179,7 @@ export function AgendaClient() {
             const intervals = settings.weeklyHours[day.key] ?? [];
             const open = intervals.length > 0;
             return (
-              <div key={day.key} className="flex items-start gap-3">
+              <div key={day.key} className="flex flex-col gap-1.5 sm:flex-row sm:items-start sm:gap-3">
                 <button
                   type="button"
                   onClick={() => toggleDay(day.key)}

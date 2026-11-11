@@ -18,7 +18,7 @@ export default async function BrandingSettingsPage() {
 
   return (
     <div className="space-y-6">
-      <SettingsHeader title="Marca" description="El nombre, los colores y el ícono con los que tu equipo ve Dashfort." />
+      <SettingsHeader mobileTitle title="Marca" description="El nombre, los colores y el ícono con los que tu equipo ve Dashfort." />
       {/* El logo viaja como prop: al subirlo o quitarlo, FaviconCard refresca
           la página y la vista previa de la marca lo sigue sin recargar. */}
       <BrandingClient favicon={branding.favicon} />

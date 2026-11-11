@@ -26,7 +26,7 @@ export default async function DirectConnectionPage() {
         <ChevronLeft className="h-4 w-4" strokeWidth={1.8} />
         Canales y conexiones
       </Link>
-      <SettingsHeader title={DIRECT_TEXT.moduleName} description={DIRECT_TEXT.pageIntro} />
+      <SettingsHeader mobileTitle title={DIRECT_TEXT.moduleName} description={DIRECT_TEXT.pageIntro} />
       <DirectConnectionCard />
       {can(session, "direct_connection.limits") && (
         <DirectAdvancedCard canApplyAll={can(session, "direct_connection.mode") && session.access.seesAll} />

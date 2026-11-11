@@ -148,6 +148,7 @@ export function NavigationSettingsClient() {
   return (
     <div className="space-y-6">
       <SettingsHeader
+        mobileTitle
         title="Navegación"
         description="Qué entradas del menú ve cada rol y en qué orden. Es solo apariencia: lo que un rol no puede abrir no aparece aunque lo marques, y ocultar algo no le quita el permiso."
       />

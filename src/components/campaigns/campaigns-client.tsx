@@ -39,7 +39,7 @@ function Stat({ label, value, hint, testId }: { label: string; value: string; hi
     <div className="min-w-0 rounded-lg border bg-card px-4 py-3" data-testid={testId}>
       <p className="text-xs text-text-2">{label}</p>
       <p className="mt-1 truncate text-2xl font-semibold tracking-tight">{value}</p>
-      <p className="mt-0.5 truncate text-xs text-text-3">{hint}</p>
+      <p className="mt-0.5 line-clamp-2 text-xs text-text-3">{hint}</p>
     </div>
   );
 }

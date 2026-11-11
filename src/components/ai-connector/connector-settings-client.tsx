@@ -67,7 +67,7 @@ export function ConnectorSettingsClient() {
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0 flex-1 space-y-1">
+        <div className="min-w-[min(100%,16rem)] flex-1 space-y-1">
           <h2 className="text-[22px] font-semibold tracking-tight max-lg:hidden">Conector del equipo</h2>
           <p className="text-[13.5px] leading-relaxed text-text-2">
             Decide si tu equipo puede conectar su propia IA y qué puede hacer. La IA entra con la cuenta de cada
