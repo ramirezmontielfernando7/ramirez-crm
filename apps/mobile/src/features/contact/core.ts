@@ -251,9 +251,25 @@ export class ContactStore {
     if (this.hydration) return this.hydration;
     this.hydration = (async () => {
       try {
-        this.authorize();
+        const before = this.authorize();
         const raw = await this.directory.storage.get(this.storageKey);
-        const data = raw ? decodeDetails(raw) : this.state.data;
+        let data = raw ? decodeDetails(raw) : this.state.data;
+        const current = this.authorize();
+        if (current.stage !== before.stage)
+          data = {
+            ...data,
+            stage: current.stage,
+            lossReason:
+              current.stage === "Perdido"
+                ? data.lossReason || "Sin respuesta"
+                : "",
+            lossDetail: current.stage === "Perdido" ? data.lossDetail : "",
+          };
+        if (current.assigned !== before.assigned)
+          data = { ...data, assigned: current.assigned };
+        if (JSON.stringify(current.tags) !== JSON.stringify(before.tags))
+          data = { ...data, tags: current.tags };
+        if (current.ai !== before.ai) data = { ...data, ai: current.ai };
         if (this.actor.role === "advisor" && data.assigned !== this.actor.id)
           throw new Error("Los detalles no pertenecen a tu alcance.");
         this.basePatch(data);
@@ -366,6 +382,7 @@ export class ContactStore {
         } finally {
           this.directory.activeWrites--;
           this.patch({ saving: false });
+          this.reconcile();
         }
       })
       .catch((e) => {

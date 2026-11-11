@@ -264,6 +264,7 @@ test("concurrent inbox change is detected instead of overwritten", async () => {
   };
   await assert.rejects(f.store.stage("Cliente"), /cambió/);
   assert.equal(f.repo.get(owner, f.store.id).stage, "Nuevo");
+  assert.equal(f.store.snapshot().data.stage, "Nuevo");
   assert.notEqual(
     decodeDetails(f.storage.data.get(f.store.storageKey)!).stage,
     "Cliente",
@@ -379,4 +380,56 @@ test("cached details reconcile T-M2 assignment/stage changes without extra notif
   assert.equal(notifications, 1);
   await f.store.note("Datos actuales");
   assert.equal(f.store.snapshot().data.stage, "Cliente");
+});
+test("inbox changes during hydration are not replaced by stale saved fields", async () => {
+  const f = fixture();
+  await f.store.hydrate();
+  await f.store.sale(50000, "Alta");
+  const restored = new ContactDirectory(owner, f.repo, f.storage, () => {}).get(
+    f.store.id,
+  );
+  let release = () => {};
+  const gate = new Promise<void>((r) => (release = r));
+  const original = f.storage.get;
+  f.storage.get = async (k) => {
+    await gate;
+    return original(k);
+  };
+  const loading = restored.hydrate();
+  f.repo.updateContact(owner, f.store.id, {
+    stage: "Cliente",
+    assigned: "demo-coordinator",
+  });
+  release();
+  await loading;
+  assert.equal(f.repo.get(owner, f.store.id).stage, "Cliente");
+  assert.equal(restored.snapshot().data.stage, "Cliente");
+  assert.equal(restored.snapshot().data.assigned, "demo-coordinator");
+  assert.equal(restored.snapshot().data.amountCents, 50000);
+});
+test("incoming preview during hydration does not discard saved contact fields", async () => {
+  const f = fixture();
+  await f.store.hydrate();
+  await f.store.stage("Cliente");
+  const repo = new DemoConversationRepository();
+  const restored = new ContactDirectory(owner, repo, f.storage, () => {}).get(
+    f.store.id,
+  );
+  let release = () => {};
+  const gate = new Promise<void>((r) => (release = r));
+  const original = f.storage.get;
+  f.storage.get = async (k) => {
+    await gate;
+    return original(k);
+  };
+  const loading = restored.hydrate();
+  repo.incoming(owner, f.store.id);
+  release();
+  await loading;
+  assert.equal(restored.snapshot().data.stage, "Cliente");
+  assert.equal(repo.get(owner, f.store.id).stage, "Cliente");
+  assert.equal(
+    repo.get(owner, f.store.id).preview,
+    "Mensaje entrante de prueba",
+  );
 });
