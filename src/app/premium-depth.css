@@ -1,0 +1,330 @@
+/*
+  Demfort Profundo · estilo de interfaz opcional (Ajustes → Personalización →
+  Apariencia). Solo con [data-ui="depth"]; «Clásico» (el de fábrica) y
+  «Demfort Premium» no se enteran. Es SOLO visual: no cambia funciones, datos
+  ni medidas de las piezas (nada de márgenes ni anchos nuevos).
+
+  Qué hace: luz suave de marca detrás de las ventanas, sombras en capas con
+  tinte de marca, menú de vidrio, un tono por cliente en el avatar
+  (`data-hue`, de avatar.tsx), cada columna del Pipeline teñida con el color de
+  su etapa (`--stage`, de pipeline-client.tsx), chat con textura y la IA con
+  brillo lila. El acento sale del white-label (--accent), nunca escrito a mano.
+  Las listas largas no llevan filtros (blur) por fila: solo el menú, el
+  encabezado del chat y la barra del celular, una vez cada uno.
+*/
+[data-ui="depth"] {
+  --dp-ink: 12, 46, 56;
+  --dp-canvas: #e8eef1;
+  --dp-glow-a: color-mix(in srgb, var(--accent) 20%, transparent);
+  --dp-glow-b: rgba(80, 140, 220, 0.16);
+  --dp-raised: #ffffff;
+  --dp-glass: rgba(255, 255, 255, 0.64);
+  --dp-glass-edge: rgba(255, 255, 255, 0.7);
+  --dp-thread: #eaf2f3;
+  --dp-dots: rgba(12, 46, 56, 0.075);
+  --dp-ai-a: #f6f2ff;
+  --dp-ai-b: #e7defe;
+  --dp-ai-edge: rgba(124, 92, 230, 0.18);
+  --dp-ai-glow: rgba(91, 63, 184, 0.6);
+  --dp-grad: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--accent) 82%, #ffffff) 0%,
+    var(--accent) 55%,
+    color-mix(in srgb, var(--accent) 86%, #000000) 100%
+  );
+  --dp-raise:
+    0 0 0 1px rgba(var(--dp-ink), 0.06),
+    0 2px 4px rgba(var(--dp-ink), 0.06),
+    0 10px 24px -10px rgba(var(--dp-ink), 0.22);
+  --dp-glow: 0 8px 20px -8px color-mix(in srgb, var(--accent) 60%, transparent);
+  --surface-base: #eaeff2;
+  --surface-sunken: #f3f6f8;
+  --border: #e3e9ec;
+  --border-strong: #d5dee2;
+  --row-hover: #f2f6f7;
+  --radius-card: 14px;
+  --radius-panel: 20px;
+  --shadow-card:
+    0 0 0 1px rgba(var(--dp-ink), 0.05),
+    0 1px 2px rgba(var(--dp-ink), 0.05),
+    0 6px 16px -8px rgba(var(--dp-ink), 0.14);
+  --shadow-panel:
+    0 0 0 1px rgba(var(--dp-ink), 0.05),
+    0 1px 2px rgba(var(--dp-ink), 0.04),
+    0 12px 32px -12px rgba(var(--dp-ink), 0.16),
+    0 32px 64px -32px rgba(var(--dp-ink), 0.14);
+}
+:root[data-theme="dark"][data-ui="depth"],
+:root[data-theme="dark"] [data-ui="depth"] {
+  --dp-ink: 0, 0, 0;
+  --dp-canvas: #0b1417;
+  --dp-glow-a: color-mix(in srgb, var(--accent) 18%, transparent);
+  --dp-glow-b: rgba(80, 120, 220, 0.12);
+  --dp-raised: var(--bg-raised);
+  --dp-glass: rgba(24, 34, 38, 0.66);
+  --dp-glass-edge: rgba(255, 255, 255, 0.06);
+  --dp-thread: #0f1a1d;
+  --dp-dots: rgba(255, 255, 255, 0.05);
+  --dp-ai-a: #2a2250;
+  --dp-ai-b: #221b44;
+  --dp-ai-edge: rgba(167, 139, 250, 0.22);
+  --dp-ai-glow: rgba(0, 0, 0, 0.6);
+  --surface-base: #0d1619;
+  --surface-sunken: #111c20;
+  --border: #22313a;
+  --border-strong: #2c3d46;
+  --row-hover: #16242a;
+  --shadow-card: 0 0 0 1px rgba(255, 255, 255, 0.05), 0 8px 20px -10px rgba(0, 0, 0, 0.7);
+  --shadow-panel: 0 0 0 1px rgba(255, 255, 255, 0.05), 0 18px 40px -16px rgba(0, 0, 0, 0.8);
+  --dp-raise: 0 0 0 1px rgba(255, 255, 255, 0.07), 0 10px 24px -10px rgba(0, 0, 0, 0.8);
+}
+
+/* ── Lienzo: luz de marca detrás de todo ─────────────────────────── */
+[data-ui="depth"] .shell-root {
+  background-color: var(--dp-canvas);
+  background-image:
+    radial-gradient(900px 520px at 8% -8%, var(--dp-glow-a), transparent 60%),
+    radial-gradient(900px 600px at 105% 110%, var(--dp-glow-b), transparent 60%);
+}
+[data-ui="depth"] .shell-content {
+  border-color: transparent;
+  box-shadow: var(--shadow-panel);
+}
+
+/* ── Menú lateral de vidrio; el renglón activo flota ─────────────── */
+@media (min-width: 1024px) {
+  [data-ui="depth"] .shell-root > aside {
+    background-color: var(--dp-glass);
+    backdrop-filter: blur(22px) saturate(1.4);
+    border-color: var(--dp-glass-edge);
+    box-shadow: var(--shadow-panel);
+  }
+}
+[data-ui="depth"] aside a.bg-brand-tint {
+  position: relative;
+  background-color: var(--dp-raised);
+  box-shadow: var(--dp-raise);
+}
+[data-ui="depth"] aside a.bg-brand-tint::before {
+  content: "";
+  position: absolute;
+  left: -6px;
+  top: 9px;
+  bottom: 9px;
+  width: 3px;
+  border-radius: 3px;
+  background: var(--dp-grad);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 70%, transparent);
+}
+[data-ui="depth"] .nav-logo-btn {
+  box-shadow: 0 6px 14px -6px color-mix(in srgb, var(--accent) 70%, transparent);
+}
+
+/* ── Pestañas en píldora y menú de Ajustes: el activo flota ──────── */
+[data-ui="depth"] [data-page-header] a.bg-brand-tint,
+[data-ui="depth"] a.bg-brand-tint.rounded-md,
+[data-ui="depth"] a[aria-current="page"].bg-brand-soft {
+  background-color: var(--dp-raised);
+  box-shadow: var(--dp-raise);
+}
+[data-ui="depth"] a[aria-current="page"].bg-brand-soft {
+  box-shadow: inset 3px 0 0 var(--accent), var(--dp-raise);
+}
+
+/* ── Botón principal: degradado con brillo ───────────────────────── */
+[data-ui="depth"] .bg-primary,
+[data-ui="depth"] button.bg-brand,
+[data-ui="depth"] a.bg-brand {
+  background-image: var(--dp-grad);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.26), var(--dp-glow);
+}
+
+/* ── Tarjetas sin línea: la sombra las separa ────────────────────── */
+[data-ui="depth"] [data-pm="card-ui"],
+[data-ui="depth"] [data-pm="panel"],
+[data-ui="depth"] a.rounded-card.border,
+[data-ui="depth"] button.rounded-card.border {
+  border-color: transparent;
+  box-shadow: var(--shadow-card);
+}
+
+/* ── Avatar: un tono por persona ─────────────────────────────────── */
+[data-ui="depth"] [data-avatar] {
+  --dp-av: linear-gradient(140deg, color-mix(in srgb, var(--accent) 78%, #ffffff), color-mix(in srgb, var(--accent) 85%, #000000));
+  background: var(--dp-av);
+  color: #ffffff;
+  box-shadow: 0 0 0 2px var(--surface), 0 4px 10px -3px rgba(var(--dp-ink), 0.35);
+}
+[data-ui="depth"] [data-avatar][data-hue="1"] { --dp-av: linear-gradient(140deg, #6aa2ff, #2f5fd0); }
+[data-ui="depth"] [data-avatar][data-hue="2"] { --dp-av: linear-gradient(140deg, #b192ff, #6d45d9); }
+[data-ui="depth"] [data-avatar][data-hue="3"] { --dp-av: linear-gradient(140deg, #f7b04b, #d97a12); }
+[data-ui="depth"] [data-avatar][data-hue="4"] { --dp-av: linear-gradient(140deg, #ff8fa3, #d64563); }
+[data-ui="depth"] [data-avatar][data-hue="5"] { --dp-av: linear-gradient(140deg, #5fd68f, #1a9a52); }
+
+/* ── Bandeja: el chat abierto es una tarjeta elevada ─────────────── */
+[data-ui="depth"] .inbox-row {
+  border-color: transparent;
+}
+[data-ui="depth"] .inbox-row > [data-conversation-row] {
+  margin: 3px 8px;
+  border-radius: 14px;
+}
+[data-ui="depth"] .inbox-row[data-active="true"] > [data-conversation-row] {
+  background-color: var(--dp-raised);
+  background-image: linear-gradient(100deg, color-mix(in srgb, var(--accent) 10%, transparent), transparent 55%);
+  box-shadow: inset 3px 0 0 var(--accent), var(--dp-raise);
+}
+[data-ui="depth"] .inbox-scroll {
+  background-image: linear-gradient(180deg, transparent, var(--surface-sunken));
+}
+[data-ui="depth"] .row-stage {
+  font-weight: 600;
+  background-color: var(--surface);
+  box-shadow: 0 0 0 1px rgba(var(--dp-ink), 0.1);
+}
+
+/* ── Chat: encabezado de vidrio, hilo con textura, IA con brillo ─── */
+[data-ui="depth"] [data-pm="chat-head"] {
+  position: relative;
+  z-index: 2;
+  box-shadow: 0 8px 20px -16px rgba(var(--dp-ink), 0.5);
+}
+[data-ui="depth"]:not([data-chat="whatsapp"]) .thread-bg {
+  background-color: var(--dp-thread);
+  background-image:
+    radial-gradient(var(--dp-dots) 1px, transparent 1.3px),
+    radial-gradient(700px 380px at 100% 0%, rgba(139, 92, 246, 0.1), transparent 60%),
+    radial-gradient(700px 380px at 0% 100%, var(--dp-glow-a), transparent 60%);
+  background-size: 18px 18px, 100% 100%, 100% 100%;
+}
+[data-ui="depth"]:not([data-chat="whatsapp"]) .bubble-in {
+  border-color: transparent;
+  border-radius: 6px 18px 18px 18px;
+  box-shadow: 0 1px 1px rgba(var(--dp-ink), 0.06), 0 4px 12px -6px rgba(var(--dp-ink), 0.18);
+}
+[data-ui="depth"]:not([data-chat="whatsapp"]) .bubble-out {
+  border-radius: 18px 6px 18px 18px;
+  box-shadow: 0 8px 18px -12px color-mix(in srgb, var(--accent) 80%, transparent);
+}
+[data-ui="depth"]:not([data-chat="whatsapp"]) .bubble-ai {
+  background: linear-gradient(150deg, var(--dp-ai-a), var(--dp-ai-b));
+  border: 1px solid var(--dp-ai-edge);
+  box-shadow: 0 10px 24px -14px var(--dp-ai-glow);
+}
+[data-ui="depth"] .day-pill {
+  border-color: transparent;
+  box-shadow: 0 2px 8px -2px rgba(var(--dp-ink), 0.18);
+}
+[data-ui="depth"] .composer-box {
+  border-color: transparent;
+  border-radius: 18px;
+  box-shadow: 0 0 0 1px rgba(var(--dp-ink), 0.08), 0 12px 30px -14px rgba(var(--dp-ink), 0.3);
+}
+
+/* ── Pipeline: cada columna con el color de su etapa ─────────────── */
+[data-ui="depth"] [data-pm="col"] {
+  --dp-stage: var(--stage, var(--text-3));
+  position: relative;
+  overflow: hidden;
+  border-color: transparent;
+  border-radius: 18px;
+  background-color: var(--surface);
+  background-image: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--dp-stage) 12%, transparent) 0%,
+    color-mix(in srgb, var(--dp-stage) 3%, transparent) 40%,
+    transparent 100%
+  );
+  box-shadow: inset 0 0 0 1px rgba(var(--dp-ink), 0.06);
+}
+[data-ui="depth"] [data-pm="col"]::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 4px;
+  background: linear-gradient(90deg, var(--dp-stage), color-mix(in srgb, var(--dp-stage) 45%, transparent));
+}
+[data-ui="depth"] [data-pm="col-head"] {
+  padding-top: 14px;
+}
+[data-ui="depth"] [data-pm="col-count"] {
+  border-radius: 999px;
+  padding: 1px 8px;
+  font-weight: 600;
+  color: var(--dp-stage);
+  background-color: color-mix(in srgb, var(--dp-stage) 13%, transparent);
+}
+[data-ui="depth"] [data-pm="col"] [data-pm="card"] {
+  border-color: transparent;
+  border-radius: 14px;
+  background-color: var(--dp-raised);
+  box-shadow: inset 3px 0 0 var(--dp-stage), var(--dp-raise);
+}
+[data-ui="depth"] [data-pm="col-add"] {
+  border: 1.5px dashed color-mix(in srgb, var(--dp-stage) 35%, transparent);
+  border-radius: 12px;
+}
+
+/* ── Contactos: la fila se ilumina al pasar ──────────────────────── */
+[data-ui="depth"] [data-pm="row"] {
+  border-color: rgba(var(--dp-ink), 0.06);
+}
+[data-ui="depth"] [data-pm="row"]:hover {
+  background-image: linear-gradient(90deg, color-mix(in srgb, var(--accent) 7%, transparent), transparent);
+}
+
+/* ── Resultados: cifras con línea de color, barras en degradado ──── */
+[data-ui="depth"] [data-pm="tile"] {
+  position: relative;
+  overflow: hidden;
+  border-color: transparent;
+  border-radius: 14px;
+  background-color: var(--surface);
+  box-shadow: var(--shadow-card);
+}
+[data-ui="depth"] [data-pm="tile"]::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 3px;
+  background: var(--dp-grad);
+}
+[data-ui="depth"] [data-pm="tile"]:nth-child(6n + 2)::before { background: linear-gradient(90deg, #1fb35b, #62d38f); }
+[data-ui="depth"] [data-pm="tile"]:nth-child(6n + 3)::before { background: linear-gradient(90deg, #3d7bf0, #86b0ff); }
+[data-ui="depth"] [data-pm="tile"]:nth-child(6n + 4)::before { background: linear-gradient(90deg, #d94a4a, #ef8a8a); }
+[data-ui="depth"] [data-pm="tile"]:nth-child(6n + 5)::before { background: linear-gradient(90deg, #8b5cf6, #b79cff); }
+[data-ui="depth"] [data-pm="tile"]:nth-child(6n)::before { background: linear-gradient(90deg, #f2a71b, #f7c95f); }
+[data-ui="depth"] [data-pm="tile-value"] {
+  font-size: 1.5em;
+  letter-spacing: -0.02em;
+}
+[data-ui="depth"] .bg-brand.rounded-t-\[4px\],
+[data-ui="depth"] .bg-brand.rounded-r-\[4px\] {
+  background-image: linear-gradient(180deg, color-mix(in srgb, var(--accent) 70%, #ffffff), color-mix(in srgb, var(--accent) 88%, #000000));
+}
+
+/* ── Primeros pasos y Estudio de IA ──────────────────────────────── */
+[data-ui="depth"] [data-onboarding] {
+  border-color: transparent;
+  border-radius: 22px;
+  box-shadow: var(--shadow-panel);
+  background-image:
+    radial-gradient(420px 160px at 100% 0%, var(--dp-glow-a), transparent 70%),
+    radial-gradient(300px 140px at 0% 0%, rgba(139, 92, 246, 0.1), transparent 70%);
+}
+[data-ui="depth"] [data-ai-switch] {
+  border-radius: 18px;
+  box-shadow: 0 14px 30px -18px color-mix(in srgb, var(--warning) 70%, transparent), var(--shadow-card);
+}
+[data-ui="depth"] [data-ai-switch="on"] {
+  box-shadow: 0 14px 30px -18px color-mix(in srgb, var(--success) 70%, transparent), var(--shadow-card);
+}
+
+/* ── Celular: barra inferior de vidrio ───────────────────────────── */
+@media (max-width: 1023px) {
+  [data-ui="depth"] .mobile-tabbar {
+    background-color: var(--dp-glass);
+    backdrop-filter: blur(20px) saturate(1.5);
+    box-shadow: 0 -12px 30px -18px rgba(var(--dp-ink), 0.35);
+  }
+}

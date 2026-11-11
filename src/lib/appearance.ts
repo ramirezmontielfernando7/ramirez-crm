@@ -50,14 +50,17 @@ export const DEFAULT_CHAT_STYLE: ChatStyle = "classic";
 /**
  * Estilo de interfaz de TODO el CRM (menús, tarjetas, tablas, chat). «Clásico»
  * es el de siempre y no escribe CSS; «Demfort Premium» redefine los tokens de
- * color y forma con `[data-ui="premium"]` (globals.css).
+ * color y forma con `[data-ui="premium"]` (globals.css). «Demfort Profundo»
+ * (`[data-ui="depth"]`, premium-depth.css) deja la marca de la casa y suma luz
+ * de fondo, sombras en capas, un color por cliente y el color de cada etapa.
  */
-export const UI_STYLES = ["classic", "premium"] as const;
+export const UI_STYLES = ["classic", "premium", "depth"] as const;
 export type UiStyle = (typeof UI_STYLES)[number];
 
 export const UI_STYLE_LABELS: Record<UiStyle, string> = {
   classic: "Clásico",
   premium: "Demfort Premium",
+  depth: "Demfort Profundo",
 };
 
 export const DEFAULT_UI_STYLE: UiStyle = "classic";

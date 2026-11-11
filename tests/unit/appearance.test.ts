@@ -220,8 +220,9 @@ describe("Fase D — estilo del chat", () => {
 
 describe("Demfort Premium — estilo de interfaz", () => {
   it("hay dos estilos, «Clásico» es el de fábrica y valores ajenos caen a él", () => {
-    expect([...UI_STYLES]).toEqual(["classic", "premium"]);
+    expect([...UI_STYLES]).toEqual(["classic", "premium", "depth"]);
     expect(UI_STYLE_LABELS.premium).toBe("Demfort Premium");
+    expect(UI_STYLE_LABELS.depth).toBe("Demfort Profundo");
     expect(DEFAULT_APPEARANCE.uiStyle).toBe("classic");
     expect(normalizeOrgAppearance({ uiStyle: "neon" }).uiStyle).toBe("classic");
     expect(normalizeOrgAppearance({ uiStyle: "premium" }).uiStyle).toBe("premium");

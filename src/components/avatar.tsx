@@ -8,12 +8,13 @@ import { cn, contactInitials } from "@/lib/utils";
  */
 export function ContactAvatar({
   name,
+  seed,
   size = "md",
   className,
 }: {
   className?: string;
   name: string;
-  /** Ya no tiñe el avatar; se acepta para no tocar a quienes aún lo pasan. */
+  /** Clave estable para el tono del avatar (solo en el estilo Profundo); sin ella, el nombre. */
   seed?: string;
   size?: "xs" | "sm" | "list" | "md" | "lg";
 }) {
@@ -26,6 +27,7 @@ export function ContactAvatar({
     lg: "h-14 w-14 text-[18px]",
   } as const;
   const text = contactInitials(name);
+  const hue = avatarHue(seed ?? name);
   return (
     <div
       className={cn(
@@ -36,6 +38,8 @@ export function ContactAvatar({
         className
       )}
       aria-hidden
+      data-avatar
+      data-hue={hue}
     >
       {text || (
         <svg viewBox="0 0 24 24" className="h-[62%] w-[62%]" fill="currentColor" data-avatar-silhouette>
@@ -45,4 +49,15 @@ export function ContactAvatar({
       )}
     </div>
   );
+}
+
+/**
+ * Uno de seis tonos, estable por persona. Solo lo pinta el estilo «Demfort
+ * Profundo» (`[data-ui="depth"] [data-avatar][data-hue]`); Clásico y Premium
+ * siguen con el tono de marca.
+ */
+export function avatarHue(key: string): number {
+  let h = 0;
+  for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) >>> 0;
+  return h % 6;
 }

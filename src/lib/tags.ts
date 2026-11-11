@@ -60,6 +60,27 @@ const STAGE_TOKEN_BY_NAME: Record<string, string> = {
   Perdido: "var(--danger)",
 };
 
+/** Color de la etapa como valor CSS (el estilo Profundo tiñe la columna con él). */
+const STAGE_COLOR_VALUE: Record<TagColor, string> = {
+  gris: "var(--text-3)",
+  azul: "var(--accent)",
+  verde: "#10b981",
+  ambar: "#f59e0b",
+  rojo: "#ef4444",
+  morado: "#8b5cf6",
+};
+
+export function stageColorValue(
+  color: string | null | undefined,
+  name: string | null | undefined,
+  kind?: "open" | "won" | "lost" | string
+): string {
+  if (isTagColor(color)) return STAGE_COLOR_VALUE[color];
+  if (kind === "won") return "var(--success)";
+  if (kind === "lost") return "var(--danger)";
+  return STAGE_TOKEN_BY_NAME[name ?? ""] ?? "var(--text-3)";
+}
+
 export type StageDot = { className: string; style?: { background: string } };
 
 export function stageDot(color: string | null | undefined, name: string | null | undefined): StageDot {
