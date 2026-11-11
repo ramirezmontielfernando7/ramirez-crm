@@ -50,3 +50,5 @@ jobs:
           ignore-unfixed: true
           exit-code: "1"
           skip-dirs: node_modules
+          trivyignores: .trivyignore
+          version: v0.69.3
