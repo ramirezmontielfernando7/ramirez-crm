@@ -188,6 +188,8 @@ export const invitation = pgTable("invitation", {
   inviterId: text("inviter_id")
     .notNull()
     .references(() => user.id, { onDelete: "cascade" }),
+  // 0075: better-auth 1.7 la exige al arrancar (revisa el esquema).
+  createdAt: timestamp("created_at").notNull().defaultNow(),
 }, (t) => [
   // Fase 1 (H20): la app no usa invitaciones todavía (Fase 3), pero el
   // filtro por organización es el que aplicará RLS en el PR 4.

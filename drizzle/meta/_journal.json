@@ -519,6 +519,13 @@
       "when": 1794261600000,
       "tag": "0074_grupos_whatsapp",
       "breakpoints": true
+    },
+    {
+      "idx": 75,
+      "version": "7",
+      "when": 1794348000000,
+      "tag": "0075_invitacion_created_at",
+      "breakpoints": true
     }
   ]
 }
