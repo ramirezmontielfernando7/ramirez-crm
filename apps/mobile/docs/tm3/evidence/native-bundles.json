@@ -1,0 +1,10 @@
+{
+  "android": {
+    "bytes": 5409485,
+    "sha256": "e073d5287dd384e368ada00dd608ca53b8a1d0bdba46bc4b92406ba5a039fa78"
+  },
+  "ios": {
+    "bytes": 5420966,
+    "sha256": "795b96bd5ffd9a4611f833174d8c8793136eb60e0a58a19a3ac66db8ec644bcb"
+  }
+}

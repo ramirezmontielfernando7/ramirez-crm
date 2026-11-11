@@ -15,14 +15,14 @@ INB-09,Bandeja · pestaña Campañas,T-M2,Implementada con simulacion T-M2 / QA 
 INB-04,Menú ⋮ de la Bandeja,T-M2,Implementada con simulacion T-M2 / QA navegador,Pendiente dispositivo
 INB-05,Filtros de la Bandeja,T-M2,Implementada con simulacion T-M2 / QA navegador,Pendiente dispositivo
 INB-10,Nuevo chat,T-M2,Implementada con simulacion T-M2 / QA navegador,Pendiente dispositivo
-INB-11,Chat abierto,T-M3,Pendiente,Pendiente
-INB-12,Menú ⋮ del chat,T-M3,Pendiente,Pendiente
-INB-13,Adjuntar,T-M3,Pendiente,Pendiente
-INB-14,Respuestas rápidas,T-M3,Pendiente,Pendiente
-INB-15,Biblioteca · enviar material,T-M3,Pendiente,Pendiente
-INB-16,Emojis,T-M3,Pendiente,Pendiente
-INB-17,Enviar plantilla (ventana cerrada),T-M3,Pendiente,Pendiente
-INB-18,Asistente de redacción,T-M3,Pendiente,Pendiente
+INB-11,Chat abierto,T-M3,Implementada · simulación,QA web; nativo pendiente · docs/tm3
+INB-12,Menú ⋮ del chat,T-M3,Implementada · simulación,QA web; nativo pendiente · docs/tm3
+INB-13,Adjuntar,T-M3,Implementada · simulación,QA web; nativo pendiente · docs/tm3
+INB-14,Respuestas rápidas,T-M3,Implementada · simulación,QA web; nativo pendiente · docs/tm3
+INB-15,Biblioteca · enviar material,T-M3,Implementada · simulación,QA web; nativo pendiente · docs/tm3
+INB-16,Emojis,T-M3,Implementada · simulación,QA web; nativo pendiente · docs/tm3
+INB-17,Enviar plantilla (ventana cerrada),T-M3,Implementada · simulación,QA web; nativo pendiente · docs/tm3
+INB-18,Asistente de redacción,T-M3,Implementada · simulación,QA web; nativo pendiente · docs/tm3
 INB-19,Detalles del contacto,T-M4,Pendiente,Pendiente
 INB-20,Historial del chat,T-M4,Pendiente,Pendiente
 INB-21,Cambiar etapa,T-M4,Pendiente,Pendiente
@@ -32,9 +32,9 @@ INB-24,IA en este chat,T-M4,Pendiente,Pendiente
 INB-30,Conexión del chat,T-M4,Pendiente,Pendiente
 INB-25,Motivo de pérdida,T-M4,Pendiente,Pendiente
 INB-26,Nueva tarea para este chat,T-M4,Pendiente,Pendiente
-INB-27,Visor de imagen,T-M3,Pendiente,Pendiente
-INB-28,Eliminar chat,T-M3,Pendiente,Pendiente
-INB-29,Mensaje no entregado,T-M3,Pendiente,Pendiente
+INB-27,Visor de imagen,T-M3,Implementada · simulación,QA web; nativo pendiente · docs/tm3
+INB-28,Eliminar chat,T-M3,Implementada · simulación,QA web; nativo pendiente · docs/tm3
+INB-29,Mensaje no entregado,T-M3,Implementada · simulación,QA web; nativo pendiente · docs/tm3
 EQP-01,Equipo · lista de conversaciones,T-M6,Pendiente,Pendiente
 EQP-02,Chat de equipo,T-M6,Pendiente,Pendiente
 EQP-06,Chat de equipo · supervisión,T-M6,Pendiente,Pendiente

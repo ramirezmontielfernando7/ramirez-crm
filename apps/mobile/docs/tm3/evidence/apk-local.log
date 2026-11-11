@@ -1,0 +1,5 @@
+
+> dashfort-mobile-dev@0.1.0 apk:local
+> bash scripts/build-apk-local.sh
+
+APK no generada: falta Android SDK Platform 37. Consulta docs/APK-LOCAL.md.

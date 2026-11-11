@@ -12,3 +12,6 @@ Usar npm desde esta carpeta y conservar package-lock.json. Verificar con typeche
 
 ## Ejecución actual T-M2
 La autorización más reciente crea `codex/dashfort-mobile-tm2-20261110` desde la rama móvil T-M1 en `5b4c7e5`. T-M2 implementa INB-01…10; consultar docs/tm2. No iniciar T-M3 ni hacer push, PR, merge o deploy. El destino conversation/[id] solo comprueba el regreso y no cuenta como INB-11. Las notas T-M1 anteriores son históricas.
+
+## Ejecución actual T-M3 (sustituye el siguiente paso histórico)
+La autorización vigente crea `codex/dashfort-mobile-tm3-20261111` desde el respaldo T-M2 `6b4cccf6e80fd3d7810194985e0d81b25fdd5b48`. T-M1/T-M2 permanecen en el historial. Chat sustituye el destino de regreso de prueba e implementa INB-11…18, INB-27…29 en simulación; ver docs/tm3. Las acciones de detalle/asignación/etapas de T-M4 siguen fuera del alcance. No iniciar T-M4 ni hacer push, PR, merge, tags, releases o despliegues. Solo apps/mobile. No conectar WhatsApp/IA/servicios reales. Mantener las comprobaciones de posición visible de Bandeja e historial al cambiar la lista virtual. Los exports nativos son bundles Hermes, no APK/IPA ni QA nativo.

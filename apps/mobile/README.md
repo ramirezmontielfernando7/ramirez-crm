@@ -1,6 +1,6 @@
-# Dashfort Mobile · T-M1 + T-M2
+# Dashfort Mobile · T-M1 + T-M2 + T-M3
 
-Avance actual: T-M2 (Bandeja). Ver `docs/tm2/IMPLEMENTACION.md` y `docs/tm2/RESULTADOS.md`. T-M1 se conserva como base; su informe histórico está en `docs/AVANCE.md`.
+Avance actual: T-M3 (Chat simulado). Ver `docs/tm3/IMPLEMENTACION.md`, `docs/tm3/RESULTADOS.md` y `docs/tm3/comparacion.html`. T-M1 y T-M2 se conservan; sus informes históricos están en `docs/AVANCE.md` y `docs/tm2/RESULTADOS.md`.
 
 App nativa Android/iOS con React Native + Expo + TypeScript. Demo **ficticia**, aislada del CRM, backend y TWA. No contiene WebView, APIs productivas ni servicios de pago.
 
@@ -26,4 +26,6 @@ npm run apk:local       # Requiere SDK Android; no llama a EAS
 
 La versión web sirve solo para QA del código React Native; no es evidencia de ejecución en Android/iOS. Ver `docs/AVANCE.md`, `docs/ARQUITECTURA.md`, `docs/APK-LOCAL.md`, `docs/PLAN.md` y `docs/cobertura.csv`. La APK aún depende de completar el entorno Android y sus pruebas.
 
-Trabajar solo dentro de esta carpeta, en la rama `codex/dashfort-mobile-tm2-20261110`. No lanzar los workflows existentes ni publicar OTA. Antes de push: autorización del propietario y verificación de disparadores externos, según `docs/CONSERVACION.md`.
+Trabajar solo dentro de esta carpeta, en la rama `codex/dashfort-mobile-tm3-20261111`. No lanzar los workflows existentes ni publicar OTA. Antes de push: autorización del propietario y verificación de disparadores externos, según `docs/CONSERVACION.md`.
+
+Chat: abrir una conversación desde Bandeja. El menú «Pruebas de chat» permite simular recepción, pérdida de confirmación, offline, paginación fallida y ventana cerrada. Cámara, adjuntos, ubicación, contacto, redacción IA y compartir usan muestras locales: no acceden a servicios ni archivos reales. Los borradores y el vaciado del historial persisten localmente por perfil/chat; los envíos de demostración se mantienen en memoria. No iniciar T-M4 ni hacer push sin autorización.

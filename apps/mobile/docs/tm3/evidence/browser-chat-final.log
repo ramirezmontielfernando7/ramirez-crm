@@ -1,0 +1,19 @@
+
+Running 12 tests using 1 worker
+
+(node:12192) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 tests/browser/chat.spec.ts:44:5 › T-M3 matrix light-390 (10.6s)
+  ✓   2 tests/browser/chat.spec.ts:44:5 › T-M3 matrix dark-390 (11.7s)
+  ✓   3 tests/browser/chat.spec.ts:44:5 › T-M3 matrix light-360 (9.0s)
+  ✓   4 tests/browser/chat.spec.ts:44:5 › T-M3 matrix dark-360 (8.4s)
+  ✓   5 tests/browser/chat.spec.ts:119:1 › persistent draft, safe retry after lost confirmation and sent message appears only once (5.8s)
+  ✓   6 tests/browser/chat.spec.ts:153:1 › closed window requires approved template; a template does not unlock until customer reply (5.4s)
+  ✓   7 tests/browser/chat.spec.ts:182:1 › attachments validate errors, recover a sample and image viewer supports zoom without external sharing (6.1s)
+  ✓   8 tests/browser/chat.spec.ts:236:1 › quick replies, newline, emoji, rewrite preview and undo preserve drafts (5.5s)
+  ✓   9 tests/browser/chat.spec.ts:275:1 › paginated history preserves message identity and recovers page failure (5.0s)
+  ✓  10 tests/browser/chat.spec.ts:314:1 › advisor cannot delete; deleting a chat retains contact and persists local empty history (8.1s)
+  ✓  11 tests/browser/chat.spec.ts:343:1 › older pages and incoming messages preserve the visible anchor away from the bottom (5.8s)
+  ✓  12 tests/browser/chat.spec.ts:412:1 › recoverable data states preserve the draft and reconnect pending incoming once (6.1s)
+
+  12 passed (1.5m)

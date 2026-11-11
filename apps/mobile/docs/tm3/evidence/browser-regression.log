@@ -1,0 +1,36 @@
+
+Running 27 tests using 2 workers
+
+(node:9085) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:9086) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 tests/browser/chat.spec.ts:44:5 › T-M3 matrix light-390 (27.0s)
+  ✓   2 tests/browser/foundation.spec.ts:43:5 › T-M1 galleries and access light-390x844 (27.9s)
+  ✓   3 tests/browser/chat.spec.ts:44:5 › T-M3 matrix dark-390 (13.4s)
+  ✓   4 tests/browser/foundation.spec.ts:43:5 › T-M1 galleries and access dark-390x844 (13.7s)
+  ✓   5 tests/browser/chat.spec.ts:44:5 › T-M3 matrix light-360 (10.5s)
+  ✓   6 tests/browser/foundation.spec.ts:43:5 › T-M1 galleries and access light-360x640 (13.5s)
+  ✓   7 tests/browser/chat.spec.ts:44:5 › T-M3 matrix dark-360 (10.8s)
+  ✓   8 tests/browser/foundation.spec.ts:43:5 › T-M1 galleries and access dark-360x640 (12.9s)
+  ✓   9 tests/browser/chat.spec.ts:119:1 › persistent draft, safe retry after lost confirmation and sent message appears only once (8.4s)
+  ✓  11 tests/browser/chat.spec.ts:153:1 › closed window requires approved template; a template does not unlock until customer reply (6.5s)
+  ✓  10 tests/browser/foundation.spec.ts:113:1 › roles, route guards, recovery and logout (13.4s)
+  ✓  12 tests/browser/chat.spec.ts:182:1 › attachments validate errors, recover a sample and image viewer supports zoom without external sharing (7.8s)
+  ✓  13 tests/browser/foundation.spec.ts:180:1 › form validation, generic auth failure and expired session (5.9s)
+  ✓  14 tests/browser/chat.spec.ts:236:1 › quick replies, newline, emoji, rewrite preview and undo preserve drafts (6.1s)
+  ✓  15 tests/browser/foundation.spec.ts:211:1 › single-use activation and reset, invalid link, repeated password (10.1s)
+  ✓  16 tests/browser/chat.spec.ts:275:1 › paginated history preserves message identity and recovers page failure (8.1s)
+  ✓  17 tests/browser/foundation.spec.ts:256:1 › layers, simulated composer and recoverable data states (5.5s)
+  ✓  18 tests/browser/chat.spec.ts:314:1 › advisor cannot delete; deleting a chat retains contact and persists local empty history (9.9s)
+  ✓  19 tests/browser/inbox.spec.ts:36:5 › T-M2 reference matrix light-390 (9.7s)
+  ✓  20 tests/browser/chat.spec.ts:343:1 › older pages and incoming messages preserve the visible anchor away from the bottom (7.4s)
+  ✓  22 tests/browser/chat.spec.ts:412:1 › recoverable data states preserve the draft and reconnect pending incoming once (12.0s)
+  ✓  21 tests/browser/inbox.spec.ts:36:5 › T-M2 reference matrix dark-390 (15.1s)
+  ✓  23 tests/browser/inbox.spec.ts:36:5 › T-M2 reference matrix light-360 (14.6s)
+  ✓  24 tests/browser/inbox.spec.ts:36:5 › T-M2 reference matrix dark-360 (6.5s)
+  ✓  25 tests/browser/inbox.spec.ts:91:1 › combined filters, archive, assign and preserved selection across tabs (3.9s)
+  ✓  26 tests/browser/inbox.spec.ts:124:1 › advisor cannot enter other conversation and new contact validation is functional (6.3s)
+  ✓  27 tests/browser/inbox.spec.ts:157:1 › virtualized list restores scroll and query after conversation return (7.9s)
+
+  27 passed (2.9m)

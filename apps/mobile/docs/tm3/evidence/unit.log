@@ -1,0 +1,56 @@
+
+> dashfort-mobile-dev@0.1.0 test
+> tsx --test tests/*.test.ts
+
+{"chatMessages":1000,"pageSize":40,"localLogicMs":4.162}
+✔ 24h window is checked at the exact boundary and cannot be opened by sending a template or IA (12.623564ms)
+✔ templates require approval and every variable; library forbids knowledge-only material (0.418009ms)
+✔ history pages are bounded, chronological, scoped and non-overlapping (6.595932ms)
+✔ loading older pages retains identity, serializes concurrent requests and retries the same cursor after error (4.891002ms)
+✔ persistent drafts serialize fast edits and survive a new store without leaking across profiles (4.75652ms)
+✔ storage failures remain visible and retry restores a usable draft; corrupt data is not overwritten (11.859052ms)
+✔ delivery transitions pending → sent → delivered → read with no duplicate for the same key (7.009972ms)
+✔ lost ACK and multipart retries reuse the same message and transport part IDs (5.502373ms)
+✔ expiry after enqueue but before transport is not masked as a successful send (5.543837ms)
+✔ text splitting obeys the mobile/web contract, preserves emoji and rejects over-limit text (1.072339ms)
+✔ attachment metadata validates limits, active content, readable samples and caption length (5.728195ms)
+✔ sending clears the old draft without overwriting newly typed text (5.345106ms)
+✔ deletion is role-protected, retains the contact and persists a local history tombstone (10.200544ms)
+✔ offline receipt queues until reconnect and opens the window only for a customer (6.411239ms)
+✔ transport failure reports and missing acknowledgement never leave a false pending success (12.1537ms)
+✔ sending the first message restores an empty demo view (4.361264ms)
+✔ all 1,000 history items page without gaps, duplication or allocating another conversation (9.379702ms)
+✔ history timestamps stay stable when an older page is loaded hours later (5.465465ms)
+✔ a newly created demo contact begins empty and requires a template (8.477439ms)
+✔ WCAG AA text, buttons, capsules and message metadata in light (1.218612ms)
+✔ WCAG AA text, buttons, capsules and message metadata in dark (0.391277ms)
+✔ navigation exposes exactly 5 / 4 / 3 modules and checks direct access (1.702499ms)
+✔ login validates form and never accepts arbitrary accounts or empty passwords (0.972198ms)
+✔ session lasts 30 days, survives a new repository and is removed on logout (0.727855ms)
+✔ expired, corrupt and forged sessions fail closed and are cleared (0.532383ms)
+✔ activation and reset enforce valid single-use links independently (0.650597ms)
+✔ storage errors do not report successful login or logout (0.387457ms)
+✔ Android Back closes layer before stack, then inbox, then requires double press (0.152439ms)
+✔ simultaneous redemption cannot create two sessions and a failed save rolls back consumption (0.860671ms)
+{"benchmark":"query-10000","samples":60,"p50_ms":0.7102220000000159,"p95_ms":1.4131940000000043}
+✔ 2000 synthetic records have unique stable IDs; normalized search covers accent, phone and tags (9.64162ms)
+✔ repository enforces advisor scope for reads and atomic bulk mutations (5.918886ms)
+✔ combined filters, archive and assignment affect only expected records; unchanged records preserve identity (7.22955ms)
+✔ campaign response moves exactly one conversation into clients (6.339ms)
+✔ new contact validates input, avoids duplicates and cannot reveal out-of-scope contacts (9.531481ms)
+✔ scroll updates do not notify; navigation snapshot retains filters and selection; filter changes reset offset (12.949089ms)
+✔ search benchmark on 10000 records (CPU only, no FPS claim) (74.631232ms)
+✔ offline event catch-up changes cached records only on explicit reconnect (9.777052ms)
+ℹ tests 37
+ℹ suites 0
+ℹ pass 37
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1087.061839
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.2
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.2
+npm notice To update run: npm install -g npm@12.2.2
+npm notice
