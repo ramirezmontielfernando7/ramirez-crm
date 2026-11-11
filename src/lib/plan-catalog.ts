@@ -3,7 +3,7 @@
  * puras y valores de fábrica: lo que el administrador de plataforma cambia
  * (Plataforma → Organizaciones y Planes → «Planes y precios») se guarda en
  * `platform_plan_catalog` y se monta ENCIMA de estos valores; sin fila, valen
- * los de aquí. Precios en pesos mexicanos más IVA. Messenger, Facebook e
+ * los de aquí. Precios en pesos mexicanos con IVA incluido. Messenger, Facebook e
  * Instagram no se ofrecen en ningún plan hasta probarlos.
  *
  * Los topes reales de cada empresa (personas, almacenamiento, IA) viven en su
@@ -11,7 +11,7 @@
  * que el plan promete al cliente en la ventana «Mejora tu plan».
  */
 
-export const CATALOG_SCOPES = ["esencial", "pro", "ultra"] as const;
+export const CATALOG_SCOPES = ["inicio", "esencial", "pro", "ultra"] as const;
 export type CatalogScope = (typeof CATALOG_SCOPES)[number];
 
 export type PlanCatalogEntry = {
@@ -33,43 +33,66 @@ export type PlanCatalogEntry = {
 export type PlanCatalog = Record<CatalogScope, PlanCatalogEntry>;
 
 export const DEFAULT_PLAN_CATALOG: PlanCatalog = {
+  inicio: {
+    scope: "inicio",
+    name: "Inicio",
+    tagline: "Tu WhatsApp de siempre, en equipo",
+    priceMonthlyMxn: 499,
+    priceYearlyMxn: null,
+    implementationFeeMxn: 0,
+    peopleLimit: 2,
+    storageGb: 5,
+    features: ["Tu WhatsApp conectado, sin cambiar de número", "Bandeja compartida y chat de equipo", "Embudo de ventas y contactos", "Sin agentes de IA"],
+    recommended: false,
+  },
   esencial: {
     scope: "esencial",
     name: "Esencial",
     tagline: "Para ordenar tu operación",
-    priceMonthlyMxn: 499,
+    priceMonthlyMxn: 999,
     priceYearlyMxn: null,
     implementationFeeMxn: 0,
     peopleLimit: 3,
-    storageGb: 5,
-    features: ["Bandeja y chat de equipo", "CRM Comercial, Tareas y Notas", "Resultados", "Sin agentes de IA"],
+    storageGb: 15,
+    features: ["Todo Inicio", "Tareas y notas, Biblioteca y Resultados", "1 agente de IA con creador y prueba en vivo", "IA incluida: cupo básico"],
     recommended: false,
   },
   pro: {
     scope: "pro",
     name: "Pro",
     tagline: "Para que la IA atienda por ti",
-    priceMonthlyMxn: 899,
+    priceMonthlyMxn: 1999,
     priceYearlyMxn: null,
-    implementationFeeMxn: 500,
+    implementationFeeMxn: 0,
     peopleLimit: 5,
-    storageGb: 10,
-    features: ["Todo Esencial", "Agentes de IA y Estudio de IA", "Agenda y Atribución de anuncios (Meta)", "IA incluida: cupo estándar"],
+    storageGb: 30,
+    features: ["Todo Esencial", "Estudio de IA completo: varios agentes y documentos", "Agenda y Atribución de anuncios (Meta)", "IA incluida: 3 veces el cupo de Esencial"],
     recommended: true,
   },
   ultra: {
     scope: "ultra",
     name: "Ultra",
     tagline: "Para operar a escala",
-    priceMonthlyMxn: 1799,
+    priceMonthlyMxn: 2999,
     priceYearlyMxn: null,
-    implementationFeeMxn: 500,
-    peopleLimit: 15,
-    storageGb: 50,
+    implementationFeeMxn: 0,
+    peopleLimit: 10,
+    storageGb: 100,
     features: ["Todo Pro", "Campañas masivas", "Asistente interno", "IA incluida: 4 veces el cupo de Pro"],
     recommended: false,
   },
 };
+
+/**
+ * Planes que existen pero NO se ofrecen a clientes nuevos: no salen en «Mejora
+ * tu plan» ni se pueden solicitar. Inicio espera a probar la conexión directa
+ * con números reales. El administrador sí lo ve y lo puede asignar.
+ */
+export const UNSOLD_SCOPES: readonly CatalogScope[] = ["inicio"];
+
+export function isSellable(scope: CatalogScope): boolean {
+  return !UNSOLD_SCOPES.includes(scope);
+}
 
 /** Lo que guarda el administrador: solo lo que cambió; `null`/ausente = el valor de fábrica. */
 export type PlanCatalogOverride = Partial<Omit<PlanCatalogEntry, "scope">>;

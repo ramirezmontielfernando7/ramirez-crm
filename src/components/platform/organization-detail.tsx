@@ -146,7 +146,7 @@ function blockedBy(key: PlatformModuleToggle, m: Modules): string | null {
 /** El orden de los pilares del menú (039), para agrupar los 13. */
 const PILLAR_ORDER = ["Bandeja", "CRM Comercial", "Estudio de IA", "Marketing", "Resultados", "Asistente", "Ajustes"] as const;
 
-const TEMPLATES: ModuleProfile[] = ["esencial", "pro", "ultra"];
+const TEMPLATES: ModuleProfile[] = ["inicio", "esencial", "pro", "ultra"];
 
 export function PlanModulesSection() {
   const { org, refetch } = useOrg();

@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { apiError, parseBody, withAuth } from "@/lib/api";
 import { checkRateLimit, clientIp } from "@/lib/rate-limit";
-import { CATALOG_SCOPES } from "@/lib/plan-catalog";
+import { CATALOG_SCOPES, isSellable } from "@/lib/plan-catalog";
 import { requestPlanChange } from "@/server/plan-catalog/request";
 
 export const dynamic = "force-dynamic";
@@ -17,6 +17,7 @@ export const POST = withAuth(
   async (session, req: Request) => {
     const body = await parseBody(req, schema);
     if (!body.ok) return body.response;
+    if (!isSellable(body.data.plan)) return apiError(422, "plan_not_available", "Ese plan todavía no está disponible.");
     const limit = checkRateLimit(`plan-request:${session.organizationId}`, { windowMs: 60 * 60_000, max: 3 });
     if (!limit.allowed) return apiError(429, "plan_request_rate_limited", "Ya enviaste varias solicitudes. Te contactamos pronto.");
     await requestPlanChange({

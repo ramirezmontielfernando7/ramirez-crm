@@ -37,7 +37,7 @@ const schema = z
     conectorIa: z.boolean().optional(),
     // 040: aplicar la plantilla de un plan (los 13 a la vez); los
     // interruptores sueltos que vengan junto a ella la ajustan.
-    plan: z.enum(["esencial", "pro", "ultra"]).optional(),
+    plan: z.enum(["inicio", "esencial", "pro", "ultra"]).optional(),
   })
   .strict();
 

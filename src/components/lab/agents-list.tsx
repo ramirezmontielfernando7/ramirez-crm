@@ -76,6 +76,14 @@ export function AgentsList() {
   async function startCreator(opts: { idea?: string; form?: boolean }) {
     setBusy(true);
     setError(null);
+    // Plan de UN agente: el creador trabaja sobre el agente general, no crea otro.
+    const general = data && data.maxAgents <= 1 ? data.agents.find((a) => a.isGeneral) : undefined;
+    if (general) {
+      setBusy(false);
+      const q = opts.idea ? `?idea=${encodeURIComponent(opts.idea)}` : opts.form ? "?modo=formulario" : "";
+      router.push(`/lab/agents/${general.id}${q}`);
+      return;
+    }
     const n = (data?.agents.length ?? 0) + 1;
     const r = await call<{ agent: { id: string } }>("/api/lab/agents", {
       method: "POST",
@@ -154,7 +162,7 @@ export function AgentsList() {
           size="sm"
           onClick={() => void startCreator({})}
           disabled={atLimit || busy}
-          title={atLimit ? "Llegaste al máximo de agentes" : undefined}
+          title={atLimit ? (data.maxAgents <= 1 ? "Tu plan incluye 1 agente. Sube de plan para tener varios." : "Llegaste al máximo de agentes") : undefined}
           data-testid="create-agent"
         >
           <Sparkles className="h-4 w-4" /> Crear agente

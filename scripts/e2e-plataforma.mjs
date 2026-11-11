@@ -369,7 +369,7 @@ async function consumoEnPlataforma(A, B, orgB) {
   ok("…y módulos activos «x/13»", /^\d+\/13$/.test((await fila.getByTestId("platform-org-modules-count").last().innerText()).trim()));
   // 040: estado y plan guardado en la fila (la etiqueta amigable).
   const [{ plan_key: planB } = {}] = await sql`select plan_key from organization_plan where organization_id = ${orgB}`;
-  const PLAN_TXT = { esencial: "Plan Esencial", pro: "Plan Pro", ultra: "Plan Ultra", custom: "Personalizado" };
+  const PLAN_TXT = { inicio: "Plan Inicio", esencial: "Plan Esencial", pro: "Plan Pro", ultra: "Plan Ultra", custom: "Personalizado" };
   ok("040: la fila dice su estado y su plan guardado", (await fila.getByTestId("platform-org-status").innerText()) === "Activa" && (await fila.getByTestId("platform-org-plan").innerText()) === PLAN_TXT[planB ?? "custom"], String(planB));
   ok("la tabla no muestra interruptores", (await fila.getByTestId("platform-modules").count()) === 0);
   ok("040: filtros rápidos por estado", await (async () => {
@@ -467,7 +467,7 @@ async function topesYAvisos(A, B, orgB) {
   const form = page.getByTestId("platform-limits");
   await form.waitFor({ timeout: 30000 });
   const [{ plan_key: planB } = {}] = await sql`select plan_key from organization_plan where organization_id = ${orgB}`;
-  const PLAN_TXT = { esencial: "Plan Esencial", pro: "Plan Pro", ultra: "Plan Ultra", custom: "Personalizado" };
+  const PLAN_TXT = { inicio: "Plan Inicio", esencial: "Plan Esencial", pro: "Plan Pro", ultra: "Plan Ultra", custom: "Personalizado" };
   ok("040: los topes dicen el plan guardado", (await form.getByTestId("platform-plan").getAttribute("data-plan")) === (planB ?? "custom") && (await form.getByTestId("platform-plan").innerText()) === PLAN_TXT[planB ?? "custom"], String(planB));
   ok("un tope sin valor propio dice de dónde hereda", /Hereda:/.test(await form.getByTestId("platform-limit-members").getAttribute("placeholder")));
   await form.getByTestId("platform-limit-members").fill("1");
@@ -494,15 +494,15 @@ async function topesYAvisos(A, B, orgB) {
   ok("0070: …y 404 a los demás", (await B.call("GET", "/api/platform/ai-settings")).status === 404);
   // 0073: catálogo de planes (precios en pesos) que edita la plataforma y ve la Propietaria.
   const pl0 = await A.call("GET", "/api/platform/plans");
-  ok("0073: «Planes y precios» responde al administrador con los de fábrica", pl0.status === 200 && pl0.json?.catalog?.pro?.priceMonthlyMxn === 899 && pl0.json?.catalog?.esencial?.priceMonthlyMxn === 499 && pl0.json?.catalog?.ultra?.priceMonthlyMxn === 1799, JSON.stringify(pl0.json?.catalog?.pro));
+  ok("0073: «Planes y precios» responde al administrador con los de fábrica", pl0.status === 200 && pl0.json?.catalog?.pro?.priceMonthlyMxn === 1999 && pl0.json?.catalog?.esencial?.priceMonthlyMxn === 999 && pl0.json?.catalog?.ultra?.priceMonthlyMxn === 2999 && pl0.json?.catalog?.inicio?.priceMonthlyMxn === 499, JSON.stringify(pl0.json?.catalog?.pro));
   ok("0073: …y 404 a los demás", (await B.call("GET", "/api/platform/plans")).status === 404 && (await B.call("PUT", "/api/platform/plans", { scope: "pro", priceMonthlyMxn: 1 })).status === 404);
   const pl1 = await A.call("PUT", "/api/platform/plans", { scope: "pro", priceMonthlyMxn: 1099 });
-  ok("0073: el administrador cambia un precio", pl1.status === 200 && pl1.json?.catalog?.pro?.priceMonthlyMxn === 1099 && pl1.json?.catalog?.ultra?.priceMonthlyMxn === 1799);
+  ok("0073: el administrador cambia un precio", pl1.status === 200 && pl1.json?.catalog?.pro?.priceMonthlyMxn === 1099 && pl1.json?.catalog?.ultra?.priceMonthlyMxn === 2999);
   const pl2 = await B.call("GET", "/api/usage/plans");
   ok("0073: la Propietaria ve el precio nuevo y su plan", pl2.status === 200 && pl2.json?.catalog?.pro?.priceMonthlyMxn === 1099 && typeof pl2.json?.current === "string", JSON.stringify(pl2.json?.current));
   ok("0073: la bitácora registra el cambio de planes", (await sql`select 1 from platform_audit_log where action = 'plans.changed'`).length >= 1);
   const pl3 = await A.call("PUT", "/api/platform/plans", { scope: "pro", priceMonthlyMxn: null });
-  ok("0073: volver al precio de fábrica", pl3.status === 200 && pl3.json?.catalog?.pro?.priceMonthlyMxn === 899);
+  ok("0073: volver al precio de fábrica", pl3.status === 200 && pl3.json?.catalog?.pro?.priceMonthlyMxn === 1999);
   ok("0073: un precio negativo se rechaza (422)", (await A.call("PUT", "/api/platform/plans", { scope: "pro", priceMonthlyMxn: -5 })).status === 422);
   // El almacenamiento exacto (en bytes) por la API: la pantalla lo pide en GB.
   const put = await A.call("PUT", `/api/platform/organizations/${orgB}/limits`, { storageBytes: tope });
@@ -745,7 +745,7 @@ async function usoYPlan(A, B, orgB) {
   ok("…se abre como ventana (sin cambiar de página)", /\/inbox/.test(page.url()));
   const pantalla = page.getByTestId("usage-plan");
   await pantalla.waitFor({ timeout: 30000 });
-  const PLAN_TXT = { esencial: "Plan Esencial", pro: "Plan Pro", ultra: "Plan Ultra", custom: "Personalizado" };
+  const PLAN_TXT = { inicio: "Plan Inicio", esencial: "Plan Esencial", pro: "Plan Pro", ultra: "Plan Ultra", custom: "Personalizado" };
   ok("la pantalla dice el plan («Plan Esencial», «Plan Pro», «Plan Ultra» o «Personalizado»)", (await page.getByTestId("usage-plan-name").innerText()).trim() === PLAN_TXT[planB ?? "custom"]);
   ok("IA del mes contra su tope", /\/ 1 M tokens/.test(await page.getByTestId("usage-plan-ai-meter").innerText()));
   ok("personas contra su tope", /\/ 3 personas/.test(await page.getByTestId("usage-plan-members-meter").innerText()));

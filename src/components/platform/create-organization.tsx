@@ -12,8 +12,9 @@ import { OneTimeLink } from "./one-time-link";
 
 /** 039 — Qué trae cada plan, en una línea (la fuente es `MODULE_PROFILES`). */
 export const PLAN_HINT: Record<PlanOption, string> = {
-  esencial: "Bandeja, CRM, Tareas, Notas, Biblioteca y Resultados; sin IA",
-  pro: "+ Agentes y Laboratorio, Agenda, Atribución CAPI e Instagram",
+  inicio: "Bandeja, chat de equipo, embudo y contactos; sin IA (aún no se vende)",
+  esencial: "+ Tareas, Notas, Biblioteca, Resultados y 1 agente de IA con creador",
+  pro: "+ Estudio de IA completo, Agenda y Atribución CAPI",
   ultra: "+ Campañas masivas y Asistente interno",
   personalizado: "los 13 interruptores a mano",
 };
