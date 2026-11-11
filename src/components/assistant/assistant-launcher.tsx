@@ -12,6 +12,7 @@ import type { AssistantMessageDto, AssistantProposal, AssistantThreadDto } from 
 import { MAX_QUESTION_CHARS } from "@/lib/assistant-engine";
 import { fetchJson, jsonInit } from "@/lib/fetch-json";
 import { cn } from "@/lib/utils";
+import { OPEN_ASSISTANT_EVENT } from "@/lib/command-palette";
 
 /**
  * Acceso rápido al asistente desde cualquier pantalla: Ctrl/⌘+K siempre abre
@@ -43,6 +44,9 @@ export function AssistantLauncher() {
   const [history, setHistory] = useState(false);
   const input = useRef<HTMLTextAreaElement>(null);
   const onFullPage = pathname === "/asistente";
+  // Auditoría UX 2026-11 (C, punto 8): el botón flotante tapaba «Enviar» en
+  // las pantallas con compositor; ahí se abre con Ctrl/⌘ K → «Preguntar».
+  const coversComposer = pathname.startsWith("/inbox") || pathname.startsWith("/chat") || pathname.startsWith("/lab/agents/");
 
   useEffect(() => {
     try {
@@ -81,19 +85,23 @@ export function AssistantLauncher() {
 
   useEffect(() => {
     if (!allowed) return;
-    function onKey(e: KeyboardEvent) {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
-        e.preventDefault();
-        if (onFullPage) return;
-        setOpen((o) => {
-          if (o) return false;
-          void show();
-          return true;
-        });
-      } else if (e.key === "Escape") setOpen(false);
+    // Auditoría UX 2026-11 (C): Ctrl/⌘ K ahora es «Buscar» (`CommandPalette`);
+    // el panel se abre con su botón o con el aviso `OPEN_ASSISTANT_EVENT`.
+    function onOpen(e: Event) {
+      if (onFullPage) return;
+      const q = (e as CustomEvent<{ question?: string }>).detail?.question;
+      if (q) setQuestion(q.slice(0, MAX_QUESTION_CHARS));
+      void show();
     }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
+    window.addEventListener(OPEN_ASSISTANT_EVENT, onOpen);
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener(OPEN_ASSISTANT_EVENT, onOpen);
+      window.removeEventListener("keydown", onKey);
+    };
   }, [allowed, onFullPage, show]);
 
   useEffect(() => setOpen(false), [pathname]);
@@ -139,7 +147,7 @@ export function AssistantLauncher() {
 
   return (
     <>
-      {!open && !hidden && (
+      {!open && !hidden && !coversComposer && (
         <button
           type="button"
           onClick={() => void show()}

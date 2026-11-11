@@ -61,11 +61,12 @@ type PendingOut = {
 };
 
 /**
- * `xl` es el umbral donde caben las tres columnas (lista + hilo + detalles).
- * Debajo, el panel de detalles flota sobre el hilo. Debe coincidir con el
- * breakpoint `xl:` que usan las clases de la sección de detalles.
+ * `2xl` es el umbral donde caben las tres columnas (lista + hilo + detalles)
+ * sin apretar el chat (auditoría UX 2026-11, punto 7: a 1440 px el chat
+ * quedaba en ~250 px). Debajo, el panel de detalles flota sobre el hilo.
+ * Debe coincidir con el breakpoint `2xl:` de la sección de detalles.
  */
-const PANEL_MEDIA_QUERY = "(min-width: 1280px)";
+const PANEL_MEDIA_QUERY = "(min-width: 1536px)";
 /** Respiro para juntar avisos en vivo seguidos; el mismo del globo del menú. */
 const REFETCH_DEBOUNCE_MS = 250;
 const isWideEnoughForPanel = () =>
@@ -485,7 +486,9 @@ export function InboxClient({
   const contactParam = searchParams.get("contact");
   const contactOpened = useRef<string | null>(null);
   useEffect(() => {
-    if (!contactParam || selectedIdRef.current || !conversations) return;
+    // Auditoría UX 2026-11 (C): la búsqueda (Ctrl/⌘ K) abre otro chat aunque
+    // ya haya uno abierto; solo se ignora el enlace que ya se atendió.
+    if (!contactParam || !conversations) return;
     if (contactOpened.current === contactParam) return;
     contactOpened.current = contactParam;
     const match = conversations.find((c) => c.contact.id === contactParam);
@@ -504,7 +507,7 @@ export function InboxClient({
         if (!res?.ok) return;
         const data = (await res.json()) as { conversations: ConversationDto[] };
         const c = data.conversations[0];
-        if (cancelled || selectedIdRef.current) return;
+        if (cancelled) return;
         if (c) {
           select(c.id, c);
           return;
@@ -879,37 +882,37 @@ export function InboxClient({
           aria-label="Cerrar los detalles"
           tabIndex={-1}
           onClick={() => togglePanel(false)}
-          className="fixed inset-0 z-30 bg-overlay xl:hidden"
+          className="fixed inset-0 z-30 bg-overlay 2xl:hidden"
         />
       )}
 
       <section
         className={cn(
-          // xl: la sección es el HUECO de la columna y su ancho se anima con
+          // 2xl: la sección es el HUECO de la columna y su ancho se anima con
           // el mismo tiempo y curva que el menú lateral, para que el hilo se
           // estire o encoja PEGADO al panel (sin hueco vacío). La tarjeta va
           // anclada a la izquierda del hueco: sale empujada hacia la derecha
           // y entra desde ahí. Solo se reacomoda el hilo (la lista tiene
           // ancho fijo).
-          "shrink-0 overflow-hidden border-l xl:overflow-visible xl:border-0",
-          "xl:transition-[width,margin-left] xl:duration-nav xl:ease-panel",
+          "shrink-0 overflow-hidden border-l 2xl:overflow-visible 2xl:border-0",
+          "2xl:transition-[width,margin-left] 2xl:duration-nav 2xl:ease-panel",
           // Debajo de xl no hay ancho para una tercera columna: el panel se
           // vuelve un cajón que entra desde la derecha, encima del hilo.
-          "max-xl:fixed max-xl:inset-y-0 max-xl:right-0 max-xl:z-40 max-xl:w-auto max-xl:bg-popover max-xl:transition-transform max-xl:duration-nav max-xl:ease-panel",
+          "max-2xl:fixed max-2xl:inset-y-0 max-2xl:right-0 max-2xl:z-40 max-2xl:w-auto max-2xl:bg-popover max-2xl:transition-transform max-2xl:duration-nav max-2xl:ease-panel",
           // Cerrado mide 0 y el margen negativo se come el hueco del `gap`.
           panelOpen && selected
-            ? "w-[330px] max-xl:translate-x-0 max-xl:shadow-pop"
-            : "w-0 border-l-0 max-xl:translate-x-full xl:-ml-3"
+            ? "w-[330px] max-2xl:translate-x-0 max-2xl:shadow-pop"
+            : "w-0 border-l-0 max-2xl:translate-x-full 2xl:-ml-3"
         )}
       >
         {selected && (
           <div
             className={cn(
-              "h-full w-[330px] max-xl:w-[min(330px,88vw)]",
-              // xl: el tercer panel flotante, que entra y sale deslizándose.
-              "xl:overflow-hidden xl:rounded-panel xl:border xl:bg-surface xl:shadow-panel",
-              "xl:transition-opacity xl:duration-nav xl:ease-panel",
-              panelOpen ? "xl:opacity-100" : "xl:pointer-events-none xl:opacity-0"
+              "h-full w-[330px] max-2xl:w-[min(330px,88vw)]",
+              // 2xl: el tercer panel flotante, que entra y sale deslizándose.
+              "2xl:overflow-hidden 2xl:rounded-panel 2xl:border 2xl:bg-surface 2xl:shadow-panel",
+              "2xl:transition-opacity 2xl:duration-nav 2xl:ease-panel",
+              panelOpen ? "2xl:opacity-100" : "2xl:pointer-events-none 2xl:opacity-0"
             )}
           >
             {/* key por contacto: el panel y sus tarjetas (asignación,
