@@ -283,7 +283,7 @@ ok(
 );
 await tablet.screenshot({ path: `${SHOTS}/tablet-inbox.png` });
 
-console.log("\n== 6. Escritorio (1440×900): nada cambió ==");
+console.log("\n== 6. Escritorio (1440×900): chat ancho; a 1680 caben las tres columnas ==");
 const desk = tablet;
 await desk.setViewportSize(DESKTOP);
 await recorrer(desk, "desktop");
@@ -304,6 +304,24 @@ const medirColumnas = () =>
       secs: secs.map((s) => Math.round(s.getBoundingClientRect().width)),
     };
   });
+// Auditoría UX 2026-11 (punto 7): a 1440 px Detalles ya no le roba ancho al
+// chat (flota encima, cerrado al abrir); desde 1536 px vuelve a ser columna.
+const anchoHilo = () =>
+  desk.evaluate(() => {
+    const box = document.querySelector('[data-pm="chat-head"]');
+    return box ? Math.round(box.getBoundingClientRect().width) : 0;
+  });
+await until(async () => (await anchoHilo()) >= 600, 8000);
+const hilo1440 = await anchoHilo();
+ok("a 1440 px el chat queda ancho (≥ 600 px) con Detalles cerrado", hilo1440 >= 600, String(hilo1440));
+ok(
+  "a 1440 px Detalles arranca cerrado y se abre encima",
+  await desk.getByRole("button", { name: "Mostrar detalles" }).isVisible()
+);
+await desk.setViewportSize({ width: 1680, height: 950 });
+await desk.goto(`${BASE}/inbox`);
+await desk.getByText(NAME).first().click();
+await desk.getByPlaceholder("Escribe un mensaje").waitFor({ timeout: 20000 });
 // El panel abre con transición de 220 ms: medir apenas aparece el compositor
 // atraparía un ancho a medio camino.
 const columnasOk = (t) =>
@@ -312,7 +330,7 @@ const columnasOk = (t) =>
 await until(async () => columnasOk(await medirColumnas()), 8000);
 const tres = await medirColumnas();
 ok(
-  "escritorio conserva lateral 232px + lista 420px + hilo + detalles 330px (ronda 3)",
+  "a 1680 px: lateral 232px + lista 420px + hilo + detalles 330px (ronda 3)",
   columnasOk(tres),
   JSON.stringify(tres)
 );
@@ -418,6 +436,7 @@ await req.patch(`${BASE}/api/conversations/${convResp?.id}`, {
 await desk.goto(`${BASE}/inbox`);
 await desk.getByText(NAME).first().click();
 await probarInterruptor(desk, "IA en esta conversación");
+await desk.setViewportSize(DESKTOP);
 
 await desk.goto(`${BASE}/agent`, { waitUntil: "domcontentloaded" });
 await probarInterruptor(desk, "Agente encendido");

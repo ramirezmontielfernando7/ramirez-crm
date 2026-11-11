@@ -160,7 +160,7 @@ try {
   console.log("== Búsqueda y filtros en el servidor ==");
   await page.goto(`${BASE}/inbox`);
   await fila(1).waitFor({ timeout: 30_000 });
-  await page.getByRole("button", { name: /buscar/i }).first().click().catch(() => {});
+  await page.getByRole("button", { name: /buscar conversación/i }).first().click().catch(() => {});
   const campo = page.getByRole("searchbox").or(page.getByPlaceholder(/buscar/i)).first();
   await campo.fill(`Pagina ${RUN} 170`);
   await fila(170).waitFor({ timeout: 10_000 }).catch(() => {});

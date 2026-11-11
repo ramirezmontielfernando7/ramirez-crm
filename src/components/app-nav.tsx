@@ -32,6 +32,7 @@ import { moduleDef, type ModuleKey } from "@/lib/modules/registry";
 import { NAV_ICONS } from "@/components/nav-icons";
 import { useInboxUnread } from "@/components/inbox/unread-store";
 import type { NavEntries } from "@/lib/modules/nav-layout";
+import { OPEN_PALETTE_EVENT, shortcutLabel } from "@/lib/command-palette";
 import { AvisosMenu } from "@/components/notifications/avisos-menu";
 import { openUsageDialog } from "@/lib/usage-dialog";
 import {
@@ -260,7 +261,7 @@ export function AppNav({
         <NavBrandText branding={branding} house={house} mini={mini} />
       </div>
 
-      {viewer.can("assistant.use") && <NavSearch />}
+      <NavSearch />
 
       <NavLinks items={items} pathname={pathname} />
 
@@ -351,22 +352,25 @@ const NavLinks = memo(function NavLinks({
   );
 });
 
-/** Fila «Buscar o preguntar… ⌘K»: abre el asistente con el mismo atajo. */
+/**
+ * Fila «Buscar… Ctrl K»: abre la paleta de búsqueda (auditoría UX 2026-11,
+ * C). El atajo se escribe como en el teclado de quien mira (⌘ en Mac).
+ */
 const NavSearch = memo(function NavSearch() {
+  const [kbd, setKbd] = useState("Ctrl K");
+  useEffect(() => setKbd(shortcutLabel(navigator.platform || navigator.userAgent)), []);
   return (
     <button
       type="button"
-      onClick={() =>
-        window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true, bubbles: true }))
-      }
-      aria-label="Abrir el asistente"
-      title="Abrir el asistente (Ctrl/⌘ K)"
+      onClick={() => window.dispatchEvent(new Event(OPEN_PALETTE_EVENT))}
+      aria-label="Buscar"
+      title={`Buscar chats y pantallas (${kbd})`}
       data-testid="nav-search"
       className="mb-3 flex w-full items-center gap-2 rounded-sm border bg-subtle px-2.5 py-2 text-left text-[13px] text-text-3 hover:bg-accent group-data-[mini]/nav:hidden"
     >
       <Search className="h-[15px] w-[15px] shrink-0" strokeWidth={1.8} />
-      <span className="flex-1 truncate">Buscar o preguntar…</span>
-      <kbd className="rounded border px-1 font-mono text-[10.5px]">⌘K</kbd>
+      <span className="flex-1 truncate">Buscar…</span>
+      <kbd className="rounded border px-1 font-mono text-[10.5px]">{kbd}</kbd>
     </button>
   );
 });

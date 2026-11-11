@@ -887,12 +887,17 @@ async function asistenteBase(A, B, orgB) {
   await page.reload();
   await page.getByTestId("assistant-status").waitFor({ timeout: 30000 });
   ok("…y se recuerda al volver", (await page.getByTestId("assistant-cost-banner").count()) === 0);
-  // Acceso rápido desde otra pantalla: botón discreto y Ctrl+K.
-  await page.goto(`${BASE}/inbox`);
+  // Acceso rápido desde otra pantalla: botón discreto y Ctrl+K («Buscar» → «Preguntar al asistente»).
+  await page.goto(`${BASE}/pipeline`);
   await page.getByTestId("assistant-launcher").waitFor({ timeout: 30000 });
   await page.keyboard.press("Control+k");
-  ok("Ctrl+K abre el panel rápido del asistente", await page.getByTestId("assistant-quick").waitFor({ timeout: 15000 }).then(() => true, () => false));
-  await page.getByTestId("assistant-quick-input").fill("¿Cómo va mi equipo?");
+  await page.getByTestId("command-palette").waitFor({ timeout: 15000 });
+  await page.getByTestId("command-palette").getByRole("combobox").fill("¿Cómo va mi equipo?");
+  await page.getByRole("option", { name: /Preguntar al asistente/ }).click();
+  ok("Ctrl+K → «Preguntar al asistente» abre el panel rápido", await page.getByTestId("assistant-quick").waitFor({ timeout: 15000 }).then(() => true, () => false));
+  ok("…con la pregunta ya escrita", (await page.getByTestId("assistant-quick-input").inputValue()) === "¿Cómo va mi equipo?");
+  // El cuadro se habilita cuando llega el estado del asistente; antes, Enter no hace nada.
+  for (let i = 0; i < 60 && !(await page.getByTestId("assistant-quick-input").isEnabled()); i++) await page.waitForTimeout(250);
   await page.getByTestId("assistant-quick-input").press("Enter");
   ok("…y contesta ahí mismo", await page.getByTestId("assistant-quick-answer").waitFor({ timeout: 120000 }).then(() => true, () => false));
   await page.screenshot({ path: "scratch/e2e-asistente-rapido.png" }).catch(() => null);

@@ -70,6 +70,12 @@ const browser = await chromium.launch(
 
 let ips = 0;
 /** Una persona: su propio navegador (cookies) y su propia IP (límite de login). */
+/** Paquete C: bajo 1536 px Detalles arranca cerrado; se abre con su botón. */
+async function abrirDetalles(p) {
+  const boton = p.getByRole("button", { name: "Mostrar detalles" });
+  if (await boton.first().waitFor({ timeout: 45000 }).then(() => true, () => false)) await boton.first().click();
+}
+
 async function persona(viewport = { width: 1440, height: 900 }) {
   ips++;
   const ctx = await browser.newContext({
@@ -212,6 +218,7 @@ async function main() {
 
   console.log("\n== 3 · Nueva tarea desde un chat de la Bandeja ==");
   const bandeja = await S.pagina(`/inbox?contact=${chat?.contact}`);
+  await abrirDetalles(bandeja.p);
   const enlace = bandeja.p.getByRole("link", { name: "Nueva tarea para este chat" });
   ok("el panel del chat ofrece «Nueva tarea para este chat»", await hasta(async () => (await enlace.count()) > 0, 60000));
   await shot(bandeja.p, "trabajo-3-chat");
@@ -233,6 +240,7 @@ async function main() {
   console.log("\n== 3b · Nota desde el chat y abrir el chat desde la nota ==");
   const HINT = "Las notas ligadas a un chat las ve todo el equipo que puede ver ese contacto. Una nota sin ligar es solo para quien la escribe.";
   const chatN = await S.pagina(`/inbox?contact=${chat?.contact}`);
+  await abrirDetalles(chatN.p);
   const seccion = chatN.p.getByRole("region", { name: "Notas de trabajo" });
   ok("el panel del chat tiene «Notas de trabajo» con «Nueva nota»", await hasta(async () => (await seccion.getByRole("button", { name: "Nueva nota" }).count()) > 0, 60000));
   ok("…y la línea de quién ve las notas", (await seccion.getByText(HINT).count()) === 1);
