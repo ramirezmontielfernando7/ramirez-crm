@@ -19,7 +19,7 @@
  *
  * PR A2 (pantallas, con navegador real — sección 5b):
  *  - «Agente» sale del menú con Laboratorio encendido y /agent sigue vivo con
- *    su enlace a «Gestionar todos los agentes».
+ *    su enlace a «Ver todos tus agentes en el Estudio de IA».
  *  - /lab (Agentes): el general fijo arriba; crear un agente desde la pantalla;
  *    vista previa tipo chat con chips y «Por qué respondió así»; guardar
  *    borrador, publicar (con resumen), renombrar, cargar una versión al
@@ -304,7 +304,7 @@ async function main() {
     // /agent sigue vivo y enlaza al Laboratorio.
     await page.goto(`${BASE}/agent`);
     await page.getByText("Agente de IA").first().waitFor();
-    ok("/agent sigue editando al general y enlaza al Laboratorio", (await page.getByRole("link", { name: /Gestionar todos los agentes/ }).count()) === 1);
+    ok("/agent sigue editando al general y enlaza al Laboratorio", (await page.getByRole("link", { name: /Ver todos tus agentes/ }).count()) === 1);
 
     // Crear desde la pantalla.
     await page.goto(`${BASE}/lab`);
@@ -341,10 +341,10 @@ async function main() {
     await page.getByText(/Borrador guardado/).waitFor();
     const trasGuardar = (await api(`/api/lab/agents/${idUi}`)).json?.agent;
     ok("guardar borrador no publica", trasGuardar?.status === "draft" && trasGuardar?.published === null, JSON.stringify(trasGuardar?.status));
-    await page.getByRole("button", { name: /^Publicar( v\d+)?$/ }).click();
+    await page.getByRole("button", { name: /^Publicar( cambios)?$/ }).click();
     await page.getByRole("dialog").getByText(/primera vez/).waitFor();
     await page.getByRole("dialog").getByRole("button", { name: "Publicar" }).click();
-    await page.getByText(/^Publicado\.$/).waitFor();
+    await page.getByText(/^Publicado\. /).waitFor();
     const trasPublicar = (await api(`/api/lab/agents/${idUi}`)).json?.agent;
     ok("publicar desde la pantalla deja el agente publicado", trasPublicar?.status === "published" && Boolean(trasPublicar?.published));
 
