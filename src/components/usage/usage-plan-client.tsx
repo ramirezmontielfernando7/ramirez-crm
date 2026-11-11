@@ -61,7 +61,7 @@ function Card({ title, children, testId }: { title: string; children: React.Reac
  */
 const CLIENT_MODULE_LABEL: Partial<Record<PlatformModuleToggle, string>> = {
   knowledge: "Biblioteca",
-  lab: "Estudio de IA (varios agentes)",
+  lab: "Agentes IA (varios agentes)",
   atribucion: "Atribución de anuncios",
   asistente: "Asistente",
 };

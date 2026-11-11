@@ -32,38 +32,45 @@ const dibujar = (props: Record<string, unknown> = {}) =>
 
 describe("PageShell", () => {
   it("UNA sola barra de 56 px (sm:h-14): título del pilar, divisor y pestañas en píldora DENTRO del encabezado", () => {
-    pathname = "/contacts";
+    pathname = "/trabajo/notas";
     modulos = null;
     const html = dibujar({ variant: "fluid" });
     expect(html).toMatch(/<header[^>]*class="[^"]*\bsm:h-14\b[^"]*"/);
-    expect(html).toContain(">CRM Comercial</h1>");
+    expect(html).toContain(">Agenda</h1>");
     // Las pestañas viven dentro del <header> (no hay segunda barra debajo).
     const header = html.slice(html.indexOf("<header"), html.indexOf("</header>"));
-    expect(header).toContain('aria-label="Secciones de CRM Comercial"');
+    expect(header).toContain('aria-label="Secciones de Agenda"');
     expect(html.slice(html.indexOf("</header>"))).not.toContain("<nav");
     // La activa, como el renglón del menú lateral.
-    expect(header).toMatch(/href="\/contacts"[^>]*class="[^"]*bg-brand-tint/);
+    expect(header).toMatch(/href="\/trabajo\/notas"[^>]*class="[^"]*bg-brand-tint/);
     expect(header).toMatch(/<span aria-hidden="true" class="[^"]*h-4 w-px[^"]*bg-border/);
     expect(html).not.toContain("h-10");
   });
 
   it("las pestañas del pilar siguen a los módulos de la organización", () => {
-    pathname = "/pipeline";
-    modulos = ["pipeline", "contacts"];
+    pathname = "/trabajo/tareas";
+    modulos = ["trabajo"];
     const html = dibujar();
-    expect(html).toContain("Pipeline");
-    expect(html).toContain("Contactos");
-    expect(html).not.toContain("Biblioteca");
-    expect(html).not.toContain("Agenda");
+    expect(html).toContain("Tareas");
+    expect(html).toContain("Notas");
+    expect(html).not.toContain("Citas");
   });
 
-  it("y a los permisos: Marketing esconde «Plantillas WhatsApp» a quien no tiene templates.manage", () => {
+  it("una sola pestaña no es navegación: solo el título", () => {
+    pathname = "/contacts";
+    modulos = null;
+    const html = dibujar();
+    expect(html).toContain(">Contactos</h1>");
+    expect(html).not.toContain("Secciones de Contactos");
+  });
+
+  it("y a los permisos: Campañas esconde «Plantillas» a quien no tiene templates.manage", () => {
     pathname = "/campaigns";
     modulos = null;
     permisos = ["campaigns.manage"];
-    expect(dibujar()).not.toContain("Plantillas WhatsApp");
+    expect(dibujar()).not.toContain(">Plantillas<");
     permisos = ["campaigns.manage", "templates.manage"];
-    expect(dibujar()).toContain("Plantillas WhatsApp");
+    expect(dibujar()).toContain(">Plantillas<");
   });
 
   it("`contained` centra el contenido (max-w-6xl) y `fluid` lo deja a lo ancho", () => {

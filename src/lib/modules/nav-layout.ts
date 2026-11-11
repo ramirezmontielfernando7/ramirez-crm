@@ -1,5 +1,5 @@
 import type { Permission, Role } from "@/lib/auth/permissions";
-import { NAV_MODULES, isModuleKey, moduleDef, type ModuleDef, type ModuleKey, type NavSection } from "./registry";
+import { NAV_MODULES, isModuleKey, moduleDef, type ModuleDef, type ModuleKey, type NavGroup, type NavSection } from "./registry";
 
 /**
  * 030 (PR 4) — El menú de un rol: qué entradas ve y en qué orden. Puro: lo
@@ -74,9 +74,38 @@ export function activeSection(sections: readonly NavSection[], pathname: string)
   return best;
 }
 
-/** 039 — El pilar al que pertenece una ruta (por cualquiera de sus pestañas). */
+/**
+ * 2026-11 — Qué tan bien una entrada del menú cubre `pathname`: el largo de su
+ * ruta más larga que la contiene (0 = no la cubre). La más larga gana, así
+ * /lab/documentos es de la Biblioteca y no de Agentes IA (/lab).
+ */
+export function routeMatchLength(routes: readonly string[], pathname: string): number {
+  let best = 0;
+  for (const r of routes) if (pathWithin(r, pathname) && r.length > best) best = r.length;
+  return best;
+}
+
+/** Las rutas que encienden una entrada: su casa y las de sus pestañas. */
+export function entryRoutes(def: ModuleDef): string[] {
+  return [...(def.route ? [def.route] : []), ...(def.sections ?? []).flatMap((s) => [s.route, ...(s.also ?? [])])];
+}
+
+/** 039 — El pilar al que pertenece una ruta (por cualquiera de sus pestañas; la más larga gana). */
 export function pillarOfPath(pathname: string): ModuleDef | undefined {
-  return NAV_MODULES.find((m) => m.sections && activeSection(m.sections, pathname));
+  let best: ModuleDef | undefined;
+  let bestLen = 0;
+  for (const m of NAV_MODULES) {
+    if (!m.sections) continue;
+    const len = routeMatchLength(
+      m.sections.flatMap((s) => [s.route, ...(s.also ?? [])]),
+      pathname
+    );
+    if (len > bestLen) {
+      best = m;
+      bestLen = len;
+    }
+  }
+  return best;
 }
 
 /**
@@ -109,8 +138,8 @@ export function defaultLayout(role: Role): NavLayoutItem[] {
 
 /**
  * Lo guardado, completo y en regla: descarta claves desconocidas o
- * repetidas, agrega al final (con su visibilidad de fábrica) las entradas que
- * no estaban —un módulo nuevo—, fuerza visibles las bloqueadas y deja Ajustes
+ * repetidas, agrega en su lugar de fábrica (con su visibilidad de fábrica) las
+ * entradas que no estaban —un módulo nuevo—, fuerza visibles las bloqueadas y deja Ajustes
  * al final (va anclado abajo).
  */
 export function normalizeLayout(saved: readonly unknown[] | null | undefined, role: Role): NavLayoutItem[] {
@@ -124,7 +153,19 @@ export function normalizeLayout(saved: readonly unknown[] | null | undefined, ro
     seen.add(key);
     out.push({ key, hidden: hidden === true });
   }
-  for (const d of defaults) if (!seen.has(d.key)) out.push(d);
+  // Una entrada nueva entra en su lugar de fábrica (después de la que la
+  // precede en el orden de fábrica), no al final: así un menú guardado antes
+  // de 2026-11 recibe Contactos, Agenda y Biblioteca junto a Ventas.
+  let prev = -1;
+  for (const d of defaults) {
+    const at = out.findIndex((i) => i.key === d.key);
+    if (at >= 0) {
+      prev = at;
+      continue;
+    }
+    out.splice(prev + 1, 0, d);
+    prev += 1;
+  }
   const fixed = out.map((i) => (isLocked(role, i.key) ? { ...i, hidden: false } : i));
   return [...fixed.filter((i) => !moduleDef(i.key).pinnedBottom), ...fixed.filter((i) => moduleDef(i.key).pinnedBottom)];
 }
@@ -209,4 +250,18 @@ export function validateLayout(
 /** ¿Es igual al de fábrica? (para no guardar una fila que no cambia nada). */
 export function sameLayout(a: readonly NavLayoutItem[], b: readonly NavLayoutItem[]): boolean {
   return a.length === b.length && a.every((x, i) => x.key === b[i]?.key && x.hidden === b[i]?.hidden);
+}
+
+/**
+ * 2026-11 — Los títulos de grupo del menú: el grupo con el que arranca cada
+ * renglón (o nada). Solo si hay más de un grupo y cada uno queda junto; un
+ * menú reordenado a mano que los mezcla va sin títulos.
+ */
+export function navGroupStarts(keys: readonly ModuleKey[]): (NavGroup | null)[] {
+  const groups = keys.map((k) => moduleDef(k).group ?? null);
+  const runs: (NavGroup | null)[] = [];
+  for (const g of groups) if (runs[runs.length - 1] !== g) runs.push(g);
+  const distinct = new Set(runs);
+  if (distinct.size < 2 || distinct.size !== runs.length || distinct.has(null)) return keys.map(() => null);
+  return groups.map((g, i) => (i === 0 || groups[i - 1] !== g ? g : null));
 }

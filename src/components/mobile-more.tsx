@@ -9,13 +9,11 @@ import { useState } from "react";
 import { applyThemeBarColor, nextThemePreference, normalizeThemePreference, THEME_COOKIE, THEME_COOKIE_MAX_AGE } from "@/lib/theme";
 import { AvisosMenu } from "@/components/notifications/avisos-menu";
 import { TeamUnreadRowBadge } from "@/components/team-chat/unread-badge";
-import { NAV_ICONS } from "@/components/nav-icons";
 import { navItemOf } from "@/components/app-nav";
 import { signOut } from "@/lib/auth/client";
 import { openUsageDialog } from "@/lib/usage-dialog";
 import { openTour } from "@/lib/tour-dialog";
-import { moduleDef } from "@/lib/modules/registry";
-import { availableSections, type NavEntries } from "@/lib/modules/nav-layout";
+import type { NavEntries } from "@/lib/modules/nav-layout";
 import { MOBILE_TAB_COUNT } from "@/components/mobile-tabbar";
 import type { ThemePreference } from "@/lib/theme";
 
@@ -42,18 +40,10 @@ export function MobileMore({
   const router = useRouter();
   const keys = nav?.keys ?? [];
   const tabs = new Set(keys.slice(0, MOBILE_TAB_COUNT));
-  const modules = { has: viewer.hasModule };
 
-  // Trabajo: Agenda y Tareas (pestañas del CRM Comercial), el chat de equipo,
-  // «Mi número» y los pilares que no caben abajo (menos el Asistente, que va aparte).
+  // Trabajo: el chat de equipo, «Mi número» y los renglones que no caben abajo
+  // (menos el Asistente, que va aparte).
   const work: Row[] = [];
-  if (keys.includes("pipeline")) {
-    for (const s of availableSections(moduleDef("pipeline"), modules, viewer.can)) {
-      if (s.module === "agenda" || s.module === "trabajo") {
-        work.push({ href: s.route, label: s.label, icon: s.module === "agenda" ? NAV_ICONS.CalendarDays : NAV_ICONS.ListChecks });
-      }
-    }
-  }
   if (viewer.hasModule("team_chat")) work.push({ href: "/chat", label: "Chat de equipo", icon: UsersRound, team: true });
   if (viewer.hasMyNumber || viewer.seesTeamNumbers) {
     work.push({ href: "/inbox/mi-numero", label: viewer.hasMyNumber ? "Mi número" : "Números", icon: Smartphone });

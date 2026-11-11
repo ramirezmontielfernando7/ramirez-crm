@@ -33,8 +33,8 @@ export const TOUR: readonly TourStep[] = [
   },
   {
     key: "pipeline",
-    title: "CRM Comercial: tus ventas paso a paso",
-    body: "Cada cliente interesado es un avance en tu embudo. Arrastra las tarjetas de una etapa a otra, y guarda tus contactos, tareas, notas y citas.",
+    title: "Ventas: tus oportunidades paso a paso",
+    body: "Cada cliente interesado es un avance en tu embudo. Arrastra las tarjetas de una etapa a otra. Tus clientes están en Contactos y tus pendientes en Agenda.",
     icon: "Kanban",
     href: "/pipeline",
     cta: "Ver mi embudo",
@@ -42,7 +42,7 @@ export const TOUR: readonly TourStep[] = [
   },
   {
     key: "agent",
-    title: "Estudio de IA: tu agente que contesta por ti",
+    title: "Agentes IA: tu agente que contesta por ti",
     body: "Cuéntale de tu negocio al creador y él arma a tu agente. Pruébalo escribiéndole como cliente (nada sale a WhatsApp mientras pruebas) y, cuando te guste, lo publicas y lo enciendes. Lo apagas cuando quieras.",
     icon: "Bot",
     href: "/lab",
@@ -52,7 +52,7 @@ export const TOUR: readonly TourStep[] = [
   },
   {
     key: "campaigns",
-    title: "Marketing: manda mensajes a muchos clientes",
+    title: "Campañas: manda mensajes a muchos clientes",
     body: "Crea una plantilla, elige a quién se la mandas (solo a quienes aceptaron recibirla) y lanza tu campaña. Después ves cuántos la recibieron y respondieron.",
     icon: "Megaphone",
     href: "/campaigns",
@@ -125,7 +125,7 @@ export const TUTORIALS: readonly Tutorial[] = [
     summary: "Un agente que contesta preguntas de tus clientes con lo que tú le enseñas.",
     minutes: 5,
     steps: [
-      "Entra al Estudio de IA y pulsa para crear tu agente con el creador.",
+      "Entra a Agentes IA y pulsa para crear tu agente con el creador.",
       "Platica con él: qué vendes, tus horarios, precios y cómo quieres que hable.",
       "Revisa el resultado en la vista previa de la derecha.",
       "Agrega más conocimiento si quieres (preguntas frecuentes, documentos).",
@@ -145,7 +145,7 @@ export const TUTORIALS: readonly Tutorial[] = [
       "En la vista previa, escríbele como si fueras un cliente. Nada sale a WhatsApp.",
       "Si algo no te gusta, dile al creador qué cambiar.",
       "Pulsa «Publicar» cuando estés conforme.",
-      "Enciende la IA con el interruptor del Estudio de IA. La apagas cuando quieras.",
+      "Enciende la IA con el interruptor de Agentes IA. La apagas cuando quieras.",
     ],
     tip: "Cuando un cliente pide hablar con una persona, el chat pasa a tu equipo y la IA se calla.",
     href: "/lab",
@@ -205,7 +205,7 @@ export const TUTORIALS: readonly Tutorial[] = [
     summary: "Un mensaje a muchos clientes, con plantilla aprobada por Meta.",
     minutes: 6,
     steps: [
-      "Crea una plantilla en Marketing → Plantillas y espera a que Meta la apruebe.",
+      "Crea una plantilla en Campañas → Plantillas y espera a que Meta la apruebe.",
       "Prepara tu audiencia (o importa una lista con consentimiento).",
       "Crea la campaña, elige plantilla y público, y revisa el costo estimado.",
       "Lanza la campaña y sigue los resultados en Métricas.",

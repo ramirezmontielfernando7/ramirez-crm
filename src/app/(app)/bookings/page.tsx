@@ -47,7 +47,7 @@ export default async function BookingsPage({
         : todayInTz(new Date(), settings.timezone);
 
   return (
-    <PageShell pillar="pipeline" variant="fluid">
+    <PageShell pillar="agenda" variant="fluid">
       <BookingsClient
         embedded
         initialView={view}

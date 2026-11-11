@@ -8,8 +8,8 @@ import { PageShell } from "@/components/ui/page-shell";
 
 /**
  * 031 (A2) — Encabezado del Laboratorio con sus subpestañas. 039: es el pilar
- * «Estudio de IA» (`PageShell` con las pestañas del registro: Mis agentes,
- * Conocimiento, Asignación por etapa y Pruebas). Son rutas (compartibles,
+ * «Agentes IA» (antes «Estudio de IA»; `PageShell` con las pestañas del
+ * registro: Mis agentes, Asignación por etapa y Pruebas). Son rutas (compartibles,
  * Atrás funciona).
  *
  * 035 — «Conocimiento» solo existe con KB_DOCS (lo decide el layout en el
@@ -45,9 +45,13 @@ export function LabShell({ children, documents = false }: { children: React.Reac
     );
   }
 
+  // 2026-11 — Los Documentos (/lab/documentos) son la pestaña «Para que lea la
+  // IA» de la Biblioteca: siguen en esta dirección, con el encabezado de ella.
+  const library = pathname.startsWith("/lab/documentos");
+
   return (
     <PageShell
-      pillar="lab"
+      pillar={library ? "knowledge" : "lab"}
       variant="fluid"
       subtitle="Modo prueba: aquí nada se envía a tus clientes"
       hideSections={documents ? undefined : SIN_DOCUMENTOS}
@@ -55,7 +59,7 @@ export function LabShell({ children, documents = false }: { children: React.Reac
     >
       <ActionsSlot.Provider value={slot}>
         {/* En «Mis agentes» la pausa la dice el interruptor de la IA (paquete B). */}
-        {pathname !== "/lab" && <AgentPauseBar />}
+        {pathname !== "/lab" && !library && <AgentPauseBar />}
         <div className="min-h-0 flex-1" data-premium-area="lab">
           {children}
         </div>

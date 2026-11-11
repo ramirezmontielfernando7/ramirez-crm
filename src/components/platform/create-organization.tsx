@@ -14,7 +14,7 @@ import { OneTimeLink } from "./one-time-link";
 export const PLAN_HINT: Record<PlanOption, string> = {
   inicio: "Bandeja, chat de equipo, embudo y contactos; sin IA (aún no se vende)",
   esencial: "+ Tareas, Notas, Biblioteca, Resultados y 1 agente de IA con creador",
-  pro: "+ Estudio de IA completo, Agenda y Atribución CAPI",
+  pro: "+ Agentes IA completo, Agenda y Atribución CAPI",
   ultra: "+ Campañas masivas y Asistente interno",
   personalizado: "empieza con los de fábrica de la instancia y los 13 interruptores van a mano",
 };

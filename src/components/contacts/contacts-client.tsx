@@ -173,7 +173,7 @@ export function ContactsClient() {
 
   return (
     <PageShell
-      pillar="pipeline"
+      pillar="contacts"
       variant="fluid"
       actions={
         <>

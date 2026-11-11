@@ -27,7 +27,10 @@ const DATE = new Intl.DateTimeFormat("es-MX", {
  * («💬 Envío en chat» y/o «🤖 Lectura IA (RAG)») y quien puede los enciende o
  * apaga desde ahí, sin volver a subirlo.
  */
-export function KnowledgeClient() {
+/** La pestaña «Para que lea la IA» solo existe si la instancia tiene Documentos (`KB_DOCS`). */
+const SIN_DOCUMENTOS = ["/lab/documentos"] as const;
+
+export function KnowledgeClient({ documents = true }: { documents?: boolean } = {}) {
   const viewer = useViewer();
   const canManage = viewer.can("knowledge.manage");
   const [entries, setEntries] = useState<KnowledgeEntryDto[]>([]);
@@ -107,7 +110,7 @@ export function KnowledgeClient() {
 
   async function remove(entry: KnowledgeEntryDto) {
     const aviso = entry.rag
-      ? `¿Borrar «${entry.title}» de la Biblioteca? El agente lo seguirá leyendo (Lectura IA); para que deje de leerlo, apágala antes o bórralo en Estudio de IA → Documentos.`
+      ? `¿Borrar «${entry.title}» de la Biblioteca? El agente lo seguirá leyendo (Lectura IA); para que deje de leerlo, apágala antes o bórralo en Biblioteca → Para que lea la IA.`
       : `¿Borrar «${entry.title}»? No se puede deshacer.`;
     if (!window.confirm(aviso)) return;
     const res = await fetchJson(`/api/knowledge/${entry.id}`, {
@@ -125,8 +128,9 @@ export function KnowledgeClient() {
 
   return (
     <PageShell
-      pillar="pipeline"
+      pillar="knowledge"
       variant="fluid"
+      hideSections={documents ? undefined : SIN_DOCUMENTOS}
       actions={
         canManage ? (
           <Button size="sm" onClick={() => setEditing("new")}>

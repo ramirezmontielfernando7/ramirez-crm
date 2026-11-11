@@ -16,9 +16,9 @@ la app viva, los mocks y `PLATFORM_ORG_ID` = la organización de
 2. **Sin `custom_nav` no existe.** Apagado: `/api/settings/navigation` → 404,
    `/settings/navigation` → redirige a Ajustes → Personalización → Navegación, que responde 200 con el aviso «Navegación no disponible» y sin editor. Encendido: la
    Propietaria entra (200); Coordinadora y Asesor → 403.
-3. **Editor (navegador).** El menú son 5 pilares + Ajustes (039). Pestaña
-   Asesor: CRM Comercial sube al primer lugar con el TECLADO (manija,
-   Espacio, flechas, Espacio); Marketing sube con el botón ↑; se oculta
+3. **Editor (navegador).** El menú son 9 renglones en tres grupos + Ajustes
+   (2026-11). Pestaña Asesor: Ventas sube al primer lugar con el TECLADO
+   (manija, Espacio, flechas, Espacio); Campañas sube con el botón ↑; se oculta
    «Bandeja»; la vista previa lo refleja; Resultados sale
    como «no puede abrirlo». Guardar → fila en `nav_layout`. El interruptor de
    Ajustes del Propietario está bloqueado y la API lo rechaza (422); dejar a
@@ -27,9 +27,10 @@ la app viva, los mocks y `PLATFORM_ORG_ID` = la organización de
    (mismo orden), y con el menú oculto el cajón del teléfono trae la misma
    lista. Lo oculto sigue respondiendo (API y página del chat de equipo →
    200, con las pestañas de la Bandeja); Resultados sigue en 403. La
-   Coordinadora no cambia (Bandeja, CRM Comercial, Marketing, Inteligencia).
+   Coordinadora no cambia (Bandeja, Ventas, Contactos, Agenda, Biblioteca,
+   Campañas, Resultados).
 5. **Módulo apagado.** La plataforma apaga Conocimientos en N: la pestaña
-   «Biblioteca» desaparece del CRM Comercial y la API → 404. Encendido otra vez → 200.
+   «Biblioteca» desaparece del menú del Asesor y la API → 404. Encendido otra vez → 200.
 6. **Restaurar.** «Restaurar valores por defecto» (con confirmación) borra la
    fila, la bitácora muestra «restauró» y el Asesor vuelve al menú de fábrica
    (`nav_layout_event`: saved, reset).

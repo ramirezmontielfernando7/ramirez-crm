@@ -5,11 +5,11 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { MoreHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { navItemOf } from "@/components/app-nav";
+import { activeNavHref, navItemOf } from "@/components/app-nav";
 import { useInboxUnread } from "@/components/inbox/unread-store";
 import { useTeamUnread } from "@/components/team-chat/unread-store";
 import { useViewer } from "@/components/viewer-context";
-import { pathWithin, type NavEntries } from "@/lib/modules/nav-layout";
+import type { NavEntries } from "@/lib/modules/nav-layout";
 import type { ModuleKey } from "@/lib/modules/registry";
 
 /** Cuántos pilares caben abajo; el resto vive en «Más». */
@@ -17,8 +17,7 @@ export const MOBILE_TAB_COUNT = 4;
 
 /** Nombres cortos para que quepan cinco pestañas en 360 px. */
 const SHORT: Partial<Record<ModuleKey, string>> = {
-  pipeline: "CRM",
-  lab: "Estudio IA",
+  lab: "Agentes",
 };
 
 const count = (n: number) => (n > 99 ? "99+" : String(n));
@@ -45,8 +44,10 @@ export function MobileTabBar({
   const unread = useInboxUnread();
   const viewer = useViewer();
   const teamUnread = useTeamUnread(viewer.userId);
-  const keys = (nav?.keys ?? ["inbox", "pipeline"]).slice(0, MOBILE_TAB_COUNT);
-  const items = keys.map((k) => ({ key: k, ...navItemOf(k, nav?.hrefs?.[k]) }));
+  const all = (nav?.keys ?? ["inbox", "pipeline"]).map((k) => ({ ...navItemOf(k, nav?.hrefs?.[k]), key: k }));
+  const items = all.slice(0, MOBILE_TAB_COUNT);
+  // La activa se decide entre TODAS las entradas (la ruta más larga gana).
+  const current = activeNavHref(all, pathname);
   // Al tocar una pestaña se marca AL INSTANTE, como en WhatsApp, sin esperar
   // a que el servidor mande la pantalla; al llegar, manda la ruta de verdad.
   const [tapped, setTapped] = useState<string | null>(null);
@@ -63,7 +64,7 @@ export function MobileTabBar({
           !moreOpen &&
           (tapped
             ? tapped === item.href
-            : [item.href, ...(item.alsoActive ?? [])].some((r) => pathWithin(r, pathname)));
+            : current === item.href);
         const Icon = item.icon;
         return (
           <Link
