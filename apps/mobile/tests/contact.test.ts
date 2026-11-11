@@ -433,3 +433,17 @@ test("incoming preview during hydration does not discard saved contact fields", 
     "Mensaje entrante de prueba",
   );
 });
+test("full dirty cache refuses another chat without evicting unsaved notes", async () => {
+  const f = fixture();
+  for (let i = 1; i <= 64; i++) {
+    const store = f.dir.get(`demo-conv-${i}`);
+    await store.hydrate();
+    store.setNoteDraft(`Borrador ${i}`);
+  }
+  assert.throws(() => f.dir.get("demo-conv-65"), /Guarda tus borradores/);
+  for (let i = 1; i <= 64; i++)
+    assert.equal(
+      f.dir.get(`demo-conv-${i}`).snapshot().noteDraft,
+      `Borrador ${i}`,
+    );
+});

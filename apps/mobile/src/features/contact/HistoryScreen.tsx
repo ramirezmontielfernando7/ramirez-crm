@@ -35,7 +35,7 @@ import { actionKey, type ContactStore } from "./core";
 import { useContactDirectory, useContactState } from "./context";
 import { useContactActions } from "./actions";
 import type { Event, EventKind } from "./model";
-import { DeniedContact } from "./DetailsScreen";
+import { DeniedContact, UnavailableContact } from "./DetailsScreen";
 const keyFor = (e: Event) => e.id;
 const filters: Record<string, EventKind | undefined> = {
   Todo: undefined,
@@ -324,8 +324,16 @@ export default function HistoryPage() {
   let store: ContactStore;
   try {
     store = directory.get(id);
-  } catch {
-    return <DeniedContact />;
+  } catch (error) {
+    return (
+      <UnavailableContact
+        message={
+          error instanceof Error
+            ? error.message
+            : "Reintenta al volver a Bandeja."
+        }
+      />
+    );
   }
   return <HistoryScreen key={id} store={store} />;
 }

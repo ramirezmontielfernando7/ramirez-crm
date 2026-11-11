@@ -39,6 +39,7 @@ import { useConversation, useInbox } from "../inbox/store";
 import { useChatDirectory, useChatState } from "../chat/context";
 import { DeleteSheet, useAction } from "../chat/Sheets";
 import { WINDOW_MS } from "../chat/model";
+import type { ChatStore } from "../chat/core";
 import {
   useContactDirectory,
   useContactFlags,
@@ -71,12 +72,32 @@ export function DeniedContact() {
     </Screen>
   );
 }
-export function DetailsScreen({ store }: { store: ContactStore }) {
+export function UnavailableContact({ message }: { message: string }) {
+  return (
+    <Screen>
+      <EmptyState
+        title="Detalles no disponibles"
+        message={message}
+        action={
+          <Button onPress={() => router.replace("/(tabs)/inbox")}>
+            Volver a Bandeja
+          </Button>
+        }
+      />
+    </Screen>
+  );
+}
+export function DetailsScreen({
+  store,
+  chat,
+}: {
+  store: ContactStore;
+  chat: ChatStore;
+}) {
   const s = useContactState(store),
     flags = useContactFlags(),
     conversation = useConversation(store.id)!;
-  const chat = useChatDirectory().get(store.id),
-    chatState = useChatState(chat);
+  const chatState = useChatState(chat);
   const inbox = useInbox(),
     { colors: c } = useTheme(),
     { open, close } = useLayers(),
@@ -488,12 +509,23 @@ export default function ContactPage() {
   const { id } = useLocalSearchParams<{ id: string }>(),
     directory = useContactDirectory();
   const c = useConversation(id ?? "");
+  const chats = useChatDirectory();
   if (!c) return <DeniedContact />;
   let store: ContactStore;
+  let chat: ChatStore;
   try {
     store = directory.get(id);
-  } catch {
-    return <DeniedContact />;
+    chat = chats.get(id);
+  } catch (error) {
+    return (
+      <UnavailableContact
+        message={
+          error instanceof Error
+            ? error.message
+            : "Reintenta al volver a Bandeja."
+        }
+      />
+    );
   }
-  return <DetailsScreen key={id} store={store} />;
+  return <DetailsScreen key={id} store={store} chat={chat} />;
 }

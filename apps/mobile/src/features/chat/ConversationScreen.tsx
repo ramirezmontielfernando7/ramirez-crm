@@ -756,17 +756,25 @@ export function ConversationScreen({ chat }: { chat: ChatStore }) {
 export default function ChatPage() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const directory = useChatDirectory();
+  const contacts = useContactDirectory();
   const scopedConversation = useConversation(id ?? "");
   let chat: ChatStore;
   try {
     if (!scopedConversation) throw new Error("Acceso no permitido");
     chat = directory.get(id ?? "");
-  } catch {
+    contacts.get(id ?? "");
+  } catch (error) {
     return (
       <Screen>
         <EmptyState
-          title="Acceso no permitido"
-          message="Esta conversación no está disponible para tu perfil."
+          title={
+            scopedConversation ? "Chat no disponible" : "Acceso no permitido"
+          }
+          message={
+            scopedConversation && error instanceof Error
+              ? error.message
+              : "Esta conversación no está disponible para tu perfil."
+          }
           action={
             <Button onPress={() => router.replace("/(tabs)/inbox")}>
               Volver a Bandeja
