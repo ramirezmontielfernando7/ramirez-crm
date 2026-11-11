@@ -27,7 +27,7 @@ describe("medidores de /platform", () => {
 
   it("IA sin topes: tokens y «sin tope», sin barra", () => {
     const m = aiMeter({ turns: 3, tokens: 1500 }, { turns: null, tokens: null });
-    expect(m).toMatchObject({ text: "1.5 k tokens · sin tope", ratio: null, tone: "normal" });
+    expect(m).toMatchObject({ text: "1.5 k tokens · sin límite", ratio: null, tone: "normal" });
     expect(m.detail).toContain("3 turnos");
   });
 
@@ -52,7 +52,7 @@ describe("medidores de /platform", () => {
   });
 
   it("almacenamiento: hasta el PR 3 no hay tope", () => {
-    expect(storageMeter(3.4 * 1024 ** 2)).toMatchObject({ text: "3.4 MB · sin tope", ratio: null, tone: "normal" });
+    expect(storageMeter(3.4 * 1024 ** 2)).toMatchObject({ text: "3.4 MB · sin límite", ratio: null, tone: "normal" });
     expect(storageMeter(900, 1000)).toMatchObject({ ratio: 0.9, tone: "warning" });
   });
 
@@ -86,7 +86,7 @@ describe("036 PR 6 — conteo contra su tope («Uso y plan»)", () => {
     expect(countMeter(3, 5, "personas")).toMatchObject({ text: "3 / 5 personas", tone: "normal" });
     expect(countMeter(4, 5, "personas").tone).toBe("warning");
     expect(countMeter(5, 5, "personas").tone).toBe("danger");
-    expect(countMeter(12, null, "documentos")).toEqual({ text: "12 documentos · sin tope", ratio: null, tone: "normal", detail: "12 documentos · sin tope" });
+    expect(countMeter(12, null, "documentos")).toEqual({ text: "12 documentos · sin límite", ratio: null, tone: "normal", detail: "12 documentos · sin límite" });
   });
   it("tope 0: nada usado no es rojo; algo usado sí", () => {
     expect(countMeter(0, 0, "módulos").tone).toBe("normal");

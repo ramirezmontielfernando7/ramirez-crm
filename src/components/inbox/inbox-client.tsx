@@ -849,9 +849,9 @@ export function InboxClient({
         ) : (
           <div className="thread-bg flex flex-1 flex-col items-center justify-center gap-2 px-6 text-center">
             <p className="text-[24px] font-semibold leading-tight text-text-2">
-              Elige una conversación para ver el hilo
+              Elige un chat para verlo aquí
             </p>
-            <p className="kicker">Bandeja · tiempo real</p>
+            <p className="text-sm text-muted-foreground">Los mensajes nuevos llegan solos, sin recargar.</p>
           </div>
         )}
       </section>

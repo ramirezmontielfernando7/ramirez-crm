@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { cleanFeatures, isSellable, DEFAULT_PLAN_CATALOG, formatMxn, freeMonths, mergeCatalog, yearlyPrice } from "@/lib/plan-catalog";
+import { cleanFeatures, isComingSoon, isSellable, DEFAULT_PLAN_CATALOG, formatMxn, freeMonths, mergeCatalog, yearlyPrice } from "@/lib/plan-catalog";
+
+const texto0 = (c: unknown) => JSON.stringify(c).toLowerCase();
 
 describe("catálogo de planes", () => {
   it("de fábrica: 499 / 999 / 1,999 / 2,999 (IVA incluido), Pro recomendado y sin Messenger, Facebook ni Instagram", () => {
@@ -10,6 +12,10 @@ describe("catálogo de planes", () => {
     // Inicio existe pero todavía no se vende.
     expect(isSellable("inicio")).toBe(false);
     expect(isSellable("pro")).toBe(true);
+    // Ultra se enseña como «Próximamente» y aún no se puede pedir.
+    expect(isComingSoon("ultra")).toBe(true);
+    expect(isSellable("ultra")).toBe(false);
+    expect(texto0(c)).not.toContain("todo inicio");
     expect(c.pro.recommended).toBe(true);
     const texto = JSON.stringify(DEFAULT_PLAN_CATALOG).toLowerCase();
     for (const prohibido of ["messenger", "facebook", "instagram"]) expect(texto).not.toContain(prohibido);

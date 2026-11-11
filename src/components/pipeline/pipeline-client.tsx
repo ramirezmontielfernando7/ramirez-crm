@@ -245,8 +245,8 @@ export function PipelineClient() {
                     setSearchOpen(false);
                   }
                 }}
-                placeholder="Buscar lead…"
-                aria-label="Buscar lead"
+                placeholder="Buscar prospecto…"
+                aria-label="Buscar prospecto"
                 className="h-8 w-40 rounded-md border border-input bg-card pl-8 pr-7 text-sm sm:w-56"
               />
               <button
@@ -266,7 +266,7 @@ export function PipelineClient() {
               variant="outline"
               size="icon"
               className="h-8 w-8"
-              aria-label="Buscar lead"
+              aria-label="Buscar prospecto"
               title="Buscar"
               onClick={() => setSearchOpen(true)}
             >
@@ -306,8 +306,8 @@ export function PipelineClient() {
           )}
           <Button size="sm" data-pm="new-lead" onClick={() => setCreating({})}>
             <Plus className="h-4 w-4" />
-            <span className="hidden sm:inline">Nuevo lead</span>
-            <span className="sr-only sm:hidden">Nuevo lead</span>
+            <span className="hidden sm:inline">Nuevo prospecto</span>
+            <span className="sr-only sm:hidden">Nuevo prospecto</span>
           </Button>
         </>
       }
@@ -335,7 +335,7 @@ export function PipelineClient() {
       {stages.length > 0 && (
         <p data-pm="board-summary" className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b px-4 py-2.5 text-[13px] text-text-3">
           <span>
-            {openLeads.length} {openLeads.length === 1 ? "lead abierto" : "leads abiertos"}
+            {openLeads.length} {openLeads.length === 1 ? "prospecto abierto" : "prospectos abiertos"}
           </span>
           {openTotals.totalCents > 0 && (
             <>
@@ -383,7 +383,7 @@ export function PipelineClient() {
 
       {creating && (
         <NewContactDialog
-          title="Nuevo lead"
+          title="Nuevo prospecto"
           initialStageId={creating.stageId}
           onClose={() => setCreating(null)}
           onCreated={() => {

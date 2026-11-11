@@ -151,9 +151,9 @@ export function aiMeter(
     limits.turns !== null
       ? `${used.turns.toLocaleString("es-MX")} / ${limits.turns.toLocaleString("es-MX")} turnos`
       : turnos(used.turns);
-  const detail = `${tokensLine} · ${turnsLine}${limits.tokens === null && limits.turns === null ? " · sin tope" : ""}`;
+  const detail = `${tokensLine} · ${turnsLine}${limits.tokens === null && limits.turns === null ? " · sin límite" : ""}`;
   if (tokensRatio === null && turnsRatio === null) {
-    return { text: `${formatTokens(used.tokens)} tokens · sin tope`, ratio: null, tone: "normal", detail };
+    return { text: `${formatTokens(used.tokens)} tokens · sin límite`, ratio: null, tone: "normal", detail };
   }
   const porTurnos = (turnsRatio ?? -1) > (tokensRatio ?? -1);
   const ratio = porTurnos ? turnsRatio! : tokensRatio!;
@@ -163,7 +163,7 @@ export function aiMeter(
 /** El almacenamiento contra su tope (hasta el PR 3 no hay tope: «sin tope»). */
 export function storageMeter(bytes: number, limitBytes: number | null = null): Meter {
   if (limitBytes === null) {
-    const text = `${formatStorage(bytes)} · sin tope`;
+    const text = `${formatStorage(bytes)} · sin límite`;
     return { text, ratio: null, tone: "normal", detail: `${STORAGE_LABEL}: ${text}` };
   }
   const ratio = limitBytes > 0 ? bytes / limitBytes : Infinity;
@@ -182,7 +182,7 @@ export function countMeter(
   format: (n: number) => string = (n) => n.toLocaleString("es-MX")
 ): Meter {
   if (limit === null) {
-    const text = `${format(used)} ${unit} · sin tope`;
+    const text = `${format(used)} ${unit} · sin límite`;
     return { text, ratio: null, tone: "normal", detail: text };
   }
   const ratio = limit > 0 ? used / limit : used > 0 ? Infinity : 0;

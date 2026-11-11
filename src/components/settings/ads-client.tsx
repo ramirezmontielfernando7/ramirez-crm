@@ -194,7 +194,7 @@ export function AdsClient() {
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="capi-stage">¿Qué etapa es un lead calificado?</Label>
+            <Label htmlFor="capi-stage">¿En qué etapa un prospecto ya es calificado?</Label>
             <select
               id="capi-stage"
               value={qualifiedStageId}
@@ -253,7 +253,7 @@ export function AdsClient() {
             <p className="text-sm text-muted-foreground">Cargando…</p>
           ) : activity.length === 0 ? (
             <p className="text-sm text-muted-foreground">
-              Todavía no hay conversiones. Aparecerán cuando un lead que llegó
+              Todavía no hay conversiones. Aparecerán cuando un prospecto que llegó
               por un anuncio avance de etapa.
             </p>
           ) : (

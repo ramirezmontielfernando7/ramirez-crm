@@ -142,7 +142,7 @@ export function AgentClient() {
         <p className="mx-4 mt-4 text-sm text-muted-foreground sm:mx-6">
           Esta pantalla edita el agente general.{" "}
           <Link href="/lab" className="font-medium text-brand-ink underline-offset-2 hover:underline">
-            Gestionar todos los agentes → Laboratorio
+            Ver todos tus agentes en el Estudio de IA →
           </Link>
         </p>
       )}
@@ -261,7 +261,7 @@ function KbSection({
       <CardHeader>
         <div className="flex items-center justify-between">
           <div>
-            <CardTitle>Knowledge base</CardTitle>
+            <CardTitle>Lo que sabe tu agente</CardTitle>
             <CardDescription>
               La única fuente de verdad del agente: lo que no está aquí, no lo
               afirma.

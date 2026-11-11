@@ -32,10 +32,10 @@ type Preview = { totalRows: number; valid: number; failed: number; emptyRows: nu
 const MAX_BYTES = 5 * 1024 * 1024;
 
 const EXAMPLE = toCsv(
-  ["name", "phone", "source", "waConsent", "waConsentSource", "tags"],
+  ["nombre", "teléfono", "fuente", "etiquetas"],
   [
-    ["Ana López", "5215512345678", "referido", "opt_in", "Formulario web", "VIP, Promo marzo"],
-    ["Beto Ruiz", "+52 1 33 1234 5678", "", "", "", ""],
+    ["Ana López", "5215512345678", "referido", "VIP, Promo marzo"],
+    ["Beto Ruiz", "+52 1 33 1234 5678", "", ""],
   ]
 );
 
@@ -149,7 +149,7 @@ export function ImportDialog({ onClose, onImported }: { onClose: () => void; onI
     >
       <div className="max-h-[90dvh] w-full max-w-lg overflow-y-auto rounded-lg border bg-popover p-5 shadow-xl">
         <div className="mb-4 flex items-baseline justify-between gap-2">
-          <h3 className="font-semibold">Importar contactos (CSV)</h3>
+          <h3 className="font-semibold">Importar contactos</h3>
           <Button variant="ghost" size="sm" onClick={onClose}>
             Cerrar
           </Button>
@@ -159,10 +159,10 @@ export function ImportDialog({ onClose, onImported }: { onClose: () => void; onI
           <div className="space-y-4">
             <div className="rounded-md border bg-subtle p-3 text-xs leading-relaxed text-text-2">
               <p>
-                Columnas obligatorias: <b>name</b> y <b>phone</b> (con código de país, ej. 52 para
-                México). Opcionales: <b>source</b>, <b>waConsent</b> (opt_in / opt_out /
-                desconocido), <b>waConsentSource</b> y <b>tags</b> (separadas por comas). También
-                se aceptan en español: nombre, teléfono, fuente, consentimiento, etiquetas.
+                Sube una hoja con al menos dos columnas: <b>nombre</b> y <b>teléfono</b> (con
+                código de país, por ejemplo 52 para México). Si quieres, agrega <b>etiquetas</b>{" "}
+                (separadas por comas) y <b>fuente</b> (de dónde salió el contacto). Lo más fácil es
+                descargar el ejemplo y llenarlo.
               </p>
               <p className="mt-2">
                 Antes de importar te preguntaremos si estos contactos aceptaron recibir WhatsApp. Un
@@ -179,13 +179,23 @@ export function ImportDialog({ onClose, onImported }: { onClose: () => void; onI
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="import-file">Archivo (.csv, máx. 5 MB y 10,000 filas)</Label>
-              <Input
-                id="import-file"
-                type="file"
-                accept=".csv,text/csv"
-                onChange={(e) => pick(e.target.files?.[0] ?? null)}
-              />
+              <Label htmlFor="import-file">Archivo CSV (hasta 5 MB y 10,000 contactos)</Label>
+              <label
+                htmlFor="import-file"
+                className="flex h-9 cursor-pointer items-center gap-2 rounded-md border bg-background px-3 text-sm hover:bg-subtle focus-within:ring-2 focus-within:ring-ring"
+              >
+                <Upload className="h-4 w-4 shrink-0 text-text-3" aria-hidden />
+                <span className={file ? "truncate" : "truncate text-text-3"}>
+                  {file ? file.name : "Elegir archivo…"}
+                </span>
+                <input
+                  id="import-file"
+                  type="file"
+                  accept=".csv,text/csv"
+                  className="sr-only"
+                  onChange={(e) => pick(e.target.files?.[0] ?? null)}
+                />
+              </label>
             </div>
 
             {file && <ConsentQuestion value={answer} onChange={answerConsent} disabled={busy} />}
@@ -232,7 +242,7 @@ export function ImportDialog({ onClose, onImported }: { onClose: () => void; onI
                 onChange={(e) => setCreateLeads(e.target.checked)}
               />
               <span>
-                Crear también un lead en el Pipeline por cada contacto nuevo
+                Agregar también cada contacto nuevo al Pipeline como prospecto
                 <span className="block text-[11px] text-text-3">
                   Apagado: la base queda en Contactos sin llenar el tablero.
                 </span>

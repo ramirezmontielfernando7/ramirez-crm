@@ -249,7 +249,7 @@ export function NewCampaign({ initialAudienceId }: { initialAudienceId: string |
                 <CardDescription className="flex items-start gap-1.5">
                   <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-success-text" />
                   <span>
-                    Solo contactos que <b>aceptaron recibir mensajes</b> (opt-in). Los demás nunca reciben una
+                    Solo contactos que <b>aceptaron recibir mensajes</b>. Los demás nunca reciben una
                     campaña.
                   </span>
                 </CardDescription>
@@ -319,7 +319,7 @@ export function NewCampaign({ initialAudienceId }: { initialAudienceId: string |
                     <div className="space-y-1.5">
                       <Label>Etiquetas (cualquiera de las elegidas)</Label>
                       {tags.length === 0 ? (
-                        <p className="text-sm text-muted-foreground">Sin etiquetas: se tomará toda la base con opt-in.</p>
+                        <p className="text-sm text-muted-foreground">Sin etiquetas: le llegará a todos los que aceptaron recibir mensajes.</p>
                       ) : (
                         <div className="flex flex-wrap gap-2">
                           {tags.map((t) => {

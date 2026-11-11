@@ -365,7 +365,7 @@ async function consumoEnPlataforma(A, B, orgB) {
   const fila = page.getByTestId(`platform-org-${orgB}`);
   await fila.waitFor({ timeout: 30000 });
   ok("la fila cerrada muestra IA del mes", /tokens/.test(await fila.getByTestId("platform-org-ai").first().innerText()));
-  ok("…almacenamiento aproximado («sin tope» hasta los límites)", /KB · sin tope/.test(await fila.getByTestId("platform-org-storage").first().innerText()));
+  ok("…almacenamiento aproximado («sin tope» hasta los límites)", /KB · sin límite/.test(await fila.getByTestId("platform-org-storage").first().innerText()));
   ok("…y módulos activos «x/13»", /^\d+\/13$/.test((await fila.getByTestId("platform-org-modules-count").last().innerText()).trim()));
   // 040: estado y plan guardado en la fila (la etiqueta amigable).
   const [{ plan_key: planB } = {}] = await sql`select plan_key from organization_plan where organization_id = ${orgB}`;
@@ -874,7 +874,7 @@ async function asistenteBase(A, B, orgB) {
   await page.getByTestId("assistant-notice-accept").click();
   await guardado;
   ok("«Entendido, continuar» la cierra", await aviso.waitFor({ state: "detached", timeout: 10000 }).then(() => true, () => false));
-  ok("el banner fijo sigue a la vista", /consume bastante crédito de IA/.test(await page.getByTestId("assistant-cost-banner").innerText()));
+  ok("el banner fijo sigue a la vista", /usa crédito de IA de tu plan/.test(await page.getByTestId("assistant-cost-banner").innerText()));
   ok("el estado: disponible", (await page.getByTestId("assistant-status").getAttribute("data-state")) === "available");
   await page.screenshot({ path: "scratch/e2e-asistente.png", fullPage: true }).catch(() => null);
   await page.reload();
