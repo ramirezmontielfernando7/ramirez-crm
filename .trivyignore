@@ -1,0 +1,7 @@
+# Fallas conocidas en herramientas SOLO de pruebas (vitest/vite/tinypool):
+# no viajan en la imagen de producción. Arreglarlas pide subir vitest 2 -> 3/4,
+# un cambio grande que va en su propio PR. Se revisan en cuanto se haga.
+CVE-2026-104848
+CVE-2026-104849
+CVE-2026-112942
+CVE-2026-47429

@@ -1,0 +1,14 @@
+# Gitleaks: reglas de fábrica + una excepción acotada.
+# Los 17 avisos de la primera revisión eran contraseñas y llaves FALSAS de
+# pruebas (tests/) y de una guía (specs/). Cualquier secreto real en otra
+# parte (src/, scripts/, .env…) sigue haciendo fallar la revisión.
+title = "Dashfort gitleaks"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Valores de mentira en pruebas y guías"
+condition = "AND"
+paths = ['''^(tests|specs)/''']
+rules = ["generic-api-key"]

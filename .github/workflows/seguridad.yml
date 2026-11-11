@@ -1,0 +1,54 @@
+name: Seguridad
+
+# Revisión automática y gratuita en cada PR y en main:
+#  - Gitleaks: busca llaves o contraseñas reales subidas por error.
+#  - Trivy: busca librerías con fallas conocidas GRAVES o CRÍTICAS que ya
+#    tengan arreglo (lo bajo o sin arreglo no frena nada).
+# Corre en paralelo a CI y no lo alarga.
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "17 9 * * 1" # lunes: fallas nuevas en librerías ya usadas
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  gitleaks:
+    name: Gitleaks · secretos
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Instalar y correr gitleaks
+        env:
+          GITLEAKS_VERSION: "8.28.0"
+        run: |
+          curl -sSfL -o g.tgz "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          tar xzf g.tgz gitleaks
+          ./gitleaks detect --source . --config .gitleaks.toml --redact --no-banner -v
+
+  trivy:
+    name: Trivy · librerías vulnerables
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: aquasecurity/trivy-action@v0.33.1
+        with:
+          scan-type: fs
+          scanners: vuln
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+          skip-dirs: node_modules
+          trivyignores: .trivyignore
+          version: v0.69.3
