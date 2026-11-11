@@ -263,7 +263,8 @@ export function SettingsShell({
             </div>
           ))}
         </nav>
-        <div className={cn("min-w-0", mobileList && "max-lg:hidden")}>
+        {/* Pulido F: todas las páginas de Ajustes con el mismo ancho. */}
+        <div className={cn("min-w-0 max-w-4xl", mobileList && "max-lg:hidden")}>
           {current && (
             <div className="mb-3 flex items-center gap-2 lg:hidden" data-testid="settings-detail-head">
               <Link href="/settings" aria-label="Volver a Ajustes" className="-ml-2 flex h-10 w-10 items-center justify-center rounded-full active:bg-row-hover">

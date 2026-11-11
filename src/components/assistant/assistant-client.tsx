@@ -269,7 +269,9 @@ export function AssistantClient() {
       <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto bg-canvas p-3 lg:flex-row lg:overflow-hidden">
         {/* ── Izquierda: cápsula del Asistente + Hilos ───────────────────── */}
         {leftOpen && (
-          <aside className="flex shrink-0 flex-col gap-3 lg:w-[280px] lg:min-h-0" aria-label="Conversaciones del asistente">
+          // Auditoría UX 2026-11 (24): en el celular la cápsula repetía «Asistente»
+          // (ya está en el encabezado); ahí manda el selector del chat.
+          <aside className="flex shrink-0 flex-col gap-3 max-lg:hidden lg:w-[280px] lg:min-h-0" aria-label="Conversaciones del asistente">
             <div className="rounded-lg bg-surface p-2.5 shadow-card">
               <div
                 className={cn(
@@ -414,7 +416,22 @@ export function AssistantClient() {
                 <PanelLeftOpen className="h-4 w-4" aria-hidden />
               </button>
             )}
-            <h2 className="min-w-0 flex-1 truncate text-sm font-semibold" data-testid="assistant-title">{title}</h2>
+            <h2 className="min-w-0 flex-1 truncate text-sm font-semibold max-lg:sr-only" data-testid="assistant-title">{title}</h2>
+            {/* Celular: sin columna de hilos, el selector ocupa el lugar del título. */}
+            <label className="sr-only" htmlFor="assistant-thread-select">Conversación</label>
+            <select
+              id="assistant-thread-select"
+              data-testid="assistant-thread-select"
+              className="h-9 min-w-0 flex-1 rounded-md border border-input bg-background px-2 text-sm lg:hidden"
+              value={threadId ?? ""}
+              onChange={(e) => void openThread(e.target.value || null)}
+            >
+              <option value="">Conversación nueva</option>
+              {general && <option value={general.id}>Chat general</option>}
+              {threads.filter((t) => !t.archived).map((t) => (
+                <option key={t.id} value={t.id}>{t.title}</option>
+              ))}
+            </select>
             {current && current.kind === "thread" && (
               <Button
                 variant="ghost"
@@ -432,24 +449,6 @@ export function AssistantClient() {
               </button>
             )}
           </header>
-
-          {/* Celular: sin columna de hilos, un selector. */}
-          <div className="shrink-0 border-b p-2 lg:hidden">
-            <label className="sr-only" htmlFor="assistant-thread-select">Conversación</label>
-            <select
-              id="assistant-thread-select"
-              data-testid="assistant-thread-select"
-              className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
-              value={threadId ?? ""}
-              onChange={(e) => void openThread(e.target.value || null)}
-            >
-              <option value="">Conversación nueva</option>
-              {general && <option value={general.id}>Asistente</option>}
-              {threads.filter((t) => !t.archived).map((t) => (
-                <option key={t.id} value={t.id}>{t.title}</option>
-              ))}
-            </select>
-          </div>
 
           <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-4 py-6">
             <div className="mx-auto w-full max-w-[680px] space-y-4">

@@ -51,13 +51,13 @@ export function BrainStatusCard({
           <Callout tone="danger" icon={AlertTriangle} title="Tus clientes pueden recibir dos respuestas">
             El agente incluido y {name ? `tu cerebro externo (${name})` : "tu cerebro externo"}{" "}
             contestan los mismos mensajes: apaga el agente incluido con el interruptor
-            de arriba o quita <Env>OPENROUTER_API_TOKEN</Env> del CRM.
+            de arriba o desconecta tu cerebro externo.
           </Callout>
         )}
         {status.warning === "sin_cerebro" && (
           <Callout tone="warning" icon={Info} title="Nadie contesta en automático">
             Tus clientes solo reciben lo que respondas desde la bandeja: enciende el
-            agente incluido (necesita <Env>OPENROUTER_API_TOKEN</Env>) o conecta tu
+            agente incluido o conecta tu
             cerebro externo con una llave de la API de servicio (la da quien administra la
             plataforma).
           </Callout>
@@ -94,10 +94,10 @@ export function BrainStatusCard({
 function embeddedView(s: BrainStatusDto): RowView {
   const { configured, enabled, answering } = s.embedded;
   const headline = `${enabled ? "Encendido" : "Apagado"} · ${
-    configured ? "token de IA: sí" : "sin token de IA"
+    configured ? "IA lista" : "IA sin activar"
   }`;
   if (enabled && !configured) {
-    return { tone: "warn", headline, detail: "No contesta: a la instancia le falta OPENROUTER_API_TOKEN." };
+    return { tone: "warn", headline, detail: "No contesta: el servicio de IA de tu cuenta aún no está activo. Escríbenos y lo activamos." };
   }
   if (answering) {
     return {
@@ -117,7 +117,7 @@ function embeddedView(s: BrainStatusDto): RowView {
     headline,
     detail: configured
       ? "Enciéndelo con el interruptor de arriba para que conteste."
-      : "Para usarlo, agrega OPENROUTER_API_TOKEN a la instancia y reiníciala.",
+      : "Para usarlo, el servicio de IA de tu cuenta debe estar activo: escríbenos y lo activamos.",
   };
 }
 
@@ -268,10 +268,4 @@ function Callout({
       </div>
     </div>
   );
-}
-
-/** El nombre de una variable, entero: partido a media palabra en el móvil no
- *  se puede copiar ni reconocer. */
-function Env({ children }: { children: React.ReactNode }) {
-  return <code className="whitespace-nowrap font-mono text-[0.92em]">{children}</code>;
 }

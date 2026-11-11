@@ -65,11 +65,11 @@ export function ConnectorSettingsClient() {
 
   const rowCls = "flex items-center justify-between gap-3 border-t border-border py-3 text-sm first:border-t-0";
   return (
-    <div className="max-w-5xl space-y-5">
-      <div className="flex items-start justify-between gap-4">
-        <div className="space-y-1">
-          <h2 className="text-xl font-semibold">Conector del equipo</h2>
-          <p className="text-sm text-muted-foreground">
+    <div className="space-y-5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-[min(100%,16rem)] flex-1 space-y-1">
+          <h2 className="text-[22px] font-semibold tracking-tight max-lg:hidden">Conector del equipo</h2>
+          <p className="text-[13.5px] leading-relaxed text-text-2">
             Decide si tu equipo puede conectar su propia IA y qué puede hacer. La IA entra con la cuenta de cada
             persona y nunca ve chats privados de «Mi número». Cada quien paga su IA.
           </p>

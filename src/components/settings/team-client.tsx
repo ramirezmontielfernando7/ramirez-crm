@@ -1,10 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { UserPlus } from "lucide-react";
+import { Copy, KeyRound, MessageCircle, UserPlus } from "lucide-react";
 import { ContactAvatar } from "@/components/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -29,6 +29,72 @@ const ROLE_HINT: Record<Role, string> = {
   asesor: "Ve solo sus chats y los que le comparten.",
 };
 
+type InviteLink = { name: string; url: string; expiresAt: string; kind: "invite" | "access" };
+
+/** El texto que sale en WhatsApp: corto, sin datos del negocio que no hagan falta. */
+export function inviteMessage(link: Pick<InviteLink, "name" | "url" | "kind">): string {
+  const saludo = link.name ? `Hola ${link.name.split(/\s+/)[0]}` : "Hola";
+  return link.kind === "invite"
+    ? `${saludo}: te di acceso a nuestro CRM. Entra con este enlace y pon tu contraseña (vale 72 horas y un solo uso): ${link.url}`
+    : `${saludo}: aquí tienes un enlace para entrar al CRM y poner una contraseña nueva (vale 72 horas y un solo uso): ${link.url}`;
+}
+
+function LinkCard({ link, onClose }: { link: InviteLink; onClose: () => void }) {
+  const [copied, setCopied] = useState(false);
+  const caduca = new Date(link.expiresAt).toLocaleString("es-MX", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(link.url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setCopied(false);
+    }
+  }
+  return (
+    <div
+      className="space-y-3 rounded-xl border border-success-soft bg-success-tint p-4 text-sm"
+      data-testid="team-invite-link"
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="font-medium text-success-text">
+            {link.kind === "invite" ? `Invitación lista para ${link.name}` : `Enlace listo para ${link.name}`}
+          </p>
+          <p className="mt-0.5 text-success-text opacity-90">
+            Mándaselo ahora: no se vuelve a mostrar. Vale hasta el {caduca} y se usa una sola vez.
+          </p>
+        </div>
+        <button type="button" onClick={onClose} className="text-xs text-success-text underline-offset-2 hover:underline">
+          Cerrar
+        </button>
+      </div>
+      <code className="block break-all rounded-md bg-card px-3 py-2 text-xs text-text-2">{link.url}</code>
+      <div className="flex flex-wrap gap-2">
+        <a
+          href={`https://wa.me/?text=${encodeURIComponent(inviteMessage(link))}`}
+          target="_blank"
+          rel="noreferrer"
+          className={buttonVariants({ size: "sm" })}
+        >
+          <MessageCircle className="h-4 w-4" />
+          Enviar por WhatsApp
+        </a>
+        <Button size="sm" variant="outline" onClick={() => void copy()}>
+          <Copy className="h-4 w-4" />
+          {copied ? "Copiado ✓" : "Copiar enlace"}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 export function TeamClient() {
   const viewer = useViewer();
   const canManage = viewer.can("users.manage");
@@ -38,8 +104,8 @@ export function TeamClient() {
   const [notice, setNotice] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [tempPassword, setTempPassword] = useState("");
-  const [created, setCreated] = useState<{ email: string; password: string } | null>(null);
+  /** El enlace recién creado (alta o «Enlace para entrar»): se ve una sola vez. */
+  const [link, setLink] = useState<InviteLink | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [showForm, setShowForm] = useState(false);
@@ -55,24 +121,14 @@ export function TeamClient() {
     void refetch();
   }, [refetch]);
 
-  function generatePassword() {
-    const alphabet =
-      "abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-    const bytes = new Uint32Array(14);
-    crypto.getRandomValues(bytes);
-    setTempPassword(
-      Array.from(bytes, (b) => alphabet[b % alphabet.length]).join("")
-    );
-  }
-
   async function create() {
     setSaving(true);
     setError(null);
-    setCreated(null);
+    setLink(null);
     const res = await fetch("/api/settings/team", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ name, email, password: tempPassword, role }),
+      body: JSON.stringify({ name, email, role }),
     }).catch(() => null);
     setSaving(false);
     if (!res?.ok) {
@@ -82,12 +138,29 @@ export function TeamClient() {
       setError(data?.error?.message ?? "No se pudo crear la cuenta");
       return;
     }
-    setCreated({ email, password: tempPassword });
+    const data = (await res.json().catch(() => null)) as {
+      link?: { url: string; expiresAt: string };
+    } | null;
+    if (data?.link) setLink({ name: name.trim(), ...data.link, kind: "invite" });
     setRole("asesor");
     setName("");
     setEmail("");
-    setTempPassword("");
     void refetch();
+  }
+
+  async function newLink(m: Member) {
+    setNotice(null);
+    setError(null);
+    setLink(null);
+    const res = await fetch(`/api/settings/team/${m.id}/link`, { method: "POST" }).catch(() => null);
+    const data = (await res?.json().catch(() => null)) as
+      | { url?: string; expiresAt?: string; error?: { message?: string } }
+      | null;
+    if (!res?.ok || !data?.url || !data.expiresAt) {
+      setError(data?.error?.message ?? "No se pudo crear el enlace");
+      return;
+    }
+    setLink({ name: m.name, url: data.url, expiresAt: data.expiresAt, kind: "access" });
   }
 
   async function request(url: string, init: RequestInit, ok: string) {
@@ -143,11 +216,11 @@ export function TeamClient() {
   }
 
   return (
-    <div className="max-w-4xl space-y-6">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h2 className="text-xl font-semibold">Equipo y permisos</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-[min(100%,16rem)] flex-1 space-y-1">
+          <h2 className="text-[22px] font-semibold tracking-tight max-lg:hidden">Equipo y permisos</h2>
+          <p className="text-[13.5px] leading-relaxed text-text-2">
             {members.length} {members.length === 1 ? "persona" : "personas"} en tu equipo. Los roles se explican con palabras, no con una matriz.
           </p>
         </div>
@@ -162,10 +235,10 @@ export function TeamClient() {
       {canManage && showForm && (
         <Card>
           <CardHeader>
-            <CardTitle>Crear cuenta de equipo</CardTitle>
+            <CardTitle>Invitar a alguien del equipo</CardTitle>
             <CardDescription>
-              Sin correos ni invitaciones: comparte tú mismo la contraseña
-              temporal con tu compañero (se muestra UNA sola vez).
+              Te damos un enlace para mandárselo por WhatsApp. Con él pone su
+              propia contraseña; vale 72 horas y un solo uso.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -204,44 +277,21 @@ export function TeamClient() {
               </select>
               <p className="text-xs text-muted-foreground">{ROLE_HINT[role]}</p>
             </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="team-password">Contraseña temporal</Label>
-              <div className="flex gap-2">
-                <Input
-                  id="team-password"
-                  value={tempPassword}
-                  onChange={(e) => setTempPassword(e.target.value)}
-                  placeholder="mínimo 8 caracteres"
-                />
-                <Button variant="outline" onClick={generatePassword}>
-                  Generar
-                </Button>
-              </div>
-            </div>
             {error && <p className="text-sm text-destructive">{error}</p>}
-            {created && (
-              <div className="rounded-md border border-success-soft bg-success-tint p-3 text-sm">
-                <p className="font-medium text-success-text">Cuenta creada ✓</p>
-                <p className="mt-1 text-success-text opacity-90">
-                  Comparte estos datos ahora (no se volverán a mostrar):
-                  <br />
-                  <code>{created.email}</code> · contraseña{" "}
-                  <code>{created.password}</code>
-                </p>
-              </div>
-            )}
             <Button
               disabled={
-                saving || !name.trim() || !email.trim() || tempPassword.length < 8
+                saving || !name.trim() || !email.trim()
               }
               onClick={() => void create()}
             >
               <UserPlus className="h-4 w-4" />
-              {saving ? "Creando…" : "Crear cuenta"}
+              {saving ? "Creando…" : "Crear invitación"}
             </Button>
           </CardContent>
         </Card>
       )}
+
+      {link && <LinkCard link={link} onClose={() => setLink(null)} />}
 
       {notice && (
         <p className="rounded-md border border-success-soft bg-success-tint p-3 text-sm text-success-text">
@@ -318,6 +368,17 @@ export function TeamClient() {
                               </option>
                             ))}
                         </select>
+                      )}
+                      {canManage && m.userId !== viewer.userId && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => void newLink(m)}
+                          title="Para que entre y ponga una contraseña nueva (si la olvidó o no usó la invitación)"
+                        >
+                          <KeyRound className="h-4 w-4" />
+                          Enlace para entrar
+                        </Button>
                       )}
                       {canManage && (
                         <Button size="sm" variant="ghost" onClick={() => remove(m)}>

@@ -147,9 +147,9 @@ export function CampaignSettingsForm({ brandName }: { brandName: string }) {
                 <CardHeader>
                   <CardTitle>Tarifas para el costo estimado</CardTitle>
                   <CardDescription>
-                    Lo que te cobra Meta por mensaje según la categoría de la plantilla. Consulta tu tarifa vigente en
-                    el Administrador de WhatsApp: {brandName} no la adivina. El costo se muestra siempre como{" "}
-                    <b>Estimado</b>.
+                    Lo que te cobra Meta por mensaje según la categoría de la plantilla. Ya vienen las tarifas
+                    aproximadas de México en pesos; si tu factura de Meta dice otra cosa, cámbialas aquí. El costo se
+                    muestra siempre como <b>Estimado</b>.
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3 text-sm">

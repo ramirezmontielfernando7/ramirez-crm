@@ -4,10 +4,19 @@ import { DEFAULT_MARKETING_MIN_DAYS, type CampaignSettingsDto } from "@/lib/camp
 
 /**
  * Campañas v2 (PR 2) — Ajustes de envío por organización (`campaign_settings`).
- * Sin fila = estos valores por defecto. Las tarifas vienen VACÍAS: Vocero no
- * trae precios de Meta; el negocio captura los suyos y el costo se muestra
- * como "Estimado".
+ * Sin fila = estos valores por defecto. Auditoría UX 2026-11 (punto 16): sin
+ * fila, las tarifas son las APROXIMADAS de Meta para México en pesos (un dueño
+ * no sabe cuánto cobra Meta por mensaje); el costo sigue diciendo «Estimado»
+ * y el negocio las corrige en Ajustes de envío. Una fila guardada manda, aunque
+ * tenga las tarifas vacías.
  */
+export const DEFAULT_MX_RATES: Readonly<Record<string, number>> = {
+  // MXN por mensaje entregado, aprox. 2026 (USD 0.0436 / 0.0080 / 0.0309).
+  marketing: 0.8,
+  utility: 0.15,
+  authentication: 0.57,
+};
+
 export const DEFAULT_CAMPAIGN_SETTINGS: CampaignSettingsDto = {
   failRatePercent: 20,
   failRateWindow: 50,
@@ -28,7 +37,7 @@ export async function getCampaignSettings(organizationId: string): Promise<Campa
     .where(scoped(schema.campaignSettings.organizationId, organizationId))
     .limit(1);
   const r = rows[0];
-  if (!r) return { ...DEFAULT_CAMPAIGN_SETTINGS, rates: {} };
+  if (!r) return { ...DEFAULT_CAMPAIGN_SETTINGS, rates: { ...DEFAULT_MX_RATES }, currency: "MXN" };
   return {
     failRatePercent: r.failRatePercent,
     failRateWindow: r.failRateWindow,

@@ -464,7 +464,7 @@ function DirectServerPicker({ orgId, disabled }: { orgId: string; disabled: bool
       <label className="flex items-center gap-2">
         <span className="text-text-3">Servidor</span>
         <select
-          className="rounded border bg-background px-1 py-0.5"
+          className="h-8 rounded-md border border-input bg-background px-2 text-sm"
           value={conn?.serverId ?? ""}
           disabled={disabled || conn?.locked}
           onChange={(e) => e.target.value && void assign(e.target.value)}

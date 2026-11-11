@@ -28,7 +28,7 @@ export function OneTimeLink({ url, expiresAt, kind }: { url: string; expiresAt: 
         >
           <Copy className="h-3.5 w-3.5" /> {copied ? "Copiado" : "Copiar"}
         </Button>
-        <span className="text-xs text-text-2">Caduca: {fecha(expiresAt)}. De un solo uso.</span>
+        <span className="text-xs text-text-2">Caduca: {fecha(expiresAt).replace(/\.$/, "")}. De un solo uso.</span>
       </div>
       <p className="text-xs text-text-2">
         Entrégalo solo a esa persona, por un canal de confianza. Quien tenga el enlace puede poner la contraseña: no lo

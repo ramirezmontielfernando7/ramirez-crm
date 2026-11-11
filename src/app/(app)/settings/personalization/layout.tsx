@@ -11,14 +11,11 @@ export default function PersonalizationLayout({ children }: Readonly<{ children:
   return (
     <div data-pm="subtabs-host" className="space-y-5">
       <PersonalizationBack>
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px] text-text-2">
-          <Link href="/settings/personalization" className="inline-flex items-center gap-1 hover:text-foreground">
-            <ChevronLeft className="h-4 w-4" strokeWidth={1.8} />
-            Apariencia
-          </Link>
-          <Link href="/settings/personalization/marca" className="hover:text-foreground">Marca</Link>
-          <Link href="/settings/personalization/navegacion" className="hover:text-foreground">Navegación</Link>
-        </div>
+        {/* Pulido F: el mismo «‹ volver» que Conexión directa, sin migas sueltas. */}
+        <Link href="/settings/personalization" className="inline-flex items-center gap-1 text-[13px] text-text-2 hover:text-foreground">
+          <ChevronLeft className="h-4 w-4" strokeWidth={1.8} />
+          Apariencia
+        </Link>
       </PersonalizationBack>
       {children}
     </div>

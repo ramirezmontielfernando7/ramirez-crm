@@ -1,5 +1,6 @@
 "use client";
 
+import { ContactUs } from "@/components/usage/contact-us";
 import { useEffect, useState } from "react";
 import { Check } from "lucide-react";
 import { fetchJson } from "@/lib/fetch-json";
@@ -12,7 +13,7 @@ import { cn } from "@/lib/utils";
  * plataforma, en pesos más IVA) con el actual marcado. Sin cobro real: «Elegir»
  * avisa a la plataforma (`POST /api/usage/plan-request`) y se le contacta.
  */
-type PlansResponse = { current: PlanKey; catalog: PlanCatalog };
+type PlansResponse = { current: PlanKey; catalog: PlanCatalog; contactWhatsapp?: string | null };
 
 function Card({
   plan,
@@ -147,7 +148,9 @@ export function UpgradePlans() {
         </p>
       )}
       {error && <p className="mt-3 text-sm text-destructive">{error}</p>}
-      <p className="mt-4 text-xs text-text-3">¿Necesitas algo distinto? Escríbenos y armamos un plan a tu medida.</p>
+      <p className="mt-4 text-xs text-text-3">
+        <ContactUs phone={data.contactWhatsapp ?? null} />
+      </p>
     </div>
   );
 }

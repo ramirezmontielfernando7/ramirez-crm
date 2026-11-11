@@ -18,6 +18,7 @@ import type { KbDocumentView } from "@/server/kb-docs/http";
 import type { KbGroupSummary } from "@/server/kb-docs/store";
 import { DestinationBadges, DestinationToggle } from "@/components/library/destinations";
 import { Switch } from "@/components/ui/switch";
+import { EmptyState } from "@/components/ui/empty-state";
 
 /** 040 — Cada documento dice si su original también está en la Bandeja. */
 type DocRow = KbDocumentView & { inChat: boolean; hasOriginal: boolean };
@@ -294,13 +295,17 @@ export function DocumentsClient({ groupKey: activeKey = GENERAL_GROUP_KEY }: { g
             )}
 
             {data.documents.length === 0 ? (
-              <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
-                <FileText className="mx-auto mb-2 h-6 w-6" strokeWidth={1.5} />
-                {active.id
-                  ? `Aún no hay documentos en ${active.name}.`
-                  : data.usage.documents === 0
-                    ? "Aún no hay documentos. Mientras no subas ninguno, el agente responde solo con su conocimiento de siempre."
-                    : "Aún no hay documentos en General."}
+              <div className="rounded-lg border border-dashed">
+                <EmptyState
+                  compact
+                  icon={FileText}
+                  title={active.id ? `Aún no hay documentos en ${active.name}` : data.usage.documents === 0 ? "Aún no hay documentos" : "Aún no hay documentos en General"}
+                  description={
+                    !active.id && data.usage.documents === 0
+                      ? "Mientras no subas ninguno, el agente responde solo con su conocimiento de siempre."
+                      : "Súbelos con «Subir documento»."
+                  }
+                />
               </div>
             ) : (
               <div className="overflow-hidden rounded-lg border bg-card">

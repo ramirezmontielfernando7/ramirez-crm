@@ -523,9 +523,12 @@ function StageColumn({
             {leads.length}
           </span>
         </span>
-        <span data-pm="col-total" className="shrink-0 text-[12px] tabular-nums text-text-3">
-          {moneyShort(totalCents, currency)}
-        </span>
+        {/* Auditoría UX 2026-11 (17): sin montos, la columna no dice «$0». */}
+        {totalCents > 0 && (
+          <span data-pm="col-total" className="shrink-0 text-[12px] tabular-nums text-text-3">
+            {moneyShort(totalCents, currency)}
+          </span>
+        )}
       </div>
       <div className="flex-1 space-y-2 overflow-y-auto p-2">
         {leads.map((lead) => (
@@ -648,10 +651,12 @@ function LeadCard({
       <div className="flex items-start gap-2.5">
         <ContactAvatar name={lead.contact.name} seed={lead.contact.id} size="sm" />
         {/* Ronda 3: el nombre completo, en dos renglones si hace falta. */}
-        <p data-pm="card-name" lang="es" className="min-w-0 flex-1 hyphens-auto pt-0.5 text-[13.5px] font-semibold leading-snug">
+        <p data-pm="card-name" lang="es" className="min-w-0 flex-1 break-words pt-0.5 text-[13.5px] font-semibold leading-snug">
           {lead.contact.name}
         </p>
-        {!overlay && onEditAmount ? (
+        {/* Auditoría UX 2026-11 (17): sin monto, «+ monto» baja al pie y no le
+            quita ancho al nombre. */}
+        {!overlay && onEditAmount && lead.amountCents !== null ? (
           <button
             // `stopPropagation` en pointerdown: sin esto, tocar el monto empieza
             // un arrastre y el diálogo nunca abre. También en `click`, para no
@@ -695,6 +700,20 @@ function LeadCard({
           </span>
         </span>
         <span className="flex-1" />
+        {!overlay && onEditAmount && lead.amountCents === null && (
+          <button
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              onEditAmount(lead);
+            }}
+            data-pm="amount"
+            data-empty=""
+            className="shrink-0 rounded px-1 py-0.5 text-[11.5px] text-text-3 hover:bg-accent hover:text-foreground"
+          >
+            + monto
+          </button>
+        )}
         {/* 020: a quién está asignado, visible para quien ve al equipo. */}
         {showAssignee && (
           <AssigneeDot name={lead.assignee?.name ?? null} />

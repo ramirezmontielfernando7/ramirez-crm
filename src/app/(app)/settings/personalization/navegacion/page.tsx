@@ -1,6 +1,7 @@
 import { NavigationSettingsClient } from "@/components/settings/navigation-settings";
 import { requirePagePermission } from "@/lib/auth/page-guard";
 import { orgHasCustomNav } from "@/server/modules";
+import { SettingsHeader } from "@/components/settings/settings-header";
 
 export const dynamic = "force-dynamic";
 
@@ -14,14 +15,15 @@ export default async function NavigationSettingsPage() {
   const session = await requirePagePermission("settings.manage");
   if (!(await orgHasCustomNav(session.organizationId))) {
     return (
-      <div className="max-w-xl space-y-1" data-testid="nav-unavailable">
-        <h3 className="text-[15px] font-semibold">Navegación no disponible</h3>
-        <p className="text-[13.5px] text-text-2">
-          Disponible cuando el módulo «Menú personalizable» está encendido para esta organización.
-        </p>
-        <p className="text-[12.5px] text-text-3">
-          Quien administra la plataforma lo enciende desde el panel de Plataforma.
-        </p>
+      <div className="space-y-4" data-testid="nav-unavailable">
+        <SettingsHeader mobileTitle title="Navegación" description="Qué entradas del menú ve cada rol y en qué orden." />
+        <div className="rounded-card border bg-surface p-5">
+          <h3 className="text-[15px] font-semibold">Navegación no disponible</h3>
+          <p className="mt-1 text-[13.5px] text-text-2">
+            Se activa cuando el módulo «Menú personalizable» está encendido para tu organización. Escríbenos y lo
+            encendemos.
+          </p>
+        </div>
       </div>
     );
   }

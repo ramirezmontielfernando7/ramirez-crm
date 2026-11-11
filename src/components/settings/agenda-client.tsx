@@ -18,6 +18,7 @@ import {
   type ConnectorId,
 } from "@/lib/agenda-connectors";
 import { ConnectorCredentials } from "@/components/settings/connector-credentials";
+import { SettingsHeader } from "@/components/settings/settings-header";
 
 /**
  * 015 — Ajustes → Agenda: cuándo atiende el negocio y cómo se entrega la
@@ -163,7 +164,8 @@ export function AgendaClient() {
   if (!settings) return <p className="text-sm text-text-3">Cargando…</p>;
 
   return (
-    <div className="max-w-2xl space-y-4">
+    <div className="space-y-6">
+      <SettingsHeader title="Agenda y conectores" description="Tu horario de atención, cómo se arman los huecos para citas y por dónde se entrega la reunión." />
       <Card>
         <CardHeader>
           <CardTitle>Horario de atención</CardTitle>
@@ -177,7 +179,7 @@ export function AgendaClient() {
             const intervals = settings.weeklyHours[day.key] ?? [];
             const open = intervals.length > 0;
             return (
-              <div key={day.key} className="flex items-start gap-3">
+              <div key={day.key} className="flex flex-col gap-1.5 sm:flex-row sm:items-start sm:gap-3">
                 <button
                   type="button"
                   onClick={() => toggleDay(day.key)}

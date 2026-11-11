@@ -329,6 +329,50 @@
   select {
     font-weight: var(--weight-ui);
   }
+  /* Auditoría UX 2026-11 (19): los selectores con la flecha del navegador
+     (cada uno distinta en Chrome, Safari y Windows) llevan la de la marca y
+     el mismo foco que los campos. Siguen siendo `<select>` nativos: en el
+     celular abren la rueda del sistema y el teclado funciona igual. Los que
+     ya traen su diseño (`appearance-none`) no se tocan. El `!important` del
+     padding compite contra `px-2` de Tailwind, que gana por capa. */
+  select:not([multiple]):not([size]):not(.appearance-none) {
+    -webkit-appearance: none;
+    appearance: none;
+    cursor: pointer;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%238a919c' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 6l4 4 4-4'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.55rem center;
+    background-size: 14px 14px;
+    padding-right: 1.9rem !important;
+    transition: border-color 150ms;
+  }
+  select:not([multiple]):not([size]):not(.appearance-none):hover:not(:disabled) {
+    border-color: var(--border-strong);
+  }
+  select:not(.appearance-none):focus-visible,
+  input[type="date"]:focus-visible,
+  input[type="time"]:focus-visible,
+  input[type="datetime-local"]:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 1px;
+  }
+  select:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
+  /* Las fechas: el ícono del calendario tenue y con manita, como el resto. */
+  input[type="date"]::-webkit-calendar-picker-indicator,
+  input[type="time"]::-webkit-calendar-picker-indicator,
+  input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+    cursor: pointer;
+    opacity: 0.55;
+    transition: opacity 150ms;
+  }
+  input[type="date"]::-webkit-calendar-picker-indicator:hover,
+  input[type="time"]::-webkit-calendar-picker-indicator:hover,
+  input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
+    opacity: 0.9;
+  }
   ::selection {
     background: var(--accent);
     color: var(--accent-fg);
@@ -1324,7 +1368,9 @@ html[data-lite] .usage-modal { animation: none; }
   .mobile-tabbar > :is(a, button) { min-height: 50px; gap: 2px; font-size: 11px; }
   .mobile-tabbar [class*="bg-brand-tint"] { background: var(--m-teal-soft); color: var(--m-teal-text); }
   .mobile-tabbar [class*="bg-brand "] { background: var(--m-teal); }
-  html:not([data-chat-open]) .inbox-scroll { padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
+  /* Auditoría UX 2026-11 (23): además de la barra, el botón verde de «Nuevo
+     chat» (56 px a 94 px del borde): la última fila sube por encima de él. */
+  html:not([data-chat-open]) .inbox-scroll { padding-bottom: calc(164px + env(safe-area-inset-bottom)); }
   .mobile-tabbar-fade { position: absolute; left: 0; right: 0; bottom: 0; height: calc(96px + env(safe-area-inset-bottom)); z-index: 20; pointer-events: none; background: linear-gradient(to top, var(--surface) 35%, color-mix(in srgb, var(--surface) 0%, transparent)); }
   html[data-chat-open] .mobile-tabbar-fade { display: none; }
 }

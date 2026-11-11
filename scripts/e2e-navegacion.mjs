@@ -178,7 +178,7 @@ async function main() {
   // el módulo, explica por qué no está disponible (no desaparece ni da 404).
   const pagOff = await O.pagina("/settings/navigation");
   ok("la ruta vieja redirige a Personalización → Navegación", new URL(pagOff.p.url()).pathname === "/settings/personalization/navegacion", pagOff.p.url());
-  ok("página 200 con el aviso de por qué no está disponible", pagOff.status === 200 && (await pagOff.p.getByText("Disponible cuando el módulo «Menú personalizable» está encendido").count()) === 1, String(pagOff.status));
+  ok("página 200 con el aviso de por qué no está disponible", pagOff.status === 200 && (await pagOff.p.getByText("Navegación no disponible").count()) === 1, String(pagOff.status));
   ok("sin custom_nav no hay editor de menú", (await pagOff.p.locator("li[data-nav-key]").count()) === 0);
   await pagOff.p.goto(`${BASE}/settings/whatsapp`);
   const ajustesNav = pagOff.p.getByRole("navigation", { name: "Secciones de Ajustes" });
@@ -202,7 +202,7 @@ async function main() {
 
   console.log("\n== 3 · La Propietaria edita el menú del Asesor (navegador) ==");
   const ed = await O.pagina("/settings/navigation");
-  ok("la pestaña «Navegación» aparece en Ajustes", (await ed.p.getByRole("link", { name: "Navegación" }).count()) > 0);
+  ok("la página «Navegación» se abre con su encabezado", await ed.p.getByRole("heading", { name: "Navegación", exact: true }).first().waitFor({ timeout: 15000 }).then(() => true, () => false));
   await ed.p.getByRole("tab", { name: /Asesor/ }).click();
   const filas = ed.p.locator("li[data-nav-key]");
   await filas.first().waitFor({ timeout: 30000 });

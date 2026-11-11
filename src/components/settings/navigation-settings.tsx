@@ -27,6 +27,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { NAV_ICONS, navItemClass } from "@/components/app-nav";
+import { SettingsHeader } from "@/components/settings/settings-header";
 
 type RoleState = { items: NavLayoutItem[]; customized: boolean; available: ModuleKey[] };
 type NavEvent = { id: string; role: Role; action: "saved" | "reset"; actorName: string | null; at: string };
@@ -145,11 +146,12 @@ export function NavigationSettingsClient() {
   }
 
   return (
-    <div className="max-w-4xl space-y-6">
-      <p className="text-sm text-muted-foreground">
-        Elige qué entradas del menú ve cada rol y en qué orden. Es solo apariencia: lo que un rol no puede
-        abrir no aparece aunque lo marques, y ocultar algo no le quita el permiso.
-      </p>
+    <div className="space-y-6">
+      <SettingsHeader
+        mobileTitle
+        title="Navegación"
+        description="Qué entradas del menú ve cada rol y en qué orden. Es solo apariencia: lo que un rol no puede abrir no aparece aunque lo marques, y ocultar algo no le quita el permiso."
+      />
 
       <div role="tablist" aria-label="Rol" className="flex flex-wrap gap-1.5">
         {LAYOUT_ROLES.map((r) => (

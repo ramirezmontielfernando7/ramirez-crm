@@ -15,7 +15,7 @@ import { api } from "./api";
  * valor de fábrica. Los topes reales de cada empresa se fijan en su ficha.
  */
 
-type Data = { catalog: PlanCatalog; defaults: PlanCatalog };
+type Data = { catalog: PlanCatalog; defaults: PlanCatalog; contactWhatsapp: string | null };
 
 const num = (s: string): number | null => (s.trim() === "" ? null : Number(s.replace(/[,\s$]/g, "")));
 
@@ -88,12 +88,15 @@ export function PlanCatalogCard() {
   const [forms, setForms] = useState<Record<string, Form> | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  /** 0077: el WhatsApp de «¿Necesitas más?» tal como se escribe. */
+  const [contact, setContact] = useState("");
 
   const load = useCallback(async () => {
     const r = await api<Data>("/api/platform/plans");
     if (r.ok && r.data) {
       setData(r.data);
       setForms(Object.fromEntries(CATALOG_SCOPES.map((k) => [k, toForm(r.data!.catalog[k])])));
+      setContact(r.data.contactWhatsapp ?? "");
     } else setError(r.error);
   }, []);
   useEffect(() => {
@@ -133,6 +136,12 @@ export function PlanCatalogCard() {
       if (!r.ok || !r.data) return setError(r.error ?? "No se pudo guardar.");
       last = r.data;
     }
+    if ((last?.contactWhatsapp ?? "") !== contact.trim()) {
+      const r = await api<Data>("/api/platform/plans", { method: "PUT", body: JSON.stringify({ contactWhatsapp: contact.trim() || null }) });
+      if (!r.ok || !r.data) return setError(r.error ?? "No se pudo guardar el WhatsApp de contacto.");
+      last = r.data;
+      setContact(r.data.contactWhatsapp ?? "");
+    }
     setError(null);
     if (last) {
       setData(last);
@@ -155,6 +164,22 @@ export function PlanCatalogCard() {
           </Button>
         </div>
       </div>
+      {data && (
+        <div className="max-w-md space-y-1 rounded-xl border bg-card p-4">
+          <Label className="text-sm" htmlFor="platform-contact-whatsapp">WhatsApp de contacto</Label>
+          <Input
+            id="platform-contact-whatsapp"
+            inputMode="tel"
+            value={contact}
+            placeholder="55 1234 5678"
+            onChange={(e) => setContact(e.target.value)}
+            data-testid="platform-contact-whatsapp"
+          />
+          <p className="text-[11px] text-text-3">
+            Sale como «Escríbenos por WhatsApp» en Uso y plan y en «Mejora tu plan». 10 dígitos de México o el número completo con país; vacío = solo «Escríbenos».
+          </p>
+        </div>
+      )}
       {!data || !forms ? (
         <p className={error ? "text-sm text-destructive" : "text-sm text-text-2"}>{error ?? "Cargando…"}</p>
       ) : (

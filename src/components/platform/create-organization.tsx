@@ -16,7 +16,7 @@ export const PLAN_HINT: Record<PlanOption, string> = {
   esencial: "+ Tareas, Notas, Biblioteca, Resultados y 1 agente de IA con creador",
   pro: "+ Estudio de IA completo, Agenda y Atribución CAPI",
   ultra: "+ Campañas masivas y Asistente interno",
-  personalizado: "los 13 interruptores a mano",
+  personalizado: "empieza con los de fábrica de la instancia y los 13 interruptores van a mano",
 };
 
 export function CreateOrganization({ onCreated }: { onCreated: () => void }) {
@@ -81,10 +81,14 @@ export function CreateOrganization({ onCreated }: { onCreated: () => void }) {
             id="org-profile"
             value={profile}
             onChange={(e) => setProfile(e.target.value as typeof profile)}
-            className="h-9 rounded-sm border bg-background px-2 text-sm"
+            className="h-9 rounded-md border border-input bg-background px-2 text-sm"
             data-testid="platform-create-profile"
+            required
           >
-            <option value="">Los de las variables de entorno</option>
+            {/* Auditoría UX 2026-11 (punto 21): sin plan elegido de antemano; hay que escogerlo. */}
+            <option value="" disabled>
+              Elige un plan…
+            </option>
             {PLAN_OPTIONS.map((p) => (
               <option key={p} value={p}>
                 {PLAN_LABEL[p]} — {PLAN_HINT[p]}
@@ -97,7 +101,7 @@ export function CreateOrganization({ onCreated }: { onCreated: () => void }) {
         </div>
         {error && <p className="text-sm text-destructive">{error}</p>}
         <Button
-          disabled={saving || name.trim().length < 2 || !ownerName.trim() || !ownerEmail.includes("@")}
+          disabled={saving || !profile || name.trim().length < 2 || !ownerName.trim() || !ownerEmail.includes("@")}
           onClick={() => void submit()}
           data-testid="platform-create-org"
         >

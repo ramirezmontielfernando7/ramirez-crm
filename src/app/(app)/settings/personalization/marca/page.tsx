@@ -3,6 +3,7 @@ import { FaviconCard } from "@/components/settings/favicon-card";
 import { getBranding } from "@/server/branding";
 import { getSessionOrNull } from "@/lib/auth/session";
 import { requirePagePermission } from "@/lib/auth/page-guard";
+import { SettingsHeader } from "@/components/settings/settings-header";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +17,8 @@ export default async function BrandingSettingsPage() {
   const branding = await getBranding(session?.organizationId);
 
   return (
-    <div className="max-w-2xl space-y-6">
+    <div className="space-y-6">
+      <SettingsHeader mobileTitle title="Marca" description="El nombre, los colores y el ícono con los que tu equipo ve Dashfort." />
       {/* El logo viaja como prop: al subirlo o quitarlo, FaviconCard refresca
           la página y la vista previa de la marca lo sigue sin recargar. */}
       <BrandingClient favicon={branding.favicon} />
