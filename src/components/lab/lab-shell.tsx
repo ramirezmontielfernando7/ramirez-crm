@@ -54,7 +54,8 @@ export function LabShell({ children, documents = false }: { children: React.Reac
       actions={<span ref={setSlot} className="flex items-center gap-2" data-lab-actions />}
     >
       <ActionsSlot.Provider value={slot}>
-        <AgentPauseBar />
+        {/* En «Mis agentes» la pausa la dice el interruptor de la IA (paquete B). */}
+        {pathname !== "/lab" && <AgentPauseBar />}
         <div className="min-h-0 flex-1" data-premium-area="lab">
           {children}
         </div>

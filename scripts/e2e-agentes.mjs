@@ -310,7 +310,12 @@ async function main() {
     await page.goto(`${BASE}/lab`);
     await page.locator('[data-testid="creator-landing"], [data-testid="create-agent"]').first().waitFor();
     if ((await page.getByTestId("creator-landing").count()) > 0) await page.getByRole("button", { name: "Usar el formulario" }).click();
-    else await page.getByTestId("create-agent").click();
+    else {
+      await page.getByTestId("create-agent").click();
+      // Paquete B: con varios agentes en el plan, primero se le pone nombre (vacío = «Agente nuevo N»).
+      const nombrar = page.getByRole("dialog").getByRole("button", { name: "Crear y configurar" });
+      if (await nombrar.waitFor({ timeout: 5000 }).then(() => true, () => false)) await nombrar.click();
+    }
     await page.waitForURL(/\/lab\/agents\//);
     await page.getByText(/Agente nuevo/).first().waitFor();
     const idUi = page.url().split("/lab/agents/")[1].split("?")[0];

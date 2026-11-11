@@ -491,6 +491,19 @@ export async function restoreVersion(
 
 export type OrgPauseState = { paused: boolean; pausedAt: string | null };
 
+/**
+ * Auditoría UX 2026-11 (paquete B) — el interruptor GLOBAL de la IA
+ * (`agent_profile.enabled`), para que el Estudio de IA diga la verdad.
+ */
+export async function getOrgAiEnabled(organizationId: string): Promise<boolean> {
+  const [row] = await getDb()
+    .select({ enabled: schema.agentProfile.enabled })
+    .from(schema.agentProfile)
+    .where(scoped(schema.agentProfile.organizationId, organizationId))
+    .limit(1);
+  return !!row?.enabled;
+}
+
 export async function getOrgPause(organizationId: string): Promise<OrgPauseState> {
   const [row] = await getDb()
     .select({ pausedAt: schema.agentProfile.pausedAt })

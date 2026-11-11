@@ -2,7 +2,8 @@ import { z } from "zod";
 import { parseBody, withAuth } from "@/lib/api";
 import { isAiConfigured } from "@/lib/env";
 import { withAgentErrors } from "@/server/agents/http";
-import { createAgent, getOrgPause, listAgents, maxAgentsFor } from "@/server/agents/store";
+import { createAgent, getOrgAiEnabled, getOrgPause, listAgents, maxAgentsFor } from "@/server/agents/store";
+import { orgWhatsAppConnected } from "@/server/onboarding";
 import { moduleOff } from "@/server/modules";
 
 export const dynamic = "force-dynamic";
@@ -11,12 +12,22 @@ export const dynamic = "force-dynamic";
 export const GET = withAuth(async (session) => {
   const off = await moduleOff(session.organizationId, "agent");
   if (off) return off;
-  const [agents, pause, maxAgents] = await Promise.all([
+  const [agents, pause, maxAgents, aiEnabled, whatsappConnected] = await Promise.all([
     listAgents(session.organizationId),
     getOrgPause(session.organizationId),
     maxAgentsFor(session.organizationId),
+    getOrgAiEnabled(session.organizationId),
+    orgWhatsAppConnected(session.organizationId),
   ]);
-  return Response.json({ agents, maxAgents, aiConfigured: isAiConfigured(), orgPaused: pause.paused });
+  // Auditoría UX 2026-11 (B): el interruptor global y lo que falta para encenderlo.
+  return Response.json({
+    agents,
+    maxAgents,
+    aiConfigured: isAiConfigured(),
+    orgPaused: pause.paused,
+    aiEnabled,
+    whatsappConnected,
+  });
 }, { permission: "agent.manage" });
 
 const createSchema = z.object({

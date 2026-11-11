@@ -8,8 +8,11 @@ import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { ArchiveExclusiveDocsChoice } from "@/components/lab/agent-doc-sources";
-import { PAUSE_CHANGED_EVENT, PauseAllButton } from "@/components/lab/agent-pause-bar";
+import { PAUSE_CHANGED_EVENT } from "@/components/lab/agent-pause-bar";
+import { AiSwitchCard } from "@/components/lab/ai-switch-card";
 import { LabActions } from "@/components/lab/lab-shell";
+import { openUsageDialog } from "@/lib/usage-dialog";
+import { useViewer } from "@/components/viewer-context";
 import type { AgentStatsDto } from "@/server/agents/stats";
 import { Switch } from "@/components/ui/switch";
 import { ConfirmDialog } from "@/components/lab/confirm-dialog";
@@ -23,7 +26,15 @@ function servesLabel(a: AgentSummary, stages: StageView[]): string {
   return mine.length ? mine.join(", ") : "Sin asignar";
 }
 
-type Listing = { agents: AgentSummary[]; maxAgents: number; aiConfigured: boolean; orgPaused: boolean };
+type Listing = {
+  agents: AgentSummary[];
+  maxAgents: number;
+  aiConfigured: boolean;
+  orgPaused: boolean;
+  /** Auditoría UX 2026-11 (B): el interruptor global y si hay WhatsApp. */
+  aiEnabled: boolean;
+  whatsappConnected: boolean;
+};
 
 /**
  * 031 (A2) — Pestaña «Agentes»: una sola columna. El agente general va fijo
@@ -40,6 +51,9 @@ export function AgentsList() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [toArchive, setToArchive] = useState<AgentSummary | null>(null);
+  const [naming, setNaming] = useState(false);
+  const viewer = useViewer();
+  const canSeePlans = viewer.can("usage.read");
   // 037 (PR 3) — Al archivar: qué pasa con sus documentos exclusivos (por defecto, se borran).
   const [archiveDocs, setArchiveDocs] = useState<"delete" | "general">("delete");
 
@@ -73,7 +87,7 @@ export function AgentsList() {
   }
 
   /** «Crear agente»: crea el borrador y abre directo el creador conversacional. */
-  async function startCreator(opts: { idea?: string; form?: boolean }) {
+  async function startCreator(opts: { idea?: string; form?: boolean; name?: string }) {
     setBusy(true);
     setError(null);
     // Plan de UN agente: el creador trabaja sobre el agente general, no crea otro.
@@ -87,7 +101,7 @@ export function AgentsList() {
     const n = (data?.agents.length ?? 0) + 1;
     const r = await call<{ agent: { id: string } }>("/api/lab/agents", {
       method: "POST",
-      json: { internalName: `Agente nuevo ${n}` },
+      json: { internalName: opts.name?.trim() || `Agente nuevo ${n}` },
     });
     setBusy(false);
     if (!r.ok) return setError(r.message);
@@ -125,9 +139,13 @@ export function AgentsList() {
   }
 
   const atLimit = data.agents.length >= data.maxAgents;
+  const single = data.maxAgents <= 1;
   // Portada: sin ningún agente propio todavía (solo el general sin publicar), el creador ES la pantalla.
   const first = data.agents.length === 1 && data.agents[0]!.isGeneral && data.agents[0]!.status !== "published";
   const published = data.agents.filter((a) => a.status !== "draft").length;
+  const general = data.agents.find((a) => a.isGeneral);
+  // La IA contesta de verdad solo encendida y sin la pausa general.
+  const aiLive = data.aiEnabled && !data.orgPaused;
 
   if (first) {
     return (
@@ -158,30 +176,65 @@ export function AgentsList() {
   return (
     <div className="h-full overflow-y-auto">
       <LabActions>
-        <Button
-          size="sm"
-          onClick={() => void startCreator({})}
-          disabled={atLimit || busy}
-          title={atLimit ? (data.maxAgents <= 1 ? "Tu plan incluye 1 agente. Sube de plan para tener varios." : "Llegaste al máximo de agentes") : undefined}
-          data-testid="create-agent"
-        >
-          <Sparkles className="h-4 w-4" /> Crear agente
-        </Button>
+        {single ? (
+          // Auditoría UX 2026-11 (B3): con UN agente en el plan, el botón no se
+          // apaga sin explicación: lleva a configurar el que ya tienes.
+          <>
+            {canSeePlans && (
+              <button
+                type="button"
+                onClick={() => openUsageDialog("planes")}
+                className="hidden text-[12.5px] font-medium text-brand-ink hover:underline sm:inline"
+              >
+                ¿Más agentes? Plan Pro →
+              </button>
+            )}
+            <Button size="sm" onClick={() => void startCreator({})} disabled={busy} data-testid="create-agent">
+              <Sparkles className="h-4 w-4" /> Configurar mi agente
+            </Button>
+          </>
+        ) : (
+          <Button
+            size="sm"
+            onClick={() => setNaming(true)}
+            disabled={atLimit || busy}
+            title={atLimit ? `Llegaste al máximo de ${data.maxAgents} agentes de tu plan` : undefined}
+            data-testid="create-agent"
+          >
+            <Sparkles className="h-4 w-4" /> Crear agente
+          </Button>
+        )}
       </LabActions>
-      <div className="flex flex-wrap items-center gap-3 border-b px-5 py-3 sm:px-6">
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-brand-soft text-brand-text">
-          <Bot className="h-[18px] w-[18px]" strokeWidth={1.7} />
-        </span>
-        <div className="min-w-0 flex-1">
-          <p className="text-[15px] font-semibold">{data.orgPaused ? "La IA está en pausa" : "La IA está atendiendo"}</p>
-          <p className="text-xs text-text-2">
-            {data.orgPaused
-              ? "Los chats pasan a una persona hasta que la reanudes."
-              : `${published} ${published === 1 ? "agente publicado respondió" : "agentes publicados respondieron"} ${stats?.totals.chats ?? 0} chats esta semana · si la pausas, los chats pasan a una persona`}
-          </p>
-        </div>
-        <PauseAllButton />
-      </div>
+      {atLimit && !single && (
+        <p className="px-5 pt-3 text-[12.5px] text-text-2 sm:px-6">
+          Llegaste al máximo de {data.maxAgents} agentes de tu plan. Archiva uno para crear otro.
+        </p>
+      )}
+      {naming && (
+        <NameAgentDialog
+          busy={busy}
+          defaultName={`Agente nuevo ${data.agents.length + 1}`}
+          onCancel={() => setNaming(false)}
+          onCreate={(name) => {
+            setNaming(false);
+            void startCreator({ name });
+          }}
+        />
+      )}
+      <AiSwitchCard
+        input={{
+          aiEnabled: data.aiEnabled,
+          orgPaused: data.orgPaused,
+          agentReady: !!general && general.status !== "draft",
+          agentName: general?.internalName ?? "Agente principal",
+          agentHref: general ? `/lab/agents/${general.id}` : null,
+          whatsappConnected: data.whatsappConnected,
+          aiConfigured: data.aiConfigured,
+        }}
+        chats={stats?.totals.chats ?? 0}
+        handedOff={stats?.totals.handedOff ?? 0}
+        onChanged={() => void load()}
+      />
 
       <div className="space-y-4 p-4 sm:p-6">
         {error && (
@@ -221,8 +274,8 @@ export function AgentsList() {
               </Link>
               <span className="flex flex-col items-start gap-1">
                 <span className="flex flex-wrap items-center gap-1.5">
-                  <Badge variant={a.status === "draft" ? "secondary" : "success"}>
-                    {a.status === "draft" ? "Borrador" : "Publicado"}
+                  <Badge variant={a.status === "draft" ? "secondary" : aiLive && !a.paused ? "success" : "secondary"}>
+                    {a.status === "draft" ? "Borrador" : !aiLive ? "Listo · IA apagada" : a.paused ? "Publicado" : "Contestando"}
                   </Badge>
                   {a.paused && <Badge variant="destructive">Apagado</Badge>}
                 </span>
@@ -249,12 +302,12 @@ export function AgentsList() {
               <span className="flex flex-wrap items-center justify-end gap-1">
                 <span
                   className="mr-1 flex items-center gap-1.5 text-xs text-text-2"
-                  title={data.orgPaused ? "Todos los agentes están en pausa (interruptor general)" : undefined}
+                  title={!aiLive ? "La IA está apagada: enciéndela arriba" : undefined}
                 >
                   <Switch
                     size="sm"
                     checked={!a.paused}
-                    disabled={data.orgPaused}
+                    disabled={!aiLive}
                     label={`Agente «${a.internalName}» activo`}
                     onCheckedChange={(on) => void togglePaused(a, !on)}
                   />
@@ -289,7 +342,7 @@ export function AgentsList() {
             <StatCard
               label="Agentes publicados"
               value={String(published)}
-              hint={`${data.agents.length} de ${data.maxAgents} agentes`}
+              hint={`${data.agents.length} de ${data.maxAgents} ${data.maxAgents === 1 ? "agente" : "agentes"}`}
             />
             {aiPercent !== null && <StatCard label="IA usada este mes" value={`${aiPercent} %`} hint="De lo que incluye tu plan" />}
           </div>
@@ -298,8 +351,8 @@ export function AgentsList() {
         <p className="flex items-start gap-2 rounded-lg border border-brand-soft bg-brand-tint px-4 py-3 text-[13px] text-brand-ink">
           <Info className="mt-0.5 h-4 w-4 shrink-0" strokeWidth={1.8} />
           <span>
-            Los cambios se prueban en <b>sandbox</b> y solo llegan a tus clientes cuando pulsas <b>Publicar</b>. Cada publicación
-            guarda una versión a la que puedes regresar.
+            Lo que cambies en un agente lo pruebas sin que salga a WhatsApp. Tus clientes solo lo ven cuando pulsas{" "}
+            <b>Publicar</b>. Cada publicación guarda una versión a la que puedes regresar.
           </span>
         </p>
       </div>
@@ -352,7 +405,7 @@ function CreatorLanding({
       </span>
       <h2 className="mt-5 text-[26px] font-semibold tracking-tight">Crea tu agente platicando</h2>
       <p className="mt-2 text-[15px] text-text-2">
-        Cuéntame de tu negocio con tus palabras. Yo armo al agente, tú lo pruebas en sandbox y lo publicas cuando te guste.
+        Cuéntame de tu negocio con tus palabras. Yo armo al agente, tú lo pruebas sin que salga a WhatsApp y lo publicas cuando te guste.
       </p>
       <form
         className="mt-6 w-full rounded-xl border bg-card p-3 text-left shadow-sm"
@@ -377,7 +430,7 @@ function CreatorLanding({
         </div>
       </form>
       {!aiConfigured && (
-        <p className="mt-3 text-xs text-text-2">Aún falta conectar el proveedor de IA: el creador no podrá contestar hasta entonces.</p>
+        <p className="mt-3 text-xs text-text-2">El servicio de IA de tu cuenta aún no está activo: el creador no podrá contestar hasta entonces.</p>
       )}
       <div className="mt-4 flex flex-wrap items-center justify-center gap-2 text-sm">
         <span className="text-text-2">Empezar con una idea:</span>
@@ -468,5 +521,53 @@ function StatCard({ label, value, hint }: { label: string; value: string; hint: 
       <p className="mt-1 text-[26px] font-semibold leading-tight tabular-nums">{value}</p>
       <p className="mt-1 text-xs text-text-3">{hint}</p>
     </div>
+  );
+}
+
+/** Auditoría UX 2026-11 (punto 10): un agente nuevo nace con el nombre que le pones. */
+function NameAgentDialog({
+  busy,
+  defaultName,
+  onCancel,
+  onCreate,
+}: {
+  busy: boolean;
+  defaultName: string;
+  onCancel: () => void;
+  onCreate: (name: string) => void;
+}) {
+  const [name, setName] = useState("");
+  const clean = name.trim();
+  return (
+    <ConfirmDialog
+      title="Nuevo agente"
+      confirmLabel="Crear y configurar"
+      busy={busy}
+      onConfirm={() => onCreate(clean || defaultName)}
+      onCancel={onCancel}
+    >
+      <label htmlFor="new-agent-name" className="block text-[13px] font-medium text-foreground">
+        ¿Cómo lo llamas? Solo lo ve tu equipo.
+      </label>
+      <input
+        id="new-agent-name"
+        aria-describedby="new-agent-name-hint"
+        autoFocus
+        value={name}
+        maxLength={60}
+        onChange={(e) => setName(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            onCreate(clean || defaultName);
+          }
+        }}
+        placeholder="Ej.: Ventas, Citas, Cobranza"
+        className="mt-1.5 h-9 w-full rounded-md border border-input bg-card px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      />
+      <p id="new-agent-name-hint" className="mt-1 text-xs text-text-3">
+        Si lo dejas vacío se llamará «{defaultName}». Lo puedes cambiar después.
+      </p>
+    </ConfirmDialog>
   );
 }
