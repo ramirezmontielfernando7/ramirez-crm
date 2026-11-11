@@ -11,6 +11,7 @@ import { PageShell } from "@/components/ui/page-shell";
 import { formatBytes } from "@/components/inbox/helpers";
 import { DestinationBadges, DestinationToggle } from "@/components/library/destinations";
 import { KnowledgeEditor } from "./knowledge-editor";
+import { EmptyState } from "@/components/ui/empty-state";
 
 const DATE = new Intl.DateTimeFormat("es-MX", {
   day: "numeric",
@@ -262,19 +263,18 @@ export function KnowledgeClient() {
         </aside>
         <div className="min-w-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6">
           {loaded && shown.length === 0 ? (
-            <div className="mx-auto mt-16 max-w-sm text-center">
-              <BookOpen className="mx-auto mb-3 h-8 w-8 text-text-3" strokeWidth={1.5} />
-              <p className="font-semibold">
-                {filtering ? "Nada coincide con la búsqueda" : "Aún no hay conocimientos"}
-              </p>
-              <p className="mt-1 text-sm text-text-3">
-                {filtering
+            <EmptyState
+              className="mt-4"
+              icon={BookOpen}
+              title={filtering ? "Nada coincide con la búsqueda" : "Aún no hay conocimientos"}
+              description={
+                filtering
                   ? "Prueba con otra palabra o quita el filtro de etiqueta."
                   : canManage
                     ? "Sube catálogos, fichas técnicas o políticas, o escribe respuestas tipo. Tu equipo las envía desde cualquier chat."
-                    : "Cuando tu equipo agregue material, lo verás aquí y podrás enviarlo desde la Bandeja."}
-              </p>
-            </div>
+                    : "Cuando tu equipo agregue material, lo verás aquí y podrás enviarlo desde la Bandeja."
+              }
+            />
           ) : (
             <ul className={view === "list" ? "flex flex-col gap-2" : "grid gap-4 sm:grid-cols-2 xl:grid-cols-3"}>
               {shown.map((e) => (

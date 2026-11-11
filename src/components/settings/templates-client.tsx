@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, ImagePlus, MoreHorizontal, Plus, RefreshCw, Search, Trash2, X } from "lucide-react";
+import { AlertTriangle, FileText, ImagePlus, MoreHorizontal, Plus, RefreshCw, Search, SearchX, Trash2, X } from "lucide-react";
 import type { CampaignDto } from "@/lib/campaigns";
 import { cn } from "@/lib/utils";
 import { CampaignsShell } from "@/components/campaigns/campaigns-tabs";
@@ -24,6 +24,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useViewer } from "@/components/viewer-context";
 import { SettingsHeader } from "@/components/settings/settings-header";
+import { EmptyState } from "@/components/ui/empty-state";
 
 const STATUS_BADGE: Record<
   TemplateDto["status"],
@@ -308,12 +309,19 @@ export function TemplatesClient({ shell = false }: { shell?: boolean }) {
           {visible.length === 0 && (
             <tbody>
               <tr>
-                <td colSpan={usage ? 7 : 6} className="px-4 py-8 text-center text-sm text-text-3">
-                  {loaded && templates.length === 0
-                    ? "Sin plantillas todavía. Crea la primera con «Crear plantilla» — por ejemplo un «seguimos disponibles, ¿retomamos tu cotización?» para conversaciones frías."
-                    : loaded
-                      ? "Ninguna plantilla coincide con la búsqueda."
-                      : "Cargando…"}
+                <td colSpan={usage ? 7 : 6} className="px-4 text-center text-sm text-text-3">
+                  {loaded && templates.length === 0 ? (
+                    <EmptyState
+                      compact
+                      icon={FileText}
+                      title="Sin plantillas todavía"
+                      description="Crea la primera con «Crear plantilla». Por ejemplo: «Seguimos disponibles, ¿retomamos tu cotización?» para chats que se enfriaron."
+                    />
+                  ) : loaded ? (
+                    <EmptyState compact icon={SearchX} title="Ninguna plantilla coincide" description="Prueba con otra palabra." />
+                  ) : (
+                    <p className="py-8">Cargando…</p>
+                  )}
                 </td>
               </tr>
             </tbody>

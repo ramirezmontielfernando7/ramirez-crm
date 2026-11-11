@@ -12,9 +12,11 @@ import {
   MessageSquareText,
   Plus,
   Search,
+  SearchX,
   Send,
   Upload,
   UserRound,
+  Users,
   X,
 } from "lucide-react";
 import type { ContactDto } from "@/lib/types";
@@ -39,6 +41,7 @@ import { ImportDialog } from "./import-dialog";
 import { NewContactDialog } from "./new-contact-dialog";
 import { StartConversation } from "./start-conversation";
 import { PageShell } from "@/components/ui/page-shell";
+import { EmptyState } from "@/components/ui/empty-state";
 
 const PAGE_SIZE = 50;
 
@@ -288,11 +291,12 @@ export function ContactsClient() {
           </p>
         )}
         {contacts.length === 0 ? (
-          <div className="flex h-full flex-col items-center justify-center gap-2 text-center">
+          <div className="flex h-full flex-col items-center justify-center text-center">
             {filtering ? (
-              <>
-                <p className="text-sm font-medium">Sin resultados</p>
-                <p className="max-w-sm text-xs text-muted-foreground">
+              <EmptyState
+                icon={SearchX}
+                title="Sin resultados"
+                description={<>
                   Nadie coincide con
                   {query.trim() ? ` «${query.trim()}»` : ""}
                   {query.trim() && stage !== "all" ? " en" : ""}
@@ -301,16 +305,14 @@ export function ContactsClient() {
                     ? " con los filtros elegidos"
                     : ""}
                   .
-                </p>
-              </>
+                </>}
+              />
             ) : (
-              <>
-                <p className="text-sm font-medium">Sin contactos</p>
-                <p className="max-w-sm text-xs text-muted-foreground">
-                  Cada persona que escriba a tu WhatsApp quedará registrada aquí
-                  automáticamente.
-                </p>
-              </>
+              <EmptyState
+                icon={Users}
+                title="Sin contactos"
+                description="Cada persona que escriba a tu WhatsApp quedará registrada aquí automáticamente."
+              />
             )}
           </div>
         ) : (

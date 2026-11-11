@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Pencil, Plus, Search, Trash2 } from "lucide-react";
+import { Pencil, Plus, Search, Trash2, Zap } from "lucide-react";
 import { fetchJson, jsonInit } from "@/lib/fetch-json";
 import { BODY_MAX, normalizeShortcut, SHORTCUT_MAX, type QuickReplyDto } from "@/lib/quick-replies";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { SettingsHeader } from "@/components/settings/settings-header";
+import { EmptyState } from "@/components/ui/empty-state";
 
 type Draft = { shortcut: string; body: string };
 const EMPTY: Draft = { shortcut: "", body: "" };
@@ -129,9 +130,12 @@ export function QuickRepliesClient() {
         ) : replies === null ? (
           <p className="p-4 text-sm text-muted-foreground">Cargando…</p>
         ) : shown.length === 0 ? (
-          <p className="p-4 text-sm text-muted-foreground">
-            {replies.length === 0 ? "Aún no hay respuestas rápidas." : "Ninguna respuesta coincide."}
-          </p>
+          <EmptyState
+            compact
+            icon={Zap}
+            title={replies.length === 0 ? "Aún no hay respuestas rápidas" : "Ninguna respuesta coincide"}
+            description={replies.length === 0 ? "Crea la primera con «Nueva respuesta»: precios, horario, datos de pago…" : "Prueba con otra palabra."}
+          />
         ) : (
           <>
             <div className="grid grid-cols-[8rem_1fr_5rem] gap-3 border-b bg-muted/30 px-4 py-2.5 text-xs font-medium text-text-3 sm:grid-cols-[10rem_1fr_6rem]">

@@ -12,6 +12,7 @@ import { useEvents } from "@/components/use-events";
 import { CampaignStatusBadge } from "./status-badge";
 import { CampaignsShell } from "./campaigns-tabs";
 import { CampaignBlockersBanner } from "@/components/onboarding/campaign-blockers";
+import { EmptyState } from "@/components/ui/empty-state";
 
 /**
  * 021 — Campañas: el historial de envíos masivos del negocio. Ronda 3: cuatro
@@ -164,14 +165,19 @@ export function CampaignsClient({ today }: { today: string }) {
         {campaigns === null ? (
           !error && <p className="text-sm text-muted-foreground">Cargando…</p>
         ) : campaigns.length === 0 ? (
-          <div className="flex flex-col items-center justify-center gap-2 py-12 text-center">
-            <Megaphone className="h-8 w-8 text-text-3" strokeWidth={1.5} />
-            <p className="text-sm font-medium">Sin campañas todavía</p>
-            <p className="max-w-sm text-xs text-muted-foreground">
-              Manda una plantilla aprobada por Meta a los contactos que aceptaron recibir mensajes:
-              una promoción, un servicio nuevo, un aviso.
-            </p>
-          </div>
+          <EmptyState
+            icon={Megaphone}
+            title="Sin campañas todavía"
+            description="Manda una plantilla aprobada por Meta a los contactos que aceptaron recibir mensajes: una promoción, un servicio nuevo, un aviso."
+            action={
+              <Link href="/campaigns/new">
+                <Button size="sm">
+                  <Plus className="mr-1.5 h-4 w-4" strokeWidth={1.8} />
+                  Nueva campaña
+                </Button>
+              </Link>
+            }
+          />
         ) : (
           <>
             <div className="flex flex-wrap items-center gap-3">

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { ChevronDown, ChevronRight, GitMerge, Pencil, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronRight, GitMerge, Pencil, Tag, Trash2 } from "lucide-react";
 import { fetchJson, jsonInit } from "@/lib/fetch-json";
 import { TAG_NAME_MAX, type TagColor, type TagDto } from "@/lib/tags";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ import { TagChip } from "@/components/tags/tag-chip";
 import { ColorPicker } from "@/components/tags/color-picker";
 import { TagMergePanel } from "@/components/settings/tag-merge-panel";
 import { SettingsHeader } from "@/components/settings/settings-header";
+import { EmptyState } from "@/components/ui/empty-state";
 
 /** 021 — Configuración → Etiquetas: el catálogo de etiquetas del negocio. */
 export function TagsClient() {
@@ -146,7 +147,7 @@ export function TagsClient() {
           ) : tags === null ? (
             <p className="text-sm text-muted-foreground">Cargando…</p>
           ) : tags.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Todavía no hay etiquetas.</p>
+            <EmptyState compact icon={Tag} title="Todavía no hay etiquetas" description="Crea la primera arriba: VIP, Clientes 2025, Interesados…" />
           ) : (
             <ul className="divide-y">
               {tags.map((t) => (

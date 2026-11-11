@@ -17,6 +17,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ContactSearch } from "./contact-search";
+import { EmptyState } from "@/components/ui/empty-state";
 
 /**
  * 033, PR 2 — Notas, como Google Keep: tarjetas de colores (las fijadas
@@ -121,13 +122,12 @@ export function NotesClient({ initialNoteId, draftLink }: { initialNoteId: strin
 
         <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-6 sm:px-6">
           {loaded && notes.length === 0 ? (
-            <div className="mx-auto mt-14 max-w-xs text-center">
-              <StickyNote className="mx-auto mb-3 h-8 w-8 text-text-3" strokeWidth={1.5} />
-              <p className="font-semibold">{archived ? "Nada archivado" : "Aún no tienes notas"}</p>
-              <p className="mt-1 text-sm text-text-3">
-                {archived ? "Las notas que archives se guardan aquí." : "Toca «Nueva nota» o crea una desde un chat de la Bandeja."}
-              </p>
-            </div>
+            <EmptyState
+              className="mt-4"
+              icon={StickyNote}
+              title={archived ? "Nada archivado" : "Aún no tienes notas"}
+              description={archived ? "Las notas que archives se guardan aquí." : "Toca «Nueva nota» o crea una desde un chat de la Bandeja."}
+            />
           ) : (
             <>
               {pinned.length > 0 && (

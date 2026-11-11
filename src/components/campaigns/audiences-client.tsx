@@ -21,6 +21,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CampaignsShell } from "./campaigns-tabs";
+import { EmptyState } from "@/components/ui/empty-state";
 
 /** Los campos que se pueden asignar en "¿qué es cada columna?". */
 const MAPPABLE: ImportColumn[] = ["name", "phone", "email", "tags"];
@@ -102,14 +103,12 @@ export function AudiencesClient() {
           {audiences === null ? (
             !listError && <p className="text-sm text-muted-foreground">Cargando…</p>
           ) : audiences.length === 0 && !uploading ? (
-            <div className="flex flex-col items-center justify-center gap-2 py-12 text-center">
-              <Users className="h-8 w-8 text-text-3" strokeWidth={1.5} />
-              <p className="text-sm font-medium">Sin bases todavía</p>
-              <p className="max-w-sm text-xs text-muted-foreground">
-                Sube tu lista de clientes en Excel (.xlsx) o CSV con las columnas nombre, numero, correo y etiquetas.
-              </p>
-              <SampleLinks />
-            </div>
+            <EmptyState
+              icon={Users}
+              title="Sin bases todavía"
+              description="Sube tu lista de clientes en Excel (.xlsx) o CSV con las columnas nombre, numero, correo y etiquetas."
+              action={<SampleLinks />}
+            />
           ) : (
             <ul className="space-y-2" data-testid="audience-list">
               {audiences.map((a) => (
