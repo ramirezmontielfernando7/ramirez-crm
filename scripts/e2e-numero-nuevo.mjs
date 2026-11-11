@@ -125,7 +125,7 @@ try {
   console.log("== 1. La búsqueda ==");
   await buscar("Persona inexistente");
   const mensajeDeSiempre = await ver(
-    page.getByText(/Sin resultados para este filtro\.|Sin conversaciones todavía/)
+    page.getByText(/Sin resultados para este filtro\.|Aquí llegarán tus chats/)
   );
   ok(
     "un texto que no es teléfono NO muestra la tarjeta (queda el mensaje de siempre)",

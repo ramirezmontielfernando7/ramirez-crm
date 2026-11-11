@@ -1,6 +1,6 @@
 import { apiError, withAuth } from "@/lib/api";
 import { getDb } from "@/lib/db";
-import { demoBlockReason, seedDemo } from "@/server/seed/demo";
+import { demoBlockReason, removeDemo, seedDemo } from "@/server/seed/demo";
 
 export const dynamic = "force-dynamic";
 
@@ -13,5 +13,14 @@ export const POST = withAuth(async (session) => {
   const reason = await demoBlockReason(db, session.organizationId);
   if (reason) return apiError(409, "not_empty", reason);
   const result = await seedDemo(db, session.organizationId);
+  return Response.json({ ok: true, ...result });
+}, { permission: "settings.manage" });
+
+/**
+ * «Quitar ejemplo» (auditoría UX 2026-11, punto 6): borra solo lo que puso la
+ * demo, en una transacción. Lo que la persona agregó después se queda.
+ */
+export const DELETE = withAuth(async (session) => {
+  const result = await getDb().transaction((tx) => removeDemo(tx, session.organizationId));
   return Response.json({ ok: true, ...result });
 }, { permission: "settings.manage" });

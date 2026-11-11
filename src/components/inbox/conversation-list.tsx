@@ -20,8 +20,9 @@ import {
   MessageSquarePlus,
   Search,
   Send,
-  Sparkles,
+  MessageCircle,
 } from "lucide-react";
+import Link from "next/link";
 import type { ConversationDto, StageDto } from "@/lib/types";
 import type { TagDto } from "@/lib/tags";
 import type { MenuAnchor } from "./floating-menu";
@@ -32,6 +33,8 @@ import type { ConnectionMode } from "@/lib/direct-connection";
 import { ChannelBadge } from "@/components/channel-badge";
 import { contactLabel, looksLikePhone } from "@/lib/phone-search";
 import { cn } from "@/lib/utils";
+import { isDemoPhone } from "@/lib/demo";
+import { refreshOnboarding, useOnboarding } from "@/components/onboarding/use-onboarding";
 import { ContactAvatar } from "@/components/avatar";
 import { Button } from "@/components/ui/button";
 import { formatTime, previewText } from "./helpers";
@@ -118,6 +121,11 @@ const SEARCH_DEBOUNCE_MS = 250;
 function EmptyState({ onSeeded }: { onSeeded: () => void }) {
   const [seeding, setSeeding] = useState(false);
   const [failed, setFailed] = useState<string | null>(null);
+  const { state: onboarding } = useOnboarding();
+  const viewer = useViewer();
+  const canConnect = viewer.can("settings.manage");
+  // Auditoría UX 2026-11 (A1): sin WhatsApp, lo primero es conectarlo.
+  const needsWhatsApp = onboarding !== null && !onboarding.whatsappConnected;
 
   async function seed() {
     setSeeding(true);
@@ -125,42 +133,112 @@ function EmptyState({ onSeeded }: { onSeeded: () => void }) {
       () => null,
     );
     setSeeding(false);
-    if (res?.ok) onSeeded();
-    else {
+    if (res?.ok) {
+      refreshOnboarding();
+      onSeeded();
+    } else {
       // El servidor explica en español por qué no se puede (409).
       const body = (await res?.json().catch(() => null)) as {
         error?: { message?: string };
       } | null;
       setFailed(
         body?.error?.message ??
-          "No se pudo cargar la demostración. Inténtalo de nuevo.",
+          "No se pudieron cargar los datos de ejemplo. Inténtalo de nuevo.",
       );
     }
   }
 
   return (
-    <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
-      <p className="text-[21px] font-semibold leading-tight text-foreground">
-        Sin conversaciones todavía
+    <div
+      data-inbox-empty
+      className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center"
+    >
+      <span className="grid h-12 w-12 place-items-center rounded-xl bg-[var(--accent-wash)] text-brand-ink">
+        <MessageCircle className="h-6 w-6" strokeWidth={1.7} aria-hidden />
+      </span>
+      <p className="text-[17px] font-semibold leading-tight text-foreground">
+        Aquí llegarán tus chats
       </p>
-      <p className="text-xs text-text-3">
-        Cuando alguien escriba a tu número de WhatsApp, su conversación
-        aparecerá aquí en tiempo real.
+      <p className="max-w-[260px] text-[13px] leading-5 text-text-3">
+        {needsWhatsApp
+          ? "Primero conecta tu WhatsApp. Los mensajes de tus clientes aparecerán aquí al momento."
+          : "Cuando alguien escriba a tu WhatsApp, su chat aparecerá aquí al momento."}
       </p>
+      {needsWhatsApp && canConnect && (
+        <Link
+          href="/settings/whatsapp"
+          className="inline-flex h-9 items-center rounded-full bg-primary px-4 text-sm font-semibold text-primary-foreground hover:opacity-90"
+        >
+          Conectar WhatsApp
+        </Link>
+      )}
       {failed ? (
         <p role="alert" className="max-w-xs text-xs text-text-3">
           {failed}
         </p>
       ) : (
-        <Button
-          size="sm"
-          variant="outline"
+        <button
+          type="button"
           disabled={seeding}
           onClick={() => void seed()}
+          className="text-[12.5px] font-medium text-brand-ink hover:underline disabled:opacity-60"
         >
-          <Sparkles className="h-4 w-4" strokeWidth={1.7} />
-          {seeding ? "Cargando demo…" : "Cargar datos de demostración"}
-        </Button>
+          {seeding ? "Cargando ejemplo…" : "o mira cómo se ve con datos de ejemplo"}
+        </button>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Auditoría UX 2026-11 (A2, punto 6): los chats de ejemplo se dicen y se
+ * pueden quitar (quitarlos solo lo hace quien maneja la configuración).
+ */
+function DemoStrip({ onRemoved }: { onRemoved: () => void }) {
+  const { state } = useOnboarding();
+  const viewer = useViewer();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  if (!state?.demo) return null;
+  const canRemove = viewer.can("settings.manage");
+
+  async function remove() {
+    if (!window.confirm("¿Quitar los chats, contactos y conocimientos de ejemplo? Lo tuyo no se toca.")) return;
+    setBusy(true);
+    setError(null);
+    const res = await fetch("/api/seed/demo", { method: "DELETE" }).catch(() => null);
+    setBusy(false);
+    if (!res?.ok) {
+      setError("No se pudo quitar el ejemplo. Inténtalo de nuevo.");
+      return;
+    }
+    refreshOnboarding();
+    onRemoved();
+  }
+
+  return (
+    <div
+      data-demo-strip
+      className="flex shrink-0 flex-wrap items-center gap-x-2 gap-y-1 border-b bg-subtle px-4 py-1.5 text-[12px] text-text-2"
+    >
+      <span className="rounded-full bg-[var(--accent-wash)] px-2 py-px text-[11px] font-semibold text-brand-ink">
+        Ejemplo
+      </span>
+      <span className="min-w-0 flex-1">Estos chats son de ejemplo.</span>
+      {canRemove && (
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => void remove()}
+          className="font-semibold text-brand-ink hover:underline disabled:opacity-60"
+        >
+          {busy ? "Quitando…" : "Quitar ejemplo"}
+        </button>
+      )}
+      {error && (
+        <p role="alert" className="w-full text-danger-text">
+          {error}
+        </p>
       )}
     </div>
   );
@@ -641,6 +719,8 @@ export const ConversationList = memo(function ConversationList({
         </p>
       )}
 
+      <DemoStrip onRemoved={onSeeded} />
+
       <Collapse open={selecting}>
         <div className="space-y-2 border-b bg-subtle px-4 py-2.5">
           <div className="flex items-center justify-between gap-2">
@@ -1045,6 +1125,14 @@ const ConversationRow = memo(function ConversationRow({
                 >
                   {contactLabel(c.contact)}
                 </span>
+                {isDemoPhone(c.contact.phone) && (
+                  <span
+                    data-demo-pill
+                    className="shrink-0 rounded-full bg-[var(--accent-wash)] px-1.5 text-[10.5px] font-semibold leading-4 text-brand-ink"
+                  >
+                    Ejemplo
+                  </span>
+                )}
               </span>
               <span
                 data-row-time

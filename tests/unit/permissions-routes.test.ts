@@ -107,6 +107,8 @@ const PROTEGIDAS: [string, Method, Permission][] = [
   ["calendar/settings", "GET", "settings.manage"],
   ["calendar/settings", "PUT", "settings.manage"],
   ["seed/demo", "POST", "settings.manage"],
+  ["seed/demo", "DELETE", "settings.manage"],
+  ["onboarding", "PUT", "settings.manage"],
   // 030 (PR 4): Ajustes → Navegación (menú por rol), solo el Propietario.
   ["settings/navigation", "GET", "settings.manage"],
   ["settings/navigation", "PUT", "settings.manage"],
@@ -314,6 +316,8 @@ const DEL_NEGOCIO: [string, Method][] = [
   // 022: preferencias de interfaz de quien pide (nunca de otro).
   ["preferences", "GET"],
   ["preferences", "PUT"],
+  // Auditoría UX 2026-11: qué le falta a la empresa (sin datos de clientes).
+  ["onboarding", "GET"],
   // 023: asistente de redacción del asesor (reescribe un borrador; no lee
   // conversaciones ni contactos). Todos los roles.
   ["writing-assist", "GET"],

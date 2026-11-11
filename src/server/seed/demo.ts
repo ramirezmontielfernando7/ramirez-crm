@@ -1,4 +1,4 @@
-import { inArray, isNull } from "drizzle-orm";
+import { eq, inArray, isNull } from "drizzle-orm";
 import type { getDb } from "@/lib/db";
 import { schema } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
@@ -9,6 +9,7 @@ import {
   parseStoredConfig,
   sameConfig,
 } from "@/server/agents/config";
+import { DEMO_AGENT_NAME, DEMO_PHONES } from "@/lib/demo";
 
 /**
  * Negocio de demostración "Ferretería El Martillo" (FR-075).
@@ -18,7 +19,7 @@ import {
  * real en la primera corrida.
  */
 
-type Db = ReturnType<typeof getDb>;
+type Db = Pick<ReturnType<typeof getDb>, "select" | "insert" | "update" | "delete">;
 
 const HOURS = 60 * 60 * 1000;
 
@@ -137,6 +138,9 @@ const DEMO_KB: { kind: "qa" | "block"; question?: string; answer?: string; conte
   // HUECO INTENCIONAL: nada sobre garantías ni devoluciones (lo encuentra el Laboratorio).
 ];
 
+/** Para la prueba: los teléfonos de la demo son los de `DEMO_PHONES`. */
+export const DEMO_CONTACT_PHONES = (): string[] => DEMO_CONTACTS.map((c) => c.phone);
+
 export async function seedDemo(
   db: Db,
   organizationId: string
@@ -144,71 +148,7 @@ export async function seedDemo(
   const demoPhones = DEMO_CONTACTS.map((c) => c.phone);
 
   // --- Idempotencia: limpiar datos demo previos (orden inverso de FKs) ---
-  // H1: TODO lo que se lee y se borra aquí va acotado a ESTA organización.
-  // Los teléfonos de la demo son fijos, así que otra organización puede
-  // tener un contacto real con el mismo número: jamás se toca.
-  const prevContacts = await db
-    .select({ id: schema.contact.id })
-    .from(schema.contact)
-    .where(
-      scoped(
-        schema.contact.organizationId,
-        organizationId,
-        inArray(schema.contact.phone, demoPhones)
-      )
-    );
-  const prevIds = prevContacts.map((c) => c.id);
-  if (prevIds.length > 0) {
-    const prevConvs = await db
-      .select({ id: schema.conversation.id })
-      .from(schema.conversation)
-      .where(
-        scoped(
-          schema.conversation.organizationId,
-          organizationId,
-          inArray(schema.conversation.contactId, prevIds)
-        )
-      );
-    const convIds = prevConvs.map((c) => c.id);
-    if (convIds.length > 0) {
-      await db
-        .delete(schema.message)
-        .where(
-          scoped(
-            schema.message.organizationId,
-            organizationId,
-            inArray(schema.message.conversationId, convIds)
-          )
-        );
-      await db
-        .delete(schema.conversation)
-        .where(
-          scoped(
-            schema.conversation.organizationId,
-            organizationId,
-            inArray(schema.conversation.id, convIds)
-          )
-        );
-    }
-    await db
-      .delete(schema.lead)
-      .where(
-        scoped(
-          schema.lead.organizationId,
-          organizationId,
-          inArray(schema.lead.contactId, prevIds)
-        )
-      );
-    await db
-      .delete(schema.contact)
-      .where(
-        scoped(
-          schema.contact.organizationId,
-          organizationId,
-          inArray(schema.contact.id, prevIds)
-        )
-      );
-  }
+  await deleteDemoConversations(db, organizationId, demoPhones);
   // KB y corridas demo previas
   await db
     .delete(schema.kbEntry)
@@ -305,7 +245,7 @@ export async function seedDemo(
   await db
     .update(schema.agentProfile)
     .set({
-      name: "Martillito",
+      name: DEMO_AGENT_NAME,
       tone: "Cercano y práctico, de ferretería de confianza. Tutea al cliente.",
       instructions:
         "Ayuda a cotizar y cerrar ventas. Da precios en MXN solo si están en el conocimiento. Si piden mayoreo, menciona los mínimos. Nunca inventes existencias.",
@@ -420,6 +360,174 @@ export async function seedDemo(
   }
 
   return { contacts: DEMO_CONTACTS.length, kbEntries: DEMO_KB.length };
+}
+
+
+/**
+ * Borra los contactos de la demo (por sus teléfonos fijos) con sus
+ * conversaciones, mensajes y leads. H1: TODO acotado a ESTA organización —
+ * otra puede tener un contacto real con el mismo número y jamás se toca.
+ */
+async function deleteDemoConversations(
+  db: Db,
+  organizationId: string,
+  demoPhones: readonly string[]
+): Promise<number> {
+  // H1: TODO lo que se lee y se borra aquí va acotado a ESTA organización.
+  // Los teléfonos de la demo son fijos, así que otra organización puede
+  // tener un contacto real con el mismo número: jamás se toca.
+  const prevContacts = await db
+    .select({ id: schema.contact.id })
+    .from(schema.contact)
+    .where(
+      scoped(
+        schema.contact.organizationId,
+        organizationId,
+        inArray(schema.contact.phone, [...demoPhones])
+      )
+    );
+  const prevIds = prevContacts.map((c) => c.id);
+  if (prevIds.length > 0) {
+    const prevConvs = await db
+      .select({ id: schema.conversation.id })
+      .from(schema.conversation)
+      .where(
+        scoped(
+          schema.conversation.organizationId,
+          organizationId,
+          inArray(schema.conversation.contactId, prevIds)
+        )
+      );
+    const convIds = prevConvs.map((c) => c.id);
+    if (convIds.length > 0) {
+      await db
+        .delete(schema.message)
+        .where(
+          scoped(
+            schema.message.organizationId,
+            organizationId,
+            inArray(schema.message.conversationId, convIds)
+          )
+        );
+      await db
+        .delete(schema.conversation)
+        .where(
+          scoped(
+            schema.conversation.organizationId,
+            organizationId,
+            inArray(schema.conversation.id, convIds)
+          )
+        );
+    }
+    await db
+      .delete(schema.lead)
+      .where(
+        scoped(
+          schema.lead.organizationId,
+          organizationId,
+          inArray(schema.lead.contactId, prevIds)
+        )
+      );
+    await db
+      .delete(schema.contact)
+      .where(
+        scoped(
+          schema.contact.organizationId,
+          organizationId,
+          inArray(schema.contact.id, prevIds)
+        )
+      );
+  }
+  return prevIds.length;
+}
+
+/** ¿Hay datos de la demo en esta organización? (para el botón «Quitar ejemplo»). */
+export async function hasDemo(db: Db, organizationId: string): Promise<boolean> {
+  const [row] = await db
+    .select({ id: schema.contact.id })
+    .from(schema.contact)
+    .where(
+      scoped(
+        schema.contact.organizationId,
+        organizationId,
+        inArray(schema.contact.phone, [...DEMO_PHONES])
+      )
+    )
+    .limit(1);
+  return !!row;
+}
+
+/**
+ * Auditoría UX 2026-11 (punto 6) — «Quitar ejemplo»: borra SOLO lo que puso
+ * la demo. Contactos (con sus chats, mensajes y leads) por sus teléfonos
+ * fijos; del conocimiento compartido, solo las entradas idénticas a las de la
+ * demo; las corridas de prueba sin agente (solo las crea la demo); y el
+ * comportamiento del agente vuelve al de fábrica solo si sigue siendo el de la
+ * demo. Lo que la persona haya agregado después se queda.
+ */
+export async function removeDemo(
+  db: Db,
+  organizationId: string
+): Promise<{ contacts: number }> {
+  const contacts = await deleteDemoConversations(db, organizationId, DEMO_PHONES);
+
+  const kb = await db
+    .select({
+      id: schema.kbEntry.id,
+      kind: schema.kbEntry.kind,
+      question: schema.kbEntry.question,
+      answer: schema.kbEntry.answer,
+      content: schema.kbEntry.content,
+    })
+    .from(schema.kbEntry)
+    .where(scoped(schema.kbEntry.organizationId, organizationId, isNull(schema.kbEntry.agentId)));
+  const isDemoKb = (e: (typeof kb)[number]) =>
+    DEMO_KB.some(
+      (d) =>
+        d.kind === e.kind &&
+        (d.question ?? null) === e.question &&
+        (d.answer ?? null) === e.answer &&
+        (d.content ?? null) === e.content
+    );
+  const kbIds = kb.filter(isDemoKb).map((e) => e.id);
+  if (kbIds.length > 0) {
+    await db
+      .delete(schema.kbEntry)
+      .where(scoped(schema.kbEntry.organizationId, organizationId, inArray(schema.kbEntry.id, kbIds)));
+  }
+
+  const runs = await db
+    .select({ id: schema.agentTestRun.id })
+    .from(schema.agentTestRun)
+    .where(scoped(schema.agentTestRun.organizationId, organizationId, isNull(schema.agentTestRun.agentId)));
+  const runIds = runs.map((r) => r.id);
+  if (runIds.length > 0) {
+    await db
+      .delete(schema.agentTestCase)
+      .where(scoped(schema.agentTestCase.organizationId, organizationId, inArray(schema.agentTestCase.runId, runIds)));
+    await db
+      .delete(schema.agentTestRun)
+      .where(scoped(schema.agentTestRun.organizationId, organizationId, inArray(schema.agentTestRun.id, runIds)));
+  }
+
+  await db
+    .update(schema.agentProfile)
+    .set({
+      name: MIRROR_DEFAULT_NAME,
+      tone: null,
+      instructions: null,
+      escalationRules: null,
+      greeting: null,
+      updatedAt: new Date(),
+    })
+    .where(
+      scoped(
+        schema.agentProfile.organizationId,
+        organizationId,
+        eq(schema.agentProfile.name, DEMO_AGENT_NAME)
+      )
+    );
+  return { contacts };
 }
 
 /**
