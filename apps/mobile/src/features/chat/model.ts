@@ -230,6 +230,8 @@ export class DemoHistoryRepository implements HistoryRepository {
       limit > 100
     )
       throw new Error("Página de historial no válida.");
+    if (id.startsWith("demo-new-"))
+      return { messages: [], before: 0, hasMore: false };
     const latestAt =
       this.epochs.get(id) ??
       this.now() - (conversation.closed ? 25 * 3600_000 : 0);

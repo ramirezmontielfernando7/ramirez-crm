@@ -414,3 +414,23 @@ test("history timestamps stay stable when an older page is loaded hours later", 
   assert.ok(older.messages.at(-1)!.time < first.messages[0]!.time);
   assert.deepEqual(f.history.page(owner, "demo-conv-1", undefined), first);
 });
+test("a newly created demo contact begins empty and requires a template", async () => {
+  const f = fixture();
+  const c = f.repo.create(owner, "Nuevo contacto ficticio", "+52 55 5555 9988");
+  assert.deepEqual(f.history.page(owner, c.id, undefined), {
+    messages: [],
+    before: 0,
+    hasMore: false,
+  });
+  const store = new ChatStore(
+    owner,
+    c.id,
+    f.repo,
+    f.history,
+    f.transport,
+    f.drafts,
+  );
+  await store.hydrate();
+  assert.equal(store.snapshot().messages.length, 0);
+  assert.equal(store.isOpen(), false);
+});
