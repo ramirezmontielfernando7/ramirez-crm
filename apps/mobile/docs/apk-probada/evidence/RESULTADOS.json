@@ -1,0 +1,30 @@
+{
+  "apk": "Dashfort-Mobile-TM3-Android16-ARM64.apk",
+  "bytes": 33527969,
+  "sha256": "65f933d9721b7bcac2a5c957e175cb7e3da517875282f306e738bee42dc85c2f",
+  "package": "com.demfort.dashfort.dev",
+  "label": "Dashfort Dev",
+  "version": "0.1.0",
+  "minSdk": 24,
+  "targetSdk": 36,
+  "compileSdk": 37,
+  "abis": [
+    "arm64-v8a"
+  ],
+  "signature_v2_verified": true,
+  "zipalign_16k_verified": true,
+  "elf_16k_verified": true,
+  "native_libraries": 25,
+  "hermes_bundle_bytes": 4222904,
+  "packaged_fonts": 3,
+  "source_commit": "d849c0dcfbb1fe2a426d1f9a79af817922e0d068",
+  "source_files_identical": 338,
+  "repository_clean": true,
+  "typecheck": "passed",
+  "logic_tests_passed": 37,
+  "android_build": "assembleRelease successful",
+  "android_static_checks": "lintVitalRelease passed",
+  "device_install_test": "pending: no emulator or connected phone",
+  "paid_or_remote_builds": false,
+  "push_pr_merge_deploy": false
+}

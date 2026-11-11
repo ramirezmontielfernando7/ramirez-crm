@@ -1,3 +1,13 @@
+# APK Android local · estado vigente
+
+La primera APK T-M3 ya fue compilada, entregada y probada por el propietario en Motorola Edge 50 Pro / Android 16. Consultar `apk-probada/VERSION.md` para hash, commit y validación. Las notas antiguas de falta de SDK que siguen abajo son históricas.
+
+Para nuevas compilaciones: JDK 17 completo (java, javac y jlink), SDK `platforms;android-37.0`, Build Tools 37.0.0 y 36.0.0, NDK 27.1.12297006, CMake 3.22.1 y al menos 15 GB libres. Usar copia limpia sin android generado; el script conserva proyectos existentes y exige una huella de configuración coincidente.
+
+`MOBILE_APK_OUTPUT` debe apuntar a una ruta nueva; nunca se reemplaza una APK existente. `MOBILE_SIGNING_KEY` puede señalar la clave experimental anterior, que se mantiene fuera de Git. Para los flags de la primera APK usar `MOBILE_ANDROID_LEAN=1`. No introducir claves de producción. El script no realiza instalaciones en teléfono, envíos o publicaciones. Reproducir la primera APK exige checkout d849c0d y la receta preservada; nuevas versiones usan las fuentes de su propia rama y un versionCode superior.
+
+---
+
 # APK experimental local
 
 Estado de esta ejecución: **APK no generada**. `npm run apk:local` salió con código 2 porque no existe Android SDK Platform 37. Hay Java 21, pero no SDK, adb ni emulador. El prebuild Android sí se generó correctamente en `apps/mobile/android` (ignorado por Git). No se usó EAS ni otra compilación remota.

@@ -15,3 +15,6 @@ La autorización más reciente crea `codex/dashfort-mobile-tm2-20261110` desde l
 
 ## Ejecución actual T-M3 (sustituye el siguiente paso histórico)
 La autorización vigente crea `codex/dashfort-mobile-tm3-20261111` desde el respaldo T-M2 `6b4cccf6e80fd3d7810194985e0d81b25fdd5b48`. T-M1/T-M2 permanecen en el historial. Chat sustituye el destino de regreso de prueba e implementa INB-11…18, INB-27…29 en simulación; ver docs/tm3. Las acciones de detalle/asignación/etapas de T-M4 siguen fuera del alcance. No iniciar T-M4 ni hacer push, PR, merge, tags, releases o despliegues. Solo apps/mobile. No conectar WhatsApp/IA/servicios reales. Mantener las comprobaciones de posición visible de Bandeja e historial al cambiar la lista virtual. Los exports nativos son bundles Hermes, no APK/IPA ni QA nativo.
+
+## Checkpoint APK probada
+El propietario confirmó instalación y evaluación positiva en Motorola Edge 50 Pro / Android 16. La fuente de ese binario es d849c0d (T-M3); la receta posterior se conserva en codex/dashfort-mobile-apk-tested-20261111, docs/apk-probada. No reemplazar la APK original ni versionar claves privadas. La autorización vigente permite T-M4 en rama nueva desde este checkpoint; solo apps/mobile, datos ficticios, sin push ni T-M5.

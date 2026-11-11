@@ -1,0 +1,10 @@
+gradle.beforeProject { p ->
+    ['com.android.application', 'com.android.library'].each { pluginId ->
+        p.plugins.withId(pluginId) {
+            p.extensions.getByName('android').defaultConfig.externalNativeBuild.cmake.arguments.addAll([
+                '-DCMAKE_CXX_FLAGS_RELWITHDEBINFO=-O2 -g0 -DNDEBUG',
+                '-DCMAKE_C_FLAGS_RELWITHDEBINFO=-O2 -g0 -DNDEBUG'
+            ])
+        }
+    }
+}

@@ -1,0 +1,19 @@
+Picked up JAVA_TOOL_OPTIONS:  -Dhttps.proxyHost=proxy -Dhttps.proxyPort=8080 -Dhttp.proxyHost=proxy -Dhttp.proxyPort=8080 -Duser.home=/workspace/work/apk-tm3/java-user -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts
+Verifies
+Verified using v1 scheme (JAR signing): false
+Verified using v2 scheme (APK Signature Scheme v2): true
+Verified using v3 scheme (APK Signature Scheme v3): false
+Verified using v3.1 scheme (APK Signature Scheme v3.1): false
+Verified using v3.2 scheme (APK Signature Scheme v3.2): false
+Verified using v4 scheme (APK Signature Scheme v4): false
+Verified for SourceStamp: false
+Number of signers: 1
+V2 Signer: certificate DN: CN=Dashfort Experimental, O=Demo, C=MX
+V2 Signer: certificate SHA-256 digest: 0f5d018522f61cf6098871916d2c3cba8e0c6659427a7349c41f0225a983db1b
+V2 Signer: certificate SHA-1 digest: ff4b236e24386e987e701e3e47b2f002a37f1f53
+V2 Signer: certificate MD5 digest: f3566095a006e31b5a8dad8c9a1f9496
+V2 Signer: key algorithm: RSA
+V2 Signer: key size (bits): 2048
+V2 Signer: public key SHA-256 digest: 08c630168b9395f119821353fd3347f6508e51b6fb0697891d5b19158b2f56c6
+V2 Signer: public key SHA-1 digest: 03253e870198d3f74674aec38e85b43418922f1e
+V2 Signer: public key MD5 digest: 8a22f12be336581913613621c4680557
