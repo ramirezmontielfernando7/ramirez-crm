@@ -3085,7 +3085,7 @@ export const organizationPlan = pgTable(
     updatedBy: text("updated_by").references(() => user.id, { onDelete: "set null" }),
   },
   (t) => [
-    check("organization_plan_key_chk", sql`${t.planKey} in ('esencial', 'pro', 'ultra', 'custom')`),
+    check("organization_plan_key_chk", sql`${t.planKey} in ('inicio', 'esencial', 'pro', 'ultra', 'custom')`),
     check("organization_plan_storage_mode_chk", sql`${t.storageMode} in ('warn', 'block_uploads')`),
     check("organization_plan_max_members_chk", sql`${t.maxMembers} is null or ${t.maxMembers} >= 0`),
     check("organization_plan_storage_chk", sql`${t.storageLimitBytes} is null or ${t.storageLimitBytes} >= 0`),
@@ -4477,7 +4477,7 @@ export const platformAiDefaults = pgTable(
     updatedBy: text("updated_by").references(() => user.id, { onDelete: "set null" }),
   },
   (t) => [
-    check("platform_ai_defaults_scope_chk", sql`${t.scope} in ('instance', 'esencial', 'pro', 'ultra')`),
+    check("platform_ai_defaults_scope_chk", sql`${t.scope} in ('instance', 'inicio', 'esencial', 'pro', 'ultra')`),
     check("platform_ai_defaults_agent_effort_chk", sql`${t.agentEffort} is null or ${t.agentEffort} in ('none', 'low', 'medium', 'high')`),
     check("platform_ai_defaults_creator_effort_chk", sql`${t.creatorEffort} is null or ${t.creatorEffort} in ('none', 'low', 'medium', 'high')`),
     check("platform_ai_defaults_usd_chk", sql`${t.monthlyUsdLimit} is null or ${t.monthlyUsdLimit} >= 0`),
@@ -4507,7 +4507,7 @@ export const platformPlanCatalog = pgTable(
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
     updatedBy: text("updated_by").references(() => user.id, { onDelete: "set null" }),
   },
-  (t) => [check("platform_plan_catalog_scope_chk", sql`${t.scope} in ('esencial', 'pro', 'ultra')`)]
+  (t) => [check("platform_plan_catalog_scope_chk", sql`${t.scope} in ('inicio', 'esencial', 'pro', 'ultra')`)]
 );
 
 /**

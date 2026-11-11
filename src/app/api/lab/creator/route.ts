@@ -27,7 +27,7 @@ const bodySchema = z.object({
  * que la pantalla pone en el borrador del formulario.
  */
 export const POST = withAuth(async (session, req: Request) => {
-  const off = (await moduleOff(session.organizationId, "lab")) ?? (await moduleOff(session.organizationId, "agent"));
+  const off = await moduleOff(session.organizationId, "agent");
   if (off) return off;
   if (!isAiConfigured()) return apiError(409, "ai_not_configured", "Configura tu proveedor de IA para usar el creador");
   const limit = checkRateLimit(`lab-creator:${session.userId}`, { windowMs: 60_000, max: PER_MINUTE });

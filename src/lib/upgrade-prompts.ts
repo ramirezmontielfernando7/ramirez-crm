@@ -58,6 +58,7 @@ export function promptKind(p: PaceInfo): PromptKind | null {
 
 /** El plan al que conviene subir (`null` si ya está en el más alto). */
 export function nextPlan(current: PlanKey): CatalogScope | null {
+  if (current === "inicio") return "esencial";
   if (current === "esencial") return "pro";
   if (current === "pro") return "ultra";
   if (current === "ultra") return null;

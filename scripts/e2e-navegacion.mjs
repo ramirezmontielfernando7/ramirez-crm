@@ -125,9 +125,9 @@ async function main() {
   ok("alta con plan Ultra (201) y activación", N.status === 201 && N.activated, JSON.stringify(N));
   const [modN] = await sql`select * from organization_module where organization_id = ${N.orgId}`;
   ok(
-    "Ultra: los 13 encendidos (con Asistente, Instagram y Messenger) y menú personalizable",
+    "Ultra: todo encendido (con Asistente) y menú personalizable; Instagram y Messenger fuera de la oferta",
     modN?.campaigns && modN?.agenda && modN?.agent && modN?.lab && modN?.knowledge && modN?.team_chat && modN?.results && modN?.custom_nav &&
-      modN?.trabajo && modN?.atribucion && modN?.asistente && [...(modN?.channels ?? [])].sort().join() === "instagram,messenger",
+      modN?.trabajo && modN?.atribucion && modN?.asistente && [...(modN?.channels ?? [])].sort().join() === "",
     JSON.stringify(modN)
   );
   const OWNER_P = { email: `duena.pro.${RUN}@navegacion.test`, name: `Dueña Pro ${RUN}` };
@@ -142,15 +142,19 @@ async function main() {
   const M = await alta(A, `Negocio Básico ${RUN}`, OWNER_M, "esencial");
   const [modM] = await sql`select * from organization_module where organization_id = ${M.orgId}`;
   ok(
-    "Esencial: sin Agente, Laboratorio, Campañas ni menú personalizable; con Biblioteca, Tareas y Chat",
-    modM && !modM.agent && !modM.lab && !modM.campaigns && !modM.custom_nav && modM.knowledge && modM.team_chat && modM.trabajo,
+    "Esencial: UN agente (sin Laboratorio), sin Campañas ni menú personalizable; con Biblioteca, Tareas y Chat",
+    modM && modM.agent && !modM.lab && !modM.campaigns && !modM.custom_nav && modM.knowledge && modM.team_chat && modM.trabajo,
     JSON.stringify(modM)
   );
   const plataforma = await A.pagina("/platform/organizaciones");
   await plataforma.p.getByTestId("platform-create-open").click();
-  ok("/platform ofrece los tres planes y «Personalizado» al crear", await hasta(async () => (await plataforma.p.getByTestId("platform-create-profile").locator("option").count()) === 5));
+  ok("/platform ofrece los cuatro planes y «Personalizado» al crear", await hasta(async () => (await plataforma.p.getByTestId("platform-create-profile").locator("option").count()) === 6));
   await plataforma.p.close();
-  const labSolo = await A.call("POST", `/api/platform/organizations/${M.orgId}/modules`, { lab: true });
+  const OWNER_I = { email: `duena.inicio.${RUN}@navegacion.test`, name: `Dueña Inicio ${RUN}` };
+  const I = await alta(A, `Negocio Inicio ${RUN}`, OWNER_I, "inicio");
+  const [modI] = await sql`select * from organization_module where organization_id = ${I.orgId}`;
+  ok("Inicio: solo Bandeja y Chat de equipo, sin IA", modI && !modI.agent && !modI.lab && !modI.knowledge && !modI.results && !modI.trabajo && modI.team_chat, JSON.stringify(modI));
+  const labSolo = await A.call("POST", `/api/platform/organizations/${I.orgId}/modules`, { lab: true });
   ok("encender el Laboratorio sin Agente → 422", labSolo.status === 422, JSON.stringify(labSolo.json));
   const malo = await A.call("POST", "/api/platform/organizations", { name: "x perfil", ownerName: "x", ownerEmail: `x.${RUN}@nav.test`, profile: "gigante" });
   ok("un perfil desconocido → 400/422", malo.status === 400 || malo.status === 422, String(malo.status));

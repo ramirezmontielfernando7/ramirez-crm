@@ -72,27 +72,30 @@ describe("registro de módulos", () => {
     expect([...new Set(Object.values(SETTINGS_TAB_PERMISSION))].sort()).toEqual([...(ajustes.permissions ?? [])].sort());
   });
 
-  it("039: los planes Esencial, Pro y Ultra: cada uno incluye al anterior y respetan la dependencia", () => {
-    const { esencial, pro, ultra } = MODULE_PROFILES;
+  it("039: los planes Inicio, Esencial, Pro y Ultra: cada uno incluye al anterior y respetan la dependencia", () => {
+    const { inicio, esencial, pro, ultra } = MODULE_PROFILES;
     for (const p of Object.values(MODULE_PROFILES)) {
       if (p.modules.lab) expect(p.modules.agent).toBe(true);
       // Los 13 interruptores de /platform, todos definidos.
       expect(Object.keys(p.modules)).toHaveLength(13);
     }
     const enc = (m: Record<string, boolean>) => Object.keys(m).filter((k) => m[k]);
+    for (const k of enc(inicio.modules)) expect(esencial.modules[k as keyof typeof esencial.modules], k).toBe(true);
     for (const k of enc(esencial.modules)) expect(pro.modules[k as keyof typeof pro.modules], k).toBe(true);
     for (const k of enc(pro.modules)) expect(ultra.modules[k as keyof typeof ultra.modules], k).toBe(true);
-    // Esencial: Bandeja (con equipo), CRM (Tareas, Notas, Biblioteca), sin IA.
-    expect(esencial.modules).toMatchObject({ team_chat: true, trabajo: true, knowledge: true, agent: false, lab: false, asistente: false, campaigns: false });
-    // Pro: + IA, Agenda, CAPI, Instagram y Messenger.
-    expect(pro.modules).toMatchObject({ agent: true, lab: true, agenda: true, atribucion: true, instagram: true, messenger: true, campaigns: false, asistente: false });
+    // Inicio: solo Bandeja con chat de equipo (embudo y contactos son núcleo), sin IA.
+    expect(inicio.modules).toMatchObject({ team_chat: true, trabajo: false, knowledge: false, results: false, agent: false, lab: false });
+    // Esencial: + Tareas, Notas, Biblioteca, Resultados y UN agente (creador + prueba en vivo) sin Laboratorio.
+    expect(esencial.modules).toMatchObject({ team_chat: true, trabajo: true, knowledge: true, results: true, agent: true, lab: false, asistente: false, campaigns: false });
+    // Pro: + Estudio de IA completo, Agenda y CAPI; Instagram y Messenger fuera de la oferta.
+    expect(pro.modules).toMatchObject({ agent: true, lab: true, agenda: true, atribucion: true, instagram: false, messenger: false, campaigns: false, asistente: false });
     // Ultra: + Campañas y el Asistente interno (el 13.º).
     expect(ultra.modules).toMatchObject({ campaigns: true, asistente: true });
-    expect(enc(ultra.modules)).toHaveLength(13);
+    expect(enc(ultra.modules)).toHaveLength(11);
   });
 
   it("039: «Personalizado» no es plantilla (valen el entorno y los 13 a mano)", () => {
-    expect(PLAN_OPTIONS).toEqual(["esencial", "pro", "ultra", "personalizado"]);
+    expect(PLAN_OPTIONS).toEqual(["inicio", "esencial", "pro", "ultra", "personalizado"]);
     expect(profileOfPlan("personalizado")).toBeUndefined();
     expect(profileOfPlan(undefined)).toBeUndefined();
     expect(profileOfPlan("pro")).toBe("pro");
@@ -138,7 +141,7 @@ describe("menú por rol", () => {
     const pestañas = (key: ModuleKey) => (moduleDef(key).sections ?? []).map((s) => s.route);
     expect(pestañas("inbox")).toEqual(["/inbox", "/chat"]);
     expect(pestañas("pipeline")).toEqual(["/pipeline", "/contacts", "/bookings", "/trabajo/tareas", "/knowledge"]);
-    expect(pestañas("lab")).toEqual(["/lab", "/agent", "/lab/documentos", "/lab/asignacion", "/lab/evaluaciones"]);
+    expect(pestañas("lab")).toEqual(["/lab", "/lab/documentos", "/lab/asignacion", "/lab/evaluaciones"]);
     expect(pestañas("campaigns")).toEqual(["/campaigns", "/campaigns/audiences", "/campaigns/templates", "/campaigns/metrics"]);
     expect(pestañas("results")).toEqual(["/results"]);
     expect(pestañas("asistente")).toEqual(["/asistente"]);
@@ -151,15 +154,15 @@ describe("menú por rol", () => {
   });
 
   it("039: el renglón lleva a la primera pestaña que se puede abrir", () => {
-    // Estudio de IA: con Laboratorio, /lab; sin él (Agente encendido), /agent.
+    // Estudio de IA: siempre /lab; sin Laboratorio (Esencial) solo «Mis agentes», un agente.
     const con = resolveNav({ role: "owner", modules: TODOS, can: canRole("owner"), layout: null });
     expect(con.hrefs.lab).toBe("/lab");
     const sinLab = effectiveModules(new Set<ModuleKey>(["team_chat", "knowledge", "results", "agent"]));
     const a = resolveNav({ role: "owner", modules: sinLab, can: canRole("owner"), layout: null });
-    expect(a.hrefs.lab).toBe("/agent");
-    expect(availableSections(moduleDef("lab"), sinLab, canRole("owner")).map((s) => s.route)).toEqual(["/agent"]);
-    // Con Laboratorio, la pestaña del agente general cede su lugar.
-    expect(availableSections(moduleDef("lab"), TODOS, canRole("owner")).map((s) => s.route)).not.toContain("/agent");
+    expect(a.hrefs.lab).toBe("/lab");
+    expect(availableSections(moduleDef("lab"), sinLab, canRole("owner")).map((s) => s.route)).toEqual(["/lab"]);
+    // Con Laboratorio, las demás pestañas del Estudio también aparecen.
+    expect(availableSections(moduleDef("lab"), TODOS, canRole("owner")).map((s) => s.route)).toContain("/lab/documentos");
     // Sin agente: no hay Estudio de IA.
     const sinIa = effectiveModules(new Set<ModuleKey>(["team_chat", "results"]));
     expect(resolveNav({ role: "owner", modules: sinIa, can: canRole("owner"), layout: null }).main.map((m) => m.key)).not.toContain("lab");

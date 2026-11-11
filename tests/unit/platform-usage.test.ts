@@ -68,10 +68,13 @@ describe("medidores de /platform", () => {
 
   it("039: los 13 interruptores dicen a qué plan corresponden (o «personalizado»)", () => {
     const todo = Object.fromEntries(PLATFORM_MODULE_TOGGLES.map((k) => [k, true])) as Record<(typeof PLATFORM_MODULE_TOGGLES)[number], boolean>;
-    expect(planOfModules(todo)).toBe("ultra");
-    expect(planOfModules({ ...todo, campaigns: false, asistente: false })).toBe("pro");
-    const esencial = { ...todo, agent: false, lab: false, agenda: false, atribucion: false, instagram: false, messenger: false, customNav: false, campaigns: false, asistente: false };
+    const ultra = { ...todo, instagram: false, messenger: false };
+    expect(planOfModules(ultra)).toBe("ultra");
+    expect(planOfModules({ ...ultra, campaigns: false, asistente: false })).toBe("pro");
+    const esencial = { ...todo, lab: false, agenda: false, atribucion: false, instagram: false, messenger: false, customNav: false, campaigns: false, asistente: false };
     expect(planOfModules(esencial)).toBe("esencial");
+    const inicio = { ...esencial, agent: false, knowledge: false, results: false, trabajo: false };
+    expect(planOfModules(inicio)).toBe("inicio");
     // Uno movido a mano: ya no es ningún plan.
     expect(planOfModules({ ...esencial, campaigns: true })).toBe("personalizado");
     for (const k of PLATFORM_MODULE_TOGGLES) expect(PLATFORM_MODULE_PILLAR[k].length).toBeGreaterThan(3);

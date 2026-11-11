@@ -45,7 +45,7 @@ async function planGuardado(organizationId: string): Promise<string | null> {
   return row?.planKey ?? null;
 }
 
-async function alta(profile: "esencial" | "pro" | "ultra" | "personalizado"): Promise<string> {
+async function alta(profile: "inicio" | "esencial" | "pro" | "ultra" | "personalizado"): Promise<string> {
   const r = await createOrganization(
     { name: `Plan ${profile} ${RUN}`, ownerName: "Dueña", ownerEmail: `plan-${profile}-${RUN}-${++altas}@plan.test`, profile },
     ACTOR,
@@ -56,8 +56,8 @@ async function alta(profile: "esencial" | "pro" | "ultra" | "personalizado"): Pr
 }
 
 describe("040 — plan comercial guardado", () => {
-  it("nace con el plan del alta (esencial, pro, ultra)", async () => {
-    for (const p of ["esencial", "pro", "ultra"] as const) {
+  it("nace con el plan del alta (inicio, esencial, pro, ultra)", async () => {
+    for (const p of ["inicio", "esencial", "pro", "ultra"] as const) {
       const id = await alta(p);
       expect(await planGuardado(id)).toBe(p);
       const limits = await runWithOrganization(id, () => getEffectiveLimits(id));
@@ -82,7 +82,7 @@ describe("040 — plan comercial guardado", () => {
   it("«Personalizado» al crear: el plan que corresponda a los módulos del entorno", async () => {
     const id = await alta("personalizado");
     const guardado = await planGuardado(id);
-    expect(["esencial", "pro", "ultra", "custom"]).toContain(guardado);
+    expect(["inicio", "esencial", "pro", "ultra", "custom"]).toContain(guardado);
   });
 
   it("guardar topes también lo deja al día (una organización sin fila de plan)", async () => {
@@ -106,10 +106,10 @@ describe("040 — plan comercial guardado", () => {
     expect(usage.get(O.id)?.plan.planKey).toBe("pro");
   });
 
-  it("el CHECK solo acepta esencial, pro, ultra y custom", async () => {
+  it("el CHECK solo acepta inicio, esencial, pro, ultra y custom", async () => {
     const O = await crearOrganizacion("PlanCheck");
     creadas.push(O.id);
-    for (const k of ["esencial", "pro", "ultra", "custom"]) {
+    for (const k of ["inicio", "esencial", "pro", "ultra", "custom"]) {
       await getSystemDb()
         .insert(schema.organizationPlan)
         .values({ organizationId: O.id, planKey: k })

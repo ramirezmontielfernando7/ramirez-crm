@@ -118,17 +118,20 @@ describe("módulos de la 0034", () => {
   });
 
   it("039: los planes Esencial, Pro y Ultra son solo la plantilla del alta; «Personalizado», los del entorno", async () => {
-    for (const profile of ["esencial", "pro", "ultra", "personalizado"] as const) {
+    for (const profile of ["inicio", "esencial", "pro", "ultra", "personalizado"] as const) {
       const email = `dueno-${profile}@nav.test`;
       const r = await createOrganization({ name: `Plan ${profile}`, ownerName: "Dueño", ownerEmail: email, profile }, ACTOR, null);
       creadas.push(r.organizationId);
       const m = await getOrgModules(r.organizationId);
-      if (profile === "esencial") {
-        expect(m).toMatchObject({ agent: false, lab: false, campaigns: false, agenda: false, asistente: false, knowledge: true, teamChat: true, trabajo: true, customNav: false });
+      if (profile === "inicio") {
+        expect(m).toMatchObject({ agent: false, lab: false, campaigns: false, agenda: false, asistente: false, knowledge: false, results: false, teamChat: true, trabajo: false, customNav: false });
+        expect([...m.channels]).toEqual(["whatsapp"]);
+      } else if (profile === "esencial") {
+        expect(m).toMatchObject({ agent: true, lab: false, campaigns: false, agenda: false, asistente: false, knowledge: true, teamChat: true, trabajo: true, customNav: false });
         expect([...m.channels]).toEqual(["whatsapp"]);
       } else if (profile === "pro") {
         expect(m).toMatchObject({ agent: true, lab: true, agenda: true, atribucion: true, campaigns: false, asistente: false, customNav: true });
-        expect([...m.channels].sort()).toEqual(["instagram", "messenger", "whatsapp"]);
+        expect([...m.channels]).toEqual(["whatsapp"]);
       } else if (profile === "ultra") {
         expect(m).toMatchObject({ agent: true, lab: true, campaigns: true, asistente: true, agenda: true });
       } else {

@@ -14,7 +14,7 @@ describe("catálogo de planes", () => {
     await getSystemDb().delete(schema.platformPlanCatalog);
     clearPlanCatalogCache();
     const c = await getPlanCatalog();
-    expect(c.pro.priceMonthlyMxn).toBe(899);
+    expect(c.pro.priceMonthlyMxn).toBe(1999);
   });
 
   it("cambia un precio, deja el resto y vuelve a fábrica con null", async () => {
@@ -22,10 +22,10 @@ describe("catálogo de planes", () => {
     let c = await getPlanCatalog();
     expect(c.pro.priceMonthlyMxn).toBe(1099);
     expect(c.pro.features).toEqual(["Todo Esencial", "Agentes"]);
-    expect(c.ultra.priceMonthlyMxn).toBe(1799);
+    expect(c.ultra.priceMonthlyMxn).toBe(2999);
     await changePlanCatalog("pro", { priceMonthlyMxn: null, features: null }, null, null);
     c = await getPlanCatalog();
-    expect(c.pro.priceMonthlyMxn).toBe(899);
+    expect(c.pro.priceMonthlyMxn).toBe(1999);
     expect(c.pro.features[0]).toBe("Todo Esencial");
   });
 

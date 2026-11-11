@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Check } from "lucide-react";
 import { fetchJson } from "@/lib/fetch-json";
-import { formatMxn, freeMonths, yearlyPrice, type CatalogScope, type PlanCatalog, type PlanCatalogEntry } from "@/lib/plan-catalog";
+import { formatMxn, isSellable, freeMonths, yearlyPrice, type CatalogScope, type PlanCatalog, type PlanCatalogEntry } from "@/lib/plan-catalog";
 import type { PlanKey } from "@/lib/limits";
 import { cn } from "@/lib/utils";
 
@@ -116,11 +116,11 @@ export function UpgradePlans() {
   }
 
   if (!data) return <p className={cn("text-sm", error ? "text-destructive" : "text-text-2")}>{error ?? "Cargando planes…"}</p>;
-  const plans = Object.values(data.catalog);
+  const plans = Object.values(data.catalog).filter((p) => isSellable(p.scope) || data.current === p.scope);
   return (
     <div data-testid="upgrade-plans">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm text-text-2">Precios en pesos más IVA. Cancelas cuando quieras.</p>
+        <p className="text-sm text-text-2">Precios en pesos, IVA incluido. Cancelas cuando quieras.</p>
         <div className="inline-flex rounded-lg bg-muted p-0.5 text-[13px]" role="group" aria-label="Periodo de cobro">
           <button type="button" onClick={() => setYearly(false)} aria-pressed={!yearly} className={cn("rounded-md px-3 py-1", !yearly && "bg-card font-medium shadow-sm")}>
             Mensual

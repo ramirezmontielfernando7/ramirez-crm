@@ -18,6 +18,7 @@ import { syncGeneralToProfile } from "./mirror";
 import { removeAgentStages } from "./assignments";
 import { pauseScope } from "@/lib/agent-pause";
 import { logger } from "@/lib/log";
+import { orgHasModule } from "@/server/modules";
 import { existingGroupIds, settleAgentDocuments } from "@/server/kb-docs/store";
 
 const log = logger("agentes");
@@ -31,6 +32,13 @@ const log = logger("agentes");
 
 /** D6 — Agentes activos (no archivados) por organización. */
 export const MAX_ACTIVE_AGENTS = 20;
+/** Plan Esencial (agente sin Laboratorio): UN solo agente, el general. */
+export const MAX_AGENTS_WITHOUT_LAB = 1;
+
+/** Cuántos agentes activos admite la organización (con Laboratorio, 20; sin él, 1). */
+export async function maxAgentsFor(organizationId: string): Promise<number> {
+  return (await orgHasModule(organizationId, "lab")) ? MAX_ACTIVE_AGENTS : MAX_AGENTS_WITHOUT_LAB;
+}
 
 export type AgentErrorCode = "agent_limit" | "agent_general" | "not_published" | "not_found" | "unknown_group";
 
@@ -241,14 +249,20 @@ export async function createAgent(input: {
 }): Promise<AgentDetail> {
   const { organizationId } = input;
   await ensureGeneralAgent(organizationId);
+  const max = await maxAgentsFor(organizationId);
   return withTenant(organizationId, async (tx) => {
     await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`agent:${organizationId}`}))`);
     const [{ n } = { n: 0 }] = await tx
       .select({ n: count() })
       .from(schema.agent)
       .where(scoped(schema.agent.organizationId, organizationId, isNull(schema.agent.archivedAt)));
-    if (n >= MAX_ACTIVE_AGENTS) {
-      throw new AgentError("agent_limit", `Llegaste al máximo de ${MAX_ACTIVE_AGENTS} agentes activos`);
+    if (n >= max) {
+      throw new AgentError(
+        "agent_limit",
+        max === MAX_AGENTS_WITHOUT_LAB
+          ? "Tu plan incluye 1 agente de IA. Para tener varios, sube de plan."
+          : `Llegaste al máximo de ${max} agentes activos`
+      );
     }
     let draft = emptyConfig();
     if (input.duplicateOf) {
