@@ -154,6 +154,11 @@ export interface ConversationRepository {
   create(actor: Actor, name: string, phone: string): Conversation;
   incoming(actor: Actor, id: string): void;
   setPreview(actor: Actor, id: string, text: string): void;
+  updateContact(
+    actor: Actor,
+    id: string,
+    patch: Partial<Pick<Conversation, "stage" | "tags" | "ai" | "assigned">>,
+  ): void;
 }
 export class DemoConversationRepository implements ConversationRepository {
   private data: readonly Conversation[];
@@ -220,6 +225,38 @@ export class DemoConversationRepository implements ConversationRepository {
     const result = { ...c, search: searchable(c) };
     this.data = [result, ...this.data];
     return result;
+  }
+  updateContact(
+    actor: Actor,
+    id: string,
+    patch: Partial<Pick<Conversation, "stage" | "tags" | "ai" | "assigned">>,
+  ) {
+    this.get(actor, id);
+    if (
+      patch.assigned !== undefined &&
+      actor.role === "advisor" &&
+      patch.assigned !== actor.id
+    )
+      throw new Error("Tu perfil no puede asignar conversaciones.");
+    if (
+      patch.assigned !== undefined &&
+      patch.assigned !== null &&
+      !["demo-owner", "demo-coordinator", "demo-advisor"].includes(
+        patch.assigned,
+      )
+    )
+      throw new Error("Elige una persona activa del equipo.");
+    if (
+      patch.stage !== undefined &&
+      !(stages as readonly string[]).includes(patch.stage)
+    )
+      throw new Error("Etapa no válida.");
+    if (patch.ai !== undefined && !["on", "pause", "off"].includes(patch.ai))
+      throw new Error("Estado de IA no válido.");
+    this.update(actor, [id], (c) => {
+      const next = { ...c, ...patch };
+      return { ...next, search: searchable(next) };
+    });
   }
   setPreview(actor: Actor, id: string, text: string) {
     this.update(actor, [id], (c) => {
