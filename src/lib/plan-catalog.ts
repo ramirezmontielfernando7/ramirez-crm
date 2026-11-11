@@ -54,7 +54,7 @@ export const DEFAULT_PLAN_CATALOG: PlanCatalog = {
     implementationFeeMxn: 0,
     peopleLimit: 3,
     storageGb: 15,
-    features: ["Todo Inicio", "Tareas y notas, Biblioteca y Resultados", "1 agente de IA con creador y prueba en vivo", "IA incluida: cupo básico"],
+    features: ["Bandeja compartida, embudo de ventas y contactos", "Tareas y notas, Biblioteca y Resultados", "1 agente de IA con creador y prueba en vivo", "IA incluida: cupo básico"],
     recommended: false,
   },
   pro: {
@@ -90,8 +90,19 @@ export const DEFAULT_PLAN_CATALOG: PlanCatalog = {
  */
 export const UNSOLD_SCOPES: readonly CatalogScope[] = ["inicio"];
 
+/**
+ * Planes que se ENSEÑAN en «Mejora tu plan» como «Próximamente», pero todavía
+ * no se pueden solicitar (Fer, 2026-11-11: Ultra espera).
+ */
+export const COMING_SOON_SCOPES: readonly CatalogScope[] = ["ultra"];
+
+export function isComingSoon(scope: CatalogScope): boolean {
+  return COMING_SOON_SCOPES.includes(scope);
+}
+
+/** Se puede pedir: ni oculto ni «Próximamente». */
 export function isSellable(scope: CatalogScope): boolean {
-  return !UNSOLD_SCOPES.includes(scope);
+  return !UNSOLD_SCOPES.includes(scope) && !isComingSoon(scope);
 }
 
 /** Lo que guarda el administrador: solo lo que cambió; `null`/ausente = el valor de fábrica. */

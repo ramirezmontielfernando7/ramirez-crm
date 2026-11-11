@@ -114,7 +114,7 @@ export function AgentPreview({ agentId, config, onApplyField }: { agentId: strin
     <div className="flex h-full min-h-0 flex-col">
       <div className="flex items-center justify-between gap-2 border-b px-4 py-2.5">
         <Badge variant="secondary" className="gap-1">
-          <FlaskConical className="h-3 w-3" /> Sandbox · no se envía a WhatsApp
+          <FlaskConical className="h-3 w-3" /> Modo prueba · no se envía a WhatsApp
         </Badge>
         <Button
           size="sm"

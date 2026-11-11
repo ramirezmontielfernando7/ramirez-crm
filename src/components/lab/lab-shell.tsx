@@ -49,7 +49,7 @@ export function LabShell({ children, documents = false }: { children: React.Reac
     <PageShell
       pillar="lab"
       variant="fluid"
-      subtitle="Sandbox interno — no envía mensajes reales"
+      subtitle="Modo prueba: aquí nada se envía a tus clientes"
       hideSections={documents ? undefined : SIN_DOCUMENTOS}
       actions={<span ref={setSlot} className="flex items-center gap-2" data-lab-actions />}
     >

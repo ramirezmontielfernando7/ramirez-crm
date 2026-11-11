@@ -473,7 +473,7 @@ async function main() {
     await page.getByRole("button", { name: new RegExp(`Ventas 9 ${RUN}`) }).click();
     await page.getByRole("button", { name: "Guardar borrador" }).click();
     await page.getByRole("status").filter({ hasText: /Borrador guardado/ }).waitFor();
-    await page.getByRole("button", { name: /^Publicar( v\d+)?$/ }).click();
+    await page.getByRole("button", { name: /^Publicar( cambios)?$/ }).click();
     await page.getByRole("dialog").getByRole("button", { name: "Publicar" }).click();
     await page.getByRole("status").filter({ hasText: /^Publicado/ }).waitFor();
     const pub9 = (await A.api(`/api/lab/agents/${agente9.id}`)).json?.agent;

@@ -4,6 +4,7 @@ import { SpeedPicker, useAssistantSpeed } from "./speed-picker";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   AlertTriangle,
+  Info,
   Archive,
   ArchiveRestore,
   ArrowUp,
@@ -25,6 +26,7 @@ import { ProposalsCard } from "@/components/assistant/proposals-card";
 import { UsageMeter } from "@/components/usage/usage-meter";
 import {
   ASSISTANT_COST_NOTICE,
+  ASSISTANT_COST_REMINDER,
   ASSISTANT_NOTICE_TITLE,
   ASSISTANT_READ_ONLY_NOTICE,
   resetLabel,
@@ -199,7 +201,7 @@ export function AssistantClient() {
   async function bulk(action: "archive" | "unarchive" | "delete", ids: string[]) {
     if (ids.length === 0) return;
     if (action === "delete") {
-      const msg = ids.length === 1 ? "¿Borrar este hilo del asistente? No se puede deshacer." : `¿Borrar ${ids.length} hilos del asistente? No se puede deshacer.`;
+      const msg = ids.length === 1 ? "¿Borrar esta conversación del asistente? No se puede deshacer." : `¿Borrar ${ids.length} conversaciones del asistente? No se puede deshacer.`;
       if (!window.confirm(msg)) return;
     }
     const r = await fetchJson("/api/assistant/threads/bulk", jsonInit("POST", { action, ids }));
@@ -260,7 +262,7 @@ export function AssistantClient() {
   const canAsk = !!status?.canAsk && !!status.noticeAcceptedAt;
   const lastAnswer = [...messages].reverse().find((m) => m.role === "assistant");
   const progress = lastAnswer?.meta?.sources ?? [];
-  const title = threadId === null ? "Hilo nuevo" : (current?.title ?? "Asistente");
+  const title = threadId === null ? "Conversación nueva" : (current?.title ?? "Asistente");
 
   return (
     <PageShell pillar="asistente" tabs={[]} hideHeader variant="fluid">
@@ -300,7 +302,7 @@ export function AssistantClient() {
 
             <div className="hidden min-h-0 flex-1 flex-col rounded-lg bg-surface p-4 shadow-card lg:flex">
               <div className="mb-3 flex items-center justify-between text-[11px] font-semibold uppercase tracking-wider text-text-3">
-                <span>{showArchived ? "Archivados" : "Hilos"}</span>
+                <span>{showArchived ? "Archivadas" : "Conversaciones"}</span>
                 <button
                   type="button"
                   data-testid="assistant-select-mode"
@@ -325,12 +327,12 @@ export function AssistantClient() {
                       threadId === null && "bg-brand-tint"
                     )}
                   >
-                    <Plus className="h-4 w-4" aria-hidden /> Nuevo hilo
+                    <Plus className="h-4 w-4" aria-hidden /> Nueva conversación
                   </button>
                 )}
                 {visible.length === 0 && (
                   <p className="px-2 py-2 text-xs text-text-3" data-testid="assistant-no-threads">
-                    {showArchived ? "No hay hilos archivados." : "Aún no hay hilos. Escribe en «Asistente» o abre uno nuevo."}
+                    {showArchived ? "No hay conversaciones archivadas." : "Lo que preguntes queda en «Asistente». Abre una conversación aparte para cada tema."}
                   </p>
                 )}
                 {visible.map((t) => {
@@ -394,7 +396,7 @@ export function AssistantClient() {
                 }}
                 className="mt-3 flex items-center justify-between border-t pt-3 text-[11px] font-semibold uppercase tracking-wider text-text-3 hover:text-foreground"
               >
-                <span>{showArchived ? "Volver a hilos" : "Archivados"}</span>
+                <span>{showArchived ? "Volver a conversaciones" : "Archivadas"}</span>
                 <span className="flex items-center gap-1 normal-case tracking-normal">
                   {!showArchived && archivedCount}
                   <ChevronRight className={cn("h-3.5 w-3.5", showArchived && "rotate-180")} aria-hidden />
@@ -441,7 +443,7 @@ export function AssistantClient() {
               value={threadId ?? ""}
               onChange={(e) => void openThread(e.target.value || null)}
             >
-              <option value="">Hilo nuevo</option>
+              <option value="">Conversación nueva</option>
               {general && <option value={general.id}>Asistente</option>}
               {threads.filter((t) => !t.archived).map((t) => (
                 <option key={t.id} value={t.id}>{t.title}</option>
@@ -632,16 +634,16 @@ export function AssistantClient() {
               <div
                 role="note"
                 data-testid="assistant-cost-banner"
-                className="flex items-start gap-2 rounded-lg border border-warning-soft bg-warning-tint p-3 text-xs text-warning-text"
+                className="flex items-start gap-2 rounded-lg border bg-subtle p-3 text-xs text-text-2"
               >
-                <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
-                <p className="min-w-0 flex-1">{ASSISTANT_COST_NOTICE}</p>
+                <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+                <p className="min-w-0 flex-1">{ASSISTANT_COST_REMINDER}</p>
                 <button
                   type="button"
                   onClick={hideBanner}
                   aria-label="Quitar aviso"
                   data-testid="assistant-cost-banner-close"
-                  className="shrink-0 rounded p-0.5 hover:bg-warning-soft"
+                  className="shrink-0 rounded p-0.5 hover:bg-accent"
                 >
                   <X className="h-3.5 w-3.5" aria-hidden />
                 </button>

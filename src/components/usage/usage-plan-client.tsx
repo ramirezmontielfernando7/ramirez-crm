@@ -6,7 +6,7 @@ import { UsageMeter } from "@/components/usage/usage-meter";
 import { fetchJson } from "@/lib/fetch-json";
 import { setUsageDialogView } from "@/lib/usage-dialog";
 import { PLAN_LABEL, STORAGE_MODE_LABEL } from "@/lib/limits";
-import { PLATFORM_MODULE_LABEL, planToggles } from "@/lib/platform-modules";
+import { PLATFORM_MODULE_LABEL, planToggles, type PlatformModuleToggle } from "@/lib/platform-modules";
 import { MODULE_PROFILES, type ModuleProfile } from "@/lib/modules/registry";
 import { Check, Star } from "lucide-react";
 import {
@@ -53,6 +53,18 @@ function Card({ title, children, testId }: { title: string; children: React.Reac
     </section>
   );
 }
+
+/**
+ * Auditoría UX 2026-11: el cliente ve nombres de producto, no internos, y no
+ * ve canales que todavía no se venden (salvo que ya los tenga encendidos).
+ */
+const CLIENT_MODULE_LABEL: Partial<Record<PlatformModuleToggle, string>> = {
+  knowledge: "Biblioteca",
+  lab: "Estudio de IA (varios agentes)",
+  atribucion: "Atribución de anuncios",
+  asistente: "Asistente",
+};
+const HIDDEN_UNLESS_ON = new Set<PlatformModuleToggle>(["instagram", "messenger"]);
 
 /** Una medida contra su tope: etiqueta, medidor y una nota opcional. */
 function Measure({ label, meter, note, testId }: { label: string; meter: Meter; note?: string; testId: string }) {
@@ -240,21 +252,18 @@ export function UsagePlanClient({ embedded = false }: { embedded?: boolean } = {
       <section className="rounded-xl border bg-card p-4" data-testid="usage-plan-modules">
         <div className="flex items-baseline justify-between gap-3">
           <h3 className="text-sm font-semibold">Incluido en tu plan</h3>
-          <span className="text-xs text-text-3">
-            {usage.modules.active} de {usage.modules.total} módulos
-          </span>
         </div>
         <ul className="mt-3 flex flex-wrap gap-1.5">
-          {usage.modules.items.map(({ key, on }) => {
+          {usage.modules.items.filter(({ key, on }) => on || !HIDDEN_UNLESS_ON.has(key)).map(({ key, on }) => {
             const plan = (Object.keys(MODULE_PROFILES) as ModuleProfile[]).find((p) => planToggles(p)[key]);
             return on ? (
               <li key={key} className="inline-flex items-center gap-1 rounded-full bg-brand-soft px-2.5 py-1 text-xs text-brand-text">
                 <Check className="h-3 w-3" aria-hidden />
-                {PLATFORM_MODULE_LABEL[key]}
+                {CLIENT_MODULE_LABEL[key] ?? PLATFORM_MODULE_LABEL[key]}
               </li>
             ) : (
               <li key={key} className="rounded-full border px-2.5 py-1 text-xs text-text-2">
-                {PLATFORM_MODULE_LABEL[key]}
+                {CLIENT_MODULE_LABEL[key] ?? PLATFORM_MODULE_LABEL[key]}
                 {plan ? ` · ${MODULE_PROFILES[plan].label}` : ""}
               </li>
             );
@@ -268,7 +277,7 @@ export function UsagePlanClient({ embedded = false }: { embedded?: boolean } = {
             <ChevronRight className="h-4 w-4 transition-transform group-open:rotate-90" aria-hidden />
             Ver detalle por agente y función
           </span>
-          <span className="text-text-3">¿Necesitas más? Habla con quien administra la plataforma.</span>
+          <span className="text-text-3">¿Necesitas algo distinto? Escríbenos y armamos un plan a tu medida.</span>
         </summary>
         <div className="mt-4 grid gap-4 md:grid-cols-2">
           {funciones && ai.byAgent && (
