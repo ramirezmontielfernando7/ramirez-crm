@@ -30,10 +30,10 @@ import { isHouseName } from "@/lib/brand";
 import { useViewer } from "@/components/viewer-context";
 import { TeamUnreadLogoBadge, TeamUnreadRowBadge } from "@/components/team-chat/unread-badge";
 import { roleLabel } from "@/lib/auth/permissions";
-import { moduleDef, type ModuleKey } from "@/lib/modules/registry";
+import { moduleDef, NAV_GROUP_LABEL, type ModuleKey } from "@/lib/modules/registry";
 import { NAV_ICONS } from "@/components/nav-icons";
 import { useInboxUnread } from "@/components/inbox/unread-store";
-import type { NavEntries } from "@/lib/modules/nav-layout";
+import { entryRoutes, navGroupStarts, routeMatchLength, type NavEntries } from "@/lib/modules/nav-layout";
 import { OPEN_PALETTE_EVENT, shortcutLabel } from "@/lib/command-palette";
 import { AvisosMenu } from "@/components/notifications/avisos-menu";
 import { openUsageDialog } from "@/lib/usage-dialog";
@@ -47,6 +47,8 @@ import {
 } from "@/lib/version";
 
 type NavItem = {
+  /** Clave del registro (no la tiene «Plataforma»). */
+  key?: ModuleKey;
   href: string;
   label: string;
   icon: LucideIcon;
@@ -62,6 +64,7 @@ export { NAV_ICONS } from "@/components/nav-icons";
 export function navItemOf(key: ModuleKey, href?: string): NavItem {
   const def = moduleDef(key);
   return {
+    key,
     // 039: el pilar lleva a su primera pestaña que se puede abrir (la
     // resuelve el servidor); sin ella, a su ruta de casa.
     href: href ?? def.route ?? "/",
@@ -69,10 +72,7 @@ export function navItemOf(key: ModuleKey, href?: string): NavItem {
     icon: NAV_ICONS[def.icon],
     badge: def.badges?.includes("inbox"),
     teamBadge: def.badges?.includes("team"),
-    alsoActive: [
-      ...(def.route ? [def.route] : []),
-      ...(def.sections ?? []).flatMap((s) => [s.route, ...(s.also ?? [])]),
-    ],
+    alsoActive: entryRoutes(def),
   };
 }
 
@@ -328,32 +328,66 @@ const NavLinks = memo(function NavLinks({
   items: NavItem[];
   pathname: string;
 }) {
+  // La entrada activa es la que cubre la ruta con su dirección más larga
+  // (/lab/documentos es de la Biblioteca, no de Agentes IA).
+  const active = activeNavHref(items, pathname);
+  // 2026-11 — Títulos de grupo («Día a día», «Crecer», «Inteligencia artificial»).
+  const starts = navGroupStarts(items.flatMap((i) => (i.key ? [i.key] : [])));
+  let k = 0;
   return (
     <nav className="flex flex-col gap-0.5">
-      {items.map((item) => {
-        const active = [item.href, ...(item.alsoActive ?? [])].some(
-          (href) => pathname === href || pathname.startsWith(`${href}/`)
-        );
+      {items.map((item, idx) => {
+        const group = item.key ? starts[k++] : null;
         return (
-          <Link
-            key={item.href}
-            href={item.href}
-            title={item.label}
-            className={cn(navItemClass(active), "relative")}
-          >
-            <item.icon
-              className={cn("h-[17px] w-[17px] shrink-0", active ? "text-brand" : "text-text-3")}
-              strokeWidth={1.8}
-            />
-            <NavLabel>{item.label}</NavLabel>
-            {item.badge && <InboxUnreadBadge />}
-            {item.teamBadge && <TeamUnreadRowBadge />}
-          </Link>
+          <div key={item.href} className="contents">
+            {group && (
+              <div
+                data-nav-group={group}
+                className={cn(
+                  "px-2.5 pb-1 text-[11px] font-medium text-text-3 group-data-[mini]/nav:hidden",
+                  idx === 0 ? "pt-0" : "pt-3"
+                )}
+              >
+                {NAV_GROUP_LABEL[group]}
+              </div>
+            )}
+            {group && idx > 0 && <div aria-hidden className="mx-2 my-1.5 hidden border-t group-data-[mini]/nav:block" />}
+            <Link
+              href={item.href}
+              title={item.label}
+              className={cn(navItemClass(active === item.href), "relative")}
+            >
+              <item.icon
+                className={cn("h-[17px] w-[17px] shrink-0", active === item.href ? "text-brand" : "text-text-3")}
+                strokeWidth={1.8}
+              />
+              <NavLabel>{item.label}</NavLabel>
+              {item.badge && <InboxUnreadBadge />}
+              {item.teamBadge && <TeamUnreadRowBadge />}
+            </Link>
+          </div>
         );
       })}
     </nav>
   );
 });
+
+/** El `href` de la entrada que cubre `pathname` con su ruta más larga. */
+export function activeNavHref(
+  items: readonly { href: string; alsoActive?: readonly string[] }[],
+  pathname: string
+): string | null {
+  let best: string | null = null;
+  let bestLen = 0;
+  for (const item of items) {
+    const len = routeMatchLength([item.href, ...(item.alsoActive ?? [])], pathname);
+    if (len > bestLen) {
+      best = item.href;
+      bestLen = len;
+    }
+  }
+  return best;
+}
 
 /**
  * Fila «Buscar… Ctrl K»: abre la paleta de búsqueda (auditoría UX 2026-11,

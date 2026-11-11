@@ -5,6 +5,7 @@ import { resolveNav, type ResolvedNav } from "@/lib/modules/nav-layout";
 import type { ModuleKey } from "@/lib/modules/registry";
 import { getOrgModules, enabledModuleKeys } from "@/server/modules";
 import { getNavLayout } from "./store";
+import { kbDocsEnabled } from "@/server/kb-docs/flag";
 
 export type SessionNav = ResolvedNav & {
   /** Módulos encendidos de la organización (para lo que no es el menú). */
@@ -30,5 +31,11 @@ export async function navForSession(session: SessionContext): Promise<SessionNav
   const nav = isRole(session.role)
     ? resolveNav({ role, modules, can: (p) => can(session, p), layout })
     : { main: [], settings: false, hrefs: {} };
+  // 2026-11 — La Biblioteca sin su pestaña de envío (módulo apagado) llevaría
+  // a los Documentos de la IA; sin `KB_DOCS` esa pantalla no existe.
+  if (nav.hrefs.knowledge === "/lab/documentos" && !kbDocsEnabled()) {
+    nav.main = nav.main.filter((d) => d.key !== "knowledge");
+    delete nav.hrefs.knowledge;
+  }
   return { ...nav, modules: [...modules], customNav: m.customNav };
 }

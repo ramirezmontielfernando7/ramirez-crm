@@ -5,7 +5,8 @@
 export const OPEN_PALETTE_EVENT = "vocero:open-palette";
 export const OPEN_ASSISTANT_EVENT = "vocero:open-assistant";
 
-export type PalettePage = { label: string; href: string; group: string };
+/** `keywords`: otros nombres con que se busca (p. ej. el nombre viejo de un renglón). */
+export type PalettePage = { label: string; href: string; group: string; keywords?: string };
 
 export function fold(text: string): string {
   return text
@@ -21,7 +22,7 @@ export function matchPages(query: string, pages: readonly PalettePage[], max = 6
   if (words.length === 0) return pages.slice(0, max);
   return pages
     .filter((p) => {
-      const hay = fold(`${p.label} ${p.group}`);
+      const hay = fold(`${p.label} ${p.group} ${p.keywords ?? ""}`);
       return words.every((w) => hay.includes(w));
     })
     .slice(0, max);

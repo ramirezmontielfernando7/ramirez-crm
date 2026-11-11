@@ -2,8 +2,8 @@
  * Self-test E2E de 033, PR 1 — «Trabajo»: Citas + Tareas
  * (tests/e2e/us-trabajo.md). Contra la app real con mocks:
  *
- *  1. Menú (039): el pilar «CRM Comercial» trae las pestañas Agenda (Citas,
- *     que abre en la LISTA) y «Tareas y notas».
+ *  1. Menú (2026-11): el renglón «Agenda» trae las pestañas Tareas, Citas
+ *     (que abre en la vista Semana) y Notas.
  *  2. La Asesora, en el navegador: alta rápida (escribe y Enter), marca hecha
  *     de un toque y la encuentra en «Hechas».
  *  3. Desde un chat de la Bandeja: «Nueva tarea para este chat» → la tarea
@@ -15,9 +15,9 @@
  *  4. Permisos: la Coordinadora ve las tareas de todas; la Asesora no ve las
  *     de otros ni puede tocarlas (404).
  *  5. Interno: nada de esto generó un mensaje.
- *  6. Módulos: sin `trabajo`, Tareas no existe (404 en API y página) y el
- *     CRM Comercial no trae «Tareas y notas»; sin `agenda` tampoco trae
- *     «Agenda» y /trabajo es 404.
+ *  6. Módulos: sin `trabajo`, Tareas no existe (404 en API y página) y la
+ *     Agenda queda solo con Citas; sin `agenda` tampoco, no hay «Agenda» en
+ *     el menú y /trabajo es 404.
  *
  * Uso: app viva con WA_MOCK_ENABLED=true, los mocks y PLATFORM_ORG_ID = la
  * organización de e2e@vocero.test (corre antes pnpm test:e2e).
@@ -176,20 +176,20 @@ async function main() {
   ok("el chat se asigna a la Asesora", asigna.status === 200, JSON.stringify(asigna.json));
   const [{ n: mensajesAntes }] = await sql`select count(*)::int as n from message where organization_id = ${orgId}`;
 
-  console.log("\n== 1 · CRM Comercial (039): Agenda y «Tareas y notas» son pestañas ==");
+  console.log("\n== 1 · Agenda (2026-11): Tareas, Citas y Notas son sus pestañas ==");
   const inicio = await O.pagina("/inbox");
   const items = await menu(inicio.p);
-  ok("el menú muestra «CRM Comercial» y ya no «Trabajo» ni «Citas»", items.includes("CRM Comercial") && !items.includes("Trabajo") && !items.includes("Citas"), items.join(", "));
-  await inicio.p.locator("aside nav").first().getByRole("link", { name: "CRM Comercial" }).click();
-  await hasta(async () => new URL(inicio.p.url()).pathname === "/pipeline", 60000);
-  const crm = inicio.p.getByRole("navigation", { name: "Secciones de CRM Comercial" });
+  ok("el menú muestra «Agenda» y ya no «CRM Comercial» ni «Trabajo»", items.includes("Agenda") && !items.includes("CRM Comercial") && !items.includes("Trabajo"), items.join(", "));
+  await inicio.p.locator("aside nav").first().getByRole("link", { name: "Agenda" }).click();
+  await hasta(async () => new URL(inicio.p.url()).pathname === "/trabajo/tareas", 60000);
+  const crm = inicio.p.getByRole("navigation", { name: "Secciones de Agenda" });
   await crm.waitFor({ timeout: 60000 });
   const pestañas = await crm.getByRole("link").allInnerTexts();
-  ok("con las pestañas Pipeline, Contactos, Agenda, Tareas y notas y Biblioteca", pestañas.join() === "Pipeline,Contactos,Agenda,Tareas y notas,Biblioteca", pestañas.join());
-  await crm.getByRole("link", { name: "Agenda" }).click();
-  ok("«Agenda» abre Citas en la vista Semana", await hasta(async () => /\/bookings\?vista=semana/.test(inicio.p.url()), 60000), inicio.p.url());
-  ok("«CRM Comercial» se ve activo en el menú estando en Citas", (await inicio.p.locator('aside nav a[href="/pipeline"]').first().getAttribute("class"))?.includes("bg-brand-tint"));
-  ok("…y la pestaña «Agenda» marcada", (await crm.getByRole("link", { name: "Agenda" }).getAttribute("aria-current")) === "page");
+  ok("con las pestañas Tareas, Citas y Notas", pestañas.join() === "Tareas,Citas,Notas", pestañas.join());
+  await crm.getByRole("link", { name: "Citas" }).click();
+  ok("«Citas» abre la vista Semana", await hasta(async () => /\/bookings\?vista=semana/.test(inicio.p.url()), 60000), inicio.p.url());
+  ok("«Agenda» se ve activo en el menú estando en Citas", (await inicio.p.locator('aside nav a[href="/trabajo/tareas"]').first().getAttribute("class"))?.includes("bg-brand-tint"));
+  ok("…y la pestaña «Citas» marcada", (await crm.getByRole("link", { name: "Citas" }).getAttribute("aria-current")) === "page");
   await hasta(async () => (await inicio.p.getByText("Cargando…").count()) === 0, 20000);
   await shot(inicio.p, "trabajo-1-citas-lista");
   await inicio.p.close();
@@ -309,22 +309,27 @@ async function main() {
   await sinTareas.p.close();
   const soloCitas = await S.pagina("/trabajo");
   ok("/trabajo lleva a Citas", await hasta(async () => soloCitas.p.url().includes("/bookings"), 60000), soloCitas.p.url());
-  const tabsSoloCitas = await soloCitas.p.getByRole("navigation", { name: "Secciones de CRM Comercial" }).getByRole("link").allInnerTexts();
-  ok("…y el CRM Comercial ya no trae «Tareas y notas» (sí «Agenda»)", tabsSoloCitas.includes("Agenda") && !tabsSoloCitas.includes("Tareas y notas"), tabsSoloCitas.join());
+  await soloCitas.p.getByRole("heading", { name: "Agenda" }).first().waitFor({ timeout: 30000 });
+  const menuSoloCitas = await menu(soloCitas.p);
+  ok(
+    "…con «Agenda» en el menú y sin pestañas (solo queda Citas)",
+    menuSoloCitas.includes("Agenda") && (await soloCitas.p.getByRole("navigation", { name: "Secciones de Agenda" }).count()) === 0,
+    menuSoloCitas.join()
+  );
   await soloCitas.p.close();
   await A.call("POST", `/api/platform/organizations/${orgId}/modules`, { agenda: false, trabajo: true });
   await sleep(CACHE_MS);
   const soloTareas = await S.pagina("/trabajo");
   ok("solo `trabajo`: /trabajo lleva a Tareas", await hasta(async () => soloTareas.p.url().includes("/trabajo/tareas"), 60000), soloTareas.p.url());
-  const subTareas = await soloTareas.p.getByRole("navigation", { name: "Secciones de Tareas y notas" }).getByRole("link").allInnerTexts();
-  ok("…con sus subpestañas Tareas y Notas", subTareas.join() === "Tareas,Notas", subTareas.join());
+  const subTareas = await soloTareas.p.getByRole("navigation", { name: "Secciones de Agenda" }).getByRole("link").allInnerTexts();
+  ok("…con sus pestañas Tareas y Notas", subTareas.join() === "Tareas,Notas", subTareas.join());
   await soloTareas.p.close();
   ok("…y Citas no existe (404)", (await S.call("GET", "/api/bookings")).status === 404);
   await A.call("POST", `/api/platform/organizations/${orgId}/modules`, { agenda: false, trabajo: false });
   await sleep(CACHE_MS);
   const nada = await S.pagina("/pipeline");
-  const tabsNada = await nada.p.getByRole("navigation", { name: "Secciones de CRM Comercial" }).getByRole("link").allInnerTexts();
-  ok("sin ninguno de los dos: el CRM Comercial no trae Agenda ni «Tareas y notas»", !tabsNada.includes("Agenda") && !tabsNada.includes("Tareas y notas"), tabsNada.join());
+  const menuNada = await menu(nada.p);
+  ok("sin ninguno de los dos: no hay «Agenda» en el menú", !menuNada.includes("Agenda") && menuNada.includes("Ventas"), menuNada.join());
   await nada.p.close();
   const trabajo404 = await S.pagina("/trabajo");
   ok("…y /trabajo es 404", trabajo404.status === 404, String(trabajo404.status));

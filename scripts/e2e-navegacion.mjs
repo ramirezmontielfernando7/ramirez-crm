@@ -197,7 +197,7 @@ async function main() {
   ok("el Asesor recibe 403", (await S.call("PUT", "/api/settings/navigation", { role: "asesor", items: [{ key: "inbox", hidden: false }] })).status === 403);
   const asesorAntes = await S.pagina("/inbox");
   const menuAntes = await menu(asesorAntes.p);
-  ok("el Asesor arranca con el menú de fábrica (Bandeja y CRM Comercial)", menuAntes.join() === "Bandeja,CRM Comercial", menuAntes.join());
+  ok("el Asesor arranca con el menú de fábrica (Bandeja, Ventas, Contactos, Agenda y Biblioteca)", menuAntes.join() === "Bandeja,Ventas,Contactos,Agenda,Biblioteca", menuAntes.join());
   await asesorAntes.p.close();
 
   console.log("\n== 3 · La Propietaria edita el menú del Asesor (navegador) ==");
@@ -209,9 +209,9 @@ async function main() {
   const orden = async () => await filas.evaluateAll((ls) => ls.map((l) => l.getAttribute("data-nav-key")));
   const inicial = await orden();
   ok("lista con el orden de fábrica", inicial[0] === "inbox" && inicial.at(-1) === "settings", inicial.join());
-  // Teclado: manija de CRM Comercial → Espacio → ↑ → Espacio (dnd-kit).
+  // Teclado: manija de Ventas → Espacio → ↑ → Espacio (dnd-kit).
   const posContactos = inicial.indexOf("pipeline");
-  const manija = ed.p.getByRole("button", { name: /^Mover CRM Comercial/ });
+  const manija = ed.p.getByRole("button", { name: /^Mover Ventas/ });
   await manija.focus();
   await ed.p.keyboard.press("Space");
   await sleep(150);
@@ -220,16 +220,16 @@ async function main() {
     await sleep(150);
   }
   await ed.p.keyboard.press("Space");
-  ok("con el teclado, CRM Comercial sube al primer lugar", await hasta(async () => (await orden())[0] === "pipeline"), (await orden()).join());
-  // Botones ↑ ↓: Marketing sube uno.
+  ok("con el teclado, Ventas sube al primer lugar", await hasta(async () => (await orden())[0] === "pipeline"), (await orden()).join());
+  // Botones ↑ ↓: Campañas sube uno.
   const antesPipe = (await orden()).indexOf("campaigns");
-  await ed.p.getByRole("button", { name: "Subir Marketing" }).click();
-  ok("con el botón ↑, Marketing sube un lugar", (await orden()).indexOf("campaigns") === antesPipe - 1, (await orden()).join());
+  await ed.p.getByRole("button", { name: "Subir Campañas" }).click();
+  ok("con el botón ↑, Campañas sube un lugar", (await orden()).indexOf("campaigns") === antesPipe - 1, (await orden()).join());
   await ed.p.getByRole("switch", { name: "Bandeja visible" }).click();
   const preview = ed.p.getByRole("region", { name: /Vista previa/ });
   const previa = async () => await preview.locator("[data-preview-key]").evaluateAll((es) => es.map((e) => e.getAttribute("data-preview-key")));
   ok("la vista previa ya no muestra «Bandeja»", await hasta(async () => !(await previa()).includes("inbox")), (await previa()).join());
-  ok("…y empieza por CRM Comercial", (await previa())[0] === "pipeline", (await previa()).join());
+  ok("…y empieza por Ventas", (await previa())[0] === "pipeline", (await previa()).join());
   ok("Resultados aparece como no disponible para el Asesor", (await ed.p.locator('li[data-nav-key="results"]').innerText()).includes("no puede abrirlo"));
   await ed.p.getByRole("button", { name: "Guardar" }).click();
   ok("guardado", await hasta(async () => (await ed.p.getByText(/guardado/).count()) > 0));
@@ -270,7 +270,7 @@ async function main() {
     modos[modo] = await menu(v.p);
     await v.p.close();
   }
-  ok("expandido: solo CRM Comercial (sin «Bandeja»)", modos.expanded.join() === "CRM Comercial", modos.expanded.join());
+  ok("expandido: lo guardado, sin «Bandeja» (Ventas primero)", modos.expanded.join() === "Ventas,Contactos,Agenda,Biblioteca", modos.expanded.join());
   ok("en íconos: el mismo orden", modos.collapsed.join() === modos.expanded.join(), modos.collapsed.join());
   await S.call("PUT", "/api/preferences", { navMode: "hidden" });
   const tel = await persona({ width: 390, height: 844 });
@@ -279,7 +279,7 @@ async function main() {
   // App móvil: el cajón lateral se cambió por la barra de abajo + la pantalla «Más».
   await vt.p.getByTestId("mobile-more-tab").waitFor({ timeout: 30000 });
   const enTel = await vt.p.locator(".mobile-tabbar a").evaluateAll((as) => as.map((a) => a.getAttribute("href")));
-  ok("oculto en escritorio → en el teléfono la barra de abajo trae el mismo menú (solo CRM Comercial)", enTel.join() === "/pipeline", enTel.join());
+  ok("oculto en escritorio → en el teléfono la barra de abajo trae el mismo menú (sin Bandeja)", enTel.join() === "/pipeline,/contacts,/trabajo/tareas,/knowledge", enTel.join());
   await vt.p.close();
   await S.call("PUT", "/api/preferences", { navMode: null });
   ok("oculto ≠ prohibido: el Asesor sigue abriendo la Bandeja y el chat de equipo (API 200)", (await S.call("GET", "/api/team-chat/threads")).status === 200);
@@ -301,16 +301,15 @@ async function main() {
   ok("sin permiso sigue en 403 (Resultados)", (await S.call("GET", "/api/analytics/sales?from=2026-01-01&to=2026-01-31")).status === 403);
   const coordMenu = await C.pagina("/inbox");
   const mc = await menu(coordMenu.p);
-  ok("la Coordinadora no cambia (Bandeja, CRM Comercial, Marketing, Resultados)", mc.join() === "Bandeja,CRM Comercial,Marketing,Resultados", mc.join());
+  ok("la Coordinadora no cambia (Bandeja, Ventas, Contactos, Agenda, Biblioteca, Campañas, Resultados)", mc.join() === "Bandeja,Ventas,Contactos,Agenda,Biblioteca,Campañas,Resultados", mc.join());
   await coordMenu.p.close();
 
   console.log("\n== 5 · Módulo apagado por la plataforma ==");
   await A.call("POST", `/api/platform/organizations/${N.orgId}/modules`, { knowledge: false });
   await sleep(CACHE_MS);
   const sinK = await S.pagina("/pipeline");
-  const crmTabs = sinK.p.getByRole("navigation", { name: "Secciones de CRM Comercial" });
-  await crmTabs.waitFor({ timeout: 30000 });
-  ok("el CRM Comercial del Asesor ya no tiene la pestaña Biblioteca", (await crmTabs.getByRole("link", { name: "Biblioteca" }).count()) === 0, (await crmTabs.getByRole("link").allInnerTexts()).join());
+  const menuSinK = await menu(sinK.p);
+  ok("el menú del Asesor ya no tiene Biblioteca", !menuSinK.includes("Biblioteca") && menuSinK.includes("Ventas"), menuSinK.join());
   await sinK.p.close();
   ok("y la API responde 404", (await S.call("GET", "/api/knowledge")).status === 404);
   // 039: sin Chat de equipo, la Bandeja no muestra pestañas.
@@ -323,7 +322,7 @@ async function main() {
   await A.call("POST", `/api/platform/organizations/${N.orgId}/modules`, { teamChat: true });
   await sleep(CACHE_MS);
   const editorK = (await O.call("GET", "/api/settings/navigation")).json;
-  ok("el editor sigue ofreciendo el CRM Comercial (núcleo)", (editorK?.roles?.asesor?.available ?? []).includes("pipeline"));
+  ok("el editor sigue ofreciendo Ventas (núcleo)", (editorK?.roles?.asesor?.available ?? []).includes("pipeline"));
   await A.call("POST", `/api/platform/organizations/${N.orgId}/modules`, { knowledge: true });
   await sleep(CACHE_MS);
   ok("encendido otra vez, responde (200)", (await S.call("GET", "/api/knowledge")).status === 200);
@@ -341,7 +340,7 @@ async function main() {
   ok("bitácora: guardado y restaurado", eventos.map((e) => e.action).join() === "saved,reset", eventos.map((e) => e.action).join());
   const vuelta = await S.pagina("/inbox");
   const mv = await menu(vuelta.p);
-  ok("el Asesor vuelve al menú de fábrica", mv.join() === "Bandeja,CRM Comercial", mv.join());
+  ok("el Asesor vuelve al menú de fábrica", mv.join() === "Bandeja,Ventas,Contactos,Agenda,Biblioteca", mv.join());
   await vuelta.p.close();
 
   console.log("\n== 7 · Aislamiento entre organizaciones ==");
@@ -360,8 +359,8 @@ async function main() {
   console.log("\n== 8 · Plantillas: en Campañas si está encendido; si no, en Ajustes ==");
   const tpl = await O.pagina("/settings/templates");
   ok("con Campañas, /settings/templates redirige a /campaigns/templates", new URL(tpl.p.url()).pathname === "/campaigns/templates", tpl.p.url());
-  const tabs = tpl.p.getByRole("navigation", { name: "Secciones de Marketing" });
-  ok("la pestaña «Plantillas WhatsApp» está junto a Campañas, Audiencias y Métricas", (await tabs.getByRole("link", { name: "Plantillas WhatsApp" }).count()) === 1);
+  const tabs = tpl.p.getByRole("navigation", { name: "Secciones de Campañas" });
+  ok("la pestaña «Plantillas» está junto a Campañas, Audiencias y Métricas", (await tabs.getByRole("link", { name: "Plantillas", exact: true }).count()) === 1);
   ok("con el flujo de plantillas (lista)", await hasta(async () => (await tpl.p.getByTestId("template-list").count()) > 0));
   await tpl.p.goto(`${BASE}/settings/team`);
   ok("Ajustes ya no muestra la pestaña «Plantillas»", (await tpl.p.getByRole("link", { name: "Plantillas", exact: true }).count()) === 0);

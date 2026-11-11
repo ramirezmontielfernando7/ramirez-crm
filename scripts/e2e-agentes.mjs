@@ -19,7 +19,7 @@
  *
  * PR A2 (pantallas, con navegador real — sección 5b):
  *  - «Agente» sale del menú con Laboratorio encendido y /agent sigue vivo con
- *    su enlace a «Ver todos tus agentes en el Estudio de IA».
+ *    su enlace a «Ver todos tus agentes en Agentes IA».
  *  - /lab (Agentes): el general fijo arriba; crear un agente desde la pantalla;
  *    vista previa tipo chat con chips y «Por qué respondió así»; guardar
  *    borrador, publicar (con resumen), renombrar, cargar una versión al

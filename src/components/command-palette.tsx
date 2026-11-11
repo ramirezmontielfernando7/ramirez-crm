@@ -60,7 +60,7 @@ export function CommandPalette() {
     for (const def of MODULES) {
       if (!def.sections) continue;
       for (const s of availableSections(def, has, viewer.can)) {
-        out.push({ label: s.label, href: s.route, group: def.label });
+        out.push({ label: s.label, href: s.route, group: def.label, keywords: def.aka });
       }
     }
     for (const s of SETTINGS_PAGES) if (viewer.can(s.permission)) out.push({ label: s.label, href: s.href, group: "Ajustes" });

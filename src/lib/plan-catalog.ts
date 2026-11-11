@@ -66,7 +66,7 @@ export const DEFAULT_PLAN_CATALOG: PlanCatalog = {
     implementationFeeMxn: 0,
     peopleLimit: 5,
     storageGb: 30,
-    features: ["Todo Esencial", "Estudio de IA completo: varios agentes y documentos", "Agenda y Atribución de anuncios (Meta)", "IA incluida: 3 veces el cupo de Esencial"],
+    features: ["Todo Esencial", "Agentes IA completo: varios agentes y documentos", "Agenda y Atribución de anuncios (Meta)", "IA incluida: 3 veces el cupo de Esencial"],
     recommended: true,
   },
   ultra: {

@@ -617,7 +617,7 @@ const updateAgentDraftTool: ToolSpec<z.infer<typeof updateAgentArgs>> = {
   name: "update_agent_draft",
   title: "Editar el borrador de un agente",
   description:
-    "Cambia el BORRADOR de un agente (solo los campos que mandes; null los vacía). Los clientes no lo ven hasta que una persona lo publique en Estudio de IA.",
+    "Cambia el BORRADOR de un agente (solo los campos que mandes; null los vacía). Los clientes no lo ven hasta que una persona lo publique en Agentes IA.",
   inputSchema: {
     type: "object",
     properties: {

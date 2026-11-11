@@ -142,7 +142,7 @@ export function AgentClient() {
         <p className="mx-4 mt-4 text-sm text-muted-foreground sm:mx-6">
           Esta pantalla edita el agente general.{" "}
           <Link href="/lab" className="font-medium text-brand-ink underline-offset-2 hover:underline">
-            Ver todos tus agentes en el Estudio de IA →
+            Ver todos tus agentes en Agentes IA →
           </Link>
         </p>
       )}

@@ -208,8 +208,10 @@ async function main() {
     await page.fill("input[type=password]", ADMIN.password);
     await page.keyboard.press("Enter");
     await page.waitForURL((u) => !u.pathname.startsWith("/login"));
-    await page.goto(`${BASE}/lab`);
-    ok("el Laboratorio tiene la pestaña «Documentos»", (await page.locator('a[href="/lab/documentos"]').count()) > 0);
+    // 2026-11: los Documentos son la pestaña «Para que lea la IA» de la Biblioteca.
+    await page.goto(`${BASE}/knowledge`);
+    await page.getByRole("navigation", { name: "Secciones de Biblioteca" }).waitFor({ timeout: 30000 });
+    ok("la Biblioteca tiene la pestaña «Para que lea la IA»", (await page.getByRole("navigation", { name: "Secciones de Biblioteca" }).locator('a[href="/lab/documentos"]').count()) === 1);
     await page.locator('a[href="/lab/documentos"]').first().click();
     await page.waitForURL(/\/lab\/documentos$/);
     await page.getByText(/Aún no hay documentos/).waitFor();
@@ -360,7 +362,7 @@ async function main() {
     ok(
       "la subpestaña del grupo aparece junto a General y «Documentos» sigue activa",
       (await page.locator(`nav[aria-label="Grupos de documentos"] a[href="/lab/documentos/${ventasId}"]`).count()) === 1 &&
-        (await page.locator('nav[aria-label="Secciones de Estudio de IA"] a[href="/lab/documentos"][aria-current="page"]').count()) === 1
+        (await page.locator('nav[aria-label="Secciones de Biblioteca"] a[href="/lab/documentos"][aria-current="page"]').count()) === 1
     );
     await page.getByText(new RegExp(`Aún no hay documentos en ${VENTAS}`)).waitFor();
     const precios = `# Precios\n\nEl taladro inalámbrico cuesta ${DATO2} pesos con IVA incluido.`;
@@ -665,7 +667,7 @@ async function main() {
     await fila11.getByTestId("dest-toggle-chat").getByRole("switch").click();
     ok("encenderlo de nuevo (sin volver a subir) lo devuelve", await hasta(async () => await enBandeja(`catalogo-${RUN}`)));
 
-    // Al revés: desde CRM Comercial → Biblioteca, «Entrenar también al Agente».
+    // Al revés: desde la Biblioteca (para enviar en chats), «Entrenar también al Agente».
     const Y11 = `SIGMA-${RUN}`;
     const form11b = new FormData();
     form11b.append("title", `Plan de estudios ${RUN}`);
