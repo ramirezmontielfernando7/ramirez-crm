@@ -109,12 +109,12 @@
   content: "";
   position: absolute;
   left: -6px;
-  top: 9px;
-  bottom: 9px;
-  width: 3px;
+  top: 11px;
+  bottom: 11px;
+  width: 2px;
   border-radius: 3px;
   background: var(--dp-grad);
-  box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 70%, transparent);
+  opacity: 0.8;
 }
 [data-ui="depth"] .nav-logo-btn {
   box-shadow: 0 6px 14px -6px color-mix(in srgb, var(--accent) 70%, transparent);
@@ -128,7 +128,7 @@
   box-shadow: var(--dp-raise);
 }
 [data-ui="depth"] a[aria-current="page"].bg-brand-soft {
-  box-shadow: inset 3px 0 0 var(--accent), var(--dp-raise);
+  box-shadow: var(--dp-raise);
 }
 
 /* ── Botón principal: degradado con brillo ───────────────────────── */
@@ -171,8 +171,7 @@
 }
 [data-ui="depth"] .inbox-row[data-active="true"] > [data-conversation-row] {
   background-color: var(--dp-raised);
-  background-image: linear-gradient(100deg, color-mix(in srgb, var(--accent) 10%, transparent), transparent 55%);
-  box-shadow: inset 3px 0 0 var(--accent), var(--dp-raise);
+  box-shadow: var(--dp-raise);
 }
 [data-ui="depth"] .inbox-scroll {
   background-image: linear-gradient(180deg, transparent, var(--surface-sunken));
@@ -231,9 +230,8 @@
   background-color: var(--surface);
   background-image: linear-gradient(
     180deg,
-    color-mix(in srgb, var(--dp-stage) 12%, transparent) 0%,
-    color-mix(in srgb, var(--dp-stage) 3%, transparent) 40%,
-    transparent 100%
+    color-mix(in srgb, var(--dp-stage) 5%, transparent) 0%,
+    transparent 30%
   );
   box-shadow: inset 0 0 0 1px rgba(var(--dp-ink), 0.06);
 }
@@ -241,8 +239,8 @@
   content: "";
   position: absolute;
   inset: 0 0 auto;
-  height: 4px;
-  background: linear-gradient(90deg, var(--dp-stage), color-mix(in srgb, var(--dp-stage) 45%, transparent));
+  height: 2px;
+  background: color-mix(in srgb, var(--dp-stage) 75%, transparent);
 }
 [data-ui="depth"] [data-pm="col-head"] {
   padding-top: 14px;
@@ -258,10 +256,9 @@
   border-color: transparent;
   border-radius: 14px;
   background-color: var(--dp-raised);
-  box-shadow: inset 3px 0 0 var(--dp-stage), var(--dp-raise);
+  box-shadow: var(--dp-raise);
 }
 [data-ui="depth"] [data-pm="col-add"] {
-  border: 1.5px dashed color-mix(in srgb, var(--dp-stage) 35%, transparent);
   border-radius: 12px;
 }
 
@@ -286,7 +283,8 @@
   content: "";
   position: absolute;
   inset: 0 0 auto;
-  height: 3px;
+  height: 2px;
+  opacity: 0.75;
   background: var(--dp-grad);
 }
 [data-ui="depth"] [data-pm="tile"]:nth-child(6n + 2)::before { background: linear-gradient(90deg, #1fb35b, #62d38f); }
