@@ -170,9 +170,9 @@ export const MODULES: readonly ModuleDef[] = [
     requires: ["agent"],
     sections: [
       // El editor (/lab/agents/[id]) cuenta como parte de Mis agentes.
-      { label: "Mis agentes", route: "/lab", module: "lab", permissions: ["agent.manage"], also: ["/lab/agents"] },
-      // Sin Laboratorio, el agente general de siempre (/agent sigue vivo).
-      { label: "Mi agente", route: "/agent", module: "agent", permissions: ["agent.manage"], unless: "lab" },
+      // Esencial (sin Laboratorio): UN agente con el creador y la prueba en
+      // vivo; el resto de las pestañas piden el Laboratorio (Pro).
+      { label: "Mis agentes", route: "/lab", module: "agent", permissions: ["agent.manage"], also: ["/lab/agents"] },
       { label: "Conocimiento", route: "/lab/documentos", module: "lab", permissions: ["agent.manage"] },
       { label: "Asignación por etapa", route: "/lab/asignacion", module: "lab", permissions: ["agent.manage"] },
       { label: "Pruebas", route: "/lab/evaluaciones", module: "lab", permissions: ["agent.manage"] },
@@ -296,11 +296,11 @@ export const TOGGLEABLE_0034 = ["knowledge", "lab", "agent", "team_chat", "resul
  *   «Varios agentes» es el Laboratorio (ya en Pro): hoy no hay un interruptor
  *   aparte que limite cuántos.
  */
-const ESENCIAL = {
+const INICIO = {
   team_chat: true,
-  knowledge: true,
-  results: true,
-  trabajo: true,
+  knowledge: false,
+  results: false,
+  trabajo: false,
   agent: false,
   lab: false,
   agenda: false,
@@ -311,21 +311,23 @@ const ESENCIAL = {
   campaigns: false,
   asistente: false,
 } as const;
+// Esencial: el creador del agente con prueba en vivo, de UN solo agente
+// (`agent` sin `lab`; el tope de uno lo pone `createAgent`).
+const ESENCIAL = { ...INICIO, knowledge: true, results: true, trabajo: true, agent: true } as const;
+// Instagram y Messenger quedan fuera de la oferta hasta probarlos.
 const PRO = {
   ...ESENCIAL,
-  agent: true,
   lab: true,
   agenda: true,
   atribucion: true,
-  instagram: true,
-  messenger: true,
   customNav: true,
 } as const;
 const ULTRA = { ...PRO, campaigns: true, asistente: true } as const;
 
-export type ProfileModules = { readonly [K in keyof typeof ESENCIAL]: boolean };
+export type ProfileModules = { readonly [K in keyof typeof INICIO]: boolean };
 
 export const MODULE_PROFILES = {
+  inicio: { label: "Inicio", modules: INICIO as ProfileModules },
   esencial: { label: "Esencial", modules: ESENCIAL as ProfileModules },
   pro: { label: "Pro", modules: PRO as ProfileModules },
   ultra: { label: "Ultra", modules: ULTRA as ProfileModules },
@@ -333,9 +335,10 @@ export const MODULE_PROFILES = {
 export type ModuleProfile = keyof typeof MODULE_PROFILES;
 
 /** Lo que /platform ofrece al crear: los tres planes o «Personalizado» (sin plantilla). */
-export const PLAN_OPTIONS = ["esencial", "pro", "ultra", "personalizado"] as const;
+export const PLAN_OPTIONS = ["inicio", "esencial", "pro", "ultra", "personalizado"] as const;
 export type PlanOption = (typeof PLAN_OPTIONS)[number];
 export const PLAN_LABEL: Record<PlanOption, string> = {
+  inicio: "Inicio",
   esencial: "Esencial",
   pro: "Pro",
   ultra: "Ultra",

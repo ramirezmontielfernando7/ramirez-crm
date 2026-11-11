@@ -22,6 +22,11 @@ const CARPETAS: [string, ModuleKey[]][] = [
   ["agent/profile", ["agent"]],
   ["agent/pause", ["agent"]],
   ["lab", ["lab"]],
+  // Esencial: el creador, la vista previa y los agentes (uno) piden el Agente, no el Laboratorio.
+  ["lab/agents", ["agent"]],
+  ["lab/creator", ["agent"]],
+  ["lab/preview", ["agent"]],
+  ["lab/review", ["agent"]],
   ["analytics", ["results"]],
   // 033 — Tareas (y en el PR 2, Notas).
   ["work", ["trabajo"]],
@@ -68,7 +73,7 @@ describe("030 (PR 4) — rutas de módulos apagables", () => {
     ["knowledge", "knowledge"],
     ["chat", "team_chat"],
     ["agent", "agent"],
-    ["lab", "lab"],
+    ["lab", "agent"],
     ["results", "results"],
   ])("la página /%s responde 404 sin el módulo %s", (page, key) => {
     const code = readFileSync(path.join(APP, page, "page.tsx"), "utf8");

@@ -34,7 +34,7 @@ const bodySchema = z.object({
  * las acciones vuelven como chips (src/server/agents/preview.ts).
  */
 export const POST = withAuth(async (session, req: Request) => {
-  const off = (await moduleOff(session.organizationId, "lab")) ?? (await moduleOff(session.organizationId, "agent"));
+  const off = await moduleOff(session.organizationId, "agent");
   if (off) return off;
   if (!isAiConfigured()) {
     return apiError(409, "ai_not_configured", "Configura tu proveedor de IA para probar al agente");

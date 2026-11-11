@@ -9,7 +9,7 @@ type Params = { params: Promise<{ id: string }> };
 
 /** 031 — Hace general a un agente publicado (409 `not_published` si no lo está). */
 export const POST = withAuth(async (session, _req: Request, ctx: Params) => {
-  const off = (await moduleOff(session.organizationId, "lab")) ?? (await moduleOff(session.organizationId, "agent"));
+  const off = await moduleOff(session.organizationId, "agent");
   if (off) return off;
   const { id } = await ctx.params;
   return withAgentErrors(async () =>

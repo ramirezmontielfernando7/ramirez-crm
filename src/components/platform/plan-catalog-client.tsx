@@ -158,7 +158,7 @@ export function PlanCatalogCard() {
       {!data || !forms ? (
         <p className={error ? "text-sm text-destructive" : "text-sm text-text-2"}>{error ?? "Cargando…"}</p>
       ) : (
-        <ul className="grid gap-4 lg:grid-cols-3">
+        <ul className="grid gap-4 lg:grid-cols-2 xl:grid-cols-4">
           {CATALOG_SCOPES.map((scope) => (
             <PlanCard key={scope} scope={scope} base={data.defaults[scope]} f={forms[scope]!} setF={(f) => setForms({ ...forms, [scope]: f })} />
           ))}

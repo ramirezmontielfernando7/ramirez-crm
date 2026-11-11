@@ -526,6 +526,13 @@
       "when": 1794348000000,
       "tag": "0075_invitacion_created_at",
       "breakpoints": true
+    },
+    {
+      "idx": 76,
+      "version": "7",
+      "when": 1794434400000,
+      "tag": "0076_plan_inicio",
+      "breakpoints": true
     }
   ]
 }
