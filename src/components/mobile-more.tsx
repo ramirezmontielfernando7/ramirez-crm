@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { LogOut, Gauge, Moon, Sun, Settings, ShieldCheck, Sparkles, UsersRound, Smartphone, type LucideIcon } from "lucide-react";
+import { LogOut, Gauge, GraduationCap, Play, Moon, Sun, Settings, ShieldCheck, Sparkles, UsersRound, Smartphone, type LucideIcon } from "lucide-react";
 import { useViewer } from "@/components/viewer-context";
 import { ContactAvatar } from "@/components/avatar";
 import { useState } from "react";
@@ -13,6 +13,7 @@ import { NAV_ICONS } from "@/components/nav-icons";
 import { navItemOf } from "@/components/app-nav";
 import { signOut } from "@/lib/auth/client";
 import { openUsageDialog } from "@/lib/usage-dialog";
+import { openTour } from "@/lib/tour-dialog";
 import { moduleDef } from "@/lib/modules/registry";
 import { availableSections, type NavEntries } from "@/lib/modules/nav-layout";
 import { MOBILE_TAB_COUNT } from "@/components/mobile-tabbar";
@@ -88,6 +89,11 @@ export function MobileMore({
         <AvisosMenu />
       </div>
       {nav?.settings && <RowLink row={{ href: "/settings", label: "Ajustes", icon: Settings }} onClose={onClose} />}
+      <button type="button" onClick={() => { onClose(); openTour(); }} className={rowClass}>
+        <Play className="h-[22px] w-[22px] text-text-2" strokeWidth={1.7} />
+        Recorrido guiado
+      </button>
+      <RowLink row={{ href: "/ayuda", label: "Tutoriales", icon: GraduationCap }} onClose={onClose} />
       {viewer.can("usage.read") && (
         <button type="button" onClick={() => openUsageDialog()} className={rowClass}>
           <Gauge className="h-[22px] w-[22px] text-text-2" strokeWidth={1.7} />

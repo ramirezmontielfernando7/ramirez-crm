@@ -15,6 +15,8 @@ import {
   ShieldCheck,
   X,
   type LucideIcon,
+  GraduationCap,
+  Play,
 } from "lucide-react";
 import type { Branding } from "@/lib/branding";
 import type { ThemePreference } from "@/lib/theme";
@@ -35,6 +37,7 @@ import type { NavEntries } from "@/lib/modules/nav-layout";
 import { OPEN_PALETTE_EVENT, shortcutLabel } from "@/lib/command-palette";
 import { AvisosMenu } from "@/components/notifications/avisos-menu";
 import { openUsageDialog } from "@/lib/usage-dialog";
+import { openTour } from "@/lib/tour-dialog";
 import {
   BUILD_COMMIT,
   UNVERIFIED_COMMIT_NOTE,
@@ -612,6 +615,27 @@ function ProfileMenu({
                     <LogOut className="h-4 w-4" strokeWidth={1.7} />
                   </button>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOpen(false);
+                    openTour();
+                  }}
+                  data-testid="nav-tour-menu"
+                  className="mt-1 flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-[13px] hover:bg-accent"
+                >
+                  <Play className="h-4 w-4 text-text-3" strokeWidth={1.7} />
+                  Recorrido guiado
+                </button>
+                <Link
+                  href="/ayuda"
+                  onClick={() => setOpen(false)}
+                  data-testid="nav-help-menu"
+                  className="mt-1 flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-[13px] hover:bg-accent"
+                >
+                  <GraduationCap className="h-4 w-4 text-text-3" strokeWidth={1.7} />
+                  Tutoriales
+                </Link>
                 {showUsage && (
                   <button
                     type="button"
