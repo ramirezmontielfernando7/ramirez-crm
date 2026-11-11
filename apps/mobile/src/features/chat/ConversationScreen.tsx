@@ -36,7 +36,7 @@ import {
 import { useLayers } from "../../components/Layers";
 import { useTheme } from "../../theme/ThemeProvider";
 import { useInbox, useConversation } from "../inbox/store";
-import { useContactDirectory, useContactState } from "../contact/context";
+import { useContactDirectory } from "../contact/context";
 import { ContactMenuRows } from "../contact/actions";
 import { ChatStore } from "./core";
 import { useChatDirectory, useChatState } from "./context";
@@ -61,7 +61,9 @@ export function ConversationScreen({ chat }: { chat: ChatStore }) {
   const s = useChatState(chat);
   const conversation = useConversation(chat.conversationId)!;
   const contact = useContactDirectory().get(chat.conversationId);
-  useContactState(contact);
+  useEffect(() => {
+    void contact.hydrate();
+  }, [contact]);
   const taken =
     s.taken &&
     conversation.ai === "pause" &&
