@@ -75,6 +75,10 @@ export class InboxStore {
     this.reload();
     this.patch({ status: "normal" });
   };
+  chatActivity = (id: string, text: string) => {
+    this.repository.setPreview(this.actor, id, text);
+    this.reload();
+  };
   incoming = (id: string) => {
     if (this.state.status === "offline") {
       this.repository.get(this.actor, id);

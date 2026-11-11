@@ -5,15 +5,16 @@ import { useTheme } from "../theme/ThemeProvider";
 export function Screen({
   children,
   keyboard = false,
-}: React.PropsWithChildren<{ keyboard?: boolean }>) {
+  backgroundColor,
+}: React.PropsWithChildren<{ keyboard?: boolean; backgroundColor?: string }>) {
   const { colors } = useTheme();
   return (
     <SafeAreaView
       edges={["top", "left", "right", "bottom"]}
-      style={{ flex: 1, backgroundColor: colors.surface }}
+      style={{ flex: 1, backgroundColor: backgroundColor ?? colors.surface }}
     >
       <KeyboardAvoidingView
-        enabled={keyboard}
+        enabled={keyboard && Platform.OS === "ios"}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={{ flex: 1 }}
       >

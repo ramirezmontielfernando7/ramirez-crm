@@ -153,6 +153,7 @@ export interface ConversationRepository {
   assign(actor: Actor, ids: readonly string[], assignee: string): void;
   create(actor: Actor, name: string, phone: string): Conversation;
   incoming(actor: Actor, id: string): void;
+  setPreview(actor: Actor, id: string, text: string): void;
 }
 export class DemoConversationRepository implements ConversationRepository {
   private data: readonly Conversation[];
@@ -219,6 +220,17 @@ export class DemoConversationRepository implements ConversationRepository {
     const result = { ...c, search: searchable(c) };
     this.data = [result, ...this.data];
     return result;
+  }
+  setPreview(actor: Actor, id: string, text: string) {
+    this.update(actor, [id], (c) => {
+      const next = {
+        ...c,
+        preview: text.slice(0, 160),
+        unread: 0,
+        time: "Ahora",
+      };
+      return { ...next, search: searchable(next) };
+    });
   }
   incoming(actor: Actor, id: string) {
     this.update(actor, [id], (c) => {

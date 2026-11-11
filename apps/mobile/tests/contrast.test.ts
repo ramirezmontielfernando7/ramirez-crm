@@ -23,6 +23,9 @@ for (const [name, c] of Object.entries({ light, dark })) {
       [c.onAccent, c.accent],
       ["#ffffff", c.dangerFill],
       [c.tagText, c.tagBg],
+      [c.danger, c.surface],
+      [c.tagText, c.bubbleAi],
+      [c.info, c.bubbleConnected],
       ...[c.bubbleIn, c.bubbleTeam, c.bubbleAi, c.bubbleConnected].flatMap(
         (bg) => [
           [c.text, bg],

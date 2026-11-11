@@ -13,6 +13,7 @@ import { LayerProvider, useLayers } from "../src/components/Layers";
 import { Skeleton } from "../src/components/ui";
 import { resolveBack } from "../src/domain/access";
 import { InboxProvider, useOptionalInbox } from "../src/features/inbox/store";
+import { ChatProvider } from "../src/features/chat/context";
 function RootNavigator() {
   const { ready, session } = useSession();
   const inbox = useOptionalInbox();
@@ -103,6 +104,7 @@ function RootNavigator() {
         <Stack.Protected guard={!!session}>
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="conversation/[id]" />
+          <Stack.Screen name="media/[id]" />
         </Stack.Protected>
         <Stack.Screen name="demo" />
         <Stack.Screen name="design/[id]" />
@@ -116,9 +118,11 @@ export default function Layout() {
       <ThemeProvider>
         <SessionProvider>
           <InboxProvider>
-            <LayerProvider>
-              <RootNavigator />
-            </LayerProvider>
+            <ChatProvider>
+              <LayerProvider>
+                <RootNavigator />
+              </LayerProvider>
+            </ChatProvider>
           </InboxProvider>
         </SessionProvider>
       </ThemeProvider>
