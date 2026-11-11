@@ -210,7 +210,7 @@ export function OrgAiCard({ orgId }: { orgId: string }) {
         <div className="flex flex-wrap items-center gap-2 text-sm">
           <span className="text-xs text-text-2">Al llenarse el total</span>
           <select
-            className="h-9 rounded-sm border bg-background px-2 text-sm"
+            className="h-9 rounded-md border border-input bg-background px-2 text-sm"
             value={poolMode}
             onChange={(e) => setPoolMode(e.target.value as "block" | "warn")}
             aria-label="Al llenarse el total"
@@ -275,7 +275,7 @@ export function OrgAiCard({ orgId }: { orgId: string }) {
               <li key={fn} className="grid gap-2 py-2 sm:grid-cols-[minmax(0,9rem)_minmax(0,9rem)_minmax(0,7rem)_minmax(0,1fr)_minmax(0,7.5rem)] sm:items-center">
                 <span className="text-sm">{label}</span>
                 <select
-                  className="h-9 rounded-sm border bg-background px-2 text-sm"
+                  className="h-9 rounded-md border border-input bg-background px-2 text-sm"
                   value={fnCaps[fn].unit}
                   onChange={(e) => setFnCaps({ ...fnCaps, [fn]: { ...fnCaps[fn], unit: e.target.value as CapUnit } })}
                   aria-label={`Escribir en: ${label}`}
@@ -298,7 +298,7 @@ export function OrgAiCard({ orgId }: { orgId: string }) {
                   {eq}
                 </span>
                 <select
-                  className="h-9 rounded-sm border bg-background px-2 text-sm"
+                  className="h-9 rounded-md border border-input bg-background px-2 text-sm"
                   value={fnModes[fn]}
                   onChange={(e) => setFnModes({ ...fnModes, [fn]: e.target.value as "block" | "warn" })}
                   aria-label={`Al llegar: ${label}`}

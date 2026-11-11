@@ -81,7 +81,7 @@ export function CreateOrganization({ onCreated }: { onCreated: () => void }) {
             id="org-profile"
             value={profile}
             onChange={(e) => setProfile(e.target.value as typeof profile)}
-            className="h-9 rounded-sm border bg-background px-2 text-sm"
+            className="h-9 rounded-md border border-input bg-background px-2 text-sm"
             data-testid="platform-create-profile"
             required
           >

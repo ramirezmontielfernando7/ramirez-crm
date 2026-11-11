@@ -115,7 +115,7 @@ export function DirectServersClient() {
                   </td>
                   <td className="px-3 py-2">
                     <select
-                      className="rounded border bg-background px-1 py-0.5 text-xs"
+                      className="h-7 rounded-md border border-input bg-background px-2 text-xs"
                       value={s.status}
                       aria-label={`Estado de ${s.name}`}
                       onChange={(e) => void setStatus(s.id, e.target.value as DirectServer["status"])}
