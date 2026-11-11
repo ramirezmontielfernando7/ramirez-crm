@@ -9,6 +9,7 @@ import {
   type OnboardingState,
 } from "@/lib/onboarding";
 import { cn } from "@/lib/utils";
+import { openTour } from "@/lib/tour-dialog";
 
 /**
  * Auditoría UX 2026-11 (paquete A, maqueta A1) — «Primeros pasos»: lo que le
@@ -133,6 +134,12 @@ export function OnboardingCard({
         </Link>
         <Link href="/contacts" className="font-medium text-brand-ink hover:underline">
           + Importa tus contactos
+        </Link>
+        <button type="button" onClick={openTour} data-testid="onboarding-tour" className="font-medium text-brand-ink hover:underline">
+          ▶ Recorrido de 1 minuto
+        </button>
+        <Link href="/ayuda" className="font-medium text-brand-ink hover:underline">
+          Tutoriales
         </Link>
         <button
           type="button"
