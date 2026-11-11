@@ -896,6 +896,8 @@ async function asistenteBase(A, B, orgB) {
   await page.getByRole("option", { name: /Preguntar al asistente/ }).click();
   ok("Ctrl+K → «Preguntar al asistente» abre el panel rápido", await page.getByTestId("assistant-quick").waitFor({ timeout: 15000 }).then(() => true, () => false));
   ok("…con la pregunta ya escrita", (await page.getByTestId("assistant-quick-input").inputValue()) === "¿Cómo va mi equipo?");
+  // El cuadro se habilita cuando llega el estado del asistente; antes, Enter no hace nada.
+  for (let i = 0; i < 60 && !(await page.getByTestId("assistant-quick-input").isEnabled()); i++) await page.waitForTimeout(250);
   await page.getByTestId("assistant-quick-input").press("Enter");
   ok("…y contesta ahí mismo", await page.getByTestId("assistant-quick-answer").waitFor({ timeout: 120000 }).then(() => true, () => false));
   await page.screenshot({ path: "scratch/e2e-asistente-rapido.png" }).catch(() => null);

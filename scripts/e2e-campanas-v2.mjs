@@ -724,6 +724,9 @@ async function main() {
     ok("UI Ajustes: «Frecuencia de marketing» con 7 días", (await dias.inputValue()) === "7");
     // 038 (PR 6): el aviso 131050 en el panel del contacto, y quitarlo.
     await page.goto(`${BASE}/inbox?contact=${mkId(mk[2])}`, { timeout: 180000, waitUntil: "domcontentloaded" });
+    // Paquete C: bajo 1536 px Detalles arranca cerrado; se abre con su botón.
+    const abrirDetalles = page.getByRole("button", { name: "Mostrar detalles" });
+    if (await abrirDetalles.first().waitFor({ timeout: 45000 }).then(() => true, () => false)) await abrirDetalles.first().click();
     const mas = page.getByRole("button", { name: "Más detalles" });
     if (await mas.first().waitFor({ timeout: 45000 }).then(() => true, () => false)) await mas.first().click();
     const aviso = page.getByText(/Dejó de recibir promociones de tu negocio desde WhatsApp/).first();
