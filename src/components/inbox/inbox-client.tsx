@@ -33,6 +33,10 @@ import {
 import { AssigneeCapsule, type PatchRow } from "./chat-capsules";
 import { useAssignees } from "@/components/assignment/use-assignees";
 import { useViewer } from "@/components/viewer-context";
+import { useOnboarding } from "@/components/onboarding/use-onboarding";
+import { OnboardingCard } from "@/components/onboarding/onboarding-card";
+import { WhatsAppMissingBanner } from "@/components/onboarding/whatsapp-banner";
+import { showOnboarding } from "@/lib/onboarding";
 
 // Panel de Detalles (558 líneas + notas, ficha, línea de tiempo…): se baja en
 // segundo plano, no en el arranque de la Bandeja. Va dentro de una tarjeta que
@@ -106,6 +110,7 @@ export function InboxClient({
   // efecto de abajo lo abre solo si de veras hay tres columnas de ancho.
   const [panelOpen, setPanelOpen] = useState(false);
   const viewer = useViewer();
+  const { state: onboarding, hide: hideOnboarding } = useOnboarding();
   const assignees = useAssignees();
   // Un fallo del selector de asignado del encabezado se dice aquí.
   const [headerNotice, setHeaderNotice] = useState<string | null>(null);
@@ -831,6 +836,12 @@ export function InboxClient({
                   </button>
                 </div>
               </header>
+              {onboarding && !onboarding.whatsappConnected && (
+                <WhatsAppMissingBanner
+                  canConnect={viewer.can("settings.manage")}
+                  message="Aún no conectas tu WhatsApp. Lo que escribas aquí no le llegará al cliente."
+                />
+              )}
               <MessageThread messages={thread} />
             </m.div>
             <Composer
@@ -847,11 +858,17 @@ export function InboxClient({
             />
           </>
         ) : (
-          <div className="thread-bg flex flex-1 flex-col items-center justify-center gap-2 px-6 text-center">
-            <p className="text-[24px] font-semibold leading-tight text-text-2">
-              Elige un chat para verlo aquí
-            </p>
-            <p className="text-sm text-muted-foreground">Los mensajes nuevos llegan solos, sin recargar.</p>
+          <div className="thread-bg flex flex-1 flex-col items-center justify-center gap-2 overflow-y-auto px-6 py-8 text-center">
+            {onboarding && showOnboarding(onboarding) ? (
+              <OnboardingCard state={onboarding} onHide={() => void hideOnboarding()} />
+            ) : (
+              <>
+                <p className="text-[24px] font-semibold leading-tight text-text-2">
+                  Elige un chat para verlo aquí
+                </p>
+                <p className="text-sm text-muted-foreground">Los mensajes nuevos llegan solos, sin recargar.</p>
+              </>
+            )}
           </div>
         )}
       </section>

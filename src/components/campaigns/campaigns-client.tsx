@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { useEvents } from "@/components/use-events";
 import { CampaignStatusBadge } from "./status-badge";
 import { CampaignsShell } from "./campaigns-tabs";
+import { CampaignBlockersBanner } from "@/components/onboarding/campaign-blockers";
 
 /**
  * 021 — Campañas: el historial de envíos masivos del negocio. Ronda 3: cuatro
@@ -125,6 +126,7 @@ export function CampaignsClient({ today }: { today: string }) {
       }
     >
       <div className="flex-1 space-y-4 overflow-y-auto p-4 sm:p-6">
+        <CampaignBlockersBanner />
         <section aria-label="Resumen del mes" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <Stat testId="camp-stat-sent" label="Mensajes este mes" value={t ? nf.format(t.sent) : "—"} hint="aceptados por Meta" />
           <Stat
