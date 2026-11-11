@@ -1,6 +1,6 @@
 "use client";
 
-import { stageDot } from "@/lib/tags";
+import { stageColorValue, stageDot } from "@/lib/tags";
 import { useCallback, useEffect, useState } from "react";
 import {
   DndContext,
@@ -500,6 +500,7 @@ function StageColumn({
     <div
       ref={setNodeRef}
       data-pm="col"
+      style={{ "--stage": stageColorValue(stage.color, stage.name, stage.kind) } as React.CSSProperties}
       className={cn(
         "flex h-full min-w-[12.5rem] flex-1 basis-0 snap-start flex-col rounded-lg border border-border-strong bg-subtle transition-[box-shadow,border-color]",
         isOver && "border-brand ring-[3px] ring-brand-soft"

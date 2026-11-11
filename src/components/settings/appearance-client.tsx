@@ -91,9 +91,10 @@ const STYLE_HINTS: Record<ChatStyle, string> = {
 const UI_HINTS: Record<UiStyle, string> = {
   classic: "De fábrica",
   premium: "Degradados y brillo suave",
+  depth: "Luz y color por etapa",
 };
 
-const UI_SHORT: Record<UiStyle, string> = { classic: "Clásico", premium: "Premium" };
+const UI_SHORT: Record<UiStyle, string> = { classic: "Clásico", premium: "Premium", depth: "Profundo" };
 
 /** Control segmentado de la maqueta (Tema, Menú lateral): radios en una píldora gris. */
 function Segmented<T extends string>({
@@ -360,7 +361,7 @@ export function AppearanceClient({
           <div className="space-y-5 p-4">
             <div className="space-y-2">
               <p className="text-sm font-medium">Estilo</p>
-              <div role="radiogroup" aria-label="Estilo de interfaz" className="grid gap-3 sm:grid-cols-2">
+              <div role="radiogroup" aria-label="Estilo de interfaz" className="grid gap-3 sm:grid-cols-3">
                 {UI_STYLES.map((k) => {
                   const checked = uiStyle === k;
                   return (
