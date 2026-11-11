@@ -22,7 +22,12 @@
         "android.permission.VIBRATE"
       ]
     },
-    "plugins": ["expo-router", "expo-secure-store", "expo-font"],
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-font",
+      "expo-status-bar"
+    ],
     "updates": {
       "enabled": false
     },

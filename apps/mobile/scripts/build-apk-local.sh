@@ -29,5 +29,5 @@ export EXPO_NO_TELEMETRY=1
 (cd android && ./gradlew :app:assembleRelease --no-daemon)
 mobile_apk_path=android/app/build/outputs/apk/release/app-release.apk
 test -s "$mobile_apk_path"
-cp "$mobile_apk_path" artifacts/dashfort-mobile-tm1-experimental.apk
-sha256sum artifacts/dashfort-mobile-tm1-experimental.apk
+cp "$mobile_apk_path" artifacts/dashfort-mobile-experimental.apk
+sha256sum artifacts/dashfort-mobile-experimental.apk
