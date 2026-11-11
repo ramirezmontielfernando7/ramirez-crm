@@ -14,7 +14,7 @@ la app viva, los mocks y `PLATFORM_ORG_ID` = la organización de
    el Agente → 422. Un perfil desconocido → 400/422. La Propietaria de N da de
    alta a una Coordinadora y a un Asesor.
 2. **Sin `custom_nav` no existe.** Apagado: `/api/settings/navigation` → 404,
-   `/settings/navigation` → redirige a Ajustes → Personalización → Navegación, que responde 200 con el aviso «Disponible cuando el módulo «Menú personalizable» está encendido» y sin editor. Encendido: la
+   `/settings/navigation` → redirige a Ajustes → Personalización → Navegación, que responde 200 con el aviso «Navegación no disponible» y sin editor. Encendido: la
    Propietaria entra (200); Coordinadora y Asesor → 403.
 3. **Editor (navegador).** El menú son 5 pilares + Ajustes (039). Pestaña
    Asesor: CRM Comercial sube al primer lugar con el TECLADO (manija,

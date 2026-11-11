@@ -37,6 +37,7 @@ import {
 } from "@/lib/appearance";
 import type { MessageDto } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { SettingsHeader } from "@/components/settings/settings-header";
 
 type Scope = "me" | "org";
 
@@ -347,10 +348,7 @@ export function AppearanceClient({
 
   return (
     <div className="space-y-6" data-testid="appearance-page">
-      <div className="max-lg:hidden">
-        <h2 className="text-[22px] font-semibold tracking-tight">Apariencia</h2>
-        <p className="mt-1 text-[13.5px] text-text-2">La marca la ve todo tu equipo; el tema es solo tuyo.</p>
-      </div>
+      <SettingsHeader title="Apariencia" description="La marca la ve todo tu equipo; el tema es solo tuyo." />
 
       <div className={cn("grid items-start gap-4", canManageOrg && branding && "lg:grid-cols-2")}>
         {canManageOrg && branding && <AppearanceBrandCard branding={branding} />}

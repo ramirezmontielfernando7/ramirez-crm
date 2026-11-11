@@ -9,6 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { SettingsHeader } from "@/components/settings/settings-header";
 
 type Draft = { shortcut: string; body: string };
 const EMPTY: Draft = { shortcut: "", body: "" };
@@ -75,20 +76,22 @@ export function QuickRepliesClient() {
   const shown = (replies ?? []).filter((r) => !q || r.shortcut.includes(q) || r.body.toLowerCase().includes(q));
 
   return (
-    <div className="max-w-5xl space-y-5">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h2 className="text-xl font-semibold tracking-tight">Respuestas rápidas</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
+    <div className="space-y-5">
+      <SettingsHeader
+        title="Respuestas rápidas"
+        description={
+          <>
             Textos que tu equipo usa seguido. Se usan con <span className="font-mono">/</span> o con el rayo en la caja
             de escribir; <span className="font-mono">{"{nombre}"}</span> se cambia por el nombre del cliente.
-          </p>
-        </div>
-        <Button onClick={() => setShowNew((v) => !v)} data-testid="quick-reply-new">
-          <Plus className="mr-1.5 h-4 w-4" />
-          Nueva respuesta
-        </Button>
-      </div>
+          </>
+        }
+        actions={
+          <Button onClick={() => setShowNew((v) => !v)} data-testid="quick-reply-new">
+            <Plus className="mr-1.5 h-4 w-4" />
+            Nueva respuesta
+          </Button>
+        }
+      />
 
       {showNew && (
         <Card>

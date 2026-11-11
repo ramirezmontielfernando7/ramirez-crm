@@ -131,11 +131,11 @@ export function MyNumberClient() {
   const accepted = mine.noticeAcceptedAt !== null;
 
   return (
-    <div className="max-w-5xl space-y-5" data-testid="my-number">
-      <div className="flex items-start justify-between gap-4">
-        <div className="space-y-1">
-          <h2 className="text-xl font-semibold">Mi número</h2>
-          <p className="text-sm text-muted-foreground">{MI_NUMERO_TEXT.pageIntro}</p>
+    <div className="space-y-5" data-testid="my-number">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0 flex-1 space-y-1">
+          <h2 className="text-[22px] font-semibold tracking-tight max-lg:hidden">Mi número</h2>
+          <p className="text-[13.5px] leading-relaxed text-text-2">{MI_NUMERO_TEXT.pageIntro}</p>
         </div>
         <Badge
           variant={connected ? "default" : "secondary"}

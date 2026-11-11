@@ -23,6 +23,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useViewer } from "@/components/viewer-context";
+import { SettingsHeader } from "@/components/settings/settings-header";
 
 const STATUS_BADGE: Record<
   TemplateDto["status"],
@@ -189,7 +190,13 @@ export function TemplatesClient({ shell = false }: { shell?: boolean }) {
 
   const body = (
     <div className="space-y-4">
-      {!shell && <div className="flex flex-wrap items-center justify-end gap-2">{actions}</div>}
+      {!shell && (
+        <SettingsHeader
+          title="Plantillas"
+          description="Mensajes aprobados por Meta para escribirle a quien no te ha escrito en 24 horas."
+          actions={actions}
+        />
+      )}
       {syncMsg && <p className="text-xs text-muted-foreground">{syncMsg}</p>}
       {loadError && <p className="text-sm text-destructive">{loadError}</p>}
 

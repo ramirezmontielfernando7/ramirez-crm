@@ -71,7 +71,7 @@ export function OptOutSettings() {
   }
 
   return (
-    <Card className="max-w-3xl" data-testid="opt-out-settings">
+    <Card data-testid="opt-out-settings">
       <CardHeader>
         <CardTitle>Bajas por WhatsApp</CardTitle>
         <CardDescription>

@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { TagChip } from "@/components/tags/tag-chip";
 import { ColorPicker } from "@/components/tags/color-picker";
 import { TagMergePanel } from "@/components/settings/tag-merge-panel";
+import { SettingsHeader } from "@/components/settings/settings-header";
 
 /** 021 — Configuración → Etiquetas: el catálogo de etiquetas del negocio. */
 export function TagsClient() {
@@ -91,13 +92,11 @@ export function TagsClient() {
   }
 
   return (
-    <div className="max-w-3xl space-y-6">
-      <p className="text-sm text-muted-foreground">
-        Las etiquetas agrupan contactos: para filtrarlos, exportarlos o elegir a quién le llega una
-        campaña. Cada importación crea además una etiqueta automática («Import: archivo») para saber
-        de qué base vino cada contacto: no sale en la Bandeja ni en los filtros y se ve al final,
-        en «Automáticas de importación».
-      </p>
+    <div className="space-y-6">
+      <SettingsHeader
+        title="Etiquetas"
+        description="Agrupan contactos para filtrarlos, exportarlos o elegir a quién le llega una campaña. Las que crea cada importación («Import: archivo») se ven al final, en «Automáticas de importación»."
+      />
 
       <Card>
         <CardHeader>

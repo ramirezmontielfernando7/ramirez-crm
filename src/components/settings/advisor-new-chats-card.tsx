@@ -50,7 +50,7 @@ export function AdvisorNewChatsCard() {
   }
 
   return (
-    <Card className="max-w-3xl" data-testid="advisor-new-chats-card">
+    <Card data-testid="advisor-new-chats-card">
       <CardHeader>
         <CardTitle>Chats nuevos de los asesores</CardTitle>
         <CardDescription>

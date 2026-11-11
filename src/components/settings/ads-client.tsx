@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { SettingsHeader } from "@/components/settings/settings-header";
 
 /**
  * 016 — Ajustes → Anuncios: conectar el dataset de Meta, decir qué etapa
@@ -142,7 +143,8 @@ export function AdsClient() {
   }
 
   return (
-    <div className="max-w-3xl space-y-6">
+    <div className="space-y-6">
+      <SettingsHeader title="Anuncios (Meta)" description="Avísale a Meta qué conversaciones de anuncios se volvieron clientes, para que muestre tus anuncios a gente parecida." />
       <Card>
         <CardHeader>
           <CardTitle>Conversiones de anuncios</CardTitle>

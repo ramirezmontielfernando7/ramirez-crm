@@ -98,11 +98,11 @@ export function WhatsappWizard({
   }
 
   return (
-    <div className="max-w-5xl space-y-5">
+    <div className="space-y-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="space-y-1">
+        <div className="min-w-0 flex-1 space-y-1">
           <h2 className="text-[22px] font-semibold tracking-tight max-lg:hidden">Canales y conexiones</h2>
-          <p className="text-[13.5px] text-text-2">
+          <p className="text-[13.5px] leading-relaxed text-text-2">
             {connected ? "Tus números y por dónde salen los mensajes." : "Conecta tu WhatsApp para recibir y contestar chats desde Dashfort."}
           </p>
         </div>

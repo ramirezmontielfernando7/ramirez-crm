@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useViewer } from "@/components/viewer-context";
+import { SettingsHeader } from "@/components/settings/settings-header";
 
 type Group = { id: string; name: string; members: TeamPersonDto[] };
 
@@ -23,11 +24,11 @@ export function TeamChatSettingsClient() {
   const viewer = useViewer();
   const owner = viewer.can("team_chat.oversee");
   return (
-    <div className="max-w-3xl space-y-6">
-      <p className="text-sm text-muted-foreground">
-        El chat de equipo es para hablar entre ustedes: directos, grupos y el canal de Avisos, que llega
-        a todos. Los clientes no lo ven y nada de aquí sale por WhatsApp.
-      </p>
+    <div className="space-y-6">
+      <SettingsHeader
+        title="Chat de equipo"
+        description="Para hablar entre ustedes: directos, grupos y el canal de Avisos, que llega a todos. Los clientes no lo ven y nada de aquí sale por WhatsApp."
+      />
       {owner && <OversightCard />}
       <GroupsCard />
     </div>

@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { WebhookSettingsDto } from "@/lib/webhook-settings";
 import { cn } from "@/lib/utils";
+import { SettingsHeader } from "@/components/settings/settings-header";
 
 /**
  * 017 — Conexión del canal de Messenger.
@@ -155,7 +156,8 @@ export function MessengerClient() {
       : pageId.trim().length > 0);
 
   return (
-    <div className="max-w-3xl space-y-6">
+    <div className="space-y-6">
+      <SettingsHeader title="Messenger" description="Recibe y contesta los mensajes de tu página de Facebook desde la Bandeja." />
       {connection?.status === "reconnect_required" && (
         <div className="flex items-start gap-2 rounded-lg border border-danger-soft bg-danger-tint p-4 text-sm">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
