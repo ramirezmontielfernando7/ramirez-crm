@@ -52,3 +52,18 @@ export function useInboxUnread() {
 export function useOptionalInbox() {
   return useContext(Context);
 }
+
+export function useConversation(id: string) {
+  const inbox = useInbox();
+  const read = useMemo(
+    () => () => {
+      try {
+        return inbox.repository.get(inbox.actor, id);
+      } catch {
+        return null;
+      }
+    },
+    [inbox, id],
+  );
+  return useSyncExternalStore(inbox.subscribe, read, read);
+}

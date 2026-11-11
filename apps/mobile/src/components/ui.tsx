@@ -611,7 +611,7 @@ export function FilterChips({
           accessibilityState={{ selected: label === value }}
           aria-pressed={label === value}
           onPress={() => onChange(label)}
-          style={{ minHeight: 48, justifyContent: "center" }}
+          style={{ minHeight: 48, minWidth: 44, justifyContent: "center" }}
         >
           <View
             style={{

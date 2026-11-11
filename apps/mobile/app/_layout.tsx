@@ -13,6 +13,7 @@ import { LayerProvider, useLayers } from "../src/components/Layers";
 import { Skeleton } from "../src/components/ui";
 import { resolveBack } from "../src/domain/access";
 import { InboxProvider, useOptionalInbox } from "../src/features/inbox/store";
+import { ContactProvider } from "../src/features/contact/context";
 import { ChatProvider } from "../src/features/chat/context";
 function RootNavigator() {
   const { ready, session } = useSession();
@@ -105,6 +106,8 @@ function RootNavigator() {
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="conversation/[id]" />
           <Stack.Screen name="media/[id]" />
+          <Stack.Screen name="contact/[id]" />
+          <Stack.Screen name="history/[id]" />
         </Stack.Protected>
         <Stack.Screen name="demo" />
         <Stack.Screen name="design/[id]" />
@@ -118,11 +121,13 @@ export default function Layout() {
       <ThemeProvider>
         <SessionProvider>
           <InboxProvider>
-            <ChatProvider>
-              <LayerProvider>
-                <RootNavigator />
-              </LayerProvider>
-            </ChatProvider>
+            <ContactProvider>
+              <ChatProvider>
+                <LayerProvider>
+                  <RootNavigator />
+                </LayerProvider>
+              </ChatProvider>
+            </ContactProvider>
           </InboxProvider>
         </SessionProvider>
       </ThemeProvider>

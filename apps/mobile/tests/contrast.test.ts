@@ -24,6 +24,8 @@ for (const [name, c] of Object.entries({ light, dark })) {
       ["#ffffff", c.dangerFill],
       [c.tagText, c.tagBg],
       [c.danger, c.surface],
+      [c.text, name === "dark" ? "#40300f" : "#fef6e6"],
+      [c.text3, name === "dark" ? "#40300f" : "#fef6e6"],
       [c.tagText, c.bubbleAi],
       [c.info, c.bubbleConnected],
       ...[c.bubbleIn, c.bubbleTeam, c.bubbleAi, c.bubbleConnected].flatMap(

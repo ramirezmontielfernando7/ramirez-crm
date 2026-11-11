@@ -35,7 +35,9 @@ import {
 } from "../../components/ui";
 import { useLayers } from "../../components/Layers";
 import { useTheme } from "../../theme/ThemeProvider";
-import { useInbox } from "../inbox/store";
+import { useInbox, useConversation } from "../inbox/store";
+import { useContactDirectory, useContactState } from "../contact/context";
+import { ContactMenuRows } from "../contact/actions";
 import { ChatStore } from "./core";
 import { useChatDirectory, useChatState } from "./context";
 import { CHAT_TEXT_MAX, quickReplies, type Message } from "./model";
@@ -57,7 +59,13 @@ const back = () =>
   router.canGoBack() ? router.back() : router.replace("/(tabs)/inbox");
 export function ConversationScreen({ chat }: { chat: ChatStore }) {
   const s = useChatState(chat);
-  const conversation = chat.authorize();
+  const conversation = useConversation(chat.conversationId)!;
+  const contact = useContactDirectory().get(chat.conversationId);
+  useContactState(contact);
+  const taken =
+    s.taken &&
+    conversation.ai === "pause" &&
+    conversation.assigned === chat.actor.id;
   const inbox = useInbox();
   const { colors: c } = useTheme();
   const { open, close, toast } = useLayers();
@@ -285,6 +293,19 @@ export function ConversationScreen({ chat }: { chat: ChatStore }) {
       title: "Opciones del chat",
       content: (
         <>
+          <ContactMenuRows
+            store={contact}
+            details={() => {
+              captureAnchor();
+              close();
+              router.push(`/contact/${conversation.id}`);
+            }}
+            history={() => {
+              captureAnchor();
+              close();
+              router.push(`/history/${conversation.id}`);
+            }}
+          />
           <NavRow
             label="Mensajes anteriores"
             onPress={() => {
@@ -357,7 +378,7 @@ export function ConversationScreen({ chat }: { chat: ChatStore }) {
             <Avatar name={conversation.name} />
             <View
               accessibilityLabel={
-                s.taken
+                taken
                   ? "Atención humana"
                   : conversation.ai === "on"
                     ? "IA activa"
@@ -375,7 +396,7 @@ export function ConversationScreen({ chat }: { chat: ChatStore }) {
                 borderWidth: 3,
                 borderColor: c.surface,
                 backgroundColor:
-                  s.taken || conversation.ai === "off"
+                  taken || conversation.ai === "off"
                     ? c.text3
                     : conversation.ai === "pause"
                       ? c.warning
@@ -384,7 +405,21 @@ export function ConversationScreen({ chat }: { chat: ChatStore }) {
             />
           </View>
         </View>
-        <View style={{ flex: 1, minWidth: 0, paddingLeft: 4 }}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Detalles de ${conversation.name}`}
+          onPress={() => {
+            captureAnchor();
+            router.push(`/contact/${conversation.id}`);
+          }}
+          style={{
+            flex: 1,
+            minWidth: 0,
+            paddingLeft: 4,
+            minHeight: 48,
+            justifyContent: "center",
+          }}
+        >
           <Text
             accessibilityRole="header"
             kind="title"
@@ -408,7 +443,7 @@ export function ConversationScreen({ chat }: { chat: ChatStore }) {
               ●{" "}
             </Text>
             {conversation.stage} ·{" "}
-            {s.taken
+            {taken
               ? "Tú"
               : conversation.assigned === "demo-advisor"
                 ? "Luis Ortega"
@@ -418,7 +453,7 @@ export function ConversationScreen({ chat }: { chat: ChatStore }) {
                     ? "Fer Ramírez"
                     : "Sin asignar"}
           </Text>
-        </View>
+        </Pressable>
         <IconButton
           icon={Phone}
           label="Llamar"
@@ -550,7 +585,7 @@ export function ConversationScreen({ chat }: { chat: ChatStore }) {
           </View>
         )}
       </View>
-      {conversation.ai === "pause" && !s.taken && (
+      {conversation.ai === "pause" && !taken && (
         <View
           style={{
             paddingHorizontal: 12,
@@ -567,7 +602,12 @@ export function ConversationScreen({ chat }: { chat: ChatStore }) {
           </Text>
           <Pressable
             accessibilityRole="button"
-            onPress={chat.take}
+            onPress={() =>
+              void action.run(async () => {
+                await contact.take();
+                chat.take();
+              })
+            }
             style={{ minHeight: 48, justifyContent: "center" }}
           >
             <Text
@@ -716,8 +756,10 @@ export function ConversationScreen({ chat }: { chat: ChatStore }) {
 export default function ChatPage() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const directory = useChatDirectory();
+  const scopedConversation = useConversation(id ?? "");
   let chat: ChatStore;
   try {
+    if (!scopedConversation) throw new Error("Acceso no permitido");
     chat = directory.get(id ?? "");
   } catch {
     return (

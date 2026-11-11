@@ -245,6 +245,8 @@ test("quick replies, newline, emoji, rewrite preview and undo preserve drafts", 
     .click();
   await page.getByRole("button", { name: /^\/hola ·/ }).click();
   await expect(input).toHaveValue(/Hola Karla/);
+  // RN Web restores focus after the modal's closing animation finishes.
+  await expect(page.locator('[aria-modal="true"]')).toHaveCount(0);
   await input.fill("hola original");
   await expect(input).toHaveValue("hola original");
   await input.press("End");

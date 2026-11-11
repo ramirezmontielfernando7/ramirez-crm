@@ -2,7 +2,7 @@
   "expo": {
     "name": "Dashfort Dev",
     "slug": "dashfort-mobile-dev",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "scheme": "dashfort-dev",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
@@ -20,7 +20,8 @@
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.WRITE_EXTERNAL_STORAGE",
         "android.permission.VIBRATE"
-      ]
+      ],
+      "versionCode": 2
     },
     "plugins": [
       "expo-router",
