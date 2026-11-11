@@ -167,12 +167,12 @@ export function AgentClient() {
       {aiCallout === "configurar" && (
         <div className="mx-4 mt-4 rounded-lg border border-brand-soft bg-brand-tint p-5 text-center sm:mx-6 sm:mt-6 sm:p-6">
           <Sparkles className="mx-auto mb-2 h-8 w-8 text-primary" />
-          <p className="font-medium">Configura tu proveedor de IA para activar el agente</p>
+          <p className="font-medium">El servicio de IA de tu cuenta aún no está activo</p>
+          {/* Auditoría UX 2026-11 (B): sin nombres de variables. Quien opera la
+              instancia lo activa con OPENROUTER_API_TOKEN y OPENROUTER_MODEL. */}
           <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">
-            Agrega <code className="rounded bg-secondary px-1">OPENROUTER_API_TOKEN</code> y{" "}
-            <code className="rounded bg-secondary px-1">OPENROUTER_MODEL</code> a las variables
-            de entorno de la instancia y reiníciala. Mientras tanto puedes dejar listo el
-            comportamiento y el conocimiento aquí abajo.
+            Escríbenos y lo activamos. Mientras tanto puedes dejar listo el comportamiento y el
+            conocimiento aquí abajo.
           </p>
         </div>
       )}
