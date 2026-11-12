@@ -261,7 +261,7 @@ export function AgentsList() {
               role="row"
               className={cn("grid grid-cols-1 items-center gap-x-4 gap-y-2 border-b px-4 py-3 last:border-b-0", cols)}
             >
-              <Link role="cell" href={`/lab/agents/${a.id}`} className="flex min-w-0 items-center gap-3 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring">
+              <div role="cell" className="min-w-0"><Link href={`/lab/agents/${a.id}`} className="flex min-w-0 items-center gap-3 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring">
                 <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-brand-soft text-brand-text">
                   <Bot className="h-[18px] w-[18px]" strokeWidth={1.7} />
                 </span>
@@ -271,7 +271,7 @@ export function AgentsList() {
                     {a.isGeneral ? "General" : `Etapa: ${servesLabel(a, stages)}`}
                   </span>
                 </span>
-              </Link>
+              </Link></div>
               <span role="cell" className="flex flex-col items-start gap-1">
                 <span className="flex flex-wrap items-center gap-1.5">
                   <Badge variant={a.status === "draft" ? "secondary" : aiLive && !a.paused ? "success" : "secondary"}>
