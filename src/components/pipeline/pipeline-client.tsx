@@ -1,7 +1,7 @@
 "use client";
 
 import { stageColorValue, stageDot } from "@/lib/tags";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   DndContext,
   DragOverlay,
@@ -49,6 +49,12 @@ export type BoardLead = {
   assignee: { id: string; name: string } | null;
 };
 
+/** Totales de TODA una columna, calculados por el servidor (el tablero solo trae una página). */
+type StageTotals = { count: number; sinMonto: number; otraMoneda: number; totalCents: number };
+
+/** Tarjetas por columna en cada página («Mostrar más» trae otras tantas). */
+const PAGE = 50;
+
 export function PipelineClient() {
   const viewer = useViewer();
   const router = useRouter();
@@ -61,6 +67,11 @@ export function PipelineClient() {
   const [stages, setStages] = useState<StageDto[]>([]);
   const [currency, setCurrency] = useState("MXN");
   const [leads, setLeads] = useState<BoardLead[]>([]);
+  /** Totales por columna (todo lo que hay, no solo lo cargado). */
+  const [totals, setTotals] = useState<Record<string, StageTotals>>({});
+  const [loadingMore, setLoadingMore] = useState<string | null>(null);
+  /** Cuántas tarjetas por columna hay cargadas como mucho: el refresco pide al menos eso. */
+  const takeRef = useRef(PAGE);
   const [activeLead, setActiveLead] = useState<BoardLead | null>(null);
   const [managing, setManaging] = useState(false);
   /** Arrastre hacia una etapa perdida, esperando el motivo. */
@@ -88,7 +99,7 @@ export function PipelineClient() {
   );
 
   const refetch = useCallback(async () => {
-    const res = await fetch("/api/pipeline/board").catch(() => null);
+    const res = await fetch(`/api/pipeline/board?take=${takeRef.current}`).catch(() => null);
     if (!res?.ok) {
       setLoadError(true);
       return;
@@ -98,8 +109,10 @@ export function PipelineClient() {
       stages: StageDto[];
       leads: BoardLead[];
       currency?: string;
+      totals?: Record<string, StageTotals>;
     };
     if (data.currency) setCurrency(data.currency);
+    setTotals(data.totals ?? {});
     setStages(data.stages);
     setLeads(data.leads);
   }, []);
@@ -107,6 +120,26 @@ export function PipelineClient() {
   useEffect(() => {
     void refetch();
   }, [refetch]);
+
+  /** «Mostrar más» de una columna: la siguiente página, sin recargar todo el tablero. */
+  async function showMore(stageId: string) {
+    const loaded = leads.filter((l) => l.stageId === stageId).length;
+    setLoadingMore(stageId);
+    const res = await fetch(
+      `/api/pipeline/board?stageId=${encodeURIComponent(stageId)}&offset=${loaded}&take=${PAGE}`
+    ).catch(() => null);
+    setLoadingMore(null);
+    if (!res?.ok) {
+      setSaveError("No pudimos cargar más prospectos. Revisa tu conexión e intenta de nuevo.");
+      return;
+    }
+    const data = (await res.json()) as { leads: BoardLead[] };
+    setLeads((prev) => {
+      const have = new Set(prev.map((l) => l.id));
+      return [...prev, ...data.leads.filter((l) => !have.has(l.id))];
+    });
+    takeRef.current = Math.max(takeRef.current, loaded + data.leads.length);
+  }
 
   /**
    * Guarda un cambio del trato. Si el servidor no lo acepta (error, sin red),
@@ -140,7 +173,8 @@ export function PipelineClient() {
     overStage: string,
     loss?: { reason: LossReason; note: string }
   ) {
-    const position = leads.filter((l) => l.stageId === overStage).length;
+    // Al final de la columna: con páginas, el total del servidor (no lo cargado).
+    const position = totals[overStage]?.count ?? leads.filter((l) => l.stageId === overStage).length;
     // Optimista + persistencia
     setLeads((prev) =>
       prev.map((l) => (l.id === leadId ? { ...l, stageId: overStage, position } : l))
@@ -224,7 +258,21 @@ export function PipelineClient() {
   );
   const openStageIds = new Set(stages.filter((x) => x.kind === "open").map((x) => x.id));
   const openLeads = visibleLeads.filter((l) => openStageIds.has(l.stageId));
-  const openTotals = totalesDeEtapa(openLeads, currency);
+  // Con búsqueda o filtro solo se cuenta lo cargado; sin ellos, todo lo que hay.
+  const filtering = query.trim() !== "" || assigneeFilter !== "all";
+  const openTotals = filtering || Object.keys(totals).length === 0
+    ? { ...totalesDeEtapa(openLeads, currency), count: openLeads.length }
+    : stages
+        .filter((x) => x.kind === "open")
+        .reduce(
+          (acc, x) => ({
+            totalCents: acc.totalCents + (totals[x.id]?.totalCents ?? 0),
+            sinMonto: acc.sinMonto + (totals[x.id]?.sinMonto ?? 0),
+            otraMoneda: acc.otraMoneda + (totals[x.id]?.otraMoneda ?? 0),
+            count: acc.count + (totals[x.id]?.count ?? 0),
+          }),
+          { totalCents: 0, sinMonto: 0, otraMoneda: 0, count: 0 }
+        );
 
   return (
     <PageShell
@@ -335,7 +383,7 @@ export function PipelineClient() {
       {stages.length > 0 && (
         <p data-pm="board-summary" className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b px-4 py-2.5 text-[13px] text-text-3">
           <span>
-            {openLeads.length} {openLeads.length === 1 ? "prospecto abierto" : "prospectos abiertos"}
+            {openTotals.count} {openTotals.count === 1 ? "prospecto abierto" : "prospectos abiertos"}
           </span>
           {openTotals.totalCents > 0 && (
             <>
@@ -364,6 +412,9 @@ export function PipelineClient() {
                 key={stage.id}
                 stage={stage}
                 currency={currency}
+                totals={filtering ? undefined : totals[stage.id]}
+                onShowMore={filtering ? undefined : () => void showMore(stage.id)}
+                loadingMore={loadingMore === stage.id}
                 onEditAmount={setEditandoMonto}
                 onOpen={(l) => setAbiertoId(l.id)}
                 onAdd={stage.kind === "lost" ? undefined : () => setCreating({ stageId: stage.id })}
@@ -481,6 +532,9 @@ function StageColumn({
   stage,
   leads,
   currency,
+  totals,
+  onShowMore,
+  loadingMore,
   onEditAmount,
   onOpen,
   onAdd,
@@ -488,6 +542,11 @@ function StageColumn({
   stage: StageDto;
   leads: BoardLead[];
   currency: string;
+  /** Totales de toda la columna (servidor); sin ellos, se calculan de lo cargado. */
+  totals?: StageTotals;
+  /** «Mostrar más» al pie cuando faltan tarjetas por cargar. */
+  onShowMore?: () => void;
+  loadingMore?: boolean;
   onEditAmount: (lead: BoardLead) => void;
   onOpen: (lead: BoardLead) => void;
   /** «+ Agregar» al pie: un lead nuevo directo en esta etapa. */
@@ -495,7 +554,9 @@ function StageColumn({
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: stage.id });
   const dot = stageDot(stage.color, stage.name);
-  const { totalCents } = totalesDeEtapa(leads, currency);
+  const { totalCents } = totals ?? totalesDeEtapa(leads, currency);
+  const totalCount = totals?.count ?? leads.length;
+  const missing = Math.max(0, totalCount - leads.length);
   return (
     <div
       ref={setNodeRef}
@@ -521,7 +582,7 @@ function StageColumn({
           )}
           <span className="truncate">{stage.name}</span>
           <span data-pm="col-count" className="ml-1 text-[12px] font-normal tabular-nums text-text-3">
-            {leads.length}
+            {totalCount}
           </span>
         </span>
         {/* Auditoría UX 2026-11 (17): sin montos, la columna no dice «$0». */}
@@ -541,6 +602,17 @@ function StageColumn({
             onOpen={onOpen}
           />
         ))}
+        {onShowMore && missing > 0 && (
+          <button
+            type="button"
+            data-pm="col-more"
+            onClick={onShowMore}
+            disabled={loadingMore}
+            className="w-full rounded-md border border-dashed border-border-strong py-1.5 text-center text-[12.5px] font-medium text-text-2 hover:bg-card disabled:opacity-60"
+          >
+            {loadingMore ? "Cargando…" : `Mostrar más (${missing.toLocaleString("es-MX")})`}
+          </button>
+        )}
         {stage.kind === "lost" && leads.length === 0 && (
           <p
             data-pm="lost-empty"
@@ -562,15 +634,15 @@ function StageColumn({
           </button>
         )}
       </div>
-      <StageFooter leads={leads} currency={currency} />
+      <StageFooter leads={leads} currency={currency} totals={totals} />
     </div>
   );
 }
 
 /** El total vive en el encabezado; aquí solo lo que quedó fuera de la cuenta. */
-function StageFooter({ leads, currency }: { leads: BoardLead[]; currency: string }) {
-  const { sinMonto, otraMoneda } = totalesDeEtapa(leads, currency);
-  const conMonto = leads.length - sinMonto - otraMoneda;
+function StageFooter({ leads, currency, totals }: { leads: BoardLead[]; currency: string; totals?: StageTotals }) {
+  const { sinMonto, otraMoneda } = totals ?? totalesDeEtapa(leads, currency);
+  const conMonto = (totals?.count ?? leads.length) - sinMonto - otraMoneda;
   if (otraMoneda === 0 && (sinMonto === 0 || conMonto === 0)) return null;
   return (
     <div data-pm="stage-footer" className="border-t px-3 py-2 text-[11px] text-muted-foreground">
