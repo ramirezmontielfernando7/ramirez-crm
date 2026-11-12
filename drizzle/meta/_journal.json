@@ -540,6 +540,13 @@
       "when": 1794520800000,
       "tag": "0077_contacto_plataforma",
       "breakpoints": true
+    },
+    {
+      "idx": 78,
+      "version": "7",
+      "when": 1794560000000,
+      "tag": "0078_plataforma_vender",
+      "breakpoints": true
     }
   ]
 }

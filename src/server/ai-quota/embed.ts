@@ -1,3 +1,4 @@
+import { aiBlockedDetail } from "@/server/billing/store";
 import { embedTexts, embeddingsConfig, type EmbedPurpose, type EmbedResult } from "@/lib/ai/embeddings";
 import { logger } from "@/lib/log";
 import { embedTokensUsed, recordEmbedUsage } from "@/server/ai-quota/quota";
@@ -18,6 +19,7 @@ import { checkEmbedAlerts } from "@/server/limits/alerts";
  * registra y sigue. Fuera de transacción, como el LLM.
  */
 
+
 const log = logger("ai");
 
 export function embeddingsAvailable(): boolean {
@@ -37,6 +39,9 @@ export async function embedForOrg(
 ): Promise<EmbedResult> {
   const config = embeddingsConfig();
   if (!config) return { ok: false, error: "not_configured", detail: "sin EMBEDDINGS_BASE_URL" };
+  // 048: mismo freno que `chatJsonForOrg` (emergencia, prueba o pago).
+  const blocked = await aiBlockedDetail(organizationId);
+  if (blocked) return { ok: false, error: "quota_exceeded", detail: blocked };
 
   // 036 (PR 3a): el tope propio de la organización; sin él, el del entorno.
   let limit: number | null = null;

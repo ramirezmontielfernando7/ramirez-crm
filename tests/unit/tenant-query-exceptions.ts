@@ -88,6 +88,11 @@ export const TENANT_QUERY_EXCEPTIONS: Record<string, { max: number; motivo: stri
     motivo:
       "035 — Al arrancar (documentsToResume): ids de los documentos del agente por (re)indexar en TODAS las organizaciones, pool de sistema. El indexado de cada uno corre luego a nombre de la suya con scoped().",
   },
+  "server/billing/store.ts": {
+    max: 1,
+    motivo:
+      "048 — getManyBillingRows: la prueba gratis y el «pagado hasta» de TODAS las organizaciones para el semáforo y la columna de cobro de la lista de /platform, una lectura con el pool de sistema detrás de withPlatformAdmin. Solo fechas, nunca contenido. Lo de UNA organización va con scoped().",
+  },
   "server/platform-admin/usage.ts": {
     max: 6,
     motivo:

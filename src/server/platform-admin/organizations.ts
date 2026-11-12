@@ -18,7 +18,8 @@ import { envModuleDefaults } from "@/server/modules/defaults";
 import { ModuleDependencyError, updateOrgModules, type ModulesPatch } from "@/server/modules/store";
 import { profileOfPlan, type PlanOption } from "@/lib/modules/registry";
 import type { EffectiveLimits, LimitsPatch } from "@/lib/limits";
-import { PLATFORM_MODULE_TOGGLES, type PlatformModuleToggle } from "@/lib/platform-modules";
+import { PLATFORM_MODULE_TOGGLES, planToggles, type PlatformModuleToggle } from "@/lib/platform-modules";
+import { getPlanProfiles } from "@/server/plan-catalog/store";
 import { runWithOrganization } from "@/lib/request-context";
 import { applyPlanCaps, assertModulesWithinLimit, getEffectiveLimits, LimitError, saveOrgLimits, syncPlanKey } from "@/server/limits";
 import { checkAllAlerts, checkModuleAlerts } from "@/server/limits/alerts";
@@ -219,10 +220,13 @@ export async function createOrganization(
   // Nadie conoce esta contraseña: solo existe para que la cuenta no quede sin
   // credencial. La persona pone la suya con el enlace de activación.
   const unusable = await hashPassword(randomBytes(32).toString("base64url"));
+  // 048: lo que trae el plan HOY (editable en «Planes y precios»).
+  const profile = profileOfPlan(input.profile);
+  const toggles = profile ? planToggles(profile, await getPlanProfiles()) : undefined;
   try {
     await db.transaction(async (tx) => {
       await tx.insert(schema.organization).values({ id: organizationId, name, slug: slugFor(name) });
-      await seedOrganization(tx as unknown as Db, organizationId, profileOfPlan(input.profile));
+      await seedOrganization(tx as unknown as Db, organizationId, profile, toggles);
       await tx.insert(schema.user).values({ id: userId, name: ownerName, email, emailVerified: false });
       await tx.insert(schema.account).values({
         id: newId("account"),

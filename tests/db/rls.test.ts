@@ -29,6 +29,8 @@ const EXCEPCIONES: Record<string, string> = {
   platform_ai_pricing: "036 PR 3: precios de IA y tipo de cambio del administrador de plataforma, para estimar el costo de todas las organizaciones; solo el pool de sistema",
   platform_ai_defaults: "0070: modelos de IA por defecto de la instancia y de cada plan, y la meta de gasto de la plataforma; solo el pool de sistema",
   platform_plan_catalog: "0073: catálogo de planes (nombre, precio, qué incluye) del administrador de plataforma; solo el pool de sistema",
+  platform_kill_switch: "0078 (048): interruptores de emergencia de la plataforma (IA, campañas, conexión directa) para TODAS las organizaciones; solo el pool de sistema",
+  platform_broadcast: "0078 (048): aviso a todos los clientes (franja de mantenimiento o novedades); solo el pool de sistema",
   platform_setting: "0077: ajustes de la plataforma (el WhatsApp de contacto de «¿Necesitas más?»); solo el pool de sistema",
   platform_ai_model_price: "0070: precio de cada modelo de IA para estimar el costo de todas las organizaciones; solo el pool de sistema",
   evolution_server: "Conexión directa PR 1: servidores del dispositivo vinculado que registra el administrador de plataforma (por encima de las organizaciones); llave cifrada; solo el pool de sistema",

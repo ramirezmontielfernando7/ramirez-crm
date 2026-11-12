@@ -1,6 +1,8 @@
 import type { PlatformModuleToggle } from "@/lib/platform-modules";
 import type { PlanKey } from "@/lib/limits";
 import type { AiUsageKind, StorageUsage } from "@/lib/usage";
+import type { BillingKind } from "@/lib/billing";
+import type { HealthLevel } from "@/lib/platform-health";
 
 /**
  * Fase 3 / 036 (PR 4) — Lo que comparten las pantallas de /platform: la
@@ -63,6 +65,10 @@ export type Org = {
   whatsappConnected: boolean;
   modules: Modules;
   usage: OrgUsage | null;
+  /** 048 — Estado del cobro (solo en la lista; la ficha lo pide aparte). */
+  billing?: { kind: BillingKind; daysLeft: number | null; until: string | null };
+  /** 048 — Semáforo de clientes (solo en la lista). */
+  health?: { level: HealthLevel; reasons: string[]; lastMessageAt: string | null; lastLoginAt: string | null };
 };
 
 type Totals = { turns: number; tokens: number };

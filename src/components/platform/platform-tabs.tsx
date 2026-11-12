@@ -13,6 +13,7 @@ export const PLATFORM_TABS = [
   { href: "/platform/panel", label: "Mi panel" },
   { href: "/platform/organizaciones", label: "Organizaciones y Planes" },
   { href: "/platform/costos", label: "IA: modelos y costos" },
+  { href: "/platform/controles", label: "Controles" },
   { href: "/platform/webhooks", label: "Webhooks sin ruta" },
   { href: "/platform/conexion-directa", label: "Conexión directa" },
   { href: "/platform/admin", label: "Administradores y auditoría" },

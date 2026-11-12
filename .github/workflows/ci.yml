@@ -251,7 +251,7 @@ jobs:
           - name: organizaciones y módulos
             scripts: "e2e-multiorg e2e-credenciales e2e-modulos"
           - name: plataforma
-            scripts: "e2e-plataforma"
+            scripts: "e2e-plataforma e2e-plataforma-vender"
           - name: campañas y datos de Meta
             scripts: "e2e-datos-meta e2e-campanas-v2 e2e-etiquetas-limpias"
           - name: agentes, navegación y trabajo

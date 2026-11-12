@@ -4,6 +4,7 @@ import { newId } from "@/lib/db/ids";
 import { seedOrgModules } from "@/server/modules/store";
 import { insertGeneralFromProfile } from "@/server/agents/ensure";
 import type { ModuleProfile } from "@/lib/modules/registry";
+import type { PlatformModuleToggle } from "@/lib/platform-modules";
 
 /** Etapas sembradas del pipeline (US2). */
 export const SEED_STAGES: { name: string; kind: "open" | "won" | "lost" }[] = [
@@ -23,7 +24,9 @@ export async function seedOrganization(
   tx: Db,
   organizationId: string,
   /** 030 (PR 4) — Plantilla de módulos del alta desde /platform (opcional). */
-  profile?: ModuleProfile
+  profile?: ModuleProfile,
+  /** 048 — Lo que trae ese plan HOY (editable); sin él, los de fábrica. */
+  toggles?: Record<PlatformModuleToggle, boolean>
 ): Promise<void> {
   await tx.insert(schema.pipelineStage).values(
     SEED_STAGES.map((s, i) => ({
@@ -42,5 +45,5 @@ export async function seedOrganization(
     .values({ id: newId("agentProfile"), organizationId, updatedAt: at })
     .returning();
   await insertGeneralFromProfile(tx, profileRow!);
-  await seedOrgModules(tx, organizationId, profile);
+  await seedOrgModules(tx, organizationId, profile, toggles);
 }

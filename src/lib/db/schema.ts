@@ -4506,6 +4506,12 @@ export const platformPlanCatalog = pgTable(
     storageGb: integer("storage_gb"),
     features: jsonb("features").$type<string[]>(),
     recommended: boolean("recommended"),
+    /**
+     * 0078 (048) — Qué módulos trae el plan (los 13 interruptores de /platform,
+     * claves de `PLATFORM_MODULE_TOGGLES`). NULL = los de fábrica de
+     * `src/lib/modules/registry.ts` (`FACTORY_PLAN_PROFILES`).
+     */
+    modules: jsonb("modules").$type<Record<string, boolean>>(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
     updatedBy: text("updated_by").references(() => user.id, { onDelete: "set null" }),
   },
@@ -4528,6 +4534,110 @@ export const platformSetting = pgTable(
   (t) => [
     check("platform_setting_key_chk", sql`${t.key} in ('contact_whatsapp')`),
     check("platform_setting_value_chk", sql`${t.value} is null or length(${t.value}) <= 200`),
+  ]
+);
+
+/**
+ * 0078 (048) — Cobro a mano mientras no hay pasarela: prueba gratis con fecha
+ * de fin, «pagado hasta», días de gracia y la IA extra del mes
+ * («restablecer IA»: `ai_bonus_usd` vale solo en `ai_bonus_month`). Sin fila
+ * = la organización no lleva cobro desde Plataforma y opera como siempre.
+ * Lo escribe solo el administrador de plataforma; ÚNICA puerta
+ * `src/server/billing/store.ts`. Reglas puras en `src/lib/billing.ts`.
+ */
+export const organizationBilling = pgTable(
+  "organization_billing",
+  {
+    organizationId: text("organization_id")
+      .primaryKey()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    trialEndsAt: timestamp("trial_ends_at"),
+    paidUntil: timestamp("paid_until"),
+    graceDays: integer("grace_days").notNull().default(5),
+    aiBonusUsd: numeric("ai_bonus_usd", { precision: 12, scale: 4 }),
+    aiBonusMonth: text("ai_bonus_month"),
+    note: text("note"),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+    updatedBy: text("updated_by").references(() => user.id, { onDelete: "set null" }),
+  },
+  (t) => [
+    check("organization_billing_grace_chk", sql`${t.graceDays} between 0 and 60`),
+    check("organization_billing_bonus_chk", sql`${t.aiBonusUsd} is null or ${t.aiBonusUsd} >= 0`),
+    check("organization_billing_bonus_month_chk", sql`${t.aiBonusMonth} is null or ${t.aiBonusMonth} ~ '^[0-9]{4}-[0-9]{2}$'`),
+    check("organization_billing_note_chk", sql`${t.note} is null or char_length(${t.note}) <= 500`),
+  ]
+);
+
+/** 0078 (048) — Bitácora de pagos y extras registrados a mano en Plataforma. */
+export const organizationPayment = pgTable(
+  "organization_payment",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    kind: text("kind", { enum: ["plan", "ai_reset", "extra_person", "extra_storage", "onboarding", "other"] }).notNull(),
+    amountMxn: integer("amount_mxn").notNull().default(0),
+    months: integer("months"),
+    quantity: integer("quantity").notNull().default(1),
+    note: text("note"),
+    paidAt: timestamp("paid_at").notNull().defaultNow(),
+    recordedBy: text("recorded_by").references(() => user.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    index("organization_payment_org_idx").on(t.organizationId, t.paidAt.desc()),
+    check(
+      "organization_payment_kind_chk",
+      sql`${t.kind} in ('plan', 'ai_reset', 'extra_person', 'extra_storage', 'onboarding', 'other')`
+    ),
+    check("organization_payment_amount_chk", sql`${t.amountMxn} between 0 and 10000000`),
+    check("organization_payment_months_chk", sql`${t.months} is null or ${t.months} between 1 and 36`),
+    check("organization_payment_quantity_chk", sql`${t.quantity} between 1 and 100`),
+    check("organization_payment_note_chk", sql`${t.note} is null or char_length(${t.note}) <= 300`),
+  ]
+);
+
+/**
+ * 0078 (048) — Interruptores de emergencia para TODAS las organizaciones a la
+ * vez (por ejemplo, apagar campañas si Meta tiene un problema). Tabla de
+ * PLATAFORMA, solo pool de sistema; ÚNICA puerta `src/server/platform-controls/`.
+ */
+export const platformKillSwitch = pgTable(
+  "platform_kill_switch",
+  {
+    key: text("key", { enum: ["ai", "campaigns", "direct_send"] }).primaryKey(),
+    active: boolean("active").notNull().default(false),
+    reason: text("reason"),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+    updatedBy: text("updated_by").references(() => user.id, { onDelete: "set null" }),
+  },
+  (t) => [
+    check("platform_kill_switch_key_chk", sql`${t.key} in ('ai', 'campaigns', 'direct_send')`),
+    check("platform_kill_switch_reason_chk", sql`${t.reason} is null or char_length(${t.reason}) <= 300`),
+  ]
+);
+
+/**
+ * 0078 (048) — Aviso a todos los clientes (franja de mantenimiento o
+ * novedades). Vigente = sin `ended_at`, ya empezó y no ha pasado `ends_at`.
+ * Tabla de PLATAFORMA, solo pool de sistema.
+ */
+export const platformBroadcast = pgTable(
+  "platform_broadcast",
+  {
+    id: text("id").primaryKey(),
+    message: text("message").notNull(),
+    level: text("level", { enum: ["info", "warning"] }).notNull().default("info"),
+    startsAt: timestamp("starts_at").notNull().defaultNow(),
+    endsAt: timestamp("ends_at"),
+    endedAt: timestamp("ended_at"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    createdBy: text("created_by").references(() => user.id, { onDelete: "set null" }),
+  },
+  (t) => [
+    check("platform_broadcast_level_chk", sql`${t.level} in ('info', 'warning')`),
+    check("platform_broadcast_message_chk", sql`char_length(${t.message}) between 1 and 300`),
   ]
 );
 
