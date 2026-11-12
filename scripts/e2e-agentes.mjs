@@ -307,7 +307,7 @@ async function main() {
     await page.waitForURL(/\/lab(\?|$)/);
     ok("/agent con Laboratorio redirige a Agentes IA", /\/lab/.test(page.url()));
     await page.goto(`${BASE}/settings/quien-contesta`);
-    await page.getByText("IA de tu negocio").first().waitFor();
+    await page.getByRole("switch", { name: "Agente encendido" }).waitFor();
     ok("Ajustes → Quién contesta trae el interruptor general", (await page.getByRole("switch", { name: "Agente encendido" }).count()) === 1);
 
     // Crear desde la pantalla.
