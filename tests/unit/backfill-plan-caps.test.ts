@@ -1,12 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_PLAN_CATALOG } from "@/lib/plan-catalog";
-// @ts-expect-error — script .mjs sin tipos
 import { DEFAULTS, planFill } from "../../scripts/backfill-plan-caps.mjs";
 
 describe("scripts/backfill-plan-caps.mjs", () => {
   it("los valores de fábrica del script son los del catálogo", () => {
-    for (const k of Object.keys(DEFAULTS)) {
-      const e = DEFAULT_PLAN_CATALOG[k as keyof typeof DEFAULT_PLAN_CATALOG];
+    for (const k of Object.keys(DEFAULTS) as (keyof typeof DEFAULTS)[]) {
+      const e = DEFAULT_PLAN_CATALOG[k];
       expect(DEFAULTS[k]).toEqual({ members: e.peopleLimit, storageGb: e.storageGb });
     }
   });
