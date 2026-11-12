@@ -46,6 +46,7 @@
     "test:e2e:apariencia": "node --env-file=.env scripts/e2e-apariencia.mjs",
     "test:e2e:trabajo": "node --env-file=.env scripts/e2e-trabajo.mjs",
     "test:e2e:numero-nuevo": "node --env-file=.env scripts/e2e-numero-nuevo.mjs",
+    "test:e2e:varios-numeros": "node --env-file=.env scripts/e2e-varios-numeros.mjs",
     "test:e2e:documentos": "node --env-file=.env scripts/e2e-documentos.mjs",
     "test:e2e:bandeja-campanas": "node --env-file=.env scripts/e2e-bandeja-campanas.mjs",
     "test:e2e:apagado": "node --env-file=.env scripts/e2e-apagado.mjs",
