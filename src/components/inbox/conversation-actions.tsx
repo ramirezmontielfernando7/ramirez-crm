@@ -18,7 +18,7 @@ import { FloatingMenu, MenuItem, type MenuAnchor } from "./floating-menu";
  * Coordinador). Es cosmético: la ruta lo valida de nuevo y responde 403.
  */
 
-export const DELETE_WARNING =
+const DELETE_WARNING =
   "Esta acción eliminará el chat y todos sus mensajes de forma permanente. No se puede deshacer.";
 
 async function errorOf(res: Response | null, fallback: string): Promise<string> {
@@ -28,7 +28,7 @@ async function errorOf(res: Response | null, fallback: string): Promise<string> 
 }
 
 /** PATCH { archived }. Devuelve el mensaje de error, o null si salió bien. */
-export async function setArchived(id: string, archived: boolean): Promise<string | null> {
+async function setArchived(id: string, archived: boolean): Promise<string | null> {
   const res = await fetch(`/api/conversations/${id}`, {
     method: "PATCH",
     headers: { "content-type": "application/json" },
@@ -38,7 +38,7 @@ export async function setArchived(id: string, archived: boolean): Promise<string
 }
 
 /** DELETE. Devuelve el mensaje de error, o null si salió bien. */
-export async function deleteChat(id: string): Promise<string | null> {
+async function deleteChat(id: string): Promise<string | null> {
   const res = await fetch(`/api/conversations/${id}`, { method: "DELETE" }).catch(() => null);
   if (res?.ok) return null;
   if (res?.status === 403) return "No tienes permiso para eliminar chats";

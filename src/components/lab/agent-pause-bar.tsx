@@ -5,7 +5,6 @@ import { PauseCircle } from "lucide-react";
 import { PAUSE_LABEL } from "@/lib/agent-pause";
 import { Button } from "@/components/ui/button";
 import { call } from "@/components/lab/agents-api";
-import { ConfirmDialog } from "@/components/lab/confirm-dialog";
 
 /** Avisa a la lista de agentes (y a quien escuche) que la pausa general cambió. */
 export const PAUSE_CHANGED_EVENT = "vocero:agents-pause-changed";
@@ -81,38 +80,3 @@ export function AgentPauseBar() {
   );
 }
 
-/** «Pausar toda la IA» (pide confirmación). En pausa no se muestra: reanudar vive en el aviso rojo. */
-export function PauseAllButton() {
-  const { state, busy, error, set } = useOrgPause();
-  const [confirming, setConfirming] = useState(false);
-  if (!state || state.paused) return null;
-
-  return (
-    <>
-      <Button variant="outline" size="sm" onClick={() => setConfirming(true)} disabled={busy} data-testid="agents-pause-all">
-        <PauseCircle className="h-4 w-4" strokeWidth={1.8} /> Pausar toda la IA
-      </Button>
-      {error && (
-        <p role="alert" className="text-sm text-destructive">
-          {error}
-        </p>
-      )}
-      {confirming && (
-        <ConfirmDialog
-          title="¿Pausar todos los agentes de IA?"
-          confirmLabel="Pausar todos"
-          destructive
-          busy={busy}
-          onConfirm={() => void set(true).then(() => setConfirming(false))}
-          onCancel={() => setConfirming(false)}
-        >
-          <p>
-            Ningún agente responderá. Los chats que iban a atender pasan a atención humana, igual que cuando un agente
-            pide ayuda: tu equipo los verá con su aviso.
-          </p>
-          <p>No se borra ni cambia nada de su configuración. Al reanudar, los agentes vuelven a responder los chats nuevos; los que ya pasaron a una persona se quedan con ella.</p>
-        </ConfirmDialog>
-      )}
-    </>
-  );
-}

@@ -40,14 +40,14 @@ const log = logger("agenda");
  */
 
 /** Hasta cuándo atrás una cita sin cerrar sigue siendo tema de conversación. */
-export const DIAS_SIN_CERRAR = 7;
+const DIAS_SIN_CERRAR = 7;
 
 /** Hasta cuándo atrás una cita cerrada sigue siendo tema de conversación. */
-export const DIAS_CERRADA = 7;
+const DIAS_CERRADA = 7;
 
 const DIA_MS = 86_400_000;
 
-export type CitaEnContexto = {
+type CitaEnContexto = {
   id: string;
   /** Siempre `agendada`: las cerradas van en `lastClosed`. */
   status: "agendada";
@@ -62,7 +62,7 @@ export type CitaEnContexto = {
 
 export type EstadoCerrada = "cancelada" | "no_show" | "realizada";
 
-export type CitaCerrada = {
+type CitaCerrada = {
   id: string;
   status: EstadoCerrada;
   startUtc: string;
@@ -81,7 +81,7 @@ export type CitaCerrada = {
   // Sin enlace a propósito: el de una cita cerrada ya no sirve.
 };
 
-export type CitasEnContexto = {
+type CitasEnContexto = {
   /** Zona del negocio, en la que están las etiquetas. */
   timezone: string;
   next: CitaEnContexto | null;

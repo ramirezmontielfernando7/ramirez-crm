@@ -17,7 +17,7 @@ import { BookingError, type BookingResult } from "@/server/agenda/service";
  *    ofrecían.
  */
 
-export type BookingPayload = {
+type BookingPayload = {
   bookingId: string;
   meetingLink: string | null;
   linkPending: boolean;

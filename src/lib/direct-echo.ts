@@ -67,7 +67,7 @@ export type EchoCandidate = {
   at: Date;
 };
 
-export type EchoFacts = {
+type EchoFacts = {
   type: string;
   text: string | null;
   at: Date;

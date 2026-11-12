@@ -20,7 +20,7 @@ export const CONNECTOR_ORDER: readonly ConnectorId[] = [
   "google",
 ];
 
-export type ConnectorMeta = {
+type ConnectorMeta = {
   label: string;
   /** Qué hace, en una línea, para la pantalla de Ajustes. */
   description: string;

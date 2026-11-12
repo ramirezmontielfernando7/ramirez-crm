@@ -32,9 +32,9 @@ import { NOT_HEALTH_CODES } from "@/server/campaigns/outcome";
 
 export const INSTANCE_ID = `${hostname().slice(0, 40)}-${process.pid}-${randomBytes(4).toString("hex")}`;
 
-export const LEASE_MS = 30_000;
+const LEASE_MS = 30_000;
 /** Además de no tener dueño vivo, el reclamo debe tener al menos esta edad. */
-export const CLAIM_STALE_MS = 2 * 60_000;
+const CLAIM_STALE_MS = 2 * 60_000;
 
 type RecipientRow = typeof schema.campaignRecipient.$inferSelect;
 

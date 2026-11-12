@@ -99,7 +99,7 @@ function maskDeep(value: unknown, masker: Masker, key = ""): unknown {
   return value;
 }
 
-export type ReadToolResult =
+type ReadToolResult =
   | { ok: true; label: string; args: Record<string, unknown>; forModel: unknown; forOwner: unknown }
   | { ok: false; reason: string };
 
@@ -135,7 +135,7 @@ function unmaskDeep(value: unknown, masker: Masker): unknown {
   return value;
 }
 
-export type ProposalCheck = { ok: true; proposal: AssistantProposal } | { ok: false; reason: string };
+type ProposalCheck = { ok: true; proposal: AssistantProposal } | { ok: false; reason: string };
 
 /** Revisa una propuesta del modelo: herramienta permitida y parámetros válidos. NO la corre. */
 export function checkProposal(

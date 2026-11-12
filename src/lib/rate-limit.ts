@@ -40,7 +40,7 @@ function sweep(buckets: Map<string, Bucket>, now: number): void {
   }
 }
 
-export type RateLimitResult = { allowed: boolean; remaining: number };
+type RateLimitResult = { allowed: boolean; remaining: number };
 
 export function checkRateLimit(
   key: string,

@@ -25,7 +25,7 @@ export function isPriority(v: unknown): v is PriorityValue {
 }
 
 /** Orden de trabajo: alta primero, y lo que no tiene prioridad va al final. */
-export const PRIORITY_RANK: Record<PriorityValue, number> = {
+const PRIORITY_RANK: Record<PriorityValue, number> = {
   alta: 0,
   media: 1,
   baja: 2,

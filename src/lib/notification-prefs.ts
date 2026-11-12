@@ -92,7 +92,7 @@ export function inQuietHours(quiet: NotifPrefs["quiet"], now: Date): boolean {
   return quiet.from < quiet.to ? m >= quiet.from && m < quiet.to : m >= quiet.from || m < quiet.to;
 }
 
-export type NotifDecision = { inApp: boolean; sound: boolean; system: boolean };
+type NotifDecision = { inApp: boolean; sound: boolean; system: boolean };
 
 /** Qué hacer con un aviso nuevo según las preferencias y la hora. */
 export function decide(kind: NotifKind, prefs: NotifPrefs, now: Date): NotifDecision {

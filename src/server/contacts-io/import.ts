@@ -138,7 +138,7 @@ export async function findOptOutConflicts(organizationId: string, rows: ValidRow
 }
 
 /** Un contacto de la importación (nuevo o existente) y su fila del archivo. */
-export type ImportedMember = { contactId: string; row: ValidRow; created: boolean };
+type ImportedMember = { contactId: string; row: ValidRow; created: boolean };
 
 type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
 

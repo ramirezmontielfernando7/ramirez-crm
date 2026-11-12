@@ -24,8 +24,8 @@ export const DEFAULT_STOP_KEYWORDS: readonly string[] = [
   "unsubscribe",
 ];
 
-export const MAX_STOP_KEYWORDS = 30;
-export const MAX_STOP_KEYWORD_LENGTH = 40;
+const MAX_STOP_KEYWORDS = 30;
+const MAX_STOP_KEYWORD_LENGTH = 40;
 export const MAX_STOP_REPLY_LENGTH = 500;
 
 /** Minúsculas, sin acentos, sin puntuación ni emojis, espacios colapsados. */

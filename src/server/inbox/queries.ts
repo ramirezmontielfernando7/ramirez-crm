@@ -157,7 +157,7 @@ export async function countUnread(access: Access): Promise<number> {
  * de la lista completa, y lo que la sesión ya no ve (archivado aparte,
  * eliminado, reasignado, pasado a «Campañas») simplemente no vuelve.
  */
-export type ConversationSubset = { ids?: string[]; contactIds?: string[] };
+type ConversationSubset = { ids?: string[]; contactIds?: string[] };
 
 function subsetCondition(only: ConversationSubset | undefined) {
   if (!only) return undefined;
@@ -174,7 +174,7 @@ function subsetCondition(only: ConversationSubset | undefined) {
  * MISMA regla que `matchesListQuery` (src/lib/inbox-list.ts) aplica en el
  * navegador sobre lo ya cargado: si cambias uno, cambia el otro.
  */
-export type ListOptions = {
+type ListOptions = {
   list?: ListFilters & { status: ListStatus };
   /** Sin `page`: la lista entera, como siempre (globo, menciones, guiones). */
   page?: { limit: number; cursor: Cursor | null };

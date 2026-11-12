@@ -19,13 +19,13 @@
 
 export const DAY_MS = 86_400_000;
 /** Cuántos días antes se avisa que la prueba o el pago vencen. */
-export const WARN_DAYS = 3;
+const WARN_DAYS = 3;
 export const DEFAULT_GRACE_DAYS = 5;
 export const DEFAULT_TRIAL_DAYS = 14;
 
 export type BillingKind = "none" | "trial" | "trial_ending" | "trial_expired" | "paid" | "due" | "grace" | "overdue";
 
-export type BillingInput = {
+type BillingInput = {
   trialEndsAt: Date | null;
   paidUntil: Date | null;
   graceDays: number;

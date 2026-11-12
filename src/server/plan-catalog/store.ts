@@ -134,7 +134,7 @@ export async function changePlatformContact(input: string | null, actor: AuditAc
 }
 
 /** Cambio parcial de un plan: un campo ausente no se toca; `null` vuelve al valor de fábrica. */
-export type PlanCatalogPatch = {
+type PlanCatalogPatch = {
   name?: string | null;
   tagline?: string | null;
   priceMonthlyMxn?: number | null;

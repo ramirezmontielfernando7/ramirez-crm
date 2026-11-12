@@ -24,18 +24,6 @@ import { cn } from "@/lib/utils";
 /** El resorte de la app: rápido, con un rebote apenas perceptible. */
 export const SPRING = { type: "spring", duration: 0.2, bounce: 0.12 } as const;
 /**
- * Para recorridos largos (la columna de contenido cuando el menú cambia de
- * ancho, hasta ~220 px): sin rebote — en esa distancia hasta 0.12 se vería
- * pasarse de largo.
- */
-export const SLIDE = { type: "spring", duration: 0.22, bounce: 0 } as const;
-/**
- * Para una pieza que se transforma en otra (la lupa que se estira hasta ser
- * el buscador): un poco más largo que SPRING porque recorre todo el ancho,
- * sin rebote para que el borde no "tiemble" al llegar.
- */
-export const MORPH = { type: "spring", duration: 0.26, bounce: 0 } as const;
-/**
  * Los paneles que entran y salen: el menú lateral al cambiar de estado
  * (expandido → íconos → oculto; la columna de contenido se desliza ~170 px) y
  * el panel de Detalles de la Bandeja. Los dos con el MISMO tiempo y la MISMA

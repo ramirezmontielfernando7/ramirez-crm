@@ -93,7 +93,7 @@ export function whenIndexerIdle(): Promise<void> {
 }
 
 /** Indexa (o completa los vectores de) UN documento, a nombre de su organización. */
-export async function indexDocument(organizationId: string, id: string): Promise<void> {
+async function indexDocument(organizationId: string, id: string): Promise<void> {
   // Una organización suspendida no gasta servidor: se queda en cola hasta el próximo arranque.
   if (!(await isOrgActive(organizationId))) return;
   const current = await getDocument(organizationId, id);

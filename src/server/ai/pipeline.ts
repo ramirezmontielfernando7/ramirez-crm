@@ -116,13 +116,13 @@ async function executeTurn(conversationId: string): Promise<void> {
  * 031 — Opciones del turno. `agentOverride`: el Laboratorio (evaluaciones)
  * fija la config y el conocimiento a evaluar en vez de resolverlos.
  */
-export type TurnOptions = { agentOverride?: AgentOverride };
+type TurnOptions = { agentOverride?: AgentOverride };
 
 type Conversation = typeof schema.conversation.$inferSelect;
 type Stage = { id: string; name: string };
 
 /** Lo que necesita `decideTurn`: todo en memoria, nada de la BD. */
-export type DecideInput = {
+type DecideInput = {
   organizationId: string;
   /** "agent" en conversaciones reales; "lab" en el Laboratorio y la vista previa. */
   kind: "agent" | "lab";

@@ -36,10 +36,10 @@ import { orgHasConexionDirecta } from "@/server/modules";
 const log = logger("direct-connection");
 
 /** Cuánto se espera, como mucho, a que termine un envío del mismo chat (20 s del dispositivo + «escribiendo…»). */
-export const ECHO_WAIT_MS = 30_000;
+const ECHO_WAIT_MS = 30_000;
 const POLL_MS = 500;
 
-export type EchoInput = {
+type EchoInput = {
   organizationId: string;
   conversationId: string;
   waMessageId: string;
@@ -53,7 +53,7 @@ export type EchoInput = {
   directId?: string | null;
 };
 
-export type EchoJoin =
+type EchoJoin =
   /** El eco era de un envío directo (o ya se había procesado): no se registra otra vez. */
   | { joined: true; messageId: string | null }
   /** Es un mensaje escrito en el celular: entra como siempre, con el ID del dispositivo para los estados. */

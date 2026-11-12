@@ -9,11 +9,11 @@ import { subscribeAppToWaba, testConnection, verifyPhoneInWaba, type SubscribeOu
  */
 
 /** Espera antes de reintentar la suscripción (Meta a veces tarda en reconocer el token nuevo). */
-export const SUBSCRIBE_RETRY_MS = process.env.NODE_ENV === "test" ? 0 : 1500;
+const SUBSCRIBE_RETRY_MS = process.env.NODE_ENV === "test" ? 0 : 1500;
 
-export type ConnectionFailure = { ok: false; status: number; code: string; message: string };
+type ConnectionFailure = { ok: false; status: number; code: string; message: string };
 
-export type ValidConnection = { ok: true; displayPhoneNumber: string; verifiedName: string | null };
+type ValidConnection = { ok: true; displayPhoneNumber: string; verifiedName: string | null };
 
 /** Token↔número, número↔WABA y que no sea de otra organización. Sin escribir nada. */
 export async function validateConnection(

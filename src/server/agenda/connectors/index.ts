@@ -30,7 +30,7 @@ import {
  */
 
 /** Un conector con sus credenciales ya resueltas: el genérico queda borrado. */
-export type BoundConnector = {
+type BoundConnector = {
   id: ConnectorId;
   createMeeting(req: MeetingRequest): Promise<MeetingResult>;
   updateMeeting(

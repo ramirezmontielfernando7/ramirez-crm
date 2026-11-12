@@ -20,9 +20,9 @@ const log = logger("agentes");
 export type AgentRow = typeof schema.agent.$inferSelect;
 type ProfileRow = typeof schema.agentProfile.$inferSelect;
 
-export const GENERAL_INTERNAL_NAME = "Agente principal";
+const GENERAL_INTERNAL_NAME = "Agente principal";
 
-export type GeneralState = {
+type GeneralState = {
   /** El interruptor global (sigue viviendo en `agent_profile`). */
   enabled: boolean;
   /** 042 — La pausa general de emergencia (`agent_profile.paused_at`). */
@@ -90,7 +90,7 @@ async function readGeneral(organizationId: string): Promise<{ profile: ProfileRo
 }
 
 /** ¿El perfil cambió por fuera del espejo? (pura; la parte barata). */
-export function needsReconcile(
+function needsReconcile(
   profile: Pick<ProfileRow, "name" | "tone" | "instructions" | "escalationRules" | "greeting" | "updatedAt">,
   agent: Pick<AgentRow, "publishedAt">,
   published: AgentConfig | null

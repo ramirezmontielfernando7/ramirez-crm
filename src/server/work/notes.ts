@@ -117,7 +117,7 @@ async function resolveLink(
   return { contactId: null, conversationId: null };
 }
 
-export type NoteInput = {
+type NoteInput = {
   title?: string | null;
   body?: string;
   color?: NoteColor;
@@ -147,7 +147,7 @@ export async function createNote(v: Viewer, input: NoteInput): Promise<NoteDto> 
   return (await serialize(v, [row!]))[0]!;
 }
 
-export type NotePatch = NoteInput & { pinned?: boolean; archived?: boolean };
+type NotePatch = NoteInput & { pinned?: boolean; archived?: boolean };
 
 /** null = no existe para quien pide (404); "forbidden" = la ve pero no la puede tocar. */
 export async function updateNote(v: Viewer, id: string, patch: NotePatch): Promise<NoteDto | null | "forbidden"> {

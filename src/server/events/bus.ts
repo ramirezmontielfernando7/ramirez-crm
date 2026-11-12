@@ -102,7 +102,7 @@ export type TeamSseEvent =
       audience: readonly string[];
     };
 
-export function isTeamEvent(event: SseEvent): event is TeamSseEvent {
+function isTeamEvent(event: SseEvent): event is TeamSseEvent {
   return event.type === "team.message" || event.type === "team.thread";
 }
 
@@ -123,7 +123,7 @@ export type NumberSseEvent =
       audience: readonly string[];
     };
 
-export function isNumberEvent(event: SseEvent): event is NumberSseEvent {
+function isNumberEvent(event: SseEvent): event is NumberSseEvent {
   return event.type === "number.message" || event.type === "number.conversation";
 }
 

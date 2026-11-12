@@ -18,9 +18,9 @@ import { hashToken } from "@/server/ai-connector/keys";
  * ÚNICA puerta de `ai_upload_link`.
  */
 
-export type UploadLink = typeof schema.aiUploadLink.$inferSelect;
+type UploadLink = typeof schema.aiUploadLink.$inferSelect;
 
-export type UploadLinkOptions = {
+type UploadLinkOptions = {
   note: string | null;
   tags: string[];
   inChat: boolean;
@@ -29,7 +29,7 @@ export type UploadLinkOptions = {
   ragGroupId: string | null;
 };
 
-export function uploadLinkUrl(token: string): string {
+function uploadLinkUrl(token: string): string {
   return `${getEnv().APP_BASE_URL.replace(/\/+$/, "")}/subir/${token}`;
 }
 

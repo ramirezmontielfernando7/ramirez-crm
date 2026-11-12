@@ -47,7 +47,7 @@ async function myLiveNumber(organizationId: string, userId: string): Promise<Num
   return row;
 }
 
-export type MyChatDto = {
+type MyChatDto = {
   id: string;
   contact: { id: string; name: string; phone: string | null; inCrm: boolean };
   preview: string | null;
@@ -66,7 +66,7 @@ export type MyChatDto = {
   crm: ConversationDto | null;
 };
 
-export type MyChats = {
+type MyChats = {
   numberId: string;
   shareClients: boolean;
   chats: MyChatDto[];
@@ -75,8 +75,8 @@ export type MyChats = {
 };
 
 /** DF-15: los chats más recientes por lectura (antes, todos). */
-export const CHATS_PAGE = 200;
-export const CHATS_MAX = 2000;
+const CHATS_PAGE = 200;
+const CHATS_MAX = 2000;
 
 export async function listMyChats(
   organizationId: string,
@@ -220,7 +220,7 @@ export async function markClient(organizationId: string, userId: string, convers
  * El cuerpo de «Es cliente», también para los chats que nacen ya como cliente
  * (`clientByDefault`): quien llama decidió que corresponde.
  */
-export async function applyClientMark(
+async function applyClientMark(
   number: NumberRow,
   conversation: typeof schema.conversation.$inferSelect,
   userId: string

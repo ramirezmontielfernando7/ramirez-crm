@@ -19,7 +19,7 @@ export function capUsd(cap: FnCapValue, poolUsd: number | null): number | null {
   return cap.usd;
 }
 
-export type CapsCheck = { ok: true; repartidoUsd: number; pct: number | null } | { ok: false; code: "pct_sin_total" | "suma_excede"; message: string; pct: number | null };
+type CapsCheck = { ok: true; repartidoUsd: number; pct: number | null } | { ok: false; code: "pct_sin_total" | "suma_excede"; message: string; pct: number | null };
 
 /** Lo repartido entre funciones no puede pasar del total; un % necesita un total. */
 export function checkCaps(caps: FnCapValue[], poolUsd: number | null): CapsCheck {

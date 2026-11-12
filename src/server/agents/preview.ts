@@ -23,12 +23,12 @@ import { AgentError, getAgent } from "./store";
  * Guardarraíl: `tests/unit/lab-preview-sandbox.test.ts`.
  */
 
-export type PreviewChip = {
+type PreviewChip = {
   kind: "note" | "move_stage" | "handoff" | "none" | "agenda" | "degraded";
   label: string;
 };
 
-export type PreviewResult =
+type PreviewResult =
   | {
       ok: true;
       reply: string | null;
@@ -49,7 +49,7 @@ export type PreviewResult =
     }
   | { ok: false; error: "quota_exceeded" | "not_configured" };
 
-export type PreviewInput = {
+type PreviewInput = {
   organizationId: string;
   agentId: string;
   config: AgentConfig;
@@ -123,7 +123,7 @@ async function docOrigins(
 }
 
 /** Traduce la decisión a burbuja + chips. Pura: nada se ejecuta. */
-export function toPreview(decision: TurnDecision): PreviewResult {
+function toPreview(decision: TurnDecision): PreviewResult {
   const debug = {
     model: decision.meta.model,
     tokens: decision.meta.tokens,

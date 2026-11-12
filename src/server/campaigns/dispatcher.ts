@@ -221,7 +221,7 @@ async function readHealth(organizationId: string): Promise<Health> {
   };
 }
 
-export type DispatchOptions = {
+type DispatchOptions = {
   owner?: string;
   send?: SendFn;
   /** Para pruebas: se detiene tras este número de envíos. */
@@ -369,7 +369,7 @@ export async function dispatchNumber(
 }
 
 /** ¿Hay que pausar esta campaña? (tasa de fallos, calidad, cuenta, uso del límite). */
-export async function checkSafety(
+async function checkSafety(
   organizationId: string,
   campaignId: string,
   settings: CampaignSettingsDto,
@@ -480,13 +480,13 @@ function tickMs(): number {
 }
 
 /** Operación 1: detiene el programador (al apagar). */
-export function stopCampaignScheduler(): void {
+function stopCampaignScheduler(): void {
   if (globalForDispatch.__voceroCampaignScheduler) clearInterval(globalForDispatch.__voceroCampaignScheduler);
   globalForDispatch.__voceroCampaignScheduler = undefined;
 }
 
 /** Operación 1: se resuelve cuando todos los despachadores de esta réplica terminaron. */
-export async function waitForDispatchers(): Promise<void> {
+async function waitForDispatchers(): Promise<void> {
   while (running().size > 0) await Promise.allSettled([...running().values()]);
 }
 

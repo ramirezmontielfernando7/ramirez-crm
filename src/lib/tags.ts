@@ -81,7 +81,7 @@ export function stageColorValue(
   return STAGE_TOKEN_BY_NAME[name ?? ""] ?? "var(--text-3)";
 }
 
-export type StageDot = { className: string; style?: { background: string } };
+type StageDot = { className: string; style?: { background: string } };
 
 export function stageDot(color: string | null | undefined, name: string | null | undefined): StageDot {
   if (isTagColor(color)) return { className: TAG_DOT_CLASS[color] };

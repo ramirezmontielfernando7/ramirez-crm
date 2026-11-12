@@ -8,10 +8,10 @@
 import { normalizeMx } from "@/lib/meta/mx";
 
 /** Lada que se asume cuando el número viene sin código de país (México). */
-export const DEFAULT_COUNTRY_CODE = "52";
+const DEFAULT_COUNTRY_CODE = "52";
 
 /** Mínimo de dígitos para tratar la búsqueda como un teléfono completo. */
-export const MIN_PHONE_DIGITS = 7;
+const MIN_PHONE_DIGITS = 7;
 
 /** Solo dígitos y los adornos con que la gente escribe un teléfono. */
 const PHONE_SHAPE = /^[\d\s\-().+]+$/;
@@ -36,7 +36,7 @@ export function stripPhoneAdornments(input: string): string {
   return PHONE_SHAPE.test(raw) ? raw.replace(/\D/g, "") : raw;
 }
 
-export type TypedPhone = {
+type TypedPhone = {
   /** Identidad de WhatsApp (521→52 ya aplicado), solo dígitos. */
   phone: string;
   /** ¿Es un número que se puede registrar? */

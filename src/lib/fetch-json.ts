@@ -9,7 +9,7 @@
  */
 import { uploadHttpMessage } from "@/lib/upload-limits";
 
-export type FetchResult<T> =
+type FetchResult<T> =
   | { ok: true; data: T; status: number }
   | { ok: false; error: string; code: string | null; status: number };
 

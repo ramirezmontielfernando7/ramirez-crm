@@ -1,4 +1,4 @@
-import { and, asc, eq, gte, inArray } from "drizzle-orm";
+import { and, asc, eq, gte } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
 import { scoped } from "@/lib/db/tenant";
@@ -44,7 +44,7 @@ const log = logger("agenda");
  * costarnos la conversión, ni hacernos prometer un enlace que no existe.
  */
 
-export type BookingErrorCode =
+type BookingErrorCode =
   | "slot_taken"
   | "slot_not_offered"
   | "not_found"
@@ -741,34 +741,7 @@ async function advanceLeadStage(
   });
 }
 
-/** Citas que ocupan agenda de verdad. */
-export const ACTIVE_STATUSES = ["agendada", "realizada"] as const;
 
-/** ¿Hay alguna cita activa para este contacto? Lo usa el agente. */
-export async function hasActiveBooking(
-  organizationId: string,
-  contactId: string,
-  now = new Date()
-): Promise<boolean> {
-  const db = getDb();
-  const rows = await db
-    .select({ id: schema.booking.id })
-    .from(schema.booking)
-    .where(
-      scoped(
-        schema.booking.organizationId,
-        organizationId,
-        and(
-          eq(schema.booking.contactId, contactId),
-          eq(schema.booking.kind, "session"),
-          inArray(schema.booking.status, [...ACTIVE_STATUSES]),
-          gte(schema.booking.scheduledAt, now)
-        )
-      )
-    )
-    .limit(1);
-  return rows.length > 0;
-}
 
 /** 23505 = unique_violation de Postgres. */
 function isUniqueViolation(err: unknown): boolean {

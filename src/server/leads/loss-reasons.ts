@@ -10,7 +10,7 @@ import { DEFAULT_LOSS_REASONS, LOSS_REASON_LABEL, type LossReasonDto } from "@/l
  * Quitar un motivo solo lo archiva; el nombre sigue sirviendo para el
  * historial. La clave de «otro» no se archiva (el sistema la usa).
  */
-export const PROTECTED_KEY = "otro";
+const PROTECTED_KEY = "otro";
 export const LABEL_MAX = 60;
 
 const toDto = (r: typeof schema.lossReason.$inferSelect): LossReasonDto => ({
@@ -83,7 +83,7 @@ export async function createLossReason(organizationId: string, label: string): P
   return toDto(row!);
 }
 
-export type LossReasonPatch = { label?: string; active?: boolean; position?: number };
+type LossReasonPatch = { label?: string; active?: boolean; position?: number };
 
 /** `null` = no existe; `"protected"` = intentó archivar «otro». */
 export async function updateLossReason(

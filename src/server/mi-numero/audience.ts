@@ -15,7 +15,7 @@ import { can, ROLES } from "@/lib/auth/permissions";
 /** Los roles que supervisan los números del equipo (los de `mi_numero.manage`). */
 export const SUPERVISOR_ROLES: readonly string[] = ROLES.filter((role) => can({ role }, "mi_numero.manage"));
 
-export async function supervisorIds(organizationId: string): Promise<string[]> {
+async function supervisorIds(organizationId: string): Promise<string[]> {
   const rows = await getDb()
     .select({ userId: schema.member.userId })
     .from(schema.member)

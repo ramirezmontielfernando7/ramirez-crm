@@ -21,7 +21,7 @@ const SHOWN = 3;
 /** Cuántos se guardan como reservables: el catálogo es más ancho que el menú. */
 const OFFERED = 12;
 
-export type AgendaTurn = {
+type AgendaTurn = {
   /** Lo que hay que enviarle al cliente. */
   text: string;
   /** false ⇒ el motor no pudo; el turno sigue, sin agendar. */

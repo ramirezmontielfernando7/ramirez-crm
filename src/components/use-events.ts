@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 
-export type EventHandlers = {
+type EventHandlers = {
   onMessageNew?: (data: { conversationId: string; message: unknown }) => void;
   onMessageStatus?: (data: {
     conversationId: string;

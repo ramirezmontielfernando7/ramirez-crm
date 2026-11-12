@@ -1,13 +1,3 @@
-/**
- * Campañas v2 (PR 1) — Reglas puras de la salud del número de WhatsApp.
- * Sin BD ni red: las usan el servidor, la interfaz y las pruebas.
- *
- * Nada aquí fija un límite de Meta: el límite se LEE de Meta (campo crudo
- * como TIER_1K) y solo se traduce a número para comparar el uso del día.
- */
-
-/** "NA" y "UNKNOWN" son sinónimos en la documentación de Meta: sin calificar. */
-export type QualityRating = "GREEN" | "YELLOW" | "RED" | "UNKNOWN" | "NA";
 
 export type PhoneHealthSnapshot = {
   day: string;

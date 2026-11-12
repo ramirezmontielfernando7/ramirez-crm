@@ -15,7 +15,7 @@ const log = logger("embedded-signup");
  * la app) es el mismo camino que la conexión manual.
  */
 
-export type EmbeddedSignupConfig = {
+type EmbeddedSignupConfig = {
   appId: string;
   configId: string;
   graphApiVersion: string;
@@ -43,7 +43,7 @@ function appSecret(): string | null {
   return secret && !secret.startsWith("REEMPLAZA") ? secret : null;
 }
 
-export type ExchangeResult =
+type ExchangeResult =
   | { ok: true; token: string }
   | { ok: false; code: "not_configured" | "code_expired" | "meta_unavailable" | "meta_error"; message: string };
 
@@ -89,7 +89,7 @@ export async function exchangeCodeForToken(code: string): Promise<ExchangeResult
   }
 }
 
-export type RegisterResult =
+type RegisterResult =
   | { ok: true }
   | { ok: false; code: "pin_mismatch" | "meta_unavailable" | "meta_error"; message: string };
 

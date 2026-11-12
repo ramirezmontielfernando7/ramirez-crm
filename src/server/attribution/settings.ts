@@ -12,10 +12,10 @@ import { scoped } from "@/lib/db/tenant";
  * más que auditar.
  */
 
-export type { CapiSettings };
+;
 
 /** Lo que puede ver el cliente. El token NUNCA sale: solo sus últimos 4. */
-export type CapiSettingsView = {
+type CapiSettingsView = {
   datasetId: string;
   status: "connected" | "error";
   tokenLast4: string;

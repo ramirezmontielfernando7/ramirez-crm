@@ -20,17 +20,6 @@ export function forbidden(): Response {
   return apiError(403, "forbidden", "No tienes permiso para esta acción");
 }
 
-/**
- * 020 — Para rutas con acciones mixtas (p. ej. el PATCH de un lead que mueve
- * etapa —cualquiera con acceso— o reasigna —solo quien reparte—): devuelve
- * el 403 listo, o null si puede.
- */
-export function requirePermission(
-  session: SessionContext,
-  permission: Permission
-): Response | null {
-  return can(session, permission) ? null : forbidden();
-}
 
 /**
  * Envuelve un route handler autenticado: resuelve la sesión (401 si no hay),

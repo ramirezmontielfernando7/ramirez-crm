@@ -38,7 +38,7 @@ export const FAVICON_MIMES = [
   "image/webp",
 ] as const;
 
-export type FaviconMime = (typeof FAVICON_MIMES)[number];
+type FaviconMime = (typeof FAVICON_MIMES)[number];
 
 /**
  * 256 KB. Un favicon de más no existe; el tope está para que nadie use este

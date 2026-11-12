@@ -39,7 +39,7 @@ const log = logger("meta-analiticas");
  * pantalla lo dice) y los precios se sincronizan igual.
  */
 
-export type AnalyticsSyncOutcome = {
+type AnalyticsSyncOutcome = {
   kind: AnalyticsKind;
   status: "ok" | "not_enabled" | "error" | "skipped";
   rows: number;

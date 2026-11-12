@@ -88,13 +88,13 @@ export const DEFAULT_PLAN_CATALOG: PlanCatalog = {
  * tu plan» ni se pueden solicitar. Inicio espera a probar la conexión directa
  * con números reales. El administrador sí lo ve y lo puede asignar.
  */
-export const UNSOLD_SCOPES: readonly CatalogScope[] = ["inicio"];
+const UNSOLD_SCOPES: readonly CatalogScope[] = ["inicio"];
 
 /**
  * Planes que se ENSEÑAN en «Mejora tu plan» como «Próximamente», pero todavía
  * no se pueden solicitar (Fer, 2026-11-11: Ultra espera).
  */
-export const COMING_SOON_SCOPES: readonly CatalogScope[] = ["ultra"];
+const COMING_SOON_SCOPES: readonly CatalogScope[] = ["ultra"];
 
 export function isComingSoon(scope: CatalogScope): boolean {
   return COMING_SOON_SCOPES.includes(scope);

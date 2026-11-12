@@ -47,7 +47,7 @@ export function audienceConditions(audience: CampaignAudience, marketing: Market
  * apagado (0 días); la baja 131050 aplica igual. `campaignId` = la campaña
  * que se revisa, que no se cuenta a sí misma.
  */
-export type MarketingRules = { cutoff: Date | null; campaignId?: string | null };
+type MarketingRules = { cutoff: Date | null; campaignId?: string | null };
 
 export function marketingRulesFor(
   category: string | null | undefined,
@@ -185,26 +185,7 @@ export async function audienceBreakdown(
   return { eligible, excluded };
 }
 
-export type AudiencePreview = {
-  /** A cuántos se les enviará. */
-  eligible: number;
-  /** Cumplen el filtro pero NO tienen opt_in (no recibirán nada). */
-  withoutConsent: number;
-  /** De esos, cuántos pidieron explícitamente no recibir. */
-  optedOut: number;
-};
 
-/** 021 — Resumen corto (sigue sirviendo a `/api/campaigns/preview`). */
-export async function previewAudience(organizationId: string, audience: CampaignAudience): Promise<AudiencePreview> {
-  // Sin plantilla todavía: solo consentimiento (las reglas de marketing las
-  // aplica el paso con plantilla, `previewCampaign`).
-  const b = await audienceBreakdown(organizationId, audience);
-  return {
-    eligible: b.eligible,
-    withoutConsent: b.excluded.optOut + b.excluded.noConsent,
-    optedOut: b.excluded.optOut,
-  };
-}
 
 /**
  * Los contactos elegibles, para congelar la lista de destinatarios al lanzar,

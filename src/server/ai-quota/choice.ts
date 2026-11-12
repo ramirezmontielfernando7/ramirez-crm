@@ -12,7 +12,7 @@ import { getAiBonusUsd } from "@/server/billing/store";
  * variables de entorno. Solo lo llama la puerta (`chatJsonForOrg`).
  */
 import type { FnCap, PoolMode } from "@/server/ai-quota/quota";
-export type OrgAiResolution = AiChoice & { usdLimit: number | null; fnCap: FnCap; poolMode: PoolMode };
+type OrgAiResolution = AiChoice & { usdLimit: number | null; fnCap: FnCap; poolMode: PoolMode };
 
 /** 048 — El tope mensual de la bolsa SIN la IA extra del mes (lo que cuesta «restablecer»). */
 export async function orgBaseUsdLimit(organizationId: string): Promise<number | null> {

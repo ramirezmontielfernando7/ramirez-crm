@@ -14,14 +14,14 @@ import { Button } from "@/components/ui/button";
  * un chat mío (el dueño acepta o rechaza) y lo que me compartieron.
  */
 
-export type Overlap = {
+type Overlap = {
   conversationId: string;
   userName: string;
   since: string;
   canRequest: boolean;
   access: "none" | "pending" | "granted" | "rejected";
 };
-export type IncomingRequest = {
+type IncomingRequest = {
   id: string;
   requesterName: string;
   /** PR 7: «Coordinador» o «Propietario» cuando pide quien supervisa los números. */
@@ -30,8 +30,8 @@ export type IncomingRequest = {
   conversationId: string;
   requestedAt: string;
 };
-export type SharedChat = { conversationId: string; ownerName: string; contactName: string };
-export type AccessOverview = {
+type SharedChat = { conversationId: string; ownerName: string; contactName: string };
+type AccessOverview = {
   incoming: IncomingRequest[];
   granted: { id: string; userName: string; contactName: string; conversationId: string; since: string }[];
   views: { userName: string; contactName: string; viewedAt: string }[];

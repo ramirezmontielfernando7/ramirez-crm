@@ -8,7 +8,7 @@ import { runWithOrganization } from "@/lib/request-context";
 import { logger } from "@/lib/log";
 import { revokeConnectionsOfUser } from "@/server/ai-connector/keys";
 import { postSystemNotice } from "@/server/team-chat/messages";
-import { recordPlatformAudit, type AuditActor } from "./audit";
+import { recordPlatformAudit } from "./audit";
 
 /**
  * Fase 3, PR 2 — Enlaces de un solo uso para que una persona ponga SU
@@ -28,10 +28,10 @@ import { recordPlatformAudit, type AuditActor } from "./audit";
  * correo transaccional (conector opcional, más adelante).
  */
 
-export const LINK_TTL_MS = { activate: 72 * 60 * 60 * 1000, reset: 2 * 60 * 60 * 1000 } as const;
+const LINK_TTL_MS = { activate: 72 * 60 * 60 * 1000, reset: 2 * 60 * 60 * 1000 } as const;
 export const MIN_PASSWORD_LENGTH = 8;
 
-export type LinkPurpose = keyof typeof LINK_TTL_MS;
+type LinkPurpose = keyof typeof LINK_TTL_MS;
 
 const log = logger("platform");
 
@@ -100,12 +100,12 @@ export async function createTeamLink(
   return createAccountLink(userId, "activate", createdBy);
 }
 
-export type LinkInfo =
+type LinkInfo =
   | { ok: true; purpose: LinkPurpose; name: string; emailMasked: string }
   | { ok: false; reason: "invalid" | "used" | "expired" };
 
 /** `ana@ejemplo.com` → `a••@ejemplo.com`: para que la persona reconozca su cuenta. */
-export function maskEmail(email: string): string {
+function maskEmail(email: string): string {
   const [user = "", domain = ""] = email.split("@");
   return `${user.slice(0, 1)}${"•".repeat(Math.max(2, Math.min(user.length - 1, 6)))}@${domain}`;
 }
@@ -131,7 +131,7 @@ export async function inspectAccountLink(token: string, now = new Date()): Promi
   return { ok: true, purpose: row.purpose, name: row.name, emailMasked: maskEmail(row.email) };
 }
 
-export type Consume = { ok: true; purpose: LinkPurpose } | { ok: false; reason: "invalid" | "used" | "expired" | "weak_password" };
+type Consume = { ok: true; purpose: LinkPurpose } | { ok: false; reason: "invalid" | "used" | "expired" | "weak_password" };
 
 /** Usa el enlace: fija la contraseña nueva y lo quema. */
 export async function consumeAccountLink(input: {
@@ -226,4 +226,4 @@ export async function consumeAccountLink(input: {
   return { ok: true, purpose: used.purpose };
 }
 
-export type { AuditActor };
+;

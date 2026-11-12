@@ -137,7 +137,7 @@ function pendientes(s: NonNullable<BotBlockDto["sessions"]>): string | undefined
 }
 
 /** Segundos en algo que se lee de un vistazo. */
-export function formatSegundos(s: number): string {
+function formatSegundos(s: number): string {
   if (s < 60) return `${Math.round(s)} s`;
   if (s < 3600) return `${Math.round(s / 60)} min`;
   return `${Math.round((s / 3600) * 10) / 10} h`;

@@ -9,7 +9,7 @@ import { getOrgModules } from "./store";
  * pregunta ahora por la organización a nombre de la cual actúa.
  */
 export { anyOrgHasChannel, getOrgModules, getManyOrgModules, forgetOrgModules } from "./store";
-export type { OrgModules, OptionalChannel } from "./defaults";
+export type { OrgModules,  } from "./defaults";
 export { OPTIONAL_CHANNELS, enabledModuleKeys } from "./defaults";
 
 export async function orgHasCampaigns(organizationId: string): Promise<boolean> {
@@ -20,10 +20,6 @@ export async function orgHasAgenda(organizationId: string): Promise<boolean> {
   return (await getOrgModules(organizationId)).agenda;
 }
 
-/** 033 — Tareas y Notas (Citas es `agenda`). */
-export async function orgHasTrabajo(organizationId: string): Promise<boolean> {
-  return (await getOrgModules(organizationId)).trabajo;
-}
 
 export async function orgHasAtribucion(organizationId: string): Promise<boolean> {
   return (await getOrgModules(organizationId)).atribucion;
@@ -33,7 +29,7 @@ export async function orgHasAtribucion(organizationId: string): Promise<boolean>
  * Messenger y «Conectar con Facebook» están ocultos hasta probarlos.
  * Para reactivarlos: FACEBOOK_UI_ENABLED=true (el código y los datos siguen).
  */
-export function facebookUiEnabled(): boolean {
+function facebookUiEnabled(): boolean {
   return process.env.FACEBOOK_UI_ENABLED === "true";
 }
 

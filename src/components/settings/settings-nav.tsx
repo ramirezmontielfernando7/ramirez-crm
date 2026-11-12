@@ -141,7 +141,7 @@ const href = (slug: string) => `/settings/${slug}`;
 type Resolved = { item: Item; pages: Page[]; to: string };
 
 /** Los grupos con solo los renglones que existen para quien mira. */
-export function settingsGroups(visible: (slug: string) => boolean): { label: string; items: Resolved[] }[] {
+function settingsGroups(visible: (slug: string) => boolean): { label: string; items: Resolved[] }[] {
   return GROUPS.map((g) => ({
     label: g.label,
     items: g.items.flatMap((item): Resolved[] => {

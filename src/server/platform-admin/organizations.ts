@@ -33,7 +33,7 @@ import { checkAllAlerts, checkModuleAlerts } from "@/server/limits/alerts";
  * Pool de sistema: la plataforma está por encima de las organizaciones.
  */
 
-export const PURGE_GRACE_DAYS = 30;
+const PURGE_GRACE_DAYS = 30;
 
 export class PlatformError extends Error {
   constructor(
@@ -51,7 +51,7 @@ function sys(): Db {
   return getSystemDb();
 }
 
-export type OrganizationSummary = {
+type OrganizationSummary = {
   id: string;
   name: string;
   slug: string | null;
@@ -71,7 +71,7 @@ export type OrganizationSummary = {
  * Fase 3, PR 3 — Los módulos opcionales de una organización tal como los ve
  * y edita /platform. Solo interruptores: ningún dato del negocio.
  */
-export type ModulesDto = {
+type ModulesDto = {
   campaigns: boolean;
   agenda: boolean;
   atribucion: boolean;
@@ -98,7 +98,7 @@ export type ModulesDto = {
   conectorIa: boolean;
 };
 
-export function modulesDto(m: OrgModules): ModulesDto {
+function modulesDto(m: OrgModules): ModulesDto {
   return {
     campaigns: m.campaigns,
     agenda: m.agenda,
@@ -162,7 +162,7 @@ export async function listOrganizations(): Promise<OrganizationSummary[]> {
   }));
 }
 
-export type OrganizationMember = { userId: string; name: string; email: string; role: string };
+type OrganizationMember = { userId: string; name: string; email: string; role: string };
 
 /** Las personas de una organización (nombre, correo y rol; nada más). */
 export async function listMembers(organizationId: string): Promise<OrganizationMember[]> {
@@ -175,7 +175,7 @@ export async function listMembers(organizationId: string): Promise<OrganizationM
 }
 
 /** `Mi Negocio Ñandú` → `mi-negocio-nandu-k3x9` (único por el sufijo). */
-export function slugFor(name: string): string {
+function slugFor(name: string): string {
   const base = name
     .normalize("NFD")
     .replace(/[̀-ͯ]/g, "")
@@ -266,7 +266,7 @@ export async function createOrganization(
   return { organizationId, activationUrl: link.url, expiresAt: link.expiresAt };
 }
 
-export type StatusAction = "suspend" | "reactivate" | "delete" | "restore";
+type StatusAction = "suspend" | "reactivate" | "delete" | "restore";
 
 const TRANSITIONS: Record<StatusAction, { from: OrgStatus[]; to: OrgStatus; audit: "organization.suspended" | "organization.reactivated" | "organization.deleted" | "organization.restored" }> = {
   suspend: { from: ["active"], to: "suspended", audit: "organization.suspended" },
@@ -330,7 +330,7 @@ export async function changeOrganizationStatus(
   return { status: t.to, purgeAfter };
 }
 
-export type ModulesChange = Partial<Omit<ModulesDto, "campaignSendRate">> & {
+type ModulesChange = Partial<Omit<ModulesDto, "campaignSendRate">> & {
   campaignSendRate?: number | null;
 };
 

@@ -38,7 +38,7 @@ export const SWITCH_TEXT: Record<NumberSwitch, { title: string; on: string; off:
   },
 };
 
-export const SWITCH_ORDER: readonly NumberSwitch[] = ["shareClients", "clientByDefault", "overlapNotice", "allowViewRequests", "aiReplies", "aiConnector"];
+const SWITCH_ORDER: readonly NumberSwitch[] = ["shareClients", "clientByDefault", "overlapNotice", "allowViewRequests", "aiReplies", "aiConnector"];
 
 /**
  * 047 — Los interruptores que se muestran: el de la IA conectada solo si la

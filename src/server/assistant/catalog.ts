@@ -422,10 +422,9 @@ const QUERIES = [
   }),
 ];
 
-export type AssistantQueryName = (typeof QUERIES)[number]["name"];
 export const ASSISTANT_QUERY_NAMES = QUERIES.map((q) => q.name);
 
-export function findQuery(name: string) {
+function findQuery(name: string) {
   return QUERIES.find((q) => q.name === name) ?? null;
 }
 
@@ -437,7 +436,7 @@ export function renderCatalog(): string {
   ].join("\n");
 }
 
-export type RunQueryResult =
+type RunQueryResult =
   | { ok: true; label: string; args: Record<string, unknown>; output: QueryOutput }
   | { ok: false; reason: string };
 

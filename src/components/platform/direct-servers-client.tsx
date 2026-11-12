@@ -11,7 +11,7 @@ import { api } from "./api";
  * capacidad y estado. Cada empresa se asigna desde su ficha.
  */
 
-export type DirectServer = {
+type DirectServer = {
   id: string;
   name: string;
   baseUrl: string;

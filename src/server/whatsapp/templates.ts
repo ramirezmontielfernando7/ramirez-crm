@@ -655,7 +655,7 @@ async function pauseBlockedCampaigns(organizationId: string): Promise<void> {
  * Los dos se avisan en la interfaz hasta que alguien pulsa «Entendido».
  * Corre ya a nombre de la organización (waba-events.ts la enrutó).
  */
-export type TemplateCategoryEvent =
+type TemplateCategoryEvent =
   | { kind: "upcoming"; current: string; upcoming: string; at: Date | null }
   | { kind: "changed"; previous: string | null; current: string };
 

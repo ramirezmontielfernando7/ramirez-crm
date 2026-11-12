@@ -14,9 +14,9 @@ import { notLabContact } from "@/server/analytics/shared";
  */
 
 /** Días sin que hable el cliente a partir de los cuales el lead está frío. */
-export const SILENCIO_DIAS = 7;
+const SILENCIO_DIAS = 7;
 /** Cuántos leads en silencio se listan; el total viaja aparte. */
-export const MAX_SILENCIOSOS = 50;
+const MAX_SILENCIOSOS = 50;
 
 export async function hygieneBlock(
   scope: Access,

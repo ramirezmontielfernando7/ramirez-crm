@@ -33,14 +33,14 @@ const log = logger("agentes");
 /** D6 — Agentes activos (no archivados) por organización. */
 export const MAX_ACTIVE_AGENTS = 20;
 /** Plan Esencial (agente sin Laboratorio): UN solo agente, el general. */
-export const MAX_AGENTS_WITHOUT_LAB = 1;
+const MAX_AGENTS_WITHOUT_LAB = 1;
 
 /** Cuántos agentes activos admite la organización (con Laboratorio, 20; sin él, 1). */
 export async function maxAgentsFor(organizationId: string): Promise<number> {
   return (await orgHasModule(organizationId, "lab")) ? MAX_ACTIVE_AGENTS : MAX_AGENTS_WITHOUT_LAB;
 }
 
-export type AgentErrorCode = "agent_limit" | "agent_general" | "not_published" | "not_found" | "unknown_group";
+type AgentErrorCode = "agent_limit" | "agent_general" | "not_published" | "not_found" | "unknown_group";
 
 export class AgentError extends Error {
   constructor(readonly code: AgentErrorCode, message: string) {
@@ -198,7 +198,7 @@ export async function listAgents(organizationId: string): Promise<AgentSummary[]
  * que hoy responde cada uno (lo publicado, o el borrador si nunca se
  * publicó). SOLO LECTURA: a diferencia de `listAgents`, no garantiza el general.
  */
-export type AgentForAudit = {
+type AgentForAudit = {
   id: string;
   name: string;
   isGeneral: boolean;
@@ -489,7 +489,7 @@ export async function restoreVersion(
  * (`loadTurnContext`): traspaso a una persona, nunca silencio.
  * --------------------------------------------------------------------- */
 
-export type OrgPauseState = { paused: boolean; pausedAt: string | null };
+type OrgPauseState = { paused: boolean; pausedAt: string | null };
 
 /**
  * Auditoría UX 2026-11 (paquete B) — el interruptor GLOBAL de la IA
@@ -586,7 +586,7 @@ export async function setAgentPaused(
  * contrato de siempre: guardar = publicar, como antes de 031.
  * --------------------------------------------------------------------- */
 
-export type LegacyProfile = {
+type LegacyProfile = {
   enabled: boolean;
   name: string;
   displayName: string | null;
@@ -616,7 +616,7 @@ export async function getLegacyProfile(organizationId: string): Promise<LegacyPr
   };
 }
 
-export type LegacyPatch = {
+type LegacyPatch = {
   enabled?: boolean;
   name?: string | null;
   tone?: string | null;

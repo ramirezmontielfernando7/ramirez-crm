@@ -85,7 +85,7 @@ export class SendError extends Error {
 }
 
 /** El texto que ve quien envía cuando Meta no respondió a tiempo. */
-export const META_TIMEOUT_MESSAGE =
+const META_TIMEOUT_MESSAGE =
   "Meta no respondió a tiempo: no se sabe si el mensaje salió. No se reintentó para no duplicarlo";
 
 type SendResult = {
@@ -735,14 +735,14 @@ export async function sendMediaMessage(input: {
   return { messageId: await confirmOutbound(reserved, waMessageId, "pending", asset) };
 }
 
-export type LocationInput = {
+type LocationInput = {
   latitude: number;
   longitude: number;
   name?: string;
   address?: string;
 };
 
-export type ContactInput = { name: string; phone: string };
+type ContactInput = { name: string; phone: string };
 
 /** 008 — Envía una ubicación o contactos (payload estructurado, sin archivo). */
 export async function sendStructured(

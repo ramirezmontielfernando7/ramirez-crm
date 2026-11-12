@@ -1,4 +1,4 @@
-﻿import { and, asc, eq } from "drizzle-orm";
+﻿import { asc, eq } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
 import { scoped } from "@/lib/db/tenant";
@@ -21,15 +21,13 @@ import { reportStageChange } from "@/server/attribution/conversions";
  */
 
 type LeadRow = typeof schema.lead.$inferSelect;
-
-export type MoveResult =
+ type MoveResult =
   | { ok: true; lead: LeadRow; changed: boolean }
   | {
       ok: false;
       reason: "lead_not_found" | "stage_not_found" | "loss_reason_required";
     };
-
-export type MoveInput = {
+ type MoveInput = {
   organizationId: string;
   leadId: string;
   toStageId: string;
@@ -276,37 +274,3 @@ export async function relocateLeadsFromStage(input: {
   return moved;
 }
 
-/** El último motivo de pérdida registrado de un lead, si lo hay. */
-export async function lastLossReason(
-  organizationId: string,
-  leadId: string
-): Promise<{ reason: LossReason; note: string | null; at: Date } | null> {
-  const db = getDb();
-  const rows = await db
-    .select({
-      lossReason: schema.leadStageEvent.lossReason,
-      lossNote: schema.leadStageEvent.lossNote,
-      occurredAt: schema.leadStageEvent.occurredAt,
-    })
-    .from(schema.leadStageEvent)
-    .where(
-      scoped(
-        schema.leadStageEvent.organizationId,
-        organizationId,
-        and(
-          eq(schema.leadStageEvent.leadId, leadId),
-          eq(schema.leadStageEvent.toStageKind, "lost")
-        )
-      )
-    )
-    .orderBy(asc(schema.leadStageEvent.occurredAt))
-    .limit(50);
-
-  const last = rows.filter((r) => r.lossReason).at(-1);
-  if (!last?.lossReason) return null;
-  return {
-    reason: last.lossReason,
-    note: last.lossNote,
-    at: last.occurredAt,
-  };
-}

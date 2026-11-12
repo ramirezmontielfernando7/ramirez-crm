@@ -20,7 +20,7 @@ export const LAYOUT_ROLES: readonly Role[] = ["owner", "coordinador", "asesor"];
  * Lo que un rol no puede ocultarse: el Propietario se quedaría sin Ajustes
  * (y con él, sin Ajustes → Navegación para deshacerlo).
  */
-export const LOCKED_VISIBLE: Partial<Record<Role, readonly ModuleKey[]>> = {
+const LOCKED_VISIBLE: Partial<Record<Role, readonly ModuleKey[]>> = {
   owner: ["settings"],
 };
 
@@ -32,7 +32,7 @@ export function isLocked(role: Role, key: ModuleKey): boolean {
 type Has = { has: (key: ModuleKey) => boolean };
 
 /** 039 — ¿Se puede abrir esta pestaña de un pilar? (módulo + permiso, y no cedida). */
-export function isSectionAvailable(
+function isSectionAvailable(
   section: NavSection,
   modules: Has,
   can: (p: Permission) => boolean
@@ -123,7 +123,7 @@ export function isAvailable(
 }
 
 /** 039 — A dónde lleva el renglón: la primera pestaña que se puede abrir. */
-export function entryHref(
+function entryHref(
   def: ModuleDef,
   modules: ReadonlySet<ModuleKey>,
   can: (p: Permission) => boolean

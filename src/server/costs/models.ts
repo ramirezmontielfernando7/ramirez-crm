@@ -87,7 +87,7 @@ export function getModelsInUse(): ModelsInUse {
   };
 }
 
-export type OpenRouterLookup = Partial<Record<AiRole, PriceSuggestion | null>>;
+type OpenRouterLookup = Partial<Record<AiRole, PriceSuggestion | null>>;
 
 /**
  * Pide a OpenRouter su lista pública de modelos (`GET /v1/models`, sin llave)

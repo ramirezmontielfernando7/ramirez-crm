@@ -22,11 +22,11 @@ import { resolveToken, touchConnection } from "@/server/ai-connector/keys";
  */
 
 /** Por conexión: 120 llamadas por minuto (2/s sostenidos). */
-export const MCP_BUDGET = { windowMs: 60_000, max: 120 };
+const MCP_BUDGET = { windowMs: 60_000, max: 120 };
 /** Llaves FALLIDAS por IP: 30/min y luego 429 (como `/api/bot/*`). */
-export const MCP_AUTH_FAILURES = { windowMs: 60_000, max: 30 };
+const MCP_AUTH_FAILURES = { windowMs: 60_000, max: 30 };
 
-export type McpAuth =
+type McpAuth =
   | { ok: true; session: SessionContext; connectionId: string; scopes: Scope[]; assistantName: string | null }
   | { ok: false; response: Response };
 
@@ -35,7 +35,7 @@ function jsonError(status: number, code: string, message: string, headers: Recor
 }
 
 /** 401 con el puntero a los metadatos (RFC 9728 §5.1): así la IA sabe dónde iniciar sesión. */
-export function unauthorized(message = "Falta una llave válida de Dashfort"): Response {
+function unauthorized(message = "Falta una llave válida de Dashfort"): Response {
   const metadata = resourceMetadataUrl(getEnv().APP_BASE_URL);
   return jsonError(401, "invalid_token", message, {
     "WWW-Authenticate": `Bearer resource_metadata="${metadata}"`,

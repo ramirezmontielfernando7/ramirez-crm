@@ -8,7 +8,7 @@
 export type KbDocMime = "text/plain" | "text/markdown" | "application/pdf";
 
 /** Extensiones que entran. Todo lo demás se rechaza con `unsupported`. */
-export const KB_DOC_EXTENSIONS: Record<string, KbDocMime> = {
+const KB_DOC_EXTENSIONS: Record<string, KbDocMime> = {
   txt: "text/plain",
   md: "text/markdown",
   markdown: "text/markdown",
@@ -20,15 +20,15 @@ export const KB_DOC_ACCEPT = ".txt,.md,.markdown,.pdf";
 /** Texto máximo de un documento ya extraído. */
 export const KB_DOC_MAX_CHARS = 300_000;
 /** Tamaño objetivo y solape de un fragmento (caracteres). */
-export const CHUNK_SIZE = 800;
-export const CHUNK_OVERLAP = 120;
+const CHUNK_SIZE = 800;
+const CHUNK_OVERLAP = 120;
 /** Tope duro de un fragmento (CHECK de la 0040). */
 export const CHUNK_MAX = 2000;
 /** Lo que entra al prompt en un turno. */
-export const MAX_INJECT_CHUNKS = 4;
-export const MAX_INJECT_CHARS = 4000;
+const MAX_INJECT_CHUNKS = 4;
+const MAX_INJECT_CHARS = 4000;
 /** La consulta: los últimos mensajes del cliente, hasta este largo. */
-export const QUERY_MAX_CHARS = 500;
+const QUERY_MAX_CHARS = 500;
 /** Candidatos de cada búsqueda antes de fusionar. */
 export const CANDIDATES = 8;
 

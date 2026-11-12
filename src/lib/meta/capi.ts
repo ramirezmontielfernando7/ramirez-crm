@@ -16,7 +16,7 @@ import { graphRequest } from "@/lib/meta/client";
 /** Cómo se identifica el software que integró el evento. Constante del proyecto. */
 const PARTNER_AGENT = "vocero-crm";
 
-export type BusinessMessagingEvent = {
+type BusinessMessagingEvent = {
   eventName: string;
   /** Epoch en SEGUNDOS del momento de la conversión. */
   eventTime: number;
@@ -43,7 +43,7 @@ export type BusinessMessagingEvent = {
  *
  * Doc: /docs/marketing-api/conversions-api/business-messaging
  */
-export const META_BUSINESS_MESSAGING_EVENTS = [
+const META_BUSINESS_MESSAGING_EVENTS = [
   "Purchase",
   "LeadSubmitted",
   "QualifiedLead",
@@ -60,7 +60,7 @@ export const META_BUSINESS_MESSAGING_EVENTS = [
   "ReviewProvided",
 ] as const;
 
-export type MetaBusinessMessagingEvent =
+type MetaBusinessMessagingEvent =
   (typeof META_BUSINESS_MESSAGING_EVENTS)[number];
 
 export function isMetaBusinessMessagingEvent(
@@ -74,7 +74,7 @@ export function isMetaBusinessMessagingEvent(
  * único acuse real. Sin mirarlo, "enviado" solo significaría "no hubo un HTTP
  * de error", y un evento descartado en silencio se vería idéntico a uno bueno.
  */
-export type CapiAck = {
+type CapiAck = {
   eventsReceived: number;
   fbTraceId: string | null;
   /** Respuesta cruda: cuando algo no cuadra, el `messages[]` de Meta dice más. */

@@ -43,9 +43,9 @@ const log = logger("ai-connector");
  * dinámico (RFC 7591, tabla de plataforma `ai_oauth_client`).
  */
 
-export const MCP_RESOURCE = () => `${getEnv().APP_BASE_URL.replace(/\/+$/, "")}/api/mcp`;
+const MCP_RESOURCE = () => `${getEnv().APP_BASE_URL.replace(/\/+$/, "")}/api/mcp`;
 
-export type OAuthClient = { clientId: string; clientName: string; redirectUris: string[] };
+type OAuthClient = { clientId: string; clientName: string; redirectUris: string[] };
 
 /* ---------- Registro dinámico (RFC 7591) ---------- */
 
@@ -199,7 +199,7 @@ export const authorizeSchema = z.object({
   scope: z.string().max(100).optional(),
   resource: z.string().max(500).optional(),
 });
-export type AuthorizeParams = z.infer<typeof authorizeSchema>;
+type AuthorizeParams = z.infer<typeof authorizeSchema>;
 
 /**
  * Lo que la pantalla necesita para mostrar «X quiere actuar como tú», o el
@@ -262,14 +262,14 @@ function redirectWith(uri: string, q: Record<string, string | undefined>): strin
 
 /* ---------- Token endpoint ---------- */
 
-export type TokenResponse = {
+type TokenResponse = {
   access_token: string;
   token_type: "Bearer";
   expires_in: number;
   refresh_token: string;
   scope: string;
 };
-export type TokenError = { error: "invalid_grant" | "invalid_request" | "invalid_client" | "invalid_target"; description: string };
+type TokenError = { error: "invalid_grant" | "invalid_request" | "invalid_client" | "invalid_target"; description: string };
 
 function pkceS256(verifier: string): string {
   return createHash("sha256").update(verifier, "ascii").digest("base64url");

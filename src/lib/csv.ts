@@ -20,7 +20,7 @@ export class CsvError extends Error {
   }
 }
 
-export type CsvRow = { line: number; cells: string[] };
+type CsvRow = { line: number; cells: string[] };
 
 export function detectDelimiter(text: string): "," | ";" {
   const firstLine = text.split(/\r\n|\n|\r/, 1)[0] ?? "";

@@ -138,8 +138,6 @@ const DEMO_KB: { kind: "qa" | "block"; question?: string; answer?: string; conte
   // HUECO INTENCIONAL: nada sobre garantías ni devoluciones (lo encuentra el Laboratorio).
 ];
 
-/** Para la prueba: los teléfonos de la demo son los de `DEMO_PHONES`. */
-export const DEMO_CONTACT_PHONES = (): string[] => DEMO_CONTACTS.map((c) => c.phone);
 
 export async function seedDemo(
   db: Db,

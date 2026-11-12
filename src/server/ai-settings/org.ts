@@ -13,7 +13,7 @@ import { PLAN_SCOPES, type AiFunctionValues } from "./platform";
  * plataforma (`PUT /api/platform/organizations/[id]/ai`).
  */
 
-export type OverMode = "block" | "warn";
+type OverMode = "block" | "warn";
 const asMode = (v: string | null | undefined): OverMode => (v === "warn" ? "warn" : "block");
 const asUnit = (v: string | null | undefined): CapUnit => ((CAP_UNITS as readonly string[]).includes(v ?? "") ? (v as CapUnit) : "usd");
 const capOf = (unit: string | null, value: string | null, usd: string | null): FnCapValue => ({ unit: asUnit(unit), value: asNum(value), usd: asNum(usd) });
@@ -31,7 +31,7 @@ export type OrgAiCaps = {
 export type OrgAiOverrides = AiFunctionValues & { monthlyUsdLimit: number | null } & OrgAiCaps;
 /** Lo que se puede cambiar: `caps` por función (las que no vengan se conservan). */
 export type OrgAiPatch = Partial<Omit<OrgAiOverrides, "caps">> & { caps?: Partial<OrgAiCaps["caps"]> };
-export type OrgAiState = { overrides: OrgAiOverrides; plan: (typeof PLAN_SCOPES)[number] | null };
+type OrgAiState = { overrides: OrgAiOverrides; plan: (typeof PLAN_SCOPES)[number] | null };
 
 const EMPTY: OrgAiOverrides = {
   agentModel: null,

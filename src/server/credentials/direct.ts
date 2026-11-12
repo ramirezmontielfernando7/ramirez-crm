@@ -87,7 +87,7 @@ export async function getServer(id: string): Promise<ServerSummary | null> {
   return summary(row, (await usedBy([id])).get(id) ?? 0);
 }
 
-export type NewServer = {
+type NewServer = {
   name: string;
   /** Ya normalizada (`normalizeServerUrl`). */
   baseUrl: string;
@@ -448,15 +448,3 @@ export async function connectionsToCheck(): Promise<ConnectionRow[]> {
     );
 }
 
-/** La llave de la instancia en claro (PR 3 la usará para enviar). Nunca se registra. */
-export function openInstanceKey(row: ConnectionRow): string | null {
-  if (!row.instanceKeyCipher || !row.instanceKeyIv || !row.instanceKeyTag)
-    return null;
-  const r = open(
-    row.instanceKeyCipher,
-    row.instanceKeyIv,
-    row.instanceKeyTag,
-    row.keyVersion,
-  );
-  return r.ok ? r.value : null;
-}

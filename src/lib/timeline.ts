@@ -45,7 +45,7 @@ export type TimelineItemDto = {
   detail: Record<string, string | null>;
 };
 
-export type TimelineLine = {
+type TimelineLine = {
   /** Una línea: lo que se ve colapsado. */
   title: string;
   /** Contenido adicional para "ver más" (texto de la nota, motivo…). */

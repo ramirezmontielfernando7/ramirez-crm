@@ -117,7 +117,7 @@ export async function aiNumberMessages(session: SessionContext, conversationId: 
   return rows.reverse();
 }
 
-export type AiNumberSend =
+type AiNumberSend =
   | { ok: true; messageId: string; queuedUntil: Date | null }
   | { ok: false; code: string; message: string };
 

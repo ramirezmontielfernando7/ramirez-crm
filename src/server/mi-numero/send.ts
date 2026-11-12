@@ -24,7 +24,7 @@ import { MiNumeroFailure } from "./numbers";
  * Errores: `MiNumeroFailure` (sin número, no conectado, en pausa),
  * `MediaValidationError` (archivo) y `DirectSendFailure` (el envío).
  */
-export type NumberOutgoing =
+type NumberOutgoing =
   | { text: string }
   | { file: { data: Buffer; mimeType: string; fileName?: string }; caption?: string };
 

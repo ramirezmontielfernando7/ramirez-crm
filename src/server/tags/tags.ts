@@ -33,7 +33,7 @@ export const TAG_ERROR_STATUS: Record<TagError["code"], number> = {
 
 type TagRow = typeof schema.contactTag.$inferSelect;
 
-export function serializeTag(t: TagRow, contactCount?: number): TagDto {
+function serializeTag(t: TagRow, contactCount?: number): TagDto {
   return {
     id: t.id,
     name: t.name,
@@ -63,7 +63,7 @@ function isUniqueViolation(err: unknown): boolean {
  * cápsulas. `include` = todas; `only` = solo las de sistema (Ajustes y
  * Audiencias).
  */
-export type SystemTagScope = "exclude" | "include" | "only";
+type SystemTagScope = "exclude" | "include" | "only";
 
 function systemFilter(scope: SystemTagScope) {
   if (scope === "only") return isNotNull(schema.contactTag.systemOrigin);
@@ -159,26 +159,6 @@ export async function deleteTag(organizationId: string, tagId: string): Promise<
   if (!deleted[0]) throw new TagError("not_found", "Etiqueta no encontrada");
 }
 
-/**
- * La etiqueta con ese nombre, creándola si no existe (importación). Idempotente
- * frente a dos importaciones simultáneas gracias al índice único.
- */
-export async function ensureTag(organizationId: string, rawName: string): Promise<TagDto> {
-  const name = normalizeTagName(rawName);
-  if (!name) throw new TagError("invalid", `Nombre de etiqueta no válido: "${rawName.slice(0, 80)}"`);
-  const db = getDb();
-  await db
-    .insert(schema.contactTag)
-    .values({ id: newId("contactTag"), organizationId, name })
-    .onConflictDoNothing({ target: [schema.contactTag.organizationId, schema.contactTag.name] });
-  const rows = await db
-    .select()
-    .from(schema.contactTag)
-    .where(scoped(schema.contactTag.organizationId, organizationId, eq(schema.contactTag.name, name)))
-    .limit(1);
-  if (!rows[0]) throw new Error(`ensureTag: la etiqueta "${name}" no quedó creada`);
-  return serializeTag(rows[0]);
-}
 
 /** Etiquetas de varios contactos a la vez: contactId → etiquetas (por nombre). */
 export async function tagsForContacts(
@@ -337,23 +317,8 @@ export async function tagContactsInBulk(
   return changed.length;
 }
 
-/** Agrega (sin quitar) una etiqueta a muchos contactos: la usa la importación. */
-export async function addTagToContacts(
-  organizationId: string,
-  tagId: string,
-  contactIds: string[]
-): Promise<void> {
-  const db = getDb();
-  for (let i = 0; i < contactIds.length; i += 500) {
-    const chunk = contactIds.slice(i, i + 500);
-    await db
-      .insert(schema.contactTagAssignment)
-      .values(chunk.map((contactId) => ({ organizationId, contactId, tagId })))
-      .onConflictDoNothing();
-  }
-}
 
-export type MergeResult = {
+type MergeResult = {
   /** La etiqueta destino, con su conteo ya actualizado. */
   tag: TagDto;
   /** Contactos que ganaron el destino. */

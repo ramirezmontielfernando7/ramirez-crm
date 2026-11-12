@@ -7,7 +7,7 @@ import { AgentError } from "./store";
  * 031 — Los errores tipados de los agentes, como respuesta HTTP. `null` si
  * el error no es de aquí (la ruta lo relanza y `withAuth` responde 500).
  */
-export function agentErrorResponse(err: unknown): Response | null {
+function agentErrorResponse(err: unknown): Response | null {
   if (err instanceof AgentError) {
     const status = err.code === "not_found" ? 404 : err.code === "unknown_group" ? 422 : 409;
     return apiError(status, err.code, err.message);

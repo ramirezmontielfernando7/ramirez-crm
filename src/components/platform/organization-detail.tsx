@@ -74,7 +74,7 @@ function useOrg(): Ctx {
 
 const base = (id: string) => `/platform/organizaciones/${id}`;
 
-export function organizationTabs(id: string) {
+function organizationTabs(id: string) {
   return [
     { href: base(id), label: "Plan y módulos", match: (p: string) => p === base(id) },
     { href: `${base(id)}/cobro`, label: "Cobro y prueba" },

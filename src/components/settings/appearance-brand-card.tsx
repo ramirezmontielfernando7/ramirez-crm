@@ -20,7 +20,7 @@ import { cn } from "@/lib/utils";
  */
 
 /** Los seis colores de la maqueta; los tonos derivados y el contraste se calculan solos. */
-export const BRAND_SWATCHES: readonly { hex: string; label: string }[] = [
+const BRAND_SWATCHES: readonly { hex: string; label: string }[] = [
   { hex: "#12999d", label: "Teal" },
   { hex: "#1f5fd1", label: "Azul" },
   { hex: "#6d3fc0", label: "Morado" },

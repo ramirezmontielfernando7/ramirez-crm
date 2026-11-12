@@ -91,7 +91,7 @@ export const TOUR: readonly TourStep[] = [
   },
 ];
 
-export type Tutorial = Gate & {
+type Tutorial = Gate & {
   key: string;
   title: string;
   summary: string;

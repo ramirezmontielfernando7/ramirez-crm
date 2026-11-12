@@ -29,8 +29,8 @@ export const UNROUTED_RETENTION_DAYS = 7;
 /** Tope de filas: un número mal configurado no llena el disco. */
 export const UNROUTED_MAX_ROWS = 5000;
 
-export type UnroutedSource = "whatsapp" | "instagram" | "messenger";
-export type UnroutedRouteKind = "phone_number_id" | "waba_id" | "ig_user_id" | "page_id" | "account_ref";
+type UnroutedSource = "whatsapp" | "instagram" | "messenger";
+type UnroutedRouteKind = "phone_number_id" | "waba_id" | "ig_user_id" | "page_id" | "account_ref";
 
 /** Fase 3, PR 2: por qué no se procesó (nadie lo tiene, o su organización no opera). */
 export function unroutedReasonFor(orgStatus: "active" | "suspended" | "deleted"): string {
@@ -125,7 +125,7 @@ export async function startUnroutedPurge(): Promise<void> {
   }
 }
 
-export type UnroutedGroup = {
+type UnroutedGroup = {
   source: string;
   routeKind: string;
   routeKey: string;

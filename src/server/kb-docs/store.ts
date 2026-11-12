@@ -38,7 +38,7 @@ export class KbGroupError extends Error {
 }
 
 /** Lo que ve la pantalla (sin el texto completo). */
-export type KbDocumentDto = {
+type KbDocumentDto = {
   id: string;
   title: string;
   filename: string;
@@ -288,7 +288,7 @@ export async function documentsByEntries(organizationId: string, knowledgeEntryI
  * 037 — Grupos
  * ---------------------------------------------------------------- */
 
-export type KbDocumentGroup = typeof schema.kbDocumentGroup.$inferSelect;
+type KbDocumentGroup = typeof schema.kbDocumentGroup.$inferSelect;
 
 /** Un grupo con cuántos documentos tiene (`id: null` = General). */
 export type KbGroupSummary = {
@@ -327,14 +327,6 @@ export async function listGroups(organizationId: string): Promise<KbGroupSummary
   ];
 }
 
-export async function getGroup(organizationId: string, id: string): Promise<KbDocumentGroup | null> {
-  const [row] = await getDb()
-    .select()
-    .from(schema.kbDocumentGroup)
-    .where(scoped(schema.kbDocumentGroup.organizationId, organizationId, eq(schema.kbDocumentGroup.id, id)))
-    .limit(1);
-  return row ?? null;
-}
 
 /** El nombre ya viene limpio (`normalizeGroupName`). Tope bajo el candado: dos altas a la vez no lo pasan. */
 export async function createGroup(organizationId: string, name: string): Promise<KbDocumentGroup> {
@@ -608,7 +600,7 @@ export type ChunkHit = {
  * `src/lib/kb-docs.ts`:
  *   (de la empresa Y (todos | su grupo está entre los elegidos)) O exclusivo de ESTE agente
  */
-export function scopeCondition(scope: DocScope): SQL {
+function scopeCondition(scope: DocScope): SQL {
   const d = schema.kbDocument;
   const ofThisAgent = scope.agentId ? eq(d.agentId, scope.agentId) : sql`false`;
   if (scope.mode === "all") return or(isNull(d.agentId), ofThisAgent)!;

@@ -26,7 +26,7 @@ export type AiFunction = (typeof AI_FUNCTIONS)[number];
 export type AiUse = "agent" | "writing" | "creator" | "judge" | "assistant" | "analysis";
 export type AssistantMode = "fast" | "normal" | "deep";
 
-export const ASSISTANT_MODE_EFFORT: Record<AssistantMode, AiEffort> = { fast: "low", normal: "medium", deep: "high" };
+const ASSISTANT_MODE_EFFORT: Record<AssistantMode, AiEffort> = { fast: "low", normal: "medium", deep: "high" };
 
 export const AI_EFFORT_LABEL: Record<AiEffort, string> = {
   none: "Sin razonamiento",
@@ -35,11 +35,6 @@ export const AI_EFFORT_LABEL: Record<AiEffort, string> = {
   high: "Alto",
 };
 
-export const AI_FUNCTION_LABEL: Record<AiFunction, string> = {
-  agent: "Agentes",
-  creator: "Creador de agentes",
-  assistant: "Asistente",
-};
 
 export function functionOfUse(use: AiUse): AiFunction {
   if (use === "agent" || use === "writing") return "agent";
@@ -117,7 +112,7 @@ export function defaultUseOfKind(kind: string): AiUse {
  * 0070 — Una capa de valores elegidos (empresa, plan o instancia). NULL o
  * ausente = hereda de la siguiente capa; al final, el entorno.
  */
-export type AiLayer = {
+type AiLayer = {
   agentModel?: string | null;
   agentEffort?: AiEffort | null;
   creatorModel?: string | null;

@@ -339,16 +339,10 @@ export function isModuleKey(value: unknown): value is ModuleKey {
 
 /** Los que tienen entrada en el menú, en el orden por defecto. */
 export const NAV_MODULES: readonly ModuleDef[] = MODULES.filter((m) => m.route !== null);
-export type NavKey = ModuleKey;
 
 /** Núcleo: Bandeja, Contactos, Pipeline y Ajustes. */
 export const CORE_MODULES: readonly ModuleKey[] = MODULES.filter((m) => m.core).map((m) => m.key);
 
-/**
- * Los módulos que la plataforma puede apagar y cuya columna nueva nace en la
- * 0034 encendida (las organizaciones que ya existen no pierden nada).
- */
-export const TOGGLEABLE_0034 = ["knowledge", "lab", "agent", "team_chat", "results"] as const;
 
 /**
  * 039 — Planes comerciales (perfiles de alta): SOLO una plantilla para los 13

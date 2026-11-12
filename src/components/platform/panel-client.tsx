@@ -156,7 +156,7 @@ export function PanelClient() {
 }
 
 /** La píldora de plan de las tablas de Plataforma. */
-export function PlanPill({ label }: { label: string }) {
+function PlanPill({ label }: { label: string }) {
   const tone =
     label === "Ultra" ? "bg-violet-100 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300" : label === "Pro" ? "bg-brand-soft text-brand-text" : label === "Personalizado" ? "bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300" : "bg-muted text-text-2";
   return <span className={cn("inline-block w-fit rounded-full px-2 py-0.5 text-xs font-medium", tone)}>{label}</span>;

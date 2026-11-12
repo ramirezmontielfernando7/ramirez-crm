@@ -88,8 +88,8 @@ export type OrgModules = {
   conectorIa: boolean;
 };
 
-export const DEFAULT_SEND_RATE = 10;
-export const MAX_SEND_RATE = 80;
+const DEFAULT_SEND_RATE = 10;
+const MAX_SEND_RATE = 80;
 
 /**
  * Meta admite ~80/s por número, pero un número nuevo tiene límites diarios de

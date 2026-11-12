@@ -48,7 +48,7 @@ type GraphPhone = {
   whatsapp_business_manager_messaging_limit?: string | { current_limit?: string };
 };
 
-export type HealthReading = {
+type HealthReading = {
   qualityRating: string | null;
   messagingLimit: string | null;
   status: string | null;
@@ -74,7 +74,7 @@ export function readingFromGraph(p: GraphPhone): HealthReading {
   };
 }
 
-export type RefreshResult =
+type RefreshResult =
   | { ok: true; snapshot: PhoneHealthSnapshot }
   | { ok: false; error: "not_connected" | "reconnect_required" | "meta_unavailable" | "meta_error"; message: string };
 
@@ -221,7 +221,7 @@ export async function recordHealthEvent(
  * 24 h (aproximación propia del límite de mensajería: lo cuenta Meta, por
  * portafolio y fuera de la ventana de servicio). Sin el Laboratorio.
  */
-export async function usageLast24h(organizationId: string): Promise<number> {
+async function usageLast24h(organizationId: string): Promise<number> {
   const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
   const [row] = await getDb()
     .select({ n: sql<number>`count(distinct ${schema.conversation.contactId})::int` })
@@ -246,7 +246,7 @@ export async function usageLast24h(organizationId: string): Promise<number> {
   return Number(row?.n ?? 0);
 }
 
-export type HealthSummary = {
+type HealthSummary = {
   connected: boolean;
   phoneNumberId: string | null;
   today: PhoneHealthSnapshot | null;

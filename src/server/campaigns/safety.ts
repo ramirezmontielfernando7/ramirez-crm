@@ -17,7 +17,7 @@ import type { CampaignSettingsDto } from "@/lib/campaigns";
 
 export const USAGE_RETRY_MS = 30 * 60 * 1000;
 
-export type SafetyInput = {
+type SafetyInput = {
   settings: Pick<CampaignSettingsDto, "failRatePercent" | "failRateWindow" | "pauseOnQualityRed" | "usagePausePercent">;
   /** Últimos intentos que hablan de la salud del número, del más nuevo al más viejo. */
   recent: { failed: boolean }[];

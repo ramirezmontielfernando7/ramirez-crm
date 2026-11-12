@@ -22,7 +22,7 @@ const log = logger("media");
  * el disco propio es la copia durable que la UI previsualiza.
  */
 
-export type MediaKind = (typeof schema.mediaAsset.$inferSelect)["kind"];
+type MediaKind = (typeof schema.mediaAsset.$inferSelect)["kind"];
 
 /** Límites de la Cloud API por tipo (validados ANTES de tocar red, FR-007). */
 export const MEDIA_LIMITS: Record<

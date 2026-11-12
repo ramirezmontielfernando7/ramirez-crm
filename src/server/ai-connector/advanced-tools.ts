@@ -39,7 +39,7 @@ import { templateSendability } from "@/server/whatsapp/templates";
  */
 
 /** Más que esto no cabe en la conversación de una IA: que filtre. */
-export const AI_EXPORT_MAX = 2000;
+const AI_EXPORT_MAX = 2000;
 const AI_IMPORT_MAX = 500;
 
 function fail(error: string, summary: string): ToolOutcome {

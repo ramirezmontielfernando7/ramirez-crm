@@ -24,7 +24,7 @@ export type WeeklyHours = Partial<Record<WeekdayKey, Interval[]>>;
 export const DEFAULT_TIMEZONE = "America/Mexico_City";
 
 /** L-V 09:00-18:00 — se ajusta en Ajustes → Agenda. */
-export const DEFAULT_WEEKLY_HOURS: WeeklyHours = {
+const DEFAULT_WEEKLY_HOURS: WeeklyHours = {
   mon: [{ start: "09:00", end: "18:00" }],
   tue: [{ start: "09:00", end: "18:00" }],
   wed: [{ start: "09:00", end: "18:00" }],
@@ -57,7 +57,7 @@ export const DEFAULT_CALENDAR_SETTINGS: CalendarSettings = {
   meetingLink: null,
 };
 
-export const LIMITS = {
+const LIMITS = {
   slotMinutes: { min: 10, max: 240 },
   bufferMinutes: { min: 0, max: 120 },
   minNoticeHours: { min: 0, max: 72 },
@@ -105,7 +105,7 @@ export class CalendarSettingsError extends Error {
  * ruta, cada llamador tendría que hacer un cast — y un cast es justamente la
  * comprobación que no ocurre.
  */
-export type CalendarSettingsInput = Partial<
+type CalendarSettingsInput = Partial<
   Omit<CalendarSettings, "weeklyHours" | "connector">
 > & {
   weeklyHours?: unknown;
