@@ -198,6 +198,7 @@ export function AgendaClient() {
                     <div key={i} className="flex items-center gap-2">
                       <Input
                         type="time"
+                        aria-label={`${day.label}: de`}
                         value={iv.start}
                         onChange={(e) =>
                           setIntervalAt(day.key, i, { start: e.target.value })
@@ -207,6 +208,7 @@ export function AgendaClient() {
                       <span className="text-text-3">a</span>
                       <Input
                         type="time"
+                        aria-label={`${day.label}: a`}
                         value={iv.end}
                         onChange={(e) =>
                           setIntervalAt(day.key, i, { end: e.target.value })

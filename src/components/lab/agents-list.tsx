@@ -245,12 +245,12 @@ export function AgentsList() {
 
         <div role="table" aria-label="Agentes" className="overflow-hidden rounded-lg border bg-card">
           <div role="row" className={cn("hidden gap-4 border-b bg-subtle px-4 py-2 text-xs font-medium text-text-2 md:grid", cols)}>
-            <span>Agente</span>
-            <span>Estado</span>
-            <span>Atiende</span>
-            <span>Chats (7 días)</span>
-            <span>Resueltos sin persona</span>
-            <span className="w-[150px]" />
+            <span role="columnheader">Agente</span>
+            <span role="columnheader">Estado</span>
+            <span role="columnheader">Atiende</span>
+            <span role="columnheader">Chats (7 días)</span>
+            <span role="columnheader">Resueltos sin persona</span>
+            <span role="columnheader" aria-label="Acciones" className="w-[150px]" />
           </div>
           {data.agents.map((a) => {
             const st = statFor(a);
@@ -261,7 +261,7 @@ export function AgentsList() {
               role="row"
               className={cn("grid grid-cols-1 items-center gap-x-4 gap-y-2 border-b px-4 py-3 last:border-b-0", cols)}
             >
-              <Link href={`/lab/agents/${a.id}`} className="flex min-w-0 items-center gap-3 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring">
+              <div role="cell" className="min-w-0"><Link href={`/lab/agents/${a.id}`} className="flex min-w-0 items-center gap-3 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring">
                 <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-brand-soft text-brand-text">
                   <Bot className="h-[18px] w-[18px]" strokeWidth={1.7} />
                 </span>
@@ -271,8 +271,8 @@ export function AgentsList() {
                     {a.isGeneral ? "General" : `Etapa: ${servesLabel(a, stages)}`}
                   </span>
                 </span>
-              </Link>
-              <span className="flex flex-col items-start gap-1">
+              </Link></div>
+              <span role="cell" className="flex flex-col items-start gap-1">
                 <span className="flex flex-wrap items-center gap-1.5">
                   <Badge variant={a.status === "draft" ? "secondary" : aiLive && !a.paused ? "success" : "secondary"}>
                     {a.status === "draft" ? "Borrador" : !aiLive ? "Listo · IA apagada" : a.paused ? "Publicado" : "Contestando"}
@@ -285,9 +285,9 @@ export function AgentsList() {
                   </span>
                 )}
               </span>
-              <span className="truncate text-[13px] text-text-2">{servesLabel(a, stages)}</span>
-              <span className="text-[14px] font-semibold tabular-nums">{a.status === "draft" ? 0 : st.chats}</span>
-              <span className="flex items-center gap-2 text-[13px] tabular-nums">
+              <span role="cell" className="truncate text-[13px] text-text-2">{servesLabel(a, stages)}</span>
+              <span role="cell" className="text-[14px] font-semibold tabular-nums">{a.status === "draft" ? 0 : st.chats}</span>
+              <span role="cell" className="flex items-center gap-2 text-[13px] tabular-nums">
                 {pct === null || a.status === "draft" ? (
                   <span className="text-text-3">—</span>
                 ) : (
@@ -299,7 +299,7 @@ export function AgentsList() {
                   </>
                 )}
               </span>
-              <span className="flex flex-wrap items-center justify-end gap-1">
+              <span role="cell" className="flex flex-wrap items-center justify-end gap-1">
                 <span
                   className="mr-1 flex items-center gap-1.5 text-xs text-text-2"
                   title={!aiLive ? "La IA está apagada: enciéndela arriba" : undefined}

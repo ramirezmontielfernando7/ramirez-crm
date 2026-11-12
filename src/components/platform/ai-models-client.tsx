@@ -75,6 +75,7 @@ export function ModelSelect({
     <select
       className={cn(selectCls, value === null && "text-text-2")}
       value={value ?? ""}
+      aria-label="Modelo"
       onChange={(e) => onChange(e.target.value || null)}
       data-testid={testId}
     >
@@ -104,6 +105,7 @@ export function EffortSelect({
     <select
       className={cn(selectCls, value === null && "text-text-2")}
       value={value ?? ""}
+      aria-label="Esfuerzo"
       onChange={(e) => onChange((e.target.value || null) as AiEffort | null)}
       data-testid={testId}
     >

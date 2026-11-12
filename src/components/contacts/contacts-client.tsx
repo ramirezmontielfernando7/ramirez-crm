@@ -376,20 +376,22 @@ export function ContactsClient() {
               role="row"
               className="hidden items-center gap-3 border-b bg-subtle px-4 py-2.5 text-[12px] font-medium text-text-3 md:grid md:grid-cols-[24px_minmax(0,2fr)_minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1.4fr)_56px_minmax(0,1fr)_minmax(0,0.9fr)_120px]"
             >
-              <input
-                type="checkbox"
-                aria-label="Seleccionar todos"
-                checked={contacts.length > 0 && selected.size === contacts.length}
-                onChange={(e) => setSelected(e.target.checked ? new Set(contacts.map((c) => c.id)) : new Set())}
-              />
-              <span>Nombre</span>
-              <span>Teléfono</span>
-              <span>Etapa</span>
-              <span>Etiquetas</span>
-              <span>Asesor</span>
-              <span>Consentimiento</span>
-              <span>Último mensaje</span>
-              <span className="w-[120px]" />
+              <span role="columnheader">
+                <input
+                  type="checkbox"
+                  aria-label="Seleccionar todos"
+                  checked={contacts.length > 0 && selected.size === contacts.length}
+                  onChange={(e) => setSelected(e.target.checked ? new Set(contacts.map((c) => c.id)) : new Set())}
+                />
+              </span>
+              <span role="columnheader">Nombre</span>
+              <span role="columnheader">Teléfono</span>
+              <span role="columnheader">Etapa</span>
+              <span role="columnheader">Etiquetas</span>
+              <span role="columnheader">Asesor</span>
+              <span role="columnheader">Consentimiento</span>
+              <span role="columnheader">Último mensaje</span>
+              <span role="columnheader" aria-label="Acciones" className="w-[120px]" />
             </div>
             {contacts.map((c) => {
               const dot = stageDot(null, c.stageName);
@@ -402,13 +404,15 @@ export function ContactsClient() {
                   data-selected={selected.has(c.id) ? "" : undefined}
                   className="group flex flex-wrap items-center gap-x-3 gap-y-2 border-b px-4 py-3 last:border-b-0 data-[selected]:bg-brand-tint md:grid md:grid-cols-[24px_minmax(0,2fr)_minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1.4fr)_56px_minmax(0,1fr)_minmax(0,0.9fr)_120px]"
                 >
-                  <input
-                    type="checkbox"
-                    aria-label={`Seleccionar a ${c.name}`}
-                    checked={selected.has(c.id)}
-                    onChange={() => toggle(c.id)}
-                  />
-                  <div className="flex min-w-0 flex-1 items-center gap-2.5 md:flex-none">
+                  <span role="cell">
+                    <input
+                      type="checkbox"
+                      aria-label={`Seleccionar a ${c.name}`}
+                      checked={selected.has(c.id)}
+                      onChange={() => toggle(c.id)}
+                    />
+                  </span>
+                  <div role="cell" className="flex min-w-0 flex-1 items-center gap-2.5 md:flex-none">
                     <ContactAvatar name={c.name} seed={c.id} />
                     <div className="min-w-0">
                       <span className="block truncate text-sm font-semibold">{c.name}</span>
@@ -416,8 +420,8 @@ export function ContactsClient() {
                     </div>
                     {c.priority && <PriorityBadge value={c.priority} />}
                   </div>
-                  <span className="w-full text-[13px] tabular-nums md:w-auto">{phoneCompact(c.phone)}</span>
-                  <span className="min-w-0">
+                  <span role="cell" className="w-full text-[13px] tabular-nums md:w-auto">{phoneCompact(c.phone)}</span>
+                  <span role="cell" className="min-w-0">
                     {c.stageName && (
                       <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full bg-subtle px-2 py-0.5 text-[12px]">
                         <span className={cn("h-2 w-2 rounded-full", dot.className)} style={dot.style} aria-hidden />
@@ -425,11 +429,11 @@ export function ContactsClient() {
                       </span>
                     )}
                   </span>
-                  <span className="flex min-w-0 flex-wrap items-center gap-1">
+                  <span role="cell" className="flex min-w-0 flex-wrap items-center gap-1">
                     {tags[0] && <TagChip tag={tags[0]} />}
                     {tags.length > 1 && <span className="text-[12px] text-text-3">+{tags.length - 1}</span>}
                   </span>
-                  <span data-pm="assignee" className="hidden md:block">
+                  <span role="cell" data-pm="assignee" className="hidden md:block">
                     {c.assignee ? (
                       <span
                         title={c.assignee.name}
@@ -444,19 +448,19 @@ export function ContactsClient() {
                       </span>
                     )}
                   </span>
-                  <span className="min-w-0">
+                  <span role="cell" className="min-w-0">
                     {c.waConsent === "opt_in" && <Badge variant="success">Opt-in</Badge>}
                     {c.waConsent === "opt_out" && <Badge variant="destructive">Baja</Badge>}
                     {c.waConsent !== "opt_in" && c.waConsent !== "opt_out" && (
                       <Badge variant="secondary">Sin respuesta</Badge>
                     )}
                   </span>
-                  <span data-pm="last-message" className="text-[12.5px] text-text-3">
+                  <span role="cell" data-pm="last-message" className="text-[12.5px] text-text-3">
                     {dayShort(c.lastMessageAt)}
                   </span>
                   {/* Las acciones de la fila aparecen al pasar el ratón (como en
                       la maqueta, la tabla queda limpia); en el teléfono, siempre. */}
-                  <div className="ml-auto flex shrink-0 items-center gap-0.5 md:opacity-0 md:transition-opacity md:focus-within:opacity-100 md:group-hover:opacity-100">
+                  <div role="cell" className="ml-auto flex shrink-0 items-center gap-0.5 md:opacity-0 md:transition-opacity md:focus-within:opacity-100 md:group-hover:opacity-100">
                     <Button data-pm="row-secondary" variant="ghost" size="sm" className="px-2" onClick={() => setEditing(c)}>
                       Editar
                     </Button>
