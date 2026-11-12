@@ -1,0 +1,223 @@
+{
+  "apk": "/workspace/work/apk-tm4/entrega/Dashfort-Mobile-TM4-0.1.1-Android16-ARM64.apk",
+  "bytes": 33593429,
+  "sha256": "dda720189d6eb004f394dc147ebd4b29cdde85aa61382afc5162ce2e4ace68a1",
+  "package": "com.demfort.dashfort.dev",
+  "versionCode": 2,
+  "version": "0.1.1",
+  "minSdk": 24,
+  "targetSdk": 36,
+  "abis": [
+    "arm64-v8a"
+  ],
+  "signature_v2_verified": true,
+  "certificate_sha256": "0f5d018522f61cf6098871916d2c3cba8e0c6659427a7349c41f0225a983db1b",
+  "zipalign_16k_verified": true,
+  "elf_16k_verified": true,
+  "native_libraries": [
+    {
+      "library": "lib/arm64-v8a/libappmodules.so",
+      "load_segment_alignment": [
+        16384,
+        16384,
+        16384
+      ]
+    },
+    {
+      "library": "lib/arm64-v8a/libc++_shared.so",
+      "load_segment_alignment": [
+        16384,
+        16384,
+        16384,
+        16384
+      ]
+    },
+    {
+      "library": "lib/arm64-v8a/libexpo-modules-core.so",
+      "load_segment_alignment": [
+        16384,
+        16384,
+        16384
+      ]
+    },
+    {
+      "library": "lib/arm64-v8a/libexpo-modules-jsi.so",
+      "load_segment_alignment": [
+        16384,
+        16384,
+        16384
+      ]
+    },
+    {
+      "library": "lib/arm64-v8a/libexpo-modules-v2.so",
+      "load_segment_alignment": [
+        16384,
+        16384,
+        16384
+      ]
+    },
+    {
+      "library": "lib/arm64-v8a/libexpo-modules-worklets.so",
+      "load_segment_alignment": [
+        16384,
+        16384,
+        16384
+      ]
+    },
+    {
+      "library": "lib/arm64-v8a/libfbjni.so",
+      "load_segment_alignment": [
+        16384,
+        16384,
+        16384
+      ]
+    },
+    {
+      "library": "lib/arm64-v8a/libgesturehandler.so",
+      "load_segment_alignment": [
+        16384,
+        16384,
+        16384
+      ]
+    },
+    {
+      "library": "lib/arm64-v8a/libgifimage.so",
+      "load_segment_alignment": [
+        16384,
+        16384,
+        16384
+      ]
+    },
+    {
+      "library": "lib/arm64-v8a/libhermestooling.so",
+      "load_segment_alignment": [
+        16384,
+        16384,
+        16384
+      ]
+    },
+    {
+      "library": "lib/arm64-v8a/libhermesvm.so",
+      "load_segment_alignment": [
+        16384,
+        16384,
+        16384
+      ]
+    },
+    {
+      "library": "lib/arm64-v8a/libimagepipeline.so",
+      "load_segment_alignment": [
+        16384,
+        16384,
+        16384
+      ]
+    },
+    {
+      "library": "lib/arm64-v8a/libjsi.so",
+      "load_segment_alignment": [
+        16384,
+        16384,
+        16384
+      ]
+    },
+    {
+      "library": "lib/arm64-v8a/libnative-filters.so",
+      "load_segment_alignment": [
+        16384,
+        16384,
+        16384
+      ]
+    },
+    {
+      "library": "lib/arm64-v8a/libnative-imagetranscoder.so",
+      "load_segment_alignment": [
+        16384,
+        16384,
+        16384
+      ]
+    },
+    {
+      "library": "lib/arm64-v8a/libreact_codegen_rngesturehandler_codegen.so",
+      "load_segment_alignment": [
+        16384,
+        16384,
+        16384
+      ]
+    },
+    {
+      "library": "lib/arm64-v8a/libreact_codegen_rnscreens.so",
+      "load_segment_alignment": [
+        16384,
+        16384,
+        16384
+      ]
+    },
+    {
+      "library": "lib/arm64-v8a/libreact_codegen_rnsvg.so",
+      "load_segment_alignment": [
+        16384,
+        16384,
+        16384
+      ]
+    },
+    {
+      "library": "lib/arm64-v8a/libreact_codegen_safeareacontext.so",
+      "load_segment_alignment": [
+        16384,
+        16384,
+        16384
+      ]
+    },
+    {
+      "library": "lib/arm64-v8a/libreactnative.so",
+      "load_segment_alignment": [
+        16384,
+        16384,
+        16384
+      ]
+    },
+    {
+      "library": "lib/arm64-v8a/libreanimated.so",
+      "load_segment_alignment": [
+        16384,
+        16384,
+        16384
+      ]
+    },
+    {
+      "library": "lib/arm64-v8a/librnscreens.so",
+      "load_segment_alignment": [
+        16384,
+        16384,
+        16384
+      ]
+    },
+    {
+      "library": "lib/arm64-v8a/libstatic-webp.so",
+      "load_segment_alignment": [
+        16384,
+        16384,
+        16384
+      ]
+    },
+    {
+      "library": "lib/arm64-v8a/libworklets.so",
+      "load_segment_alignment": [
+        16384,
+        16384,
+        16384
+      ]
+    },
+    {
+      "library": "lib/arm64-v8a/libzstd-kmp.so",
+      "load_segment_alignment": [
+        16384,
+        16384,
+        16384
+      ]
+    }
+  ],
+  "hermes_bundle_bytes": 4287940,
+  "packaged_fonts": 3,
+  "installation_test": "No ejecutado por este verificador estático"
+}

@@ -18,3 +18,6 @@ La autorización vigente crea `codex/dashfort-mobile-tm3-20261111` desde el resp
 
 ## Checkpoint APK probada
 El propietario confirmó instalación y evaluación positiva en Motorola Edge 50 Pro / Android 16. La fuente de ese binario es d849c0d (T-M3); la receta posterior se conserva en codex/dashfort-mobile-apk-tested-20261111, docs/apk-probada. No reemplazar la APK original ni versionar claves privadas. La autorización vigente permite T-M4 en rama nueva desde este checkpoint; solo apps/mobile, datos ficticios, sin push ni T-M5.
+
+## Ejecución actual T-M4
+La rama `codex/dashfort-mobile-tm4-20261111` parte de bd3ba4f, checkpoint de la APK T-M3 probada, que desciende de d849c0d. Detalles e historial INB-19…26 + INB-30 en simulación, ver docs/tm4. Este apartado sustituye las prohibiciones históricas de iniciar T-M4. No iniciar T-M5, no hacer push ni publicar. No reemplazar la APK original. Solo apps/mobile; conservar alcance, notas internas separadas del transporte y anclas de Bandeja/chat.

@@ -45,3 +45,15 @@ iOS: el bundle JavaScript puede validarse en Linux. La compilación IPA, simulad
 
 ## Actualización T-M3
 El intento local sigue saliendo con código 2 por ausencia de Platform 37. Los exports Hermes de T-M3 no generan un ejecutable instalable. La revisión de dependencias actualizó los parches compatibles de Expo 58 y añadió el plugin local `expo-status-bar`. Para obtener una APK de esta etapa, usar un checkout limpio de la rama T-M3 o el ZIP de fuentes, sin copiar `android`/`ios` generados de T-M1/T-M2. Así `apk:local` genera el proyecto con la configuración vigente y conserva proyectos nativos propios en otras copias. El nombre de salida ya es genérico (`dashfort-mobile-experimental.apk`). Falta ejecutar e instalar esta compilación, probar teclado/gestos/Back/accesibilidad/scroll en Android, y hacer QA iOS en macOS/Xcode. No se utilizó compilación remota ni cuota compartida.
+
+## Verificar un artefacto sin modificarlo
+
+`scripts/verify-apk.py` revisa el ID de desarrollo, target Android 16, ABI ARM64, firma v2, certificado público esperado, CRC, zipalign de 16 KB, segmentos ELF AArch64, bundle Hermes y fuentes. Requiere Python 3.11+ y Build Tools 37.0.0; no instala ni vuelve a firmar el APK.
+
+```bash
+python scripts/verify-apk.py /ruta/nueva.apk \
+  --sdk "$ANDROID_HOME" \
+  --certificate 0f5d018522f61cf6098871916d2c3cba8e0c6659427a7349c41f0225a983db1b
+```
+
+La huella anterior es pública y corresponde a la firma experimental usada en la APK T-M3 instalada. La clave privada queda fuera de Git. T-M4 utiliza versión 0.1.1 / versionCode 2 y el mismo ID, para actualizar Dashfort Dev sin sustituir la TWA. Ver tm4/APK-TM4.md para el artefacto y las limitaciones de validación. No confundir la validación estática con instalación/ejecución en un dispositivo.

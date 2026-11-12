@@ -381,6 +381,7 @@ test("advisor hides assignment and connection by default; protected import tag a
 test("details and history recover loading empty error offline without losing note draft", async ({
   page,
 }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
   await login(page);
   await details(page);
   for (const [label, state] of [

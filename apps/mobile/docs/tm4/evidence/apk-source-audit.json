@@ -1,0 +1,18 @@
+{
+  "source_commit": "bba69dff11d748ed68b23a666268e1842c1101af",
+  "versioned_files_checked": 358,
+  "source_differences": [],
+  "tm4_modules_in_bundle": [
+    "/src/features/contact/context.tsx",
+    "/src/features/contact/core.ts",
+    "/src/features/contact/model.ts",
+    "/src/features/contact/DetailsScreen.tsx",
+    "/src/features/contact/Controls.tsx",
+    "/src/features/contact/actions.tsx",
+    "/src/features/contact/Sheets.tsx",
+    "/src/features/contact/HistoryScreen.tsx"
+  ],
+  "latest_performance_and_concurrency_fixes_bundled": true,
+  "permissions_unchanged_from_tested_apk": true,
+  "original_apk_unchanged": true
+}

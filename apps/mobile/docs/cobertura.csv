@@ -23,15 +23,15 @@ INB-15,Biblioteca · enviar material,T-M3,Implementada · simulación,QA web; na
 INB-16,Emojis,T-M3,Implementada · simulación,QA web; nativo pendiente · docs/tm3
 INB-17,Enviar plantilla (ventana cerrada),T-M3,Implementada · simulación,QA web; nativo pendiente · docs/tm3
 INB-18,Asistente de redacción,T-M3,Implementada · simulación,QA web; nativo pendiente · docs/tm3
-INB-19,Detalles del contacto,T-M4,Pendiente,Pendiente
-INB-20,Historial del chat,T-M4,Pendiente,Pendiente
-INB-21,Cambiar etapa,T-M4,Pendiente,Pendiente
-INB-22,Asignar chat,T-M4,Pendiente,Pendiente
-INB-23,Etiquetas del contacto,T-M4,Pendiente,Pendiente
-INB-24,IA en este chat,T-M4,Pendiente,Pendiente
-INB-30,Conexión del chat,T-M4,Pendiente,Pendiente
-INB-25,Motivo de pérdida,T-M4,Pendiente,Pendiente
-INB-26,Nueva tarea para este chat,T-M4,Pendiente,Pendiente
+INB-19,Detalles del contacto,T-M4,Implementada simulada,Lógica y RN Web; QA T-M4 nativo pendiente
+INB-20,Historial del chat,T-M4,Implementada simulada,Lógica y RN Web; QA T-M4 nativo pendiente
+INB-21,Cambiar etapa,T-M4,Implementada simulada,Lógica y RN Web; QA T-M4 nativo pendiente
+INB-22,Asignar chat,T-M4,Implementada simulada,Lógica y RN Web; QA T-M4 nativo pendiente
+INB-23,Etiquetas del contacto,T-M4,Implementada simulada,Lógica y RN Web; QA T-M4 nativo pendiente
+INB-24,IA en este chat,T-M4,Implementada simulada,Lógica y RN Web; QA T-M4 nativo pendiente
+INB-30,Conexión del chat,T-M4,Implementada simulada,Lógica y RN Web; QA T-M4 nativo pendiente
+INB-25,Motivo de pérdida,T-M4,Implementada simulada,Lógica y RN Web; QA T-M4 nativo pendiente
+INB-26,Nueva tarea para este chat,T-M4,Implementada simulada,Lógica y RN Web; QA T-M4 nativo pendiente
 INB-27,Visor de imagen,T-M3,Implementada · simulación,QA web; nativo pendiente · docs/tm3
 INB-28,Eliminar chat,T-M3,Implementada · simulación,QA web; nativo pendiente · docs/tm3
 INB-29,Mensaje no entregado,T-M3,Implementada · simulación,QA web; nativo pendiente · docs/tm3

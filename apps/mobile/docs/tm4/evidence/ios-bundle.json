@@ -1,0 +1,10 @@
+{
+  "artifacts": [
+    {
+      "path": "_expo/static/js/ios/entry-7259c30745da087854f4e488beb7ef9e.hbc",
+      "bytes": 5501046,
+      "sha256": "cf4568b25ef25865daa90df97b59d39a53b8b19eb4739ba53fe7cdf0ad6b5679"
+    }
+  ],
+  "type": "Hermes bundle; not IPA, no native execution"
+}

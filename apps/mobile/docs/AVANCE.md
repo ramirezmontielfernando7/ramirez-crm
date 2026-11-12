@@ -57,3 +57,8 @@ Las primeras pruebas detectaron problemas de accesibilidad de capas, Escape dura
 Código en `/workspace/work/ramirez-crm/apps/mobile`. ZIP móvil y bundle incremental verificados, sin secretos, node_modules, cachés o claves de firma. Ver CONSERVACION.md. No se realizó push, PR, merge, deploy, tag, cambios de producción ni uso de servicios pagados.
 
 Siguiente etapa recomendada: T-M2, manteniendo T-M1 como checkpoint recuperable y cerrando primero el QA nativo cuando el SDK esté disponible. La matriz completa de 158 filas está en cobertura.csv. Los archivos modificados se obtienen con `git diff --name-only main..HEAD`; todos pertenecen a Mobile.
+
+## Continuación · 11 de noviembre · APK probada y T-M4
+El propietario confirmó que instaló y probó la primera APK T-M3 en Motorola Edge 50 Pro / Android 16 con evaluación positiva. Se conservan fuente d849c0d, hash de APK y receta mediante checkpoint local bd3ba4f; ver apk-probada/VERSION.md. Los bloqueos de SDK y Java descritos anteriormente son históricos y fueron resueltos.
+
+T-M4 implementa INB-19…26 e INB-30 con datos ficticios. Rama aislada codex/dashfort-mobile-tm4-20261111, conserva T-M1/T-M2/T-M3. Ver tm4/RESULTADOS.md para pruebas, capturas, compilación experimental y pendientes nativos. No se inició T-M5 ni se autorizó push de esta etapa. Este apartado sustituye los siguientes pasos históricos, sin borrar la evidencia anterior.

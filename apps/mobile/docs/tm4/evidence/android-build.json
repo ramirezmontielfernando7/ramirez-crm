@@ -1,0 +1,10 @@
+{
+  "build_source_commit": "bba69dff11d748ed68b23a666268e1842c1101af",
+  "full_local_assemble": "29m 19s",
+  "final_incremental_assemble": "2m 6s",
+  "lintVitalRelease": "passed in complete build, up-to-date in final build",
+  "paid_services": false,
+  "remote_builds": false,
+  "warnings": "Deprecated dependency APIs and future Gradle 10 compatibility; Gradle 9.4.1 retained",
+  "apk": "Dashfort-Mobile-TM4-0.1.1-Android16-ARM64.apk"
+}
