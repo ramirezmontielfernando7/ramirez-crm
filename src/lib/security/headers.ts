@@ -1,21 +1,25 @@
 /**
  * Fase 3, PR 2 (H10) — Cabeceras de seguridad de toda la app.
  *
- * - HSTS de 1 DÍA (`max-age=86400`), sin `includeSubDomains`: se sube en un
- *   PR posterior cuando esté comprobado que todo va por HTTPS.
- * - `frame-ancestors 'none'` + `X-Frame-Options: DENY`: la app no se puede
- *   meter en un iframe ajeno (clickjacking). Nada de Vocero usa iframes.
- * - CSP en MODO REPORTE (`Content-Security-Policy-Report-Only`): no bloquea
- *   nada; el navegador avisa a `/api/csp-report` lo que SÍ bloquearía. Se
- *   vuelve obligatoria en un PR chico tras una semana de reportes limpios.
+ * Fase 2 del lanzamiento (2026-11, S-09):
+ * - HSTS de 1 AÑO (`max-age=31536000`), sin `includeSubDomains` ni
+ *   `preload`: solo obliga HTTPS en el dominio de la app (Coolify ya lo da
+ *   con Let's Encrypt). Sin `includeSubDomains` no afecta a otros
+ *   subdominios del negocio que aún no tengan HTTPS.
+ * - La CSP completa pasa de «solo reporta» a OBLIGATORIA. Sigue mandando sus
+ *   reportes a `/api/csp-report` (el log dice «la CSP bloqueó algo»), y el
+ *   job e2e del CI falla si en toda la corrida llega uno solo.
  *   `script-src 'unsafe-inline'`: Next mete scripts en línea para hidratar;
  *   quitarlo exige nonces (y renderizar todo por request). `style-src
  *   'unsafe-inline'`: el acento de marca va en un `<style>` en línea.
+ *   Para volver atrás sin código: no existe interruptor; revertir el PR.
+ * - `frame-ancestors 'none'` + `X-Frame-Options: DENY`: la app no se puede
+ *   meter en un iframe ajeno (clickjacking). Nada de Vocero usa iframes.
  */
 
-export const HSTS_MAX_AGE_SECONDS = 86_400;
+export const HSTS_MAX_AGE_SECONDS = 31_536_000;
 
-export function cspReportOnly(dev: boolean): string {
+export function contentSecurityPolicy(dev: boolean): string {
   return [
     "default-src 'self'",
     // Tech Provider: el SDK de Facebook abre «Conectar con Facebook».
@@ -24,7 +28,8 @@ export function cspReportOnly(dev: boolean): string {
     "img-src 'self' data: blob:",
     "media-src 'self' data: blob:",
     "font-src 'self' data:",
-    "connect-src 'self' https://*.facebook.com",
+    // En desarrollo, el recargado en caliente de Next usa un WebSocket.
+    `connect-src 'self' https://*.facebook.com${dev ? " ws: wss:" : ""}`,
     "frame-src https://*.facebook.com",
     "object-src 'none'",
     "base-uri 'self'",
@@ -34,24 +39,25 @@ export function cspReportOnly(dev: boolean): string {
   ].join("; ");
 }
 
-export function securityHeaders(dev: boolean): { key: string; value: string }[] {
+export function securityHeaders(): { key: string; value: string }[] {
   return [
     { key: "Strict-Transport-Security", value: `max-age=${HSTS_MAX_AGE_SECONDS}` },
     { key: "X-Content-Type-Options", value: "nosniff" },
     { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
     { key: "X-Frame-Options", value: "DENY" },
-    { key: "Content-Security-Policy-Report-Only", value: cspReportOnly(dev) },
     { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), payment=(), usb=()" },
   ];
 }
 
 /**
- * Lo único que se APLICA ya de la CSP: nadie nos mete en un iframe. NO va en
- * las rutas que sirven adjuntos: ellas mandan su propia CSP `sandbox` (H9) y
- * una cabecera de next.config la pisaría (el adjunto HTML volvería a poder
- * ejecutarse). Esas rutas siguen con `X-Frame-Options: DENY`.
+ * La CSP obligatoria. NO va en las rutas que sirven adjuntos: ellas mandan
+ * su propia CSP `sandbox` (H9) y una cabecera de next.config la pisaría (el
+ * adjunto HTML volvería a poder ejecutarse). Esas rutas siguen con
+ * `X-Frame-Options: DENY`.
  */
-export const ENFORCED_CSP = { key: "Content-Security-Policy", value: "frame-ancestors 'none'" };
+export function enforcedCsp(dev: boolean): { key: string; value: string } {
+  return { key: "Content-Security-Policy", value: contentSecurityPolicy(dev) };
+}
 
 /**
  * Rutas que mandan su propia CSP: los adjuntos (`sandbox`, src/lib/

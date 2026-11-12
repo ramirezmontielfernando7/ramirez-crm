@@ -29,10 +29,13 @@ describe("estados monotónicos del mensaje (FR-004)", () => {
     expect(isUpgrade("read", "failed")).toBe(false);
   });
 
-  it("failed es terminal: nada lo saca de ahí", () => {
+  it("S-11: un delivered/read que llega DESPUÉS de un failed gana (el cliente sí lo tiene)", () => {
+    expect(isUpgrade("failed", "delivered")).toBe(true);
+    expect(isUpgrade("failed", "read")).toBe(true);
+  });
+
+  it("desde failed no se vuelve a sent", () => {
     expect(isUpgrade("failed", "sent")).toBe(false);
-    expect(isUpgrade("failed", "delivered")).toBe(false);
-    expect(isUpgrade("failed", "read")).toBe(false);
   });
 
   it("read puede llegar sin delivered previo (fuera de orden)", () => {
