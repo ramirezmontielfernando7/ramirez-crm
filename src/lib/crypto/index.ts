@@ -111,7 +111,10 @@ export function sealSecret(plain: string): SealedValue {
 export function openSecret(value: EncryptedValue, keyVersion: number): string {
   const key = keyFor(keyVersion);
   try {
-    const decipher = createDecipheriv("aes-256-gcm", key, Buffer.from(value.iv, "base64"));
+    // Fase 2 (2026-11): la etiqueta debe medir 16 bytes. Sin `authTagLength`,
+    // Node acepta etiquetas recortadas (hasta 4 bytes) y adivinarlas es mucho
+    // más fácil. `sealSecret` siempre guarda 16, así que nada válido cambia.
+    const decipher = createDecipheriv("aes-256-gcm", key, Buffer.from(value.iv, "base64"), { authTagLength: 16 });
     decipher.setAuthTag(Buffer.from(value.tag, "base64"));
     const decrypted = Buffer.concat([
       decipher.update(Buffer.from(value.cipher, "base64")),

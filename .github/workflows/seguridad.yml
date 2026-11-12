@@ -4,6 +4,9 @@ name: Seguridad
 #  - Gitleaks: busca llaves o contraseñas reales subidas por error.
 #  - Trivy: busca librerías con fallas conocidas GRAVES o CRÍTICAS que ya
 #    tengan arreglo (lo bajo o sin arreglo no frena nada).
+#  - Semgrep (fase 2, 2026-11): revisa el CÓDIGO propio con las reglas
+#    públicas de JavaScript/TypeScript; frena solo lo de severidad ERROR
+#    (lo demás son sugerencias de estilo). Los mocks de desarrollo no cuentan.
 # Corre en paralelo a CI y no lo alarga.
 on:
   pull_request:
@@ -51,3 +54,20 @@ jobs:
           exit-code: "1"
           skip-dirs: node_modules
           version: v0.69.3
+
+  semgrep:
+    name: Semgrep · código
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - name: Instalar y correr semgrep
+        env:
+          SEMGREP_VERSION: "1.185.0"
+        run: |
+          pipx install --quiet "semgrep==${SEMGREP_VERSION}"
+          semgrep scan --metrics=off --disable-version-check \
+            --config p/javascript --config p/typescript \
+            --severity ERROR --error \
+            --exclude src/server/dev --exclude src/app/api/dev \
+            src

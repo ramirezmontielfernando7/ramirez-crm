@@ -20,8 +20,8 @@ function soloHost(uri: unknown): string {
 }
 
 /**
- * Fase 3, PR 2 (H10) — Reportes de la CSP en modo reporte: qué bloquearía
- * la política si fuera obligatoria. Se registra la directiva y el host, nada
+ * Fase 3, PR 2 (H10) — Reportes de la CSP (obligatoria desde S-09, 2026-11):
+ * qué bloqueó el navegador. Se registra la directiva y el host, nada
  * más. Responde 204 siempre (el navegador no espera nada).
  */
 export async function POST(req: Request) {
@@ -35,7 +35,7 @@ export async function POST(req: Request) {
     for (const r of reports.slice(0, 10)) {
       const raw = (r as { "csp-report"?: Record<string, unknown>; body?: Record<string, unknown> }) ?? {};
       const rep = raw["csp-report"] ?? raw.body ?? {};
-      log.warn("la CSP bloquearía algo", {
+      log.warn("la CSP bloqueó algo", {
         directiva: String(rep["violated-directive"] ?? rep["effectiveDirective"] ?? rep["effective-directive"] ?? "-").slice(0, 60),
         bloqueado: soloHost(rep["blocked-uri"] ?? rep["blockedURL"]),
       });

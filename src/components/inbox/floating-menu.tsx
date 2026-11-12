@@ -55,7 +55,7 @@ export function FloatingMenu({
       anchor.kind === "rect"
         ? { left: anchor.rect.left, right: anchor.rect.right, top: anchor.rect.top, bottom: anchor.rect.bottom }
         : { left: anchor.x, right: anchor.x, top: anchor.y, bottom: anchor.y };
-    let left = anchor.kind === "rect" ? a.left : a.left;
+    let left = a.left;
     if (left + width > vw - MARGIN) left = Math.max(MARGIN, (anchor.kind === "rect" ? a.right : a.left) - width);
     left = Math.min(Math.max(MARGIN, left), Math.max(MARGIN, vw - width - MARGIN));
     const gap = anchor.kind === "rect" ? 4 : 2;

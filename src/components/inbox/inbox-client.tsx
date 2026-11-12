@@ -115,6 +115,8 @@ export function InboxClient({
   const assignees = useAssignees();
   // Un fallo del selector de asignado del encabezado se dice aquí.
   const [headerNotice, setHeaderNotice] = useState<string | null>(null);
+  // Auditoría 2026-11: la lista no cargó (antes quedaba en «Cargando…» sin decir nada).
+  const [listError, setListError] = useState(false);
   useEffect(() => {
     if (!headerNotice) return;
     const t = setTimeout(() => setHeaderNotice(null), 5000);
@@ -223,9 +225,16 @@ export function InboxClient({
     const params = listQueryParams(q);
     params.set("limit", String(limit));
     const res = await fetch(`/api/conversations?${params}`).catch(() => null);
-    if (!res?.ok) return;
+    if (!res?.ok) {
+      if (seq !== listSeq.current) return;
+      // Sin lista todavía: se dice en su lugar; ya cargada: aviso breve.
+      if (loaded.current) setHeaderNotice("No pudimos actualizar tus chats. Revisa tu conexión.");
+      else setListError(true);
+      return;
+    }
     const data = (await res.json()) as { conversations: ConversationDto[]; nextCursor: string | null };
     if (seq !== listSeq.current) return;
+    setListError(false);
     nextCursor.current = data.nextCursor;
     setHasMore(data.nextCursor !== null);
     setConversations(data.conversations);
@@ -245,7 +254,10 @@ export function InboxClient({
       params.set("limit", String(PAGE_SIZE));
       params.set("cursor", cursor);
       const res = await fetch(`/api/conversations?${params}`).catch(() => null);
-      if (!res?.ok) return;
+      if (!res?.ok) {
+        if (seq === listSeq.current) setHeaderNotice("No pudimos cargar más chats. Intenta de nuevo.");
+        return;
+      }
       const data = (await res.json()) as { conversations: ConversationDto[]; nextCursor: string | null };
       if (seq !== listSeq.current) return;
       nextCursor.current = data.nextCursor;
@@ -414,7 +426,10 @@ export function InboxClient({
     const res = await fetch(
       `/api/conversations/${conversationId}/messages`
     ).catch(() => null);
-    if (!res?.ok) return;
+    if (!res?.ok) {
+      if (selectedIdRef.current === conversationId) setHeaderNotice("No pudimos cargar los mensajes de este chat. Intenta de nuevo.");
+      return;
+    }
     const data = (await res.json()) as { messages: MessageDto[] };
     if (selectedIdRef.current === conversationId) setMessages(data.messages);
   }, []);
@@ -677,11 +692,12 @@ export function InboxClient({
     async (patch: { aiEnabled?: boolean; reactivate?: boolean }) => {
       const id = selectedIdRef.current;
       if (!id) return;
-      await fetch(`/api/conversations/${id}`, {
+      const res = await fetch(`/api/conversations/${id}`, {
         method: "PATCH",
         headers: { "content-type": "application/json" },
         body: JSON.stringify(patch),
       }).catch(() => null);
+      if (!res?.ok) setHeaderNotice("No se guardó el cambio. Intenta de nuevo.");
       refreshConversation(id);
     },
     [refreshConversation]
@@ -714,6 +730,11 @@ export function InboxClient({
           loadingMore={loadingMore}
           onLoadMore={loadMore}
           onListQuery={onListQuery}
+          loadError={listError}
+          onRetry={() => {
+            setListError(false);
+            void reloadList(false);
+          }}
           channels={channels}
           selectedId={selectedId}
           onSelect={select}

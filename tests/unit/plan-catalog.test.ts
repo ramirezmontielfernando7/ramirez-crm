@@ -48,3 +48,13 @@ describe("catálogo de planes", () => {
     expect(formatMxn(1799)).toBe("$1,799");
   });
 });
+
+describe("topes que promete cada plan", () => {
+  it("personas y almacenamiento en bytes; Personalizado no tiene", async () => {
+    const { capsOfPlan } = await import("@/lib/plan-catalog");
+    const c = mergeCatalog({});
+    expect(capsOfPlan("esencial", c)).toEqual({ members: 3, storageBytes: 15 * 1024 ** 3 });
+    expect(capsOfPlan("ultra", c)?.members).toBe(10);
+    expect(capsOfPlan("custom", c)).toBeNull();
+  });
+});

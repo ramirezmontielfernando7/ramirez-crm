@@ -66,7 +66,7 @@ export const DEFAULT_PLAN_CATALOG: PlanCatalog = {
     implementationFeeMxn: 0,
     peopleLimit: 5,
     storageGb: 30,
-    features: ["Todo Esencial", "Agentes IA completo: varios agentes y documentos", "Agenda y Atribución de anuncios (Meta)", "IA incluida: 3 veces el cupo de Esencial"],
+    features: ["Todo Esencial", "Agentes IA completo: varios agentes y documentos", "Agenda y Atribución de anuncios (Meta)", "Conecta tu IA: ChatGPT, Claude u otra opera tu CRM", "IA incluida: 3 veces el cupo de Esencial"],
     recommended: true,
   },
   ultra: {
@@ -78,7 +78,7 @@ export const DEFAULT_PLAN_CATALOG: PlanCatalog = {
     implementationFeeMxn: 0,
     peopleLimit: 10,
     storageGb: 100,
-    features: ["Todo Pro", "Campañas masivas", "Asistente interno", "IA incluida: 4 veces el cupo de Pro"],
+    features: ["Todo Pro", "Campañas masivas", "Conecta tu IA: ChatGPT, Claude u otra opera tu CRM", "IA incluida: 4 veces el cupo de Pro"],
     recommended: false,
   },
 };
@@ -183,4 +183,17 @@ export function normalizeContactPhone(input: string | null | undefined): string 
 /** Enlace de WhatsApp al número de contacto, con un mensaje listo. */
 export function contactWhatsAppUrl(phone: string, text: string): string {
   return `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
+}
+
+/**
+ * Los topes de personas y almacenamiento (bytes) que un plan promete. `custom`
+ * no tiene: son los que el administrador ponga a mano.
+ */
+export function capsOfPlan(
+  planKey: string,
+  catalog: PlanCatalog
+): { members: number; storageBytes: number } | null {
+  if (!(CATALOG_SCOPES as readonly string[]).includes(planKey)) return null;
+  const e = catalog[planKey as CatalogScope];
+  return { members: e.peopleLimit, storageBytes: Math.round(e.storageGb * 1024 ** 3) };
 }
