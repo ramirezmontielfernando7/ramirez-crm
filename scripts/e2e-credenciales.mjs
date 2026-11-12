@@ -174,7 +174,7 @@ async function main() {
   ok("cada WABA quedó registrada una vez, en su organización", wabas.a === 1 && wabas.b === 1 && wabas.total === 2, JSON.stringify(wabas));
 
   const estadoA = await A.api("/api/settings/whatsapp");
-  ok("A sigue con su conexión intacta tras los intentos de B", estadoA.json?.connection?.phoneNumberId === PN_A, estadoA.text);
+  ok("A sigue con su conexión intacta tras los intentos de B", (estadoA.json?.numbers ?? []).some((n) => n.phoneNumberId === PN_A), estadoA.text);
 
   console.log("\n== webhook_unrouted ==");
   const PN_NADIE = `PN-E2E-NADIE-${RUN}`;
