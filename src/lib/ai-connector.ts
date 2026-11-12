@@ -342,6 +342,10 @@ const ACTION_LABEL: Record<string, string> = {
   move_document: "Movió un documento de grupo",
   create_upload_link: "Te pidió subir archivos con un enlace",
   check_upload_link: "Revisó los archivos que subiste",
+  list_bookings: "Revisó la agenda",
+  find_free_slots: "Buscó horarios libres",
+  book_appointment: "Agendó una cita",
+  update_appointment: "Cambió una cita",
 };
 
 /** PR 6 — Acciones que se resaltan en «Qué hizo tu IA» (salen del CRM o llegan a muchos). */

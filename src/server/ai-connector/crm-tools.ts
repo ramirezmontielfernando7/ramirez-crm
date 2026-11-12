@@ -42,7 +42,7 @@ function touchedContact(organizationId: string, conversationId: string | null) {
 }
 
 /** El contacto de un chat o por su id, solo si quien pide lo ve. */
-async function contactOf(session: SessionContext, ref: { conversation_id?: string; contact_id?: string }) {
+export async function contactOf(session: SessionContext, ref: { conversation_id?: string; contact_id?: string }) {
   if (ref.conversation_id) {
     const found = await getConversation(session.access, ref.conversation_id);
     return found ? { contact: found.contact, conversationId: found.conversation.id } : null;

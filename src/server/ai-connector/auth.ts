@@ -1,4 +1,4 @@
-import { bearerToken, resourceMetadataUrl, roleMayConnect, type Scope } from "@/lib/ai-connector";
+import { bearerToken, resourceMetadataUrl, roleMayConnect, SCOPES, type Scope } from "@/lib/ai-connector";
 import { sessionContext, type SessionContext } from "@/lib/auth/session";
 import { getEnv } from "@/lib/env";
 import { checkRateLimit, clientIp } from "@/lib/rate-limit";
@@ -38,7 +38,7 @@ function jsonError(status: number, code: string, message: string, headers: Recor
 function unauthorized(message = "Falta una llave válida de Dashfort"): Response {
   const metadata = resourceMetadataUrl(getEnv().APP_BASE_URL);
   return jsonError(401, "invalid_token", message, {
-    "WWW-Authenticate": `Bearer resource_metadata="${metadata}"`,
+    "WWW-Authenticate": `Bearer resource_metadata="${metadata}", scope="${SCOPES.join(" ")}"`,
   });
 }
 

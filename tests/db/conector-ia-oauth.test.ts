@@ -29,6 +29,9 @@ vi.mock("@/lib/auth/session", async (importOriginal) => {
   };
 });
 
+// Sin red hacia chatgpt.com (como cuando su protección anti-bots rechaza al servidor).
+vi.mock("node:dns/promises", () => ({ lookup: async () => { throw new Error("sin red"); } }));
+
 const sys = () => getSystemDb();
 let A: Awaited<ReturnType<typeof crearOrganizacion>>;
 const u = { owner: "", ana: "" };
@@ -336,6 +339,51 @@ describe("047 PR 3 — iniciar sesión con OAuth", () => {
     const sin = await POST(new Request("http://localhost/api/mcp", { method: "POST", body: "{}" }));
     expect(sin.status).toBe(401);
     expect(sin.headers.get("access-control-expose-headers")).toContain("www-authenticate");
+  });
+
+  it("como ChatGPT con CIMD: sus metadatos no se pueden leer, state largo y resource → llaves", async () => {
+    const clientId = "https://chatgpt.com/oauth/cb_test123/client.json";
+    const redirect = "https://chatgpt.com/connector/oauth/cb_test123";
+    state.session = sessionContext(u.ana, A.id, "asesor");
+    const { verifier, challenge } = pkce();
+    const params = {
+      response_type: "code",
+      client_id: clientId,
+      redirect_uri: redirect,
+      code_challenge: challenge,
+      code_challenge_method: "S256",
+      state: "s".repeat(1500),
+      scope: "read write",
+      resource: "http://localhost:3000/api/mcp",
+    };
+    const r = await post("oauth/authorize", { params, decision: "approve", scopes: ["read", "write"] });
+    expect(r.status).toBe(200);
+    const back = new URL(r.body!.redirect);
+    expect(back.origin + back.pathname).toBe(redirect);
+    expect(back.searchParams.get("state")).toBe(params.state);
+    expect(back.searchParams.get("iss")).toBe("http://localhost:3000");
+    const tok = await post(
+      "oauth/token",
+      {
+        grant_type: "authorization_code",
+        code: back.searchParams.get("code")!,
+        redirect_uri: redirect,
+        code_verifier: verifier,
+        client_id: clientId,
+        resource: "http://localhost:3000/api/mcp",
+      },
+      true
+    );
+    expect(tok.status).toBe(200);
+    expect(await mcp(tok.body!.access_token as string)).toBe(200);
+
+    // A otra dirección (aunque parezca de ChatGPT) nunca.
+    const bad = await post("oauth/authorize", {
+      params: { ...params, redirect_uri: "https://chatgpt.com.evil.example/cb" },
+      decision: "approve",
+      scopes: ["read"],
+    });
+    expect(bad.status).toBe(422);
   });
 
   it("si el Propietario apaga el conector, ni se acepta ni se renueva", async () => {

@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { ConsentCard } from "@/components/ai-connector/consent-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getSessionOrNull } from "@/lib/auth/session";
+import { logger } from "@/lib/log";
 import { runWithOrganization } from "@/lib/request-context";
 import { advancedConsent, redirectHost } from "@/lib/ai-connector";
 import { authorizeSchema, checkAuthorizeRequest, requestedScopes } from "@/server/ai-connector/oauth";
@@ -9,6 +10,8 @@ import { mayConnect } from "@/server/ai-connector/keys";
 import { getConnectorSettings } from "@/server/ai-connector/settings";
 
 export const dynamic = "force-dynamic";
+
+const log = logger("ai-connector");
 
 /**
  * 047 PR 3 — «Claude quiere actuar como tú en Dashfort»: la pantalla donde
@@ -29,6 +32,12 @@ export default async function AuthorizePage({
     redirect(`/login?next=${encodeURIComponent(`/oauth/authorize?${qs}`)}`);
   }
   const parsed = authorizeSchema.safeParse(flat);
+  if (!parsed.success) {
+    // Solo los nombres de los campos que no cuadraron: nada de valores.
+    log.warn("solicitud de inicio de sesión de una app de IA mal formada", {
+      fields: parsed.error.issues.map((i) => i.path.join(".") || "(raíz)"),
+    });
+  }
   const check = parsed.success ? await checkAuthorizeRequest(parsed.data) : null;
   if (!parsed.success || !check?.ok) {
     return (
