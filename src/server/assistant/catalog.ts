@@ -86,8 +86,16 @@ function gaugeOut(g: Gauge | null) {
 /** Las consultas que no traen datos personales: lo mismo para el modelo y el Propietario. */
 const same = (data: unknown): QueryOutput => ({ forModel: data, forOwner: data });
 
+/**
+ * Une el tipo de `args` de `run` con su esquema (con zod 4, `z.infer` de un
+ * `ZodTypeAny` suelto es `unknown`) y conserva el nombre literal.
+ */
+function defineQuery<const N extends string, A extends z.ZodTypeAny>(def: QueryDef<A> & { name: N }): QueryDef<A> & { name: N } {
+  return def;
+}
+
 const QUERIES = [
-  {
+  defineQuery({
     name: "consumo_ia",
     label: "Consumo de IA del mes",
     description:
@@ -107,8 +115,8 @@ const QUERIES = [
         asistente_interno: gaugeOut(u.ai.assistant),
       });
     },
-  },
-  {
+  }),
+  defineQuery({
     name: "consumo_ia_por_funcion",
     label: "Consumo de IA por función",
     description: "Qué parte del consumo de IA del mes se fue en cada función (agente, Laboratorio, juez, redacción, asistente interno).",
@@ -126,8 +134,8 @@ const QUERIES = [
         })),
       });
     },
-  },
-  {
+  }),
+  defineQuery({
     name: "consumo_ia_por_agente",
     label: "Consumo de IA por agente",
     description: "Qué parte del consumo de IA del mes usó cada agente de IA (por nombre del agente; los archivados se marcan).",
@@ -148,8 +156,8 @@ const QUERIES = [
         forOwner: { periodo: u.period, agentes: filas((n) => n) },
       };
     },
-  },
-  {
+  }),
+  defineQuery({
     name: "almacenamiento",
     label: "Almacenamiento (aprox.)",
     description: "Cuánto espacio ocupan (aproximado) los archivos de la organización, por categoría, y su tope si lo tiene.",
@@ -168,8 +176,8 @@ const QUERIES = [
         nota: "Es aproximado: no cuenta mensajes ni contactos guardados en la base de datos.",
       });
     },
-  },
-  {
+  }),
+  defineQuery({
     name: "plan_y_topes",
     label: "Plan y topes",
     description: "Los topes del plan de la organización (personas del equipo, módulos, almacenamiento, documentos del agente) y cuánto lleva de cada uno.",
@@ -186,8 +194,8 @@ const QUERIES = [
           : "la organización no usa documentos del agente",
       });
     },
-  },
-  {
+  }),
+  defineQuery({
     name: "avisos_consumo",
     label: "Avisos de consumo del mes",
     description: "Los avisos de consumo de este mes (al 80 % y al 100 % de algún tope), con su fecha.",
@@ -200,8 +208,8 @@ const QUERIES = [
         avisos: u.alerts.map((a) => ({ aviso: a.text, fecha: a.createdAt.slice(0, 10) })),
       });
     },
-  },
-  {
+  }),
+  defineQuery({
     name: "modulos",
     label: "Módulos de la organización",
     description: "Qué módulos opcionales tiene encendidos y apagados la organización.",
@@ -214,8 +222,8 @@ const QUERIES = [
         apagados: PLATFORM_MODULE_TOGGLES.filter((k) => !t[k]).map((k) => PLATFORM_MODULE_LABEL[k]),
       });
     },
-  },
-  {
+  }),
+  defineQuery({
     name: "equipo",
     label: "Equipo",
     description: "Las personas del equipo (asesores, coordinadores, propietario) con su rol y cuántos contactos tienen asignados. Los nombres llegan enmascarados.",
@@ -245,8 +253,8 @@ const QUERIES = [
         forOwner: { personas: miembros.map((m) => fila(m, m.name)) },
       };
     },
-  },
-  {
+  }),
+  defineQuery({
     name: "etiquetas",
     label: "Etiquetas",
     description: "Las etiquetas de contactos (las que crea el equipo, sin las automáticas de importación) con cuántos contactos tiene cada una, de la más usada a la menos.",
@@ -280,8 +288,8 @@ const QUERIES = [
         forOwner: { total_etiquetas: tags.length, etiquetas: filas.map((f) => ({ etiqueta: f.name, contactos: f.contactos })) },
       };
     },
-  },
-  {
+  }),
+  defineQuery({
     name: "conversaciones_por_etapa",
     label: "Leads por etapa del pipeline",
     description: "Cuántos leads hay en cada etapa del pipeline (abiertas, ganadas y perdidas), en el orden del pipeline.",
@@ -308,8 +316,8 @@ const QUERIES = [
         forOwner: { etapas: filas((n) => n) },
       };
     },
-  },
-  {
+  }),
+  defineQuery({
     name: "conversaciones_recientes",
     label: "Conversaciones recientes",
     description:
@@ -387,8 +395,8 @@ const QUERIES = [
       }));
       return { forModel: { conversaciones: model }, forOwner: { conversaciones: owner } };
     },
-  },
-  {
+  }),
+  defineQuery({
     name: "analisis_conversaciones",
     label: "Análisis de conversaciones",
     description: `Panorama de las conversaciones con clientes del periodo: resultados (venta, perdida, en curso…), motivos de pérdida, objeciones principales, desempeño por asesor y ejemplos recientes. Cada conversación se analiza UNA vez y se guarda; las nuevas se analizan de la más reciente a la más vieja, hasta ${INSIGHT_MAX_NEW_PER_QUESTION} por pregunta. Trae la COBERTURA: cuántas se revisaron y cuántas faltan (si faltan, hay que decirlo). Contactos y personas llegan enmascarados.`,
@@ -398,8 +406,8 @@ const QUERIES = [
       const r = await analyzeConversations(ctx, args.dias);
       return { forModel: r.forModel, forOwner: r.forOwner };
     },
-  },
-  {
+  }),
+  defineQuery({
     name: "auditoria_agentes",
     label: "Auditoría de los agentes de IA",
     description: `Para AUDITAR los agentes de IA o REVISAR los chats que contestó la IA: cada agente con su estado, tono, instrucciones y cuándo pasa a una persona; cuántos chats contestó en el periodo, cuántos pasó a una persona y por qué; y chats de ejemplo (primero los que terminaron en traspaso) con sus últimos mensajes (de: cliente / agente de IA / persona del equipo). Úsala para decir qué hace bien cada agente, dónde falla (respuestas inventadas, no contestó lo que preguntaron, se tardó en pasar a una persona…) y qué cambiar en sus instrucciones, con ejemplos. Contactos enmascarados.`,
@@ -411,8 +419,8 @@ const QUERIES = [
       .strict(),
     argsHelp: `{"dias": 1-${AUDIT_MAX_DAYS}, opcional, ${AUDIT_DEFAULT_DAYS} por defecto; "ejemplos": 0-${AUDIT_MAX_EXAMPLES}, opcional, ${AUDIT_DEFAULT_EXAMPLES} por defecto}`,
     run: (ctx, args) => auditAgents(ctx, args),
-  },
-] satisfies QueryDef<z.ZodTypeAny>[];
+  }),
+];
 
 export type AssistantQueryName = (typeof QUERIES)[number]["name"];
 export const ASSISTANT_QUERY_NAMES = QUERIES.map((q) => q.name);

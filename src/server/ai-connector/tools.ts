@@ -85,7 +85,7 @@ export type ToolSpec<A> = {
   title: string;
   description: string;
   inputSchema: Record<string, unknown>;
-  parse: z.ZodType<A, z.ZodTypeDef, unknown>;
+  parse: z.ZodType<A, unknown>;
   scope: Scope;
   /** La herramienta solo existe para quien tiene este permiso (la misma matriz del CRM). */
   permission?: Permission;

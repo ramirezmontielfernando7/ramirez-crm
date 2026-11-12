@@ -19,7 +19,7 @@ const bodySchema = z.object({
   errorCode: z.number().int().optional(),
   errorMessage: z.string().optional(),
   /** Campañas v2: objeto `pricing` (billable, pricing_model, category, type). */
-  pricing: z.record(z.unknown()).optional(),
+  pricing: z.record(z.string(), z.unknown()).optional(),
   /** Campañas v2: hora del estado en segundos Unix (para probar llegadas fuera de orden). */
   timestamp: z.number().int().positive().optional(),
 });
