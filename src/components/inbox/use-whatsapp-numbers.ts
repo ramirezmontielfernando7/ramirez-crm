@@ -9,6 +9,8 @@ export type WhatsAppNumber = {
   phone: string | null;
   name: string | null;
   isPrimary: boolean;
+  /** Clave de color de la etiqueta (`TAG_COLORS`). */
+  color: string;
 };
 
 /** Cómo se llama un número en pantalla: su nombre, o el teléfono si no tiene. */
@@ -54,4 +56,10 @@ export function numberLabelFor(numbers: readonly WhatsAppNumber[], id: string | 
   if (!id || numbers.length < 2) return null;
   const n = numbers.find((x) => x.id === id);
   return n ? numberTitle(n) : null;
+}
+
+/** El color de la etiqueta del número de un chat (clave de `TAG_COLORS`). */
+export function numberColorFor(numbers: readonly WhatsAppNumber[], id: string | null | undefined): string | null {
+  if (!id || numbers.length < 2) return null;
+  return numbers.find((x) => x.id === id)?.color ?? null;
 }

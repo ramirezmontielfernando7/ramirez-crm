@@ -165,6 +165,11 @@ try {
   ok("y la respuesta sale por el número 2", o2?.phoneNumberId === PN2, o2?.phoneNumberId);
 
   console.log("== 6. Nombre, quitar y casos infelices ==");
+  const col = await call("PATCH", `/api/settings/whatsapp/numbers/${PN2}`, { color: "morado" });
+  ok("elegir el color de un número", col.status === 200);
+  ok("un color fuera de la paleta se rechaza", (await call("PATCH", `/api/settings/whatsapp/numbers/${PN2}`, { color: "fucsia" })).status === 422);
+  const conColor = (await call("GET", "/api/whatsapp-numbers")).json?.numbers ?? [];
+  ok("cada número trae su color (el elegido, o uno automático distinto)", conColor.find((n) => n.id === PN2)?.color === "morado" && conColor.find((n) => n.id === PN1)?.color && conColor.find((n) => n.id === PN1)?.color !== "morado", JSON.stringify(conColor.map((n) => n.color)));
   const ren = await call("PATCH", `/api/settings/whatsapp/numbers/${PN2}`, { label: "Mérida Centro" });
   ok("renombrar un número", ren.status === 200);
   ok("un número ajeno da 404", (await call("PATCH", "/api/settings/whatsapp/numbers/PN-NO-ES-MIO", { label: "x" })).status === 404);

@@ -1,4 +1,5 @@
 import { getDb, schema } from "@/lib/db";
+import { autoNumberColor, isTagColor, type TagColor } from "@/lib/tags";
 import { scoped } from "@/lib/db/tenant";
 import { currentOrganizationId, runWithOrganization } from "@/lib/request-context";
 import { logger } from "@/lib/log";
@@ -349,6 +350,8 @@ export type WhatsAppNumberInfo = {
   displayPhoneNumber: string | null;
   verifiedName: string | null;
   label: string | null;
+  /** Color de la etiqueta: el elegido, o uno automático por orden. */
+  color: TagColor;
   status: "connected" | "reconnect_required";
   tokenLast4: string | null;
   isPrimary: boolean;
@@ -375,6 +378,7 @@ export async function listWhatsAppNumbers(organizationId: string): Promise<Whats
         displayPhoneNumber: row.displayPhoneNumber,
         verifiedName: row.verifiedName,
         label: row.label,
+        color: isTagColor(row.color) ? row.color : autoNumberColor(i),
         status: row.status,
         tokenLast4: last4,
         isPrimary: i === 0,

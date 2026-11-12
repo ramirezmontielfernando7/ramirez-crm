@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { apiError, parseBody, withAuth } from "@/lib/api";
+import { TAG_COLORS } from "@/lib/tags";
 import {
   getCredentialsByOrg,
   isValidPhoneNumberId,
@@ -41,6 +42,7 @@ const putSchema = z.object({
   token: z.string().trim().min(1),
   /** 0080: nombre del número («Ventas»); opcional. */
   label: z.string().trim().max(40).optional(),
+  color: z.enum(TAG_COLORS).optional(),
 });
 
 /** Guarda la conexión: re-valida contra Meta, cifra y suscribe (FR-040). */
@@ -48,7 +50,7 @@ export const PUT = withAuth(async (session, req: Request) => {
   const body = await parseBody(req, putSchema);
   if (!body.ok) return body.response;
 
-  const { wabaId, phoneNumberId, token, label } = body.data;
+  const { wabaId, phoneNumberId, token, label, color } = body.data;
 
   // H8: los IDs de Meta son solo dígitos. Un valor raro no llega a Meta ni a la BD.
   if (!isValidWabaId(wabaId)) {
@@ -69,6 +71,7 @@ export const PUT = withAuth(async (session, req: Request) => {
     displayPhoneNumber: valid.displayPhoneNumber,
     verifiedName: valid.verifiedName,
     label,
+    color,
   });
   if (!stored.ok) return apiError(stored.status, stored.code, stored.message);
 

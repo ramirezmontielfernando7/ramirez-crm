@@ -24,7 +24,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import type { ConversationDto, StageDto } from "@/lib/types";
-import type { TagDto } from "@/lib/tags";
+import { tagColorClass, type TagDto } from "@/lib/tags";
 import type { MenuAnchor } from "./floating-menu";
 import { etiquetaDeOrigen, titularDeOrigen } from "@/lib/anuncios";
 import { campaignPendingLabel, campaignReplyLabel } from "@/lib/campaign-inbox";
@@ -45,7 +45,7 @@ import {
 } from "@/components/assignment/use-assignees";
 import { InboxListHeader } from "./inbox-mode-switch";
 import { FilterMenu, type InboxFilter } from "./filter-menu";
-import { numberLabelFor, numberTitle, useWhatsAppNumbers } from "./use-whatsapp-numbers";
+import { numberColorFor, numberLabelFor, numberTitle, useWhatsAppNumbers } from "./use-whatsapp-numbers";
 import { rowAiBadge } from "@/lib/agent-pause";
 import { useAgentsPaused } from "./use-agents-paused";
 import { ALL_TAGS } from "@/lib/inbox-filters";
@@ -829,6 +829,7 @@ export const ConversationList = memo(function ConversationList({
                 picked={picked.has(c.id)}
                 multiChannel={multiChannel}
                 numberLabel={numberLabelFor(waNumbers, c.waNumberId)}
+                numberColor={numberColorFor(waNumbers, c.waNumberId)}
                 stages={catalogs.stages}
                 tagCatalog={catalogs.tags}
                 canCreateTags={canCreateTags}
@@ -1021,6 +1022,7 @@ const ConversationRow = memo(function ConversationRow({
   picked,
   multiChannel,
   numberLabel,
+  numberColor,
   agentsPaused,
   stages,
   tagCatalog,
@@ -1045,6 +1047,7 @@ const ConversationRow = memo(function ConversationRow({
   multiChannel: boolean;
   /** 0080: nombre del número oficial por el que habla el chat (null = un solo número). */
   numberLabel: string | null;
+  numberColor: string | null;
   /** Pausa general de los agentes (se avisa en el encabezado, no en la fila). */
   agentsPaused: boolean;
   stages: StageDto[];
@@ -1157,7 +1160,10 @@ const ConversationRow = memo(function ConversationRow({
                   <span
                     data-number-chip
                     title={`Número de WhatsApp: ${numberLabel}`}
-                    className="max-w-[7rem] shrink-0 truncate rounded-full bg-muted px-1.5 text-[10.5px] font-semibold leading-4 text-text-2"
+                    className={cn(
+                      "max-w-[7rem] shrink-0 truncate rounded-full px-1.5 text-[10.5px] font-semibold leading-4",
+                      tagColorClass(numberColor)
+                    )}
                   >
                     {numberLabel}
                   </span>

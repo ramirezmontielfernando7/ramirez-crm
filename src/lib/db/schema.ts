@@ -1111,6 +1111,8 @@ export const metaCredentials = pgTable(
      * Centro»). Es lo que se ve en la Bandeja; NULL = se muestra el teléfono.
      */
     label: text("label"),
+    /** 0080 — Color de la etiqueta del número (clave de `TAG_COLORS`); NULL = automático por orden. */
+    color: text("color"),
     tokenCipher: text("token_cipher").notNull(),
     tokenIv: text("token_iv").notNull(),
     tokenTag: text("token_tag").notNull(),

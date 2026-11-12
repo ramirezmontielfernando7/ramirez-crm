@@ -23,6 +23,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import type { WebhookSettingsDto } from "@/lib/webhook-settings";
 import { Label } from "@/components/ui/label";
+import { ColorPicker } from "@/components/tags/color-picker";
+import { isTagColor, type TagColor } from "@/lib/tags";
 import { CONNECTION_STATUS_LABEL, type ConnectionMode } from "@/lib/direct-connection";
 import { phoneCompact } from "@/lib/utils";
 import { EmbeddedSignupCard, type EmbeddedSignupConfig } from "@/components/settings/embedded-signup-card";
@@ -36,6 +38,8 @@ type Connection = {
   tokenLast4: string;
   /** 0080: el nombre que la empresa le puso al número («Ventas»). */
   label?: string | null;
+  /** 0080: color de la etiqueta del número (clave de la paleta). */
+  color?: string | null;
 };
 
 /** 0080: un número de la lista (el principal va primero). */
@@ -388,6 +392,7 @@ function OfficialNumberCard({
   // 0080: nombre del número y quitarlo.
   const [name, setName] = useState(connection.label ?? "");
   const [nameMsg, setNameMsg] = useState<string | null>(null);
+  const [color, setColor] = useState<TagColor | null>(isTagColor(connection.color) ? connection.color : null);
   const numberUrl = `/api/settings/whatsapp/numbers/${encodeURIComponent(connection.phoneNumberId)}`;
   async function saveName() {
     if (name.trim() === (connection.label ?? "")) return;
@@ -397,6 +402,16 @@ function OfficialNumberCard({
       body: JSON.stringify({ label: name.trim() === "" ? null : name.trim() }),
     });
     setNameMsg(res.ok ? "Nombre guardado" : "No se pudo guardar el nombre");
+    if (res.ok) onChanged();
+  }
+  async function saveColor(c: TagColor) {
+    setColor(c);
+    const res = await fetchJson<{ ok: true }>(numberUrl, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ color: c }),
+    });
+    setNameMsg(res.ok ? "Color guardado" : "No se pudo guardar el color");
     if (res.ok) onChanged();
   }
   async function remove() {
@@ -453,6 +468,10 @@ function OfficialNumberCard({
                 Quitar
               </Button>
             )}
+          </div>
+          <div className="flex items-center gap-2 pt-1" data-testid="numero-color">
+            <span className="text-xs text-muted-foreground">Color de la etiqueta</span>
+            <ColorPicker value={color} onChange={(c) => void saveColor(c)} label="Color de la etiqueta del número" small />
           </div>
           <p className="text-xs text-muted-foreground">
             {nameMsg ?? "Este nombre sale en cada chat de la bandeja y sirve para filtrar por número."}

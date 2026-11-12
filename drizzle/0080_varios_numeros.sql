@@ -8,6 +8,7 @@
 DROP INDEX IF EXISTS "meta_credentials_org_uq";--> statement-breakpoint
 CREATE INDEX IF NOT EXISTS "meta_credentials_org_idx" ON "meta_credentials" USING btree ("organization_id","created_at");--> statement-breakpoint
 ALTER TABLE "meta_credentials" ADD COLUMN IF NOT EXISTS "label" text;--> statement-breakpoint
+ALTER TABLE "meta_credentials" ADD COLUMN IF NOT EXISTS "color" text;--> statement-breakpoint
 ALTER TABLE "conversation" ADD COLUMN IF NOT EXISTS "wa_phone_number_id" text;--> statement-breakpoint
 CREATE INDEX IF NOT EXISTS "conversation_org_wa_number_idx" ON "conversation" USING btree ("organization_id","wa_phone_number_id") WHERE "wa_phone_number_id" is not null;
 --> statement-breakpoint

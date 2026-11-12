@@ -75,6 +75,8 @@ export async function saveCredentials(input: {
   verifiedName?: string | null;
   /** 0080: el nombre del número; al reconectar sin él se conserva el que tenía. */
   label?: string | null;
+  /** 0080: color de la etiqueta (clave de `TAG_COLORS`). */
+  color?: string | null;
 }): Promise<void> {
   const sealed = sealForStorage(input.token);
   await withTenant(input.organizationId, async (db) => {
@@ -105,10 +107,10 @@ export async function saveCredentials(input: {
     // reporta como 23505).
     await db
       .insert(schema.metaCredentials)
-      .values({ id: newId("credentials"), organizationId: input.organizationId, ...cred, label })
+      .values({ id: newId("credentials"), organizationId: input.organizationId, ...cred, label, color: input.color ?? null })
       .onConflictDoUpdate({
         target: [schema.metaCredentials.phoneNumberId],
-        set: { ...cred, ...(label !== null ? { label } : {}), updatedAt: new Date() },
+        set: { ...cred, ...(label !== null ? { label } : {}), ...(input.color ? { color: input.color } : {}), updatedAt: new Date() },
         setWhere: eq(schema.metaCredentials.organizationId, input.organizationId),
       });
 
@@ -157,11 +159,14 @@ export async function markReconnectRequired(
 export async function setNumberLabel(
   organizationId: string,
   phoneNumberId: string,
-  label: string | null
+  patch: { label?: string | null; color?: string | null }
 ): Promise<boolean> {
+  const set: { label?: string | null; color?: string | null; updatedAt: Date } = { updatedAt: new Date() };
+  if (patch.label !== undefined) set.label = normalizeNumberLabel(patch.label);
+  if (patch.color !== undefined) set.color = patch.color;
   const rows = await getDb()
     .update(schema.metaCredentials)
-    .set({ label: normalizeNumberLabel(label), updatedAt: new Date() })
+    .set(set)
     .where(
       scoped(
         schema.metaCredentials.organizationId,

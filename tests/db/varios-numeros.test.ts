@@ -106,8 +106,8 @@ describe("varios números oficiales por organización", () => {
   });
 
   it("nombrar un número y quitarlo: sus chats pasan al principal", async () => {
-    expect(await runWithOrganization(A.id, () => setNumberLabel(A.id, segundo, "Mérida"))).toBe(true);
-    expect(await runWithOrganization(A.id, () => setNumberLabel(A.id, "no-existe", "x"))).toBe(false);
+    expect(await runWithOrganization(A.id, () => setNumberLabel(A.id, segundo, { label: "Mérida" }))).toBe(true);
+    expect(await runWithOrganization(A.id, () => setNumberLabel(A.id, "no-existe", { label: "x" }))).toBe(false);
     expect(await runWithOrganization(A.id, () => removeNumber(A.id, segundo))).toBe(true);
     const convs = await getSystemDb().select().from(schema.conversation).where(eq(schema.conversation.organizationId, A.id));
     expect(convs.every((c) => c.waPhoneNumberId === A.phoneNumberId)).toBe(true);

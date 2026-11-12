@@ -15,6 +15,7 @@ export const GET = withAuth(async (session) => {
     numbers: numbers.map((n) => ({
       id: n.phoneNumberId,
       label: n.label,
+      color: n.color,
       phone: n.displayPhoneNumber,
       name: n.verifiedName,
       isPrimary: n.isPrimary,
