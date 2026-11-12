@@ -207,7 +207,7 @@ it("DF-01: privados fuera del tablero y list_pipeline; compartidos y otra empres
     const { GET } = await import("@/app/api/pipeline/board/route");
     for (const role of ["owner", "coordinador"] as const) {
       auth.session = sessionContext(u.owner, A.id, role);
-      const board = await (await GET()).json();
+      const board = await (await GET(new Request("http://localhost/api/pipeline/board"))).json();
       expect(board.leads.map((l: any) => l.contact.id)).toContain(deBeto.contactId);
       expect(board.leads.map((l: any) => l.contact.id)).not.toContain(privado.contactId);
       expect(board.leads.map((l: any) => l.contact.id)).not.toContain(ajeno.contactId);
