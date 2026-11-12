@@ -301,7 +301,7 @@ export const MODULES: readonly ModuleDef[] = [
     icon: "Settings",
     core: true,
     // Basta una pestaña que se pueda abrir (ver SETTINGS_TAB_PERMISSION).
-    permissions: ["settings.manage", "templates.manage", "users.read", "tags.manage", "team_chat.create_groups", "usage.read", "direct_connection.link", "mi_numero.manage", "pipeline.edit"],
+    permissions: ["settings.manage", "templates.manage", "users.read", "tags.manage", "team_chat.create_groups", "usage.read", "direct_connection.link", "mi_numero.manage", "pipeline.edit", "agent.manage"],
     defaultRoles: ["owner", "coordinador"],
     requires: [],
     pinnedBottom: true,

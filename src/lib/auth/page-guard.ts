@@ -38,6 +38,9 @@ export const SETTINGS_TAB_PERMISSION = {
   "conector-ia": "settings.manage",
   // Ronda 3: «Bajas automáticas» (STOP/BAJA), antes dentro de Canales.
   "opt-out": "settings.manage",
+  // Auditoría 2026-11: el interruptor general de la IA y el cerebro externo
+  // (antes solo en /agent); solo con el módulo Agente.
+  "quien-contesta": "agent.manage",
 } as const satisfies Record<string, Permission>;
 
 /**

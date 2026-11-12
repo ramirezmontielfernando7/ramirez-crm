@@ -438,7 +438,7 @@ await desk.getByText(NAME).first().click();
 await probarInterruptor(desk, "IA en esta conversación");
 await desk.setViewportSize(DESKTOP);
 
-await desk.goto(`${BASE}/agent`, { waitUntil: "domcontentloaded" });
+await desk.goto(`${BASE}/settings/quien-contesta`, { waitUntil: "domcontentloaded" });
 await probarInterruptor(desk, "Agente encendido");
 await desk.screenshot({ path: `${SHOTS}/desktop-agente.png` });
 

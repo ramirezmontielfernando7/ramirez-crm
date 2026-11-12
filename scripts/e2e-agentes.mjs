@@ -301,10 +301,14 @@ async function main() {
     ok("el menú tiene Laboratorio y ya no «Agente»", (await page.locator('nav a[href="/lab"]').count()) > 0 && (await page.locator('nav a[href="/agent"]').count()) === 0);
     ok("portada del creador o lista con el general arriba", portada || /General/.test((await page.locator('[role="row"]').nth(1).innerText()) ?? ""));
 
-    // /agent sigue vivo y enlaza al Laboratorio.
+    // Con Laboratorio, /agent ya no es una pantalla aparte: lleva a Agentes IA, y el
+    // interruptor general y el cerebro externo viven en Ajustes → Quién contesta.
     await page.goto(`${BASE}/agent`);
-    await page.getByText("Agente de IA").first().waitFor();
-    ok("/agent sigue editando al general y enlaza al Laboratorio", (await page.getByRole("link", { name: /Ver todos tus agentes/ }).count()) === 1);
+    await page.waitForURL(/\/lab(\?|$)/);
+    ok("/agent con Laboratorio redirige a Agentes IA", /\/lab/.test(page.url()));
+    await page.goto(`${BASE}/settings/quien-contesta`);
+    await page.getByRole("switch", { name: "Agente encendido" }).waitFor();
+    ok("Ajustes → Quién contesta trae el interruptor general", (await page.getByRole("switch", { name: "Agente encendido" }).count()) === 1);
 
     // Crear desde la pantalla.
     await page.goto(`${BASE}/lab`);

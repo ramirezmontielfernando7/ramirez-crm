@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   ArrowLeft,
+  Bot,
   Bell,
   CalendarDays,
   Eye,
@@ -95,6 +96,7 @@ const GROUPS: readonly Group[] = [
   {
     label: "IA conectada",
     items: [
+      { id: "quien", label: "Quién contesta", icon: Bot, keywords: "ia agente encender apagar cerebro externo bot api", pages: [{ slug: "quien-contesta", label: "Quién contesta" }] },
       { id: "mi-ia", label: "Mi IA", icon: Plug, keywords: "conector mcp claude chatgpt", pages: [{ slug: "mi-ia", label: "Mi IA" }] },
       { id: "conector", label: "Conector del equipo", icon: SlidersHorizontal, keywords: "propietario roles tope", pages: [{ slug: "conector-ia", label: "Ajustes del conector" }] },
     ],
@@ -161,6 +163,7 @@ export function SettingsShell({
   directConnection = false,
   miNumero = false,
   conectorIa = false,
+  agente = false,
   templates = true,
   allowed,
   children,
@@ -174,6 +177,8 @@ export function SettingsShell({
   miNumero?: boolean;
   /** 047 — IA conectada, solo con el complemento. */
   conectorIa?: boolean;
+  /** Módulo Agente — «Quién contesta» solo con él. */
+  agente?: boolean;
   /** 030 (PR 4) — con Campañas encendido, Plantillas vive en Marketing. */
   templates?: boolean;
   /** 020 — páginas que el rol puede abrir (`/settings/<clave>`); lo decide el servidor. */
@@ -190,6 +195,7 @@ export function SettingsShell({
     if (slug === "direct-connection" && !directConnection) return false;
     if ((slug === "my-number" || slug === "mi-numero") && !miNumero) return false;
     if ((slug === "mi-ia" || slug === "conector-ia") && !conectorIa) return false;
+    if (slug === "quien-contesta" && !agente) return false;
     if (slug === "templates" && !templates) return false;
     return !allowed || allowed.includes(slug);
   });
