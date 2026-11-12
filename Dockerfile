@@ -49,7 +49,7 @@ RUN pnpm exec esbuild scripts/migrate.mjs --bundle --platform=node \
     --banner:js="import { createRequire } from 'module'; const require = createRequire(import.meta.url);"
 # Fase 3: scripts de OPERADOR autocontenidos, para correrlos dentro del
 # contenedor (docker exec … node ops/<script>.mjs). Usan DATABASE_URL_SYSTEM.
-RUN for s in platform-admin purge-organization ai-quota bot-key set-consent-inicial kb-limits reclasificar-campanas respaldo probar-restauracion; do \
+RUN for s in platform-admin purge-organization ai-quota bot-key set-consent-inicial kb-limits backfill-plan-caps reclasificar-campanas respaldo probar-restauracion; do \
       pnpm exec esbuild scripts/$s.mjs --bundle --platform=node --format=esm --outfile=ops/$s.mjs \
         --banner:js="import { createRequire } from 'module'; const require = createRequire(import.meta.url);" || exit 1; \
     done
