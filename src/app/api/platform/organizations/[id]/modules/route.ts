@@ -3,6 +3,7 @@ import { parseBody } from "@/lib/api";
 import { actorOf, withPlatformAdmin } from "@/server/platform-admin/http";
 import { planToggles } from "@/lib/platform-modules";
 import { changeOrganizationModules } from "@/server/platform-admin/organizations";
+import { getPlanProfiles } from "@/server/plan-catalog/store";
 
 export const dynamic = "force-dynamic";
 
@@ -55,6 +56,7 @@ export const POST = withPlatformAdmin(async (admin, ip, req, { params }: Params)
   const body = await parseBody(req, schema);
   if (!body.ok) return body.response;
   const { plan, ...change } = body.data;
-  const modules = await changeOrganizationModules(id, plan ? { ...planToggles(plan), ...change } : change, actorOf(admin), ip);
+  // 048: la plantilla es lo que trae el plan HOY (editable en «Planes y precios»).
+  const modules = await changeOrganizationModules(id, plan ? { ...planToggles(plan, await getPlanProfiles()), ...change } : change, actorOf(admin), ip);
   return Response.json({ modules });
 });

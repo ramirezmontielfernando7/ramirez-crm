@@ -19,6 +19,7 @@ import {
   type ReservationLimit,
 } from "@/server/ai-quota/quota";
 import { checkAiAlerts, checkAssistantAlerts } from "@/server/limits/alerts";
+import { aiBlockedDetail } from "@/server/billing/store";
 
 /**
  * Fase 3, PR 1 — La única forma de llamar al modelo desde el servidor: a
@@ -70,6 +71,15 @@ export async function chatJsonForOrg<T>(
   }
 ): Promise<ChatJsonResult<T>> {
   const { agentId, use, mode, ...rest } = opts ?? {};
+  // 048: el interruptor de emergencia de la plataforma o la prueba gratis
+  // terminada / el pago vencido frenan la IA antes de cualquier otra cosa. Se
+  // responde como un tope alcanzado: cada camino ya sabe degradar (el chat
+  // pasa a una persona, nunca silencio).
+  const blocked = await aiBlockedDetail(organizationId);
+  if (blocked) {
+    log.warn("IA frenada por la plataforma: no se llama al modelo", { org: organizationId, tipo: kind });
+    return { ok: false, error: "quota_exceeded", detail: blocked };
+  }
   // Sin proveedor no hay turno que contar.
   if (!isAiConfigured()) return chatJson(schema, messages, rest);
 

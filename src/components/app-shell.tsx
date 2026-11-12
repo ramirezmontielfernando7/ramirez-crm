@@ -18,6 +18,7 @@ import { HandoffNotices } from "@/components/handoff-notices";
 import { NumberHealthBanner } from "@/components/number-health";
 import { CampaignPauseBanner } from "@/components/campaigns/campaign-pause-banner";
 import { UsageAlertBanner } from "@/components/usage-alert-banner";
+import { PlatformNoticeBanner } from "@/components/platform-notice-banner";
 import { UsageDialog } from "@/components/usage/usage-dialog";
 import { TourDialog } from "@/components/onboarding/tour-dialog";
 import { UsagePrompt } from "@/components/usage/usage-prompt";
@@ -303,6 +304,8 @@ function ShellFrame({
             <BrandLogo branding={branding} tile={false} className="min-w-0" />
           </header>
 
+          {/* 048: aviso a todos los clientes y prueba gratis / pago (cualquier rol). */}
+          <PlatformNoticeBanner />
           {/* Campañas v2: aviso de salud del número (Propietario y Coordinador). */}
           <NumberHealthBanner campaigns={campaigns} />
           {/* Campañas v2: pausa de seguridad automática (Propietario y Coordinador). */}

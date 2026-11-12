@@ -20,6 +20,10 @@ export const PLATFORM_TABLES: Readonly<Record<string, string>> = {
     "0070: modelos de IA por defecto de la instancia y de cada plan, y la meta de gasto de la plataforma; valen para TODAS las organizaciones (solo pool de sistema)",
   platform_setting:
     "0077: ajustes de la plataforma (el WhatsApp de contacto de «¿Necesitas más?»); vale para TODAS las organizaciones (solo pool de sistema)",
+  platform_kill_switch:
+    "0078 (048): interruptores de emergencia (IA, campañas, conexión directa) para TODAS las organizaciones a la vez (solo pool de sistema)",
+  platform_broadcast:
+    "0078 (048): aviso a todos los clientes (franja de mantenimiento o novedades); vale para TODAS las organizaciones (solo pool de sistema)",
   platform_plan_catalog:
     "0073: catálogo de planes (nombre, precio, qué incluye) que edita el administrador de plataforma; vale para TODAS las organizaciones (solo pool de sistema)",
   platform_ai_model_price:

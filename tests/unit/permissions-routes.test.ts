@@ -305,6 +305,8 @@ const FILTRADAS: [string, Method][] = [
 
 /** Del negocio, sin datos de clientes: cualquier rol con sesión. */
 const DEL_NEGOCIO: [string, Method][] = [
+  // 048: aviso a todos y prueba / pago de la propia organización (sin montos).
+  ["notices", "GET"],
   ["agent/brain-status", "GET"],
   ["pipeline/stages", "GET"],
   ["pipeline/loss-reasons", "GET"],
@@ -407,6 +409,12 @@ const POR_AUTOR: [string, Method][] = [
  * 404: como si la ruta no existiera.
  */
 const PLATAFORMA: [string, Method][] = [
+  // 048: cobro a mano, prueba gratis e interruptores de emergencia.
+  ["platform/organizations/[id]/billing", "GET"],
+  ["platform/organizations/[id]/billing", "PUT"],
+  ["platform/organizations/[id]/billing/payments", "POST"],
+  ["platform/controls", "GET"],
+  ["platform/controls", "PUT"],
   ["platform/organizations", "GET"],
   ["platform/organizations", "POST"],
   ["platform/organizations/[id]/members", "GET"],

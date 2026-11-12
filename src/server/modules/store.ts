@@ -4,7 +4,8 @@ import { scoped } from "@/lib/db/tenant";
 import type { Db } from "@/lib/db";
 import type { Channel } from "@/lib/channels";
 import { logger } from "@/lib/log";
-import { MODULE_PROFILES, type ModuleProfile } from "@/lib/modules/registry";
+import type { ModuleProfile } from "@/lib/modules/registry";
+import { FACTORY_PLAN_PROFILES, type PlatformModuleToggle } from "@/lib/platform-modules";
 import {
   envModuleDefaults,
   optionalChannelsOf,
@@ -178,11 +179,13 @@ function defaultsRow(organizationId: string) {
 export async function seedOrgModules(
   tx: Db,
   organizationId: string,
-  profile?: ModuleProfile
+  profile?: ModuleProfile,
+  /** 048 — Lo que trae el plan HOY (editable en «Planes y precios»); sin él, los de fábrica. */
+  toggles?: Record<PlatformModuleToggle, boolean>
 ): Promise<void> {
   await tx
     .insert(schema.organizationModule)
-    .values({ ...defaultsRow(organizationId), ...(profile ? profileRow(profile) : {}) })
+    .values({ ...defaultsRow(organizationId), ...(profile ? profileRow(profile, toggles ?? FACTORY_PLAN_PROFILES[profile]) : {}) })
     .onConflictDoNothing();
 }
 
@@ -190,8 +193,7 @@ export async function seedOrgModules(
  * 039 — Plan de alta (Esencial, Pro o Ultra): SOLO una plantilla para los 13
  * interruptores al crear la organización; no se guarda cuál fue.
  */
-function profileRow(profile: ModuleProfile) {
-  const p = MODULE_PROFILES[profile].modules;
+function profileRow(profile: ModuleProfile, p: Record<PlatformModuleToggle, boolean>) {
   return {
     campaigns: p.campaigns,
     agenda: p.agenda,
@@ -199,7 +201,7 @@ function profileRow(profile: ModuleProfile) {
     knowledge: p.knowledge,
     agent: p.agent,
     lab: p.lab && p.agent,
-    teamChat: p.team_chat,
+    teamChat: p.teamChat,
     results: p.results,
     customNav: p.customNav,
     trabajo: p.trabajo,

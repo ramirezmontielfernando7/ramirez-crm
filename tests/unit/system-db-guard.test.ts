@@ -119,13 +119,29 @@ const PERMITIDOS: Record<string, { usos: number; motivo: string }> = {
     usos: 5,
     motivo: "0070: modelos, esfuerzo y tope en USD de la instancia y de cada plan (platform_ai_defaults) y precio por modelo (platform_ai_model_price), tablas de PLATAFORMA sin organización; más el gasto estimado sumado de todas las organizaciones (solo números)",
   },
+  "src/server/billing/store.ts": {
+    usos: 1,
+    motivo: "048: prueba gratis, «pagado hasta» e IA extra del mes (organization_billing) y pagos (organization_payment): los decide la plataforma y se leen con la organización explícita en caminos calientes (cada llamada a la IA, el despachador de campañas) que a veces no tienen contexto; solo fechas y montos, nunca contenido",
+  },
+  "src/server/platform-controls/store.ts": {
+    usos: 1,
+    motivo: "048: interruptores de emergencia (platform_kill_switch) y aviso a todos (platform_broadcast), tablas de PLATAFORMA sin organización",
+  },
+  "src/server/platform-admin/billing.ts": {
+    usos: 1,
+    motivo: "048: confirma que la organización existe y toma su nombre para la bitácora de plataforma al cambiar su prueba o registrar un pago; nunca contenido",
+  },
+  "src/server/platform-admin/health.ts": {
+    usos: 1,
+    motivo: "048: semáforo de clientes en la lista de /platform: último mensaje y envíos fallidos de 7 días de TODAS las organizaciones en lecturas agrupadas (solo conteos y fechas, nunca contenido)",
+  },
   "src/server/plan-catalog/request.ts": {
     usos: 1,
     motivo: "0073: la solicitud de cambio de plan del Propietario toma el nombre de su organización y su correo (tablas de plataforma de Better Auth) para la bitácora de plataforma; solo metadatos, nunca contenido",
   },
   "src/server/plan-catalog/store.ts": {
-    usos: 3,
-    motivo: "0073: catálogo de planes (platform_plan_catalog) y 0077: WhatsApp de contacto (platform_setting), tablas de PLATAFORMA sin organización: lectura con caché y escritura del administrador de plataforma; nunca datos de un negocio",
+    usos: 4,
+    motivo: "0073: catálogo de planes (platform_plan_catalog) y 0077: WhatsApp de contacto (platform_setting), tablas de PLATAFORMA sin organización: lectura con caché y escritura del administrador de plataforma (048: también qué módulos trae cada plan); nunca datos de un negocio",
   },
   "src/server/ai-settings/admin.ts": {
     usos: 1,

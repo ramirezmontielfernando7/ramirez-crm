@@ -11,6 +11,7 @@ import { sendTemplate } from "@/server/whatsapp/templates";
 import { getHealthSummary } from "@/server/whatsapp/health";
 import { getCredentialsByOrg } from "@/server/whatsapp/credentials";
 import { campaignSendRate, campaignsEnabled } from "@/server/campaigns/flag";
+import { campaignsBlockedReason } from "@/server/billing/store";
 import { getCampaignSettings } from "@/server/campaigns/settings";
 import { marketingSkipReason } from "@/server/campaigns/audience";
 import { MARKETING_OPT_OUT_CODE, markMarketingOptOut } from "@/server/inbox/marketing-opt-out";
@@ -290,6 +291,12 @@ export async function dispatchNumber(
       }
       if (!(await campaignsEnabled(organizationId))) {
         await pauseAll(organizationId, phoneNumberId, "Se pausó: Campañas se apagó para esta organización");
+        break;
+      }
+      // 048: interruptor de emergencia de la plataforma, prueba gratis terminada o pago vencido.
+      const blocked = await campaignsBlockedReason(organizationId);
+      if (blocked) {
+        await pauseAll(organizationId, phoneNumberId, `Se pausó: ${blocked}`);
         break;
       }
       const campaigns = await activeCampaigns(organizationId, phoneNumberId);

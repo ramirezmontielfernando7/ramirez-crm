@@ -19,7 +19,7 @@ import { envKbDocLimits, getOwnKbDocLimits } from "@/server/kb-docs/limits";
 import { saveKbDocLimits } from "@/server/kb-docs/store";
 import type { OrgModules } from "@/server/modules";
 import { capsOfPlan } from "@/lib/plan-catalog";
-import { getPlanCatalog } from "@/server/plan-catalog/store";
+import { getPlanCatalog, getPlanProfiles } from "@/server/plan-catalog/store";
 import { getOrgStorageUsage } from "@/server/usage/storage";
 
 /**
@@ -206,7 +206,8 @@ export async function syncPlanKey(
   organizationId: string,
   modules: Record<PlatformModuleToggle, boolean>
 ): Promise<PlanKey> {
-  const planKey = planKeyOfModules(modules);
+  // 048: contra lo que traen los planes HOY (editable en «Planes y precios»).
+  const planKey = planKeyOfModules(modules, await getPlanProfiles());
   await withTenant(organizationId, async (tx) => {
     const actual = await planRow(organizationId, tx);
     if (actual?.planKey === planKey) return;

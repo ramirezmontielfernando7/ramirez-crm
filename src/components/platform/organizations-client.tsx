@@ -18,6 +18,8 @@ import {
 } from "@/lib/platform-orgs";
 import { aiMeter, STORAGE_LABEL, storageMeter } from "@/lib/usage";
 import { cn } from "@/lib/utils";
+import { BILLING_LABEL } from "@/lib/billing";
+import { HEALTH_LABEL, HEALTH_ORDER, type HealthLevel } from "@/lib/platform-health";
 import { api, type Org } from "./api";
 import { CreateOrganization } from "./create-organization";
 import { UsageMeter } from "./usage";
@@ -43,7 +45,7 @@ export const STATUS_DOT: Record<Org["status"], string> = {
   deleted: "bg-destructive",
 };
 
-const GRID = "sm:grid-cols-[minmax(0,1.6fr)_7rem_4.5rem_minmax(0,1.2fr)_minmax(0,1fr)_6rem_4.5rem]";
+const GRID = "sm:grid-cols-[minmax(0,1.6fr)_7rem_4.5rem_minmax(0,1.2fr)_minmax(0,1fr)_6rem_6rem_4.5rem]";
 
 const STATUS_PILL: Record<Org["status"], string> = {
   active: "bg-success-tint text-success-text",
@@ -55,6 +57,20 @@ const PLAN_PILL: Record<string, string> = {
   pro: "bg-brand-soft text-brand-text",
   custom: "bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300",
 };
+/** 048 — El semáforo: verde «Bien», amarillo «Revisar», rojo «Llamar». */
+export const HEALTH_PILL: Record<HealthLevel, string> = {
+  green: "bg-success-tint text-success-text",
+  yellow: "bg-warning-tint text-warning-text",
+  red: "bg-danger-tint text-danger-text",
+  inactive: "bg-muted text-text-3",
+};
+export const HEALTH_DOT: Record<HealthLevel, string> = {
+  green: "bg-success",
+  yellow: "bg-warning",
+  red: "bg-destructive",
+  inactive: "bg-text-3",
+};
+
 const iniciales = (n: string) =>
   n
     .split(/\s+/)
@@ -108,6 +124,13 @@ function OrganizationRow({ org }: { org: Org }) {
               {org.isPlatform ? "Plataforma · " : ""}
               {org.members} persona(s)
               {org.usage?.plan.maxMembers != null && ` de ${org.usage.plan.maxMembers}`}
+              {org.billing && org.billing.kind !== "none" && (
+                <span data-testid="platform-org-billing" data-kind={org.billing.kind}>
+                  {" · "}
+                  {BILLING_LABEL[org.billing.kind]}
+                  {org.billing.daysLeft !== null && org.billing.daysLeft > 0 && ` (${org.billing.daysLeft} d)`}
+                </span>
+              )}
             </span>
           </span>
           {avisoMax > 0 && (
@@ -146,6 +169,20 @@ function OrganizationRow({ org }: { org: Org }) {
             {STATUS_LABEL[org.status]}
           </span>
         </span>
+        <span>
+          {org.health && (
+            <span
+              className={cn("inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium", HEALTH_PILL[org.health.level])}
+              title={org.health.reasons.join(" · ")}
+              data-testid="platform-org-health"
+              data-level={org.health.level}
+            >
+              <span className={cn("h-1.5 w-1.5 rounded-full", HEALTH_DOT[org.health.level])} aria-hidden />
+              {HEALTH_LABEL[org.health.level]}
+              <span className="sr-only">: {org.health.reasons.join(", ")}</span>
+            </span>
+          )}
+        </span>
         <span className="hidden justify-self-end rounded-md border px-3 py-1 text-sm font-medium sm:inline-block">Abrir</span>
       </Link>
     </li>
@@ -157,6 +194,7 @@ export function OrganizationsClient({ onCount }: { onCount?: (n: number) => void
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<OrgStatusFilter>("all");
   const [plan, setPlan] = useState<OrgPlanFilter>("all");
+  const [toCall, setToCall] = useState(false);
   const [creating, setCreating] = useState(false);
 
   const refetch = useCallback(async () => {
@@ -171,7 +209,16 @@ export function OrganizationsClient({ onCount }: { onCount?: (n: number) => void
     void refetch();
   }, [refetch]);
 
-  const visibles = useMemo(() => (orgs ? filterOrgs(orgs, { status, plan, q: query }) : null), [orgs, status, plan, query]);
+  const visibles = useMemo(() => {
+    if (!orgs) return null;
+    const list = filterOrgs(orgs, { status, plan, q: query });
+    // 048: «A quién llamar» deja solo rojo y amarillo, lo más urgente arriba.
+    if (!toCall) return list;
+    return list
+      .filter((o) => o.health && (o.health.level === "red" || o.health.level === "yellow"))
+      .sort((a, b) => HEALTH_ORDER[a.health!.level] - HEALTH_ORDER[b.health!.level]);
+  }, [orgs, status, plan, query, toCall]);
+  const porLlamar = useMemo(() => (orgs ?? []).filter((o) => o.health?.level === "red" || o.health?.level === "yellow").length, [orgs]);
   const counts = useMemo(() => countByStatus(orgs ?? []), [orgs]);
 
   return (
@@ -206,6 +253,9 @@ export function OrganizationsClient({ onCount }: { onCount?: (n: number) => void
           </Chip>
         ))}
         <span aria-hidden className="mx-1 h-4 w-px bg-border" />
+        <Chip active={toCall} onClick={() => setToCall(!toCall)} testId="platform-filter-health">
+          A quién llamar <span className="tabular-nums text-text-3">{porLlamar}</span>
+        </Chip>
         <select
           value={plan}
           onChange={(e) => setPlan(e.target.value as OrgPlanFilter)}
@@ -232,6 +282,7 @@ export function OrganizationsClient({ onCount }: { onCount?: (n: number) => void
           <span>IA del mes</span>
           <span>{STORAGE_LABEL}</span>
           <span>Estado</span>
+          <span>Salud</span>
           <span />
         </div>
         {visibles === null ? (

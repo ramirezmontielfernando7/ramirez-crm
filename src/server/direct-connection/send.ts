@@ -1,3 +1,4 @@
+import { isKilled } from "@/server/platform-controls/store";
 import { eq, gt, inArray, isNotNull, isNull, lt, lte, ne, sql } from "drizzle-orm";
 import { getDb, getSystemDb, schema, withTenant } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
@@ -71,6 +72,7 @@ import { getDirectSettings } from "./settings";
  * Sus límites, su fila y su freno son solo suyos (no gastan los de la
  * empresa) y sus avisos en vivo van solo a su dueño (`number.*`).
  */
+
 
 const log = logger("direct-connection");
 
@@ -191,6 +193,11 @@ async function recentDirectSends(organizationId: string, now: Date, directNumber
  */
 export async function sendDirect(input: DirectOutgoing): Promise<DirectResult> {
   const { organizationId, conversationId } = input;
+  // 048: interruptor de emergencia de la plataforma (empresa y «Mi número»).
+  // Lo que ya estaba en la fila sigue su curso; lo nuevo no entra.
+  if (await isKilled("direct_send")) {
+    throw new DirectSendFailure("not_connected", "Los envíos por conexión directa están en pausa por mantenimiento de la plataforma. Intenta más tarde.");
+  }
   const settings = await getDirectSettings(organizationId);
   const now = new Date();
   const scope = input.number ?? null;

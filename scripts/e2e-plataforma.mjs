@@ -608,8 +608,9 @@ async function planesGuardados(A) {
   await page.waitForURL(new RegExp(`/platform/organizaciones/${orgP}$`));
   await page.getByTestId("platform-template-esencial").waitFor({ timeout: 20000 });
   ok("la plantilla actual está marcada", (await page.getByTestId("platform-template-pro").getAttribute("aria-pressed")) === "true");
-  page.once("dialog", (d) => void d.accept());
+  // 048: el cambio de plan abre una vista previa (qué se enciende/apaga) y se aplica con su botón.
   await page.getByTestId("platform-template-esencial").click();
+  await page.getByTestId("platform-plan-preview-apply").click();
   ok("la plantilla «Esencial» deja plan_key = esencial", await hasta(async () => (await guardado()) === "esencial"));
   ok("…y la ficha dice «Plan Esencial»", await hasta(async () => (await page.getByTestId("platform-detail-badge").getByTestId("platform-org-plan").innerText()) === "Plan Esencial"));
   const sw = page.getByTestId("platform-module-agenda").getByRole("switch");

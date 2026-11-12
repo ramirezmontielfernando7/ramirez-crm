@@ -10,22 +10,32 @@ import { PageShell } from "@/components/ui/page-shell";
 import { Switch } from "@/components/ui/switch";
 import { roleLabel } from "@/lib/auth/permissions";
 import { PLAN_LABEL as SAVED_PLAN_LABEL } from "@/lib/limits";
-import { MODULE_PROFILES, PLAN_LABEL, type ModuleProfile } from "@/lib/modules/registry";
+import { PLAN_LABEL, type ModuleProfile, type PlanOption } from "@/lib/modules/registry";
 import {
   countActiveModules,
+  FACTORY_PLAN_PROFILES,
+  FEATURE_MARK_LABEL,
+  featureMark,
+  nearestPlan,
+  planChangeDiff,
   PLATFORM_MODULE_LABEL,
   PLATFORM_MODULE_PILLAR,
+  PLATFORM_MODULE_REQUIRES,
   PLATFORM_MODULE_TOGGLES,
   planKeyOf,
   planOfModules,
+  planToggles,
+  type FeatureMark,
+  type PlanProfiles,
   type PlatformModuleToggle,
 } from "@/lib/platform-modules";
 import { orgPlanKey } from "@/lib/platform-orgs";
-import { aiMeter, STORAGE_LABEL, storageMeter } from "@/lib/usage";
+import { aiMeter, formatStorage, STORAGE_LABEL, storageMeter } from "@/lib/usage";
 import { cn } from "@/lib/utils";
 import { api, fecha, type Member, type Modules, type Org } from "./api";
 import { PLAN_HINT } from "./create-organization";
 import { LimitsForm } from "./limits-form";
+import { BillingSection } from "./billing-section";
 import { OrgAiCard } from "./org-ai-card";
 import { ResetLink, ResetLinkButton } from "./one-time-link";
 import { STATUS_DOT, STATUS_LABEL } from "./organizations-client";
@@ -46,7 +56,14 @@ import { UsageDetail, UsageMeter } from "./usage";
  * Solo metadatos y números: el contenido del negocio no se ve desde aquí.
  */
 
-type Ctx = { org: Org; adminUserId: string; refetch: () => Promise<void> };
+/** 048 — Lo que trae cada plan HOY y los topes de personas y almacenamiento (para la vista previa). */
+type PlanInfo = {
+  planProfiles: PlanProfiles;
+  planCaps: Partial<Record<ModuleProfile, { members: number; storageBytes: number } | null>>;
+  limits: { members: number | null; storageBytes: number | null };
+};
+type Summary = { organization: Org } & PlanInfo;
+type Ctx = { org: Org; info: PlanInfo | null; adminUserId: string; refetch: () => Promise<void> };
 const OrgContext = createContext<Ctx | null>(null);
 
 function useOrg(): Ctx {
@@ -60,6 +77,7 @@ const base = (id: string) => `/platform/organizaciones/${id}`;
 export function organizationTabs(id: string) {
   return [
     { href: base(id), label: "Plan y módulos", match: (p: string) => p === base(id) },
+    { href: `${base(id)}/cobro`, label: "Cobro y prueba" },
     { href: `${base(id)}/topes`, label: "IA y topes" },
     { href: `${base(id)}/consumo`, label: "Consumo y almacenamiento" },
     { href: `${base(id)}/accesos`, label: "Accesos y estado" },
@@ -76,12 +94,16 @@ export function OrganizationShell({
   children: React.ReactNode;
 }) {
   const [org, setOrg] = useState<Org | null>(null);
+  const [info, setInfo] = useState<PlanInfo | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const refetch = useCallback(async () => {
-    const r = await api<{ organization: Org }>(`/api/platform/organizations/${orgId}/summary`);
-    if (r.data) setOrg(r.data.organization);
-    else setError(r.error);
+    const r = await api<Summary>(`/api/platform/organizations/${orgId}/summary`);
+    if (r.data) {
+      const { organization, ...rest } = r.data;
+      setOrg(organization);
+      setInfo(rest);
+    } else setError(r.error);
   }, [orgId]);
 
   useEffect(() => {
@@ -113,7 +135,7 @@ export function OrganizationShell({
     >
       <div data-testid="platform-org-detail" data-org-id={orgId}>
         {org ? (
-          <OrgContext.Provider value={{ org, adminUserId, refetch }}>{children}</OrgContext.Provider>
+          <OrgContext.Provider value={{ org, info, adminUserId, refetch }}>{children}</OrgContext.Provider>
         ) : (
           <p className={cn("text-sm", error ? "text-destructive" : "text-text-2")}>{error ?? "Cargando…"}</p>
         )}
@@ -148,12 +170,108 @@ const PILLAR_ORDER = ["Bandeja", "Agenda", "Biblioteca", "Campañas", "Resultado
 
 const TEMPLATES: ModuleProfile[] = ["inicio", "esencial", "pro", "ultra"];
 
+/** 048 — El punto de color de cada marca de la pantalla de funciones. */
+const MARK_DOT: Record<FeatureMark, string> = {
+  included: "bg-success",
+  extra: "bg-info",
+  off: "bg-warning",
+  not_included: "bg-border",
+};
+
+/**
+ * 048 — Vista previa del cambio de plan: qué se enciende, qué se apaga, cómo
+ * quedan las personas y el almacenamiento, y que ningún dato se borra. Nada
+ * cambia hasta pulsar «Aplicar».
+ */
+function PlanChangePreview({
+  orgName,
+  from,
+  to,
+  current,
+  target,
+  info,
+  busy,
+  onCancel,
+  onApply,
+}: {
+  orgName: string;
+  from: PlanOption;
+  to: ModuleProfile;
+  current: Record<PlatformModuleToggle, boolean>;
+  target: Record<PlatformModuleToggle, boolean>;
+  info: PlanInfo | null;
+  busy: boolean;
+  onCancel: () => void;
+  onApply: () => void;
+}) {
+  const { turnOn, turnOff } = planChangeDiff(current, target);
+  const caps = info?.planCaps[to] ?? null;
+  const prev = from === "personalizado" ? null : (info?.planCaps[from] ?? null);
+  // Igual que el servidor (`applyPlanCaps`): solo cambia un tope vacío o que era el del plan anterior.
+  const next = (cur: number | null, plan: number | undefined, old: number | undefined) =>
+    plan === undefined ? cur : cur === null || (old !== undefined && cur === old) ? plan : cur;
+  const members = info ? next(info.limits.members, caps?.members, prev?.members) : null;
+  const storage = info ? next(info.limits.storageBytes, caps?.storageBytes, prev?.storageBytes) : null;
+  return (
+    <div className="space-y-3 rounded-md border border-brand/40 bg-brand-tint/40 p-3 text-sm" role="region" aria-label="Vista previa del cambio de plan" data-testid="platform-plan-preview">
+      <p className="font-medium">
+        {orgName}: de {PLAN_LABEL[from]} a {PLAN_LABEL[to]}
+      </p>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div data-testid="platform-plan-preview-on">
+          <p className="text-xs font-semibold text-success-text">Se enciende ({turnOn.length})</p>
+          {turnOn.length === 0 ? (
+            <p className="text-xs text-text-3">Nada nuevo.</p>
+          ) : (
+            <ul className="mt-1 space-y-0.5 text-xs">
+              {turnOn.map((k) => (
+                <li key={k}>+ {PLATFORM_MODULE_LABEL[k]}</li>
+              ))}
+            </ul>
+          )}
+        </div>
+        <div data-testid="platform-plan-preview-off">
+          <p className="text-xs font-semibold text-warning-text">Se apaga ({turnOff.length})</p>
+          {turnOff.length === 0 ? (
+            <p className="text-xs text-text-3">Nada se apaga.</p>
+          ) : (
+            <ul className="mt-1 space-y-0.5 text-xs">
+              {turnOff.map((k) => (
+                <li key={k}>− {PLATFORM_MODULE_LABEL[k]}</li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+      {info && (
+        <p className="text-xs text-text-2" data-testid="platform-plan-preview-caps">
+          Personas: {info.limits.members ?? "sin tope"} → {members ?? "sin tope"} · Almacenamiento: {info.limits.storageBytes === null ? "sin tope" : formatStorage(info.limits.storageBytes)} →{" "}
+          {storage === null ? "sin tope" : formatStorage(storage)}
+          {" "}(un tope que pusiste a mano se respeta)
+        </p>
+      )}
+      <p className="text-xs text-text-2">
+        <span className="font-medium">Ningún dato se borra:</span> lo que se apaga deja de verse, y vuelve con todo al encenderlo. Los complementos ocultos no cambian.
+      </p>
+      <div className="flex flex-wrap gap-2">
+        <Button size="sm" disabled={busy} onClick={onApply} data-testid="platform-plan-preview-apply">
+          Aplicar {PLAN_LABEL[to]}
+        </Button>
+        <Button size="sm" variant="outline" disabled={busy} onClick={onCancel} data-testid="platform-plan-preview-cancel">
+          Cancelar
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 export function PlanModulesSection() {
-  const { org, refetch } = useOrg();
+  const { org, info, refetch } = useOrg();
   const [modules, setModules] = useState<Modules>(org.modules);
   const [rate, setRate] = useState(String(org.modules.campaignSendRate));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [preview, setPreview] = useState<ModuleProfile | null>(null);
 
   useEffect(() => {
     setModules(org.modules);
@@ -173,33 +291,39 @@ export function PlanModulesSection() {
     await refetch();
   }
 
+  const profiles = info?.planProfiles ?? FACTORY_PLAN_PROFILES;
   const disabled = busy || org.status === "deleted";
-  const current = planOfModules(modules);
+  const current = planOfModules(modules, profiles);
+  const near = nearestPlan(modules, profiles);
+  // 048: las marcas se comparan con su plan (o con el más parecido si es Personalizado).
+  const basePlan: ModuleProfile = current === "personalizado" ? near.plan : current;
   const { active, total } = countActiveModules(modules);
+  const extras = PLATFORM_MODULE_TOGGLES.filter((k) => featureMark(k, modules[k], basePlan, profiles) === "extra");
+  const offs = PLATFORM_MODULE_TOGGLES.filter((k) => featureMark(k, modules[k], basePlan, profiles) === "off");
   return (
     <div className="space-y-4">
       <Section
-        title="Plantilla rápida"
-        hint="Aplica de un golpe los 13 interruptores de un plan. Mover cualquiera a mano la deja en «Personalizado». Lo que ya tiene guardado no se borra."
+        title="Cambiar de plan"
+        hint="Elige un plan y antes de aplicarlo verás qué se enciende y qué se apaga. Ningún dato se borra."
         testId="platform-plan-templates"
       >
-        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
           {[...TEMPLATES, "personalizado" as const].map((p) => {
             const on = current === p;
+            const selected = preview === p;
             return (
               <button
                 key={p}
                 type="button"
                 disabled={disabled || p === "personalizado" || on}
-                aria-pressed={on}
+                aria-pressed={on || selected}
                 onClick={() => {
                   if (p === "personalizado") return;
-                  if (!window.confirm(`¿Aplicar el plan ${PLAN_LABEL[p]} a «${org.name}»? Cambia sus 13 módulos a la vez.`)) return;
-                  void save({ plan: p });
+                  setPreview(selected ? null : p);
                 }}
                 className={cn(
                   "flex min-h-[4.5rem] flex-col items-start rounded-md border p-3 text-left transition-colors",
-                  on ? "border-brand bg-brand-tint" : "bg-background hover:bg-accent disabled:hover:bg-background",
+                  on ? "border-brand bg-brand-tint" : selected ? "border-brand ring-2 ring-brand/30" : "bg-background hover:bg-accent disabled:hover:bg-background",
                   "disabled:cursor-default"
                 )}
                 data-testid={`platform-template-${p}`}
@@ -209,27 +333,63 @@ export function PlanModulesSection() {
                   {on && <span className="ml-1.5 text-[11px] font-medium">· actual</span>}
                 </span>
                 <span className="mt-0.5 text-[11px] leading-snug text-text-3">
-                  {p === "personalizado" ? "Los 13 interruptores a mano, abajo." : PLAN_HINT[p]}
+                  {p === "personalizado" ? "Los interruptores a mano, abajo." : PLAN_HINT[p]}
                 </span>
                 {p !== "personalizado" && (
                   <span className="mt-1 text-[11px] tabular-nums text-text-3">
-                    {Object.values(MODULE_PROFILES[p].modules).filter(Boolean).length}/{total} módulos
+                    {PLATFORM_MODULE_TOGGLES.filter((k) => profiles[p][k]).length}/{total} módulos
                   </span>
                 )}
               </button>
             );
           })}
         </div>
+        {preview && (
+          <PlanChangePreview
+            orgName={org.name}
+            from={current}
+            to={preview}
+            current={modules}
+            target={planToggles(preview, profiles)}
+            info={info}
+            busy={disabled}
+            onCancel={() => setPreview(null)}
+            onApply={() => {
+              setPreview(null);
+              void save({ plan: preview });
+            }}
+          />
+        )}
       </Section>
 
       <Section
-        title={`Módulos · ${active} de ${total} activos`}
-        hint="Lo que se apaga deja de existir para la organización al instante (pantallas y rutas en 404)."
+        title={`Funciones · ${active} de ${total} activas`}
+        hint="Lo que se apaga deja de existir para la empresa al instante (pantallas y rutas en 404), pero sus datos se guardan y vuelven al encenderlo."
         testId="platform-modules"
       >
-        <p className="text-xs text-text-2">
-          Hoy corresponden a: <span data-testid="platform-modules-plan" className="font-medium">{SAVED_PLAN_LABEL[planKeyOf(current)]}</span>
+        <p className="text-xs text-text-2" data-testid="platform-features-summary">
+          <span data-testid="platform-modules-plan" className="font-medium">{SAVED_PLAN_LABEL[planKeyOf(current)]}</span>
+          {current === "personalizado" && (
+            <>
+              {" "}
+              · parecido a <span className="font-medium">{PLAN_LABEL[near.plan]}</span>
+              {extras.length > 0 && ` · ${extras.length} extra${extras.length === 1 ? "" : "s"}`}
+              {offs.length > 0 && ` · ${offs.length} apagada${offs.length === 1 ? "" : "s"}`}
+            </>
+          )}
         </p>
+        <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-text-3" aria-hidden>
+          {(["included", "extra", "off", "not_included"] as const).map((m) => (
+            <span key={m} className="inline-flex items-center gap-1">
+              <span className={cn("h-2 w-2 rounded-full", MARK_DOT[m])} />
+              {FEATURE_MARK_LABEL[m]}
+            </span>
+          ))}
+          <span className="inline-flex items-center gap-1">
+            <span className="h-2 w-2 rounded-full border border-dashed border-text-3" />
+            Oculto (complemento, abajo)
+          </span>
+        </div>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {PILLAR_ORDER.map((pillar) => {
             const keys = PLATFORM_MODULE_TOGGLES.filter((k) => PLATFORM_MODULE_PILLAR[k] === pillar);
@@ -239,23 +399,27 @@ export function PlanModulesSection() {
                 <p className="text-[11px] font-semibold uppercase tracking-wide text-text-3">{pillar}</p>
                 {keys.map((key) => {
                   const blocked = blockedBy(key, modules);
+                  const mark = featureMark(key, modules[key], basePlan, profiles);
+                  const needs = PLATFORM_MODULE_REQUIRES[key];
                   return (
-                    <label
-                      key={key}
-                      className="flex items-center gap-2 text-sm"
-                      data-testid={`platform-module-${key}`}
-                      title={blocked ?? undefined}
-                    >
-                      <Switch
-                        size="sm"
-                        checked={modules[key]}
-                        disabled={disabled || blocked !== null}
-                        label={`${PLATFORM_MODULE_LABEL[key]} en ${org.name}`}
-                        onCheckedChange={(next) => void save({ [key]: next })}
-                      />
-                      <span className="min-w-0">{PLATFORM_MODULE_LABEL[key]}</span>
-                      {blocked && <span className="text-xs text-text-3">({blocked})</span>}
-                    </label>
+                    <div key={key} className="space-y-0.5" data-testid={`platform-module-${key}`} data-mark={mark} title={blocked ?? undefined}>
+                      <label className="flex items-center gap-2 text-sm">
+                        <Switch
+                          size="sm"
+                          checked={modules[key]}
+                          disabled={disabled || blocked !== null}
+                          label={`${PLATFORM_MODULE_LABEL[key]} en ${org.name}`}
+                          onCheckedChange={(next) => void save({ [key]: next })}
+                        />
+                        <span className="min-w-0 flex-1">{PLATFORM_MODULE_LABEL[key]}</span>
+                        <span className={cn("h-2 w-2 shrink-0 rounded-full", MARK_DOT[mark])} title={FEATURE_MARK_LABEL[mark]} />
+                      </label>
+                      <p className="pl-10 text-[11px] leading-snug text-text-3">
+                        {FEATURE_MARK_LABEL[mark]}
+                        {needs && ` · necesita ${PLATFORM_MODULE_LABEL[needs]}`}
+                        {blocked && ` (${blocked})`}
+                      </p>
+                    </div>
                   );
                 })}
               </div>
@@ -501,6 +665,13 @@ function DirectServerPicker({ orgId, disabled }: { orgId: string; disabled: bool
       {error && <p className="text-destructive">{error}</p>}
     </div>
   );
+}
+
+/* ───────── 048. Cobro y prueba ───────── */
+
+export function BillingTab() {
+  const { org } = useOrg();
+  return <BillingSection orgId={org.id} disabled={org.status === "deleted"} />;
 }
 
 /* ───────── B. IA y topes ───────── */
