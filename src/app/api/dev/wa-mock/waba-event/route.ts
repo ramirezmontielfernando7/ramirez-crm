@@ -18,7 +18,7 @@ const bodySchema = z.object({
   // `message_template_status_update` también, con cualquier `event` (para
   // probar estados que el CRM no conoce: UNARCHIVED, FLAGGED, REINSTATED…).
   field: z.enum(["phone_number_quality_update", "account_update", "template_category_update", "message_template_status_update"]),
-  value: z.record(z.unknown()),
+  value: z.record(z.string(), z.unknown()),
 });
 
 export async function POST(req: Request) {
