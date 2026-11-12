@@ -9,6 +9,7 @@ import { getKbDocLimits } from "@/server/kb-docs/limits";
 import {
   assertCanAddMember,
   assertCanUpload,
+  applyPlanCaps,
   assertModulesWithinLimit,
   getEffectiveLimits,
   getEmbedTokenLimit,
@@ -155,6 +156,40 @@ describe("límites y plan", () => {
     await expect(
       as(A.id, () => getDb().insert(schema.usageAlert).values({ organizationId: B.id, period: "2026-10-01", metric: "storage", threshold: 80, used: 1, limitValue: 1 }))
     ).rejects.toThrow();
+  });
+});
+
+describe("topes del plan desde el alta", () => {
+  let C: Org;
+  beforeAll(async () => {
+    C = await crearOrganizacion("Topes plan");
+  });
+  afterAll(async () => {
+    await borrarOrganizaciones([C.id]);
+  });
+
+  it("aplica personas y almacenamiento del plan; cambiar de plan los sigue, pero respeta lo puesto a mano", async () => {
+    const GB = 1024 ** 3;
+    await applyPlanCaps(C.id, "esencial");
+    let l = await as(C.id, () => getEffectiveLimits(C.id));
+    expect(l.members.value).toBe(3);
+    expect(l.storageBytes.value).toBe(15 * GB);
+
+    // Subir de plan: lo que era del plan anterior pasa al nuevo.
+    await applyPlanCaps(C.id, "pro", "esencial");
+    l = await as(C.id, () => getEffectiveLimits(C.id));
+    expect(l.members.value).toBe(5);
+    expect(l.storageBytes.value).toBe(30 * GB);
+
+    // Un tope puesto a mano no se pisa al cambiar de plan.
+    await saveOrgLimits(C.id, { members: 7 }, null);
+    await applyPlanCaps(C.id, "ultra", "pro");
+    l = await as(C.id, () => getEffectiveLimits(C.id));
+    expect(l.members.value).toBe(7);
+    expect(l.storageBytes.value).toBe(100 * GB);
+
+    // Personalizado no toca nada.
+    expect(await applyPlanCaps(C.id, "custom", "ultra")).toBeNull();
   });
 });
 

@@ -184,3 +184,16 @@ export function normalizeContactPhone(input: string | null | undefined): string 
 export function contactWhatsAppUrl(phone: string, text: string): string {
   return `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
 }
+
+/**
+ * Los topes de personas y almacenamiento (bytes) que un plan promete. `custom`
+ * no tiene: son los que el administrador ponga a mano.
+ */
+export function capsOfPlan(
+  planKey: string,
+  catalog: PlanCatalog
+): { members: number; storageBytes: number } | null {
+  if (!(CATALOG_SCOPES as readonly string[]).includes(planKey)) return null;
+  const e = catalog[planKey as CatalogScope];
+  return { members: e.peopleLimit, storageBytes: Math.round(e.storageGb * 1024 ** 3) };
+}
