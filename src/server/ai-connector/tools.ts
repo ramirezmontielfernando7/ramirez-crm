@@ -10,6 +10,7 @@ import type { ConversationDto } from "@/lib/types";
 import { TASK_DESCRIPTION_MAX, TASK_FILTERS, TASK_TITLE_MAX } from "@/lib/work";
 import { logActivity } from "@/server/activity/log";
 import { ADVANCED_TOOLS } from "@/server/ai-connector/advanced-tools";
+import { AGENDA_TOOLS } from "@/server/ai-connector/agenda-tools";
 import { CHAT_TOOLS } from "@/server/ai-connector/chat-tools";
 import { CRM_TOOLS } from "@/server/ai-connector/crm-tools";
 import { EXTRA_TOOLS } from "@/server/ai-connector/extra-tools";
@@ -818,6 +819,7 @@ export const TOOLS: readonly ToolSpec<any>[] = [
   ...CHAT_TOOLS,
   ...CRM_TOOLS,
   ...EXTRA_TOOLS,
+  ...AGENDA_TOOLS,
   ...ADVANCED_TOOLS,
   ...KNOWLEDGE_TOOLS,
   ...LIBRARY_TOOLS,
@@ -845,6 +847,8 @@ export function describeTool(t: ToolSpec<unknown>) {
     title: t.title,
     description: t.description,
     inputSchema: t.inputSchema,
+    // ChatGPT (Apps SDK) pide el esquema de acceso en CADA herramienta: todas van con la llave de la persona.
+    securitySchemes: [{ type: "oauth2", scopes: [t.scope] }],
     annotations: {
       title: t.title,
       readOnlyHint: t.scope === "read",

@@ -45,6 +45,16 @@ const log = logger("ai-connector");
 
 const MCP_RESOURCE = () => `${getEnv().APP_BASE_URL.replace(/\/+$/, "")}/api/mcp`;
 
+/**
+ * El `resource` (RFC 8707) que manda la app: el conector (`…/api/mcp`) o el
+ * dominio mismo (algunas apps mandan la raíz). Cualquier otro sitio, no.
+ */
+function isOurResource(raw: string): boolean {
+  const r = raw.trim().replace(/\/+$/, "");
+  const base = getEnv().APP_BASE_URL.replace(/\/+$/, "");
+  return r === MCP_RESOURCE() || r === base;
+}
+
 type OAuthClient = { clientId: string; clientName: string; redirectUris: string[] };
 
 /* ---------- Registro dinámico (RFC 7591) ---------- */
@@ -74,9 +84,28 @@ export async function registerClient(input: z.infer<typeof registerSchema>): Pro
 
 const cimdSchema = z.object({
   client_id: z.string(),
-  client_name: z.string().trim().min(1).max(100).optional(),
-  redirect_uris: z.array(z.string().max(500)).min(1).max(10),
+  // Un nombre largo se recorta (no tumba la conexión): solo se muestra en la pantalla de aceptar.
+  client_name: z.string().trim().min(1).max(500).transform((n) => n.slice(0, 100)).optional(),
+  redirect_uris: z.array(z.string().max(500)).min(1).max(50),
 });
+
+/**
+ * ChatGPT publica sus metadatos en chatgpt.com, detrás de una protección
+ * anti-bots que a veces rechaza a un servidor (403 o un reto en HTML). Si no
+ * se pueden leer, se reconoce SOLO su forma oficial y se aceptan SOLO sus
+ * dos regresos oficiales, en chatgpt.com: el código jamás sale hacia otro
+ * sitio, así que no abre nada que el documento no habría abierto.
+ * https://developers.openai.com/apps-sdk/build/auth
+ */
+const CHATGPT_CIMD = /^https:\/\/chatgpt\.com\/oauth\/(?:([A-Za-z0-9_-]{1,100})\/)?client\.json$/;
+
+export function chatGptFallbackClient(clientId: string): OAuthClient | null {
+  const m = CHATGPT_CIMD.exec(clientId);
+  if (!m) return null;
+  const redirectUris = ["https://chatgpt.com/connector_platform_oauth_redirect"];
+  if (m[1]) redirectUris.push(`https://chatgpt.com/connector/oauth/${m[1]}`);
+  return { clientId, clientName: "ChatGPT", redirectUris };
+}
 
 // Rangos no globales del registro IANA: privados, compartidos, locales,
 // documentación, pruebas, transición y reservados. BlockList normaliza IPv6
@@ -107,7 +136,7 @@ export function isPrivateAddress(ip: string): boolean {
   return !globalV6.check(ip, "ipv6") || nonGlobalV6.check(ip, "ipv6");
 }
 
-const CIMD_MAX_BYTES = 10_000;
+const CIMD_MAX_BYTES = 64_000;
 const CIMD_TIMEOUT_MS = 5_000;
 
 async function fetchCimd(clientId: string): Promise<OAuthClient | null> {
@@ -173,7 +202,16 @@ function safeHost(raw: string): string {
 
 /** El cliente de un `client_id`, o null si no existe o sus metadatos no sirven. */
 export async function resolveClient(clientId: string): Promise<OAuthClient | null> {
-  if (isCimdClientId(clientId)) return fetchCimd(clientId);
+  if (isCimdClientId(clientId)) {
+    const fetched = await fetchCimd(clientId);
+    if (fetched) {
+      // ChatGPT: su documento manda, pero sus regresos oficiales siempre valen.
+      const official = chatGptFallbackClient(clientId);
+      if (!official) return fetched;
+      return { ...fetched, redirectUris: [...new Set([...fetched.redirectUris, ...official.redirectUris])] };
+    }
+    return chatGptFallbackClient(clientId);
+  }
   if (!clientId.startsWith(CLIENT_PREFIX)) return null;
   const [row] = await getSystemDb()
     .select({
@@ -195,8 +233,9 @@ export const authorizeSchema = z.object({
   redirect_uri: z.string().min(1).max(500),
   code_challenge: z.string().regex(/^[A-Za-z0-9_-]{43,128}$/),
   code_challenge_method: z.literal("S256"),
-  state: z.string().max(500).optional(),
-  scope: z.string().max(100).optional(),
+  // ChatGPT manda un `state` largo (cifrado): con 500 se rechazaba la solicitud.
+  state: z.string().max(4000).optional(),
+  scope: z.string().max(500).optional(),
   resource: z.string().max(500).optional(),
 });
 type AuthorizeParams = z.infer<typeof authorizeSchema>;
@@ -209,9 +248,22 @@ export async function checkAuthorizeRequest(
   params: AuthorizeParams
 ): Promise<{ ok: true; client: OAuthClient } | { ok: false; reason: "client" | "redirect_uri" | "resource" }> {
   const client = await resolveClient(params.client_id);
-  if (!client) return { ok: false, reason: "client" };
-  if (!client.redirectUris.includes(params.redirect_uri)) return { ok: false, reason: "redirect_uri" };
-  if (params.resource && params.resource.replace(/\/+$/, "") !== MCP_RESOURCE()) return { ok: false, reason: "resource" };
+  const reason = !client
+    ? "client"
+    : !client.redirectUris.includes(params.redirect_uri)
+      ? "redirect_uri"
+      : params.resource && !isOurResource(params.resource)
+        ? "resource"
+        : null;
+  if (!client || reason) {
+    // Para diagnosticar desde los registros por qué una app no pudo entrar (sin llaves ni datos de nadie).
+    log.warn("solicitud de inicio de sesión de una app de IA rechazada", {
+      reason,
+      client: safeHost(params.client_id),
+      redirect: safeHost(params.redirect_uri),
+    });
+    return { ok: false, reason: reason ?? "client" };
+  }
   return { ok: true, client };
 }
 
@@ -342,7 +394,7 @@ export async function exchangeCode(input: {
   if (!/^[A-Za-z0-9._~-]{43,128}$/.test(input.codeVerifier)) {
     return { error: "invalid_request", description: "code_verifier no válido" };
   }
-  if (input.resource && input.resource.replace(/\/+$/, "") !== MCP_RESOURCE()) {
+  if (input.resource && !isOurResource(input.resource)) {
     return { error: "invalid_target", description: "Esta llave solo vale para el conector de Dashfort" };
   }
   const now = new Date();

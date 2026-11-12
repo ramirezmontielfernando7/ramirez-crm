@@ -1034,7 +1034,10 @@ async function costoAsistente(orgId) {
 async function asistenteMotor(A, B, orgB) {
   console.log("\n== 4g · Asistente interno: motor (038 PR 2) ==");
   await A.call("POST", `/api/platform/organizations/${orgB}/modules`, { asistente: true });
-  await A.call("PUT", `/api/platform/organizations/${orgB}/limits`, { assistantTokens: 200_000, aiTokens: 1_000_000, usageVisibility: "percent" });
+  // Presupuesto de PRUEBA para toda la sección (~40 preguntas). Cada herramienta
+  // del conector viaja en el prompt del asistente (paridad): con más herramientas
+  // cada pregunta cuesta un poco más, así que el presupuesto deja margen.
+  await A.call("PUT", `/api/platform/organizations/${orgB}/limits`, { assistantTokens: 400_000, aiTokens: 1_000_000, usageVisibility: "percent" });
   await B.call("POST", "/api/assistant/notice", {});
 
   // Datos de B con nombre, teléfono, correo y una orden escondida en el texto.
@@ -1185,7 +1188,7 @@ async function asistenteMotor(A, B, orgB) {
   ok("tope propio agotado: no pregunta y lo dice", r9.status === 409 && /agotó su crédito/.test(r9.json?.error?.message ?? ""), `${r9.status} ${JSON.stringify(r9.json)}`);
   const turnosAntes = (await costoAsistente(orgB)).turnos;
   ok("…y no se llamó al modelo", turnosAntes === (await costoAsistente(orgB)).turnos);
-  await A.call("PUT", `/api/platform/organizations/${orgB}/limits`, { assistantTokens: 200_000 });
+  await A.call("PUT", `/api/platform/organizations/${orgB}/limits`, { assistantTokens: 400_000 });
   const borrar = await B.call("DELETE", `/api/assistant/threads/${threadId}`);
   ok("la Propietaria borra una conversación", borrar.status === 200 && (await B.call("GET", `/api/assistant/threads/${threadId}`)).status === 404);
   await A.call("POST", `/api/platform/organizations/${orgB}/modules`, { asistente: false });
