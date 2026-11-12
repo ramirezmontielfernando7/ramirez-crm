@@ -266,7 +266,15 @@ export function KnowledgeClient({ documents = true }: { documents?: boolean } = 
           ))}
         </aside>
         <div className="min-w-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6">
-          {loaded && shown.length === 0 ? (
+          {loaded && error && shown.length === 0 ? (
+            <EmptyState
+              className="mt-4"
+              icon={BookOpen}
+              title="No pudimos cargar tus conocimientos"
+              description="Tu material sigue guardado. Revisa tu conexión e inténtalo de nuevo."
+              action={<Button variant="outline" onClick={() => void refetch()}>Reintentar</Button>}
+            />
+          ) : loaded && shown.length === 0 ? (
             <EmptyState
               className="mt-4"
               icon={BookOpen}

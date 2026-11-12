@@ -48,6 +48,7 @@ const PAGE_SIZE = 50;
 export function ContactsClient() {
   const router = useRouter();
   const [contacts, setContacts] = useState<ContactDto[]>([]);
+  const [loaded, setLoaded] = useState(false);
   const [query, setQuery] = useState("");
   const [stage, setStage] = useState("all");
   const [stages, setStages] = useState<string[]>([]);
@@ -129,6 +130,7 @@ export function ContactsClient() {
     params.set("page", String(page));
     params.set("pageSize", String(PAGE_SIZE));
     const res = await fetchJson<{ contacts: ContactDto[]; total?: number }>(`/api/contacts?${params}`);
+    setLoaded(true);
     if (!res.ok) {
       setError(`No se pudo cargar la lista: ${res.error}`);
       return;
@@ -292,7 +294,14 @@ export function ContactsClient() {
         )}
         {contacts.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center text-center">
-            {filtering ? (
+            {!loaded ? null : error ? (
+              <EmptyState
+                icon={SearchX}
+                title="No pudimos cargar tus contactos"
+                description="Tus contactos siguen guardados. Revisa tu conexión e inténtalo de nuevo."
+                action={<Button variant="outline" onClick={() => void refetch()}>Reintentar</Button>}
+              />
+            ) : filtering ? (
               <EmptyState
                 icon={SearchX}
                 title="Sin resultados"
