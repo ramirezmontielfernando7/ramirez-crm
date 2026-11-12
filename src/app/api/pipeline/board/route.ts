@@ -27,7 +27,6 @@ export const GET = withAuth(async (session, req: Request) => {
   const onlyStage = url.searchParams.get("stageId");
   const offsetParam = Number(url.searchParams.get("offset"));
   const offset = onlyStage && Number.isInteger(offsetParam) && offsetParam > 0 ? offsetParam : 0;
-  const visible = scopedContacts(schema.lead.organizationId, session.access, schema.lead.contactId);
   // Posición de cada tarjeta dentro de su columna (en el orden del tablero).
   const ranked = db
     .select({
@@ -35,7 +34,7 @@ export const GET = withAuth(async (session, req: Request) => {
       rn: sql<number>`row_number() over (partition by ${schema.lead.stageId} order by ${schema.lead.position} asc, ${schema.lead.id} asc)`.as("rn"),
     })
     .from(schema.lead)
-    .where(onlyStage ? and(visible, eq(schema.lead.stageId, onlyStage)) : visible)
+    .where(onlyStage ? and(scopedContacts(schema.lead.organizationId, session.access, schema.lead.contactId), eq(schema.lead.stageId, onlyStage)) : scopedContacts(schema.lead.organizationId, session.access, schema.lead.contactId))
     .as("ranked");
 
   const stages = await db
@@ -64,7 +63,7 @@ export const GET = withAuth(async (session, req: Request) => {
       )
     )
     // 020: el asesor ve SOLO sus tarjetas; las etapas son de todos.
-    .where(and(visible, sql`${ranked.rn} > ${offset}`, lte(ranked.rn, offset + take)))
+    .where(and(scopedContacts(schema.lead.organizationId, session.access, schema.lead.contactId), sql`${ranked.rn} > ${offset}`, lte(ranked.rn, offset + take)))
     .orderBy(asc(schema.lead.position), asc(schema.lead.id));
 
   // La moneda del negocio viaja con el tablero: el cliente suma sus columnas y
@@ -80,7 +79,7 @@ export const GET = withAuth(async (session, req: Request) => {
       totalCents: sql<number>`coalesce(sum(${schema.lead.amountCents}) filter (where ${schema.lead.amountCents} is not null and coalesce(${schema.lead.currency}, ${currency}) = ${currency}), 0)::float8`,
     })
     .from(schema.lead)
-    .where(visible)
+    .where(scopedContacts(schema.lead.organizationId, session.access, schema.lead.contactId))
     .groupBy(schema.lead.stageId);
   // Etiquetas de cada tarjeta (ronda 3): una sola consulta para todo el tablero.
   const tagsByContact = await tagsForContacts(
