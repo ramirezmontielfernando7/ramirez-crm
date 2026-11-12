@@ -544,8 +544,8 @@ export function ContactPanel({
                     <span className="font-semibold">Doble respuesta:</span> el agente incluido y tu cerebro externo
                     contestan a la vez.
                   </p>
-                  <Link href="/agent" className="mt-1 inline-block font-medium underline underline-offset-2">
-                    Revisar en Agente →
+                  <Link href="/settings/quien-contesta" className="mt-1 inline-block font-medium underline underline-offset-2">
+                    Revisar en Ajustes →
                   </Link>
                 </div>
               </div>
@@ -557,8 +557,8 @@ export function ContactPanel({
             ) : brain && !agentReady && externalDown(brain) ? (
               <p className="mt-2 text-[11px] leading-relaxed text-warning-text">
                 Tu cerebro externo no está en línea: nadie contesta en automático hasta que vuelva.{" "}
-                <Link href="/agent" className="font-medium underline underline-offset-2">
-                  Ver en Agente →
+                <Link href="/settings/quien-contesta" className="font-medium underline underline-offset-2">
+                  Ver en Ajustes →
                 </Link>
               </p>
             ) : (

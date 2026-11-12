@@ -17,9 +17,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import Link from "next/link";
 import { PageShell } from "@/components/ui/page-shell";
-import { useViewer } from "@/components/viewer-context";
 
 type Profile = {
   enabled: boolean;
@@ -44,8 +42,6 @@ export function AgentClient() {
   const [entries, setEntries] = useState<KbEntry[]>([]);
   const [kbSize, setKbSize] = useState<{ chars: number; warnAt: number; warning: boolean } | null>(null);
   const [saved, setSaved] = useState(false);
-  const viewer = useViewer();
-  const labOn = viewer.hasModule("lab") && viewer.can("agent.manage");
   // «Quién responde»: se refresca solo, porque la última llamada del cerebro
   // externo y su /health cambian sin que nadie toque esta pantalla.
   const [brain, setBrain] = useState<BrainStatusDto | null>(null);
@@ -137,15 +133,6 @@ export function AgentClient() {
       <div className="min-h-0 flex-1 overflow-y-auto">
 
       <AgentPauseBar />
-
-      {labOn && (
-        <p className="mx-4 mt-4 text-sm text-muted-foreground sm:mx-6">
-          Esta pantalla edita el agente general.{" "}
-          <Link href="/lab" className="font-medium text-brand-ink underline-offset-2 hover:underline">
-            Ver todos tus agentes en Agentes IA →
-          </Link>
-        </p>
-      )}
 
       {brain && (
         <div className="mx-4 mt-4 sm:mx-6 sm:mt-6">
