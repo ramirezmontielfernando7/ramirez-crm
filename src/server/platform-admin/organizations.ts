@@ -20,7 +20,7 @@ import { profileOfPlan, type PlanOption } from "@/lib/modules/registry";
 import type { EffectiveLimits, LimitsPatch } from "@/lib/limits";
 import { PLATFORM_MODULE_TOGGLES, type PlatformModuleToggle } from "@/lib/platform-modules";
 import { runWithOrganization } from "@/lib/request-context";
-import { assertModulesWithinLimit, getEffectiveLimits, LimitError, saveOrgLimits, syncPlanKey } from "@/server/limits";
+import { applyPlanCaps, assertModulesWithinLimit, getEffectiveLimits, LimitError, saveOrgLimits, syncPlanKey } from "@/server/limits";
 import { checkAllAlerts, checkModuleAlerts } from "@/server/limits/alerts";
 
 /**
@@ -243,7 +243,10 @@ export async function createOrganization(
 
   // 040: el plan guardado nace con lo que quedó en sus 13 interruptores
   // (el del perfil elegido, o el que coincida con los del entorno).
-  await syncPlanKey(organizationId, modulesDto(await getOrgModules(organizationId)));
+  const planKeyAlta = await syncPlanKey(organizationId, modulesDto(await getOrgModules(organizationId)));
+  // Hallazgo de la auditoría: los topes de personas y almacenamiento del plan
+  // se aplican desde el alta (antes solo se aplicaba el de IA).
+  await applyPlanCaps(organizationId, planKeyAlta);
 
   const link = await createAccountLink(userId, "activate", actor?.userId ?? null);
   await recordPlatformAudit({
@@ -397,6 +400,7 @@ export async function changeOrganizationModules(
   // 040: el plan guardado sigue a los 13 interruptores.
   const planAntes = (await runWithOrganization(organizationId, () => getEffectiveLimits(organizationId))).planKey;
   const planKey = await syncPlanKey(organizationId, a);
+  if (planAntes !== planKey) await applyPlanCaps(organizationId, planKey, planAntes);
   const cambios = (Object.keys(a) as (keyof ModulesDto)[]).filter((k) => de[k] !== a[k]);
   if (cambios.length > 0) {
     await recordPlatformAudit({

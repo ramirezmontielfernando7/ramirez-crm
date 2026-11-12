@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { ENFORCED_CSP, OWN_CSP_PATHS, OWN_CSP_SOURCE, securityHeaders } from "@/lib/security/headers";
+import { enforcedCsp, OWN_CSP_PATHS, OWN_CSP_SOURCE, securityHeaders } from "@/lib/security/headers";
 
 // El patrón de next.config (`/:path(<regex>)`) como RegExp.
 const inner = OWN_CSP_SOURCE.slice("/:path(".length, -1);
@@ -15,12 +15,20 @@ function rutas(dir: string): string[] {
 }
 
 describe("cabeceras de seguridad (H10)", () => {
-  it("HSTS empieza en un día y la CSP completa solo reporta", () => {
-    const h = Object.fromEntries(securityHeaders(false).map((x) => [x.key, x.value]));
-    expect(h["Strict-Transport-Security"]).toBe("max-age=86400");
-    expect(h["Content-Security-Policy-Report-Only"]).toContain("report-uri /api/csp-report");
+  it("S-09: HSTS de un año y la CSP completa es obligatoria (y sigue reportando)", () => {
+    const h = Object.fromEntries(securityHeaders().map((x) => [x.key, x.value]));
+    expect(h["Strict-Transport-Security"]).toBe("max-age=31536000");
+    expect(h["Content-Security-Policy-Report-Only"]).toBeUndefined();
+    // La CSP va aparte (enforcedCsp) para no pisar la `sandbox` de los adjuntos.
     expect(h["Content-Security-Policy"]).toBeUndefined();
-    expect(ENFORCED_CSP.value).toBe("frame-ancestors 'none'");
+    const csp = enforcedCsp(false);
+    expect(csp.key).toBe("Content-Security-Policy");
+    expect(csp.value).toContain("frame-ancestors 'none'");
+    expect(csp.value).toContain("default-src 'self'");
+    expect(csp.value).toContain("object-src 'none'");
+    expect(csp.value).toContain("report-uri /api/csp-report");
+    expect(csp.value).not.toContain("unsafe-eval");
+    expect(enforcedCsp(true).value).toContain("unsafe-eval");
   });
 
   it("frame-ancestors se aplica a páginas y API, no a las rutas con CSP propia", () => {
