@@ -14,6 +14,7 @@ import { freeTextOutsideWindow, type InboxDirectContext } from "@/lib/direct-con
 import type { ConversationDto, MessageDto } from "@/lib/types";
 import { type Channel } from "@/lib/channels";
 import { ChannelBadge } from "@/components/channel-badge";
+import { numberLabelFor, useWhatsAppNumbers } from "@/components/inbox/use-whatsapp-numbers";
 import { useEvents } from "@/components/use-events";
 import { ConversationList } from "./conversation-list";
 import { MessageThread } from "./message-thread";
@@ -100,6 +101,7 @@ export function InboxClient({
 }) {
   const phone = usePhone();
   const multiChannel = channels.length > 1;
+  const waNumbers = useWhatsAppNumbers();
   const [conversations, setConversations] = useState<ConversationDto[] | null>(
     initial?.conversations ?? null
   );
@@ -782,6 +784,15 @@ export function InboxClient({
                   <p className="flex min-w-0 items-center gap-1.5 text-[15px] font-semibold leading-5">
                     {multiChannel && <ChannelBadge channel={selected.channel} />}
                     <span className="truncate">{contactLabel(selected.contact)}</span>
+                    {numberLabelFor(waNumbers, selected.waNumberId) && (
+                      <span
+                        data-number-chip
+                        title="Número de WhatsApp por el que habla este chat; tus respuestas salen por él"
+                        className="max-w-[9rem] shrink-0 truncate rounded-full bg-muted px-2 text-[11px] font-semibold leading-5 text-text-2"
+                      >
+                        {numberLabelFor(waNumbers, selected.waNumberId)}
+                      </span>
+                    )}
                     {direct && !direct.metaless && !selected.groupJid && (
                       <ChatModeDot
                         variant="chip"

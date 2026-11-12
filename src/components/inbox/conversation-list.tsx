@@ -45,6 +45,7 @@ import {
 } from "@/components/assignment/use-assignees";
 import { InboxListHeader } from "./inbox-mode-switch";
 import { FilterMenu, type InboxFilter } from "./filter-menu";
+import { numberLabelFor, numberTitle, useWhatsAppNumbers } from "./use-whatsapp-numbers";
 import { rowAiBadge } from "@/lib/agent-pause";
 import { useAgentsPaused } from "./use-agents-paused";
 import { ALL_TAGS } from "@/lib/inbox-filters";
@@ -303,6 +304,9 @@ export const ConversationList = memo(function ConversationList({
   const [owner, setOwner] = useState<string>("all");
   // 034: filtro por etiqueta ("all" = toda etiqueta).
   const [tag, setTag] = useState<string>(ALL_TAGS);
+  // 0080: filtro por número oficial ("all" = todos). Solo existe con 2 o más.
+  const waNumbers = useWhatsAppNumbers();
+  const [numberFilter, setNumberFilter] = useState<string>("all");
   const catalogs = useInboxCatalogs();
   const agentsPaused = useAgentsPaused();
   const canCreateTags = viewer.can("tags.manage");
@@ -339,6 +343,7 @@ export const ConversationList = memo(function ConversationList({
     tag,
     owner: seesAll ? owner : "all",
     channel: inbox,
+    number: numberFilter,
   };
   const listKey = listQueryParams(listQuery).toString();
   const listQueryNow = useRef(listQuery);
@@ -405,7 +410,8 @@ export const ConversationList = memo(function ConversationList({
   const extraFiltros =
     (stage !== "all" ? 1 : 0) +
     (seesAll && owner !== "all" ? 1 : 0) +
-    (tag !== ALL_TAGS ? 1 : 0);
+    (tag !== ALL_TAGS ? 1 : 0) +
+    (numberFilter !== "all" ? 1 : 0);
   const filtroPuesto =
     filter === "all" && extraFiltros === 0
       ? null
@@ -616,6 +622,9 @@ export const ConversationList = memo(function ConversationList({
               owners={seesAll ? [...owners] : null}
               owner={owner}
               onOwner={setOwner}
+              numbers={waNumbers.map((n) => [n.id, numberTitle(n)] as [string, string])}
+              number={numberFilter}
+              onNumber={setNumberFilter}
             />
           </>
         }
@@ -819,6 +828,7 @@ export const ConversationList = memo(function ConversationList({
                 selecting={selecting}
                 picked={picked.has(c.id)}
                 multiChannel={multiChannel}
+                numberLabel={numberLabelFor(waNumbers, c.waNumberId)}
                 stages={catalogs.stages}
                 tagCatalog={catalogs.tags}
                 canCreateTags={canCreateTags}
@@ -1010,6 +1020,7 @@ const ConversationRow = memo(function ConversationRow({
   selecting,
   picked,
   multiChannel,
+  numberLabel,
   agentsPaused,
   stages,
   tagCatalog,
@@ -1032,6 +1043,8 @@ const ConversationRow = memo(function ConversationRow({
   selecting: boolean;
   picked: boolean;
   multiChannel: boolean;
+  /** 0080: nombre del número oficial por el que habla el chat (null = un solo número). */
+  numberLabel: string | null;
   /** Pausa general de los agentes (se avisa en el encabezado, no en la fila). */
   agentsPaused: boolean;
   stages: StageDto[];
@@ -1140,6 +1153,15 @@ const ConversationRow = memo(function ConversationRow({
                 >
                   {contactLabel(c.contact)}
                 </span>
+                {numberLabel && (
+                  <span
+                    data-number-chip
+                    title={`Número de WhatsApp: ${numberLabel}`}
+                    className="max-w-[7rem] shrink-0 truncate rounded-full bg-muted px-1.5 text-[10.5px] font-semibold leading-4 text-text-2"
+                  >
+                    {numberLabel}
+                  </span>
+                )}
                 {isDemoPhone(c.contact.phone) && (
                   <span
                     data-demo-pill

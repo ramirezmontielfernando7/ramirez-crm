@@ -283,7 +283,9 @@ async function prepareSend(
     );
   }
 
-  const credentials = await getCredentialsByOrg(organizationId);
+  // 0080: el chat responde por el número por el que le escribieron (el
+  // principal si no consta o ya no existe).
+  const credentials = await getCredentialsByOrg(organizationId, row.conversation.waPhoneNumberId);
   if (!credentials) {
     throw new SendError("not_connected", "No hay número de WhatsApp conectado");
   }
@@ -723,7 +725,7 @@ export async function sendMediaMessage(input: {
       sendErr = err;
     } else if (err instanceof MetaApiError && err.isAuthError) {
       // Mismo criterio que el texto: SOLO 401/código 190 (fix 2026-08-04).
-      await markReconnectRequired(input.organizationId);
+      await markReconnectRequired(input.organizationId, credentials!.phoneNumberId);
       sendErr = new SendError(
         "reconnect_required",
         "El token de WhatsApp expiró: reconecta el número en Configuración"
@@ -849,7 +851,7 @@ export async function callGraphSend(
   } catch (err) {
     if (err instanceof MetaApiError) {
       if (err.isAuthError) {
-        await markReconnectRequired(credentials.organizationId);
+        await markReconnectRequired(credentials.organizationId, credentials.phoneNumberId);
         throw new SendError(
           "reconnect_required",
           "El token de WhatsApp expiró: reconecta el número en Configuración"

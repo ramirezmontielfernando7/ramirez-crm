@@ -285,6 +285,8 @@ function screenFilters(access: Access, f: ListFilters, stageName: unknown) {
     f.stage !== "all" ? sql`${stageName} = ${f.stage}` : undefined,
     tagCondition(f.tag),
     ownerCondition(access, f.owner),
+    // 0080: el número oficial por el que habla el chat.
+    f.number !== "all" ? eq(schema.conversation.waPhoneNumberId, f.number) : undefined,
   ];
 }
 
@@ -640,6 +642,7 @@ export function serializeConversation(
       : null,
     stageName,
     stageColor: isTagColor(extra.stageColor) ? extra.stageColor : null,
+    waNumberId: c.channel === "whatsapp" ? c.waPhoneNumberId : null,
     leadId: extra.leadId ?? null,
     stageId: extra.stageId ?? null,
     tags: extra.tags ?? [],

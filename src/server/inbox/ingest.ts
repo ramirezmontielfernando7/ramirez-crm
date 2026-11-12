@@ -288,6 +288,7 @@ export async function processMessagesValue(value: WebhookValue): Promise<void> {
           // 018: normalizado aquí, en el adaptador del canal; la ingesta no sabe
           // de qué forma lo mandó Meta.
           anuncio: anuncioDeWhatsapp(msg.referral),
+          waPhoneNumberId: phoneNumberId,
         });
       } catch (err) {
         failures++;
@@ -321,10 +322,10 @@ export async function processEchoesValue(value: WebhookValue): Promise<void> {
   // Meta documenta `message_echoes`; parser tolerante a `messages` (R1).
   const echoes = value.message_echoes ?? value.messages ?? [];
   // PR 3: de aquí en adelante, cada consulta fija `app.org_id`.
-  await runWithOrganization(credentials.organizationId, () => ingestEchoes(credentials.organizationId, echoes));
+  await runWithOrganization(credentials.organizationId, () => ingestEchoes(credentials.organizationId, echoes, phoneNumberId));
 }
 
-async function ingestEchoes(organizationId: string, echoes: WebhookMessage[]): Promise<void> {
+async function ingestEchoes(organizationId: string, echoes: WebhookMessage[], waPhoneNumberId: string): Promise<void> {
   const credentials = { organizationId };
   let failures = 0;
   for (const echo of echoes) {
@@ -334,7 +335,7 @@ async function ingestEchoes(organizationId: string, echoes: WebhookMessage[]): P
       continue;
     }
     try {
-      await ingestManualEcho(credentials.organizationId, echo);
+      await ingestManualEcho(credentials.organizationId, echo, { waPhoneNumberId });
     } catch (err) {
       // Un echo malformado no frena a los demás (edge case del spec); DF-03:
       // al final se lanza para que la bandeja durable lo reintente.
@@ -358,7 +359,7 @@ export async function ingestDeviceEcho(organizationId: string, echo: WebhookMess
 async function ingestManualEcho(
   organizationId: string,
   echo: WebhookMessage,
-  opts: { directId?: string; transport?: "directa" } = {}
+  opts: { directId?: string; transport?: "directa"; waPhoneNumberId?: string } = {}
 ): Promise<void> {
   const db = getDb();
   const identity = normalizeMx(echo.to!);
@@ -430,7 +431,14 @@ async function ingestManualEcho(
   // Solo lastMessageAt: un mensaje del negocio NUNCA abre la ventana de 24 h.
   await db
     .update(schema.conversation)
-    .set({ lastMessageAt: latest(schema.conversation.lastMessageAt, waTimestamp), updatedAt: new Date() })
+    .set({
+      lastMessageAt: latest(schema.conversation.lastMessageAt, waTimestamp),
+      // 0080: un chat que nace de un echo responde por el número que lo mandó.
+      ...(opts.waPhoneNumberId
+        ? { waPhoneNumberId: sql`coalesce(${schema.conversation.waPhoneNumberId}, ${opts.waPhoneNumberId})` }
+        : {}),
+      updatedAt: new Date(),
+    })
     .where(eq(schema.conversation.id, conversation.id));
 
   // Pausa automática de la IA, idempotente y atómica (solo si no hay handoff).
@@ -501,6 +509,8 @@ async function ingestInboundMessageInOrg(input: {
   anuncio?: AnuncioDeOrigen | null;
   /** Conexión directa (PR 6): entró por el dispositivo vinculado (empresa sin Meta). */
   device?: { keyId: string; lid: string | null } | null;
+  /** 0080: número oficial de la empresa por el que escribió el contacto (WhatsApp). */
+  waPhoneNumberId?: string | null;
 }): Promise<void> {
   const db = getDb();
   const { organizationId } = input;
@@ -572,6 +582,8 @@ async function ingestInboundMessageInOrg(input: {
         unreadCount: sql`${schema.conversation.unreadCount} + 1`,
         // 034: un mensaje entrante saca el chat del archivo.
         archivedAt: null,
+        // 0080: las respuestas salen por el número por el que escribió.
+        ...(input.waPhoneNumberId ? { waPhoneNumberId: input.waPhoneNumberId } : {}),
         // 041: y de la pestaña «Campañas»: pasa a la principal con «Respondió
         // a campaña X». Una sola sentencia (Postgres lee los valores de antes).
         campaignRepliedId: sql`coalesce(${schema.conversation.campaignPendingId}, ${schema.conversation.campaignRepliedId})`,

@@ -20,6 +20,8 @@ const postSchema = z.object({
   flow: z.enum(["new_number", "business_app"]),
   /** PIN de verificación en dos pasos (6 dígitos); solo número nuevo. */
   pin: z.string().trim().regex(/^\d{6}$/).optional(),
+  /** 0080: nombre del número («Ventas»); opcional. */
+  label: z.string().trim().max(40).optional(),
 });
 
 /**
@@ -30,7 +32,7 @@ const postSchema = z.object({
 export const POST = withAuth(async (session, req: Request) => {
   const body = await parseBody(req, postSchema);
   if (!body.ok) return body.response;
-  const { code, wabaId, phoneNumberId, flow, pin } = body.data;
+  const { code, wabaId, phoneNumberId, flow, pin, label } = body.data;
 
   if (!isValidWabaId(wabaId) || !isValidPhoneNumberId(phoneNumberId)) {
     return apiError(422, "invalid_ids", "Meta devolvió datos de la cuenta que no se reconocen; vuelve a intentar la conexión");
@@ -64,6 +66,7 @@ export const POST = withAuth(async (session, req: Request) => {
     token,
     displayPhoneNumber: valid.displayPhoneNumber,
     verifiedName: valid.verifiedName,
+    label,
   });
   if (!stored.ok) return apiError(stored.status, stored.code, stored.message);
 

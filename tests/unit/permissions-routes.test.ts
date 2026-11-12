@@ -58,6 +58,9 @@ const PROTEGIDAS: [string, Method, Permission][] = [
   ["settings/branding/favicon", "DELETE", "settings.manage"],
   ["settings/whatsapp", "GET", "settings.manage"],
   ["settings/whatsapp", "PUT", "settings.manage"],
+  // 0080: nombrar y quitar un número oficial.
+  ["settings/whatsapp/numbers/[phoneNumberId]", "PATCH", "settings.manage"],
+  ["settings/whatsapp/numbers/[phoneNumberId]", "DELETE", "settings.manage"],
   // Tech Provider (PR 1): cierre de «Conectar con Facebook».
   ["settings/whatsapp/embedded-signup", "POST", "settings.manage"],
   // Conexión directa (PR 3): límites de envío (Propietario; delegable).
@@ -311,6 +314,8 @@ const FILTRADAS: [string, Method][] = [
 const DEL_NEGOCIO: [string, Method][] = [
   // 048: aviso a todos y prueba / pago de la propia organización (sin montos).
   ["notices", "GET"],
+  // 0080: los números oficiales (nombre y teléfono) para etiquetar la Bandeja.
+  ["whatsapp-numbers", "GET"],
   ["agent/brain-status", "GET"],
   ["pipeline/stages", "GET"],
   ["pipeline/loss-reasons", "GET"],

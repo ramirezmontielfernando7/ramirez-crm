@@ -12,7 +12,7 @@ import {
   type HealthAlert,
   type PhoneHealthSnapshot,
 } from "@/lib/phone-health";
-import { getOrgCredentials } from "@/server/credentials";
+import { getOrgCredentials, listWhatsAppNumbers } from "@/server/credentials";
 import { getMessagingSettings } from "@/server/messaging-settings";
 import { markReconnectRequired } from "@/server/whatsapp/credentials";
 
@@ -94,9 +94,11 @@ async function fetchFromMeta(phoneNumberId: string, token: string): Promise<Grap
 /** Lee de Meta y guarda la fila del día. Para el trabajo diario y el botón "Actualizar". */
 export async function refreshPhoneHealth(
   organizationId: string,
-  source: "sync" | "manual" | "webhook"
+  source: "sync" | "manual" | "webhook",
+  /** 0080: de qué número; sin él, el principal. */
+  numberId?: string | null
 ): Promise<RefreshResult> {
-  const creds = await getOrgCredentials(organizationId, "whatsapp", { requireUsable: true });
+  const creds = await getOrgCredentials(organizationId, "whatsapp", { requireUsable: true, phoneNumberId: numberId });
   if (!creds.ok) {
     return creds.error === "not_connected"
       ? { ok: false, error: "not_connected", message: "Conecta tu número de WhatsApp primero" }
@@ -110,7 +112,7 @@ export async function refreshPhoneHealth(
   } catch (err) {
     if (err instanceof MetaApiError) {
       if (err.isAuthError) {
-        await markReconnectRequired(organizationId);
+        await markReconnectRequired(organizationId, phoneNumberId);
         return { ok: false, error: "reconnect_required", message: "El token expiró: reconecta el número" };
       }
       if (err.status === 0 || err.status >= 500) {
@@ -203,7 +205,12 @@ export async function recordHealthEvent(
   field: "phone_number_quality_update" | "account_update",
   value: Record<string, unknown>
 ): Promise<void> {
-  const creds = await getOrgCredentials(organizationId, "whatsapp");
+  // 0080: con varios números el evento trae el teléfono; si no cuadra con
+  // ninguno se anota en el principal.
+  const shown = typeof value.display_phone_number === "string" ? value.display_phone_number.replace(/\D/g, "") : "";
+  const numbers = await listWhatsAppNumbers(organizationId);
+  const match = shown ? numbers.find((n) => (n.displayPhoneNumber ?? "").replace(/\D/g, "") === shown) : undefined;
+  const creds = await getOrgCredentials(organizationId, "whatsapp", { phoneNumberId: match?.phoneNumberId });
   if (!creds.ok) {
     log.warn("evento de salud sin número conectado: ignorado", { org: organizationId, campo: field });
     return;
@@ -258,8 +265,9 @@ type HealthSummary = {
 };
 
 /** Lo que muestran la tarjeta y el aviso. Solo lee la base propia. */
-export async function getHealthSummary(organizationId: string): Promise<HealthSummary> {
-  const creds = await getOrgCredentials(organizationId, "whatsapp");
+export async function getHealthSummary(organizationId: string, numberId?: string | null): Promise<HealthSummary> {
+  // 0080: de un número en concreto, o el principal.
+  const creds = await getOrgCredentials(organizationId, "whatsapp", { phoneNumberId: numberId });
   const phoneNumberId = creds.ok ? creds.value.phoneNumberId : null;
   const [rows, usage, settings] = await Promise.all([
     phoneNumberId
@@ -295,11 +303,17 @@ export async function getHealthSummary(organizationId: string): Promise<HealthSu
 }
 
 /** ¿Se leyó de Meta hace menos de `ms`? (freno del botón "Actualizar", vale entre contenedores). */
-export async function readRecently(organizationId: string, ms: number): Promise<boolean> {
+export async function readRecently(organizationId: string, ms: number, numberId?: string | null): Promise<boolean> {
   const [row] = await getDb()
     .select({ fetchedAt: schema.waPhoneHealth.fetchedAt })
     .from(schema.waPhoneHealth)
-    .where(scoped(schema.waPhoneHealth.organizationId, organizationId))
+    .where(
+      scoped(
+        schema.waPhoneHealth.organizationId,
+        organizationId,
+        numberId ? eq(schema.waPhoneHealth.phoneNumberId, numberId) : undefined
+      )
+    )
     .orderBy(desc(schema.waPhoneHealth.fetchedAt))
     .limit(1);
   return !!row && Date.now() - row.fetchedAt.getTime() < ms;

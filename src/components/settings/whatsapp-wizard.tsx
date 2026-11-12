@@ -34,7 +34,12 @@ type Connection = {
   verifiedName: string | null;
   status: "connected" | "reconnect_required";
   tokenLast4: string;
+  /** 0080: el nombre que la empresa le puso al número («Ventas»). */
+  label?: string | null;
 };
+
+/** 0080: un número de la lista (el principal va primero). */
+type NumberRow = Connection & { isPrimary: boolean; tokenLast4: string | null };
 
 type WebhookInfo = WebhookSettingsDto;
 type PlatformWebhookInfo = Extract<WebhookSettingsDto, { managedByPlatform: false }>;
@@ -49,6 +54,7 @@ export function WhatsappWizard({
   templatesHref?: string | null;
 }) {
   const [connection, setConnection] = useState<Connection | null>(null);
+  const [numbers, setNumbers] = useState<NumberRow[]>([]);
   const [webhook, setWebhook] = useState<WebhookInfo | null>(null);
   const [embeddedSignup, setEmbeddedSignup] = useState<EmbeddedSignupConfig | null>(null);
   const [loaded, setLoaded] = useState(false);
@@ -66,6 +72,7 @@ export function WhatsappWizard({
     });
     if (c) {
       setConnection(c.connection);
+      setNumbers(c.numbers ?? []);
       setEmbeddedSignup(c.embeddedSignup ?? null);
     }
     if (w) setWebhook(w);
@@ -87,7 +94,10 @@ export function WhatsappWizard({
   const showAdvanced = advancedOpen || needsAttention;
   const advanced = (
     <>
-      <ConnectForm existing={connection} onSaved={() => void refetch()} />
+      <ConnectForm
+        existing={numbers.find((n) => n.status === "reconnect_required") ?? (numbers.length > 1 ? null : connection)}
+        onSaved={() => void refetch()}
+      />
       {webhook &&
         (webhook.managedByPlatform ? <ManagedWebhookCard webhook={webhook} /> : <WebhookCard webhook={webhook} />)}
     </>
@@ -131,7 +141,18 @@ export function WhatsappWizard({
 
       {((connection && connected) || direct) && (
         <div className="grid items-stretch gap-4 lg:grid-cols-2">
-          {connection && connected && <OfficialNumberCard connection={connection} />}
+          {numbers.length > 0
+            ? numbers
+                .filter((n) => n.status === "connected")
+                .map((n) => (
+                  <OfficialNumberCard
+                    key={n.phoneNumberId}
+                    connection={n}
+                    many={numbers.length > 1}
+                    onChanged={() => void refetch()}
+                  />
+                ))
+            : connection && connected && <OfficialNumberCard connection={connection} many={false} onChanged={() => void refetch()} />}
           {direct && <LinkedPhoneCard />}
         </div>
       )}
@@ -338,21 +359,51 @@ function NewChatsModeCard() {
 }
 
 /** «WhatsApp oficial · Conectado»: el número y su salud (lo que Meta reportó hoy, de la base propia). */
-function OfficialNumberCard({ connection }: { connection: Connection }) {
+function OfficialNumberCard({
+  connection,
+  many,
+  onChanged,
+}: {
+  connection: Connection;
+  /** 0080: hay más de un número (aparece el nombre editable y «Quitar»). */
+  many: boolean;
+  onChanged: () => void;
+}) {
   const [summary, setSummary] = useState<HealthSummaryDto | null>(null);
   const [busy, setBusy] = useState(false);
+  const healthUrl = `/api/number-health?number=${encodeURIComponent(connection.phoneNumberId)}`;
   const load = useCallback(async () => {
-    const res = await fetchJson<HealthSummaryDto>("/api/number-health");
+    const res = await fetchJson<HealthSummaryDto>(healthUrl);
     if (res.ok) setSummary(res.data);
-  }, []);
+  }, [healthUrl]);
   useEffect(() => {
     void load();
   }, [load]);
   async function refresh() {
     setBusy(true);
-    const res = await fetchJson<HealthSummaryDto>("/api/number-health", { method: "POST" });
+    const res = await fetchJson<HealthSummaryDto>(healthUrl, { method: "POST" });
     setBusy(false);
     if (res.ok) setSummary(res.data);
+  }
+  // 0080: nombre del número y quitarlo.
+  const [name, setName] = useState(connection.label ?? "");
+  const [nameMsg, setNameMsg] = useState<string | null>(null);
+  const numberUrl = `/api/settings/whatsapp/numbers/${encodeURIComponent(connection.phoneNumberId)}`;
+  async function saveName() {
+    if (name.trim() === (connection.label ?? "")) return;
+    const res = await fetchJson<{ ok: true }>(numberUrl, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ label: name.trim() === "" ? null : name.trim() }),
+    });
+    setNameMsg(res.ok ? "Nombre guardado" : "No se pudo guardar el nombre");
+    if (res.ok) onChanged();
+  }
+  async function remove() {
+    if (!window.confirm("¿Quitar este número? Sus chats seguirán en la bandeja y se contestarán desde tu número principal.")) return;
+    const res = await fetchJson<{ ok: true }>(numberUrl, { method: "DELETE" });
+    if (res.ok) onChanged();
+    else setNameMsg("No se pudo quitar el número");
   }
   const today = summary?.today ?? null;
   const limit = today?.messagingLimitValue ?? null;
@@ -362,7 +413,7 @@ function OfficialNumberCard({ connection }: { connection: Connection }) {
       <CardHeader className="flex-row items-center justify-between space-y-0 border-b border-border py-3">
         <CardTitle className="flex items-center gap-2 text-[14px]">
           <MessageCircle className="h-[18px] w-[18px] text-success" strokeWidth={1.8} />
-          WhatsApp oficial
+          {connection.label || "WhatsApp oficial"}
           <Badge variant="success">Conectado</Badge>
         </CardTitle>
         <Button
@@ -381,6 +432,30 @@ function OfficialNumberCard({ connection }: { connection: Connection }) {
           <p className="text-xl font-semibold">{connection.displayPhoneNumber ?? connection.phoneNumberId}</p>
           <p className="text-sm text-muted-foreground">
             {connection.verifiedName ? `${connection.verifiedName} · ` : ""}token …{connection.tokenLast4}
+          </p>
+        </div>
+        <div className="space-y-1.5" data-testid="numero-nombre">
+          <Label htmlFor={`num-label-${connection.phoneNumberId}`}>Nombre del número</Label>
+          <div className="flex gap-2">
+            <Input
+              id={`num-label-${connection.phoneNumberId}`}
+              placeholder="Ej. Ventas Cancún"
+              maxLength={40}
+              value={name}
+              onChange={(e) => {
+                setName(e.target.value);
+                setNameMsg(null);
+              }}
+              onBlur={() => void saveName()}
+            />
+            {many && (
+              <Button size="sm" variant="outline" onClick={() => void remove()} data-testid="numero-quitar">
+                Quitar
+              </Button>
+            )}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {nameMsg ?? "Este nombre sale en cada chat de la bandeja y sirve para filtrar por número."}
           </p>
         </div>
         {today ? (
@@ -430,6 +505,7 @@ function ConnectForm({
     existing?.phoneNumberId ?? ""
   );
   const [token, setToken] = useState("");
+  const [label, setLabel] = useState(existing?.label ?? "");
   const [testResult, setTestResult] = useState<
     | { ok: true; display: string }
     | { ok: false; message: string }
@@ -477,7 +553,7 @@ function ConnectForm({
     const res = await fetch("/api/settings/whatsapp", {
       method: "PUT",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ wabaId, phoneNumberId, token }),
+      body: JSON.stringify({ wabaId, phoneNumberId, token, ...(label.trim() ? { label: label.trim() } : {}) }),
     }).catch(() => null);
     setSaving(false);
     if (!res?.ok) {
@@ -498,7 +574,7 @@ function ConnectForm({
     <Card>
       <CardHeader>
         <CardTitle>
-          {existing ? "Reconectar / actualizar el número" : "Conectar tu número de WhatsApp"}
+          {existing ? "Reconectar / actualizar el número" : "Conectar un número de WhatsApp"}
         </CardTitle>
         <CardDescription>
           Pega las credenciales de WhatsApp Cloud API. El token se valida
@@ -551,6 +627,16 @@ function ConnectForm({
               onChange={(e) => setPhoneNumberId(e.target.value)}
             />
           </div>
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="num-label-new">Nombre del número (opcional)</Label>
+          <Input
+            id="num-label-new"
+            placeholder="Ej. Ventas Mérida"
+            maxLength={40}
+            value={label}
+            onChange={(e) => setLabel(e.target.value)}
+          />
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="token">Token de acceso</Label>

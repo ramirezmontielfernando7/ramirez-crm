@@ -6,6 +6,7 @@ import {
   isValidWabaId,
   tokenLast4,
 } from "@/server/whatsapp/credentials";
+import { listWhatsAppNumbers } from "@/server/credentials";
 import { embeddedSignupConfig } from "@/server/whatsapp/embedded-signup";
 import { storeConnection, validateConnection } from "@/server/whatsapp/save-connection";
 
@@ -16,10 +17,14 @@ export const GET = withAuth(async (session) => {
   // Tech Provider: lo público que necesita el botón «Conectar con Facebook»
   // (null = la plataforma aún no lo configura; queda la conexión manual).
   const embeddedSignup = embeddedSignupConfig();
-  if (!creds) return Response.json({ connection: null, embeddedSignup });
+  if (!creds) return Response.json({ connection: null, numbers: [], embeddedSignup });
+  // 0080: `connection` sigue siendo el número principal; `numbers` trae todos.
+  const numbers = await listWhatsAppNumbers(session.organizationId);
   return Response.json({
     embeddedSignup,
+    numbers,
     connection: {
+      label: creds.label,
       wabaId: creds.wabaId,
       phoneNumberId: creds.phoneNumberId,
       displayPhoneNumber: creds.displayPhoneNumber,
@@ -34,6 +39,8 @@ const putSchema = z.object({
   wabaId: z.string().trim().min(1),
   phoneNumberId: z.string().trim().min(1),
   token: z.string().trim().min(1),
+  /** 0080: nombre del número («Ventas»); opcional. */
+  label: z.string().trim().max(40).optional(),
 });
 
 /** Guarda la conexión: re-valida contra Meta, cifra y suscribe (FR-040). */
@@ -41,7 +48,7 @@ export const PUT = withAuth(async (session, req: Request) => {
   const body = await parseBody(req, putSchema);
   if (!body.ok) return body.response;
 
-  const { wabaId, phoneNumberId, token } = body.data;
+  const { wabaId, phoneNumberId, token, label } = body.data;
 
   // H8: los IDs de Meta son solo dígitos. Un valor raro no llega a Meta ni a la BD.
   if (!isValidWabaId(wabaId)) {
@@ -61,6 +68,7 @@ export const PUT = withAuth(async (session, req: Request) => {
     token,
     displayPhoneNumber: valid.displayPhoneNumber,
     verifiedName: valid.verifiedName,
+    label,
   });
   if (!stored.ok) return apiError(stored.status, stored.code, stored.message);
 
