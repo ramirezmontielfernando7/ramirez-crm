@@ -9,7 +9,7 @@ import { tagsForContacts } from "@/server/tags/tags";
 export const dynamic = "force-dynamic";
 
 /** Tarjetas por columna en la primera carga y tamaño de cada «Mostrar más». */
-export const BOARD_PAGE = 50;
+const BOARD_PAGE = 50;
 const BOARD_MAX = 1000;
 
 /**
