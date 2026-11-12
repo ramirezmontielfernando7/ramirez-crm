@@ -311,12 +311,12 @@ async function main() {
 
   console.log("\n== 8 · Cabeceras de seguridad ==");
   const h = (await A.call("GET", "/login")).headers;
-  ok("HSTS de 1 día", h["strict-transport-security"] === "max-age=86400", h["strict-transport-security"]);
+  ok("HSTS de 1 año (S-09)", h["strict-transport-security"] === "max-age=31536000", h["strict-transport-security"]);
   ok("X-Frame-Options: DENY", h["x-frame-options"] === "DENY");
   ok("nosniff", h["x-content-type-options"] === "nosniff");
   ok("Referrer-Policy", h["referrer-policy"] === "strict-origin-when-cross-origin");
-  ok("CSP en modo reporte, con frame-ancestors", /frame-ancestors 'none'/.test(h["content-security-policy-report-only"] ?? ""));
-  ok("frame-ancestors aplicado", /frame-ancestors 'none'/.test(h["content-security-policy"] ?? ""));
+  ok("CSP obligatoria (S-09), sin modo reporte", !h["content-security-policy-report-only"]);
+  ok("CSP completa: frame-ancestors, default-src y reportes", /frame-ancestors 'none'/.test(h["content-security-policy"] ?? "") && /default-src 'self'/.test(h["content-security-policy"] ?? "") && /report-uri \/api\/csp-report/.test(h["content-security-policy"] ?? ""), h["content-security-policy"]);
   const rep = await A.call("POST", "/api/csp-report", { "csp-report": { "violated-directive": "img-src", "blocked-uri": "https://evil.example/x.png?tel=5512345678" } });
   ok("/api/csp-report acepta reportes (204)", rep.status === 204);
 

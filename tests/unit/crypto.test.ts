@@ -44,6 +44,13 @@ describe("crypto AES-256-GCM", () => {
     const tampered = { ...value, tag: Buffer.alloc(16, 1).toString("base64") };
     expect(() => openSecret(tampered, 1)).toThrow(DecryptError);
   });
+
+  it("una etiqueta recortada (4 bytes de la real) NO abre: exige 16 bytes", async () => {
+    const { sealSecret, openSecret, DecryptError } = await import("@/lib/crypto");
+    const value = sealSecret("dato");
+    const short = { ...value, tag: Buffer.from(value.tag, "base64").subarray(0, 4).toString("base64") };
+    expect(() => openSecret(short, 1)).toThrow(DecryptError);
+  });
 });
 
 describe("llave versionada (Fase 3)", () => {

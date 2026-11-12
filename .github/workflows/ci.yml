@@ -379,6 +379,16 @@ jobs:
       - name: e2e de apagado limpio (SIGTERM a mitad de una campaña)
         if: ${{ matrix.shard.rag }}
         run: node --env-file=.env scripts/e2e-apagado.mjs
+      # S-09 (2026-11): la CSP ya es obligatoria. Si el navegador bloqueó
+      # algo en cualquier vuelta (lo reporta a /api/csp-report), falla. El
+      # reporte falso que manda e2e-plataforma (host evil.example) no cuenta.
+      - name: CSP sin bloqueos en toda la corrida
+        run: |
+          if grep -h "la CSP bloqueó" app*.log 2>/dev/null | grep -v "evil.example"; then
+            echo "::error::La CSP bloqueó algo durante el e2e (ver arriba qué directiva y host)"
+            exit 1
+          fi
+          echo "sin bloqueos de la CSP"
       - name: logs de la app
         if: ${{ failure() }}
         run: tail -n 200 app1.log app2.log app3.log || true
