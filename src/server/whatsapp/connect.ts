@@ -3,7 +3,7 @@ import { logger } from "@/lib/log";
 
 const log = logger("connect");
 
-export type ConnectionCheck =
+type ConnectionCheck =
   | {
       ok: true;
       displayPhoneNumber: string;
@@ -63,7 +63,7 @@ export async function testConnection(
   }
 }
 
-export type WabaCheck =
+type WabaCheck =
   | { ok: true }
   | {
       ok: false;

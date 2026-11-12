@@ -16,7 +16,7 @@ import { MetaApiError } from "@/lib/meta/client";
  * resuelve CÓMO se habla con Zernio.
  */
 
-export const ZERNIO_BASE = process.env.ZERNIO_BASE_URL ?? "https://zernio.com/api/v1";
+const ZERNIO_BASE = process.env.ZERNIO_BASE_URL ?? "https://zernio.com/api/v1";
 
 /** Cabeceras con las que Zernio firma sus entregas (la segunda es heredada). */
 const SIGNATURE_HEADERS = ["x-zernio-signature", "x-late-signature"] as const;
@@ -120,7 +120,7 @@ export function looksLikeMetaPayload(payload: unknown, object: string): boolean 
   );
 }
 
-export type ZernioSendResult = { platformMessageId: string };
+type ZernioSendResult = { platformMessageId: string };
 
 /**
  * Responde en una conversación de Zernio.

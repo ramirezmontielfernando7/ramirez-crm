@@ -24,8 +24,8 @@ const MAX_KEYS = 40;
 const MAX_KEY_LEN = 60;
 const MAX_VALUE_LEN = 500;
 
-export type FichaInput = Record<string, unknown>;
-export type Ficha = Record<string, string | number | boolean | null>;
+type FichaInput = Record<string, unknown>;
+type Ficha = Record<string, string | number | boolean | null>;
 
 /**
  * Deja la ficha en valores que se puedan guardar y mostrar: escalares

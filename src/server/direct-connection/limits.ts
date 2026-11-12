@@ -10,7 +10,7 @@ import { getDirectSettings } from "./settings";
  * de la 0055 y estos cuatro valores.
  */
 
-export type LimitsInput = Pick<DirectSettings, "limitsEnabled" | "minIntervalSeconds" | "perChatPerMinute" | "perHour">;
+type LimitsInput = Pick<DirectSettings, "limitsEnabled" | "minIntervalSeconds" | "perChatPerMinute" | "perHour">;
 
 export function limitsOf(s: DirectSettings): LimitsInput {
   return {

@@ -7,7 +7,7 @@ import { getOrgModules, enabledModuleKeys } from "@/server/modules";
 import { getNavLayout } from "./store";
 import { kbDocsEnabled } from "@/server/kb-docs/flag";
 
-export type SessionNav = ResolvedNav & {
+type SessionNav = ResolvedNav & {
   /** Módulos encendidos de la organización (para lo que no es el menú). */
   modules: ModuleKey[];
   /** ¿La plataforma dejó personalizar el menú? (pestaña Ajustes → Navegación). */

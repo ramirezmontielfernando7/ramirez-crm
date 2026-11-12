@@ -182,7 +182,7 @@ export async function unlink(target: ConnectionTarget): Promise<{ ok: true } | {
 }
 
 /** Aplica el estado que dijo el servidor (webhook o revisión). Devuelve el estado nuevo. */
-export async function refreshFromState(target: ConnectionTarget, state: InstanceState, now = new Date()): Promise<ConnectionRow | null> {
+async function refreshFromState(target: ConnectionTarget, state: InstanceState, now = new Date()): Promise<ConnectionRow | null> {
   const ref = refOf(target);
   const row = await getConnection(ref);
   if (!row) return null;
@@ -241,7 +241,7 @@ export function resetWebhookEventsCheckForTests(): void {
 }
 
 /** La revisión de cada 5 minutos: pregunta al servidor el estado de cada conexión viva. */
-export async function checkAllConnections(): Promise<{ checked: number; failed: number }> {
+async function checkAllConnections(): Promise<{ checked: number; failed: number }> {
   const rows = await connectionsToCheck();
   const servers = new Map<string, Awaited<ReturnType<typeof serverOf>>>();
   let checked = 0;

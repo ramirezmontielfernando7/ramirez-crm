@@ -7,7 +7,7 @@ import type { ModuleProfile } from "@/lib/modules/registry";
 import type { PlatformModuleToggle } from "@/lib/platform-modules";
 
 /** Etapas sembradas del pipeline (US2). */
-export const SEED_STAGES: { name: string; kind: "open" | "won" | "lost" }[] = [
+const SEED_STAGES: { name: string; kind: "open" | "won" | "lost" }[] = [
   { name: "Nuevo", kind: "open" },
   { name: "En conversación", kind: "open" },
   { name: "Interesado", kind: "open" },

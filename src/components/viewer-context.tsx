@@ -9,7 +9,7 @@ import type { ModuleKey } from "@/lib/modules/registry";
  * no puede usar. Es SOLO cosmético: cada ruta de la API valida el permiso en
  * el servidor, y un botón escondido no protege nada.
  */
-export type Viewer = {
+type Viewer = {
   userId: string;
   role: string;
   roleLabel: string;

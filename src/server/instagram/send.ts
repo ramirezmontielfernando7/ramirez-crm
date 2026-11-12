@@ -14,15 +14,9 @@ const IG_GRAPH_BASE =
   process.env.IG_GRAPH_BASE_URL ?? "https://graph.instagram.com";
 const IG_GRAPH_VERSION = process.env.META_GRAPH_API_VERSION ?? "v25.0";
 
-/** Instagram corta el texto en 1000 BYTES (no caracteres): con acentos y
- * emojis el margen real es menor de lo que aparenta. */
-export const IG_TEXT_MAX_BYTES = 1000;
 
-export function fitsInstagramText(text: string): boolean {
-  return Buffer.byteLength(text, "utf8") <= IG_TEXT_MAX_BYTES;
-}
 
-export type InstagramSendResult = { platformMessageId: string };
+type InstagramSendResult = { platformMessageId: string };
 
 /**
  * Envía texto por el transporte que corresponda.

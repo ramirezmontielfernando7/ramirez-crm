@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
  * interruptores. Las usan Biblioteca (CRM Comercial) y Documentos (Estudio
  * de IA): el mismo archivo se ve igual en las dos.
  */
-export type Destination = "chat" | "rag";
+type Destination = "chat" | "rag";
 
 export function DestinationBadges({ chat, rag, className }: { chat: boolean; rag: boolean | null; className?: string }) {
   if (!chat && !rag) return null;

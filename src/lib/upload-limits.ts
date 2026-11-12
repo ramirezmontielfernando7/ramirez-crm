@@ -44,7 +44,7 @@ export const RAG_EXTRACT_MAX_BYTES = 50 * MB;
 export const HEAVY_UPLOAD_BYTES = 10 * MB;
 export const MAX_HEAVY_UPLOADS = 3;
 
-export type OutgoingKind = "image" | "audio" | "video" | "document";
+type OutgoingKind = "image" | "audio" | "video" | "document";
 
 /** «4.3 MB», «850 KB»: para los mensajes. */
 export function formatSize(bytes: number): string {
@@ -89,7 +89,7 @@ const WA_TOO_LARGE: Record<OutgoingKind, (size: number) => string> = {
   document: (s) => `El archivo pesa ${formatSize(s)} y WhatsApp solo acepta archivos de hasta 100 MB.`,
 };
 
-export type UploadProblem = { code: "too_large" | "unsupported_type"; message: string };
+type UploadProblem = { code: "too_large" | "unsupported_type"; message: string };
 
 /**
  * ¿Se puede mandar por WhatsApp? Devuelve el tipo de mensaje o el problema,

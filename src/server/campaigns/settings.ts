@@ -10,7 +10,7 @@ import { DEFAULT_MARKETING_MIN_DAYS, type CampaignSettingsDto } from "@/lib/camp
  * y el negocio las corrige en Ajustes de envío. Una fila guardada manda, aunque
  * tenga las tarifas vacías.
  */
-export const DEFAULT_MX_RATES: Readonly<Record<string, number>> = {
+const DEFAULT_MX_RATES: Readonly<Record<string, number>> = {
   // MXN por mensaje entregado, aprox. 2026 (USD 0.0436 / 0.0080 / 0.0309).
   marketing: 0.8,
   utility: 0.15,
@@ -28,7 +28,7 @@ export const DEFAULT_CAMPAIGN_SETTINGS: CampaignSettingsDto = {
   marketingMinDays: DEFAULT_MARKETING_MIN_DAYS,
 };
 
-export const RATE_CATEGORIES = ["marketing", "utility", "authentication"] as const;
+const RATE_CATEGORIES = ["marketing", "utility", "authentication"] as const;
 
 export async function getCampaignSettings(organizationId: string): Promise<CampaignSettingsDto> {
   const rows = await getDb()
@@ -100,9 +100,3 @@ export function estimateCost(
   return { amount: Math.round(rate * recipients * 10_000) / 10_000, currency: settings.currency };
 }
 
-/** Para pruebas y el guion de E2E: borra la fila (vuelve a los valores por defecto). */
-export async function resetCampaignSettings(organizationId: string): Promise<void> {
-  await getDb()
-    .delete(schema.campaignSettings)
-    .where(scoped(schema.campaignSettings.organizationId, organizationId));
-}

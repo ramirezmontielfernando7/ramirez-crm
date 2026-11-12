@@ -11,10 +11,10 @@
  */
 
 /** Cuánto guarda Meta (y cuánto trae la primera carga). */
-export const TEMPLATE_RETENTION_DAYS = 90;
-export const PRICING_RETENTION_DAYS = 365;
+const TEMPLATE_RETENTION_DAYS = 90;
+const PRICING_RETENTION_DAYS = 365;
 /** La diaria vuelve a pedir estos días: Meta corrige los días recientes. */
-export const RESYNC_OVERLAP_DAYS = 3;
+const RESYNC_OVERLAP_DAYS = 3;
 /** Tramos por llamada (respuestas chicas, sin depender de la paginación). */
 export const TEMPLATE_CHUNK_DAYS = 30;
 export const PRICING_CHUNK_DAYS = 90;
@@ -26,12 +26,12 @@ const DAY = 86_400;
 export type AnalyticsKind = "template" | "pricing";
 
 /** `YYYY-MM-DD` (UTC) de un instante Unix en segundos. */
-export function unixToDay(seconds: number): string {
+function unixToDay(seconds: number): string {
   return new Date(seconds * 1000).toISOString().slice(0, 10);
 }
 
 /** Medianoche UTC (segundos) de un `YYYY-MM-DD`. */
-export function dayToUnix(day: string): number {
+function dayToUnix(day: string): number {
   return Math.floor(Date.parse(`${day}T00:00:00Z`) / 1000);
 }
 

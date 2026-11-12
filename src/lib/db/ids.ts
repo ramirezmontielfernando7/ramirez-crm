@@ -100,7 +100,7 @@ const prefixes = {
   account: "acc",
 } as const;
 
-export type IdKind = keyof typeof prefixes;
+type IdKind = keyof typeof prefixes;
 
 export function newId(kind: IdKind): string {
   return `${prefixes[kind]}_${nano()}`;

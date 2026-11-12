@@ -60,7 +60,7 @@ export function previewText(preview: string | null): string {
  * La imagen pegada con Ctrl+V llega como "image.png" (o sin nombre): se le da
  * uno con fecha para que no lleguen diez "image.png" iguales.
  */
-export function namePasted(f: File): File {
+function namePasted(f: File): File {
   if (f.name && f.name !== "image.png") return f;
   const ext = f.type.split("/")[1]?.replace("jpeg", "jpg") || "png";
   const stamp = new Date().toISOString().slice(0, 19).replace(/[-:T]/g, "");

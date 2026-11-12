@@ -27,7 +27,7 @@ const log = logger("coexistencia");
  * borra nada del CRM (un contacto que el negocio borra del celular se queda).
  */
 
-export type SyncType = "smb_app_state_sync" | "history";
+type SyncType = "smb_app_state_sync" | "history";
 
 /**
  * `POST {phone}/smb_app_data` por cada tipo. Best-effort: si Meta falla se

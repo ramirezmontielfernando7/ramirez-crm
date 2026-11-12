@@ -13,13 +13,13 @@
  * 3. `createLeadForContact` ya la consulta y, si devuelve alguien, asigna por
  *    la única puerta (`assignContacts`, `source: "auto"`).
  */
-export type AssignmentStrategy = {
+type AssignmentStrategy = {
   name: "manual" | "round_robin";
   /** userId que recibe el lead, o null = sin asignar. */
   pick(input: { organizationId: string; contactId: string }): Promise<string | null>;
 };
 
-export const manualStrategy: AssignmentStrategy = {
+const manualStrategy: AssignmentStrategy = {
   name: "manual",
   pick: async () => null,
 };

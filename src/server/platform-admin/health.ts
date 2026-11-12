@@ -8,7 +8,7 @@ import { getSystemDb } from "@/lib/db";
  * `src/lib/platform-health.ts`.
  */
 
-export type HealthSignals = {
+type HealthSignals = {
   lastMessageAt: Date | null;
   lastLoginAt: Date | null;
   sent7d: number;

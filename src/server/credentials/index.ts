@@ -22,9 +22,9 @@ import { open, seal, type OpenFailure, type SealedValue } from "./vault";
  * `./resolve.ts`, con el pool de sistema y SIN descifrar nada.
  */
 
-export type CredentialKind = "whatsapp" | "instagram" | "messenger" | "capi" | "zoom" | "google";
+type CredentialKind = "whatsapp" | "instagram" | "messenger" | "capi" | "zoom" | "google";
 
-export type CredentialError = "not_connected" | "reconnect_required" | OpenFailure;
+type CredentialError = "not_connected" | "reconnect_required" | OpenFailure;
 
 export type WhatsAppCredentials = {
   id: string;
@@ -85,7 +85,7 @@ export type GoogleCreds = {
   status: "connected" | "error";
 };
 
-export type CredentialMap = {
+type CredentialMap = {
   whatsapp: WhatsAppCredentials;
   instagram: InstagramCredentials;
   messenger: MessengerCredentials;
@@ -94,7 +94,7 @@ export type CredentialMap = {
   google: GoogleCreds;
 };
 
-export type CredentialResult<K extends CredentialKind> =
+type CredentialResult<K extends CredentialKind> =
   | { ok: true; value: CredentialMap[K] }
   | { ok: false; error: CredentialError };
 
@@ -158,7 +158,7 @@ type IgRow = typeof schema.instagramCredentials.$inferSelect;
 type FbRow = typeof schema.messengerCredentials.$inferSelect;
 
 /** Uso interno del módulo (también lo usa `resolve.ts` para el secreto de Zernio). */
-export function decodeWhatsApp(row: MetaRow): WhatsAppCredentials {
+function decodeWhatsApp(row: MetaRow): WhatsAppCredentials {
   return {
     id: row.id,
     organizationId: row.organizationId,
@@ -171,7 +171,7 @@ export function decodeWhatsApp(row: MetaRow): WhatsAppCredentials {
   };
 }
 
-export function decodeInstagram(row: IgRow): InstagramCredentials {
+function decodeInstagram(row: IgRow): InstagramCredentials {
   return {
     id: row.id,
     organizationId: row.organizationId,
@@ -185,7 +185,7 @@ export function decodeInstagram(row: IgRow): InstagramCredentials {
   };
 }
 
-export function decodeMessenger(row: FbRow): MessengerCredentials {
+function decodeMessenger(row: FbRow): MessengerCredentials {
   return {
     id: row.id,
     organizationId: row.organizationId,

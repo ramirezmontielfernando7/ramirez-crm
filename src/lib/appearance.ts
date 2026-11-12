@@ -24,12 +24,12 @@ export const FONT_LABELS: Record<FontKey, string> = {
   system: "Sistema",
 };
 
-export const DEFAULT_FONT: FontKey = "inter";
+const DEFAULT_FONT: FontKey = "inter";
 
 export const CHAT_STYLES = ["classic", "whatsapp", "premium"] as const;
 export type ChatStyle = (typeof CHAT_STYLES)[number];
 
-export const CHAT_STYLE_LABELS: Record<ChatStyle, string> = {
+const CHAT_STYLE_LABELS: Record<ChatStyle, string> = {
   classic: "Clásico",
   whatsapp: "WhatsApp",
   premium: "Premium",
@@ -45,7 +45,7 @@ export function chatStyleLabel(style: ChatStyle, brandName?: string | null): str
   return brand ? `${brand} Premium` : CHAT_STYLE_LABELS.premium;
 }
 
-export const DEFAULT_CHAT_STYLE: ChatStyle = "classic";
+const DEFAULT_CHAT_STYLE: ChatStyle = "classic";
 
 /**
  * Estilo de interfaz de TODO el CRM (menús, tarjetas, tablas, chat). «Clásico»
@@ -63,23 +63,23 @@ export const UI_STYLE_LABELS: Record<UiStyle, string> = {
   depth: "Demfort Profundo",
 };
 
-export const DEFAULT_UI_STYLE: UiStyle = "classic";
+const DEFAULT_UI_STYLE: UiStyle = "classic";
 
 /** Cookies de la preferencia PERSONAL. Ausente = seguir a la organización. */
 export const FONT_COOKIE = "vocero-font";
 export const CHAT_STYLE_COOKIE = "vocero-chat-style";
 export const UI_STYLE_COOKIE = "vocero-ui-style";
-export const APPEARANCE_COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
+const APPEARANCE_COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
 
-export function isFontKey(value: unknown): value is FontKey {
+function isFontKey(value: unknown): value is FontKey {
   return typeof value === "string" && (FONT_KEYS as readonly string[]).includes(value);
 }
 
-export function isChatStyle(value: unknown): value is ChatStyle {
+function isChatStyle(value: unknown): value is ChatStyle {
   return typeof value === "string" && (CHAT_STYLES as readonly string[]).includes(value);
 }
 
-export function isUiStyle(value: unknown): value is UiStyle {
+function isUiStyle(value: unknown): value is UiStyle {
   return typeof value === "string" && (UI_STYLES as readonly string[]).includes(value);
 }
 

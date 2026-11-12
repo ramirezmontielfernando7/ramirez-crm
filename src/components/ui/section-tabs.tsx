@@ -49,7 +49,7 @@ const NAV_CLASS = {
   segmented: "inline-flex max-w-full items-center gap-0.5 overflow-x-auto rounded-md bg-muted p-[3px] [scrollbar-width:none]",
 } as const;
 
-export type SectionTabsVariant = keyof typeof TAB_CLASS;
+type SectionTabsVariant = keyof typeof TAB_CLASS;
 
 export function SectionTabs({
   tabs,

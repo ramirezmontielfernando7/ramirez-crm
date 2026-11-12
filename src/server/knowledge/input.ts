@@ -17,7 +17,7 @@ import type { KnowledgeFileInput } from "./store";
  * `file`: objeto = archivo nuevo · `null` = quitarlo (`removeFile=true`) ·
  * `undefined` = no se tocó.
  */
-export type KnowledgeInput = {
+type KnowledgeInput = {
   title?: string;
   body?: string;
   tags?: string[];

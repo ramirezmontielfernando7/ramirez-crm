@@ -15,9 +15,9 @@ import { open, type OpenFailure } from "./vault";
  * se usa la maestra del servidor. Nada de esto sale del servidor de Dashfort.
  */
 
-export type DirectConnectionRow = typeof schema.directConnection.$inferSelect;
+type DirectConnectionRow = typeof schema.directConnection.$inferSelect;
 
-export type DirectConnectionInfo = {
+type DirectConnectionInfo = {
   id: string;
   serverId: string;
   instanceName: string;
@@ -57,7 +57,7 @@ export async function getDirectConnection(organizationId: string, directNumberId
   };
 }
 
-export type DirectTargetResult =
+type DirectTargetResult =
   | { ok: true; target: EvolutionTarget }
   | { ok: false; error: "not_connected" | "not_found" | OpenFailure };
 

@@ -9,7 +9,7 @@ import { newId } from "@/lib/db/ids";
  * queda que se generó y, después, que se usó).
  */
 
-export type AuditAction =
+type AuditAction =
   | "organization.created"
   | "organization.suspended"
   | "organization.reactivated"
@@ -74,7 +74,7 @@ export async function recordPlatformAudit(input: {
     });
 }
 
-export type AuditEntry = typeof schema.platformAuditLog.$inferSelect;
+type AuditEntry = typeof schema.platformAuditLog.$inferSelect;
 
 /** Lo más reciente primero; de una organización o de toda la plataforma. */
 export async function listPlatformAudit(opts: { organizationId?: string; limit?: number } = {}): Promise<AuditEntry[]> {

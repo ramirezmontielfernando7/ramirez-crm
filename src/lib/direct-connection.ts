@@ -16,8 +16,8 @@
 export const CONNECTION_MODES = ["meta", "directa", "mixta"] as const;
 export type ConnectionMode = (typeof CONNECTION_MODES)[number];
 
-export type InboundSource = "meta" | "evolution";
-export type OutboundTransport = "meta" | "directa";
+type InboundSource = "meta" | "evolution";
+type OutboundTransport = "meta" | "directa";
 
 export function isConnectionMode(value: unknown): value is ConnectionMode {
   return typeof value === "string" && (CONNECTION_MODES as readonly string[]).includes(value);
@@ -84,7 +84,7 @@ export type DirectConnectionStatus = keyof typeof CONNECTION_STATUS_LABEL;
 /* ───────── Configuración avanzada ───────── */
 
 /** Roles a los que el Propietario puede delegar (además de él). */
-export const DELEGABLE_ROLES = ["coordinador", "asesor"] as const;
+const DELEGABLE_ROLES = ["coordinador", "asesor"] as const;
 export type DelegableRole = (typeof DELEGABLE_ROLES)[number];
 
 export type DirectSettings = {
@@ -132,7 +132,7 @@ export const LIMIT_RANGES = {
   perHour: { min: 1, max: 10_000 },
 } as const;
 
-export type SendLimits = Pick<DirectSettings, "minIntervalSeconds" | "perChatPerMinute" | "perHour">;
+type SendLimits = Pick<DirectSettings, "minIntervalSeconds" | "perChatPerMinute" | "perHour">;
 
 /** ¿Estos límites caben en sus rangos? Devuelve el primer problema, en palabras. */
 export function validateLimits(limits: SendLimits): string | null {

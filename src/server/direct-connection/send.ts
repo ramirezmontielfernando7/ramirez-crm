@@ -485,7 +485,7 @@ function queue(): QueueState {
 }
 
 /** Agenda la salida de un mensaje en fila. Mismo mensaje = un solo timer. */
-export function scheduleDispatch(organizationId: string, messageId: string, at: Date): void {
+function scheduleDispatch(organizationId: string, messageId: string, at: Date): void {
   const q = queue();
   if (q.timers.has(messageId) || isShuttingDown()) return;
   const delay = Math.max(0, at.getTime() - Date.now());

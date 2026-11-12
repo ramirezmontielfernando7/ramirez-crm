@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 
-export type TimePoint = {
+type TimePoint = {
   bucket: string;
   value: number;
   /** Lo que dice el tooltip de esa barra, después del valor. */

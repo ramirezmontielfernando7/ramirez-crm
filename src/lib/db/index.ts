@@ -71,8 +71,8 @@ const globalForDb = globalThis as unknown as {
   __voceroTenantMisses?: Set<string>;
 };
 
-export const DEFAULT_DB_POOL_MAX = 15;
-export const DEFAULT_DB_SYSTEM_POOL_MAX = 5;
+const DEFAULT_DB_POOL_MAX = 15;
+const DEFAULT_DB_SYSTEM_POOL_MAX = 5;
 
 function poolMax(value: string | undefined, fallback: number): number {
   const n = Number(value);

@@ -29,8 +29,8 @@ const log = logger("billing");
  * la plataforma nunca queda restringida.
  */
 
-export type BillingRow = typeof schema.organizationBilling.$inferSelect;
-export type PaymentRow = typeof schema.organizationPayment.$inferSelect;
+type BillingRow = typeof schema.organizationBilling.$inferSelect;
+type PaymentRow = typeof schema.organizationPayment.$inferSelect;
 
 const TTL_MS = 5_000;
 const g = globalThis as unknown as { __voceroBilling?: Map<string, { row: BillingRow | null; at: number }> };
@@ -110,7 +110,7 @@ export async function getAiBonusUsd(organizationId: string, now: Date = new Date
 
 /* ───────── Escritura (solo el administrador de plataforma) ───────── */
 
-export type BillingPatch = {
+type BillingPatch = {
   trialEndsAt?: Date | null;
   paidUntil?: Date | null;
   graceDays?: number;

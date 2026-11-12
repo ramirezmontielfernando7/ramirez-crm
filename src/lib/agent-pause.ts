@@ -17,7 +17,7 @@ export type PauseState = {
 };
 
 /** Quién detuvo el turno: la organización entera o solo ese agente. */
-export type PauseScope = "org" | "agent";
+type PauseScope = "org" | "agent";
 
 /** La pausa general manda sobre la de un agente (es la que el equipo ve primero). */
 export function pauseScope(state: PauseState): PauseScope | null {
@@ -48,7 +48,7 @@ export const PAUSE_LABEL = {
  * - `on`: el agente atiende;
  * - `paused`: solo este chat está en pausa o espera a una persona.
  */
-export type RowAiBadge = "none" | "on" | "paused";
+type RowAiBadge = "none" | "on" | "paused";
 
 export function rowAiBadge(c: {
   aiAvailable: boolean;

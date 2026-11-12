@@ -43,7 +43,7 @@ async function orgOrThrow(organizationId: string): Promise<{ id: string; name: s
   return org;
 }
 
-export type PaymentDto = {
+type PaymentDto = {
   id: string;
   kind: PaymentKind;
   amountMxn: number;
@@ -53,7 +53,7 @@ export type PaymentDto = {
   paidAt: string;
 };
 
-export type BillingDto = {
+type BillingDto = {
   trialEndsAt: string | null;
   paidUntil: string | null;
   graceDays: number;
@@ -144,7 +144,7 @@ export async function changeBillingSettings(
   return getOrgBilling(organizationId);
 }
 
-export type PaymentInput = {
+type PaymentInput = {
   kind: PaymentKind;
   amountMxn: number;
   months?: number | null;

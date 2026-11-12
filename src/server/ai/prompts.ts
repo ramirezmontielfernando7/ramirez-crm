@@ -10,7 +10,7 @@ type KbEntry = Pick<typeof schema.kbEntry.$inferSelect, "kind" | "question" | "a
 export const DOCS_MARKER = "DOCUMENTOS DEL NEGOCIO";
 
 /** 035 — Fragmentos recuperados para este turno + el nonce que los delimita. */
-export type PromptDocs = { nonce: string; chunks: { title: string; content: string }[] };
+type PromptDocs = { nonce: string; chunks: { title: string; content: string }[] };
 
 /**
  * 035 — La sección de documentos. El contenido es DATO, no instrucciones:

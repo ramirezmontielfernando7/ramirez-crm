@@ -296,7 +296,7 @@ export type ModulesPatch = {
  * 046 — «Mi número» vive sobre la conexión directa: apagar la conexión
  * directa apaga «Mi número»; encender «Mi número» sin ella es un error.
  */
-export function resolveMiNumero(
+function resolveMiNumero(
   before: { conexionDirecta: boolean; miNumero: boolean },
   patch: { conexionDirecta?: boolean; miNumero?: boolean }
 ): { conexionDirecta: boolean; miNumero: boolean } {

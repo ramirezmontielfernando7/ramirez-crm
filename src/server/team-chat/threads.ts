@@ -113,7 +113,7 @@ export async function threadAccess(
 }
 
 /** Participantes (explícitos) de un hilo, con nombre. Avisos: ninguno explícito. */
-export async function threadMembers(
+async function threadMembers(
   organizationId: string,
   threadIds: string[]
 ): Promise<Map<string, TeamPersonDto[]>> {

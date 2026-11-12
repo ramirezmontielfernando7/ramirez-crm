@@ -51,9 +51,9 @@ import { orgHasModule } from "@/server/modules";
  *   tiene el original: no se puede mandar al chat sin volver a subirlo.
  */
 
-export type LibraryErrorCode = "no_original" | "last_destination" | "not_eligible" | "not_found";
+type LibraryErrorCode = "no_original" | "last_destination" | "not_eligible" | "not_found";
 
-export const LIBRARY_ERROR_LABEL: Record<LibraryErrorCode, string> = {
+const LIBRARY_ERROR_LABEL: Record<LibraryErrorCode, string> = {
   no_original:
     "Este documento no guarda el archivo original (se subió solo para la IA). Vuelve a subirlo con «Disponible en Bandeja» para enviarlo en el chat.",
   last_destination:

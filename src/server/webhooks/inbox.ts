@@ -32,12 +32,12 @@ import type { WebhookPayload } from "@/server/inbox/webhook";
 
 export const MAX_ATTEMPTS = 10;
 /** Tiempo que quien procesa aparta la fila (si se cae, otro la retoma después). */
-export const LOCK_MS = 10 * 60 * 1000;
-export const FAILED_RETENTION_DAYS = 7;
+const LOCK_MS = 10 * 60 * 1000;
+const FAILED_RETENTION_DAYS = 7;
 const TICK_MS = 15_000;
 const BATCH = 20;
 
-export type InboxSource = "whatsapp" | "direct";
+type InboxSource = "whatsapp" | "direct";
 
 /** Lo que guarda el webhook del dispositivo vinculado (ya enrutado a su organización). */
 export type DirectInboxPayload = {
@@ -60,7 +60,7 @@ function fingerprint(source: string, json: string): string {
 }
 
 /** Espera antes del intento `attempts + 1`: 30 s, 1 min, 2 min… con tope de 1 h. */
-export function retryDelayMs(attempts: number): number {
+function retryDelayMs(attempts: number): number {
   return Math.min(30_000 * 2 ** Math.max(0, attempts - 1), 60 * 60 * 1000);
 }
 

@@ -225,7 +225,7 @@ function MediaBlock({ media }: { media: MessageMediaDto }) {
   );
 }
 
-export function bubbleTime(iso: string): string {
+function bubbleTime(iso: string): string {
   return new Date(iso).toLocaleTimeString("es-MX", {
     hour: "2-digit",
     minute: "2-digit",

@@ -230,7 +230,7 @@ function selectMessages() {
     .leftJoin(schema.teamChatAttachment, eq(schema.teamChatAttachment.id, schema.teamChatMessage.attachmentId));
 }
 
-export async function getMessageDto(
+async function getMessageDto(
   session: SessionContext,
   messageId: string,
   opts: { neutral?: boolean } = {}

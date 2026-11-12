@@ -13,17 +13,16 @@ import type { ChatMessage } from "@/lib/ai";
 /** Marca del prompt: el ai-mock despacha por ella en el self-test. */
 export const WRITING_ASSIST_MARKER = "[VOCERO-ASISTENTE-REDACCION]";
 
-export const WRITING_ACTIONS = [
+const WRITING_ACTIONS = [
   "improve",
   "tone",
   "summarize",
   "shorten",
   "lengthen",
 ] as const;
-export type WritingAction = (typeof WRITING_ACTIONS)[number];
 
-export const WRITING_TONES = ["formal", "casual", "empatico"] as const;
-export type WritingTone = (typeof WRITING_TONES)[number];
+const WRITING_TONES = ["formal", "casual", "empatico"] as const;
+type WritingTone = (typeof WRITING_TONES)[number];
 
 /** Tope del borrador: un mensaje de WhatsApp largo, no un documento. */
 export const WRITING_MAX_CHARS = 4000;

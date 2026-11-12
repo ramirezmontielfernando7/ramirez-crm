@@ -40,8 +40,8 @@ export type AiKind = "agent" | "lab" | "judge" | "writing" | "assistant" | "anal
 export const ASSISTANT_KIND = "assistant";
 
 /** 036 — Los tipos que tienen agente (la escritura y los embeddings no). */
-export const AGENT_KINDS = ["agent", "lab", "judge"] as const;
-export type AgentAiKind = (typeof AGENT_KINDS)[number];
+const AGENT_KINDS = ["agent", "lab", "judge"] as const;
+type AgentAiKind = (typeof AGENT_KINDS)[number];
 
 export function isAgentKind(kind: string): kind is AgentAiKind {
   return (AGENT_KINDS as readonly string[]).includes(kind);
@@ -59,10 +59,10 @@ export type QuotaLimits = { turns: number | null; tokens: number | null };
 export type ReservationLimit = "turns" | "tokens" | "usd" | "fn_usd" | "assistant_tokens" | "assistant_unset";
 
 /** 0071 — Tope de seguridad de UNA función (agentes, creador, asistente). */
-export const FN_KIND_PREFIX = "fn_";
+const FN_KIND_PREFIX = "fn_";
 export type FnCap = { fn: "agent" | "creator" | "assistant"; usdLimit: number | null; mode: "block" | "warn" };
 export type PoolMode = "block" | "warn";
-export type Reservation = { ok: true } | { ok: false; limit: ReservationLimit };
+type Reservation = { ok: true } | { ok: false; limit: ReservationLimit };
 class AssistantBudgetExceeded extends Error {}
 
 /**
@@ -288,7 +288,7 @@ export async function recordAgentUsage(
     });
 }
 
-export type AgentUsageRow = { agentId: string; kind: AgentAiKind; turns: number; tokens: number };
+type AgentUsageRow = { agentId: string; kind: AgentAiKind; turns: number; tokens: number };
 
 /** 036 — El consumo del mes de la organización por agente y tipo. */
 export async function getAgentUsage(organizationId: string, now = new Date()): Promise<AgentUsageRow[]> {
@@ -313,7 +313,7 @@ export async function getAgentUsage(organizationId: string, now = new Date()): P
  * del agente (con el contenedor local son gratis). Su tope, si lo hay, es
  * `AI_DEFAULT_MONTHLY_EMBED_TOKENS` (`embedTokensUsed`).
  */
-export const EMBED_KIND = "embed";
+const EMBED_KIND = "embed";
 
 export async function recordEmbedUsage(
   organizationId: string,
@@ -371,7 +371,7 @@ export async function embedTokensUsed(organizationId: string, now = new Date()):
   return row?.t ?? 0;
 }
 
-export type UsageSummary = {
+type UsageSummary = {
   period: string;
   limits: QuotaLimits;
   turns: number;

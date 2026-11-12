@@ -42,7 +42,7 @@ export async function inboxDirectContext(organizationId: string, canChangeMode: 
   };
 }
 
-export type SetModeResult = { ok: true; mode: ConnectionMode } | { ok: false; error: "no_device" | "paused" | "not_whatsapp" | "not_found" };
+type SetModeResult = { ok: true; mode: ConnectionMode } | { ok: false; error: "no_device" | "paused" | "not_whatsapp" | "not_found" };
 
 /**
  * Cambia el modo de un chat. Salir de Oficial exige un dispositivo conectado y
@@ -80,7 +80,7 @@ export async function countWhatsAppChats(organizationId: string): Promise<number
   return Number(row?.n ?? 0);
 }
 
-export type ApplyAllResult = { ok: true; mode: ConnectionMode; changed: number } | { ok: false; error: "no_device" | "paused" };
+type ApplyAllResult = { ok: true; mode: ConnectionMode; changed: number } | { ok: false; error: "no_device" | "paused" };
 
 /**
  * «Aplicar a todos los chats» de Ajustes: pone este modo en TODOS los chats de

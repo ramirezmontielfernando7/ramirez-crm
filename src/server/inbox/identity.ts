@@ -80,7 +80,7 @@ export function resolveIdentity(
  * `bsuid:`) o por teléfono. Es LA regla de reconciliación: la usan la ingesta
  * y el cerebro externo, para que los dos hablen del mismo humano.
  */
-export async function findWhatsappContact(
+async function findWhatsappContact(
   organizationId: string,
   resolved: ResolvedIdentity
 ) {

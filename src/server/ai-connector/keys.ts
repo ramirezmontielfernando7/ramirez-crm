@@ -32,7 +32,7 @@ export function generateToken(prefix: string): string {
   return prefix + randomBytes(32).toString("base64url");
 }
 
-export type ResolvedToken = {
+type ResolvedToken = {
   tokenId: string;
   connectionId: string;
   organizationId: string;
@@ -85,7 +85,7 @@ export async function mayConnect(session: SessionContext): Promise<boolean> {
   return roleMayConnect(session.role, await getConnectorSettings(session.organizationId));
 }
 
-export type ConnectionDto = {
+type ConnectionDto = {
   id: string;
   kind: "oauth" | "key";
   name: string;

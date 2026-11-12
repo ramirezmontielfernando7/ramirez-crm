@@ -52,18 +52,15 @@ export type PricingInput = {
 
 /** Las funciones que gastan IA (la fila `total` NO entra: es la suma de las de chat). */
 // 038: el asistente interno (premium) se cobra con el precio del modelo principal.
-export const COST_KINDS = ["agent", "lab", "judge", "writing", "assistant", "analysis", "embed"] as const;
-export type CostKind = (typeof COST_KINDS)[number];
+const COST_KINDS = ["agent", "lab", "judge", "writing", "assistant", "analysis", "embed"] as const;
+type CostKind = (typeof COST_KINDS)[number];
 
-export type KindUsage = { kind: string; promptTokens: number; completionTokens: number; costUsd: number };
+type KindUsage = { kind: string; promptTokens: number; completionTokens: number; costUsd: number };
 
 export type KindCost = { kind: CostKind; tokens: number; estimatedUsd: number | null; realUsd: number };
 
 const M = 1_000_000;
 
-export function isCostKind(k: string): k is CostKind {
-  return (COST_KINDS as readonly string[]).includes(k);
-}
 
 /** El costo estimado de UNA función con estos precios (`null` sin precios). */
 export function estimateKindUsd(kind: CostKind, prompt: number, completion: number, p: Pricing | null): number | null {
@@ -93,7 +90,7 @@ export function costByKind(rows: KindUsage[], p: Pricing | null): KindCost[] {
   return out;
 }
 
-export type CostTotals = { estimatedUsd: number | null; realUsd: number | null };
+type CostTotals = { estimatedUsd: number | null; realUsd: number | null };
 
 /** Estimado y real de un conjunto de funciones. Real `null` = el proveedor no reportó nada. */
 export function sumCosts(kinds: KindCost[], hasPricing: boolean): CostTotals {
@@ -249,7 +246,7 @@ export type PriceSuggestion = { inputUsdPerMtok: number; outputUsdPerMtok: numbe
  * (caché de 5 minutos) 125 %. Costo estimado de una llamada con esos tokens
  * separados; sin caché es la cuenta de siempre. USD por millón de tokens.
  */
-export const CACHE_READ_FACTOR = 0.1;
+const CACHE_READ_FACTOR = 0.1;
 export const CACHE_WRITE_FACTOR = 1.25;
 /** Escribir en la caché de 1 hora cuesta 2× el precio de entrada. */
 export const CACHE_WRITE_FACTOR_1H = 2;
@@ -329,7 +326,7 @@ export type CapacityLine = {
   limits: CapacityLimits;
 };
 
-export type CapacityCost = {
+type CapacityCost = {
   chatUsd: number;
   assistantUsd: number;
   embedUsd: number;

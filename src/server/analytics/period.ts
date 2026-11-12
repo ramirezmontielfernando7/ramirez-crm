@@ -24,8 +24,8 @@ import { DEFAULT_TIMEZONE } from "@/server/agenda/settings";
  * es hoy.
  */
 
-export const DEFAULT_DAYS = 30;
-export const MAX_DAYS = 366;
+const DEFAULT_DAYS = 30;
+const MAX_DAYS = 366;
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const FORMATO = "Fechas inválidas: usa el formato AAAA-MM-DD";

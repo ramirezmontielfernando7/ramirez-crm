@@ -44,7 +44,7 @@ export async function syncNumberAi(organizationId: string, directNumberId: strin
 }
 
 /** Por dónde sale un texto de la IA: el chat de la empresa (lo de siempre), un número, o no sale. */
-export type NumberAiRoute =
+type NumberAiRoute =
   | { kind: "company" }
   | { kind: "blocked"; message: string }
   | { kind: "number"; scope: { directNumberId: string; audience: string[] } };

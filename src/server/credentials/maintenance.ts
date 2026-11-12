@@ -132,7 +132,7 @@ function targets(): Target[] {
   ];
 }
 
-export type TableReport = {
+type TableReport = {
   table: string;
   /** Filas por versión de llave, DESPUÉS del mantenimiento. */
   byVersion: Record<number, number>;

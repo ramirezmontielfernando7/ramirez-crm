@@ -32,7 +32,7 @@ import { cn } from "@/lib/utils";
  *   (Kanban, editores). `contained`: columna centrada de `max-w-6xl` con
  *   scroll (tablas, formularios, métricas).
  */
-export type PageShellVariant = "fluid" | "contained";
+type PageShellVariant = "fluid" | "contained";
 
 export function PageShell({
   title,

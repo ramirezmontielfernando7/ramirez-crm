@@ -18,7 +18,7 @@ import { sortTimeline, type TimelineActor, type TimelineItemDto } from "@/lib/ti
  */
 
 /** Tope: un contacto con más historia muestra lo reciente. */
-export const TIMELINE_LIMIT = 200;
+const TIMELINE_LIMIT = 200;
 
 function userActor(id: string | null, name: string | null): TimelineActor | null {
   return id && name ? { type: "user", id, name } : null;

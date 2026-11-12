@@ -156,7 +156,7 @@ export async function chatJsonForOrg<T>(
 }
 
 /** Cota conservadora para tres intentos: UTF-8 + encuadre + salida máxima. */
-export function reservationBudget(messages: ChatMessage[]): number {
+function reservationBudget(messages: ChatMessage[]): number {
   return 3 * (messages.reduce((n, m) => n + Buffer.byteLength(m.content, "utf8") + 64, 0) + 1024 + 8192);
 }
 

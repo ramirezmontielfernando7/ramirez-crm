@@ -22,7 +22,7 @@ import {
 /** Una llamada a `/api/bot/*` en esta ventana cuenta como «está contestando». */
 export const EXTERNAL_SEEN_WINDOW_MS = 24 * 60 * 60 * 1000;
 /** El `/health` se pregunta desde el servidor y no puede colgar la tarjeta. */
-export const BRAIN_HEALTH_TIMEOUT_MS = 2000;
+const BRAIN_HEALTH_TIMEOUT_MS = 2000;
 /** Cuánto se reutiliza una respuesta: la tarjeta se refresca sola y el panel
  *  de contacto la pide con cada evento de la bandeja. */
 export const BRAIN_HEALTH_TTL_MS = 15_000;
@@ -108,7 +108,7 @@ export function computeBrainStatus(input: BrainStatusInput): BrainStatusDto {
 // El /health del cerebro externo
 // ---------------------------------------------------------------------------
 
-export type FetchBrainHealthOptions = {
+type FetchBrainHealthOptions = {
   timeoutMs?: number;
   /** Solo para tests. */
   fetchImpl?: typeof fetch;

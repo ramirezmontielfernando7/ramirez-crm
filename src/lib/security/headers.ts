@@ -17,9 +17,9 @@
  *   meter en un iframe ajeno (clickjacking). Nada de Vocero usa iframes.
  */
 
-export const HSTS_MAX_AGE_SECONDS = 31_536_000;
+const HSTS_MAX_AGE_SECONDS = 31_536_000;
 
-export function contentSecurityPolicy(dev: boolean): string {
+function contentSecurityPolicy(dev: boolean): string {
   return [
     "default-src 'self'",
     // Tech Provider: el SDK de Facebook abre «Conectar con Facebook».

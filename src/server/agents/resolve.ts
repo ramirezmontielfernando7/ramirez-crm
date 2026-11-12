@@ -21,7 +21,7 @@ export type AgentOverride = {
   kb: KbItem[];
 };
 
-export type ResolvedAgent = {
+type ResolvedAgent = {
   agentId: string;
   isGeneral: boolean;
   config: AgentConfig;
@@ -117,7 +117,7 @@ export async function withStageAgent(
   return general;
 }
 
-export type ConversationAgentPeek = {
+type ConversationAgentPeek = {
   agentId: string;
   label: string;
   stageName: string;

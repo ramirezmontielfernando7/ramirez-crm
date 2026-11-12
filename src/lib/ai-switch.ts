@@ -19,11 +19,11 @@ export type AiSwitchInput = {
   aiConfigured: boolean;
 };
 
-export type AiSwitchMissing = "agent" | "whatsapp" | "service";
+type AiSwitchMissing = "agent" | "whatsapp" | "service";
 
-export type AiSwitchItem = { key: AiSwitchMissing; done: boolean; label: string; cta: string | null; href: string | null };
+type AiSwitchItem = { key: AiSwitchMissing; done: boolean; label: string; cta: string | null; href: string | null };
 
-export type AiSwitchView = {
+type AiSwitchView = {
   kind: "on" | "paused" | "off";
   title: string;
   /** Solo apagada: lo que falta, en orden. */

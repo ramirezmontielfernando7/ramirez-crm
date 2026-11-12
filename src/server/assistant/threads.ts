@@ -186,7 +186,7 @@ export async function threadHistory(organizationId: string, userId: string, thre
     .map((r) => ({ role: r.role, maskedContent: r.masked, ...(r.masks ? { masks: r.masks } : {}), ...(r.recall ? { recall: r.recall } : {}) }));
 }
 
-export type SaveExchangeInput = {
+type SaveExchangeInput = {
   organizationId: string;
   userId: string;
   /** Hilo existente (de esta persona) o `null` para abrir uno nuevo. */
@@ -348,4 +348,4 @@ export async function deleteThreads(organizationId: string, userId: string, thre
   return rows.length;
 }
 
-export { ownsThread };
+;

@@ -9,7 +9,7 @@ import { getDirectSettings } from "./settings";
  * permisos delegados y el aviso aceptado tienen sus propias pantallas.
  */
 
-export type AdvancedInput = Pick<
+type AdvancedInput = Pick<
   DirectSettings,
   | "defaultMode"
   | "autoReturnToMeta"

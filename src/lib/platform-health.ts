@@ -26,7 +26,7 @@ export type HealthInput = {
   billingRestricted: boolean;
 };
 
-export type Health = { level: HealthLevel; reasons: string[] };
+type Health = { level: HealthLevel; reasons: string[] };
 
 const DAY = 86_400_000;
 const daysSince = (d: Date | null, now: Date) => (d ? Math.floor((now.getTime() - d.getTime()) / DAY) : null);

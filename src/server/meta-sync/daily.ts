@@ -25,7 +25,7 @@ const log = logger("meta-diario");
  * mismo minuto: el upsert por (organización, número, día) lo hace inocuo.
  * Una organización que falla no frena a las demás.
  */
-export async function runDailyMetaSync(): Promise<{ orgs: number; failed: number }> {
+async function runDailyMetaSync(): Promise<{ orgs: number; failed: number }> {
   const today = utcDay();
   const pending = await getSystemDb()
     .select({ organizationId: schema.metaCredentials.organizationId })

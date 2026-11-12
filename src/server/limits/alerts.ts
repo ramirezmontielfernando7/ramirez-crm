@@ -27,7 +27,7 @@ import { countMembers, getEffectiveLimits, moduleToggles } from "./index";
 
 const log = logger("limits");
 
-export type UsageAlertDto = {
+type UsageAlertDto = {
   metric: AlertMetric;
   threshold: AlertThreshold;
   used: number;

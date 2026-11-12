@@ -18,9 +18,9 @@ import { publish } from "@/server/events/bus";
  * "arregles" moviendo el UPDATE: enruta tu cambio por aquí.
  */
 
-export type AssignmentSource = "manual" | "lote" | "auto" | "sistema" | "migracion";
+type AssignmentSource = "manual" | "lote" | "auto" | "sistema" | "migracion";
 
-export type AssignInput = {
+type AssignInput = {
   organizationId: string;
   contactIds: string[];
   /** NULL = dejar sin asignar. */
@@ -33,7 +33,7 @@ export type AssignInput = {
   batchId?: string | null;
 };
 
-export type AssignResult =
+type AssignResult =
   | { ok: true; changed: string[]; batchId: string | null }
   | { ok: false; reason: "assignee_not_member" | "contact_not_found" };
 
@@ -204,7 +204,7 @@ export async function reassignAllFrom(input: {
   });
 }
 
-export type AssignmentEventDto = {
+type AssignmentEventDto = {
   id: string;
   fromUser: { id: string; name: string } | null;
   toUser: { id: string; name: string } | null;

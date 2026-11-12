@@ -107,7 +107,7 @@ export const FACTORY_PLAN_PROFILES: PlanProfiles = Object.fromEntries(
 ) as PlanProfiles;
 
 /** Limpia lo guardado: solo claves conocidas y booleanas; lo que falte, de fábrica. */
-export function cleanPlanToggles(raw: unknown, plan: ModuleProfile): Record<PlatformModuleToggle, boolean> {
+function cleanPlanToggles(raw: unknown, plan: ModuleProfile): Record<PlatformModuleToggle, boolean> {
   const base = { ...FACTORY_PLAN_PROFILES[plan] };
   if (raw && typeof raw === "object") {
     for (const k of PLATFORM_MODULE_TOGGLES) {

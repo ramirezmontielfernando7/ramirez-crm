@@ -14,7 +14,7 @@
  */
 
 /** Tope de cada llamada, igual que el de Meta. */
-export const EVOLUTION_TIMEOUT_MS = 20_000;
+const EVOLUTION_TIMEOUT_MS = 20_000;
 
 export type EvolutionTarget = {
   /** URL base ya normalizada (`normalizeServerUrl`), sin barra final. */

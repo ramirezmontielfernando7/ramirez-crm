@@ -58,13 +58,13 @@ const PLAN_PILL: Record<string, string> = {
   custom: "bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300",
 };
 /** 048 — El semáforo: verde «Bien», amarillo «Revisar», rojo «Llamar». */
-export const HEALTH_PILL: Record<HealthLevel, string> = {
+const HEALTH_PILL: Record<HealthLevel, string> = {
   green: "bg-success-tint text-success-text",
   yellow: "bg-warning-tint text-warning-text",
   red: "bg-danger-tint text-danger-text",
   inactive: "bg-muted text-text-3",
 };
-export const HEALTH_DOT: Record<HealthLevel, string> = {
+const HEALTH_DOT: Record<HealthLevel, string> = {
   green: "bg-success",
   yellow: "bg-warning",
   red: "bg-destructive",

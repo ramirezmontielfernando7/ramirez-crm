@@ -36,7 +36,7 @@ async function assertSupervisor(organizationId: string, userId: string): Promise
   if (!m || !SUPERVISOR_ROLES.includes(m.role)) throw new MiNumeroFailure("not_found");
 }
 
-export type TeamChatDto = {
+type TeamChatDto = {
   id: string;
   contactName: string;
   phone: string | null;
@@ -44,15 +44,15 @@ export type TeamChatDto = {
   lastMessageAt: string | null;
   clientMarkedAt: string | null;
 };
-export type CompanyNumberDto = { numberId: string; ownerName: string; label: string | null; chats: TeamChatDto[] };
-export type RequestableDto = {
+type CompanyNumberDto = { numberId: string; ownerName: string; label: string | null; chats: TeamChatDto[] };
+type RequestableDto = {
   conversationId: string;
   ownerName: string;
   contactName: string;
   since: string;
   access: "none" | "pending" | "granted" | "rejected";
 };
-export type TeamNumbers = { companyNumbers: CompanyNumberDto[]; requestable: RequestableDto[] };
+type TeamNumbers = { companyNumbers: CompanyNumberDto[]; requestable: RequestableDto[] };
 
 /** Cuántos chats por número trae la vista (los más recientes). */
 const CHATS_PER_NUMBER = 200;

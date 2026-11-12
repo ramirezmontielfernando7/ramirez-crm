@@ -24,7 +24,7 @@ import { delegatedGrants } from "@/server/team-chat/settings";
  * el antes y el después. Todo dentro de `withTenant`: RLS por organización.
  */
 
-export type RoleLayouts = Record<Role, NavLayoutItem[] | null>;
+type RoleLayouts = Record<Role, NavLayoutItem[] | null>;
 
 /** Lo guardado de cada rol (`null` = de fábrica). Ya normalizado. */
 export async function getNavLayouts(organizationId: string): Promise<RoleLayouts> {
@@ -142,7 +142,7 @@ export async function resetNavLayout(input: {
   return defaultLayout(role);
 }
 
-export type NavLayoutEventDto = {
+type NavLayoutEventDto = {
   id: string;
   role: Role;
   action: "saved" | "reset";

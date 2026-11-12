@@ -43,7 +43,7 @@ export class DecryptError extends Error {
   }
 }
 
-export type Keyring = {
+type Keyring = {
   current: { version: number; key: Buffer };
   previous: { version: number; key: Buffer } | null;
 };

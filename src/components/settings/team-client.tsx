@@ -32,7 +32,7 @@ const ROLE_HINT: Record<Role, string> = {
 type InviteLink = { name: string; url: string; expiresAt: string; kind: "invite" | "access" };
 
 /** El texto que sale en WhatsApp: corto, sin datos del negocio que no hagan falta. */
-export function inviteMessage(link: Pick<InviteLink, "name" | "url" | "kind">): string {
+function inviteMessage(link: Pick<InviteLink, "name" | "url" | "kind">): string {
   const saludo = link.name ? `Hola ${link.name.split(/\s+/)[0]}` : "Hola";
   return link.kind === "invite"
     ? `${saludo}: te di acceso a nuestro CRM. Entra con este enlace y pon tu contraseña (vale 72 horas y un solo uso): ${link.url}`

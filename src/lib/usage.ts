@@ -38,7 +38,7 @@ export type StorageUsage = {
 };
 
 /** Bytes por número de un vector de embeddings (`real` = float4). */
-export const EMBEDDING_VALUE_BYTES = 4;
+const EMBEDDING_VALUE_BYTES = 4;
 
 /** Lo que ocupan los documentos del agente, con la fórmula de arriba. */
 export function documentsBytes(parts: { textBytes: number; chunkTextBytes: number; embeddingValues: number }): number {

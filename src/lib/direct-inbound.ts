@@ -110,7 +110,7 @@ export function contactFromVcard(displayName: string | null, vcard: string | nul
  * El contenido de un mensaje del dispositivo en la forma de Meta. null = un
  * tipo que no se registra (reacciones, encuestas, borrados, avisos internos).
  */
-export function contentOf(message: Obj, keyId: string): Omit<WebhookMessage, "id" | "timestamp" | "from" | "to"> | null {
+function contentOf(message: Obj, keyId: string): Omit<WebhookMessage, "id" | "timestamp" | "from" | "to"> | null {
   const m = unwrap(message);
   const mediaId = `${DEVICE_MEDIA_PREFIX}${keyId}`;
 
