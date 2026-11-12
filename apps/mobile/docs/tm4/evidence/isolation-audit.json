@@ -1,7 +1,7 @@
 {
   "app_source_commit": "bba69dff11d748ed68b23a666268e1842c1101af",
   "review_scope": "all tracked and new mobile source, docs, tests and evidence",
-  "mobile_files_scanned": 437,
+  "mobile_files_scanned": 447,
   "private_material_findings": [],
   "changes_outside_mobile": [],
   "main_unchanged": "95b7ea0b236b35ee29a1a288a55c315a050e3b6e",

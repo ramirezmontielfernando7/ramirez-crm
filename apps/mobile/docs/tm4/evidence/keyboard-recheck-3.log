@@ -1,0 +1,14 @@
+
+Running 3 tests using 1 worker
+
+(node:26686) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 tests/browser/chat.spec.ts:236:1 › quick replies, newline, emoji, rewrite preview and undo preserve drafts (5.4s)
+(node:26841) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  2 tests/browser/chat.spec.ts:236:1 › quick replies, newline, emoji, rewrite preview and undo preserve drafts (5.6s)
+(node:27014) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  3 tests/browser/chat.spec.ts:236:1 › quick replies, newline, emoji, rewrite preview and undo preserve drafts (6.4s)
+
+  3 passed (21.8s)

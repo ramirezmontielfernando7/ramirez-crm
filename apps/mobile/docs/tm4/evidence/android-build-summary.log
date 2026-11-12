@@ -1,0 +1,14 @@
+build.log
+> Task :app:createBundleReleaseJsAndAssets
+> Task :app:minifyReleaseWithR8
+> Task :app:lintVitalRelease
+> Task :app:assembleRelease
+BUILD SUCCESSFUL in 29m 19s
+604 actionable tasks: 576 executed, 28 up-to-date
+build-final.log
+> Task :app:createBundleReleaseJsAndAssets
+> Task :app:minifyReleaseWithR8 UP-TO-DATE
+> Task :app:lintVitalRelease
+> Task :app:assembleRelease
+BUILD SUCCESSFUL in 2m 6s
+604 actionable tasks: 25 executed, 579 up-to-date

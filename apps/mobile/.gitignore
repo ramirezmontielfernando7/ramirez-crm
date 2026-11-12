@@ -8,3 +8,6 @@ artifacts/
 *.jks
 *.keystore
 .env*
+
+# Evidencia de QA seleccionada y revisada; no incluye logs de SDK/cachés.
+!docs/tm4/evidence/*.log

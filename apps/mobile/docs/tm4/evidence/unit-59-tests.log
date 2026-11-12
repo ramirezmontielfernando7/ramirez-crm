@@ -1,0 +1,78 @@
+
+> dashfort-mobile-dev@0.1.0 test
+> tsx --test tests/*.test.ts
+
+{"chatMessages":1000,"pageSize":40,"localLogicMs":6.752}
+✔ 24h window is checked at the exact boundary and cannot be opened by sending a template or IA (60.836012ms)
+✔ templates require approval and every variable; library forbids knowledge-only material (1.599633ms)
+✔ history pages are bounded, chronological, scoped and non-overlapping (32.48435ms)
+✔ loading older pages retains identity, serializes concurrent requests and retries the same cursor after error (51.556255ms)
+✔ persistent drafts serialize fast edits and survive a new store without leaking across profiles (12.567579ms)
+✔ storage failures remain visible and retry restores a usable draft; corrupt data is not overwritten (27.50343ms)
+✔ delivery transitions pending → sent → delivered → read with no duplicate for the same key (12.510454ms)
+✔ lost ACK and multipart retries reuse the same message and transport part IDs (44.778709ms)
+✔ expiry after enqueue but before transport is not masked as a successful send (9.396978ms)
+✔ text splitting obeys the mobile/web contract, preserves emoji and rejects over-limit text (2.071641ms)
+✔ attachment metadata validates limits, active content, readable samples and caption length (9.40276ms)
+✔ sending clears the old draft without overwriting newly typed text (10.740047ms)
+✔ deletion is role-protected, retains the contact and persists a local history tombstone (64.800769ms)
+✔ offline receipt queues until reconnect and opens the window only for a customer (9.650918ms)
+✔ transport failure reports and missing acknowledgement never leave a false pending success (22.231356ms)
+✔ sending the first message restores an empty demo view (8.793956ms)
+✔ all 1,000 history items page without gaps, duplication or allocating another conversation (15.506998ms)
+✔ history timestamps stay stable when an older page is loaded hours later (44.486398ms)
+✔ a newly created demo contact begins empty and requires a template (19.446488ms)
+✔ details authorize every read and mutation, including revoked advisor scope (27.931215ms)
+✔ lost stage needs reason, persists atomically and leaving it clears the loss (59.004287ms)
+✔ assignment includes unassigned and active team only; unrelated rows keep identity (10.14635ms)
+✔ tags validate catalog, preserve import tags and update inbox search (91.40066ms)
+✔ AI states and take conversation update assignment and pause together (50.266709ms)
+✔ connection policy gates addon, delegation, groups, device and emergency; Meta stays available inside authorized UI (65.631165ms)
+✔ connection selection changes only after success; save failure and permission revocation are safe (12.342805ms)
+✔ internal notes do not touch message previews, deduplicate and persist per profile/contact (19.7092ms)
+✔ saving a note cannot erase text typed while storage is pending; flags cannot change mid-commit (42.674674ms)
+✔ failures and offline keep state and draft, then retry exactly once (12.651315ms)
+✔ request keys reject conflicting payloads; queued changes use latest state (12.677343ms)
+✔ concurrent inbox change is detected instead of overwritten (26.971789ms)
+✔ tasks validate title, calendar, active assignee and advisor own scope; safe retry creates one (7.893071ms)
+✔ amount and date parsing reject impossible values, handle decimals and leap years (0.821452ms)
+✔ group sale metadata is unavailable and invalid cents cannot persist (38.474083ms)
+✔ corrupt local data fails closed without replacing it and storage recovery is possible (30.1199ms)
+✔ history is capped, newest first with unique IDs and stable prior object references (223.535856ms)
+✔ bounded details cache restores persisted changes after eviction and protects unsaved notes (54.6362ms)
+✔ cached details reconcile T-M2 assignment/stage changes without extra notifications (7.828971ms)
+✔ inbox changes during hydration are not replaced by stale saved fields (7.413063ms)
+✔ incoming preview during hydration does not discard saved contact fields (26.777768ms)
+✔ full dirty cache refuses another chat without evicting unsaved notes (59.58297ms)
+✔ WCAG AA text, buttons, capsules and message metadata in light (2.138268ms)
+✔ WCAG AA text, buttons, capsules and message metadata in dark (0.654739ms)
+✔ navigation exposes exactly 5 / 4 / 3 modules and checks direct access (5.643647ms)
+✔ login validates form and never accepts arbitrary accounts or empty passwords (2.090172ms)
+✔ session lasts 30 days, survives a new repository and is removed on logout (1.087613ms)
+✔ expired, corrupt and forged sessions fail closed and are cleared (0.6713ms)
+✔ activation and reset enforce valid single-use links independently (0.908405ms)
+✔ storage errors do not report successful login or logout (0.662751ms)
+✔ Android Back closes layer before stack, then inbox, then requires double press (0.264025ms)
+✔ simultaneous redemption cannot create two sessions and a failed save rolls back consumption (1.007073ms)
+{"benchmark":"query-10000","samples":60,"p50_ms":1.2169829999999138,"p95_ms":5.3004139999999325}
+✔ 2000 synthetic records have unique stable IDs; normalized search covers accent, phone and tags (20.845915ms)
+✔ repository enforces advisor scope for reads and atomic bulk mutations (13.123509ms)
+✔ combined filters, archive and assignment affect only expected records; unchanged records preserve identity (16.323545ms)
+✔ campaign response moves exactly one conversation into clients (51.095082ms)
+✔ new contact validates input, avoids duplicates and cannot reveal out-of-scope contacts (26.23398ms)
+✔ scroll updates do not notify; navigation snapshot retains filters and selection; filter changes reset offset (23.870303ms)
+✔ search benchmark on 10000 records (CPU only, no FPS claim) (198.739316ms)
+✔ offline event catch-up changes cached records only on explicit reconnect (14.196409ms)
+ℹ tests 59
+ℹ suites 0
+ℹ pass 59
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4806.142602
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.2
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.2
+npm notice To update run: npm install -g npm@12.2.2
+npm notice

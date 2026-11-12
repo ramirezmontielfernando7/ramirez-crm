@@ -1,0 +1,90 @@
+
+Running 38 tests using 2 workers
+
+(node:23698) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:23697) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 tests/browser/contact.spec.ts:77:5 › T-M4 approved matrix light-390 (13.4s)
+  ✓   2 tests/browser/chat.spec.ts:44:5 › T-M3 matrix light-390 (15.7s)
+  ✓   3 tests/browser/contact.spec.ts:77:5 › T-M4 approved matrix dark-390 (11.1s)
+  ✓   4 tests/browser/chat.spec.ts:44:5 › T-M3 matrix dark-390 (17.7s)
+  ✓   5 tests/browser/contact.spec.ts:77:5 › T-M4 approved matrix light-360 (14.6s)
+  ✓   6 tests/browser/chat.spec.ts:44:5 › T-M3 matrix light-360 (12.8s)
+  ✓   7 tests/browser/contact.spec.ts:77:5 › T-M4 approved matrix dark-360 (10.7s)
+  ✓   9 tests/browser/contact.spec.ts:133:1 › stage cancel, assignment, tag toggling, AI and sale survive navigation and reload (11.2s)
+  ✓   8 tests/browser/chat.spec.ts:44:5 › T-M3 matrix dark-360 (14.8s)
+  ✓  11 tests/browser/chat.spec.ts:119:1 › persistent draft, safe retry after lost confirmation and sent message appears only once (7.7s)
+  ✓  10 tests/browser/contact.spec.ts:200:1 › INB-30 gates, linked device, failure, emergency and double AI warning (11.4s)
+  ✓  12 tests/browser/chat.spec.ts:153:1 › closed window requires approved template; a template does not unlock until customer reply (8.5s)
+  ✓  13 tests/browser/contact.spec.ts:260:1 › notes retain draft and filter across navigation, survive save failure and never appear as sent chat messages (9.8s)
+  ✓  14 tests/browser/chat.spec.ts:182:1 › attachments validate errors, recover a sample and image viewer supports zoom without external sharing (8.3s)
+  ✓  15 tests/browser/contact.spec.ts:307:1 › task validates date, preserves typed title, saves once and completion persists (7.9s)
+  ✓  17 tests/browser/contact.spec.ts:350:1 › advisor hides assignment and connection by default; protected import tag and deep links respect scope (6.0s)
+  ✘  16 tests/browser/chat.spec.ts:236:1 › quick replies, newline, emoji, rewrite preview and undo preserve drafts (12.0s)
+(node:25201) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  19 tests/browser/chat.spec.ts:275:1 › paginated history preserves message identity and recovers page failure (6.8s)
+  ✓  18 tests/browser/contact.spec.ts:381:1 › details and history recover loading empty error offline without losing note draft (13.4s)
+  ✓  20 tests/browser/chat.spec.ts:314:1 › advisor cannot delete; deleting a chat retains contact and persists local empty history (9.9s)
+  ✓  22 tests/browser/chat.spec.ts:343:1 › older pages and incoming messages preserve the visible anchor away from the bottom (6.7s)
+  ✓  21 tests/browser/contact.spec.ts:445:1 › Inbox scroll and chat message anchor survive details/history round trip (22.5s)
+  ✓  23 tests/browser/chat.spec.ts:412:1 › recoverable data states preserve the draft and reconnect pending incoming once (8.9s)
+  ✓  25 tests/browser/inbox.spec.ts:36:5 › T-M2 reference matrix light-390 (9.9s)
+  ✓  24 tests/browser/foundation.spec.ts:43:5 › T-M1 galleries and access light-390x844 (12.5s)
+  ✓  26 tests/browser/inbox.spec.ts:36:5 › T-M2 reference matrix dark-390 (12.2s)
+  ✓  27 tests/browser/foundation.spec.ts:43:5 › T-M1 galleries and access dark-390x844 (15.7s)
+  ✓  28 tests/browser/inbox.spec.ts:36:5 › T-M2 reference matrix light-360 (15.6s)
+  ✓  29 tests/browser/foundation.spec.ts:43:5 › T-M1 galleries and access light-360x640 (16.2s)
+  ✓  30 tests/browser/inbox.spec.ts:36:5 › T-M2 reference matrix dark-360 (10.5s)
+  ✓  32 tests/browser/inbox.spec.ts:91:1 › combined filters, archive, assign and preserved selection across tabs (7.5s)
+  ✓  31 tests/browser/foundation.spec.ts:43:5 › T-M1 galleries and access dark-360x640 (14.7s)
+  ✓  33 tests/browser/inbox.spec.ts:124:1 › advisor cannot enter other conversation and new contact validation is functional (13.4s)
+  ✓  34 tests/browser/foundation.spec.ts:113:1 › roles, route guards, recovery and logout (12.0s)
+  ✓  36 tests/browser/foundation.spec.ts:180:1 › form validation, generic auth failure and expired session (5.7s)
+  ✓  35 tests/browser/inbox.spec.ts:157:1 › virtualized list restores scroll and query after conversation return (12.7s)
+  ✓  37 tests/browser/foundation.spec.ts:211:1 › single-use activation and reset, invalid link, repeated password (8.7s)
+  ✓  38 tests/browser/foundation.spec.ts:256:1 › layers, simulated composer and recoverable data states (6.2s)
+
+
+  1) tests/browser/chat.spec.ts:236:1 › quick replies, newline, emoji, rewrite preview and undo preserve drafts 
+
+    Error: expect(locator).toHaveValue(expected) failed
+
+    Locator: getByRole('textbox', { name: 'Mensaje', exact: true })
+    Timeout: 5000ms
+    - Expected  - 1
+    + Received  + 0
+
+      hola original
+    -
+
+    Call log:
+      - Expect "toHaveValue" getByRole('textbox', { name: 'Mensaje', exact: true }) with timeout 5000ms
+      - waiting for getByRole('textbox', { name: 'Mensaje', exact: true })
+        14 × locator resolved to <textarea dir="auto" autocorrect="on" maxlength="65536" autocomplete="on" spellcheck="true" aria-label="Mensaje" placeholder="Mensaje" autocapitalize="sentences" virtualkeyboardpolicy="auto" class="css-11aywtz r-6taxm2">hola original</textarea>
+           - unexpected value "hola original"
+
+
+      250 |   await input.press("End");
+      251 |   await input.press("Enter");
+    > 252 |   await expect(input).toHaveValue("hola original\n");
+          |                       ^
+      253 |   await page.getByRole("button", { name: "Emojis", exact: true }).click();
+      254 |   await page
+      255 |     .getByRole("button", { name: "Insertar emoji 😊", exact: true })
+        at /workspace/work/ramirez-crm/apps/mobile/tests/browser/chat.spec.ts:252:23
+
+    Error Context: artifacts/playwright-results/chat-quick-replies-newline-461b8-ew-and-undo-preserve-drafts/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    artifacts/playwright-results/chat-quick-replies-newline-461b8-ew-and-undo-preserve-drafts/trace.zip
+    Usage:
+
+        npx playwright show-trace artifacts/playwright-results/chat-quick-replies-newline-461b8-ew-and-undo-preserve-drafts/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  1 failed
+    tests/browser/chat.spec.ts:236:1 › quick replies, newline, emoji, rewrite preview and undo preserve drafts 
+  37 passed (3.8m)
