@@ -143,7 +143,7 @@ export function BrandLogo({
         {house && (
           <span
             className={cn(
-              "mt-[3px] truncate font-medium leading-none tracking-[0.01em] opacity-55",
+              "mt-[3px] truncate font-medium leading-none tracking-[0.01em] opacity-75",
               BYLINE_SIZE[size]
             )}
           >

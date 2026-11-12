@@ -160,7 +160,7 @@ export function ResultsClient({
       }
       actions={<div className="hidden items-center gap-2 sm:flex">{filtros}</div>}
     >
-      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-3 sm:p-6">
+      <div tabIndex={0} className="min-h-0 flex-1 space-y-4 overflow-y-auto p-3 focus-visible:outline-none sm:p-6">
         <div className="flex flex-wrap items-center gap-2 sm:hidden">{filtros}</div>
         {tab === "ventas" && (
           <>

@@ -400,7 +400,6 @@ const NavSearch = memo(function NavSearch() {
     <button
       type="button"
       onClick={() => window.dispatchEvent(new Event(OPEN_PALETTE_EVENT))}
-      aria-label="Buscar"
       title={`Buscar chats y pantallas (${kbd})`}
       data-testid="nav-search"
       className="mb-3 flex w-full items-center gap-2 rounded-sm border bg-subtle px-2.5 py-2 text-left text-[13px] text-text-3 hover:bg-accent group-data-[mini]/nav:hidden"
@@ -600,7 +599,6 @@ function ProfileMenu({
       <button
         ref={button}
         onClick={toggle}
-        aria-label={`${userName} · ${roleText}`}
         title={`${userName} · ${roleText}`}
         aria-expanded={open}
         aria-haspopup="dialog"
