@@ -7,6 +7,7 @@ import {
   type BotBlockDto,
   type LabeledCountDto,
   type SessionsDto,
+  type TeamResponseDto,
 } from "@/lib/analytics";
 import { median, type ResolvedPeriod } from "@/server/analytics/period";
 import { notLabContact } from "@/server/analytics/shared";
@@ -31,7 +32,7 @@ export async function botBlock(
 ): Promise<BotBlockDto> {
   const { start, end } = period;
 
-  const [conteos, primera, handoffs, sesiones, ficha] = await Promise.all([
+  const [conteos, primera, handoffs, sesiones, ficha, equipo] = await Promise.all([
     conteosDeLaCohorte(scope, start, end),
     medianaPrimeraRespuesta(scope, start, end),
     escalamientos(scope, start, end),
@@ -39,12 +40,14 @@ export async function botBlock(
     // siquiera se consulta (spec 019, D4).
     agenda ? sesionesDelPeriodo(scope, start, end) : Promise.resolve(null),
     coberturaDeFicha(scope, start, end),
+    respuestaDelEquipo(scope, start, end),
   ]);
 
   const escalados = handoffs.reduce((a, h) => a + h.count, 0);
 
   return {
     period: period.dto,
+    team: equipo,
     conversations: conteos.total,
     aiReplyRate: rate(conteos.contestoElAgente, conteos.conEntrante),
     firstResponseSeconds: primera.median,
@@ -132,6 +135,51 @@ async function medianaPrimeraRespuesta(
     .filter((v): v is number => v !== null && v >= 0);
 
   return { median: median(valores), sample: valores.length };
+}
+
+/**
+ * 049 — Qué tan rápido responde el EQUIPO. Una respuesta de «persona» es un
+ * saliente que NO es de la IA ni un mensaje automático (bienvenida / fuera de
+ * horario) ni una plantilla, y que no falló. Mide desde el primer mensaje del
+ * cliente hasta la primera respuesta así. Reloj corrido (no descuenta la noche):
+ * por eso se enseña la mediana y el % en 5 min / 1 h, no el promedio.
+ */
+async function respuestaDelEquipo(scope: Access, start: Date, end: Date): Promise<TeamResponseDto> {
+  const primerEntrante = sql`(select min(m1."created_at") from "message" m1
+    where m1."conversation_id" = ${conversacionId} and m1."direction" = 'in')`;
+  const rows = await getDb()
+    .select({
+      conEntrante: sql<boolean>`${primerEntrante} is not null`,
+      sinNingunaRespuesta: sql<boolean>`${primerEntrante} is not null and not exists (
+        select 1 from "message" ma
+        where ma."conversation_id" = ${conversacionId} and ma."direction" = 'out'
+          and ma."auto_kind" is null and ma."status" <> 'failed' and ma."created_at" >= ${primerEntrante}
+      )`,
+      segundos: sql<number | null>`extract(epoch from (
+        (select min(m2."created_at") from "message" m2
+          where m2."conversation_id" = ${conversacionId}
+            and m2."direction" = 'out' and m2."origin" in ('operator', 'manual')
+            and m2."ai_generated" = false and m2."auto_kind" is null
+            and m2."status" <> 'failed'
+            and m2."created_at" > ${primerEntrante})
+        - ${primerEntrante}
+      ))`,
+    })
+    .from(schema.conversation)
+    .where(cohorte(scope, start, end));
+
+  const conEntrante = rows.filter((r) => r.conEntrante);
+  const valores = conEntrante
+    .map((r) => (r.segundos === null ? null : Number(r.segundos)))
+    .filter((v): v is number => v !== null && v >= 0);
+  return {
+    chats: conEntrante.length,
+    medianSeconds: median(valores),
+    answeredByPerson: valores.length,
+    within5Min: rate(valores.filter((v) => v <= 300).length, valores.length),
+    within1Hour: rate(valores.filter((v) => v <= 3600).length, valores.length),
+    unanswered: conEntrante.filter((r) => r.sinNingunaRespuesta).length,
+  };
 }
 
 /** De la cohorte, las que hoy están en manos de un humano, por motivo. */

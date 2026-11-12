@@ -255,7 +255,7 @@ jobs:
           - name: campañas y datos de Meta
             scripts: "e2e-datos-meta e2e-campanas-v2 e2e-etiquetas-limpias"
           - name: agentes, navegación y trabajo
-            scripts: "e2e-navegacion e2e-apariencia e2e-agentes e2e-pausa-agentes e2e-trabajo"
+            scripts: "e2e-navegacion e2e-apariencia e2e-agentes e2e-pausa-agentes e2e-trabajo e2e-mensajes-automaticos"
           - name: Bandeja y responsive
             # conectar-facebook va al final: su login cuenta contra el freno por
             # IP (FR-062) que usan los guiones de arriba.

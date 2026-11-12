@@ -4,6 +4,8 @@ import { companyChat, scopedContacts, scopedConversations, type Access } from "@
 import { sumable } from "@/lib/money";
 import type { HygieneBlockDto } from "@/lib/analytics";
 import { notLabContact } from "@/server/analytics/shared";
+import { FORGOTTEN_MAX_AGE_HOURS, waitingHours } from "@/lib/auto-replies";
+import { getAutoReplySettings } from "@/server/auto-replies/settings";
 
 /**
  * 019 — Bloque de higiene.
@@ -12,6 +14,9 @@ import { notLabContact } from "@/server/analytics/shared";
  * fechas. Es lo que hace que la pantalla se abra a diario en vez de una vez al
  * mes.
  */
+
+/** Horas sin respuesta desde las que se lista un chat si el aviso de chats olvidados está apagado. */
+export const ESPERA_POR_DEFECTO_HORAS = 4;
 
 /** Días sin que hable el cliente a partir de los cuales el lead está frío. */
 export const SILENCIO_DIAS = 7;
@@ -23,10 +28,12 @@ export async function hygieneBlock(
   businessCurrency: string,
   now: Date = new Date()
 ): Promise<HygieneBlockDto> {
-  const [silencio, failedMessages, closingWindows] = await Promise.all([
+  const desdeHoras = (await getAutoReplySettings(scope.organizationId)).forgottenAlertHours ?? ESPERA_POR_DEFECTO_HORAS;
+  const [silencio, failedMessages, closingWindows, esperando] = await Promise.all([
     leadsEnSilencio(scope, businessCurrency, now),
     mensajesFallidos(scope, now),
     ventanasPorVencer(scope, now),
+    chatsEsperando(scope, now, desdeHoras),
   ]);
 
   return {
@@ -35,10 +42,14 @@ export async function hygieneBlock(
     silentAmountCents: silencio.totalCents,
     failedMessages,
     closingWindows,
+    waiting: esperando.lista,
+    waitingCount: esperando.total,
+    waitingAfterHours: desdeHoras,
     clean:
       silencio.total === 0 &&
       failedMessages.length === 0 &&
-      closingWindows.length === 0,
+      closingWindows.length === 0 &&
+      esperando.total === 0,
   };
 }
 
@@ -159,6 +170,56 @@ async function mensajesFallidos(scope: Access, now: Date) {
     count: r.n,
     lastAt: r.lastAt.toISOString(),
   }));
+}
+
+/**
+ * 049 — Chats donde el cliente espera respuesta desde hace `horas` o más (hasta
+ * 3 días: más viejo ya es silencio). Una respuesta de una persona o de la IA
+ * lo saca de la lista; los mensajes automáticos no cuentan.
+ */
+async function chatsEsperando(scope: Access, now: Date, horas: number) {
+  const hasta = new Date(now.getTime() - horas * 3_600_000);
+  const muyViejo = new Date(now.getTime() - FORGOTTEN_MAX_AGE_HOURS * 3_600_000);
+  const rows = await getDb()
+    .select({
+      conversationId: schema.conversation.id,
+      contactId: schema.conversation.contactId,
+      name: schema.contact.name,
+      lastInboundAt: schema.conversation.lastInboundAt,
+      total: sql<number>`(count(*) over ())::int`,
+    })
+    .from(schema.conversation)
+    .innerJoin(schema.contact, eq(schema.contact.id, schema.conversation.contactId))
+    .where(
+      scopedContacts(
+        schema.conversation.organizationId,
+        scope,
+        schema.conversation.contactId,
+        companyChat(),
+        eq(schema.conversation.channel, "whatsapp"),
+        isNull(schema.conversation.archivedAt),
+        isNotNull(schema.conversation.lastInboundAt),
+        lt(schema.conversation.lastInboundAt, hasta),
+        gt(schema.conversation.lastInboundAt, muyViejo),
+        sql`not exists (
+          select 1 from "message" m
+          where m."conversation_id" = ${schema.conversation.id}
+            and m."direction" = 'out' and m."auto_kind" is null and m."status" <> 'failed'
+            and m."created_at" >= ${schema.conversation.lastInboundAt}
+        )`
+      )
+    )
+    .orderBy(asc(schema.conversation.lastInboundAt))
+    .limit(20);
+  return {
+    total: rows[0]?.total ?? 0,
+    lista: rows.map((r) => ({
+      conversationId: r.conversationId,
+      contactId: r.contactId,
+      name: r.name,
+      hoursWaiting: waitingHours(r.lastInboundAt!, now),
+    })),
+  };
 }
 
 /**

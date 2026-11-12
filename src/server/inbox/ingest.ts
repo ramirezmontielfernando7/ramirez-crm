@@ -22,6 +22,7 @@ import {
 } from "@/server/inbox/identity";
 import { applyStatusUpdate } from "@/server/inbox/status";
 import { handleStopKeyword } from "@/server/inbox/opt-out";
+import { maybeSendAutoReply } from "@/server/auto-replies/run";
 import {
   anuncioDeWhatsapp,
   type AnuncioDeOrigen,
@@ -623,6 +624,13 @@ async function ingestInboundMessageInOrg(input: {
   }
   if (isStop) return;
 
+  // 049: bienvenida / fuera de horario, sin IA. Nunca tumba la entrada.
+  try {
+    await maybeSendAutoReply({ organizationId, contact, conversation });
+  } catch (err) {
+    log.error("no se pudo procesar el mensaje automático", { org: organizationId, err });
+  }
+
   await maybeRunAgentTurn(conversation.id);
 }
 
@@ -653,6 +661,7 @@ export function serializeMessage(
     viaAiConnector: m.aiConnectionId !== null,
     /** «Joe»; null con `viaAiConnector` = «Asistente». */
     aiSenderName: m.aiConnectionId !== null ? m.aiSenderName : null,
+    autoKind: m.autoKind === "welcome" || m.autoKind === "away" ? m.autoKind : null,
     media: media
       ? {
           assetId: media.id,

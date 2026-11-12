@@ -38,6 +38,10 @@ export const SETTINGS_TAB_PERMISSION = {
   "conector-ia": "settings.manage",
   // Ronda 3: «Bajas automáticas» (STOP/BAJA), antes dentro de Canales.
   "opt-out": "settings.manage",
+  // 049: bienvenida, fuera de horario y aviso de chats olvidados (sin IA).
+  "auto-mensajes": "settings.manage",
+  // 049: descargar todos los datos del negocio; solo el Propietario.
+  "mis-datos": "data.export",
   // Auditoría 2026-11: el interruptor general de la IA y el cerebro externo
   // (antes solo en /agent); solo con el módulo Agente.
   "quien-contesta": "agent.manage",
