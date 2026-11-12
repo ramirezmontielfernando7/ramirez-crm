@@ -155,6 +155,10 @@ const PERMITIDOS: Record<string, { usos: number; motivo: string }> = {
     usos: 1,
     motivo: "036 PR 3a: la revisión periódica de avisos de consumo lista las organizaciones ACTIVAS con algún tope de almacenamiento, personas o módulos (cruza organizaciones); la revisión de cada una corre luego a nombre de la suya",
   },
+  "src/server/auto-replies/forgotten.ts": {
+    usos: 1,
+    motivo: "049: la revisión periódica de chats olvidados lista las organizaciones ACTIVAS con el aviso encendido (cruza organizaciones); la revisión de cada una corre luego a nombre de la suya",
+  },
   "src/server/usage/storage.ts": {
     usos: 1,
     motivo: "036 PR 2: el administrador de plataforma ve cuánto almacenamiento (aprox.) ocupa CADA organización: sumas agrupadas por organización, nunca contenido; la de una sola organización va con el pool de la app",

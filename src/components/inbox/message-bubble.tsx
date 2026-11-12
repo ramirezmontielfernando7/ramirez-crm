@@ -276,6 +276,16 @@ export function MessageBubble({
           <Bot className="h-[11px] w-[11px]" strokeWidth={2} aria-hidden /> IA
         </span>
       )}
+      {m.autoKind && (
+        // 049 — mensaje automático sin IA: solo lo ve el equipo.
+        <span
+          className="bubble-who mb-0.5 flex items-center gap-1 text-[11px] font-semibold leading-4 text-text-2"
+          title="Mensaje automático (bienvenida o fuera de horario). Lo configuras en Ajustes → Mensajes automáticos."
+        >
+          <Clock3 className="h-[11px] w-[11px] shrink-0" strokeWidth={2} aria-hidden />
+          {m.autoKind === "welcome" ? "Bienvenida automática" : "Fuera de horario (automático)"}
+        </span>
+      )}
       {m.viaAiConnector && (
         // 047 — la IA conectada de una persona: su nombre («Joe») en azul,
         // para no confundirla con el agente interno. Solo la ve el equipo.

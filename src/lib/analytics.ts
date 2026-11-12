@@ -221,8 +221,25 @@ export type SessionsDto = {
   showRate: RateDto;
 };
 
+/** 049 — Qué tan rápido responde el EQUIPO (personas; el agente y los automáticos no cuentan). */
+export type TeamResponseDto = {
+  /** Conversaciones que empezaron en el periodo con un mensaje del cliente. */
+  chats: number;
+  /** Mediana en segundos hasta la primera respuesta de una persona; null si nadie ha contestado. */
+  medianSeconds: number | null;
+  /** Con respuesta de una persona. */
+  answeredByPerson: number;
+  /** De las contestadas por una persona, en cuántas fue en 5 min y en 1 h. */
+  within5Min: RateDto;
+  within1Hour: RateDto;
+  /** Sin NINGUNA respuesta (ni persona ni IA) hasta hoy. */
+  unanswered: number;
+};
+
 export type BotBlockDto = {
   period: PeriodDto;
+  /** 049: la respuesta del equipo (personas). */
+  team: TeamResponseDto;
   /** Conversaciones que empezaron en el periodo. */
   conversations: number;
   /** De las que tienen mensaje del cliente, en cuántas contestó el agente. */
@@ -264,6 +281,11 @@ export type HygieneBlockDto = {
     name: string;
     hoursLeft: number;
   }[];
+  /** 049 — chats donde el cliente espera respuesta (los más viejos primero). */
+  waiting: { conversationId: string; contactId: string; name: string; hoursWaiting: number }[];
+  waitingCount: number;
+  /** Desde cuántas horas sin respuesta se listan aquí. */
+  waitingAfterHours: number;
   clean: boolean;
 };
 
@@ -281,4 +303,6 @@ export const HANDOFF_LABEL: Record<string, string> = {
   cuota: "Se agotó la cuota mensual de IA",
   // 042: el equipo apagó el agente (o todos).
   pausa: "Los agentes de IA están en pausa",
+  // 049: un cliente lleva tiempo esperando respuesta.
+  olvidado: "Este cliente lleva tiempo esperando respuesta",
 };

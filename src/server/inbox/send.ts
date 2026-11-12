@@ -332,6 +332,8 @@ type OutboundInput = {
   /** 047 — la IA conectada de una persona lo mandó («enviado por IA»). */
   aiConnectionId?: string | null;
   aiSenderName?: string | null;
+  /** 049 — mensaje automático sin IA (bienvenida / fuera de horario). */
+  autoKind?: "welcome" | "away" | null;
 };
 
 type OutboundRow = typeof schema.message.$inferSelect;
@@ -364,6 +366,7 @@ async function reserveOutbound(input: OutboundInput): Promise<OutboundRow> {
       mediaAssetId: input.mediaAssetId ?? null,
       aiConnectionId: input.aiConnectionId ?? null,
       aiSenderName: input.aiConnectionId ? (input.aiSenderName ?? null) : null,
+      autoKind: input.autoKind ?? null,
     })
     .returning();
   return inserted[0]!;
@@ -482,6 +485,8 @@ export async function sendText(input: {
   aiConnectionId?: string;
   /** El nombre de esa IA («Joe»), copiado en el mensaje; null = «Asistente». */
   aiSenderName?: string | null;
+  /** 049 — es un mensaje automático (bienvenida / fuera de horario): no cuenta como respuesta de una persona. */
+  autoKind?: "welcome" | "away";
 } & SendOptions): Promise<SendResult> {
   // 046 (PR 8): la IA en un chat de cliente de un «Mi número» contesta por el
   // dispositivo de ESE número (con sus límites y su freno), nunca por Meta.
@@ -533,6 +538,7 @@ export async function sendText(input: {
     origin: input.aiGenerated ? "ai" : "operator",
     aiConnectionId: input.aiConnectionId ?? null,
     aiSenderName: input.aiSenderName ?? null,
+    autoKind: input.autoKind ?? null,
   });
   let waMessageId: string;
   try {

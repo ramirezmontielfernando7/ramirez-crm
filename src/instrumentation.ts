@@ -57,6 +57,9 @@ export async function register(): Promise<void> {
     // multimedia entrante), cada 6 horas; no frena el arranque.
     const { startLimitsCheck } = await import("@/server/limits/daily");
     startLimitsCheck();
+    // 049: aviso de chats que un cliente dejó sin respuesta, cada 5 minutos.
+    const { startForgottenChatsCheck } = await import("@/server/auto-replies/forgotten");
+    startForgottenChatsCheck();
     // Conexión directa (PR 2): estado del dispositivo vinculado, cada 5 minutos.
     const { startDirectConnectionCheck } = await import("@/server/direct-connection/link");
     startDirectConnectionCheck();

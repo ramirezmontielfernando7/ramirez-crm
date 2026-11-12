@@ -109,6 +109,8 @@ export type MessageDto = {
   viaAiConnector?: boolean;
   /** El nombre de esa IA («Joe»); null = «Asistente». */
   aiSenderName?: string | null;
+  /** 049 — mensaje automático sin IA (bienvenida / fuera de horario). */
+  autoKind?: "welcome" | "away" | null;
   media: MessageMediaDto | null;
   createdAt: string;
 };

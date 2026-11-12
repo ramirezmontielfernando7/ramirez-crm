@@ -835,6 +835,12 @@ export const conversation = pgTable(
     clientMarkedBy: text("client_marked_by").references(() => user.id, { onDelete: "set null" }),
     /** 0061: la persona ya contestó «¿Es cliente?» con «No» en este chat: la barra no vuelve a salir. */
     clientPromptDismissedAt: timestamp("client_prompt_dismissed_at"),
+    /** 049 — cuándo salió la bienvenida automática de este chat (una sola vez). */
+    autoWelcomeAt: timestamp("auto_welcome_at"),
+    /** 049 — el último «fuera de horario» automático (como mucho uno cada 12 h). */
+    autoAwayAt: timestamp("auto_away_at"),
+    /** 049 — el último aviso de «chat olvidado» (uno por mensaje del cliente). */
+    forgottenAlertedAt: timestamp("forgotten_alerted_at"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },
@@ -956,6 +962,12 @@ export const message = pgTable(
      * (que trae su propio `wa_message_id`) sin mostrarlo dos veces.
      */
     altMessageId: text("alt_message_id"),
+    /**
+     * 049 — Mensaje AUTOMÁTICO sin IA (`welcome` | `away`). No cuenta como
+     * respuesta de una persona (ni para el aviso de chats olvidados ni para
+     * el tiempo de primera respuesta). NULL = lo escribió alguien o la IA.
+     */
+    autoKind: text("auto_kind"),
     /** 0055 — saliente detenido por los límites de envío: sale a esta hora («En cola»). */
     queuedUntil: timestamp("queued_until"),
     /**
@@ -3342,6 +3354,23 @@ export const messagingSettings = pgTable(
      * (solo atiende los que ya existen). APAGADO por defecto.
      */
     advisorNewChatsBlocked: boolean("advisor_new_chats_blocked").notNull().default(false),
+    /**
+     * 049 — Mensajes automáticos SIN IA: bienvenida (primer mensaje de un chat
+     * nuevo) y «fuera de horario» (una vez cada 12 h por chat). El horario es
+     * propio (`auto_hours`, una ventana por día; hora de pared en `auto_timezone`).
+     * APAGADOS por defecto; sin fila = apagados.
+     */
+    welcomeEnabled: boolean("welcome_enabled").notNull().default(false),
+    welcomeText: text("welcome_text"),
+    awayEnabled: boolean("away_enabled").notNull().default(false),
+    awayText: text("away_text"),
+    autoHours: jsonb("auto_hours"),
+    autoTimezone: text("auto_timezone").notNull().default("America/Mexico_City"),
+    /**
+     * 049 — Aviso de chats olvidados: horas sin respuesta a partir de las
+     * cuales se avisa al asesor (y a quien ve todo). NULL = sin aviso.
+     */
+    forgottenAlertHours: integer("forgotten_alert_hours"),
     updatedBy: text("updated_by").references(() => user.id, { onDelete: "set null" }),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },

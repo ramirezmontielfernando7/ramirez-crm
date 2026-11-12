@@ -141,9 +141,14 @@ export const TENANT_QUERY_EXCEPTIONS: Record<string, { max: number; motivo: stri
       "selectMessages() devuelve el select sin where; todos sus llamadores le agregan scoped(schema.teamChatMessage.organizationId, …).",
   },
   "server/analytics/bot.ts": {
-    max: 2,
+    max: 3,
     motivo:
       "El where es cohorte(), que devuelve scopedContacts(conversation.organizationId, …): el detector no ve dentro de la función.",
+  },
+  "server/auto-replies/forgotten.ts": {
+    max: 1,
+    motivo:
+      "049: la lista de organizaciones con el aviso encendido cruza organizaciones a propósito (pool de sistema, organization.status = active); la revisión de cada una va con scoped() a nombre de la suya.",
   },
   "server/bot/ficha.ts": {
     max: 2,

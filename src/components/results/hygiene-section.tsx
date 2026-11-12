@@ -39,10 +39,43 @@ export function HygieneSection({
         (data.clean ? (
           <p className="flex items-center justify-center gap-2 py-6 text-sm text-success-text">
             <CheckCircle2 className="h-4 w-4 shrink-0" aria-hidden />
-            Nada pendiente: ni silencios, ni mensajes fallidos, ni ventanas por cerrarse.
+            Nada pendiente: ni clientes esperando, ni silencios, ni mensajes fallidos, ni ventanas por cerrarse.
           </p>
         ) : (
-          <div className="grid gap-6 lg:grid-cols-3">
+          <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-4">
+            <div className="min-w-0" data-testid="waiting-list">
+              <Subhead>
+                Esperando respuesta (más de {data.waitingAfterHours} {data.waitingAfterHours === 1 ? "hora" : "horas"})
+                {data.waitingCount > 0 && (
+                  <span className="ml-1.5 font-normal text-text-3">({data.waitingCount})</span>
+                )}
+              </Subhead>
+              {data.waitingCount === 0 ? (
+                <p className="text-sm text-text-3">Ningún cliente está esperando.</p>
+              ) : (
+                <>
+                  <ul className="space-y-1.5 text-sm">
+                    {data.waiting.slice(0, 8).map((w) => (
+                      <li key={w.conversationId} className="flex items-baseline justify-between gap-2">
+                        <Link
+                          href={`/inbox?contact=${w.contactId}`}
+                          className="min-w-0 truncate text-brand-text hover:underline"
+                        >
+                          {w.name}
+                        </Link>
+                        <span className="shrink-0 text-xs text-text-3 tabular-nums">
+                          {w.hoursWaiting < 10 ? w.hoursWaiting : Math.round(w.hoursWaiting)} h
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                  {data.waitingCount > 8 && (
+                    <p className="mt-2 text-xs text-text-3">y {data.waitingCount - 8} más.</p>
+                  )}
+                </>
+              )}
+            </div>
+
             <div className="min-w-0">
               <Subhead>
                 En silencio más de una semana
