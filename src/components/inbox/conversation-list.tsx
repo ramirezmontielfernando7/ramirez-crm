@@ -253,6 +253,8 @@ export const ConversationList = memo(function ConversationList({
   loadingMore,
   onLoadMore,
   onListQuery,
+  loadError = false,
+  onRetry,
   channels,
   selectedId,
   onSelect,
@@ -260,6 +262,9 @@ export const ConversationList = memo(function ConversationList({
   onPatchRow,
   onRemoved,
 }: {
+  /** La lista no pudo cargar: se dice y se ofrece reintentar. */
+  loadError?: boolean;
+  onRetry?: () => void;
   /** Fluidez PR 3: lo cargado (páginas ya filtradas por el servidor). */
   conversations: ConversationDto[] | null;
   /** De qué filtros es lo cargado (`listQueryParams`); null = aún nada. */
@@ -762,7 +767,17 @@ export const ConversationList = memo(function ConversationList({
       </Collapse>
 
       <div ref={scrollRef} className="inbox-scroll flex-1 overflow-y-auto">
-        {loading || (visible.length === 0 && pending) ? (
+        {loading && loadError ? (
+          <div role="alert" className="p-6 text-center text-sm">
+            <p className="font-medium">No pudimos cargar tus chats.</p>
+            <p className="mt-1 text-xs text-text-3">Revisa tu conexión e intenta de nuevo.</p>
+            {onRetry && (
+              <Button className="mt-3" size="sm" onClick={onRetry}>
+                Reintentar
+              </Button>
+            )}
+          </div>
+        ) : loading || (visible.length === 0 && pending) ? (
           <p className="p-6 text-center text-xs text-text-3">Cargando…</p>
         ) : visible.length === 0 && sinRegistrar ? (
           // Un teléfono que no existe en NINGUNA conversación (sin importar los
