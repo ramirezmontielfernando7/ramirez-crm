@@ -15,6 +15,7 @@ import { resolveBack } from "../src/domain/access";
 import { InboxProvider, useOptionalInbox } from "../src/features/inbox/store";
 import { ContactProvider } from "../src/features/contact/context";
 import { ChatProvider } from "../src/features/chat/context";
+import { NotificationProvider } from "../src/features/notifications/context";
 function RootNavigator() {
   const { ready, session } = useSession();
   const inbox = useOptionalInbox();
@@ -123,9 +124,11 @@ export default function Layout() {
           <InboxProvider>
             <ContactProvider>
               <ChatProvider>
-                <LayerProvider>
-                  <RootNavigator />
-                </LayerProvider>
+                <NotificationProvider>
+                  <LayerProvider>
+                    <RootNavigator />
+                  </LayerProvider>
+                </NotificationProvider>
               </ChatProvider>
             </ContactProvider>
           </InboxProvider>

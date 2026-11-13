@@ -32,3 +32,5 @@ export const useChatDirectory = () => {
 };
 export const useChatState = (store: ChatStore) =>
   useSyncExternalStore(store.subscribe, store.snapshot, store.snapshot);
+
+export const useOptionalChatDirectory = () => useContext(Context);

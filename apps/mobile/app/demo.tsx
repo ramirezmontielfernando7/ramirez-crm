@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { Screen } from "../src/components/Screen";
 import {
   AppBar,
@@ -19,7 +19,12 @@ import { useSession } from "../src/state/SessionProvider";
 import { useLayers } from "../src/components/Layers";
 import { roleLabels, roles } from "../src/domain/access";
 import { DEMO_PASSWORD } from "../src/services/demo-auth";
+import { NotificationLab } from "../src/features/notifications/Lab";
 export default function Demo() {
+  const { notifications } = useLocalSearchParams<{ notifications?: string }>();
+  return notifications === "1" ? <NotificationLab /> : <OriginalDemo />;
+}
+function OriginalDemo() {
   const theme = useTheme();
   const auth = useSession();
   const { toast, close } = useLayers();

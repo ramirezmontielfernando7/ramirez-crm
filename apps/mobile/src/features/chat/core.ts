@@ -242,6 +242,36 @@ export class ChatStore {
       });
     return this.pageWork;
   };
+  reconcileNotificationMessages = (
+    rows: readonly { id: string; time: number }[],
+    current: () => boolean,
+  ) => {
+    if (!current() || !this.state.ready || this.state.view === "offline")
+      return;
+    this.authorize();
+    const known = new Set(this.state.messages.map((m) => m.id));
+    const added: Message[] = rows
+      .filter((m) => !known.has(`notification:${m.id}`))
+      .map((m) => ({
+        id: `notification:${m.id}`,
+        conversationId: this.conversationId,
+        sender: "in",
+        text: "Mensaje entrante de prueba",
+        time: m.time,
+        status: "read",
+        parts: [],
+      }));
+    if (!added.length) return;
+    this.patch({
+      messages: [...this.state.messages, ...added].sort(
+        (a, b) => a.time - b.time || a.id.localeCompare(b.id),
+      ),
+      lastIncomingAt: Math.max(
+        this.state.lastIncomingAt,
+        ...added.map((m) => m.time),
+      ),
+    });
+  };
   isOpen = () => windowOpen(this.state.lastIncomingAt, this.now());
   tick = () => this.patch({});
   clearError = () => this.patch({ error: "" });
@@ -468,6 +498,9 @@ export class ChatDirectory {
     private activity: (id: string, text: string) => void = () => {},
   ) {
     this.history = new DemoHistoryRepository(conversations);
+  }
+  peek(id: string) {
+    return this.stores.get(id);
   }
   get(id: string) {
     this.conversations.get(this.actor, id);
