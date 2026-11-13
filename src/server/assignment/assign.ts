@@ -31,11 +31,13 @@ type AssignInput = {
   reason?: string | null;
   /** Agrupa los movimientos de un lote; se genera si es `lote` y no viene. */
   batchId?: string | null;
+  /** «Tomar este chat»: solo si NADIE lo tiene (bajo el mismo candado; el segundo en tomarlo pierde). */
+  onlyIfUnassigned?: boolean;
 };
 
 type AssignResult =
   | { ok: true; changed: string[]; batchId: string | null }
-  | { ok: false; reason: "assignee_not_member" | "contact_not_found" };
+  | { ok: false; reason: "assignee_not_member" | "contact_not_found" | "already_assigned" };
 
 /** ¿Es esta persona miembro del negocio? Solo un miembro recibe chats. */
 export async function isMemberOf(
@@ -90,6 +92,10 @@ export async function assignContacts(input: AssignInput): Promise<AssignResult> 
 
     if (current.length !== ids.length) {
       return { ok: false as const, reason: "contact_not_found" as const };
+    }
+
+    if (input.onlyIfUnassigned && current.some((c) => c.assignedUserId !== null && c.assignedUserId !== input.toUserId)) {
+      return { ok: false as const, reason: "already_assigned" as const };
     }
 
     const cambian = current.filter((c) => c.assignedUserId !== input.toUserId);

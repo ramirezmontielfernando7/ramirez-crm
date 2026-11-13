@@ -26,7 +26,7 @@ type Member = {
 const ROLE_HINT: Record<Role, string> = {
   owner: "Ve y cambia todo, incluido el plan y la conexión.",
   coordinador: "Ve todos los chats, asigna y administra el día a día.",
-  asesor: "Ve solo sus chats y los que le comparten.",
+  asesor: "Ve sus chats y los que le comparten (más, según lo que elijas abajo).",
 };
 
 type InviteLink = { name: string; url: string; expiresAt: string; kind: "invite" | "access" };
