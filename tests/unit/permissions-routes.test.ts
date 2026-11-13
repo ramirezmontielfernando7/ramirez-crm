@@ -208,6 +208,8 @@ const PROTEGIDAS: [string, Method, Permission][] = [
   ["assignments", "POST", "assignment.manage"],
   ["settings/chat-visibility", "GET", "settings.manage"],
   ["settings/chat-visibility", "PUT", "settings.manage"],
+  ["settings/assignment-mode", "GET", "assignment.manage"],
+  ["settings/assignment-mode", "PUT", "assignment.manage"],
   ["assignments/bulk", "POST", "assignment.manage"],
   // 021 — Etiquetas, importar/exportar y campañas.
   ["contact-tags", "POST", "tags.manage"],

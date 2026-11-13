@@ -1,4 +1,5 @@
 import { ChatVisibilityCard } from "@/components/settings/chat-visibility-card";
+import { AssignmentModeCard } from "@/components/settings/assignment-mode-card";
 import { AdvisorNewChatsCard } from "@/components/settings/advisor-new-chats-card";
 import { TeamClient } from "@/components/settings/team-client";
 import { requirePagePermission } from "@/lib/auth/page-guard";
@@ -14,6 +15,7 @@ export default async function TeamSettingsPage() {
       <TeamClient />
       {/* Ronda 3: antes vivía en Canales y conexiones. */}
       {can(session, "settings.manage") && <ChatVisibilityCard />}
+      {can(session, "assignment.manage") && <AssignmentModeCard />}
       {can(session, "settings.manage") && <AdvisorNewChatsCard />}
     </div>
   );
