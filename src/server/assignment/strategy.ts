@@ -35,7 +35,7 @@ const roundRobinStrategy: AssignmentStrategy = {
       const cfg = await tx
         .select({ cursor: schema.assignmentSettings.cursorUserId })
         .from(schema.assignmentSettings)
-        .where(eq(schema.assignmentSettings.organizationId, organizationId))
+        .where(scoped(schema.assignmentSettings.organizationId, organizationId))
         .for("update");
       if (!cfg[0]) return null;
       const members = await tx
@@ -51,7 +51,7 @@ const roundRobinStrategy: AssignmentStrategy = {
       await tx
         .update(schema.assignmentSettings)
         .set({ cursorUserId: next, updatedAt: new Date() })
-        .where(eq(schema.assignmentSettings.organizationId, organizationId));
+        .where(scoped(schema.assignmentSettings.organizationId, organizationId));
       return next;
     });
   },

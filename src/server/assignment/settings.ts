@@ -1,5 +1,5 @@
-import { eq } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
+import { scoped } from "@/lib/db/tenant";
 import type { AssignmentMode } from "@/lib/assignment-mode";
 
 /** Modo de reparto de la organización (`assignment_settings`); sin fila = a mano. */
@@ -7,7 +7,7 @@ export async function getAssignmentMode(organizationId: string): Promise<Assignm
   const rows = await getDb()
     .select({ mode: schema.assignmentSettings.mode })
     .from(schema.assignmentSettings)
-    .where(eq(schema.assignmentSettings.organizationId, organizationId))
+    .where(scoped(schema.assignmentSettings.organizationId, organizationId))
     .limit(1);
   return rows[0]?.mode ?? "manual";
 }
