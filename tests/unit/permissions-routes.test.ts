@@ -249,6 +249,9 @@ const PROTEGIDAS: [string, Method, Permission][] = [
   ["analytics/ads", "GET", "results.read"],
   ["analytics/bot", "GET", "results.read"],
   ["analytics/hygiene", "GET", "results.read"],
+  ["analytics/team", "GET", "results.all"],
+  ["settings/team-sla", "GET", "results.all"],
+  ["settings/team-sla", "PUT", "settings.manage"],
   // 024 — Conocimientos: mantenerlo es de Propietario y Coordinador.
   ["knowledge", "POST", "knowledge.manage"],
   ["knowledge/[id]", "PATCH", "knowledge.manage"],
