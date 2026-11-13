@@ -93,6 +93,11 @@ try {
     token: "tok-e2e",
   });
   ok("número de WhatsApp conectado (wa-mock)", conn.status < 400, String(conn.status));
+  // 0080: conectar AGREGA un número; este guion trabaja con el principal, así
+  // que deja solo el suyo (antes conectar reemplazaba).
+  for (const n of (await call("GET", "/api/settings/whatsapp")).json?.numbers ?? []) {
+    if (n.phoneNumberId !== "PN-E2E-1") await call("DELETE", `/api/settings/whatsapp/numbers/${encodeURIComponent(n.phoneNumberId)}`);
+  }
 
   for (const name of [TPL_OK, TPL_PEND]) {
     const t = await call("POST", "/api/templates", {
