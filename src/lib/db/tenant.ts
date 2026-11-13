@@ -9,10 +9,10 @@ import { contact, conversation } from "@/lib/db/schema";
  * La asignación principal sigue siendo `assigned_user_id`; participar solo
  * suma visibilidad.
  */
-function contactVisibleTo(alias: SQL, userId: string): SQL {
+function contactVisibleTo(alias: SQL, userId: string, withUnassigned = false): SQL {
   // 046: un contacto privado de un «Mi número» no es del CRM (ni asignado ni
   // participante lo ven por aquí; su dueño lo ve por su propio código).
-  return sql`(${alias}."private_to_number_id" is null and (${alias}."assigned_user_id" = ${userId} or exists (
+  return sql`(${alias}."private_to_number_id" is null and (${alias}."assigned_user_id" = ${userId} ${withUnassigned ? sql`or ${alias}."assigned_user_id" is null` : sql``} or exists (
     select 1 from "contact_participant" participa
     where participa."contact_id" = ${alias}."id" and participa."user_id" = ${userId}
   )))`;
@@ -48,7 +48,18 @@ export type Access = {
   userId: string;
   /** true = Propietario/Coordinador: todo el negocio. false = solo lo asignado. */
   seesAll: boolean;
+  /**
+   * Qué chats de clientes ve un ASESOR (ajuste de la empresa, sin migración):
+   * `own` = los suyos (de siempre), `unassigned` = los suyos y los que nadie
+   * tiene, `all` = todos. Propietario y Coordinador ya ven todo (`seesAll`).
+   */
+  chatView?: "own" | "unassigned" | "all";
 };
+
+/** ¿Ve esta sesión TODOS los chats de clientes? (`seesAll`, o un asesor con la empresa en «ven todo»). */
+export function seesAllChats(access: Access): boolean {
+  return access.seesAll || access.chatView === "all";
+}
 
 /**
  * 020 — Scope de tenant + ASIGNACIÓN, en un solo lugar.
@@ -89,7 +100,7 @@ export function assignedTo(
   const onContact = getTableName(contactIdColumn.table) === getTableName(contact);
   // 046: la lista de contactos (y lo que se lee de la tabla misma) nunca trae
   // los privados de un «Mi número», ni a quien ve todo.
-  if (access.seesAll) {
+  if (seesAllChats(access)) {
     return onContact ? isNull(contact.privateToNumberId) : or(
       // Filas sin contacto (p. ej. bloqueos de agenda) conservan su acceso.
       isNull(contactIdColumn),
@@ -111,6 +122,7 @@ export function assignedTo(
       isNull(contact.privateToNumberId),
       or(
         eq(contact.assignedUserId, access.userId),
+        access.chatView === "unassigned" ? isNull(contact.assignedUserId) : undefined,
         sql`exists (
           select 1 from "contact_participant" participa
           where participa."contact_id" = ${contact.id} and participa."user_id" = ${access.userId}
@@ -121,7 +133,7 @@ export function assignedTo(
   return sql`exists (
     select 1 from "contact" asignado
     where asignado."id" = ${contactIdColumn}
-      and ${contactVisibleTo(sql.raw("asignado"), access.userId)}
+      and ${contactVisibleTo(sql.raw("asignado"), access.userId, access.chatView === "unassigned")}
   )`;
 }
 
@@ -161,7 +173,7 @@ function conversationAssignedTo(
   access: Access,
   conversationIdColumn: PgColumn
 ): SQL | undefined {
-  if (access.seesAll) return undefined;
+  if (seesAllChats(access)) return undefined;
   if (!access.userId) {
     throw new Error("conversationAssignedTo(): userId vacío — filtro sin dueño");
   }
@@ -169,7 +181,7 @@ function conversationAssignedTo(
     select 1 from "conversation" cv_asignada
     join "contact" asignado on asignado."id" = cv_asignada."contact_id"
     where cv_asignada."id" = ${conversationIdColumn}
-      and ${contactVisibleTo(sql.raw("asignado"), access.userId)}
+      and ${contactVisibleTo(sql.raw("asignado"), access.userId, access.chatView === "unassigned")}
   )`;
 }
 
@@ -194,7 +206,7 @@ export function scopedMediaAssets(
       select 1 from "media_asset" ma_num
       where ma_num."id" = ${assetIdColumn} and ma_num."wa_media_id" like ${NUMBER_MEDIA_PREFIX + "%"}
     )`,
-    access.seesAll
+    seesAllChats(access)
       ? undefined
       : sql`(
           exists (
@@ -202,13 +214,13 @@ export function scopedMediaAssets(
             join "conversation" cv_adj on cv_adj."id" = m_adj."conversation_id"
             join "contact" asignado on asignado."id" = cv_adj."contact_id"
             where m_adj."media_asset_id" = ${assetIdColumn}
-              and ${contactVisibleTo(sql.raw("asignado"), access.userId)}
+              and ${contactVisibleTo(sql.raw("asignado"), access.userId, access.chatView === "unassigned")}
           )
           or exists (
             select 1 from "ad_attribution" at_adj
             join "contact" asignado on asignado."id" = at_adj."contact_id"
             where at_adj."image_asset_id" = ${assetIdColumn}
-              and ${contactVisibleTo(sql.raw("asignado"), access.userId)}
+              and ${contactVisibleTo(sql.raw("asignado"), access.userId, access.chatView === "unassigned")}
           )
         )`,
     ...conditions

@@ -7,6 +7,8 @@ import { resolveMembership } from "@/server/auth/on-signup";
 import { runWithOrganization } from "@/lib/request-context";
 import { delegatedGrants } from "@/server/team-chat/settings";
 import { isOrgActive } from "@/server/platform-admin/org-status";
+import { getChatView } from "@/server/chat-visibility";
+import type { ChatView } from "@/lib/chat-visibility";
 
 export type SessionContext = {
   userId: string;
@@ -33,7 +35,8 @@ export function sessionContext(
   userId: string,
   organizationId: string,
   role: string,
-  grants: readonly Permission[] = []
+  grants: readonly Permission[] = [],
+  chatView: ChatView = "own"
 ): SessionContext {
   return {
     userId,
@@ -44,6 +47,7 @@ export function sessionContext(
       organizationId,
       userId,
       seesAll: can({ role }, "scope.all"),
+      chatView,
     },
   };
 }
@@ -93,7 +97,9 @@ async function contextOf(session: AuthSession): Promise<SessionContext> {
     // PR 3: la organización ya se sabe; su ajuste se lee a su nombre.
     await runWithOrganization(membership.organizationId, () =>
       delegatedGrants(membership.organizationId, membership.role)
-    )
+    ),
+    // Qué chats ve un asesor (ajuste de la empresa; los demás roles ya ven todo).
+    can({ role: membership.role }, "scope.all") ? "own" : await getChatView(membership.organizationId)
   );
 }
 

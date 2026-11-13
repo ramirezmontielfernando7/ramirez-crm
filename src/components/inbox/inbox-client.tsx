@@ -1,5 +1,6 @@
 "use client";
 
+import { fetchJson } from "@/lib/fetch-json";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { useSearchParams } from "next/navigation";
@@ -218,6 +219,16 @@ export function InboxClient({
    * cargado (reconexión, datos de demostración), para no perder lo que la
    * persona ya bajó.
    */
+  /** «Tomar este chat»: se lo asigna quien lo ve y nadie lo tiene. */
+  const claimChat = useCallback(
+    async (id: string) => {
+      const res = await fetchJson<{ ok: true }>(`/api/conversations/${encodeURIComponent(id)}/claim`, { method: "POST" });
+      if (!res.ok) setHeaderNotice(res.error);
+      refreshConversation(id);
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    []
+  );
   const reloadList = useCallback(async (keep: boolean) => {
     const q = listQueryRef.current;
     if (!q) return;
@@ -833,6 +844,17 @@ export function InboxClient({
                   )}
                 </div>
                 <div className="flex shrink-0 items-center gap-1.5">
+                  {!selected.assignee && !viewer.can("assignment.manage") && (
+                    <button
+                      type="button"
+                      data-testid="claim-chat"
+                      className="btn-r3 soft"
+                      title="Asignarte este chat"
+                      onClick={() => void claimChat(selected.id)}
+                    >
+                      Tomar este chat
+                    </button>
+                  )}
                   <span className="max-sm:hidden">
                     <AssigneeCapsule
                       variant="header"

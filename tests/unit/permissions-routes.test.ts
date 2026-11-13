@@ -206,6 +206,8 @@ const PROTEGIDAS: [string, Method, Permission][] = [
   ["templates/[id]/header-image", "POST", "templates.manage"],
   // Asignación.
   ["assignments", "POST", "assignment.manage"],
+  ["settings/chat-visibility", "GET", "settings.manage"],
+  ["settings/chat-visibility", "PUT", "settings.manage"],
   ["assignments/bulk", "POST", "assignment.manage"],
   // 021 — Etiquetas, importar/exportar y campañas.
   ["contact-tags", "POST", "tags.manage"],
@@ -276,6 +278,7 @@ const FILTRADAS: [string, Method][] = [
   ["conversations/[id]", "PATCH"],
   // 031 (PR B): «Atiende: …» de la conversación que se puede ver (getConversation).
   ["conversations/[id]/agent", "GET"],
+  ["conversations/[id]/claim", "POST"],
   ["conversations/[id]/messages", "GET"],
   ["conversations/[id]/messages", "POST"],
   ["conversations/[id]/messages/media", "POST"],
