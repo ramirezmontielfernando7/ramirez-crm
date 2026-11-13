@@ -88,6 +88,16 @@ export class InboxStore {
     this.repository.incoming(this.actor, id);
     this.reload();
   };
+  private notificationEvents = new Map<string, Set<string>>();
+  reconcileNotification = (id: string, events: readonly string[]) => {
+    this.repository.get(this.actor, id);
+    const prior = this.notificationEvents.get(id) ?? new Set<string>();
+    const added = [...new Set(events)].filter((e) => !prior.has(e));
+    if (!added.length) return;
+    this.repository.incomingBatch(this.actor, id, added.length);
+    this.notificationEvents.set(id, new Set([...prior, ...added]));
+    this.reload();
+  };
   create = (name: string, phone: string) => {
     const c = this.repository.create(this.actor, name, phone);
     this.reload();

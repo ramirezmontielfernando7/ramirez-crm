@@ -153,6 +153,7 @@ export interface ConversationRepository {
   assign(actor: Actor, ids: readonly string[], assignee: string): void;
   create(actor: Actor, name: string, phone: string): Conversation;
   incoming(actor: Actor, id: string): void;
+  incomingBatch(actor: Actor, id: string, count: number): void;
   setPreview(actor: Actor, id: string, text: string): void;
   updateContact(
     actor: Actor,
@@ -270,11 +271,16 @@ export class DemoConversationRepository implements ConversationRepository {
     });
   }
   incoming(actor: Actor, id: string) {
+    this.incomingBatch(actor, id, 1);
+  }
+  incomingBatch(actor: Actor, id: string, count: number) {
+    if (!Number.isSafeInteger(count) || count < 1 || count > 2000)
+      throw Error("Cantidad ficticia no válida.");
     this.update(actor, [id], (c) => {
       const next = {
         ...c,
         campaign: null,
-        unread: c.unread + 1,
+        unread: c.unread + count,
         preview: "Mensaje entrante de prueba",
         time: "Ahora",
       };
