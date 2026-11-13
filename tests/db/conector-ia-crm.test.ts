@@ -8,6 +8,7 @@ import { runWithOrganization } from "@/lib/request-context";
 import { createPersonalKey } from "@/server/ai-connector/keys";
 import { saveConnectorSettings } from "@/server/ai-connector/settings";
 import { forgetOrgModules } from "@/server/modules/store";
+import { saveChatView } from "@/server/chat-visibility";
 import { POST } from "@/app/api/mcp/route";
 import { borrarOrganizaciones, crearOrganizacion } from "./fixtures";
 
@@ -225,4 +226,21 @@ it("DF-01: privados fuera del tablero y list_pipeline; compartidos y otra empres
     await sys().delete(schema.directNumber).where(eq(schema.directNumber.id, numberId));
     await borrarOrganizaciones([B.id]);
   }
+});
+
+describe("047 — la IA del asesor ve los mismos chats que él en la Bandeja", () => {
+  it("con «ver también los sin asignar», list_chats trae los chats sin asignar", async () => {
+    const libre = await chat(A.id, u.ana);
+    await sys().update(schema.contact).set({ assignedUserId: null }).where(eq(schema.contact.id, libre.contactId));
+    const ids = async () =>
+      ((await herramienta(k.ana, "list_chats", { limit: 50 })).structuredContent.chats as { conversation_id: string }[]).map((c) => c.conversation_id);
+    try {
+      expect(await ids()).not.toContain(libre.conversationId);
+      await runWithOrganization(A.id, () => saveChatView(A.id, "unassigned"));
+      expect(await ids()).toContain(libre.conversationId);
+      expect(await ids()).not.toContain(deBeto.conversationId);
+    } finally {
+      await runWithOrganization(A.id, () => saveChatView(A.id, "own"));
+    }
+  });
 });

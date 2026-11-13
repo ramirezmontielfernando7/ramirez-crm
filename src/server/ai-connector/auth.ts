@@ -1,5 +1,7 @@
 import { bearerToken, resourceMetadataUrl, roleMayConnect, SCOPES, type Scope } from "@/lib/ai-connector";
 import { sessionContext, type SessionContext } from "@/lib/auth/session";
+import { can } from "@/lib/auth/permissions";
+import { getChatView } from "@/server/chat-visibility";
 import { getEnv } from "@/lib/env";
 import { checkRateLimit, clientIp } from "@/lib/rate-limit";
 import { runWithOrganization } from "@/lib/request-context";
@@ -76,10 +78,14 @@ export async function requireMcpToken(req: Request): Promise<McpAuth> {
     return { ok: false, response: jsonError(429, "rate_limited", "Demasiadas solicitudes: espera un minuto") };
   }
   const grants = await runWithOrganization(organizationId, () => delegatedGrants(organizationId, membership.role));
+  // Qué chats ve un asesor (ajuste de la empresa): la IA ve lo mismo que la persona en la Bandeja.
+  const chatView = can({ role: membership.role }, "scope.all")
+    ? "own"
+    : await runWithOrganization(organizationId, () => getChatView(organizationId));
   await runWithOrganization(organizationId, () => touchConnection(connectionId, organizationId));
   return {
     ok: true,
-    session: sessionContext(userId, organizationId, membership.role, grants),
+    session: sessionContext(userId, organizationId, membership.role, grants, chatView),
     connectionId,
     scopes,
     assistantName: resolved.assistantName,

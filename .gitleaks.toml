@@ -12,3 +12,9 @@ description = "Valores de mentira en pruebas y guías"
 condition = "AND"
 paths = ['''^(tests|specs)/''']
 rules = ["generic-api-key"]
+
+[[allowlists]]
+description = "Huellas PÚBLICAS del certificado de la APK (salida de apksigner), no secretos"
+condition = "AND"
+paths = ['''^apps/mobile/docs/apk-probada/evidence/firma-apk\.txt$''']
+rules = ["generic-api-key"]
