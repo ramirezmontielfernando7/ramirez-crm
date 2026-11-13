@@ -6,12 +6,14 @@ import type {
   BotBlockDto,
   HygieneBlockDto,
   SalesBlockDto,
+  TeamPanelDto,
 } from "@/lib/analytics";
 import { AdsSection } from "./ads-section";
 import { BotSection } from "./bot-section";
 import { HygieneSection } from "./hygiene-section";
 import { defaultRange, RangePicker, type Range } from "./range-picker";
 import { SalesSection } from "./sales-section";
+import { TeamPanelSection } from "./team-panel-section";
 import { useViewer } from "@/components/viewer-context";
 import { useAssignees } from "@/components/assignment/use-assignees";
 import { PageShell } from "@/components/ui/page-shell";
@@ -88,6 +90,8 @@ export function ResultsClient({
   const [sales, setSales] = useState<Block<SalesBlockDto>>(inicial);
   const [ads, setAds] = useState<Block<AdsBlockDto>>(inicial);
   const [bot, setBot] = useState<Block<BotBlockDto>>(inicial);
+  const [teamPanel, setTeamPanel] = useState<Block<TeamPanelDto>>(inicial);
+  const [slaTick, setSlaTick] = useState(0);
   const [hygiene, setHygiene] = useState<Block<HygieneBlockDto>>(inicial);
   // 020: quien ve al equipo elige de quién son los números; el asesor ve los
   // suyos (el servidor lo impone igual).
@@ -103,8 +107,9 @@ export function ResultsClient({
     void cargar(`/api/analytics/sales?${q}`, setSales, ctl.signal);
     void cargar(`/api/analytics/ads?${q}`, setAds, ctl.signal);
     void cargar(`/api/analytics/bot?${q}`, setBot, ctl.signal);
+    if (teamView) void cargar(`/api/analytics/team?from=${range.from}&to=${range.to}`, setTeamPanel, ctl.signal);
     return () => ctl.abort();
-  }, [range, who]);
+  }, [range, who, teamView, slaTick]);
 
   // La higiene describe el AHORA: no depende del rango elegido.
   useEffect(() => {
@@ -168,7 +173,18 @@ export function ResultsClient({
             <HygieneSection {...hygiene} currency={currency} />
           </>
         )}
-        {tab === "atencion" && <BotSection {...bot} agenda={agenda} />}
+        {tab === "atencion" && (
+          <>
+            <BotSection {...bot} agenda={agenda} />
+            {teamView && (
+              <TeamPanelSection
+                {...teamPanel}
+                canEditLimit={viewer.can("settings.manage")}
+                onLimitSaved={() => setSlaTick((n) => n + 1)}
+              />
+            )}
+          </>
+        )}
         {tab === "origen" && <AdsSection {...ads} />}
       </div>
     </PageShell>

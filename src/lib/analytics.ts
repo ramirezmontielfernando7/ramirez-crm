@@ -306,3 +306,28 @@ export const HANDOFF_LABEL: Record<string, string> = {
   // 049: un cliente lleva tiempo esperando respuesta.
   olvidado: "Este cliente lleva tiempo esperando respuesta",
 };
+
+/** Productividad de UNA persona del equipo (o de «sin asignar», `userId` null). */
+export type AdvisorRowDto = {
+  userId: string | null;
+  name: string;
+  /** Chats del periodo con mensaje del cliente que tiene asignados. */
+  chats: number;
+  /** Contestados por una persona. */
+  answered: number;
+  /** Contestados, pero pasado el límite. */
+  answeredLate: number;
+  /** Sin ninguna respuesta y ya pasado el límite. */
+  waitingLate: number;
+  /** Mediana en segundos hasta la primera respuesta de la persona. */
+  medianSeconds: number | null;
+};
+
+export type TeamPanelDto = {
+  period: PeriodDto;
+  /** Minutos que se le dan a un asesor para contestar. */
+  limitMinutes: number;
+  /** Chats con mensaje del cliente que hoy nadie tiene asignados. */
+  unassignedNow: number;
+  rows: AdvisorRowDto[];
+};
