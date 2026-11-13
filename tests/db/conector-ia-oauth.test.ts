@@ -211,16 +211,25 @@ describe("047 PR 3 — iniciar sesión con OAuth", () => {
       .where(and(eq(schema.aiConnection.organizationId, A.id), eq(schema.aiConnection.kind, "oauth")));
     expect(cx).toMatchObject({ userId: u.ana, name: "Claude", clientId, scopes: ["read", "write"] });
 
-    // Renovar rota; reusar la vieja cierra la conexión entera.
+    // Renovar rota; reusar la vieja dentro de la gracia (ChatGPT renueva dos veces) da otro par.
     const r1 = await post("oauth/token", { grant_type: "refresh_token", refresh_token: tok.body!.refresh_token, client_id: clientId }, true);
     expect(r1.status).toBe(200);
     expect(await mcp(r1.body!.access_token)).toBe(200);
+    const gracia = await post("oauth/token", { grant_type: "refresh_token", refresh_token: tok.body!.refresh_token, client_id: clientId }, true);
+    expect(gracia.status).toBe(200);
+    expect(await mcp(gracia.body!.access_token)).toBe(200);
+    expect(await mcp(r1.body!.access_token)).toBe(200);
+    // Pasada la gracia, reusarla cierra la conexión entera.
+    await sys()
+      .update(schema.aiToken)
+      .set({ revokedAt: new Date(Date.now() - 5 * 60_000) })
+      .where(eq(schema.aiToken.tokenHash, (await import("@/server/ai-connector/keys")).hashToken(tok.body!.refresh_token)));
     const reuso = await post("oauth/token", { grant_type: "refresh_token", refresh_token: tok.body!.refresh_token, client_id: clientId }, true);
     expect(reuso.body!.error).toBe("invalid_grant");
     expect(await mcp(r1.body!.access_token)).toBe(401);
   });
 
-  it("DF-08: dos renovaciones simultáneas consumen la llave una sola vez", async () => {
+  it("DF-08: dos renovaciones simultáneas consumen la llave una sola vez y ninguna cierra la conexión", async () => {
     state.session = sessionContext(u.ana, A.id, "asesor");
     const { r, verifier } = await iniciarSesion(clientId);
     const code = new URL(r.body!.redirect).searchParams.get("code")!;
@@ -244,13 +253,15 @@ describe("047 PR 3 — iniciar sesión con OAuth", () => {
     try {
       const input = { refreshToken: tok.body!.refresh_token as string, clientId };
       const results = await Promise.all([oauth.refreshTokens(input), oauth.refreshTokens(input)]);
-      const winners = results.filter((result) => "access_token" in result);
-      expect(winners).toHaveLength(1);
-      expect(results.filter((result) => "error" in result)).toEqual([
-        expect.objectContaining({ error: "invalid_grant" }),
-      ]);
-      // El perdedor es un reúso: también invalida el par emitido por el ganador.
-      if ("access_token" in winners[0]!) expect(await mcp(winners[0].access_token)).toBe(401);
+      // La misma app renovando en paralelo (ChatGPT): las dos reciben su par y la conexión sigue viva.
+      const pairs = results.filter((result) => "access_token" in result);
+      expect(pairs).toHaveLength(2);
+      for (const p of pairs) if ("access_token" in p) expect(await mcp(p.access_token)).toBe(200);
+      const [rt] = await sys()
+        .select({ revokedAt: schema.aiToken.revokedAt })
+        .from(schema.aiToken)
+        .where(eq(schema.aiToken.tokenHash, (await import("@/server/ai-connector/keys")).hashToken(input.refreshToken)));
+      expect(rt!.revokedAt).not.toBeNull();
     } finally {
       spy.mockRestore();
     }

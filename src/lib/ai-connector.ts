@@ -16,6 +16,13 @@ export const REFRESH_PREFIX = "dfr_";
 
 export const ACCESS_TTL_MS = 60 * 60 * 1000;
 export const REFRESH_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+/**
+ * Gracia para reusar una llave de renovación recién rotada. ChatGPT renueva
+ * desde varios servidores a la vez (y reintenta si no ve la respuesta): sin
+ * gracia, el segundo intento parecía robo y se cerraba la conexión entera.
+ * Dentro de la gracia se emite otro par; pasado, el reúso sigue cerrándola.
+ */
+export const REFRESH_REUSE_GRACE_MS = 60 * 1000;
 
 /** Una llave más corta que esto ni se busca. */
 const MIN_TOKEN_LENGTH = 24;

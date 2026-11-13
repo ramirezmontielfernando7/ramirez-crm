@@ -11,6 +11,7 @@ import {
   CODE_PREFIX,
   CODE_TTL_MS,
   REFRESH_PREFIX,
+  REFRESH_REUSE_GRACE_MS,
   REFRESH_TTL_MS,
   isAllowedRedirectUri,
   isCimdClientId,
@@ -459,12 +460,6 @@ export async function refreshTokens(input: { refreshToken: string; clientId: str
   if (!found) return { error: "invalid_grant", description: "Llave de renovación no válida" };
   const { token, connection } = found;
   if (connection.clientId !== input.clientId) return { error: "invalid_grant", description: "La llave es de otra app" };
-  if (token.revokedAt) {
-    // Reúso de una llave ya rotada: alguien más la tiene.
-    if (!connection.revokedAt) await revokeConnectionById(connection.organizationId, connection.id, now);
-    log.warn("llave de renovación reutilizada: conexión revocada", { org: connection.organizationId, connection: connection.id });
-    return { error: "invalid_grant", description: "Llave de renovación ya usada: conexión cerrada por seguridad" };
-  }
   if (connection.revokedAt || (token.expiresAt && token.expiresAt <= now)) {
     return { error: "invalid_grant", description: "La conexión se cerró o la llave caducó" };
   }
@@ -472,6 +467,17 @@ export async function refreshTokens(input: { refreshToken: string; clientId: str
     return { error: "invalid_grant", description: "Esta persona ya no puede conectar su IA" };
   }
   const scopes = normalizeScopes(connection.scopes);
+  if (token.revokedAt) {
+    // Reúso dentro de la gracia: la misma app renovando dos veces (ChatGPT). Otro par, sin cerrar nada.
+    if (withinGrace(token.revokedAt, now)) {
+      log.info("renovación repetida dentro de la gracia", { org: connection.organizationId, connection: connection.id });
+      return db.transaction((tx) => issuePair(tx, connection.organizationId, connection.id, scopes, now));
+    }
+    // Reúso de una llave rotada hace rato: alguien más la tiene.
+    await revokeConnectionById(connection.organizationId, connection.id, now);
+    log.warn("llave de renovación reutilizada: conexión revocada", { org: connection.organizationId, connection: connection.id });
+    return { error: "invalid_grant", description: "Llave de renovación ya usada: conexión cerrada por seguridad" };
+  }
   const pair = await db.transaction(async (tx) => {
     const [consumed] = await tx
       .update(schema.aiToken)
@@ -483,10 +489,13 @@ export async function refreshTokens(input: { refreshToken: string; clientId: str
     return issuePair(tx, connection.organizationId, connection.id, scopes, now);
   });
   if (pair) return pair;
-  // Fuera de la transacción: esperar al ganador antes de revocar también su par.
-  await revokeConnectionById(connection.organizationId, connection.id, now);
-  log.warn("llave de renovación reutilizada: conexión revocada", { org: connection.organizationId, connection: connection.id });
-  return { error: "invalid_grant", description: "Llave de renovación ya usada: conexión cerrada por seguridad" };
+  // Otra petición la consumió en este mismo instante: la misma app renovando en paralelo (gracia).
+  log.info("renovación repetida dentro de la gracia", { org: connection.organizationId, connection: connection.id });
+  return db.transaction((tx) => issuePair(tx, connection.organizationId, connection.id, scopes, now));
+}
+
+function withinGrace(revokedAt: Date, now: Date): boolean {
+  return now.getTime() - revokedAt.getTime() < REFRESH_REUSE_GRACE_MS;
 }
 
 async function revokeConnectionById(organizationId: string, connectionId: string, now: Date) {
