@@ -18,10 +18,8 @@ describe("validateOutgoing (límites de la Cloud API)", () => {
     expect(validateOutgoing("image/jpeg", 1 * MB)).toBe("image");
   });
 
-  it("imagen de 6 MB → too_large (límite 5 MB)", () => {
-    expect(() => validateOutgoing("image/png", 6 * MB)).toThrowError(
-      expect.objectContaining({ code: "too_large" })
-    );
+  it("imagen de 6 MB (pasa de 5 MB) → sale como documento", () => {
+    expect(validateOutgoing("image/png", 6 * MB)).toBe("document");
   });
 
   it("imagen bmp (no nativa) → va como documento, igual que en WhatsApp", () => {
@@ -41,8 +39,9 @@ describe("validateOutgoing (límites de la Cloud API)", () => {
     );
   });
 
-  it("video mp4 de 20 MB → too_large (límite 16 MB)", () => {
-    expect(() => validateOutgoing("video/mp4", 20 * MB)).toThrowError(
+  it("video mp4 de 20 MB (pasa de 16 MB) → documento; de 101 MB → too_large", () => {
+    expect(validateOutgoing("video/mp4", 20 * MB)).toBe("document");
+    expect(() => validateOutgoing("video/mp4", 101 * MB)).toThrowError(
       expect.objectContaining({ code: "too_large" })
     );
   });

@@ -16,12 +16,17 @@ import { heavyUploadsInFlight, readUploadForm, withUploadSlot } from "@/server/u
  */
 
 describe("checkOutgoing (Bandeja → WhatsApp)", () => {
-  it("dice el límite de cada tipo en palabras", () => {
-    const foto = checkOutgoing("image/jpeg", 8 * MB, "foto.jpg");
-    expect(foto).toMatchObject({ ok: false, code: "too_large" });
-    expect(!foto.ok && foto.message).toMatch(/foto pesa 8 MB.*hasta 5 MB/);
-    const video = checkOutgoing("video/mp4", 40 * MB, "promo.mp4");
-    expect(!video.ok && video.message).toMatch(/video pesa 40 MB.*16 MB.*enlace/);
+  it("lo que pasa del límite de su tipo sale como documento, hasta 100 MB", () => {
+    expect(checkOutgoing("image/jpeg", 8 * MB, "foto.jpg")).toEqual({ ok: true, kind: "document", asDocument: true });
+    expect(checkOutgoing("video/mp4", 34 * MB, "promo.mp4")).toEqual({ ok: true, kind: "document", asDocument: true });
+    expect(checkOutgoing("audio/mpeg", 40 * MB, "a.mp3")).toEqual({ ok: true, kind: "document", asDocument: true });
+    expect(checkOutgoing("video/mp4", 10 * MB, "ok.mp4")).toEqual({ ok: true, kind: "video" });
+  });
+
+  it("pasando de 100 MB se rechaza, con el límite en palabras", () => {
+    const video = checkOutgoing("video/mp4", 140 * MB, "promo.mp4");
+    expect(video).toMatchObject({ ok: false, code: "too_large" });
+    expect(!video.ok && video.message).toMatch(/140 MB.*100 MB.*enlace/);
     const pdf = checkOutgoing("application/pdf", 120 * MB, "catalogo.pdf");
     expect(!pdf.ok && pdf.message).toMatch(/120 MB.*100 MB/);
   });
@@ -36,8 +41,8 @@ describe("checkOutgoing (Bandeja → WhatsApp)", () => {
   });
 
   it("el servidor lanza el mismo mensaje que ve el navegador", () => {
-    const client = checkOutgoing("video/mp4", 20 * MB);
-    expect(() => validateOutgoing("video/mp4", 20 * MB)).toThrowError(!client.ok ? client.message : "");
+    const client = checkOutgoing("video/mp4", 120 * MB);
+    expect(() => validateOutgoing("video/mp4", 120 * MB)).toThrowError(!client.ok ? client.message : "");
   });
 });
 
