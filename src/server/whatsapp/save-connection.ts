@@ -52,6 +52,9 @@ export async function storeConnection(input: {
   token: string;
   displayPhoneNumber: string;
   verifiedName: string | null;
+  /** 0080: el nombre que la empresa le pone al número. */
+  label?: string | null;
+  color?: string | null;
 }): Promise<{ ok: true; webhook: SubscribeOutcome } | ConnectionFailure> {
   try {
     await saveCredentials(input);

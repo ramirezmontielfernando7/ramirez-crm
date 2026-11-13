@@ -28,7 +28,7 @@ const log = logger("meta-diario");
 async function runDailyMetaSync(): Promise<{ orgs: number; failed: number }> {
   const today = utcDay();
   const pending = await getSystemDb()
-    .select({ organizationId: schema.metaCredentials.organizationId })
+    .select({ organizationId: schema.metaCredentials.organizationId, phoneNumberId: schema.metaCredentials.phoneNumberId })
     .from(schema.metaCredentials)
     .innerJoin(schema.organization, eq(schema.organization.id, schema.metaCredentials.organizationId))
     .leftJoin(
@@ -49,12 +49,18 @@ async function runDailyMetaSync(): Promise<{ orgs: number; failed: number }> {
     );
 
   let failed = 0;
-  for (const { organizationId } of pending) {
+  const templatesDone = new Set<string>();
+  for (const { organizationId, phoneNumberId } of pending) {
     try {
       await runWithOrganization(organizationId, async () => {
-        const health = await refreshPhoneHealth(organizationId, "sync");
+        // 0080: cada número oficial tiene su propia lectura de salud.
+        const health = await refreshPhoneHealth(organizationId, "sync", phoneNumberId);
         if (!health.ok) log.warn("salud del número sin leer", { org: organizationId, motivo: health.error });
-        await syncTemplates(organizationId);
+        // Las plantillas son de la WABA: una vez por organización.
+        if (!templatesDone.has(organizationId)) {
+          templatesDone.add(organizationId);
+          await syncTemplates(organizationId);
+        }
       });
     } catch (err) {
       failed++;
@@ -100,7 +106,10 @@ export async function runDailyAnalyticsSync(
 
   let failed = 0;
   let orgs = 0;
+  const seen = new Set<string>(); // 0080: varias filas (números) por organización
   for (const { organizationId } of pending) {
+    if (seen.has(organizationId)) continue;
+    seen.add(organizationId);
     try {
       await runWithOrganization(organizationId, async () => {
         if (!(await campaignsEnabled(organizationId))) return;

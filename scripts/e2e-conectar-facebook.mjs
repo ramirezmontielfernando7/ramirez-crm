@@ -98,6 +98,8 @@ const a = client();
 // primera cuenta de la instancia.
 ok("registro o login del operador", await signIn(a, "e2e@vocero.test"));
 
+// 0080: la empresa puede tener VARIOS números; se mira el número que se conectó.
+const conexionDe = async (pn) => ((await a("/api/settings/whatsapp")).json?.numbers ?? []).find((n) => n.phoneNumberId === pn);
 const cfg = (await a("/api/settings/whatsapp")).json;
 const before = JSON.stringify(cfg?.connection ?? null);
 ok("la pantalla recibe la configuración pública del botón", cfg?.embeddedSignup?.configId === process.env.META_EMBEDDED_SIGNUP_CONFIG_ID, JSON.stringify(cfg));
@@ -117,7 +119,7 @@ ok("y tampoco se tocó", JSON.stringify((await a("/api/settings/whatsapp")).json
 r = await post(a, { code: `cod-a-${RUN}`, wabaId: WABA_NUEVO, phoneNumberId: PN_NUEVO, flow: "new_number", pin: "123456" });
 ok("con código y PIN → 200 conectado", r.res.status === 200 && r.json?.ok === true, JSON.stringify(r.json));
 
-const conn = (await a("/api/settings/whatsapp")).json?.connection;
+const conn = await conexionDe(PN_NUEVO);
 ok("la conexión queda guardada con el número de Meta", conn?.phoneNumberId === PN_NUEVO && conn?.status === "connected", JSON.stringify(conn));
 ok("se muestran solo los últimos 4 del token del negocio", conn?.tokenLast4 === `cod-a-${RUN}`.slice(-4), conn?.tokenLast4);
 
@@ -134,7 +136,7 @@ ok("la app quedó suscrita a la WABA del negocio", ((await graph(`${WABA_NUEVO}/
 console.log("\n== El mismo negocio cambia a su número de WhatsApp Business del celular ==");
 r = await post(a, { code: `cod-cel-${RUN}`, wabaId: WABA_CEL, phoneNumberId: PN_CEL, flow: "business_app" });
 ok("coexistencia sin PIN → 200 conectado", r.res.status === 200 && r.json?.ok === true, JSON.stringify(r.json));
-ok("la conexión ahora es el número del celular", (await a("/api/settings/whatsapp")).json?.connection?.phoneNumberId === PN_CEL);
+ok("el número del celular queda conectado (se suma a los demás)", (await conexionDe(PN_CEL))?.status === "connected");
 ok("y NO se re-registra el número (ya lo está en el celular)", (await platformOf(PN_CEL)) === "NOT_APPLICABLE");
 
 console.log("\n== Coexistencia: contactos y chats del celular ==");
@@ -242,12 +244,12 @@ console.log("\n== El negocio quita a Dashfort desde Meta (PR 4) ==");
 st = await webhookWa("account_update", { event: "PARTNER_REMOVED", waba_info: { waba_id: WABA_CEL, owner_business_id: "999" } });
 ok("webhook account_update → 200", st === 200, String(st));
 const estado = await hasta(async () => {
-  const c = (await a("/api/settings/whatsapp")).json?.connection;
+  const c = await conexionDe(PN_CEL);
   return c?.status === "reconnect_required" ? c : null;
 });
 ok("la conexión queda «por reconectar» (los envíos se detienen)", estado?.status === "reconnect_required", JSON.stringify(estado));
 r = await post(a, { code: `cod-vuelta-${RUN}`, wabaId: WABA_CEL, phoneNumberId: PN_CEL, flow: "business_app" });
-ok("volver a conectar con Facebook la deja conectada otra vez", r.res.status === 200 && (await a("/api/settings/whatsapp")).json?.connection?.status === "connected", JSON.stringify(r.json));
+ok("volver a conectar con Facebook la deja conectada otra vez", r.res.status === 200 && (await conexionDe(PN_CEL))?.status === "connected", JSON.stringify(r.json));
 
 await sql.end();
 console.log(`\n${checks - failures}/${checks} comprobaciones OK`);

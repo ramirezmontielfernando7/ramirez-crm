@@ -1,4 +1,4 @@
-import { and, notInArray } from "drizzle-orm";
+import { and, asc, eq, notInArray } from "drizzle-orm";
 import { getDb, schema, withTenant } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
 import { scoped } from "@/lib/db/tenant";
@@ -21,11 +21,24 @@ export type Credentials = WhatsAppCredentials;
 /**
  * La conexión de la organización, o null si no tiene. Lanza
  * `CredentialUnavailableError` (tipada) si existe pero no se puede descifrar.
+ *
+ * 0080: con varios números, sin `phoneNumberId` (o si ese número ya no existe)
+ * devuelve el PRINCIPAL (el más antiguo); con él, el de ese número.
  */
 export async function getCredentialsByOrg(
-  organizationId: string
+  organizationId: string,
+  phoneNumberId?: string | null
 ): Promise<Credentials | null> {
-  return getOrgCredentialsOrNull(organizationId, "whatsapp");
+  return getOrgCredentialsOrNull(organizationId, "whatsapp", { phoneNumberId });
+}
+
+/** Largo máximo del nombre que la empresa le pone a un número. */
+const LABEL_MAX = 40;
+
+/** Nombre del número: sin espacios de más; vacío = sin nombre (null). */
+export function normalizeNumberLabel(raw: string | null | undefined): string | null {
+  const v = (raw ?? "").replace(/\s+/g, " ").trim().slice(0, LABEL_MAX);
+  return v === "" ? null : v;
 }
 
 /**
@@ -60,6 +73,10 @@ export async function saveCredentials(input: {
   token: string;
   displayPhoneNumber?: string | null;
   verifiedName?: string | null;
+  /** 0080: el nombre del número; al reconectar sin él se conserva el que tenía. */
+  label?: string | null;
+  /** 0080: color de la etiqueta (clave de `TAG_COLORS`). */
+  color?: string | null;
 }): Promise<void> {
   const sealed = sealForStorage(input.token);
   await withTenant(input.organizationId, async (db) => {
@@ -83,12 +100,18 @@ export async function saveCredentials(input: {
       keyVersion: sealed.keyVersion,
       status: "connected" as const,
     };
+    const label = normalizeNumberLabel(input.label);
+    // 0080: VARIOS números por organización. Volver a guardar el mismo número
+    // lo reconecta (nuevo token); uno distinto se AGREGA. Si el número es de
+    // OTRA organización no se toca (el `where` lo impide y el índice único lo
+    // reporta como 23505).
     await db
       .insert(schema.metaCredentials)
-      .values({ id: newId("credentials"), organizationId: input.organizationId, ...cred })
+      .values({ id: newId("credentials"), organizationId: input.organizationId, ...cred, label, color: input.color ?? null })
       .onConflictDoUpdate({
-        target: [schema.metaCredentials.organizationId],
-        set: { ...cred, updatedAt: new Date() },
+        target: [schema.metaCredentials.phoneNumberId],
+        set: { ...cred, ...(label !== null ? { label } : {}), ...(input.color ? { color: input.color } : {}), updatedAt: new Date() },
+        setWhere: eq(schema.metaCredentials.organizationId, input.organizationId),
       });
 
     // WABAs de la organización que ya no usa ningún número: se sueltan.
@@ -107,15 +130,96 @@ export async function saveCredentials(input: {
   });
 }
 
-/** Marca la conexión como vencida (token inválido detectado en runtime). */
+/**
+ * Marca la conexión como vencida (token inválido detectado en runtime).
+ * 0080: con `phoneNumberId` solo ese número; sin él, todos los de la
+ * organización (un token de la plataforma vencido afecta a todos).
+ */
 export async function markReconnectRequired(
-  organizationId: string
+  organizationId: string,
+  phoneNumberId?: string | null
 ): Promise<void> {
   const db = getDb();
   await db
     .update(schema.metaCredentials)
     .set({ status: "reconnect_required", updatedAt: new Date() })
-    .where(scoped(schema.metaCredentials.organizationId, organizationId));
+    .where(
+      scoped(
+        schema.metaCredentials.organizationId,
+        organizationId,
+        phoneNumberId ? eq(schema.metaCredentials.phoneNumberId, phoneNumberId) : undefined
+      )
+    );
+}
+
+/**
+ * 0080 — Cambia el nombre de un número de la organización. Devuelve false si
+ * el número no es de ella.
+ */
+export async function setNumberLabel(
+  organizationId: string,
+  phoneNumberId: string,
+  patch: { label?: string | null; color?: string | null }
+): Promise<boolean> {
+  const set: { label?: string | null; color?: string | null; updatedAt: Date } = { updatedAt: new Date() };
+  if (patch.label !== undefined) set.label = normalizeNumberLabel(patch.label);
+  if (patch.color !== undefined) set.color = patch.color;
+  const rows = await getDb()
+    .update(schema.metaCredentials)
+    .set(set)
+    .where(
+      scoped(
+        schema.metaCredentials.organizationId,
+        organizationId,
+        eq(schema.metaCredentials.phoneNumberId, phoneNumberId)
+      )
+    )
+    .returning({ id: schema.metaCredentials.id });
+  return rows.length > 0;
+}
+
+/**
+ * 0080 — Quita un número. Sus chats pasan a hablar por el principal. Devuelve false si no
+ * es de la organización. La WABA que ya no use ningún número se suelta.
+ */
+export async function removeNumber(organizationId: string, phoneNumberId: string): Promise<boolean> {
+  return withTenant(organizationId, async (db) => {
+    const gone = await db
+      .delete(schema.metaCredentials)
+      .where(
+        scoped(
+          schema.metaCredentials.organizationId,
+          organizationId,
+          eq(schema.metaCredentials.phoneNumberId, phoneNumberId)
+        )
+      )
+      .returning({ id: schema.metaCredentials.id });
+    if (gone.length === 0) return false;
+    // Sus chats pasan al principal (el más antiguo que queda); sin ninguno, NULL.
+    const [principal] = await db
+      .select({ phoneNumberId: schema.metaCredentials.phoneNumberId })
+      .from(schema.metaCredentials)
+      .where(scoped(schema.metaCredentials.organizationId, organizationId))
+      .orderBy(asc(schema.metaCredentials.createdAt), asc(schema.metaCredentials.id))
+      .limit(1);
+    await db
+      .update(schema.conversation)
+      .set({ waPhoneNumberId: principal?.phoneNumberId ?? null })
+      .where(scoped(schema.conversation.organizationId, organizationId, eq(schema.conversation.waPhoneNumberId, phoneNumberId)));
+    const enUso = db
+      .select({ wabaId: schema.metaCredentials.wabaId })
+      .from(schema.metaCredentials)
+      .where(scoped(schema.metaCredentials.organizationId, organizationId));
+    await db
+      .delete(schema.whatsappBusinessAccount)
+      .where(
+        and(
+          scoped(schema.whatsappBusinessAccount.organizationId, organizationId),
+          notInArray(schema.whatsappBusinessAccount.wabaId, enUso)
+        )
+      );
+    return true;
+  });
 }
 
 /** Últimos 4 caracteres del token para mostrar en UI (jamás el token). */

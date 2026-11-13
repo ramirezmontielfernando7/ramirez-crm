@@ -29,7 +29,7 @@ import {
 } from "@/lib/evolution/client";
 import { logger } from "@/lib/log";
 import { runWithOrganization } from "@/lib/request-context";
-import { orgHasWhatsAppConnection } from "@/server/credentials";
+import { listWhatsAppNumbers, orgHasWhatsAppConnection } from "@/server/credentials";
 import { getDirectConnection, openDirectTarget } from "@/server/credentials/direct-instance";
 import { publish } from "@/server/events/bus";
 import { serializeMessage } from "@/server/inbox/ingest";
@@ -104,7 +104,7 @@ export { DIRECT_TIMEOUT_TEXT };
  */
 export async function directRouteFor(
   organizationId: string,
-  conversation: { channel: string; connectionMode: string | null; lastInboundAt: Date | null; groupJid?: string | null },
+  conversation: { channel: string; connectionMode: string | null; lastInboundAt: Date | null; groupJid?: string | null; waPhoneNumberId?: string | null },
   allowDirect: boolean,
   now = new Date(),
   opts: { ai?: boolean } = {}
@@ -119,6 +119,18 @@ export async function directRouteFor(
       getDirectConnection(organizationId),
       orgHasWhatsAppConnection(organizationId),
     ]);
+    // 0080: con varios números oficiales el dispositivo vinculado es de UNO.
+    // Un chat que habla por otro número jamás sale por él (saldría desde un
+    // teléfono equivocado): va por Meta.
+    if (!conversation.groupJid && conversation.waPhoneNumberId && connection?.phoneNumber) {
+      const numbers = await listWhatsAppNumbers(organizationId);
+      if (numbers.length > 1) {
+        const chatNumber = numbers.find((n) => n.phoneNumberId === conversation.waPhoneNumberId);
+        if (chatNumber?.displayPhoneNumber && !samePhone(chatNumber.displayPhoneNumber, connection.phoneNumber)) {
+          return { via: "meta" };
+        }
+      }
+    }
     return routeFor({
       moduleOn: true,
       allowDirect,
@@ -592,4 +604,10 @@ export function resetDirectQueueForTests(): void {
   if (!q) return;
   for (const t of q.timers.values()) clearTimeout(t);
   q.timers.clear();
+}
+
+/** Mismo teléfono comparando los últimos 10 dígitos (52 y 521 de México no estorban). */
+function samePhone(a: string, b: string): boolean {
+  const last10 = (v: string) => v.replace(/\D/g, "").slice(-10);
+  return last10(a) !== "" && last10(a) === last10(b);
 }

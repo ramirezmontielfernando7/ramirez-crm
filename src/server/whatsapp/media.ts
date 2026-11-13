@@ -2,6 +2,7 @@ import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { eq } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
+import { scoped } from "@/lib/db/tenant";
 import { getEnv } from "@/lib/env";
 import { graphRequest, MetaApiError } from "@/lib/meta/client";
 import {
@@ -195,7 +196,15 @@ export async function ensureAssetAvailable(
   } else if (deviceKeyId) {
     download = () => downloadDeviceMedia(organizationId, deviceKeyId, MEDIA_LIMITS.document.maxBytes);
   } else {
-    const creds = await getCredentialsByOrg(organizationId);
+    // 0080: con varios números, el archivo se baja con el token del número
+    // por el que llegó el chat (el principal si no consta).
+    const [owner] = await db
+      .select({ numberId: schema.conversation.waPhoneNumberId })
+      .from(schema.message)
+      .innerJoin(schema.conversation, eq(schema.conversation.id, schema.message.conversationId))
+      .where(scoped(schema.message.organizationId, organizationId, eq(schema.message.mediaAssetId, asset.id)))
+      .limit(1);
+    const creds = await getCredentialsByOrg(organizationId, owner?.numberId ?? null);
     if (!creds) return null;
     download = () => downloadGraphMedia(creds.token, waMediaId);
   }

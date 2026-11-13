@@ -1,7 +1,9 @@
 import { getDb, schema } from "@/lib/db";
+import { autoNumberColor, isTagColor, type TagColor } from "@/lib/tags";
 import { scoped } from "@/lib/db/tenant";
 import { currentOrganizationId, runWithOrganization } from "@/lib/request-context";
 import { logger } from "@/lib/log";
+import { asc } from "drizzle-orm";
 import { open, seal, type OpenFailure, type SealedValue } from "./vault";
 
 /**
@@ -33,6 +35,8 @@ export type WhatsAppCredentials = {
   phoneNumberId: string;
   displayPhoneNumber: string | null;
   verifiedName: string | null;
+  /** 0080: nombre que la empresa le puso al número («Ventas»); null = sin nombre. */
+  label: string | null;
   status: "connected" | "reconnect_required";
   token: string;
 };
@@ -166,6 +170,7 @@ function decodeWhatsApp(row: MetaRow): WhatsAppCredentials {
     phoneNumberId: row.phoneNumberId,
     displayPhoneNumber: row.displayPhoneNumber,
     verifiedName: row.verifiedName,
+    label: row.label,
     status: row.status,
     token: must(row.tokenCipher, row.tokenIv, row.tokenTag, row.keyVersion),
   };
@@ -211,15 +216,22 @@ export function openWebhookSecret(row: IgRow | FbRow): { ok: true; value: string
 
 type Loaded<K extends CredentialKind> = { value: CredentialMap[K]; usable: boolean } | null;
 
-async function load<K extends CredentialKind>(organizationId: string, kind: K): Promise<Loaded<K>> {
+async function load<K extends CredentialKind>(
+  organizationId: string,
+  kind: K,
+  phoneNumberId?: string | null
+): Promise<Loaded<K>> {
   const db = getDb();
   switch (kind) {
     case "whatsapp": {
-      const [row] = await db
+      // 0080: varios números por organización. Sin `phoneNumberId` (o si ese
+      // número ya no existe) se usa el PRINCIPAL: el más antiguo.
+      const rows = await db
         .select()
         .from(schema.metaCredentials)
         .where(scoped(schema.metaCredentials.organizationId, organizationId))
-        .limit(1);
+        .orderBy(asc(schema.metaCredentials.createdAt), asc(schema.metaCredentials.id));
+      const row = (phoneNumberId ? rows.find((r) => r.phoneNumberId === phoneNumberId) : undefined) ?? rows[0];
       if (!row) return null;
       return { value: decodeWhatsApp(row), usable: row.status === "connected" } as Loaded<K>;
     }
@@ -301,7 +313,7 @@ async function load<K extends CredentialKind>(organizationId: string, kind: K): 
 export async function getOrgCredentials<K extends CredentialKind>(
   organizationId: string,
   kind: K,
-  opts?: { requireUsable?: boolean }
+  opts?: { requireUsable?: boolean; phoneNumberId?: string | null }
 ): Promise<CredentialResult<K>> {
   if (!organizationId) throw new Error("getOrgCredentials: organizationId vacío");
   const ctx = currentOrganizationId();
@@ -309,7 +321,7 @@ export async function getOrgCredentials<K extends CredentialKind>(
     // Nunca se leen credenciales de una organización desde el trabajo de otra.
     throw new Error("getOrgCredentials: la organización pedida no es la del contexto");
   }
-  const run = () => load(organizationId, kind);
+  const run = () => load(organizationId, kind, opts?.phoneNumberId);
   let loaded: Loaded<K>;
   try {
     loaded = ctx === null ? await runWithOrganization(organizationId, run) : await run();
@@ -327,15 +339,68 @@ export async function getOrgCredentials<K extends CredentialKind>(
 }
 
 /**
+ * 0080 — Todos los números oficiales de la organización (el principal
+ * primero), SIN secretos: lo que necesitan Ajustes y la Bandeja. El token solo
+ * viaja como sus últimos 4 caracteres.
+ */
+export type WhatsAppNumberInfo = {
+  id: string;
+  wabaId: string;
+  phoneNumberId: string;
+  displayPhoneNumber: string | null;
+  verifiedName: string | null;
+  label: string | null;
+  /** Color de la etiqueta: el elegido, o uno automático por orden. */
+  color: TagColor;
+  status: "connected" | "reconnect_required";
+  tokenLast4: string | null;
+  isPrimary: boolean;
+};
+
+export async function listWhatsAppNumbers(organizationId: string): Promise<WhatsAppNumberInfo[]> {
+  const run = async () => {
+    const rows = await getDb()
+      .select()
+      .from(schema.metaCredentials)
+      .where(scoped(schema.metaCredentials.organizationId, organizationId))
+      .orderBy(asc(schema.metaCredentials.createdAt), asc(schema.metaCredentials.id));
+    return rows.map((row, i): WhatsAppNumberInfo => {
+      let last4: string | null = null;
+      try {
+        last4 = must(row.tokenCipher, row.tokenIv, row.tokenTag, row.keyVersion).slice(-4);
+      } catch {
+        last4 = null; // sin llave o dañado: Ajustes lo muestra sin los 4 dígitos
+      }
+      return {
+        id: row.id,
+        wabaId: row.wabaId,
+        phoneNumberId: row.phoneNumberId,
+        displayPhoneNumber: row.displayPhoneNumber,
+        verifiedName: row.verifiedName,
+        label: row.label,
+        color: isTagColor(row.color) ? row.color : autoNumberColor(i),
+        status: row.status,
+        tokenLast4: last4,
+        isPrimary: i === 0,
+      };
+    });
+  };
+  const ctx = currentOrganizationId();
+  if (ctx !== null && ctx !== organizationId) throw new Error("listWhatsAppNumbers: la organización pedida no es la del contexto");
+  return ctx === null ? runWithOrganization(organizationId, run) : run();
+}
+
+/**
  * Atajo para el código que ya trataba "no hay conexión" como `null`: devuelve
  * null si no está conectada y LANZA `CredentialUnavailableError` (tipada) si
  * existe pero no se puede abrir. Nunca devuelve un secreto a medias.
  */
 export async function getOrgCredentialsOrNull<K extends CredentialKind>(
   organizationId: string,
-  kind: K
+  kind: K,
+  opts?: { phoneNumberId?: string | null }
 ): Promise<CredentialMap[K] | null> {
-  const r = await getOrgCredentials(organizationId, kind);
+  const r = await getOrgCredentials(organizationId, kind, opts);
   if (r.ok) return r.value;
   if (r.error === "not_connected") return null;
   throw new CredentialUnavailableError(kind, r.error);

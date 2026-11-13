@@ -18,6 +18,8 @@ export type ConversationDto = {
   stageName: string | null;
   /** Color configurado de la etapa actual; null = el respaldo por nombre. */
   stageColor: TagColor | null;
+  /** 0080: número oficial de la empresa por el que habla el chat (null = sin dato). */
+  waNumberId: string | null;
   /** 034: lead y etapa actuales, para cambiarla desde la fila. null = sin lead. */
   leadId: string | null;
   stageId: string | null;

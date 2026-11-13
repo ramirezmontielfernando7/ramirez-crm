@@ -134,6 +134,11 @@ async function main() {
     body: JSON.stringify({ wabaId: "WABA-E2E", phoneNumberId: "PN-E2E", token: "tok-e2e" }),
   });
   ok("WhatsApp conectado", conn.res.ok, conn.text);
+  // 0080: conectar AGREGA un número; este guion trabaja con el principal, así
+  // que deja solo el suyo (antes conectar reemplazaba).
+  for (const n of (await api("/api/settings/whatsapp")).json?.numbers ?? []) {
+    if (n.phoneNumberId !== "PN-E2E") await api(`/api/settings/whatsapp/numbers/${encodeURIComponent(n.phoneNumberId)}`, { method: "DELETE" });
+  }
   const list = await api("/api/campaigns");
   if (list.res.status === 404) {
     console.error("El módulo Campañas está apagado para esta organización: enciéndelo (CAMPAIGNS=on o /platform).");

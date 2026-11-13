@@ -29,6 +29,12 @@ export const TAG_COLOR_CLASS: Record<TagColor, string> = {
   morado: "bg-violet-500/15 text-violet-700 dark:text-violet-300",
 };
 
+/** Color automático de la etiqueta de un número (por orden), mientras nadie elija uno. */
+const AUTO_NUMBER_COLORS: readonly TagColor[] = ["azul", "verde", "ambar", "morado", "rojo"];
+export function autoNumberColor(index: number): TagColor {
+  return AUTO_NUMBER_COLORS[index % AUTO_NUMBER_COLORS.length] ?? "azul";
+}
+
 export function tagColorClass(color: string | null | undefined): string {
   return TAG_COLOR_CLASS[isTagColor(color) ? color : "gris"];
 }

@@ -758,6 +758,12 @@ export const conversation = pgTable(
       .notNull()
       .default("whatsapp"),
     /**
+     * 0080 — Por qué número OFICIAL de la empresa habla este chat (el último
+     * por el que escribió el contacto). NULL = el principal. Las respuestas
+     * salen por este número.
+     */
+    waPhoneNumberId: text("wa_phone_number_id"),
+    /**
      * 014: identificador del hilo en la plataforma de origen. Zernio entrega
      * un conversationId opaco ("no asumas su formato") que hace falta para
      * responder; WhatsApp no lo necesita y queda null.
@@ -1100,6 +1106,13 @@ export const metaCredentials = pgTable(
     phoneNumberId: text("phone_number_id").notNull(),
     displayPhoneNumber: text("display_phone_number"),
     verifiedName: text("verified_name"),
+    /**
+     * 0080 — Nombre que la empresa le pone al número («Ventas», «Sucursal
+     * Centro»). Es lo que se ve en la Bandeja; NULL = se muestra el teléfono.
+     */
+    label: text("label"),
+    /** 0080 — Color de la etiqueta del número (clave de `TAG_COLORS`); NULL = automático por orden. */
+    color: text("color"),
     tokenCipher: text("token_cipher").notNull(),
     tokenIv: text("token_iv").notNull(),
     tokenTag: text("token_tag").notNull(),
@@ -1115,10 +1128,9 @@ export const metaCredentials = pgTable(
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },
   (t) => [
-    // Un número por organización POR AHORA (decisión de la Fase 3). Para
-    // varios números basta con quitar este índice: la WABA ya es de UNA
-    // organización por `whatsapp_business_account`.
-    uniqueIndex("meta_credentials_org_uq").on(t.organizationId),
+    // 0080: VARIOS números oficiales por organización (antes uno:
+    // `meta_credentials_org_uq`). El «principal» es el más antiguo.
+    index("meta_credentials_org_idx").on(t.organizationId, t.createdAt),
     // El webhook enruta por phone_number_id: debe ser único en la instancia.
     uniqueIndex("meta_credentials_phone_uq").on(t.phoneNumberId),
     // H8: la WABA declarada es de ESTA organización (y de ninguna otra).

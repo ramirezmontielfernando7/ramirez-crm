@@ -26,6 +26,8 @@ type DirectConnectionInfo = {
   pauseReason: DirectConnectionRow["pauseReason"];
   disconnectCount: number;
   disconnectWindowStart: Date | null;
+  /** 0080: el teléfono que el dispositivo tiene vinculado (null = aún no se sabe). */
+  phoneNumber: string | null;
 };
 
 /**
@@ -54,6 +56,7 @@ export async function getDirectConnection(organizationId: string, directNumberId
     pauseReason: row.pauseReason,
     disconnectCount: row.disconnectCount,
     disconnectWindowStart: row.disconnectWindowStart,
+    phoneNumber: row.phoneNumber,
   };
 }
 

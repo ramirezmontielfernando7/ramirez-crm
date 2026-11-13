@@ -259,7 +259,7 @@ jobs:
           - name: Bandeja y responsive
             # conectar-facebook va al final: su login cuenta contra el freno por
             # IP (FR-062) que usan los guiones de arriba.
-            scripts: "e2e-numero-nuevo e2e-bandeja-capsulas e2e-bandeja-virtual e2e-bandeja-paginada e2e-responsive e2e-conectar-facebook"
+            scripts: "e2e-numero-nuevo e2e-bandeja-capsulas e2e-bandeja-virtual e2e-bandeja-paginada e2e-responsive e2e-conectar-facebook e2e-varios-numeros"
           - name: documentos (RAG) y apagado
             rag: true
             scripts: ""

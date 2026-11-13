@@ -107,6 +107,7 @@ export function EmbeddedSignupCard({
 }) {
   const [flow, setFlow] = useState<Flow>("business_app");
   const [pin, setPin] = useState("");
+  const [label, setLabel] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
@@ -129,7 +130,7 @@ export function EmbeddedSignupCard({
     const res = await fetch("/api/settings/whatsapp/embedded-signup", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ code, ...data, ...(data.flow === "new_number" ? { pin } : {}) }),
+      body: JSON.stringify({ code, ...data, ...(data.flow === "new_number" ? { pin } : {}), ...(label.trim() ? { label: label.trim() } : {}) }),
     }).catch(() => null);
     setBusy(false);
     const json = (await res?.json().catch(() => null)) as {
@@ -260,6 +261,16 @@ export function EmbeddedSignupCard({
           </FlowOption>
         </div>
 
+        <div className="max-w-xs space-y-1.5">
+          <Label htmlFor="es-label">Nombre del número (opcional)</Label>
+          <Input
+            id="es-label"
+            maxLength={40}
+            placeholder="Ej. Ventas Mérida"
+            value={label}
+            onChange={(e) => setLabel(e.target.value)}
+          />
+        </div>
         {flow === "business_app" ? (
           <div className="flex items-start gap-2 rounded-md border border-warning-soft bg-warning-tint p-3 text-xs text-warning-text">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
