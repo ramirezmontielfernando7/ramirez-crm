@@ -62,3 +62,6 @@ Siguiente etapa recomendada: T-M2, manteniendo T-M1 como checkpoint recuperable 
 El propietario confirmó que instaló y probó la primera APK T-M3 en Motorola Edge 50 Pro / Android 16 con evaluación positiva. Se conservan fuente d849c0d, hash de APK y receta mediante checkpoint local bd3ba4f; ver apk-probada/VERSION.md. Los bloqueos de SDK y Java descritos anteriormente son históricos y fueron resueltos.
 
 T-M4 implementa INB-19…26 e INB-30 con datos ficticios. Rama aislada codex/dashfort-mobile-tm4-20261111, conserva T-M1/T-M2/T-M3. Ver tm4/RESULTADOS.md para pruebas, capturas, compilación experimental y pendientes nativos. No se inició T-M5 ni se autorizó push de esta etapa. Este apartado sustituye los siguientes pasos históricos, sin borrar la evidencia anterior.
+
+## T-M5A · Continuación autorizada
+T-M4/0.1.1 fue probada y aprobada por el propietario, y ebeb4bf quedó respaldado en GitHub. T-M5A parte de ese commit e incorpora únicamente contratos/simulación, sin cambios visuales de la app aprobada ni APK nueva. Ver tm5a/RESULTADOS.md. El respaldo de T-M5A aún es local; no iniciar B/C ni hacer push sin autorización.

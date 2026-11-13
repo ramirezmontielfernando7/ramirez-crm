@@ -8,7 +8,7 @@ El alcance global sigue siendo 158 IDs del inventario oficial. El CSV `cobertura
 | T-M2 | Bandeja, búsqueda, filtros, selección INB-01…10 | Implementada en simulación; pendiente QA nativo |
 | T-M3 | Chat, adjuntos, plantillas, ventana 24 h, fallos | Implementada en simulación; pendiente QA nativo |
 | T-M4 | Detalles, etapas, asignación, etiquetas, conexión INB-30 | Implementada en simulación; ver tm4/RESULTADOS.md |
-| T-M5 | Arquitectura y simulación de notificaciones SET-14 | Pendiente; sin backend, tokens ni push reales |
+| T-M5 | Arquitectura y simulación de notificaciones SET-14 | T-M5A implementada; SET-14, nativo y backend pendientes. Ver tm5a |
 | T-M6 | Equipo, Mi número, privacidad y complemento | Pendiente |
 | T-M7 | Pipeline y Contactos | Pendiente |
 | T-M8 | Más completo, ajustes esenciales y cuenta | Pendiente; shell mínimo no se contabiliza |
@@ -24,3 +24,6 @@ T-M3 se documenta en tm3/RESULTADOS.md. La validación de dispositivo sigue pend
 
 ## Continuación autorizada · 11 de noviembre
 La etapa vigente es T-M4, desde el checkpoint de la APK probada. Las prohibiciones históricas de iniciar T-M4 ya fueron sustituidas por autorización expresa del propietario. T-M5 permanece pendiente y no se inicia automáticamente. Ver tm4/RESULTADOS.md.
+
+## Autorización T-M5A
+Solo contratos y simulación; rama desde ebeb4bf, sin APK nueva ni cambios de diseño. No iniciar T-M5B/C automáticamente. Plan siguiente en tm5a/T-M5B.md.

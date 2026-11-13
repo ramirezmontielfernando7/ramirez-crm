@@ -21,3 +21,6 @@ El propietario confirmó instalación y evaluación positiva en Motorola Edge 50
 
 ## Ejecución actual T-M4
 La rama `codex/dashfort-mobile-tm4-20261111` parte de bd3ba4f, checkpoint de la APK T-M3 probada, que desciende de d849c0d. Detalles e historial INB-19…26 + INB-30 en simulación, ver docs/tm4. Este apartado sustituye las prohibiciones históricas de iniciar T-M4. No iniciar T-M5, no hacer push ni publicar. No reemplazar la APK original. Solo apps/mobile; conservar alcance, notas internas separadas del transporte y anclas de Bandeja/chat.
+
+## Ejecución vigente T-M5A
+La autorización actual permite únicamente T-M5A en codex/dashfort-mobile-tm5a-20261113 desde el respaldo ebeb4bf. Ver docs/tm5a. Contratos y simuladores, sin SDK push, servicios reales, permisos del sistema ni notificaciones locales. Mantener interfaces visuales T-M1…T-M4. Laboratorio QA solo con /demo?notifications=1. No generar APK sin cambio nativo que lo justifique, no hacer push sin autorización. No iniciar T-M5B/T-M5C. Los anteriores «no iniciar T-M5» son históricos y quedan sustituidos únicamente para esta subetapa.
