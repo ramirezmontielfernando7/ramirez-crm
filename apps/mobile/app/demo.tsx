@@ -151,6 +151,11 @@ function OriginalDemo() {
             />
           </>
         )}
+        <Section>Laboratorio de demostración</Section>
+        <NavRow
+          label="Laboratorio de notificaciones"
+          onPress={() => router.push("/demo?notifications=1")}
+        />
         <Section>Sistema de diseño</Section>
         {["Colores", "Tipografía", "Controles", "Chat", "Estados", "Capas"].map(
           (name, index) => (

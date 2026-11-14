@@ -13,6 +13,7 @@ import {
 import { useNotifications, useNotificationState } from "./context";
 import { DemoNotificationBackend } from "./adapters/demo";
 import { ORG_A, ORG_B, type Kind } from "./model";
+import { LocalLab } from "./LocalContext";
 let counter = 0;
 export function NotificationLab() {
   const store = useNotifications(),
@@ -59,8 +60,8 @@ export function NotificationLab() {
       />
       <PageScroll>
         <Banner>
-          QA T-M5A · Solo memoria y almacenamiento de demo. No pide permisos ni
-          emite avisos del sistema.
+          QA T-M5A · Los controles ficticios solo usan almacenamiento de demo.
+          Las pruebas locales Android están separadas y requieren tu acción.
         </Banner>
         {!!(error || s.error) && (
           <Banner type="danger">{error || s.error}</Banner>
@@ -86,6 +87,7 @@ export function NotificationLab() {
           </Text>
           <Text accessibilityLiveRegion="polite">{s.result}</Text>
         </Card>
+        <LocalLab />
         <Section>Permisos y registro ficticios</Section>
         <Button onPress={() => store.permission("granted")}>
           Conceder permiso ficticio

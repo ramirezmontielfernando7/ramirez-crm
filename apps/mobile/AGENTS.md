@@ -24,3 +24,6 @@ La rama `codex/dashfort-mobile-tm4-20261111` parte de bd3ba4f, checkpoint de la 
 
 ## Ejecución vigente T-M5A
 La autorización actual permite únicamente T-M5A en codex/dashfort-mobile-tm5a-20261113 desde el respaldo ebeb4bf. Ver docs/tm5a. Contratos y simuladores, sin SDK push, servicios reales, permisos del sistema ni notificaciones locales. Mantener interfaces visuales T-M1…T-M4. Laboratorio QA solo con /demo?notifications=1. No generar APK sin cambio nativo que lo justifique, no hacer push sin autorización. No iniciar T-M5B/T-M5C. Los anteriores «no iniciar T-M5» son históricos y quedan sustituidos únicamente para esta subetapa.
+
+## Ejecución vigente T-M5B
+Autorizada en rama nueva desde 3b85b3b. Solo apps/mobile, SDK oficial y avisos locales Android opt-in en laboratorio; sin tokens/servicios push remotos, backend, cambios visuales T-M1…T-M4, push ni T-M5C. Nueva APK local con firma experimental conservada. Las restricciones históricas de T-M5A sobre SDK y permisos quedan sustituidas para esta etapa.

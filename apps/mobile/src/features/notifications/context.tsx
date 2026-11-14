@@ -15,6 +15,9 @@ import { preferencesStorage } from "../../services/storage";
 import { NotificationStore } from "./core";
 import { DemoNotificationBackend } from "./adapters/demo";
 import { ORG_A, type Identity } from "./model";
+import { LocalNotifications } from "./local";
+import { localPort } from "./local-port";
+import { LocalProvider } from "./LocalContext";
 const Context = createContext<NotificationStore | null>(null);
 let sessions = 0;
 export function NotificationProvider({ children }: React.PropsWithChildren) {
@@ -94,29 +97,39 @@ export function NotificationProvider({ children }: React.PropsWithChildren) {
       },
     });
   });
+  const [local] = useState(
+    () => new LocalNotifications(store, localPort, preferencesStorage),
+  );
+  const [initialized, setInitialized] = useState(false);
   useEffect(() => {
     let live = true;
-    void store.hydrate().then(() => {
-      if (!live || !ready) return;
-      const i: Identity | null = session
-        ? {
-            userId: session.id,
-            organizationId: ORG_A,
-            sessionId: `demo-session-${Date.now()}-${++sessions}`,
-            expiresAt: session.expiresAt,
-          }
-        : null;
-      store.identity(i);
-      if (i)
-        void store
-          .sync()
-          .then(() => store.openPending())
-          .catch(() => {});
-    });
+    void local
+      .hydrate()
+      .catch(local.failure)
+      .then(() => store.hydrate())
+      .then(() => {
+        if (!live || !ready) return;
+        const i: Identity | null = session
+          ? {
+              userId: session.id,
+              organizationId: ORG_A,
+              sessionId: `demo-session-${Date.now()}-${++sessions}`,
+              expiresAt: session.expiresAt,
+            }
+          : null;
+        store.identity(i);
+        setInitialized(true);
+        if (i)
+          void store
+            .sync()
+            .then(() => store.openPending())
+            .catch(() => {});
+      })
+      .catch(() => setInitialized(false));
     return () => {
       live = false;
     };
-  }, [store, session, ready]);
+  }, [store, local, session, ready]);
   useEffect(() => {
     if (navigationReady) void store.openPending();
   }, [store, navigationReady]);
@@ -126,7 +139,13 @@ export function NotificationProvider({ children }: React.PropsWithChildren) {
     });
     return () => sub.remove();
   }, [store]);
-  return <Context.Provider value={store}>{children}</Context.Provider>;
+  return (
+    <Context.Provider value={store}>
+      <LocalProvider local={local} initialized={initialized}>
+        {children}
+      </LocalProvider>
+    </Context.Provider>
+  );
 }
 export function useNotifications() {
   const store = useContext(Context);
