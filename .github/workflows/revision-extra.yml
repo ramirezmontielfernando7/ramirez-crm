@@ -1,0 +1,116 @@
+name: Revisión extra
+
+# Revisores EXTRA que solo leen y reportan. Ninguno cambia la app ni toca el
+# servidor, y ninguno frena el CI: lo que encuentran sale en el resumen de cada
+# corrida (pestaña «Summary») para ir limpiándolo con calma.
+#  - OSV-Scanner: librerías con fallas conocidas (base de datos OSV).
+#  - Knip: código, archivos y dependencias que nadie usa.
+#  - axe-core: problemas de accesibilidad en las pantallas públicas.
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "41 9 * * 1"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  osv:
+    name: OSV-Scanner · librerías (informa)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v7
+      - name: Instalar y correr osv-scanner
+        env:
+          OSV_VERSION: "2.2.2"
+        run: |
+          curl -sSfL -o osv-scanner "https://github.com/google/osv-scanner/releases/download/v${OSV_VERSION}/osv-scanner_linux_amd64"
+          chmod +x osv-scanner
+          {
+            echo "## OSV-Scanner · librerías con fallas conocidas (solo informa)"
+            echo '```'
+            ./osv-scanner scan source --lockfile pnpm-lock.yaml 2>&1 || true
+            echo '```'
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
+  knip:
+    name: Knip · código sin uso (informa)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Correr knip
+        run: |
+          {
+            echo "## Knip · archivos y dependencias sin uso (solo informa)"
+            echo '```'
+            npx --yes knip@5 --no-progress 2>&1 | head -300 || true
+            echo '```'
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
+  axe:
+    name: axe-core · accesibilidad (informa)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    continue-on-error: true
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: vocero
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres -d vocero"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: chromium y axe-core (sin tocar package.json)
+        run: |
+          pnpm exec playwright install --with-deps chromium
+          mkdir -p "$RUNNER_TEMP/axe" && (cd "$RUNNER_TEMP/axe" && npm init -y >/dev/null && npm i axe-core@4.10.2 --silent)
+      - name: .env de pruebas (secretos desechables)
+        run: |
+          {
+            echo "APP_BASE_URL=http://localhost:3000"
+            echo "DATABASE_URL_MIGRATE=postgresql://postgres:postgres@localhost:5432/vocero"
+            echo "DATABASE_URL=postgresql://vocero_app:app-ci-password-0123456789@localhost:5432/vocero"
+            echo "DATABASE_URL_SYSTEM=postgresql://vocero_system:system-ci-password-0123456789@localhost:5432/vocero"
+            echo "VOCERO_APP_DB_PASSWORD=app-ci-password-0123456789"
+            echo "VOCERO_SYSTEM_DB_PASSWORD=system-ci-password-0123456789"
+            echo "DB_TENANT_STRICT=true"
+            echo "BETTER_AUTH_SECRET=$(openssl rand -hex 24)"
+            echo "ENCRYPTION_KEY=$(openssl rand -base64 32)"
+            echo "META_WEBHOOK_VERIFY_TOKEN=tok_$(openssl rand -hex 12)"
+            echo "META_APP_SECRET=$(openssl rand -hex 16)"
+          } > .env
+      - name: build, arrancar y revisar
+        run: |
+          set -a; . ./.env; set +a
+          pnpm build
+          MIGRATIONS_DIR=drizzle node scripts/migrate.mjs
+          setsid node_modules/.bin/next start -p 3000 > app.log 2>&1 &
+          for i in $(seq 1 120); do curl -sf localhost:3000/api/health >/dev/null && break; sleep 1; done
+          AXE_DIR="$RUNNER_TEMP/axe" node .github/scripts/axe-scan.mjs
