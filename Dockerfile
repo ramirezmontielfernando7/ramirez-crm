@@ -61,6 +61,15 @@ FROM node:22-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
+# Seguridad: parches del sistema base al construir, y fuera npm/corepack/yarn.
+# La imagen final solo corre `node` (server.js, migrate.mjs, ops/*.mjs); los
+# gestores de paquetes que trae node:22-alpine no se usan aquí y eran la fuente
+# de todas las alertas HIGH del escaneo (pacote, sigstore, brace-expansion…),
+# además de herramientas útiles para un atacante dentro del contenedor.
+RUN apk upgrade --no-cache \
+ && rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack \
+           /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack \
+           /opt/yarn-* /usr/local/bin/yarn /usr/local/bin/yarnpkg
 # 008: adjuntos, logo e icono viven en /data (el volumen de la instancia), no
 # en /app, que es de root: el default de la app (./.dev-media) es solo para
 # desarrollo local. No se define en la plataforma: basta montar /data.

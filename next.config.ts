@@ -14,6 +14,8 @@ const nextConfig: NextConfig = {
   output: process.platform === "win32" ? undefined : "standalone",
   // El paquete `postgres` usa APIs de Node que no deben empaquetarse en el bundle.
   serverExternalPackages: ["postgres"],
+  // Sin `X-Powered-By: Next.js`: no anunciar el framework a quien escanea.
+  poweredByHeader: false,
   // Se congelan al construir: lo que queda aquí va dentro del binario y no
   // cambia en tiempo de ejecución. El commit solo se congela si `SOURCE_COMMIT`
   // llega AL BUILD (build arg `SOURCE_COMMIT`; con docker compose,
