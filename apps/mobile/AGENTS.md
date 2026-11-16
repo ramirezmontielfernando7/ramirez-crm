@@ -27,3 +27,6 @@ La autorización actual permite únicamente T-M5A en codex/dashfort-mobile-tm5a-
 
 ## Ejecución vigente T-M5B
 Autorizada en rama nueva desde 3b85b3b. Solo apps/mobile, SDK oficial y avisos locales Android opt-in en laboratorio; sin tokens/servicios push remotos, backend, cambios visuales T-M1…T-M4, push ni T-M5C. Nueva APK local con firma experimental conservada. Las restricciones históricas de T-M5A sobre SDK y permisos quedan sustituidas para esta etapa.
+
+## Ejecución vigente I1 · Integración auditada, sin conexión
+La autorización del propietario permite auditar código del backend y preparar contratos/simuladores exclusivamente en apps/mobile, rama nueva desde T-M5B/2bd4b62. Ver docs/integration-i1. No modificar ni importar módulos backend al runtime móvil; no conectar red/BD/usuarios reales. No cambiar pantallas ni proveedores existentes, no generar APK innecesaria ni iniciar I2/T-M5C, no push sin autorización. Cualquier mejora de servidor descrita es propuesta y necesita permiso nuevo.
