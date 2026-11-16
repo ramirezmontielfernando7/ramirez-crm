@@ -7,7 +7,7 @@
  * self-test ejercita el camino real, no uno cómodo.
  */
 
-export type MockEvent = {
+type MockEvent = {
   id: string;
   summary: string;
   start: string;

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 
 /** Un número oficial de la empresa, tal como lo ve la Bandeja (sin secretos). */
-export type WhatsAppNumber = {
+type WhatsAppNumber = {
   id: string;
   label: string | null;
   phone: string | null;

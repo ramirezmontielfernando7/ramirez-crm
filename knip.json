@@ -1,0 +1,6 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "entry": ["scripts/**/*.mjs", "public/sw.js", ".github/scripts/*.mjs"],
+  "ignoreDependencies": ["@next/eslint-plugin-next", "eslint-config-next", "eslint-plugin-react-hooks", "axe-core", "postcss-load-config"],
+  "ignoreExportsUsedInFile": true
+}

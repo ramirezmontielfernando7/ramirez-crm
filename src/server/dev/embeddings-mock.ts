@@ -31,7 +31,7 @@ function hash(s: string): number {
   return h >>> 0;
 }
 
-export function mockVector(text: string): number[] {
+function mockVector(text: string): number[] {
   const v: number[] = new Array<number>(MOCK_DIMS).fill(0);
   const words = foldAccents(text.toLowerCase()).match(/[\p{L}\p{N}]+/gu) ?? [];
   for (const w of words) {

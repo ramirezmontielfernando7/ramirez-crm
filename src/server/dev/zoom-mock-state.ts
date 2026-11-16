@@ -8,7 +8,7 @@
  * este estado tiene que estar VACÍO.
  */
 
-export type MockMeeting = {
+type MockMeeting = {
   id: string;
   topic: string;
   startTime: string;

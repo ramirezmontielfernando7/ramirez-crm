@@ -1,5 +1,5 @@
 /** Minutos que se le da a un asesor para contestar antes de contarlo como «tarde». */
-export const DEFAULT_TEAM_SLA_MINUTES = 5;
+const DEFAULT_TEAM_SLA_MINUTES = 5;
 export const MIN_TEAM_SLA_MINUTES = 1;
 export const MAX_TEAM_SLA_MINUTES = 1440;
 

@@ -4,7 +4,7 @@
  * así que el outbox en memoria alcanza para las aserciones del self-test.
  */
 
-export type ZernioSentMessage = {
+type ZernioSentMessage = {
   n: number;
   conversationId: string;
   accountId: string | null;

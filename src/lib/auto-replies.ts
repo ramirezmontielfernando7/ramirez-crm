@@ -45,7 +45,7 @@ export const DEFAULT_AUTO_HOURS: AutoHours = {
 
 const HHMM = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
-export const minutesOf = (hhmm: string): number => {
+const minutesOf = (hhmm: string): number => {
   const m = HHMM.exec(hhmm);
   return m ? Number(m[1]) * 60 + Number(m[2]) : NaN;
 };
@@ -106,7 +106,7 @@ export function isWithinBusinessHours(now: Date, hours: AutoHours, timezone: str
   return minutes >= minutesOf(h.from) && minutes < minutesOf(h.to);
 }
 
-export type AutoReplyKind = "welcome" | "away";
+type AutoReplyKind = "welcome" | "away";
 
 export type AutoReplyInput = {
   now: Date;

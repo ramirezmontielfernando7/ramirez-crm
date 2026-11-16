@@ -36,7 +36,7 @@ export async function getCredentialsByOrg(
 const LABEL_MAX = 40;
 
 /** Nombre del número: sin espacios de más; vacío = sin nombre (null). */
-export function normalizeNumberLabel(raw: string | null | undefined): string | null {
+function normalizeNumberLabel(raw: string | null | undefined): string | null {
   const v = (raw ?? "").replace(/\s+/g, " ").trim().slice(0, LABEL_MAX);
   return v === "" ? null : v;
 }

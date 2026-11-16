@@ -343,7 +343,7 @@ export async function getOrgCredentials<K extends CredentialKind>(
  * primero), SIN secretos: lo que necesitan Ajustes y la Bandeja. El token solo
  * viaja como sus últimos 4 caracteres.
  */
-export type WhatsAppNumberInfo = {
+type WhatsAppNumberInfo = {
   id: string;
   wabaId: string;
   phoneNumberId: string;
