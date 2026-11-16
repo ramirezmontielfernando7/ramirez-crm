@@ -30,3 +30,6 @@ Autorizada en rama nueva desde 3b85b3b. Solo apps/mobile, SDK oficial y avisos l
 
 ## Ejecución vigente I1 · Integración auditada, sin conexión
 La autorización del propietario permite auditar código del backend y preparar contratos/simuladores exclusivamente en apps/mobile, rama nueva desde T-M5B/2bd4b62. Ver docs/integration-i1. No modificar ni importar módulos backend al runtime móvil; no conectar red/BD/usuarios reales. No cambiar pantallas ni proveedores existentes, no generar APK innecesaria ni iniciar I2/T-M5C, no push sin autorización. Cualquier mejora de servidor descrita es propuesta y necesita permiso nuevo.
+
+## Ejecución vigente I2-P
+Autorizada únicamente preparación aislada de autenticación en rama desde 00fb8ca. Contratos de Better Auth, simuladores, vault comprobable, HTTP bloqueado y documentación en docs/integration-i2p. Ningún cambio de UI/proveedores existentes, APK, raíz, backend, BD, migraciones, workers, conectores, infraestructura o costes. No iniciar I2 real; preparar expediente para revisión independiente de Claude antes de cualquier activación. Sin push/PR/merge. Esta autorización sustituye la prohibición histórica de preparar I2, no autoriza conectarlo.
