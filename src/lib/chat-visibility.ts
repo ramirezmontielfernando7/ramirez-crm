@@ -11,7 +11,7 @@ export type ChatView = (typeof CHAT_VIEWS)[number];
 
 export const DEFAULT_CHAT_VIEW: ChatView = "own";
 
-export function isChatView(value: unknown): value is ChatView {
+function isChatView(value: unknown): value is ChatView {
   return typeof value === "string" && (CHAT_VIEWS as readonly string[]).includes(value);
 }
 

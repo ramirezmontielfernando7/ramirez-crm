@@ -8,6 +8,13 @@ name: Revisión extra
 #  - axe-core: problemas de accesibilidad en las pantallas públicas.
 on:
   pull_request:
+    paths-ignore:
+      - "**/*.md"
+      - "docs/**"
+      - "specs/**"
+      - "**/*.png"
+      - "**/*.jpg"
+      - ".claude/**"
   push:
     branches: [main]
   schedule:

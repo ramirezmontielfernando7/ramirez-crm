@@ -15,7 +15,7 @@ import { isValidTimeZone } from "@/lib/time/slots";
  * `MessagingSettings` (como «Chats nuevos de los asesores»): guardar las
  * bajas por palabra clave nunca los pisa, ni al revés. Sin fila = todo apagado.
  */
-export type AutoReplySettings = {
+type AutoReplySettings = {
   welcomeEnabled: boolean;
   welcomeText: string | null;
   awayEnabled: boolean;

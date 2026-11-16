@@ -31,7 +31,7 @@ async function orgsWithAlert(): Promise<string[]> {
  * humana» (`handoff.requested`, motivo `olvidado`): le llega al asesor
  * asignado y a quien ve todo.
  */
-export async function runForgottenChatsForOrg(organizationId: string, now = new Date()): Promise<number> {
+async function runForgottenChatsForOrg(organizationId: string, now = new Date()): Promise<number> {
   const [row] = await getDb()
     .select()
     .from(schema.messagingSettings)
@@ -120,7 +120,7 @@ export async function runForgottenChatsForOrg(organizationId: string, now = new 
   return sent;
 }
 
-export async function runForgottenChatsCheck(now = new Date()): Promise<number> {
+async function runForgottenChatsCheck(now = new Date()): Promise<number> {
   let total = 0;
   for (const org of await orgsWithAlert()) {
     try {

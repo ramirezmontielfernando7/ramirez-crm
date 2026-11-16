@@ -16,7 +16,7 @@ import { getAutoReplySettings } from "@/server/auto-replies/settings";
  */
 
 /** Horas sin respuesta desde las que se lista un chat si el aviso de chats olvidados está apagado. */
-export const ESPERA_POR_DEFECTO_HORAS = 4;
+const ESPERA_POR_DEFECTO_HORAS = 4;
 
 /** Días sin que hable el cliente a partir de los cuales el lead está frío. */
 const SILENCIO_DIAS = 7;
