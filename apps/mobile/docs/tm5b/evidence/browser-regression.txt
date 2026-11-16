@@ -1,0 +1,63 @@
+
+> dashfort-mobile-dev@0.1.0 test:browser
+> playwright test
+
+
+Running 45 tests using 2 workers
+
+(node:5492) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:5491) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   2 tests/browser/contact.spec.ts:77:5 › T-M4 approved matrix light-390 (6.6s)
+  ✓   1 tests/browser/chat.spec.ts:44:5 › T-M3 matrix light-390 (8.9s)
+  ✓   3 tests/browser/contact.spec.ts:77:5 › T-M4 approved matrix dark-390 (6.3s)
+  ✓   4 tests/browser/chat.spec.ts:44:5 › T-M3 matrix dark-390 (8.2s)
+  ✓   5 tests/browser/contact.spec.ts:77:5 › T-M4 approved matrix light-360 (6.1s)
+  ✓   7 tests/browser/contact.spec.ts:77:5 › T-M4 approved matrix dark-360 (5.6s)
+  ✓   6 tests/browser/chat.spec.ts:44:5 › T-M3 matrix light-360 (7.7s)
+  ✓   8 tests/browser/contact.spec.ts:133:1 › stage cancel, assignment, tag toggling, AI and sale survive navigation and reload (10.9s)
+  ✓   9 tests/browser/chat.spec.ts:44:5 › T-M3 matrix dark-360 (12.3s)
+  ✓  10 tests/browser/contact.spec.ts:200:1 › INB-30 gates, linked device, failure, emergency and double AI warning (10.2s)
+  ✓  11 tests/browser/chat.spec.ts:119:1 › persistent draft, safe retry after lost confirmation and sent message appears only once (9.4s)
+  ✓  13 tests/browser/chat.spec.ts:153:1 › closed window requires approved template; a template does not unlock until customer reply (8.9s)
+  ✓  12 tests/browser/contact.spec.ts:260:1 › notes retain draft and filter across navigation, survive save failure and never appear as sent chat messages (11.7s)
+  ✓  14 tests/browser/chat.spec.ts:182:1 › attachments validate errors, recover a sample and image viewer supports zoom without external sharing (9.9s)
+  ✓  15 tests/browser/contact.spec.ts:307:1 › task validates date, preserves typed title, saves once and completion persists (10.8s)
+  ✓  16 tests/browser/chat.spec.ts:236:1 › quick replies, newline, emoji, rewrite preview and undo preserve drafts (10.8s)
+  ✓  17 tests/browser/contact.spec.ts:350:1 › advisor hides assignment and connection by default; protected import tag and deep links respect scope (9.9s)
+  ✓  18 tests/browser/chat.spec.ts:277:1 › paginated history preserves message identity and recovers page failure (9.5s)
+  ✓  19 tests/browser/contact.spec.ts:381:1 › details and history recover loading empty error offline without losing note draft (14.6s)
+  ✓  20 tests/browser/chat.spec.ts:316:1 › advisor cannot delete; deleting a chat retains contact and persists local empty history (9.9s)
+  ✓  22 tests/browser/chat.spec.ts:345:1 › older pages and incoming messages preserve the visible anchor away from the bottom (7.6s)
+  ✓  23 tests/browser/chat.spec.ts:414:1 › recoverable data states preserve the draft and reconnect pending incoming once (9.7s)
+  ✓  21 tests/browser/contact.spec.ts:446:1 › Inbox scroll and chat message anchor survive details/history round trip (22.7s)
+  ✓  25 tests/browser/inbox.spec.ts:36:5 › T-M2 reference matrix light-390 (11.0s)
+  ✓  24 tests/browser/foundation.spec.ts:43:5 › T-M1 galleries and access light-390x844 (15.2s)
+  ✓  26 tests/browser/inbox.spec.ts:36:5 › T-M2 reference matrix dark-390 (11.3s)
+  ✓  27 tests/browser/foundation.spec.ts:43:5 › T-M1 galleries and access dark-390x844 (14.2s)
+  ✓  28 tests/browser/inbox.spec.ts:36:5 › T-M2 reference matrix light-360 (11.5s)
+  ✓  29 tests/browser/foundation.spec.ts:43:5 › T-M1 galleries and access light-360x640 (13.8s)
+  ✓  30 tests/browser/inbox.spec.ts:36:5 › T-M2 reference matrix dark-360 (11.1s)
+  ✓  32 tests/browser/inbox.spec.ts:91:1 › combined filters, archive, assign and preserved selection across tabs (7.7s)
+  ✓  31 tests/browser/foundation.spec.ts:43:5 › T-M1 galleries and access dark-360x640 (14.1s)
+  ✓  33 tests/browser/inbox.spec.ts:124:1 › advisor cannot enter other conversation and new contact validation is functional (10.2s)
+  ✓  34 tests/browser/foundation.spec.ts:113:1 › roles, route guards, recovery and logout (13.6s)
+  ✓  36 tests/browser/foundation.spec.ts:180:1 › form validation, generic auth failure and expired session (5.7s)
+  ✓  35 tests/browser/inbox.spec.ts:157:1 › virtualized list restores scroll and query after conversation return (12.2s)
+  ✓  38 tests/browser/local-notifications.spec.ts:3:1 › local lab is opt-in and web never requests system permission; demo navigation remains usable (6.7s)
+  ✓  37 tests/browser/foundation.spec.ts:211:1 › single-use activation and reset, invalid link, repeated password (10.8s)
+  ✓  39 tests/browser/notifications.spec.ts:24:1 › fictitious notifications group and deduplicate; tap opens Chat with canonical incoming messages (9.9s)
+  ✓  40 tests/browser/foundation.spec.ts:256:1 › layers, simulated composer and recoverable data states (7.9s)
+  ✓  41 tests/browser/notifications.spec.ts:69:1 › permission states never request browser/OS permission; revoked groups disappear (7.8s)
+  ✓  42 tests/browser/notifications.spec.ts:112:1 › offline synchronization catches up once and does not alert on outgoing or expired events (5.8s)
+  ✓  43 tests/browser/notifications.spec.ts:137:1 › foreground restoration and sync error are recoverable (5.1s)
+  ✓  44 tests/browser/notifications.spec.ts:160:1 › cross-org, revoked membership and notification logout cannot open unauthorized chats (5.7s)
+  ✓  45 tests/browser/notifications.spec.ts:191:1 › advisor notification can open own chat and preserve existing details/history navigation (6.3s)
+
+  45 passed (4.0m)
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.2
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.2
+npm notice To update run: npm install -g npm@12.2.2
+npm notice

@@ -1,3 +1,7 @@
+# T-M5B · Pruebas locales Android
+
+Etapa actual en `codex/dashfort-mobile-tm5b-20261114`, desde T-M5A `3b85b3b`. Expo 58.0.25, notificaciones locales opt-in, sin tokens ni servicios remotos. APK 0.1.2 generada y verificada estáticamente; ejecución Android pendiente. Ver [APK](docs/tm5b/APK-VERIFICADA.md), [implementación](docs/tm5b/IMPLEMENTACION.md), [resultados](docs/tm5b/RESULTADOS.md) y [prueba Motorola](docs/tm5b/PRUEBA-MOTOROLA.md). Se conservan los informes históricos siguientes. Sin push ni T-M5C.
+
 # Dashfort Mobile · T-M1 a T-M4 + T-M5A simulada
 
 T-M5A añade contratos, aislamiento ficticio, registro/renovación/revocación simulados, agrupación, deduplicación, sincronización y apertura segura. Ver `docs/tm5a/IMPLEMENTACION.md`, `docs/tm5a/RESULTADOS.md` y `docs/tm5a/T-M5B.md`. No se instaló ningún SDK nativo ni se generó APK nueva; la 0.1.1 probada por el propietario permanece intacta.

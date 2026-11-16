@@ -1,0 +1,23 @@
+{
+  "base": "3b85b3bcc0f0039108b7d625541b55c612d6b636",
+  "source": "d3bd5825b529e4da14189210b25919ac1f42207f",
+  "all_changes_mobile": true,
+  "source_files_sha256": {
+    "apps/mobile/AGENTS.md": "b31eebaa7d774d98714ecb35882c84a80f726ba0e68159132d68abdb1542ffea",
+    "apps/mobile/app.json": "ef94dc344425f69a7d5983eea76298e533961eb0d22605c06ede276d3609f93a",
+    "apps/mobile/app/demo.tsx": "c11688a4c928f1fc04f7eb75c2197c67f56249dcad10f6d454cc57878db87bb5",
+    "apps/mobile/package-lock.json": "754f6b5c68c18c1ecd9f9b22c745826fa2295285c608fb12b73d0a240cd6cc52",
+    "apps/mobile/package.json": "c47756bd10c17c4570b2475309dfaf6d11d386913f8828a4de48475ed2b42561",
+    "apps/mobile/plugins/with-local-notifications.js": "8460bc4ec40cd4d98f43f48b10c5455dbfe3ad21bd8c14c11f7f3bb0b51a2811",
+    "apps/mobile/src/features/notifications/Lab.tsx": "b52be1318c07ecc1d306839aab604c1a3d43524c391a027f2654167243022d90",
+    "apps/mobile/src/features/notifications/LocalContext.tsx": "2e1bc4d7165fe1a9ccf9320019910f0218167561a47db50bb24de766be275e82",
+    "apps/mobile/src/features/notifications/context.tsx": "9e7717d822c48546e106d0e6085c53f01ac9d04614dacfce441b790b6a57fb67",
+    "apps/mobile/src/features/notifications/local-port.native.ts": "ada86fa30df886caf2f36350959c6a431005886fd57bf4a21dc2ecc9c9980525",
+    "apps/mobile/src/features/notifications/local-port.ts": "5898bb03e904e2bc7d6603fec265cc1e6562bfa38ad8a776056c6fc99f24eadb",
+    "apps/mobile/src/features/notifications/local.ts": "04b59010e4f7a5c389cf9a1ddb0db8082943b1ca853bd1ef445ca3828e6c382c",
+    "apps/mobile/tests/browser/local-notifications.spec.ts": "f39eb1be1ade22228bfa31753d02c7d7ec946c2fcf794bf32b043e4aaee24ec5",
+    "apps/mobile/tests/local-notifications.test.ts": "a45e0531434033ce9377a977a5ebc35513ad6c56788460143d1a72dfa2d4fcb1"
+  },
+  "previous_apk_unchanged_sha256": "dda720189d6eb004f394dc147ebd4b29cdde85aa61382afc5162ce2e4ace68a1",
+  "remote_push": false
+}

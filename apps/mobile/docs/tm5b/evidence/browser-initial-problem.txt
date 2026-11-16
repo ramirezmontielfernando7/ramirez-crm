@@ -1,0 +1,33 @@
+  1) tests/browser/notifications.spec.ts:191:1 › advisor notification can open own chat and preserve existing details/history navigation 
+
+    Test timeout of 45000ms exceeded.
+
+    Error: apiRequestContext._wrapApiCall: ENOENT: no such file or directory, copyfile '/workspace/work/ramirez-crm/apps/mobile/artifacts/playwright-results/.playwright-artifacts-0/traces/be7d0958780d1a4666e5-4f3be72f73afd9fb03c1-recording49.network' -> '/workspace/work/ramirez-crm/apps/mobile/artifacts/playwright-results/.playwright-artifacts-0/traces/be7d0958780d1a4666e5-4f3be72f73afd9fb03c1-recording49-pwnetcopy-1.network'
+
+    Error: browserContext._wrapApiCall: ENOENT: no such file or directory, copyfile '/workspace/work/ramirez-crm/apps/mobile/artifacts/playwright-results/.playwright-artifacts-0/traces/be7d0958780d1a4666e5-4f3be72f73afd9fb03c1-recording48.network' -> '/workspace/work/ramirez-crm/apps/mobile/artifacts/playwright-results/.playwright-artifacts-0/traces/be7d0958780d1a4666e5-4f3be72f73afd9fb03c1-recording48-pwnetcopy-1.network'
+
+    Error: locator.click: Test ended.
+    Call log:
+      - waiting for getByRole('button', { name: 'Entrar como Asesor', exact: true })
+
+
+       7 |   await page
+       8 |     .getByRole("button", { name: `Entrar como ${role}`, exact: true })
+    >  9 |     .click();
+         |      ^
+      10 |   await expect(
+      11 |     page.getByRole("heading", { name: "Bandeja", exact: true }),
+      12 |   ).toBeVisible();
+        at login (/workspace/work/ramirez-crm/apps/mobile/tests/browser/notifications.spec.ts:9:6)
+        at /workspace/work/ramirez-crm/apps/mobile/tests/browser/notifications.spec.ts:194:3
+
+    Error: ENOENT: no such file or directory, open '/workspace/work/ramirez-crm/apps/mobile/artifacts/playwright-results/.playwright-artifacts-0/7bb83819c76aab1e8ef587cab53bacee.zip'
+
+  1 failed
+    tests/browser/notifications.spec.ts:191:1 › advisor notification can open own chat and preserve existing details/history navigation 
+  43 passed (3.4m)
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.2
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.2
+npm notice To update run: npm install -g npm@12.2.2
+npm notice

@@ -1,0 +1,25 @@
+
+> dashfort-mobile-dev@0.1.0 test:browser
+> playwright test tests/browser/local-notifications.spec.ts tests/browser/notifications.spec.ts
+
+
+Running 7 tests using 2 workers
+
+(node:9482) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:9481) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  2 tests/browser/local-notifications.spec.ts:3:1 › local lab is opt-in and web never requests system permission; demo navigation remains usable (7.9s)
+  ✓  1 tests/browser/notifications.spec.ts:24:1 › fictitious notifications group and deduplicate; tap opens Chat with canonical incoming messages (8.6s)
+  ✓  3 tests/browser/notifications.spec.ts:69:1 › permission states never request browser/OS permission; revoked groups disappear (5.0s)
+  ✓  4 tests/browser/notifications.spec.ts:112:1 › offline synchronization catches up once and does not alert on outgoing or expired events (4.9s)
+  ✓  5 tests/browser/notifications.spec.ts:137:1 › foreground restoration and sync error are recoverable (5.2s)
+  ✓  6 tests/browser/notifications.spec.ts:160:1 › cross-org, revoked membership and notification logout cannot open unauthorized chats (5.0s)
+  ✓  7 tests/browser/notifications.spec.ts:191:1 › advisor notification can open own chat and preserve existing details/history navigation (6.0s)
+
+  7 passed (37.0s)
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.2
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.2
+npm notice To update run: npm install -g npm@12.2.2
+npm notice

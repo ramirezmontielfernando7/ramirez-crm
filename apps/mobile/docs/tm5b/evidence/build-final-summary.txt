@@ -1,0 +1,8 @@
+> Task :app:packageReleaseResources
+> Task :app:minifyReleaseWithR8
+> Task :app:lintVitalRelease
+> Task :app:validateSigningRelease
+> Task :app:packageRelease
+> Task :app:assembleRelease
+BUILD SUCCESSFUL in 11m 23s
+604 actionable tasks: 570 executed, 34 up-to-date

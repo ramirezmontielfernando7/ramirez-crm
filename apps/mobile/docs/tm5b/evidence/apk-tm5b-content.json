@@ -1,0 +1,21 @@
+{
+  "apk_sha256": "36f3a4781220eff96ef9938e1d07adbf9ceac7797254ad3cc94f2b7d75b18f7a",
+  "tm5b_hermes_markers": {
+    "dashfort-local-v1": true,
+    "dashfort-local-demo-v1": true,
+    "dashfort.demo.local-notifications.v1": true,
+    "Probar aviso local ahora": true,
+    "Solicitar permiso Android": true
+  },
+  "native_notification_modules_in_dex": {
+    "ExpoNotificationScheduler": true,
+    "ExpoNotificationPermissionsModule": true,
+    "ExpoNotificationsEmitter": true,
+    "ExpoNotificationChannelManager": true
+  },
+  "fcm_messaging_services_removed": true,
+  "firebase_auto_init_and_analytics_disabled": true,
+  "firebase_project_configuration_resources_absent": true,
+  "no_exact_alarm_or_vibration_permissions": true,
+  "device_execution_tested": false
+}
