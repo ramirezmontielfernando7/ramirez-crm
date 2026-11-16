@@ -1,0 +1,24 @@
+{
+  "base": "00fb8caad3e61beef0d7a802ee87e17cfb53df8c",
+  "approved_files_unchanged": 77,
+  "apk_unchanged_sha256": "36f3a4781220eff96ef9938e1d07adbf9ceac7797254ad3cc94f2b7d75b18f7a",
+  "runtime_imports_new_auth": [],
+  "network_implementations_in_auth": [],
+  "backend_main_reviewed": "834806ec8616375fd8acb7961ac0d830ac9d0066",
+  "source_sha256": {
+    "src/lib/auth/index.ts": "3b1d3cd9088f26493536961d60fe060c8d06c2245db90357d720c6c81b92415f",
+    "src/lib/auth/session.ts": "63476ee063cfb325d7294b323dee679dabf9f28811b1cb5c46550c2cbea9fc41",
+    "src/lib/auth/permissions.ts": "46b56ab56615aad37fe4e6542e3cacb24b6e1092b4e29024d1cd05c92352ad33",
+    "src/server/auth/on-signup.ts": "402a9745eea05e1b16eb8a204370ae2c18f50ddb5ccb4ba295544a897211763f",
+    "tsconfig.json": "d75d7b81f2bc7ec6f724d15568d46d5cf5ab42887bb90dee1aedcc1b2057ee30",
+    "eslint.config.mjs": "a0d54eefc7c3762dc1464f870d16bc266b30e7df25d9800d2cea63e35bdb47aa",
+    ".dockerignore": "e093713372b4eb8183bd37d6360005d10fde79cb91bf395ac6f4cd0663aed0dc",
+    "Dockerfile": "474bc03776520bc8d8feff6bb8a83846323edd869c359067f88e3e928bc201aa",
+    "vitest.config.ts": "426b108b6b452657816499c5dc868a8e52d95680a34c4e29ade308dd9fcbffc3"
+  },
+  "local_main": "95b7ea0b236b35ee29a1a288a55c315a050e3b6e",
+  "backend_started": false,
+  "database_connected": false,
+  "new_apk_built": false,
+  "push": false
+}

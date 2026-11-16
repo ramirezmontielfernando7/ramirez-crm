@@ -1,0 +1,42 @@
+✖ failing tests:
+
+test at tests/integration-i2p.test.ts:207:1
+✖ late login response cannot overwrite a newer user or persisted credential (7.217648ms)
+  AuthFault: stale
+      at PreparedAuth.operation (/workspace/work/ramirez-crm/apps/mobile/src/integration/auth/controller.ts:91:39) {
+    code: 'stale'
+  }
+
+test at tests/integration-i2p.test.ts:269:1
+✖ expiry during a request rejects late response and erases the binding (1.430276ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    Comparison {
+  +   message: 'stale'
+  -   message: 'unauthorized'
+    }
+  
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async TestContext.<anonymous> (/workspace/work/ramirez-crm/apps/mobile/tests/integration-i2p.test.ts:272:3)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: AuthFault: stale
+        at PreparedAuth.guarded (/workspace/work/ramirez-crm/apps/mobile/src/integration/auth/controller.ts:223:39)
+        at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+        at async waitForActual (node:assert:646:5)
+        at async strict.rejects (node:assert:769:25)
+        at async TestContext.<anonymous> (/workspace/work/ramirez-crm/apps/mobile/tests/integration-i2p.test.ts:272:3)
+        at async Test.run (node:internal/test_runner/test:1409:7)
+        at async Test.processPendingSubtests (node:internal/test_runner/test:974:7),
+    expected: { message: 'unauthorized' },
+    operator: 'rejects',
+    diff: 'simple'
+  }
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.2
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.2
+npm notice To update run: npm install -g npm@12.2.2
+npm notice

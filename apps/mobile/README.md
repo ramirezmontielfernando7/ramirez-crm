@@ -1,3 +1,7 @@
+# I2-P · Preparación aislada de autenticación
+
+Rama `codex/dashfort-mobile-i2p-20261116`, desde I1/00fb8ca. Contratos, lifecycle/vault, SecureStore opt-in de fixtures y transporte bloqueado, sin conexión ni cambios de UI o APK. Ver [resultados](docs/integration-i2p/RESULTADOS.md), [implementación](docs/integration-i2p/IMPLEMENTACION.md), [plan de activación](docs/integration-i2p/ENTORNO-Y-ACTIVACION.md) y [expediente para Claude](docs/integration-i2p/REVISION-CLAUDE.md). No activar I2 real ni hacer push sin autorización. Se conservan los informes anteriores como históricos.
+
 # I1 · Auditoría y preparación de integración (sin conexión)
 
 Rama `codex/dashfort-mobile-i1-20261115`, desde el checkpoint T-M5B `2bd4b62`. La APK 0.1.2 y la UI siguen intactas. Contratos y simuladores sin transporte HTTP, sin dependencias nuevas y sin conexión a producción. Ver [diagnóstico](docs/integration-i1/AUDITORIA.md), [arquitectura](docs/integration-i1/ARQUITECTURA.md), [matriz de módulos](docs/integration-i1/MODULOS.md), [plan I1–I7](docs/integration-i1/PLAN-I1-I7.md) y [resultados](docs/integration-i1/RESULTADOS.md). No iniciar I2 ni publicar sin autorización nueva.

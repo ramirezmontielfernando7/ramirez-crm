@@ -1,0 +1,59 @@
+
+> dashfort-mobile-dev@0.1.0 export:web
+> expo export --platform web
+
+Starting Metro Bundler
+
+Web Bundled 1178ms node_modules/expo-router/entry.js (3024 modules)
+
+› Assets (21):
+node_modules/@expo-google-fonts/inter/400Regular/Inter_400Regular.51b6ad87261f18b6433ec52871ddfabc.ttf (342KB)
+node_modules/@expo-google-fonts/inter/500Medium/Inter_500Medium.137ab18bace28dd0bd83eb3b8ed2bc54.ttf (343KB)
+node_modules/@expo-google-fonts/inter/600SemiBold/Inter_600SemiBold.a5f35888d2da465de352e0dcfaf33324.ttf (344KB)
+node_modules/expo-router/assets/arrow_down.017bc6ba3fc25503e5eb5e53826d48a8.png (9.5KB)
+node_modules/expo-router/assets/error.d1ea1496f9057eb392d5bbf3732a61b7.png (469B)
+node_modules/expo-router/assets/file.19eeb73b9593a38f8e9f418337fc7d10.png (138B)
+node_modules/expo-router/assets/forward.d8b800c443b8972542883e0b9de2bdc6.png (188B)
+node_modules/expo-router/assets/pkg.ab19f4cbc543357183a20571f68380a3.png (364B)
+node_modules/expo-router/assets/react-navigation/elements/back-icon-mask.0a328cd9c1afd0afe8e3b1ec5165b1b4.png (653B)
+node_modules/expo-router/assets/react-navigation/elements/back-icon.35ba0eaec5a4f5ed12ca16fabeae451d.png (207B)
+node_modules/expo-router/assets/react-navigation/elements/clear-icon.c94f6478e7ae0cdd9f15de1fcb9e5e55.png (4 variations | 425B)
+node_modules/expo-router/assets/react-navigation/elements/close-icon.808e1b1b9b53114ec2838071a7e6daa7.png (4 variations | 235B)
+node_modules/expo-router/assets/react-navigation/elements/search-icon.286d67d3f74808a60a78d3ebf1a5fb57.png (928B)
+node_modules/expo-router/assets/sitemap.412dd9275b6b48ad28f5e3d81bb1f626.png (465B)
+node_modules/expo-router/assets/unmatched.20e71bdf79e3a97bf55fd9e164041578.png (4.8KB)
+
+› web bundles (22):
+_expo/static/js/web/__common-50ae633528ae4306922f22c595e018e8.js (2.9MB)
+_expo/static/js/web/__expo-metro-runtime-8c088df87a31e4e6accd81c554ec290d.js (3.8KB)
+_expo/static/js/web/_layout-0978b536a213942e4eac485889b3a708.js (31KB)
+_expo/static/js/web/_layout-9c81640dd2210aea9751670c8345c105.js (2.8KB)
+_expo/static/js/web/[id]-1b88bd65f7fa79290d95a610ace3ea18.js (11KB)
+_expo/static/js/web/[id]-9e8ca26bd50d4ce04160d463f46cbbfb.js (3.8KB)
+_expo/static/js/web/[id]-a29bcdff60600042a17ed05c0c96c5f6.js (6.4KB)
+_expo/static/js/web/[id]-aae056ed10d9cc8e012c25c39d9967b6.js (241B)
+_expo/static/js/web/[id]-b10b56dd3fccad4fe8b32fcca0727178.js (17KB)
+_expo/static/js/web/[token]-58980bc4110d472263bec3df4dfa7c3b.js (270B)
+_expo/static/js/web/[token]-bb3f75488bf6d84129c1f29ba28d16e9.js (273B)
+_expo/static/js/web/+not-found-b8ebe5663f152a018ce43188bd147a10.js (495B)
+_expo/static/js/web/crm-fb12ad8c3b238fd98a8aa18993be5875.js (289B)
+_expo/static/js/web/demo-b69fd4ddd33b22b28c2a6002dc397f7b.js (9.7KB)
+_expo/static/js/web/entry-3ecd8aca32f861c972475d3bf1b7eadb.js (1.1MB)
+_expo/static/js/web/inbox-fbe170632785e01bae18d7e56287aba2.js (16KB)
+_expo/static/js/web/index-e6d82e9e5ddc04e11fbccd8df7616650.js (330B)
+_expo/static/js/web/login-f9d8871865a0e573c8c515e7693569bd.js (204B)
+_expo/static/js/web/marketing-b7cb2072e7f7289d25d7c5c5dae5da5e.js (302B)
+_expo/static/js/web/more-c4c508763cff38aee9122e5f7b882596.js (293B)
+_expo/static/js/web/register-0fe73aa17ed06dd6115e514f1bab73a1.js (207B)
+_expo/static/js/web/studio-4301cc4a54f5b9a813b2f9df6a46fed8.js (300B)
+
+› Files (2):
+index.html (1.4KB)
+metadata.json (49B)
+
+Exported: dist
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.2
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.2
+npm notice To update run: npm install -g npm@12.2.2
+npm notice
