@@ -1,0 +1,11 @@
+{
+  "backend_reference": "834806ec8616375fd8acb7961ac0d830ac9d0066",
+  "route_files": 262,
+  "http_methods_extracted": 396,
+  "inventory_scope": "static extraction, file-level auth markers; not a security verdict or live API verification",
+  "mobile_source": "d3bd5825b529e4da14189210b25919ac1f42207f",
+  "mobile_checkpoint": "2bd4b626dddd9310791aaeb05e4eab0f5d4e93cf",
+  "tm5a_remote": "3b85b3bcc0f0039108b7d625541b55c612d6b636",
+  "tm5b_remote_exists": false,
+  "production_access": false
+}

@@ -1,0 +1,263 @@
+route,methods,auth_markers_file,permissions_file,source,sha256
+/api/account-link/[token],GET POST,checkRateLimit,,src/app/api/account-link/[token]/route.ts,952aec2d6d5460195676610541977b10a53dc0cb4172505eb67831ebf5b8db12
+/api/agent/brain-status,GET,withAuth,,src/app/api/agent/brain-status/route.ts,77866987429e0534ce90b4617976b081ce301d661885430239c955eac942c03f
+/api/agent/pause,GET PUT,withAuth permission:,agent.manage,src/app/api/agent/pause/route.ts,9e26cff251d141279d774952f3af0f86beaeda846bab122b319201ec5513868a
+/api/agent/profile,GET PUT,withAuth permission:,agent.manage,src/app/api/agent/profile/route.ts,b06876687ee90e1e30f49103448a8fca38fdb6616cd0dadeeefe69172e7dc88b
+/api/ai-connector/activity,GET,withAuth,,src/app/api/ai-connector/activity/route.ts,dc171f370c7d78a28e3b400b912b8168449fb4fafad8fd0feb3a9057c0632983
+/api/ai-connector/connections/[id],DELETE PATCH,withAuth,,src/app/api/ai-connector/connections/[id]/route.ts,88810a0237ceccf02636295d4b738315fab0d43cc9e18a2c18e192f6f4df1a24
+/api/ai-connector/connections,GET POST,withAuth,,src/app/api/ai-connector/connections/route.ts,7c3784714dfd0259ade9226ec0ae09da4834d8729d285c0c23dc07933fe2e641
+/api/ai-connector/upload-links/[token]/close,POST,withAuth permission:,knowledge.manage,src/app/api/ai-connector/upload-links/[token]/close/route.ts,f61bdf3c21dc5be6f8766907cd1c991f969bf83b9e94f6b205dd674a2c08bfc3
+/api/ai-connector/upload-links/[token]/files,POST,withAuth permission:,knowledge.manage,src/app/api/ai-connector/upload-links/[token]/files/route.ts,0f5ccb00b3640ff70de4d3ddcf45b26de9307738aa2cac63bd3d47fcf4b8716d
+/api/analytics/ads,GET,withAuth permission:,results.read,src/app/api/analytics/ads/route.ts,dc0904ee98a8ee8615a71ffd5863b60a23bcc78c3fe30376de8fe8d9abf116a9
+/api/analytics/bot,GET,withAuth permission:,results.read,src/app/api/analytics/bot/route.ts,34d127006719310860c64d94e7a5a51e2538e4876e4e64d188fa19cf9a6f1f0b
+/api/analytics/hygiene,GET,withAuth permission:,results.read,src/app/api/analytics/hygiene/route.ts,8b6b3ee46695120b4e8b8c09d39c9845f78d7b2e5b22fe3cd32e8aa2fb5f0242
+/api/analytics/sales,GET,withAuth permission:,results.read,src/app/api/analytics/sales/route.ts,820fbc21584cb437e327ada647a290d02607760ca8a767ef26e563e55882ede7
+/api/analytics/team,GET,withAuth permission:,results.all,src/app/api/analytics/team/route.ts,3c2b1e516ce9da71d97e540a3f89dc00d8f79aec27b0820e859d99f2291441a4
+/api/assignments/bulk,POST,withAuth permission:,assignment.manage,src/app/api/assignments/bulk/route.ts,260e52e0f1cb54db6369056f2266ca37b36efd22036ecbc06eb86cd6415c0c80
+/api/assignments,POST,withAuth permission:,assignment.manage,src/app/api/assignments/route.ts,198fb6ebba6a9dec2a185f5a15644e79fdaadf815df661956df109e5dc723cb5
+/api/assistant/actions,POST,withAuth checkRateLimit permission:,assistant.use,src/app/api/assistant/actions/route.ts,5646dddb37547d29c118e279c35913698d822be9bcb9983c866d7719fbc87dda
+/api/assistant/ask,POST,withAuth checkRateLimit permission: isMockEnabled,assistant.use,src/app/api/assistant/ask/route.ts,da7b209f74e5306e62e28eb9f0672f3da3260ea0e7c34eb1782f3392e92c32a1
+/api/assistant/notice,POST,withAuth permission:,assistant.use,src/app/api/assistant/notice/route.ts,c31f4b595a49a756648ae39148605825be9295ccbb48c1bca04773854cd6ffce
+/api/assistant/status,GET,withAuth permission:,assistant.use,src/app/api/assistant/status/route.ts,58241b032c84672f6db8d8562ee1c5be8481a4a31b7496dfc55a5ba543c44895
+/api/assistant/threads/[id],GET DELETE PATCH,withAuth permission:,assistant.use,src/app/api/assistant/threads/[id]/route.ts,68b2f82cba69a794d3acab9ec40a46a4d9340e596a60cc59bf88f7aeddae1630
+/api/assistant/threads/bulk,POST,withAuth permission:,assistant.use,src/app/api/assistant/threads/bulk/route.ts,ea86cb219f53f52bf28f8c0c44def827505fb7b8d7268c73e2de777b06ee437f
+/api/assistant/threads,GET,withAuth permission:,assistant.use,src/app/api/assistant/threads/route.ts,f58e93239624922e02d206294390a6e04f70e8a9196c222236a2973282a8b394
+/api/auth/[...all],GET POST,manual-review,,src/app/api/auth/[...all]/route.ts,dcc801dbfea14b19bf1e429833b52f058e2aaea64e802645da337cea2bcfb0e3
+/api/bookings/[id],PATCH,withAuth,,src/app/api/bookings/[id]/route.ts,1a4202b2e3f4c7a50bd709cb040d38b52bd0d50c4cd7f4d4436b03fd090805d4
+/api/bookings,GET POST,withAuth,,src/app/api/bookings/route.ts,fd3926014be127c2b5503beb4713f302810f83518a0a498642c150ae4a3322ac
+/api/bot/availability,GET,requireBot,,src/app/api/bot/availability/route.ts,d156e73cac5cd279af9a47d7564460ccffaaf14d093bdef08a74b86bd7493a92
+/api/bot/bookings,POST PATCH,requireBot,,src/app/api/bot/bookings/route.ts,fb9687c80f2bc2556494173b1eda244c8d6bc4add968b19074c034e64922e8c4
+/api/bot/context,GET,requireBot,,src/app/api/bot/context/route.ts,94a7961294f88e98288aa3b79c0e47a86f0096cc409a7939973bdd3fe4ada07b
+/api/bot/ficha,PUT,requireBot,,src/app/api/bot/ficha/route.ts,b0408a2a77632c44a41ec0a350466b2baf0c4cbbdec3a21d1186b3a65deb2a3b
+/api/bot/handoff,POST,requireBot,,src/app/api/bot/handoff/route.ts,31fbed5b650ed0feb6de7eefe93e3b921dcd5a5df2d537fa866f47f60ca3bf8d
+/api/bot/media/[mediaId],GET,requireBot,,src/app/api/bot/media/[mediaId]/route.ts,fbb67bc8c98e799ad55a382d0c659188f24fe2c020896afe045b029cb764abe7
+/api/bot/messages,POST,requireBot,,src/app/api/bot/messages/route.ts,95cbad1b8d901a3bddd60942e9ba171f5d5476fd57ddd9798d1d74e7344a6f92
+/api/bot/profile,GET,requireBot,,src/app/api/bot/profile/route.ts,1315a0977932032307f943140201c57737f95a5c050273f20de2a2de69bca67c
+/api/bot/reset,POST,requireBot,,src/app/api/bot/reset/route.ts,8cf94cb8b4eb35be39ff6201d765a3f2e2af314ebdfa032d2383b932844f1494
+/api/bot/typing,POST,requireBot,,src/app/api/bot/typing/route.ts,d21f6536726da8379aebf736ec1d5822c809a01fab5a67e5a2c3b906e0e564b3
+/api/branding/favicon,GET,manual-review,,src/app/api/branding/favicon/route.ts,3d40cce0f161684ab9b625d175eaffde93e1d2d844a254f8495e37d34ac04f39
+/api/calendar/availability,GET,withAuth,,src/app/api/calendar/availability/route.ts,b42d30f3ba40d48621722b23d5fe5cee1a13eb2a928c202e6740fb2effa3cbad
+/api/calendar/settings,GET PUT,withAuth permission:,settings.manage,src/app/api/calendar/settings/route.ts,d583b847333418a6c3927ee59b317ae81bfb8b15d0aa56d98057cb38943c5dab
+/api/campaigns/[id]/recipients,GET,withAuth permission:,campaigns.manage,src/app/api/campaigns/[id]/recipients/route.ts,71291eb5af239b69836387dc4929b23b9613020a8b08ef9bf650b105f4504c15
+/api/campaigns/[id],GET DELETE,withAuth permission:,campaigns.manage,src/app/api/campaigns/[id]/route.ts,807117a4147fef315df5f35006141481fbadc25982b54907c2f9d915ac106ed9
+/api/campaigns/[id]/send,POST,withAuth permission:,campaigns.manage,src/app/api/campaigns/[id]/send/route.ts,83cff77006fadc4658373e9410385d46159f4711bc30f9bbc4b4305496dbb7e8
+/api/campaigns/[id]/state,POST,withAuth permission:,campaigns.manage,src/app/api/campaigns/[id]/state/route.ts,bb291ccb9f094ad243d646aabf22b8194054c3c8ded91464874fe551ce85f101
+/api/campaigns/[id]/test,POST,withAuth permission:,campaigns.manage,src/app/api/campaigns/[id]/test/route.ts,9cb50aecf360c2e5118a47f5806f3ccebdf5c1c9be52f42f168c5d71390d98c2
+/api/campaigns/alerts,GET,withAuth permission:,campaigns.manage,src/app/api/campaigns/alerts/route.ts,f737011eb8644c7ecf435e2ad4a4b0e0bd0e25c4481dd6463fa9b95b4e773f45
+/api/campaigns/audiences/[id]/failures,GET,withAuth permission:,campaigns.manage,src/app/api/campaigns/audiences/[id]/failures/route.ts,2425688d101ade27240c84934d24eb6e1f6d9c8eae1d64844aba7851f5cc4d8b
+/api/campaigns/audiences/[id],DELETE,withAuth permission:,campaigns.manage,src/app/api/campaigns/audiences/[id]/route.ts,a43a00f2cb5e518c1748c220e431e5b726674d6d65833b60e228fda936865194
+/api/campaigns/audiences/preview,POST,withAuth permission:,campaigns.manage,src/app/api/campaigns/audiences/preview/route.ts,65d780ccc91dbc3f87573d7d9cffeb0a72c6caa1c76736d8dce7f9782aa05435
+/api/campaigns/audiences,GET POST,withAuth permission:,campaigns.manage,src/app/api/campaigns/audiences/route.ts,1c356eaeafca21daabfb82f2cb276a04463fddb224073bf72e54f92146cc35e6
+/api/campaigns/audiences/sample,GET,withAuth permission:,campaigns.manage,src/app/api/campaigns/audiences/sample/route.ts,e6ea6645f8b2b3edc3813fb5b9155f24bbfff453213a6fbf6d19a45e6f7948ab
+/api/campaigns/metrics/export,GET,withAuth permission:,campaigns.manage,src/app/api/campaigns/metrics/export/route.ts,4ae31cb86f2c9032b77b83021e6a40885f9e8914705deba198a2071e8d19d4fc
+/api/campaigns/metrics,GET,withAuth permission:,campaigns.manage,src/app/api/campaigns/metrics/route.ts,e5c9f0dd0d7605145f263c433f0eed755991dce9748838d1277594019de0380d
+/api/campaigns/preview,POST,withAuth permission:,campaigns.manage,src/app/api/campaigns/preview/route.ts,0483b51d5cb7aaf905b4ed6a1230e16ead75f89ebcdc1f0410842d634492ee4b
+/api/campaigns,GET POST,withAuth permission:,campaigns.manage,src/app/api/campaigns/route.ts,1166e1ee0c6a64fabad493b8e2817c02e690f767b3cfef59f5eba405112b72b7
+/api/campaigns/settings,GET PUT,withAuth permission:,campaigns.manage,src/app/api/campaigns/settings/route.ts,6dbbb2bd8d35a963d3e0f8ec897519d477e73cee4da1a4f6885196334892150d
+/api/contact-tags/[id]/merge,GET POST,withAuth permission:,tags.manage,src/app/api/contact-tags/[id]/merge/route.ts,ff9208d070ac718ec400a87a412ab7d99900ccd41a967317dd2bdb70ab84b52f
+/api/contact-tags/[id],PATCH DELETE,withAuth permission:,tags.manage,src/app/api/contact-tags/[id]/route.ts,27f2cacedd3cff76aaa2b3935037d30da094e255b2dcdaa5464fc8467e8c9176
+/api/contact-tags,GET POST,withAuth permission:,tags.manage,src/app/api/contact-tags/route.ts,d28a27bcbfef241716a0c2ef0cd540a049d4e544d3f5dc2295b5495a5505a2d5
+/api/contacts/[id]/assignments,GET,withAuth,,src/app/api/contacts/[id]/assignments/route.ts,a64490be2a17565c26e4735fe5f79376c600a5eeda1a604cd18ebd8c0b292822
+/api/contacts/[id]/notes,POST,withAuth,,src/app/api/contacts/[id]/notes/route.ts,6b8a3e17770f9a92f7a4af072151bab42e8a4b74e440233e60047e4fdfa91ab5
+/api/contacts/[id]/participants,GET POST DELETE,withAuth permission:,assignment.manage,src/app/api/contacts/[id]/participants/route.ts,03c92819664eb9a704ffe1164e3f2acbf37e1238ccefc7e1a382c3ca37c227cc
+/api/contacts/[id],GET PATCH,withAuth,,src/app/api/contacts/[id]/route.ts,418fe112c0173b0c7a7fc232cb686656e7abe865174d873435cc00cb0231688f
+/api/contacts/[id]/start-conversation,POST,withAuth,,src/app/api/contacts/[id]/start-conversation/route.ts,a004dd41c8f697e55675286335f5eb6039cf5d98b998d41b059c22d05a3e8b42
+/api/contacts/[id]/tags,PUT,withAuth,,src/app/api/contacts/[id]/tags/route.ts,64465aad95e3e3f5c883dc1695085dc946ed80d0ab414aa433bb53d9adc88541
+/api/contacts/[id]/timeline,GET,withAuth,,src/app/api/contacts/[id]/timeline/route.ts,4c6220034e6deec4bbd6a33a26c6a2143bcb6c51fd628a350d37d28101de64fc
+/api/contacts/export,GET,withAuth permission:,contacts.export,src/app/api/contacts/export/route.ts,474508d9eb1a9d63cc3c97a312b6c5234d35b6ae7a9467ec8a29c5a01db1efe9
+/api/contacts/import/preview,POST,withAuth permission:,contacts.import,src/app/api/contacts/import/preview/route.ts,cd7059d43b9e1525ccebc227311f9ad2c334c0409062906ac32d20a6a35a146d
+/api/contacts/import,POST,withAuth permission:,contacts.import,src/app/api/contacts/import/route.ts,a656d2d42b112d1a0dac2c5f6ea4a26e46057bfc59e802e1934cd82dd0c764b6
+/api/contacts,GET POST,withAuth,,src/app/api/contacts/route.ts,beece75c5ca30e9d4e2d27d50e5cea387ef328655214846b177b4285bf6b8082
+/api/conversations/[id]/agent,GET,withAuth,,src/app/api/conversations/[id]/agent/route.ts,99cce32f917642e098b8a42efd5fb4b58d6809f0f6ae7bb054c2749028a54eea
+/api/conversations/[id]/claim,POST,withAuth,,src/app/api/conversations/[id]/claim/route.ts,b8930af777761193b924e0c82dfe2b5e19936faaa04fcb910df8dba8be3294e3
+/api/conversations/[id]/messages/knowledge,POST,withAuth,,src/app/api/conversations/[id]/messages/knowledge/route.ts,980de3c6cd72a0186158ac941735fac2246f72bc86ae52cbdf1361e9a52f0aa4
+/api/conversations/[id]/messages/media,POST,withAuth,,src/app/api/conversations/[id]/messages/media/route.ts,5e35baf1c64b43e51df51037d7a693b65942611f69e652aef62a3531f61903b0
+/api/conversations/[id]/messages,GET POST,withAuth,,src/app/api/conversations/[id]/messages/route.ts,08370be546c907e47cdfcc433c534a4bf047b5321fb598bbba100b40d9238912
+/api/conversations/[id]/messages/template,POST,withAuth,,src/app/api/conversations/[id]/messages/template/route.ts,c48cb1f8344df017eac575ad9f4d7bfa38ce9c34acbea0d3ed49856b5d7dc796
+/api/conversations/[id]/mode,PUT,withAuth permission:,direct_connection.mode,src/app/api/conversations/[id]/mode/route.ts,bad8c48ab885d6378eeecce1041d268b343992642ccf05b97784678346b67551
+/api/conversations/[id],PATCH DELETE,withAuth permission:,conversation.delete,src/app/api/conversations/[id]/route.ts,0dffe5ea862d0f258152687a858f6364758ddc09335c5435920cfb3f391f67cc
+/api/conversations/counts,GET,withAuth,,src/app/api/conversations/counts/route.ts,7de72a8dc20337176a516fc5acf9ef9605a68fe53c5e361757701cdf9fc59e03
+/api/conversations,GET,withAuth,,src/app/api/conversations/route.ts,8925bcd4d612ae74fec74b9e4dcf9e39e886b63b4b92a8956903acd6c2165165
+/api/conversations/unread,GET,withAuth,,src/app/api/conversations/unread/route.ts,38ae3af885441f9dc3016377f0fac06f6860523c47a722419bf18ac4f5552ed8
+/api/csp-report,POST,checkRateLimit,,src/app/api/csp-report/route.ts,00737afd0e3a497781480e68c9aa53c21f3f52233acf87ca279b37f7e6bca15a
+/api/data-export,GET,withAuth permission:,data.export,src/app/api/data-export/route.ts,14e65d2a6c588adc5fbf952472f29a16ba41489fe5fab877db061827ebc99c22
+/api/dev/ai-mock/assistant-log,GET DELETE,manual-review,,src/app/api/dev/ai-mock/assistant-log/route.ts,2289168dc41c7f9abbcb0210e41092c50a417badecd096c4e420246ba05cfe04
+/api/dev/ai-mock/chat/completions,inspect-export,manual-review,,src/app/api/dev/ai-mock/chat/completions/route.ts,5de20184e68d406b7db478492acd909ffd9550bde23a86d0d4f4bfa5a77532e6
+/api/dev/ai-mock/v1/chat/completions,POST,manual-review,,src/app/api/dev/ai-mock/v1/chat/completions/route.ts,3427262c4e01f23e4d7441fe8e3248b67c95f95c13a4c693a97a88b7252026d0
+/api/dev/ai-mock/v1/embeddings,POST GET,manual-review,,src/app/api/dev/ai-mock/v1/embeddings/route.ts,3dc022db195d6df7ba905c881158bb136ab743b261dfd5d4ee33bb57a0d29d30
+/api/dev/brain-status,DELETE,manual-review,,src/app/api/dev/brain-status/route.ts,2ab5cf22f31eb77339302d62e831694bf14cb5859d73a7002b1a4b1126a4cc09
+/api/dev/google-mock/[...path],POST GET PATCH DELETE,manual-review,,src/app/api/dev/google-mock/[...path]/route.ts,4b15672452fd4f0168180982787bd3c388ddfce4fdcc6a689f5f7d905d07f5b0
+/api/dev/wa-mock/analytics,POST,manual-review,,src/app/api/dev/wa-mock/analytics/route.ts,b80b4a358f304e532b953d80e889fd4c0066207a4674b4d9d552b2f5752b2f6b
+/api/dev/wa-mock/capi-events,GET DELETE,manual-review,,src/app/api/dev/wa-mock/capi-events/route.ts,29f2e098f0fc4cfdda0fc92a544c52c08ac42d0a793d91ad46e8324885c885e0
+/api/dev/wa-mock/echo,POST,manual-review,,src/app/api/dev/wa-mock/echo/route.ts,10f5d8c5d4ec4f9f34e9453c0c56ab11ef0448fbb1a8f0435b98526c0699ad29
+/api/dev/wa-mock/graph/[...path],GET POST DELETE,manual-review,,src/app/api/dev/wa-mock/graph/[...path]/route.ts,6aa1ded893a2afadbbccf63976e609f269d2ecb0fe70992e74e1b5cacdf5b571
+/api/dev/wa-mock/health,POST,manual-review,,src/app/api/dev/wa-mock/health/route.ts,8ada2abca59c3fe8a82c097fdd4ec5ca5cb7a1bebe01535dbd984f6fb00415f6
+/api/dev/wa-mock/inbound,POST,manual-review,,src/app/api/dev/wa-mock/inbound/route.ts,9b7bced66c8e0544d04168fc42fba6e4a123172491e76b20fa328cdbd1527bd9
+/api/dev/wa-mock/media-file/[id],GET,manual-review,,src/app/api/dev/wa-mock/media-file/[id]/route.ts,b4952efe33eea672f10c94bd5b1ac2408be1ab82e0e930c65b54974726397906
+/api/dev/wa-mock/outbox,GET DELETE,manual-review,,src/app/api/dev/wa-mock/outbox/route.ts,7404ab6c74e45e228aede134aada93f5be999a75725b988d3fd32f04f21db3c6
+/api/dev/wa-mock/seed-template,POST,manual-review,,src/app/api/dev/wa-mock/seed-template/route.ts,6072d24697c4e1e99c481f4b1f82df1ebbd25ce24127c5b1a0c3a512eb2e2006
+/api/dev/wa-mock/status,POST,manual-review,,src/app/api/dev/wa-mock/status/route.ts,8cbd84467c85225c6dd52867fc3dc4a2a83eb3a8a0c8138bdfb227ed44503ed1
+/api/dev/wa-mock/template-status,POST,manual-review,,src/app/api/dev/wa-mock/template-status/route.ts,e2ff8bb0a52245a84ec7ec7c3e4a3122f1e5a502434242597472ef225d085f8b
+/api/dev/wa-mock/waba-event,POST,manual-review,,src/app/api/dev/wa-mock/waba-event/route.ts,1f712883131f83a005caeb1d41bcca072cb3b109dd3d6514f62f23d2e6993a2a
+/api/dev/zernio-mock/[...path],GET POST,manual-review,,src/app/api/dev/zernio-mock/[...path]/route.ts,39c610dd928738d0002b34e8af0ec96cdfd761d033bd86b5d254e7a7dc7435d4
+/api/dev/zoom-mock/[...path],POST GET PATCH DELETE,manual-review,,src/app/api/dev/zoom-mock/[...path]/route.ts,76d3d1d95187780333bd80d60e30dc8808541ca1884f946172a39f53be01c841
+/api/events,GET,requireSession,,src/app/api/events/route.ts,179e28b0d77b9a01de0ed19b4448ee7ea72f24d0867a5fd981a8250b8539d44c
+/api/health,GET,manual-review,,src/app/api/health/route.ts,dbf151e05938aebc3ae362cd734e98f9206b701463dfa63e23f09dbe0a173518
+/api/inbox/new-number/open,POST,withAuth,,src/app/api/inbox/new-number/open/route.ts,b17fea51261d7bccfb8099dce90756cdaa2b3b4f40d6f7e2a80d764e049a7113
+/api/inbox/new-number/register,POST,withAuth,,src/app/api/inbox/new-number/register/route.ts,8c0eb6f8e2a1b8da56d9026b1c4dbcae1db2c7aac5f6f87bf90117775b983b12
+/api/inbox/new-number/send,POST,withAuth,,src/app/api/inbox/new-number/send/route.ts,c882584bae543fc3fee9d26a895593caad96e6cdae5d54f9c9eda16d1f35b819
+/api/kb/[id],PATCH DELETE,withAuth permission:,agent.manage,src/app/api/kb/[id]/route.ts,14f6fad36e830475bb4316c618fecec6a1360451cd51b7fc3b4ea67ad9d491bc
+/api/kb,GET POST,withAuth permission:,agent.manage,src/app/api/kb/route.ts,ab5ed69952c32cf114a25f6532d3b3958093e47d91a219b9cb55e4920d891d78
+/api/kb/size,GET,withAuth permission:,agent.manage,src/app/api/kb/size/route.ts,0e8b9cf834f0e7c17e47e91411377454b703447da4f8353c8163302288b751eb
+/api/knowledge/[id]/destinations,PATCH,withAuth permission:,knowledge.manage,src/app/api/knowledge/[id]/destinations/route.ts,208e44d9bc1442258133e1167f5285006cf5dbbc08a8d3b3c8fe7dc66afbe0c6
+/api/knowledge/[id]/file,GET,withAuth,,src/app/api/knowledge/[id]/file/route.ts,b3f39e62f2f7947668fd0e1e97cf89aee8d88264c5641b889ed4ae2815e7913c
+/api/knowledge/[id],GET PATCH DELETE,withAuth permission:,knowledge.manage,src/app/api/knowledge/[id]/route.ts,430fd995d276c250bac0685fd6a824c7fd9324f036392ed3cebe0cec4391267f
+/api/knowledge,GET POST,withAuth permission:,knowledge.manage,src/app/api/knowledge/route.ts,5004bfd192718219fdbefba3ca88798cf78a1d85902f76f585cdcd6a415dc522
+/api/lab/agents/[id]/draft,PUT,withAuth permission:,agent.manage,src/app/api/lab/agents/[id]/draft/route.ts,a78cb729365790c4e5c28204f8152b5a7fd97253cdd77513169d9936ffaca90c
+/api/lab/agents/[id]/make-general,POST,withAuth permission:,agent.manage,src/app/api/lab/agents/[id]/make-general/route.ts,553e5470e635424792241ef403a8df725c3d504b125d63bd7d7a68f29e32e2b3
+/api/lab/agents/[id]/pause,PUT,withAuth permission:,agent.manage,src/app/api/lab/agents/[id]/pause/route.ts,6e57e85ccd5146d16f0200e52a587ad7c1a62fd8e400c824944fb0c6f2c54ff1
+/api/lab/agents/[id]/publish,POST,withAuth permission:,agent.manage,src/app/api/lab/agents/[id]/publish/route.ts,1e52e06ef68c5857f2d5f0b001e292c1f6415261d79c9e3f13caf63c38526cb3
+/api/lab/agents/[id],GET PATCH DELETE,withAuth permission:,agent.manage,src/app/api/lab/agents/[id]/route.ts,b5f9007f4d541a1f4157ab32ec3c970e764a8dd187089d2791206559625135f7
+/api/lab/agents/[id]/versions/[logId]/restore,POST,withAuth permission:,agent.manage,src/app/api/lab/agents/[id]/versions/[logId]/restore/route.ts,ea9e27883cb2e0df0fe5fbe7bac4d9638e4e464f5a3f5285f3d5b46393f5a35c
+/api/lab/agents/[id]/versions,GET,withAuth permission:,agent.manage,src/app/api/lab/agents/[id]/versions/route.ts,ec57c1888a6481a2f5ad46ce2abaefd86cb7ea27dec31c8e4afd0eacbd1a0a79
+/api/lab/agents,GET POST,withAuth permission:,agent.manage,src/app/api/lab/agents/route.ts,80d47373efa0b2cec68ae331c8e5e43e2ff3df25c195dd80aa673e9bbd74bc08
+/api/lab/agents/stats,GET,withAuth permission:,agent.manage,src/app/api/lab/agents/stats/route.ts,8d5d92152e1ec47cbbe345440b7b288a2cf9dbdc331f4e96c8dd049759b1bb2f
+/api/lab/assignments/[stageId],PUT DELETE,withAuth permission:,agent.manage,src/app/api/lab/assignments/[stageId]/route.ts,c52be02a0c04de1b66eb13ea1008d2e82350de7342b807fdcd75cbcb7cab917e
+/api/lab/assignments,GET,withAuth permission:,agent.manage,src/app/api/lab/assignments/route.ts,dacd4de8255dabcf4835ff88a22a36bcd8cc6a82e6871e2742b04274b9c663fd
+/api/lab/creator,POST,withAuth checkRateLimit permission:,agent.manage,src/app/api/lab/creator/route.ts,ba4ef7b2b8f30b483fc4b9f66dafb654f797f8843fb9d6d9e3b697cab82781b8
+/api/lab/document-groups/[id],PATCH DELETE,withAuth permission:,agent.manage,src/app/api/lab/document-groups/[id]/route.ts,25ca8e3dbf27ed5524b049b0cf5ede574ef7f2c527ae62602153f9a8cf98ad0b
+/api/lab/document-groups,GET POST,withAuth permission:,agent.manage,src/app/api/lab/document-groups/route.ts,70fb41c3faf725097f1f6843a46042846719f9167c022fbfb80fe46f1e8f518a
+/api/lab/documents/[id]/reindex,POST,withAuth permission:,agent.manage,src/app/api/lab/documents/[id]/reindex/route.ts,1e998ad74ef210a70660f49a0cc92331e0ec7bd9bf37fb5b832d0f5e18151c48
+/api/lab/documents/[id],GET PATCH DELETE,withAuth permission:,agent.manage,src/app/api/lab/documents/[id]/route.ts,0a7d01f8cd7bf554dc5ec5a67b54d42bfef6447122848030a3d6c93b1b516edf
+/api/lab/documents,GET POST,withAuth checkRateLimit permission:,agent.manage,src/app/api/lab/documents/route.ts,73f8fd9d7f43693a32cf8329d770df028c53e341a0edf9c5bf17c8b00f18be11
+/api/lab/preview,POST,withAuth checkRateLimit permission:,agent.manage,src/app/api/lab/preview/route.ts,463a7bf72143d2559b46ff370c8f9e9af12cdb4096f80566bd14df4ebfb25c2c
+/api/lab/review,POST,withAuth checkRateLimit permission:,agent.manage,src/app/api/lab/review/route.ts,a35d839dc355b886bba6d751ba5d4e7853811a557182b950733eb6620e498c8d
+/api/lab/runs/[id],GET,withAuth permission:,agent.manage,src/app/api/lab/runs/[id]/route.ts,c223091232de600eab29b28bed03213bd11eed159b58062db0c5ceab728c2e45
+/api/lab/runs,GET POST,withAuth permission:,agent.manage,src/app/api/lab/runs/route.ts,335702c780feb541afc52ae6d795d56d70ee95facea0ab70407233e33eae8f28
+/api/mcp,POST GET DELETE OPTIONS,requireMcpToken,,src/app/api/mcp/route.ts,3b17ef856a9fc112a53c99abe9b036f81075f1143a1ca28871cad83b6b100f45
+/api/media/[assetId],GET,withAuth,,src/app/api/media/[assetId]/route.ts,b034c0de8a3edac2d6cd1faedd4073523a9d7969c3d03f23ad0929bf4f2980f9
+/api/my-number/access/[id],PATCH,withAuth,,src/app/api/my-number/access/[id]/route.ts,8790508394682ad773ffeb82d591bf6e2c8ea369ccdf879eafe440ced9c7dae0
+/api/my-number/access,GET POST,withAuth,,src/app/api/my-number/access/route.ts,d36797c4a37ac7f6490e9ad7f3e5292219a5629e177a0c11acc914c2b28db01e
+/api/my-number/chats/[id]/ai,PUT,withAuth,,src/app/api/my-number/chats/[id]/ai/route.ts,5d2cd816c0a91fcb20cfd5881f303d19144518da9a6bed4f52bcfee23d459795
+/api/my-number/chats/[id]/client,POST DELETE PUT,withAuth,,src/app/api/my-number/chats/[id]/client/route.ts,ef2467ddf8171ce35088cc3742aeb6b24d72694724063ac81cf45deb16cfaf25
+/api/my-number/chats/[id]/messages/knowledge,POST,withAuth,,src/app/api/my-number/chats/[id]/messages/knowledge/route.ts,03ceb63b096601aedf5c1a42211dd7ffe079fb6c396e473d3f3730f3488d1671
+/api/my-number/chats/[id]/messages/media,POST,withAuth,,src/app/api/my-number/chats/[id]/messages/media/route.ts,113f74167494ee3c6b7d4f05800c5e7adb1a2cb38390764aee938dfb20f9a375
+/api/my-number/chats/[id]/messages,GET POST,withAuth,,src/app/api/my-number/chats/[id]/messages/route.ts,172e5f0ad2902a428a2dc670be5242c07bc1188b9d767725bdd6906630520895
+/api/my-number/chats/[id]/overlaps,GET,withAuth,,src/app/api/my-number/chats/[id]/overlaps/route.ts,f54c69a6c468d72ec91a34aec78f9f0f7e0dfb138adac30751222618d96b140a
+/api/my-number/chats/open,POST,withAuth,,src/app/api/my-number/chats/open/route.ts,5340c6ea6bae5f5b5a7c10b2354e332ba93cb96ee39665af82ea0e7e8d1a00bb
+/api/my-number/chats,GET,withAuth,,src/app/api/my-number/chats/route.ts,e74b35fc9a5be43886ad70d8750215d19c9bb965e80cfd683c876a69168c2cad
+/api/my-number/shared/[id]/messages,GET,withAuth,,src/app/api/my-number/shared/[id]/messages/route.ts,19e6e19d9083a320b73a5e2a1c07902edd4bf6a695a4f8881bc6f255091562c7
+/api/my-number/team/[id]/access,POST,withAuth permission:,mi_numero.manage,src/app/api/my-number/team/[id]/access/route.ts,805d39580ac7771634ea9870ec724fc15bafda71c52ab9a3582d5f9b76d8c497
+/api/my-number/team/[id]/messages,GET,withAuth permission:,mi_numero.manage,src/app/api/my-number/team/[id]/messages/route.ts,88c7a711690633ac1cb075404d2cb5c16bbc6aae763e3914c113a92f895c7807
+/api/my-number/team,GET,withAuth permission:,mi_numero.manage,src/app/api/my-number/team/route.ts,f5c3a4d62f893440632d4537c496c368f43f240c5fdfa34ab2c205eb837736bb
+/api/notices,GET,withAuth,,src/app/api/notices/route.ts,e291eab1d6200cd7ccd176a32c64ab7604aa4d8db4a37e8ed1955235f959b8d1
+/api/number-health,GET POST,withAuth permission:,number_health.read,src/app/api/number-health/route.ts,1b971e9f915a7b363f01c6668f783a70b878f15feb51d99011f0468d3da9c471
+/api/oauth/authorize,POST,withAuth,,src/app/api/oauth/authorize/route.ts,38a3857dd6382927905566867565211e15783e20b6d595af929d70663d31f4c1
+/api/oauth/register,POST OPTIONS,checkRateLimit,,src/app/api/oauth/register/route.ts,967b28a90f2ad6ba0ebcf184db17e783f8c0790413322c46d649d1d217aa7b6a
+/api/oauth/revoke,POST,checkRateLimit,,src/app/api/oauth/revoke/route.ts,26bd88cddab404cb22c1907d11598a3cc743b0b0cc7a5a99e50558689bd68907
+/api/oauth/token,POST OPTIONS,checkRateLimit,,src/app/api/oauth/token/route.ts,66f309877568f07d8c2d27c93f7c316c9d0bb182319c7ba425d550942d2fdb08
+/api/onboarding,GET PUT,withAuth permission:,settings.manage,src/app/api/onboarding/route.ts,676618f29fa2253a53165adb9c1508630bbaabe1ec948c140d8eb460c7fc926e
+/api/pipeline/board,GET,withAuth,,src/app/api/pipeline/board/route.ts,39adfe4ef65952fba2c1d2bfcf50f16a0a611632b567ebcde960b9ac9d17eec7
+/api/pipeline/leads/[id],PATCH,withAuth,,src/app/api/pipeline/leads/[id]/route.ts,db48a2683280497d4bb302ccbaba5f0e8ede44e2b832f45b6a18ac708f5c1bff
+/api/pipeline/loss-reasons/[id],PATCH,withAuth permission:,pipeline.edit,src/app/api/pipeline/loss-reasons/[id]/route.ts,20cb7add7a46bdac1bd663e0ca6088d0f852b388cf95b5fb0f22ac9ad2df8849
+/api/pipeline/loss-reasons,GET POST,withAuth permission:,pipeline.edit,src/app/api/pipeline/loss-reasons/route.ts,91aec694fc70e826482ddfabc239b4a462f079032aa893a7880d6561bbfbdadc
+/api/pipeline/stages/[id],PATCH DELETE,withAuth permission:,pipeline.edit,src/app/api/pipeline/stages/[id]/route.ts,217fecda00b9f85b7b656e28fe4e6fe71c5e0732c0f9fbe55eb6e311bd279dc5
+/api/pipeline/stages,GET POST,withAuth permission:,pipeline.edit,src/app/api/pipeline/stages/route.ts,4d8df56ceb68f02ac864779f7500436881ed40c194dd04de35bc6cf00bdfc52a
+/api/platform/admins,GET,manual-review,,src/app/api/platform/admins/route.ts,d5d68f5c980f13206324a10a611fd47e60c72845cb0ce58b4c36789d000569d8
+/api/platform/ai-models,GET,manual-review,,src/app/api/platform/ai-models/route.ts,eb85fc6064af72d88a12beaae8205fc455982bd9bda18ae5d449a5c0d42f8083
+/api/platform/ai-models/test,POST,checkRateLimit,,src/app/api/platform/ai-models/test/route.ts,16f69c373de52da98526ff8f887fea24827ee59fca70973147865c2e8bf72efb
+/api/platform/ai-settings,GET PUT,manual-review,,src/app/api/platform/ai-settings/route.ts,8e8d5b4ec36deac2a11cf550e1351b230a016627f1baf9a86de9c13bbc6e0272
+/api/platform/audit,GET,manual-review,,src/app/api/platform/audit/route.ts,17cc4aaf347d1c64196b9c7d6bda1d633ec8fb5a450e266646c8c830b8091b70
+/api/platform/controls,GET PUT,manual-review,,src/app/api/platform/controls/route.ts,b85eea4119a7951ae551f89c62e799dcefdcc0ca90f9642cebae1778b670e349
+/api/platform/costs/capacity,GET,manual-review,,src/app/api/platform/costs/capacity/route.ts,3c2611a964efdcf3afb00096f4aae6900a7495f1846679ede9119f58a3cdcb89
+/api/platform/costs,GET,manual-review,,src/app/api/platform/costs/route.ts,e635f30e6577a3d7ddfb489e604bf7f1a0c64029b88ad9f4f2a96096ad743d84
+/api/platform/direct-servers/[id],PATCH DELETE,manual-review,,src/app/api/platform/direct-servers/[id]/route.ts,22339dc05467665dbd507305fe59e3eb0654f93d10e9a55d5b9f64bcf1e44407
+/api/platform/direct-servers/[id]/test,POST,manual-review,,src/app/api/platform/direct-servers/[id]/test/route.ts,0dbba7484c1bd93c27bf1c3641ea264ec4586196c4863f7f8cc5fc6c53e9eca6
+/api/platform/direct-servers,GET POST,manual-review,,src/app/api/platform/direct-servers/route.ts,aab1d22a34f91bd195efba12c82d9608c6cff48d6a9681321c2045cb0598bd9d
+/api/platform/organizations/[id]/ai,GET PUT,manual-review,,src/app/api/platform/organizations/[id]/ai/route.ts,ed60152085a572b44f6de853917e49f1db7b59d47ecfe8ef708eefc81cb77104
+/api/platform/organizations/[id]/billing/payments,POST,manual-review,,src/app/api/platform/organizations/[id]/billing/payments/route.ts,1dec1867f9efe1bd69bf3a29058d2d5ccd9b58729c82611d1a73c9538a43317f
+/api/platform/organizations/[id]/billing,GET PUT,manual-review,,src/app/api/platform/organizations/[id]/billing/route.ts,822d93f872376f927fa65c655bf52ec657eb7b8eed392397709da1169e755e7e
+/api/platform/organizations/[id]/direct-connection,GET PUT PATCH,manual-review,,src/app/api/platform/organizations/[id]/direct-connection/route.ts,e6cc756a0c7da3b23928497759dd2b564b623963c3b5c2483057ce7d313c61ed
+/api/platform/organizations/[id]/limits,GET PUT,manual-review,,src/app/api/platform/organizations/[id]/limits/route.ts,ed75b768674c374f7e7b9b65890da6ac01e45cd68fa576cbf5dcecb82708d3af
+/api/platform/organizations/[id]/members,GET,manual-review,,src/app/api/platform/organizations/[id]/members/route.ts,59d093d5771d41a08272f7563890e7ea262c8b8ed289cff37c44e1543df9d828
+/api/platform/organizations/[id]/modules,POST,manual-review,,src/app/api/platform/organizations/[id]/modules/route.ts,055d620a49a7f82e12f39fee6baae8c73420897bbfbd62ebc2bc547a92df4074
+/api/platform/organizations/[id]/status,POST,manual-review,,src/app/api/platform/organizations/[id]/status/route.ts,f2371a7680de796a7098673cda837a279252c714fe48749189287b7208bdbf91
+/api/platform/organizations/[id]/summary,GET,manual-review,,src/app/api/platform/organizations/[id]/summary/route.ts,426029aa6848ac79aa6604a891bc00b27e386f29b2ea2b1b8d315cbaab5670e1
+/api/platform/organizations/[id]/usage,GET,manual-review,,src/app/api/platform/organizations/[id]/usage/route.ts,1fad3701e6dbfdb26f6cb158d0683782fd9247022ce8ee3b49290e5d6774ca9a
+/api/platform/organizations,GET POST,manual-review,,src/app/api/platform/organizations/route.ts,4ca9c11e47dac95f2112674642ddfe5911defa11893447e68cf1a8ac722e56b4
+/api/platform/plans,GET PUT,manual-review,,src/app/api/platform/plans/route.ts,e63aac8f4b0b4d7c0c32dbb158b048568c7e0ccef3b232b55e1b4f6c8f260e4f
+/api/platform/pricing/openrouter,POST,manual-review,,src/app/api/platform/pricing/openrouter/route.ts,73599f8c3744bbcfc118053c9afaaee18a1ee378229fb269c3c06cd3d651c20b
+/api/platform/pricing,GET POST,manual-review,,src/app/api/platform/pricing/route.ts,d07401873a351b9b2c6ccfccad710d4b3714eb5aaa9dad05d97dce08d65a215b
+/api/platform/users/[id]/link,POST,manual-review,,src/app/api/platform/users/[id]/link/route.ts,169e049d6b2445a45e7232d63ca8d0b4aff1068ee23885996c95c4addde0f15e
+/api/platform/webhooks,GET,manual-review,,src/app/api/platform/webhooks/route.ts,dd93d615d7641891e6194f422124d67c3f7ab3f92656cdff72db3553cffcf2c4
+/api/preferences,GET PUT,withAuth,,src/app/api/preferences/route.ts,c86f95faf3f4d2169f7704bc704107eec453b0942ab8a152ca4d44720325ae4d
+/api/quick-replies/[id],PATCH DELETE,withAuth permission:,templates.manage,src/app/api/quick-replies/[id]/route.ts,c3b8ffd77cf30d1124708dd2377f1b2348e3551cc92d6d116fdc49610be543d4
+/api/quick-replies,GET POST,withAuth permission:,templates.manage,src/app/api/quick-replies/route.ts,63dd28b70ed7f458f0ba70c16e0eaf3224f96c05ed288a41e2a72022f3fcebe5
+/api/seed/demo,POST DELETE,withAuth permission:,settings.manage,src/app/api/seed/demo/route.ts,74a20ba3c616d5bcff542da7c071f13c153c548c2dcd13b613047c3ff9a9627e
+/api/settings/advisor-new-chats,GET PUT,withAuth permission:,settings.manage,src/app/api/settings/advisor-new-chats/route.ts,aa03be4c3815e2b859ba42953be95cf24c42d1d8c37f29c2a97574795bd8dacf
+/api/settings/ai-connector/activity,GET,withAuth permission:,settings.manage,src/app/api/settings/ai-connector/activity/route.ts,c33a06a077171ce1d9e7c5325396aa42c18c3b37052ef28ef929d3f01cb97abc
+/api/settings/ai-connector,GET PUT,withAuth permission:,settings.manage,src/app/api/settings/ai-connector/route.ts,9569266067ed9fe1f1d50143e7295791bb65ae88cace88e647ac2c09749eec92
+/api/settings/appearance,PUT,withAuth permission:,settings.manage,src/app/api/settings/appearance/route.ts,b6f2ac5ba319dbaed2d7f602c25f83c5b30abe1c28ba060edd34ee63e1fe6452
+/api/settings/assignment-mode,GET PUT,withAuth permission:,assignment.manage,src/app/api/settings/assignment-mode/route.ts,9eb363fab8c2bf6c48ce88885c0184554302ffa6d1cfdd52d916fea59bc292d6
+/api/settings/auto-replies,GET PUT,withAuth permission:,settings.manage,src/app/api/settings/auto-replies/route.ts,73e6c9d3f9431bb922c73db8fdfc62f360891faeb8f5f95f4bc87de5980b0f2a
+/api/settings/branding/favicon,PUT DELETE,withAuth permission:,settings.manage,src/app/api/settings/branding/favicon/route.ts,4fca38d84b1f14d07666912372d9519d93c90063f00b4c3f96eb7cb106f4e98f
+/api/settings/branding,GET PUT,withAuth permission:,settings.manage,src/app/api/settings/branding/route.ts,d43c38d059124dd280509e2d0f22ae4aa8dcc984223e65f0fb81add19a8889b5
+/api/settings/capi/events,GET,withAuth permission:,settings.manage,src/app/api/settings/capi/events/route.ts,98dfc9e18dec633b9e37985170cf5c6043901e3fd14795dbc4d3254d5f6808a7
+/api/settings/capi,GET PUT DELETE,withAuth permission:,settings.manage,src/app/api/settings/capi/route.ts,18202f36c64d540c73c3b18e59a8e97269d2ff804fcfe8368bac1ce3c11a3a79
+/api/settings/chat-visibility,GET PUT,withAuth permission:,settings.manage,src/app/api/settings/chat-visibility/route.ts,1eaf67425db9ec928b7d2dacb7ad76171cb420f50108a218dfbb08436cae7ca2
+/api/settings/direct-connection/advanced,GET PUT,withAuth permission:,direct_connection.limits,src/app/api/settings/direct-connection/advanced/route.ts,fbe7e7400fb073c20984ead90f47b8833f625411dd36be59c3fa9818dd57ef25
+/api/settings/direct-connection/apply-all,GET POST,withAuth permission:,direct_connection.mode,src/app/api/settings/direct-connection/apply-all/route.ts,3879864964780696c02d6dcdd2277d39d446567b1625bd86ca1118bcb336e8a0
+/api/settings/direct-connection/limits,GET PUT,withAuth permission:,direct_connection.limits,src/app/api/settings/direct-connection/limits/route.ts,5f1b3193fe539126c38019ea4736e66c87ae2a6139383d8411f3be9b416fcb26
+/api/settings/direct-connection,GET POST DELETE,withAuth permission:,direct_connection.link,src/app/api/settings/direct-connection/route.ts,f2da848bbeac84d9f606d422417a00b8d89a14734046c37f7d631fa4601453e0
+/api/settings/google,GET PUT DELETE,withAuth permission:,settings.manage,src/app/api/settings/google/route.ts,1db20383997e755bbdc5dc7b8acb826df3da1276287ba966be7a8a42e00ecd35
+/api/settings/google/test,POST,withAuth permission:,settings.manage,src/app/api/settings/google/test/route.ts,81580c522ae2047b24806bbf6e50393e352fe0f3c9cbd8c7cbdbe1eb332c0ce2
+/api/settings/instagram,GET PUT,withAuth permission:,settings.manage,src/app/api/settings/instagram/route.ts,38aed24bc61704a4afe25b1681f359cfe58b919894deb91ca450afcbea656bc5
+/api/settings/messaging,GET PUT,withAuth permission:,settings.manage,src/app/api/settings/messaging/route.ts,4f05858434ce8994c2ac0e3d8cb9f6d5b0de7bf69fded7e8c1e30af6f912ebdd
+/api/settings/messenger,GET PUT,withAuth permission:,settings.manage,src/app/api/settings/messenger/route.ts,83a8e44b24286e7c699a4c47f2df258f0e94e9de82846eff50fe2d1e65b5497d
+/api/settings/mi-numero/[id],PATCH DELETE,withAuth permission:,mi_numero.manage,src/app/api/settings/mi-numero/[id]/route.ts,2578f243ea75dffb2fb06cec468155854d83c12d38d7ee1a4e6d8ea43d9c1820
+/api/settings/mi-numero,GET POST,withAuth permission:,mi_numero.manage,src/app/api/settings/mi-numero/route.ts,342d4bf02d4290bdd963cb2227e4711f41792b8f87928f3d6175ac7a788a1967
+/api/settings/my-number/link,GET POST DELETE,withAuth,,src/app/api/settings/my-number/link/route.ts,c522b355bf38591052949ae198cff030698ff47d20b98765493e50bd25b8d4c3
+/api/settings/my-number,GET PATCH,withAuth,,src/app/api/settings/my-number/route.ts,488e5016c2f7d17f222a0d367a25835aad2db31c9057f177c61ddb4d3719555c
+/api/settings/navigation,GET PUT DELETE,withAuth permission:,settings.manage,src/app/api/settings/navigation/route.ts,9e45d0f610b6afff586dcc85f88875a47370b0bbc3c48ad86cbb369999359b16
+/api/settings/team/[id]/link,POST,withAuth checkRateLimit permission:,users.manage,src/app/api/settings/team/[id]/link/route.ts,c699a24eb918acaf85fd5a276f44391229669a6d4fb92a18432cf721557b954e
+/api/settings/team/[id],PATCH DELETE,withAuth permission:,users.manage,src/app/api/settings/team/[id]/route.ts,814ec8a68d0a4b62aaf69b6c42ef4c7697804c53b46e05490f96863f787fc0a7
+/api/settings/team,GET POST,withAuth checkRateLimit permission:,users.manage users.read,src/app/api/settings/team/route.ts,e00bff9655ed19ca7fdaf131a8d7839244d1a65987539c90dd68f234b6915278
+/api/settings/team-sla,GET PUT,withAuth permission:,results.all settings.manage,src/app/api/settings/team-sla/route.ts,4907c87004bced4c3f9557cf882a27a896a9e54b1800a4f75dd3b560344f59f2
+/api/settings/webhook,GET,withAuth permission: signature,settings.manage,src/app/api/settings/webhook/route.ts,b1e3ecf01c805acbfda2caf79a3cfed028123a25fa16b3fc7200e9c32cff21af
+/api/settings/whatsapp/embedded-signup,POST,withAuth permission:,settings.manage,src/app/api/settings/whatsapp/embedded-signup/route.ts,12b80e736bc02fbe7f456d3cf1682f062ec0dbdc55d55c7a30831dec194499ae
+/api/settings/whatsapp/numbers/[phoneNumberId],PATCH DELETE,withAuth permission:,settings.manage,src/app/api/settings/whatsapp/numbers/[phoneNumberId]/route.ts,0a53dd29200122dd4ae97ccd8da54a9b36784407af22f3753b2f3c0421c13730
+/api/settings/whatsapp,GET PUT,withAuth permission:,settings.manage,src/app/api/settings/whatsapp/route.ts,f8c9020aa59ec79eb4264b1738f2f783454ebb1145bae14bd695353c188cc039
+/api/settings/whatsapp/test,POST,withAuth permission:,settings.manage,src/app/api/settings/whatsapp/test/route.ts,b5382fe23871337375cbf0cae4b8d643403294f1336fe0910dc00c94990c7f7d
+/api/settings/zoom,GET PUT DELETE,withAuth permission:,settings.manage,src/app/api/settings/zoom/route.ts,c12a8018f7f4cdad671f92d3b36f166dc090d50874a5a6177c450597d2023ff4
+/api/settings/zoom/test,POST,withAuth permission:,settings.manage,src/app/api/settings/zoom/test/route.ts,10d2ddecda4ef57433dc194b164855eeefb02d659c4147b930da98f5c32d8cb8
+/api/team-chat/attachments/[id],GET,withAuth,,src/app/api/team-chat/attachments/[id]/route.ts,c828bc829cd557b7d47eea62bbd7e2f72359e8d47cafe9a834b7728755d10e7b
+/api/team-chat/groups/[id],PATCH DELETE,withAuth permission:,team_chat.create_groups,src/app/api/team-chat/groups/[id]/route.ts,be07c236b56b4bc9958fe5e8be27a4380aee11074113bc495a75721252d1a953
+/api/team-chat/groups,GET POST,withAuth permission:,team_chat.create_groups,src/app/api/team-chat/groups/route.ts,d62924dc25d890f8cc722fa03c366c06deebdba52e9c3bcc8370e7fea2486261
+/api/team-chat/messages/[id]/reactions,PUT DELETE,withAuth,,src/app/api/team-chat/messages/[id]/reactions/route.ts,0114fe051acc8dcbb8a7e3d3670a10c56e8a2d7192df31886852bc00feec466c
+/api/team-chat/messages/[id],GET PATCH DELETE,withAuth,,src/app/api/team-chat/messages/[id]/route.ts,8c73773509a0d03ac486719a95a71ed0335ce391596ecde06360ea6d31f029cb
+/api/team-chat/people,GET,withAuth,,src/app/api/team-chat/people/route.ts,3c3b77a85428a15d97882105b41694b55eb10220bf568c3baa9c3adaeda53688
+/api/team-chat/settings,GET PUT,withAuth permission:,team_chat.oversee,src/app/api/team-chat/settings/route.ts,6c396054c9c7b91e8708ae271a51c59170d8620acf73112245116f0dbb1f8782
+/api/team-chat/threads/[id]/messages/knowledge,POST,withAuth,,src/app/api/team-chat/threads/[id]/messages/knowledge/route.ts,f40fb150bd20789caa416e26eaafad88e120527354a4ec0425176398ad204dc1
+/api/team-chat/threads/[id]/messages,GET POST,withAuth,,src/app/api/team-chat/threads/[id]/messages/route.ts,b6fa808e96a6ffe7f5ce2298b9fdf8f325245911c9146c72e94e62c9c3fba0fb
+/api/team-chat/threads/[id]/read,POST,withAuth,,src/app/api/team-chat/threads/[id]/read/route.ts,3f00530312bf5074fd2ca02b8eb136d0316a86913ae910b09835423e3e2cc3c0
+/api/team-chat/threads,GET POST,withAuth,,src/app/api/team-chat/threads/route.ts,b954ef77be8057030df0db5f2e3cd4322e2f505473aea4d591d96579f83c3480
+/api/team-chat/unread,GET,withAuth,,src/app/api/team-chat/unread/route.ts,9d5899dcf7d0539644cf52b735b8936f15909d9292c6bab85e66bb389d940439
+/api/templates/[id]/header-image,POST,withAuth permission:,templates.manage,src/app/api/templates/[id]/header-image/route.ts,bbab5016e9d007d0c40a8cfbde26ca4af808f7814e22bccb421cfcefeb4a0171
+/api/templates/category-seen,POST,withAuth permission:,templates.manage,src/app/api/templates/category-seen/route.ts,2809aa933681ea24fa88ab90afd960fee7474d731bb214330318a5b634a84c0e
+/api/templates,GET POST,withAuth permission:,templates.manage,src/app/api/templates/route.ts,7e12b43309c931c4bcb65032ff0639cbeb675899df1c8e66ea543d80c4f46fae
+/api/templates/sync,POST,withAuth permission:,templates.manage,src/app/api/templates/sync/route.ts,6a57a59ac73fda14c7123bbe659db60f4c4ad107a6639579d5512d2a18c3f19e
+/api/usage/alerts,GET POST,withAuth permission:,usage.read,src/app/api/usage/alerts/route.ts,7154430f88ecd91e54c7b7e01fbee965696ad076a04244f600a5f312fede129b
+/api/usage/pace,GET,withAuth permission:,usage.read,src/app/api/usage/pace/route.ts,ed1da2ba5ac78ab88b91c890ab4b54200735630a3327b8ee7e5c84a1c1a5c095
+/api/usage/plan-request,POST,withAuth checkRateLimit permission:,usage.read,src/app/api/usage/plan-request/route.ts,69c5a877084a107dabe15f3ddd56915c049c56fa6de18d5ed7d705b740d6843c
+/api/usage/plans,GET,withAuth permission:,usage.read,src/app/api/usage/plans/route.ts,d49b4ade15d81e4c8f1e8cb6cc962ed798b258bc81ad622be394071a4ae98c21
+/api/usage,GET,withAuth permission:,usage.read,src/app/api/usage/route.ts,83238b64155f4a60c734bb2be67f7cf17b87089ef4ccc635b11a8ecb9b5838dc
+/api/webhooks/direct/[token],POST,manual-review,,src/app/api/webhooks/direct/[token]/route.ts,2e3c7ae6a18995c6a6b5953293753c6d586a48b4417cf01aa68b604a9bb55882
+/api/webhooks/ig/[webhookToken],GET POST,signature isMockEnabled,,src/app/api/webhooks/ig/[webhookToken]/route.ts,4b1f95098b32820327245ea1bfb2849121666aed9d08dfb71188bc801e3e8123
+/api/webhooks/messenger/[webhookToken],GET POST,signature isMockEnabled,,src/app/api/webhooks/messenger/[webhookToken]/route.ts,015a6b6705aae23c82cfbadc7f2e7f98306df2a459027ece23e11442e41202eb
+/api/webhooks/wa/[webhookToken],GET POST,signature isMockEnabled,,src/app/api/webhooks/wa/[webhookToken]/route.ts,a5c2e432672189d42c999dc8536f381a676813c7861d17fc2ded5ee1cd8feaf6
+/api/whatsapp-numbers,GET,withAuth,,src/app/api/whatsapp-numbers/route.ts,e81938e3a521dfc0a67288bacd04f461cd7bc2a3f9907e6187719af8094810fe
+/api/work/notes/[id],GET PATCH DELETE,withAuth,,src/app/api/work/notes/[id]/route.ts,b538f237caf94418daf0b0fc5142f5655b6e71d2bc0bbddcbe1cc0ab5d0783bd
+/api/work/notes,GET POST,withAuth,,src/app/api/work/notes/route.ts,6d68b8bd483b575cf08f6813f8b1108fe002319518860d5986a0440c0ea98bfa
+/api/work/tasks/[id],PATCH DELETE,withAuth,,src/app/api/work/tasks/[id]/route.ts,7d691c063e18cce28b1821801c51db863c4e09f4dc80af688f079920d3182be8
+/api/work/tasks,GET POST,withAuth,,src/app/api/work/tasks/route.ts,d9122cc3518522dcfe0bb52908d054f841bfd1f696c27be82d64ab0136e026a8
+/api/writing-assist,GET POST,withAuth checkRateLimit,,src/app/api/writing-assist/route.ts,ae0058d1aecaab3e4d26dfa4830f4146705f5b1cea821aafc55833b566e347be

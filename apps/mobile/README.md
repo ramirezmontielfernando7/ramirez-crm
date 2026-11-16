@@ -1,3 +1,7 @@
+# I1 · Auditoría y preparación de integración (sin conexión)
+
+Rama `codex/dashfort-mobile-i1-20261115`, desde el checkpoint T-M5B `2bd4b62`. La APK 0.1.2 y la UI siguen intactas. Contratos y simuladores sin transporte HTTP, sin dependencias nuevas y sin conexión a producción. Ver [diagnóstico](docs/integration-i1/AUDITORIA.md), [arquitectura](docs/integration-i1/ARQUITECTURA.md), [matriz de módulos](docs/integration-i1/MODULOS.md), [plan I1–I7](docs/integration-i1/PLAN-I1-I7.md) y [resultados](docs/integration-i1/RESULTADOS.md). No iniciar I2 ni publicar sin autorización nueva.
+
 # T-M5B · Pruebas locales Android
 
 Etapa actual en `codex/dashfort-mobile-tm5b-20261114`, desde T-M5A `3b85b3b`. Expo 58.0.25, notificaciones locales opt-in, sin tokens ni servicios remotos. APK 0.1.2 generada y verificada estáticamente; ejecución Android pendiente. Ver [APK](docs/tm5b/APK-VERIFICADA.md), [implementación](docs/tm5b/IMPLEMENTACION.md), [resultados](docs/tm5b/RESULTADOS.md) y [prueba Motorola](docs/tm5b/PRUEBA-MOTOROLA.md). Se conservan los informes históricos siguientes. Sin push ni T-M5C.
