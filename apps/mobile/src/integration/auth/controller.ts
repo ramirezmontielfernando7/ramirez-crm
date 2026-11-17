@@ -5,22 +5,31 @@ import {
   type FixtureSession,
   type SessionBoundary,
   type State,
+  type CleanupFailure,
+  type RevocationState,
+  type RevocationRecord,
+  type RevocationReference,
+  revocationReference,
 } from "./model";
 import { SessionVault } from "./vault";
-/** Pure coordinator, never mounted in SessionProvider. All observers receive context, never credentials. */
+/** Disconnected fixture coordinator. No HTTP or UI provider is installed. */
 export class PreparedAuth {
-  private state: State = {
+  private state: State = Object.freeze({
     status: "anonymous",
     context: null,
     error: null,
     remoteRevocation: "none",
-  };
+    cleanupFailures: [],
+    observerFailures: 0,
+  });
   private session: FixtureSession | null = null;
-  private pendingRevocation: FixtureSession | null = null;
+  private candidates = new Map<string, FixtureSession>();
   private epoch = 0;
   private aborters = new Set<AbortController>();
   private listeners = new Set<() => void>();
-  private renewal: Promise<void> | null = null;
+  private renewal: { epoch: number; task: Promise<void> } | null = null;
+  private recovery: Promise<void> | null = null;
+  private boundaryClean = true;
   constructor(
     private authority: AuthAuthority,
     private vault: SessionVault,
@@ -35,168 +44,405 @@ export class PreparedAuth {
     };
   };
   private patch(p: Partial<State>) {
-    this.state = Object.freeze({ ...this.state, ...p });
-    this.listeners.forEach((fn) => fn());
-  }
-  private detach(status: State["status"]) {
-    this.epoch++;
-    for (const a of this.aborters) a.abort();
-    this.aborters.clear();
-    this.renewal = null;
-    this.session = null;
-    this.patch({
-      status,
-      context: null,
-      error: null,
-      remoteRevocation: "none",
+    this.state = Object.freeze({
+      ...this.state,
+      ...p,
+      cleanupFailures: Object.freeze([
+        ...(p.cleanupFailures ?? this.state.cleanupFailures),
+      ]),
     });
-    this.boundary.detach();
-    return this.epoch;
+    let failures = 0;
+    for (const fn of [...this.listeners]) {
+      try {
+        fn();
+      } catch {
+        failures++;
+      }
+    }
+    if (failures)
+      this.state = Object.freeze({
+        ...this.state,
+        observerFailures: Math.min(
+          1000,
+          this.state.observerFailures + failures,
+        ),
+      });
   }
-  private async install(
-    epoch: number,
-    session: FixtureSession,
-    expected?: FixtureSession,
-    organizationId?: string,
-  ) {
-    if (epoch !== this.epoch) throw new AuthFault("stale");
-    const s = decodeSession(session, this.now());
-    if (
-      expected &&
-      (s.context.scope.userId !== expected.context.scope.userId ||
-        s.context.scope.organizationId !==
-          (organizationId ?? expected.context.scope.organizationId))
-    )
-      throw new AuthFault("invalid");
-    await this.vault.save(s, () => epoch === this.epoch);
-    if (epoch !== this.epoch) throw new AuthFault("stale");
-    this.boundary.attach(s.context);
-    this.session = s;
-    this.pendingRevocation = null;
-    this.patch({ status: "authenticated", context: s.context, error: null });
+  private remember(s: FixtureSession) {
+    if (this.candidates.size >= 32 && !this.candidates.has(s.credential))
+      return false;
+    this.candidates.set(s.credential, s);
+    return true;
+  }
+  private detachBoundary() {
+    try {
+      this.boundary.detach();
+      this.boundaryClean = true;
+      return true;
+    } catch {
+      this.boundaryClean = false;
+      return false;
+    }
+  }
+  private boundaryFailures(): readonly CleanupFailure[] {
+    let reported: readonly CleanupFailure[] = [];
+    try {
+      reported = this.boundary.cleanupFailures?.() ?? [];
+    } catch {
+      /* do not skip credential cleanup */
+    }
+    const allowed = ["cache", "drafts", "media", "notifications"];
+    return [
+      "boundary",
+      ...reported.filter((code) => allowed.includes(code)).slice(0, 4),
+    ];
+  }
+  private begin(status: State["status"]) {
+    // Capture before ANY observer, AbortSignal listener or boundary callback can reenter.
+    const epoch = ++this.epoch;
+    if (this.session) this.remember(this.session);
+    this.session = null;
+    this.renewal = null;
+    const aborters = [...this.aborters];
+    this.aborters.clear();
+    for (const a of aborters) {
+      try {
+        a.abort();
+      } catch {
+        /* never skip the remaining cleanup */
+      }
+    }
+    if (epoch !== this.epoch) return epoch;
+    const clean = this.detachBoundary();
+    if (epoch !== this.epoch) return epoch;
+    this.patch({
+      status: clean ? status : "blocked",
+      context: null,
+      error: clean ? null : "cleanup",
+      cleanupFailures: clean ? [] : this.boundaryFailures(),
+    });
+    return epoch;
+  }
+  private addFailures(epoch: number, failures: readonly CleanupFailure[]) {
+    if (epoch !== this.epoch || !failures.length) return;
+    this.patch({
+      cleanupFailures: [
+        ...new Set([...this.state.cleanupFailures, ...failures]),
+      ],
+      status: "blocked",
+      context: null,
+      error: "cleanup",
+    });
+  }
+  private async revocations(epoch: number, confirmed = false) {
+    try {
+      const rows = await this.vault.listRevocations();
+      if (epoch !== this.epoch) return;
+      const outcomes = rows.map((r) => r.outcome);
+      const state: RevocationState = outcomes.includes("unknown")
+        ? "unknown"
+        : outcomes.includes("failed")
+          ? "failed"
+          : outcomes.length
+            ? "pending"
+            : confirmed
+              ? "confirmed"
+              : "none";
+      this.patch({ remoteRevocation: state });
+    } catch {
+      if (epoch === this.epoch) {
+        this.patch({ remoteRevocation: "unknown" });
+        this.addFailures(epoch, ["revocation-read"]);
+      }
+    }
+  }
+  private async revoke(s: FixtureSession | RevocationReference, epoch: number) {
+    const material = "credential" in s ? s : null;
+    const reference = revocationReference(
+      material ? material.context.scope : s,
+    );
+    let journalOK = true;
+    try {
+      await this.vault.recordRevocation(reference, "pending");
+    } catch {
+      journalOK = false;
+      this.addFailures(epoch, ["revocation-write"]);
+    }
+    if (epoch === this.epoch) this.patch({ remoteRevocation: "pending" });
+    let outcome: RevocationRecord["outcome"] | null = null;
+    try {
+      if (material) await this.authority.revoke(material);
+      else if (this.authority.revokeReference)
+        await this.authority.revokeReference(reference);
+      else throw new AuthFault("unsupported");
+    } catch (e) {
+      outcome =
+        e instanceof AuthFault && e.code === "offline"
+          ? "pending"
+          : e instanceof AuthFault &&
+              ["forbidden", "unauthorized"].includes(e.code)
+            ? "failed"
+            : "unknown";
+    }
+    if (outcome) {
+      try {
+        await this.vault.recordRevocation(reference, outcome);
+      } catch {
+        journalOK = false;
+        this.addFailures(epoch, ["revocation-write"]);
+      }
+    } else {
+      if (material) this.candidates.delete(material.credential);
+      try {
+        await this.vault.confirmRevocation(reference);
+      } catch {
+        journalOK = false;
+        this.addFailures(epoch, ["revocation-write"]);
+      }
+    }
+    if (journalOK) await this.revocations(epoch, !outcome);
+    else if (epoch === this.epoch) this.patch({ remoteRevocation: "unknown" });
+  }
+  private async orphan(raw: FixtureSession) {
+    try {
+      const s = decodeSession(raw, 0);
+      if (this.session?.credential === s.credential) return;
+      this.remember(s);
+      await this.revoke(s, this.epoch);
+    } catch {
+      this.patch({ remoteRevocation: "unknown" });
+    }
   }
   private async operation(
-    status: State["status"],
-    work: (signal: AbortSignal) => Promise<FixtureSession | null>,
+    kind: "login" | "restore" | "renew" | "switch",
+    work: (
+      signal: AbortSignal,
+      epoch: number,
+    ) => Promise<FixtureSession | null>,
     expected?: FixtureSession,
     org?: string,
   ) {
-    this.pendingRevocation = this.session ?? this.pendingRevocation;
-    const epoch = this.detach(status),
-      controller = new AbortController();
+    // Preserve bounded recovery state; never let capacity prevent logout cleanup.
+    if (this.candidates.size >= 32) throw new AuthFault("blocked");
+    const epoch = this.begin(kind === "login" ? "authenticating" : "restoring");
+    if (epoch !== this.epoch) throw new AuthFault("stale");
+    const controller = new AbortController();
     this.aborters.add(controller);
+    let result: FixtureSession | null = null;
     try {
-      const result = await work(controller.signal);
+      if (!this.boundaryClean) {
+        this.addFailures(
+          epoch,
+          await this.vault.quarantine(() => epoch === this.epoch),
+        );
+        throw new AuthFault("cleanup");
+      }
+      result = await work(controller.signal, epoch);
       if (epoch !== this.epoch) throw new AuthFault("stale");
-      if (result) await this.install(epoch, result, expected, org);
-      else this.patch({ status: "anonymous" });
+      if (!result) {
+        this.patch({ status: "anonymous" });
+        return;
+      }
+      const s = decodeSession(result, this.now());
+      if (
+        expected &&
+        (s.context.scope.userId !== expected.context.scope.userId ||
+          s.context.scope.organizationId !==
+            (org ?? expected.context.scope.organizationId))
+      )
+        throw new AuthFault("invalid");
+      await this.vault.save(s, () => epoch === this.epoch);
+      if (epoch !== this.epoch) throw new AuthFault("stale");
+      this.boundary.attach(s.context);
+      if (epoch !== this.epoch) throw new AuthFault("stale");
+      this.session = s;
+      this.candidates.delete(s.credential);
+      this.patch({ status: "authenticated", context: s.context, error: null });
+      if (epoch !== this.epoch) throw new AuthFault("stale");
     } catch (e) {
-      if (epoch !== this.epoch) throw new AuthFault("stale");
+      if (epoch !== this.epoch) {
+        if (result && kind !== "restore") await this.orphan(result);
+        throw new AuthFault("stale");
+      }
       const code = e instanceof AuthFault ? e.code : "server";
       this.session = null;
-      this.boundary.detach();
+      const clean = this.detachBoundary();
+      if (epoch !== this.epoch) throw new AuthFault("stale");
       this.patch({
-        status: code === "offline" || code === "server" ? "stale" : "blocked",
+        status:
+          clean && ["offline", "server"].includes(code) ? "stale" : "blocked",
         context: null,
-        error: code,
+        error: clean ? code : "cleanup",
       });
-      // Keep a secure fixture credential ONLY for a later validated restore after transient errors.
-      if (!["offline", "server"].includes(code)) {
-        try {
-          await this.vault.clear();
-        } catch {
-          if (epoch === this.epoch) this.patch({ error: "storage" });
-        }
-      }
+      if (!clean) this.addFailures(epoch, this.boundaryFailures());
+      if (!["offline", "server"].includes(code) || !clean)
+        this.addFailures(
+          epoch,
+          await this.vault.quarantine(() => epoch === this.epoch),
+        );
+      // A server may have issued a session even when attaching/persisting it failed.
+      if (result && kind !== "restore") await this.orphan(result);
       throw new AuthFault(code);
     } finally {
       this.aborters.delete(controller);
     }
   }
   login(email: string, password: string) {
-    return this.operation("authenticating", async (signal) => {
-      await this.vault.clear();
-      if (signal.aborted) throw new AuthFault("stale");
+    return this.operation("login", async (signal, epoch) => {
+      await this.vault.prepareLogin(() => epoch === this.epoch);
+      if (signal.aborted || epoch !== this.epoch) throw new AuthFault("stale");
       return this.authority.login(email, password, signal);
     });
   }
   restore() {
-    return this.operation("restoring", async (signal) => {
+    return this.operation("restore", async (signal, epoch) => {
+      await this.revocations(epoch);
       const saved = await this.vault.read();
-      if (signal.aborted) throw new AuthFault("stale");
+      if (signal.aborted || epoch !== this.epoch) throw new AuthFault("stale");
       if (!saved) return null;
-      const validated = await this.authority.validate(saved, signal);
+      this.remember(saved);
+      const s = await this.authority.validate(saved, signal);
       if (
-        validated.context.scope.userId !== saved.context.scope.userId ||
-        validated.context.scope.organizationId !==
-          saved.context.scope.organizationId
+        s.context.scope.userId !== saved.context.scope.userId ||
+        s.context.scope.organizationId !== saved.context.scope.organizationId
       )
         throw new AuthFault("invalid");
-      return validated;
+      return s;
     });
   }
   renew() {
-    if (this.renewal) return this.renewal;
+    if (this.renewal?.epoch === this.epoch) return this.renewal.task;
     const old = this.session;
     if (!old || !old.context.canRenew)
       return Promise.reject(new AuthFault("unsupported"));
+    const expectedEpoch = this.epoch + 1;
     const task = this.operation(
-      "restoring",
-      (signal) => this.authority.renew(old, signal),
+      "renew",
+      (s) => this.authority.renew(old, s),
       old,
     );
-    this.renewal = task;
+    if (this.epoch === expectedEpoch)
+      this.renewal = { epoch: expectedEpoch, task };
     void task
       .finally(() => {
-        if (this.renewal === task) this.renewal = null;
+        if (this.renewal?.task === task) this.renewal = null;
       })
       .catch(() => {});
     return task;
   }
-  switchOrganization(organizationId: string) {
+  switchOrganization(org: string) {
     const old = this.session;
     if (!old || !old.context.canSwitchOrganization)
       return Promise.reject(new AuthFault("unsupported"));
     return this.operation(
-      "restoring",
-      (signal) =>
-        this.authority.switchOrganization(old, organizationId, signal),
+      "switch",
+      (s) => this.authority.switchOrganization(old, org, s),
       old,
-      organizationId,
+      org,
     );
   }
   async logout() {
-    const old = this.session ?? this.pendingRevocation;
-    this.pendingRevocation = null;
-    const epoch = this.detach("anonymous");
-    let cleared = true;
+    const captured = [...this.candidates.values()];
+    if (
+      this.session &&
+      !captured.some((s) => s.credential === this.session!.credential)
+    )
+      captured.push(this.session);
+    this.vault.fence();
+    const epoch = this.begin("anonymous");
+    const failures: CleanupFailure[] = [];
+    if (!this.boundaryClean) failures.push(...this.boundaryFailures());
+    // Independent steps: discover known bindings, persist retry intent, erase active credential, try server.
     try {
-      await this.vault.clear();
+      const saved = await this.vault.peekForRevocation();
+      if (
+        saved &&
+        epoch === this.epoch &&
+        !captured.some((s) => s.credential === saved.credential)
+      )
+        captured.push(saved);
     } catch {
-      cleared = false;
-      if (epoch === this.epoch)
-        this.patch({ status: "blocked", error: "storage" });
+      failures.push("revocation-read");
+      if (epoch === this.epoch) this.patch({ remoteRevocation: "unknown" });
     }
-    if (old) {
+    let persisted: readonly RevocationRecord[] = [];
+    try {
+      persisted = await this.vault.listRevocations();
+    } catch {
+      failures.push("revocation-read");
+    }
+    const candidates = captured.filter(
+      (s) => epoch === this.epoch || this.session?.credential !== s.credential,
+    );
+    for (const s of candidates) this.remember(s);
+    for (const s of candidates) {
       try {
-        await this.authority.revoke(old);
-        if (epoch === this.epoch) this.patch({ remoteRevocation: "confirmed" });
+        await this.vault.recordRevocation(
+          revocationReference(s.context.scope),
+          "pending",
+        );
       } catch {
-        if (epoch === this.epoch)
-          this.patch({ remoteRevocation: "unconfirmed" });
+        failures.push("revocation-write");
       }
     }
-    if (!cleared) throw new AuthFault("storage");
+    failures.push(...(await this.vault.quarantine(() => epoch === this.epoch)));
+    this.addFailures(epoch, failures);
+    for (const s of candidates) await this.revoke(s, epoch);
+    for (const r of persisted)
+      if (
+        !candidates.some(
+          (s) => s.context.scope.sessionId === r.reference.sessionId,
+        )
+      )
+        await this.revoke(r.reference, epoch);
+    if (!candidates.length && !failures.length) await this.revocations(epoch);
+    if (failures.includes("revocation-read") && epoch === this.epoch)
+      this.patch({ remoteRevocation: "unknown" });
+    if (epoch !== this.epoch) throw new AuthFault("stale");
+    if (this.state.cleanupFailures.length) throw new AuthFault("cleanup");
+  }
+  recoverRevocations() {
+    if (this.recovery) return this.recovery;
+    const epoch = this.epoch;
+    const task = (async () => {
+      try {
+        const persisted = await this.vault.listRevocations();
+        const candidates = [...this.candidates.values()];
+        for (const s of candidates) await this.revoke(s, epoch);
+        for (const r of persisted)
+          if (
+            !candidates.some(
+              (s) => s.context.scope.sessionId === r.reference.sessionId,
+            )
+          )
+            await this.revoke(r.reference, epoch);
+        await this.revocations(
+          epoch,
+          this.state.remoteRevocation === "confirmed",
+        );
+      } catch {
+        if (epoch === this.epoch) {
+          this.patch({ remoteRevocation: "unknown" });
+          this.addFailures(epoch, ["revocation-read"]);
+        }
+      }
+    })();
+    this.recovery = task;
+    void task
+      .finally(() => {
+        if (this.recovery === task) this.recovery = null;
+      })
+      .catch(() => {});
+    return task;
   }
   async invalidateAccess(code: "unauthorized" | "forbidden") {
-    const epoch = this.detach("blocked");
+    const epoch = this.begin("blocked");
+    if (epoch !== this.epoch) return;
     this.patch({ error: code });
-    try {
-      await this.vault.clear();
-    } catch {
-      if (epoch === this.epoch) this.patch({ error: "storage" });
-      throw new AuthFault("storage");
-    }
+    this.addFailures(
+      epoch,
+      await this.vault.quarantine(() => epoch === this.epoch),
+    );
   }
   async guarded<T>(
     work: (
@@ -218,9 +464,8 @@ export class PreparedAuth {
       const value = await work(s.context, controller.signal);
       if (epoch !== this.epoch || controller.signal.aborted)
         throw new AuthFault("stale");
-      if (s.context.scope.expiresAt <= this.now()) {
+      if (s.context.scope.expiresAt <= this.now())
         throw new AuthFault("unauthorized");
-      }
       return value;
     } catch (e) {
       if (epoch !== this.epoch) throw new AuthFault("stale");

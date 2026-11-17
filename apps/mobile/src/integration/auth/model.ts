@@ -9,7 +9,8 @@ export type AuthCode =
   | "stale"
   | "blocked"
   | "unsupported"
-  | "redirect";
+  | "redirect"
+  | "cleanup";
 export class AuthFault extends Error {
   constructor(readonly code: AuthCode) {
     super(code);
@@ -33,7 +34,8 @@ export type FixtureSession = Readonly<{
 const fixtureId = (v: unknown) =>
   typeof v === "string" && /^fixture-[\w-]{1,100}$/.test(v);
 export function decodeSession(raw: unknown, now: number): FixtureSession {
-  if (!raw || typeof raw !== "object") throw new AuthFault("invalid");
+  if (!raw || typeof raw !== "object" || Array.isArray(raw))
+    throw new AuthFault("invalid");
   const b = raw as FixtureSession,
     c = b.context,
     s = c?.scope;
@@ -43,6 +45,10 @@ export function decodeSession(raw: unknown, now: number): FixtureSession {
     typeof b.credential !== "string" ||
     !/^fixture-cookie-[\w-]{1,160}$/.test(b.credential) ||
     !s ||
+    typeof c !== "object" ||
+    Array.isArray(c) ||
+    typeof s !== "object" ||
+    Array.isArray(s) ||
     ![s.userId, s.organizationId, s.sessionId].every(fixtureId) ||
     !Number.isSafeInteger(s.expiresAt) ||
     s.expiresAt <= now ||
@@ -62,7 +68,12 @@ export function decodeSession(raw: unknown, now: number): FixtureSession {
     environment: "i2p-memory",
     credential: b.credential,
     context: Object.freeze({
-      scope: Object.freeze({ ...s }),
+      scope: Object.freeze({
+        userId: s.userId,
+        organizationId: s.organizationId,
+        sessionId: s.sessionId,
+        expiresAt: s.expiresAt,
+      }),
       role: c.role,
       permissions: Object.freeze([...c.permissions]),
       canRenew: c.canRenew,
@@ -87,6 +98,8 @@ export interface AuthAuthority {
     signal: AbortSignal,
   ): Promise<FixtureSession>;
   revoke(session: FixtureSession): Promise<void>;
+  /** Fixture capability only: a real server must separately authenticate and authorize this reference. */
+  revokeReference?(reference: RevocationReference): Promise<void>;
 }
 export interface SecretStore {
   get(key: string): Promise<string | null>;
@@ -97,6 +110,7 @@ export interface SecretStore {
 export interface SessionBoundary {
   detach(): void;
   attach(context: AuthContext): void;
+  cleanupFailures?(): readonly CleanupFailure[];
 }
 export type State = Readonly<{
   status:
@@ -108,5 +122,41 @@ export type State = Readonly<{
     | "blocked";
   context: AuthContext | null;
   error: AuthCode | null;
-  remoteRevocation: "none" | "confirmed" | "unconfirmed";
+  remoteRevocation: RevocationState;
+  cleanupFailures: readonly CleanupFailure[];
+  observerFailures: number;
+}>;
+
+export type RevocationState =
+  "none" | "confirmed" | "pending" | "failed" | "unknown";
+export type CleanupFailure =
+  | "boundary"
+  | "cache"
+  | "drafts"
+  | "media"
+  | "notifications"
+  | "credential-delete"
+  | "restore-barrier"
+  | "revocation-read"
+  | "revocation-write";
+export type RevocationReference = Readonly<{
+  userId: string;
+  organizationId: string;
+  sessionId: string;
+}>;
+export function revocationReference(raw: unknown): RevocationReference {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw))
+    throw new AuthFault("invalid");
+  const r = raw as RevocationReference;
+  if (![r.userId, r.organizationId, r.sessionId].every(fixtureId))
+    throw new AuthFault("invalid");
+  return Object.freeze({
+    userId: r.userId,
+    organizationId: r.organizationId,
+    sessionId: r.sessionId,
+  });
+}
+export type RevocationRecord = Readonly<{
+  reference: RevocationReference;
+  outcome: "pending" | "failed" | "unknown";
 }>;

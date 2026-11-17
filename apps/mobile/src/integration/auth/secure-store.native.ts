@@ -1,9 +1,14 @@
 import * as SecureStore from "expo-secure-store";
-import { AuthFault, type SecretStore } from "./model";
-/** Not instantiated or imported by existing providers. Stores ONLY I2-P fixture envelopes. */
+import { AuthFault, decodeSession, type SecretStore } from "./model";
+import { decodeRevocations } from "./vault";
+/** Fixture-only credentials, logout barrier and retry journal. Not mounted in demo. */
 export function createDeviceSecretStore(): SecretStore {
   const check = (key: string) => {
-    if (!/^dashfort\.i2p\.fixture\.fixture-[\w-]{1,80}$/.test(key))
+    if (
+      !/^dashfort\.i2p\.fixture\.fixture-[\w-]{1,80}(?:\.(?:barrier|revocations))?$/.test(
+        key,
+      )
+    )
       throw new AuthFault("blocked");
   };
   const options = {
@@ -17,18 +22,15 @@ export function createDeviceSecretStore(): SecretStore {
     },
     set: async (key, value) => {
       check(key);
-      let v;
       try {
-        v = JSON.parse(value);
+        if (key.endsWith(".barrier")) {
+          if (value !== "blocked-v1") throw new AuthFault("invalid");
+        } else if (key.endsWith(".revocations")) decodeRevocations(value);
+        else decodeSession(JSON.parse(value), Date.now());
       } catch {
         throw new AuthFault("invalid");
       }
-      if (
-        v.environment !== "i2p-memory" ||
-        typeof v.credential !== "string" ||
-        !/^fixture-cookie-[\w-]+$/.test(v.credential)
-      )
-        throw new AuthFault("blocked");
+      if (value.length > 128000) throw new AuthFault("invalid");
       await SecureStore.setItemAsync(key, value, options);
     },
     remove: async (key) => {

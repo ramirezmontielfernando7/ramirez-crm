@@ -103,9 +103,13 @@ test("invalid login, storage error and generic server errors fail closed with sa
     message: "unauthorized",
   });
   assert.equal(f.controller.snapshot().context, null);
+  f.server.failNext = true;
+  await assert.rejects(login(f), { message: "server" });
+  assert.equal(f.controller.snapshot().error, "server");
   f.mem.fail(true);
   await assert.rejects(login(f), { message: "storage" });
-  assert.equal(f.controller.snapshot().error, "storage");
+  assert.equal(f.controller.snapshot().error, "cleanup");
+  assert.ok(f.controller.snapshot().cleanupFailures.length > 0);
   assert.ok(
     !JSON.stringify(f.controller.snapshot()).includes("private details"),
   );
@@ -127,7 +131,7 @@ test("expired or corrupt persisted envelope is erased; offline restore grants no
   await login(f);
   f.advance(3600001);
   await assert.rejects(f.controller.restore(), { message: "invalid" });
-  assert.equal(f.mem.map.size, 0);
+  assert.equal(f.mem.map.has(f.vault.key), false);
   await login(f);
   f.server.online = false;
   await assert.rejects(f.controller.restore(), { message: "offline" });
@@ -160,7 +164,7 @@ test("refresh coalesces concurrent callers, rotates binding and never revives a 
   g.resolve();
   await assert.rejects(renewing, { message: "stale" });
   assert.equal(f.controller.snapshot().context, null);
-  assert.equal(f.mem.map.size, 0);
+  assert.equal(f.mem.map.has(f.vault.key), false);
 });
 test("unsupported renewal and organization switch do not invent a backend capability", async () => {
   const f = fixture();
@@ -202,7 +206,7 @@ test("advisor cannot switch to a foreign organization even in proposed mock capa
     message: "forbidden",
   });
   assert.equal(f.controller.snapshot().context, null);
-  assert.equal(f.mem.map.size, 0);
+  assert.equal(f.mem.map.has(f.vault.key), false);
 });
 test("late login response cannot overwrite a newer user or persisted credential", async () => {
   const f = fixture();
@@ -231,8 +235,10 @@ test("in-flight secure write followed by logout is removed and never attaches co
   const port: SecretStore = {
     ...f.mem.port,
     set: async (k, v) => {
-      started.resolve();
-      await g.promise;
+      if (k === "dashfort.i2p.fixture.fixture-race") {
+        started.resolve();
+        await g.promise;
+      }
       await f.mem.port.set(k, v);
     },
   };
@@ -244,7 +250,8 @@ test("in-flight secure write followed by logout is removed and never attaches co
   g.resolve();
   await assert.rejects(pending, { message: "stale" });
   await out;
-  assert.equal(await vault.read(), null);
+  await assert.rejects(vault.read(), { message: "blocked" });
+  assert.equal(f.mem.map.has(vault.key), false);
   assert.equal(f.attached(), null);
 });
 test("server-side revocation and request 401/403 clear secrets, scopes and caches", async () => {
@@ -259,7 +266,7 @@ test("server-side revocation and request 401/403 clear secrets, scopes and cache
       { message: code },
     );
     assert.equal(f.cache.size, 0);
-    assert.equal(f.mem.map.size, 0);
+    assert.equal(f.mem.map.has(f.vault.key), false);
     assert.equal(f.controller.snapshot().context, null);
   }
   const f = fixture();
@@ -267,7 +274,7 @@ test("server-side revocation and request 401/403 clear secrets, scopes and cache
   const saved = (await f.vault.read())!;
   f.server.forceRevoke(saved);
   await assert.rejects(f.controller.restore(), { message: "unauthorized" });
-  assert.equal(f.mem.map.size, 0);
+  assert.equal(f.mem.map.has(f.vault.key), false);
 });
 test("expiry during a request rejects late response and erases the binding", async () => {
   const f = fixture();
@@ -279,24 +286,25 @@ test("expiry during a request rejects late response and erases the binding", asy
     }),
     { message: "unauthorized" },
   );
-  assert.equal(f.mem.map.size, 0);
+  assert.equal(f.mem.map.has(f.vault.key), false);
 });
-test("offline logout clears local authority but reports unconfirmed remote revocation", async () => {
+test("offline logout clears local authority but reports pending remote revocation", async () => {
   const f = fixture();
   await login(f);
   f.server.online = false;
   await f.controller.logout();
   assert.equal(f.controller.snapshot().context, null);
-  assert.equal(f.controller.snapshot().remoteRevocation, "unconfirmed");
-  assert.equal(f.mem.map.size, 0);
+  assert.equal(f.controller.snapshot().remoteRevocation, "pending");
+  assert.equal(f.mem.map.has(f.vault.key), false);
 });
 test("failed local deletion never reports successful secure cleanup", async () => {
   const f = fixture();
   await login(f);
   f.mem.fail(true);
-  await assert.rejects(f.controller.logout(), { message: "storage" });
+  await assert.rejects(f.controller.logout(), { message: "cleanup" });
   assert.equal(f.controller.snapshot().context, null);
-  assert.equal(f.controller.snapshot().error, "storage");
+  assert.equal(f.controller.snapshot().error, "cleanup");
+  assert.ok(f.controller.snapshot().cleanupFailures.length > 0);
 });
 test("restore rejects unexpected authority organization rather than silently rebinding old cache", async () => {
   const f = fixture();

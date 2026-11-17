@@ -3,6 +3,7 @@ import {
   decodeSession,
   type AuthAuthority,
   type FixtureSession,
+  type RevocationReference,
 } from "./model";
 export const fixtureUsers = Object.freeze([
   {
@@ -125,6 +126,18 @@ export class FixtureAuthority implements AuthAuthority {
   async revoke(s: FixtureSession) {
     await this.gate("revoke");
     this.sessions.delete(s.credential);
+  }
+  async revokeReference(reference: RevocationReference) {
+    await this.gate("revoke-reference");
+    for (const [key, s] of this.sessions) {
+      const scope = s.context.scope;
+      if (
+        scope.sessionId === reference.sessionId &&
+        scope.userId === reference.userId &&
+        scope.organizationId === reference.organizationId
+      )
+        this.sessions.delete(key);
+    }
   }
   forceRevoke(s: FixtureSession) {
     this.sessions.delete(s.credential);
