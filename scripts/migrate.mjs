@@ -36,6 +36,35 @@ const SOLO_SISTEMA = [
   "platform_ai_model_price",
   "platform_plan_catalog",
   "platform_setting",
+  // Auditoría 2026-11: better-auth (sesiones, credenciales de login, tokens de
+  // verificación/restablecimiento) y controles de plataforma. Solo los usan el
+  // pool de sistema (better-auth, platform-admin, platform-controls, costs);
+  // con permisos aquí, cualquier fallo en un camino de organización podía leer
+  // TODAS las sesiones y hashes de contraseña, que RLS no cubre.
+  "session",
+  "account",
+  "verification",
+  "platform_kill_switch",
+  "platform_broadcast",
+  "platform_ai_pricing",
+];
+
+/**
+ * Tablas que `vocero_app` solo LEE: nombres y correos del equipo en joins
+ * (miembros, autores, asignados). Escribirlas es de better-auth (sistema).
+ */
+const SOLO_LECTURA_APP = ["user"];
+
+/**
+ * Topes por rol (auditoría 2026-11): una transacción olvidada abierta retiene
+ * candados y una conexión del pool; una consulta desbocada, CPU. Las de la app
+ * son cortas (la exportación pagina de 2000 en 2000; el LLM nunca corre con una
+ * transacción abierta). `vocero_system` no lleva tope de consulta: la rotación
+ * de ENCRYPTION_KEY al arrancar puede reescribir muchas filas.
+ */
+const TOPES_POR_ROL = [
+  { role: "vocero_app", settings: { statement_timeout: "120s", idle_in_transaction_session_timeout: "300s" } },
+  { role: "vocero_system", settings: { idle_in_transaction_session_timeout: "300s" } },
 ];
 
 /** Roles de la 0026 y la variable que trae la contraseña de cada uno. */
@@ -80,9 +109,21 @@ async function setupRoles(sql) {
   // debe tocar ni leer (solo `vocero_system`). Va después del GRANT general,
   // que las incluía.
   if (existentes.has("vocero_app")) {
+    // Comillas: `user` es palabra reservada de SQL.
     for (const tabla of SOLO_SISTEMA) {
-      const [hay] = await sql`select to_regclass(${"public." + tabla}) is not null as ok`;
-      if (hay?.ok) await sql.unsafe(`revoke all on table public.${tabla} from vocero_app`);
+      const [hay] = await sql`select to_regclass(${`public."${tabla}"`}) is not null as ok`;
+      if (hay?.ok) await sql.unsafe(`revoke all on table public."${tabla}" from vocero_app`);
+    }
+    for (const tabla of SOLO_LECTURA_APP) {
+      const [hay] = await sql`select to_regclass(${`public."${tabla}"`}) is not null as ok`;
+      if (hay?.ok) await sql.unsafe(`revoke insert, update, delete on table public."${tabla}" from vocero_app`);
+    }
+  }
+  // Valores fijos de este archivo (nunca de una variable): van tal cual.
+  for (const { role, settings } of TOPES_POR_ROL) {
+    if (!existentes.has(role)) continue;
+    for (const [name, value] of Object.entries(settings)) {
+      await sql.unsafe(`alter role ${role} set ${name} = '${value}'`);
     }
   }
   for (const { role, env } of ROLES) {

@@ -23,7 +23,10 @@ WORKDIR /app
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN grep -q "\"packageManager\": \"pnpm@${PNPM_VERSION}\"" package.json \
  || { echo "PNPM_VERSION del Dockerfile no coincide con packageManager de package.json"; exit 1; }
-RUN pnpm install --frozen-lockfile
+# Caché del store de pnpm entre despliegues (BuildKit): si el lockfile no
+# cambió, la capa sale de caché; si cambió, solo baja los paquetes nuevos.
+RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
+    pnpm install --frozen-lockfile --store-dir=/pnpm/store
 
 FROM base AS builder
 WORKDIR /app
@@ -42,7 +45,10 @@ ENV SOURCE_COMMIT=$SOURCE_COMMIT
 # despliegue. El tope de heap deja margen al resto del sistema (6 GB en uso).
 ENV SKIP_BUILD_CHECKS=1
 ENV NODE_OPTIONS=--max-old-space-size=3072
-RUN pnpm build
+# Caché incremental de Next (.next/cache) entre despliegues: sin ella cada
+# build compila todo desde cero (~4 min en el servidor).
+RUN --mount=type=cache,id=next-cache,target=/app/.next/cache \
+    pnpm build
 # migrate.mjs autocontenido (drizzle-orm + postgres bundleados)
 RUN pnpm exec esbuild scripts/migrate.mjs --bundle --platform=node \
     --format=esm --outfile=migrate.bundle.mjs \
@@ -61,6 +67,15 @@ FROM node:22-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
+# Seguridad: parches del sistema base al construir, y fuera npm/corepack/yarn.
+# La imagen final solo corre `node` (server.js, migrate.mjs, ops/*.mjs); los
+# gestores de paquetes que trae node:22-alpine no se usan aquí y eran la fuente
+# de todas las alertas HIGH del escaneo (pacote, sigstore, brace-expansion…),
+# además de herramientas útiles para un atacante dentro del contenedor.
+RUN apk upgrade --no-cache \
+ && rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack \
+           /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack \
+           /opt/yarn-* /usr/local/bin/yarn /usr/local/bin/yarnpkg
 # 008: adjuntos, logo e icono viven en /data (el volumen de la instancia), no
 # en /app, que es de root: el default de la app (./.dev-media) es solo para
 # desarrollo local. No se define en la plataforma: basta montar /data.
@@ -106,9 +121,11 @@ EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
 
-# start-period amplio: cubre las migraciones del arranque (una migración
-# pesada puede pasar de 40 s; mientras dura, un fallo no cuenta)
-HEALTHCHECK --interval=15s --timeout=5s --start-period=90s --retries=5 \
+# Coolify espera el start-period COMPLETO antes del primer chequeo, así que
+# uno largo es tiempo muerto en cada despliegue. 30 s + 12 intentos cada 10 s
+# siguen cubriendo una migración pesada (hasta ~150 s, igual que antes con
+# 90 s + 5×15 s), pero el caso normal pasa en ~30 s en vez de 90 s.
+HEALTHCHECK --interval=10s --timeout=5s --start-period=30s --retries=12 \
   CMD wget -q -O /dev/null http://127.0.0.1:3000/api/health || exit 1
 
 # Operación 1 — APAGADO LIMPIO (spec 043, apagado.md). Antes el PID 1 era la
@@ -124,5 +141,11 @@ HEALTHCHECK --interval=15s --timeout=5s --start-period=90s --retries=5 \
 RUN apk add --no-cache tini
 ENV NEXT_MANUAL_SIG_HANDLE=true
 ENTRYPOINT ["/sbin/tini", "-g", "--", "vocero-entrypoint.sh"]
-# Migrar al BOOT del contenedor nuevo y arrancar el server standalone
-CMD ["sh", "-c", "node migrate.mjs && exec node server.js"]
+# Migrar al BOOT del contenedor nuevo y arrancar el server standalone.
+# Auditoría 2026-11: DATABASE_URL_MIGRATE es el SUPERUSUARIO de Postgres y solo
+# lo necesita migrate.mjs. `env -u` lo quita del entorno ANTES de `exec node
+# server.js`: si alguien llegara a ejecutar código dentro de la app (que corre
+# como `vocero`), no encontraría esa credencial en process.env ni en
+# /proc/self/environ, y no podría apagar RLS ni leer todas las organizaciones.
+# (`docker exec … node ops/<script>.mjs` sigue viéndola: el operador la tiene.)
+CMD ["sh", "-c", "node migrate.mjs && exec env -u DATABASE_URL_MIGRATE node server.js"]
