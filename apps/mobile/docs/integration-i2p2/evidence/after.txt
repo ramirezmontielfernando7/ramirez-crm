@@ -1,0 +1,12 @@
+✔ regression 1: observer logout during authenticating prevents authority and persistence (1.73229ms)
+✔ regression 2: boundary failure does not skip credential deletion and remote revocation (1.829947ms)
+✔ regression 3: cold offline restore and logout never report no remote session (0.765313ms)
+✔ regression 4: scope projection never retains arbitrary or nested fields (0.932865ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 135.068385

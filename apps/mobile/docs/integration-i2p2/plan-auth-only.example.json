@@ -1,0 +1,62 @@
+{
+  "version": 1,
+  "backendCommit": "3a91d507c535682136b31acefcf2ff63107a2dbd",
+  "project": "dashfort-i2-auth-test",
+  "hostClass": "local-non-production",
+  "profile": "auth-only-review-required",
+  "database": {
+    "host": "db.i2p.invalid",
+    "name": "dashfort_auth_test",
+    "published": false,
+    "bindings": {
+      "application": {
+        "host": "db.i2p.invalid",
+        "database": "dashfort_auth_test",
+        "role": "i2p_app"
+      },
+      "system": {
+        "host": "db.i2p.invalid",
+        "database": "dashfort_auth_test",
+        "role": "i2p_system"
+      },
+      "migration": {
+        "host": "db.i2p.invalid",
+        "database": "dashfort_auth_test",
+        "role": "i2p_migrate"
+      }
+    }
+  },
+  "network": {
+    "internal": true,
+    "defaultEgress": "deny",
+    "ipv6Egress": "deny",
+    "publicIngress": false,
+    "dockerSocket": false
+  },
+  "volumes": [
+    "i2p_auth_pg_test",
+    "i2p_auth_media_test"
+  ],
+  "secretRefs": [
+    "fixture-only-app",
+    "fixture-only-system",
+    "fixture-only-migration"
+  ],
+  "inheritedEnvironment": false,
+  "workers": {
+    "campaigns": false,
+    "directQueue": false,
+    "interruptedSends": false,
+    "webhookInbox": false,
+    "unroutedPurge": false,
+    "dailyMetaSync": false,
+    "limitsCheck": false,
+    "forgottenChats": false,
+    "directCheck": false,
+    "kbIndexing": false,
+    "credentialMaintenance": false,
+    "moduleBackfill": false,
+    "orphanRuns": false,
+    "botKeySync": false
+  }
+}

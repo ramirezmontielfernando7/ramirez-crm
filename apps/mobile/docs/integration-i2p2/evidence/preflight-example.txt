@@ -1,0 +1,7 @@
+{
+  staticPlanValid: true,
+  readyToStart: false,
+  backendCommit: '3a91d507c535682136b31acefcf2ff63107a2dbd',
+  operationalEvidence: 'pending',
+  ownerAuthorization: 'required'
+}

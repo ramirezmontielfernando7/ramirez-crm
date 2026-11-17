@@ -1,0 +1,88 @@
+✖ regression 1: observer logout during authenticating prevents authority and persistence (4.657325ms)
+✖ regression 2: boundary failure does not skip credential deletion and remote revocation (0.69707ms)
+✖ regression 3: cold offline restore and logout never report no remote session (2.811815ms)
+✖ regression 4: scope projection never retains arbitrary or nested fields (1.190744ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 0
+ℹ fail 4
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 352.440212
+
+✖ failing tests:
+
+test at ../../../../../tmp/dashfort-i2p2-before/apps/mobile/tests/integration-i2p2-regressions.test.ts:44:1
+✖ regression 1: observer logout during authenticating prevents authority and persistence (4.657325ms)
+  AssertionError [ERR_ASSERTION]: Expected "actual" to be strictly unequal to:
+
+  'authenticated'
+      at TestContext.<anonymous> (/tmp/dashfort-i2p2-before/apps/mobile/tests/integration-i2p2-regressions.test.ts:56:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'authenticated',
+    expected: 'authenticated',
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }
+
+test at ../../../../../tmp/dashfort-i2p2-before/apps/mobile/tests/integration-i2p2-regressions.test.ts:59:1
+✖ regression 2: boundary failure does not skip credential deletion and remote revocation (0.69707ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  true !== false
+
+      at TestContext.<anonymous> (/tmp/dashfort-i2p2-before/apps/mobile/tests/integration-i2p2-regressions.test.ts:66:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at ../../../../../tmp/dashfort-i2p2-before/apps/mobile/tests/integration-i2p2-regressions.test.ts:71:1
+✖ regression 3: cold offline restore and logout never report no remote session (2.811815ms)
+  AssertionError [ERR_ASSERTION]: Expected "actual" to be strictly unequal to:
+
+  'none'
+      at TestContext.<anonymous> (/tmp/dashfort-i2p2-before/apps/mobile/tests/integration-i2p2-regressions.test.ts:78:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'none',
+    expected: 'none',
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }
+
+test at ../../../../../tmp/dashfort-i2p2-before/apps/mobile/tests/integration-i2p2-regressions.test.ts:82:1
+✖ regression 4: scope projection never retains arbitrary or nested fields (1.190744ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+
+    [
+      'expiresAt',
+  +   'nested',
+      'organizationId',
+  +   'password',
+      'sessionId',
+      'userId'
+    ]
+
+      at TestContext.<anonymous> (/tmp/dashfort-i2p2-before/apps/mobile/tests/integration-i2p2-regressions.test.ts:100:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ 'expiresAt', 'nested', 'organizationId', 'password', 'sessionId', 'userId' ],
+    expected: [ 'expiresAt', 'organizationId', 'sessionId', 'userId' ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

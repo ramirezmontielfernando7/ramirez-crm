@@ -1,3 +1,7 @@
+# I2-P2 · Correcciones de seguridad aisladas
+
+Rama `codex/dashfort-mobile-i2p2-20261117`, desde I2-P/8d0a1d3. Corregidos reentrada de login/logout, limpieza parcial, estado de revocación offline y allowlist de scope; 176 pruebas de lógica y 45 recorridos web aprobados. HTTP sigue bloqueado, sin cambiar UI, dependencias ni APK 0.1.2. Ver [resultados](docs/integration-i2p2/RESULTADOS.md), [implementación](docs/integration-i2p2/IMPLEMENTACION.md), [controles futuros](docs/integration-i2p2/CONTROLES-I2.md) y [expediente para Claude](docs/integration-i2p2/REVISION-CLAUDE.md). No arrancar backend/BD ni hacer push sin autorización nueva. Los informes siguientes son históricos.
+
 # I2-P · Preparación aislada de autenticación
 
 Rama `codex/dashfort-mobile-i2p-20261116`, desde I1/00fb8ca. Contratos, lifecycle/vault, SecureStore opt-in de fixtures y transporte bloqueado, sin conexión ni cambios de UI o APK. Ver [resultados](docs/integration-i2p/RESULTADOS.md), [implementación](docs/integration-i2p/IMPLEMENTACION.md), [plan de activación](docs/integration-i2p/ENTORNO-Y-ACTIVACION.md) y [expediente para Claude](docs/integration-i2p/REVISION-CLAUDE.md). No activar I2 real ni hacer push sin autorización. Se conservan los informes anteriores como históricos.
