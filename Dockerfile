@@ -23,7 +23,10 @@ WORKDIR /app
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN grep -q "\"packageManager\": \"pnpm@${PNPM_VERSION}\"" package.json \
  || { echo "PNPM_VERSION del Dockerfile no coincide con packageManager de package.json"; exit 1; }
-RUN pnpm install --frozen-lockfile
+# Caché del store de pnpm entre despliegues (BuildKit): si el lockfile no
+# cambió, la capa sale de caché; si cambió, solo baja los paquetes nuevos.
+RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
+    pnpm install --frozen-lockfile --store-dir=/pnpm/store
 
 FROM base AS builder
 WORKDIR /app
@@ -42,7 +45,10 @@ ENV SOURCE_COMMIT=$SOURCE_COMMIT
 # despliegue. El tope de heap deja margen al resto del sistema (6 GB en uso).
 ENV SKIP_BUILD_CHECKS=1
 ENV NODE_OPTIONS=--max-old-space-size=3072
-RUN pnpm build
+# Caché incremental de Next (.next/cache) entre despliegues: sin ella cada
+# build compila todo desde cero (~4 min en el servidor).
+RUN --mount=type=cache,id=next-cache,target=/app/.next/cache \
+    pnpm build
 # migrate.mjs autocontenido (drizzle-orm + postgres bundleados)
 RUN pnpm exec esbuild scripts/migrate.mjs --bundle --platform=node \
     --format=esm --outfile=migrate.bundle.mjs \
@@ -115,9 +121,11 @@ EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
 
-# start-period amplio: cubre las migraciones del arranque (una migración
-# pesada puede pasar de 40 s; mientras dura, un fallo no cuenta)
-HEALTHCHECK --interval=15s --timeout=5s --start-period=90s --retries=5 \
+# Coolify espera el start-period COMPLETO antes del primer chequeo, así que
+# uno largo es tiempo muerto en cada despliegue. 30 s + 12 intentos cada 10 s
+# siguen cubriendo una migración pesada (hasta ~150 s, igual que antes con
+# 90 s + 5×15 s), pero el caso normal pasa en ~30 s en vez de 90 s.
+HEALTHCHECK --interval=10s --timeout=5s --start-period=30s --retries=12 \
   CMD wget -q -O /dev/null http://127.0.0.1:3000/api/health || exit 1
 
 # Operación 1 — APAGADO LIMPIO (spec 043, apagado.md). Antes el PID 1 era la
