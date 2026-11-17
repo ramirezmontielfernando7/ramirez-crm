@@ -49,3 +49,5 @@ prueba; anótalo en el PR como «no probado localmente».
   que prueba las banderas apagadas y encendidas.
 - Cachear el build de Next entre jobs: posible, pero un caché viejo puede
   esconder errores de build.
+
+<!-- Prueba de auto-despliegue de Coolify: 2026-11-17 -->
