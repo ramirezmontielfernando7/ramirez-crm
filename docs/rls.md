@@ -40,7 +40,7 @@ pone CI en rojo, y una excepción con `organization_id` también.
 
 | Tabla | Motivo |
 |---|---|
-| `user` | better-auth; sin `organization_id`: una persona es de sus membresías (`member`, que sí tiene RLS) |
+| `user` | better-auth; sin `organization_id`: una persona es de sus membresías (`member`, que sí tiene RLS). `vocero_app` solo la lee (nombres y correos en joins) |
 | `session` | better-auth; sin `organization_id`; solo el pool de sistema |
 | `account` | better-auth (credenciales de login); solo el pool de sistema |
 | `verification` | better-auth (tokens); solo el pool de sistema |

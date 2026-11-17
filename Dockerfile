@@ -141,5 +141,11 @@ HEALTHCHECK --interval=10s --timeout=5s --start-period=30s --retries=12 \
 RUN apk add --no-cache tini
 ENV NEXT_MANUAL_SIG_HANDLE=true
 ENTRYPOINT ["/sbin/tini", "-g", "--", "vocero-entrypoint.sh"]
-# Migrar al BOOT del contenedor nuevo y arrancar el server standalone
-CMD ["sh", "-c", "node migrate.mjs && exec node server.js"]
+# Migrar al BOOT del contenedor nuevo y arrancar el server standalone.
+# Auditoría 2026-11: DATABASE_URL_MIGRATE es el SUPERUSUARIO de Postgres y solo
+# lo necesita migrate.mjs. `env -u` lo quita del entorno ANTES de `exec node
+# server.js`: si alguien llegara a ejecutar código dentro de la app (que corre
+# como `vocero`), no encontraría esa credencial en process.env ni en
+# /proc/self/environ, y no podría apagar RLS ni leer todas las organizaciones.
+# (`docker exec … node ops/<script>.mjs` sigue viéndola: el operador la tiene.)
+CMD ["sh", "-c", "node migrate.mjs && exec env -u DATABASE_URL_MIGRATE node server.js"]

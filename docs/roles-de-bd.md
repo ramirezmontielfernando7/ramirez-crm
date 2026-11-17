@@ -19,7 +19,22 @@ tres roles, dos pools y cada consulta marcada con su organización.
   Al servidor solo viaja el verificador SCRAM-SHA-256 calculado en Node: la
   contraseña en claro no queda en el log de Postgres.
 - `migrate.mjs` también repite los `GRANT` en cada arranque, por si una tabla
-  la creara otro dueño.
+  la creara otro dueño, y luego le **quita** a `vocero_app` las tablas de
+  `SOLO_SISTEMA`: las de plataforma y, desde la auditoría de 2026-11, las de
+  better-auth (`session`, `account`, `verification`) y los controles de
+  plataforma (`platform_kill_switch`, `platform_broadcast`,
+  `platform_ai_pricing`). Antes el `GRANT` general se las dejaba, y RLS no las
+  cubre: un fallo en un camino de organización podía leer todas las sesiones y
+  hashes de contraseña. `user` queda **solo lectura** para `vocero_app`
+  (`SOLO_LECTURA_APP`): nombres y correos del equipo en joins; escribirla es de
+  better-auth. Lo verifica `tests/db/roles.test.ts`.
+- Topes por rol (`TOPES_POR_ROL`, auditoría 2026-11): `vocero_app` con
+  `statement_timeout = 120s` e `idle_in_transaction_session_timeout = 300s`;
+  `vocero_system` solo el segundo (la rotación de `ENCRYPTION_KEY` al arrancar
+  puede reescribir muchas filas). Aplican a conexiones nuevas: el siguiente
+  despliegue.
+- El superusuario (`DATABASE_URL_MIGRATE`) solo lo usa `migrate.mjs`: el `CMD`
+  de la imagen lo quita del entorno (`env -u`) antes de `exec node server.js`.
 - Sin `DATABASE_URL_MIGRATE` ni `DATABASE_URL_SYSTEM` todo usa `DATABASE_URL`:
   una instalación que todavía no separó roles funciona igual que antes.
 - Reversa (sin migración nueva): `scripts/sql/0026-reversa.sql`, después de
