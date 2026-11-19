@@ -1,0 +1,20 @@
+✔ strict test plan is never operational permission (1.546756ms)
+✔ every missing mandatory key is rejected (0.965042ms)
+✔ providers, migration credentials, preload and inherited unknown variables reject (0.320702ms)
+✔ each DSN rejects production, alternate host, role, query and secretless URL (0.576296ms)
+✔ both identities and privilege profiles are mandatory, DB failure cannot warn-and-continue (0.972523ms)
+✔ migration plan stays separate, inactive and compatible with original SQL roles (0.322586ms)
+✔ denied routes/method/origin never import auth or touch a database (36.076712ms)
+✔ handler reuses adapter response cookies and preserves status without exposing errors (0.998783ms)
+✔ unverified DB or connection errors prevent importing Better Auth (1.323711ms)
+✔ oversize request is rejected before DB (1.377743ms)
+✔ no worker, Next instrumentation, migration execution, timer or network listener in preparation modules (1.507417ms)
+✔ web TS ESLint and Docker exclude mobile and isolated auth preparation (0.304828ms)
+ℹ tests 12
+ℹ suites 0
+ℹ pass 12
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 130.388524
