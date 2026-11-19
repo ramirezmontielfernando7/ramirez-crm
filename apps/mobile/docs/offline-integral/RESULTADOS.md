@@ -2,7 +2,7 @@
 
 ## A. Resumen
 
-Base móvil **d0b27e29ea89706cdc0fdc795338670c4e9c10b5**, preservada en su rama respaldada. Nueva rama `codex/dashfort-mobile-offline-20261119`. Backend preparado en `/workspace/work/dashfort-auth-offline`, rama `codex/dashfort-auth-offline-20261119`, desde main **0b611126717ede5dca0f4ea766f28b99befd648c** verificado en GitHub. La raíz histórica de la rama móvil no se usó para implementar backend.
+Base móvil **d0b27e29ea89706cdc0fdc795338670c4e9c10b5**, preservada en su rama respaldada. Nueva rama `codex/dashfort-mobile-offline-20261119`. Backend preparado en `/workspace/work/dashfort-auth-offline`, rama `codex/dashfort-auth-offline-20261119`, desde main **daccd873eac667cc4eb19a9743e99df12538925a** verificado en GitHub. La raíz histórica de la rama móvil no se usó para implementar backend.
 
 Esta entrega **no completa las 158 pantallas ni conecta el CRM**. Consolida seguridad, prepara contratos y backend, y añade un bloque CRM. La construcción visual D sigue parcial; no se bloquean artificialmente sus 97 IDs pendientes por falta de servidor: aún requieren implementación y QA. No se les atribuye código por tener un contrato o maqueta.
 
@@ -60,7 +60,7 @@ Backend separado: `auth-only/{policy,handler}.mjs`, factories TS `existing-auth`
 
 ## G. Ramas y conservación
 
-Commits locales por etapa en las dos ramas, sin mezclar diffs. Los SHA finales, inventario y bundles incrementales verificados se registran en `artifacts/offline-integral/conservation.json` al cierre. La rama antigua d0b27e2 y main local permanecen sin cambios. Nuevas ramas **sin push**. El bundle móvil requiere d0b27e2; el de backend requiere main 0b61112. Un bundle en esta misma máquina no sustituye un respaldo remoto independiente.
+Commits locales por etapa en las dos ramas, sin mezclar diffs. Los SHA finales, inventario y bundles incrementales verificados se registran en `artifacts/offline-integral/conservation.json` al cierre. La rama antigua d0b27e2 y main local permanecen sin cambios. Nuevas ramas **sin push**. El bundle móvil requiere d0b27e2; el de backend requiere main daccd873. Un bundle en esta misma máquina no sustituye un respaldo remoto independiente.
 
 ## H. Riesgos
 
@@ -79,3 +79,5 @@ Revisar [EXPEDIENTE-CLAUDE.md](EXPEDIENTE-CLAUDE.md), diffs de ambas ramas y evi
 ## K. Operación posterior propuesta
 
 Tras revisar el código y autorizar expresamente un host local no productivo: acreditar recursos, preparar aislamiento efectivo y crear exclusivamente la instancia PostgreSQL test. La creación de red/volumen/BD es el primer bloque operativo: **no se ejecuta aquí**. Migrar/seedar, iniciar auth-only, abrir loopback/TLS y conectar Motorola requieren decisiones posteriores explícitas. Ni una variable ni un preflight válido autorizan esos pasos.
+
+Actualización de base: main cambió durante la ejecución de 0b61112 a daccd873. Se revisaron sus 13 archivos cambiados y el ajuste relevante de Docker (solo verificación de dependencias pnpm). Auth/DB/arranque/migrador no cambiaron. El worktree backend se rebasó localmente sobre daccd873 sin merge ni modificación a main. Se conserva la rama checkpoint codex/dashfort-auth-checkpoint-0b61112-20261119 y sus cuatro commits originales. Las 15 pruebas backend se repitieron sobre la nueva base.

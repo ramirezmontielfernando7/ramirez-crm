@@ -1,18 +1,18 @@
-✔ strict test plan is never operational permission (1.894114ms)
-✔ every missing mandatory key is rejected (1.153468ms)
-✔ providers, migration credentials, preload and inherited unknown variables reject (0.343528ms)
-✔ each DSN rejects production, alternate host, role, query and secretless URL (0.538411ms)
-✔ both identities and privilege profiles are mandatory, DB failure cannot warn-and-continue (0.719334ms)
-✔ migration plan stays separate, inactive and compatible with original SQL roles (0.229956ms)
-✔ denied routes/method/origin never import auth or touch a database (38.535578ms)
-✔ handler reuses adapter response cookies and preserves status without exposing errors (0.939195ms)
-✔ unverified DB or connection errors prevent importing Better Auth (1.463134ms)
-✔ oversize request is rejected before DB (2.04392ms)
-✔ no worker, Next instrumentation, migration execution, timer or network listener in preparation modules (0.792324ms)
-✔ web TS ESLint and Docker exclude mobile and isolated auth preparation (3.487795ms)
-✔ Node preparation exports a factory without listening or invoking it (0.500474ms)
-✔ test markers fail closed in full boot guard, including invalid profile and migration-only DSN (0.932685ms)
-✔ guard precedes operational imports in Next and DSN/client creation in original migrator (0.377258ms)
+✔ strict test plan is never operational permission (1.908345ms)
+✔ every missing mandatory key is rejected (1.211015ms)
+✔ providers, migration credentials, preload and inherited unknown variables reject (0.448165ms)
+✔ each DSN rejects production, alternate host, role, query and secretless URL (1.196693ms)
+✔ both identities and privilege profiles are mandatory, DB failure cannot warn-and-continue (0.551341ms)
+✔ migration plan stays separate, inactive and compatible with original SQL roles (0.26579ms)
+✔ denied routes/method/origin never import auth or touch a database (44.805344ms)
+✔ handler reuses adapter response cookies and preserves status without exposing errors (1.172847ms)
+✔ unverified DB or connection errors prevent importing Better Auth (1.630827ms)
+✔ oversize request is rejected before DB (2.158021ms)
+✔ no worker, Next instrumentation, migration execution, timer or network listener in preparation modules (0.520905ms)
+✔ web TS ESLint and Docker exclude mobile and isolated auth preparation (0.492361ms)
+✔ Node preparation exports a factory without listening or invoking it (0.415896ms)
+✔ test markers fail closed in full boot guard, including invalid profile and migration-only DSN (1.223052ms)
+✔ guard precedes operational imports in Next and DSN/client creation in original migrator (0.583719ms)
 ℹ tests 15
 ℹ suites 0
 ℹ pass 15
@@ -20,4 +20,4 @@
 ℹ cancelled 0
 ℹ skipped 0
 ℹ todo 0
-ℹ duration_ms 143.169775
+ℹ duration_ms 173.626373

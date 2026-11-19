@@ -18,7 +18,7 @@ Notificaciones: T-M5A/B conservadas, no push remoto ni tokens/permisos solicitad
 
 ## 8–9. Backend y delta contra main
 
-Referencia vigente consultada: **0b611126717ede5dca0f4ea766f28b99befd648c**. Worktree `/workspace/work/dashfort-auth-offline`, rama `codex/dashfort-auth-offline-20261119`. No usar los archivos web históricos de la rama móvil. Si main cambia, revisar el delta relevante antes de continuar.
+Referencia vigente consultada: **daccd873eac667cc4eb19a9743e99df12538925a**. Worktree `/workspace/work/dashfort-auth-offline`, rama `codex/dashfort-auth-offline-20261119`. No usar los archivos web históricos de la rama móvil. Si main cambia, revisar el delta relevante antes de continuar.
 
 Revisar:
 
@@ -61,7 +61,7 @@ Autorizaciones separadas: recursos/red → PostgreSQL/roles → migración/seed 
 
 No se activó servicio de pago, build remoto ni cuota de proveedor. El objetivo es máquina local disponible con coste adicional no contratado; no inventamos un importe ni acreditamos capacidad de una máquina ajena.
 
-No hay BD/contenedores/puertos creados en esta ejecución que revertir. Conservar commits/bundles; volver en checkout separado a d0b27e2 para demo y a main 0b61112 para comparar backend. La APK 0.1.2 sigue intacta. No usar reset destructivo ni borrar worktrees sin respaldo. Futuro rollback: detener solo el proyecto test, revocar sus credenciales, conservar evidencia redactada; destruir volúmenes exige IDs y autorización. Ninguna migración productiva forma parte del plan.
+No hay BD/contenedores/puertos creados en esta ejecución que revertir. Conservar commits/bundles; volver en checkout separado a d0b27e2 para demo y a main daccd873 para comparar backend. La APK 0.1.2 sigue intacta. No usar reset destructivo ni borrar worktrees sin respaldo. Futuro rollback: detener solo el proyecto test, revocar sus credenciales, conservar evidencia redactada; destruir volúmenes exige IDs y autorización. Ninguna migración productiva forma parte del plan.
 
 ## 19–20. Ramas, commits y respaldo
 

@@ -1,6 +1,6 @@
 # Preparación integral aislada · checkpoint posterior a I2-P2
 
-Nueva rama `codex/dashfort-mobile-offline-20261119`. 207 pruebas de lógica móvil y 15 de preparación backend; 19 IDs CRM nuevos con previews, sin validar Expo/nativo completo. 61 IDs con código y 97 pendientes: no se declara terminada la app ni una integración real. HTTP cerrado, UI previa conservada, APK 0.1.2 intacta. Backend en worktree separado de main 0b61112; no arrancado. Ver [resultados](docs/offline-integral/RESULTADOS.md), [pantallas](docs/offline-integral/PANTALLAS.md), [comparación](docs/offline-integral/comparacion.html) y [expediente para Claude](docs/offline-integral/EXPEDIENTE-CLAUDE.md). Ningún push/servicio/migración autorizado en esta entrega. Informes siguientes históricos.
+Nueva rama `codex/dashfort-mobile-offline-20261119`. 207 pruebas de lógica móvil y 15 de preparación backend; 19 IDs CRM nuevos con previews, sin validar Expo/nativo completo. 61 IDs con código y 97 pendientes: no se declara terminada la app ni una integración real. HTTP cerrado, UI previa conservada, APK 0.1.2 intacta. Backend en worktree separado de main daccd873; no arrancado. Ver [resultados](docs/offline-integral/RESULTADOS.md), [pantallas](docs/offline-integral/PANTALLAS.md), [comparación](docs/offline-integral/comparacion.html) y [expediente para Claude](docs/offline-integral/EXPEDIENTE-CLAUDE.md). Ningún push/servicio/migración autorizado en esta entrega. Informes siguientes históricos.
 
 # I2-P2 · Correcciones de seguridad aisladas
 

@@ -1,6 +1,6 @@
 # Desarrollo integral aislado
 
-Base móvil d0b27e29ea89706cdc0fdc795338670c4e9c10b5; rama codex/dashfort-mobile-offline-20261119. Backend de referencia 0b611126717ede5dca0f4ea766f28b99befd648c, worktree independiente. No se autoriza arrancar servicios, QA HTTP, backend, BD, contenedores, migraciones o conexiones reales.
+Base móvil d0b27e29ea89706cdc0fdc795338670c4e9c10b5; rama codex/dashfort-mobile-offline-20261119. Backend de referencia daccd873eac667cc4eb19a9743e99df12538925a, worktree independiente. No se autoriza arrancar servicios, QA HTTP, backend, BD, contenedores, migraciones o conexiones reales.
 
 | Etapa | Trabajo en esta ejecución |
 |---|---|
