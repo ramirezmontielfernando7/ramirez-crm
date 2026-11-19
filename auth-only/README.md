@@ -1,6 +1,6 @@
 # Backend auth-only · preparación local, no arrancado
 
-Base exacta: 0b611126717ede5dca0f4ea766f28b99befd648c. Worktree independiente /workspace/work/dashfort-auth-offline, rama codex/dashfort-auth-offline-20261119. No es un servidor activo ni una imagen lista para desplegar. No ejecutar pnpm start, next dev/start, scripts/migrate.mjs, Docker o PostgreSQL.
+Base exacta: daccd873eac667cc4eb19a9743e99df12538925a. Worktree independiente /workspace/work/dashfort-auth-offline, rama codex/dashfort-auth-offline-20261119. No es un servidor activo ni una imagen lista para desplegar. No ejecutar pnpm start, next dev/start, scripts/migrate.mjs, Docker o PostgreSQL.
 
 `handler.mjs` es una fábrica Request/Response sin listener: admite únicamente tres rutas Better Auth con método exacto, origen exacto, cuerpo limitado, identidad de ambas conexiones y errores sanitizados. Los tests usan dobles de memoria. `existing-auth.ts` prepara la reutilización perezosa de getAuth existente; no inventa cookies ni endpoints. Solo ese adaptador podría consultar las dos conexiones después de una futura invocación autorizada. No se ejecutó ni se probó con dependencias backend/BD reales.
 
@@ -17,3 +17,5 @@ Compatibilidad futura: tsconfig/ESLint/.dockerignore excluyen Mobile y auth-only
 Puerta de seguridad: review de Claude + autorización del propietario antes de generar secretos, crear red/volumen/BD, configurar identidad de instancia, migrar, proveer listener o invocar el adaptador contra BD. Más tarde revisar cookie jar/rotación/CSRF/TLS/nativo y bootstrap de permisos de sesión. El plugin org sigue cerrado; no habilitarlo para satisfacer el simulador.
 
 Reversión: no hay servicios que detener ni BD que borrar en esta entrega. Conservar rama/commits/bundle; descartar únicamente este worktree tras respaldarlo si se decide no usarlo. Futuro rollback: detener solo proyecto test, revocar solo credenciales test; destruir un volumen exige verificar IDs y autorización. Producción permanece fuera de estas operaciones.
+
+Main avanzó durante el trabajo. Se revisó el delta (onboarding, un paso e2e y un ajuste Docker de verificación pnpm; auth, DB, migrador e instrumentation sin cambios). Se reaplicaron los cuatro commits locales sobre daccd873 mediante rebase local, sin merge ni cambios a main; checkpoint anterior preservado en codex/dashfort-auth-checkpoint-0b61112-20261119. Quince pruebas de preparación vuelven a pasar sobre la nueva base.
