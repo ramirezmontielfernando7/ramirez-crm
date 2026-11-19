@@ -33,6 +33,12 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
+# pnpm 11 revisa las dependencias antes de cada `pnpm build`/`pnpm exec`. Con
+# la capa `deps` sacada de la caché, package.json llega más nuevo que
+# node_modules, pnpm quiere reinstalar (con otro store) y aborta sin TTY
+# (ERR_PNPM_ABORTED_REMOVE_MODULES_DIR_NO_TTY). Las deps ya se instalaron
+# con --frozen-lockfile en la etapa anterior: no hace falta revisarlas.
+ENV pnpm_config_verify_deps_before_run=false
 # Commit del que sale la imagen, para que la app pueda decir qué está corriendo.
 # Tiene que llegar como build arg en CADA despliegue; con docker compose,
 # `--build-arg SOURCE_COMMIT=$(git rev-parse HEAD)`. Si falta nunca es un error
