@@ -1,3 +1,4 @@
+import { CatalogTag } from "../catalog/CatalogTag";
 import React, { useRef, useState } from "react";
 import { View } from "react-native";
 import { CalendarDays, Flag, UserCheck } from "lucide-react-native";
@@ -14,7 +15,7 @@ import {
 import { useLayers } from "../../components/Layers";
 import { useTheme } from "../../theme/ThemeProvider";
 import { useAction } from "../chat/Sheets";
-import { stages, tags } from "../inbox/model";
+import { stages } from "../inbox/model";
 import {
   actionKey,
   type ContactStore,
@@ -71,7 +72,13 @@ export function StageSheet({ store }: { store: ContactStore }) {
 }
 export function LossSheet({ store }: { store: ContactStore }) {
   const s = useContactState(store),
-    [reason, setReason] = useState(s.data.lossReason || "Precio"),
+    [reason, setReason] = useState(
+      (
+        store.directory.conversations.catalog?.reasonNames() ?? lossReasons
+      ).some((v) => v === s.data.lossReason)
+        ? s.data.lossReason
+        : (store.directory.conversations.catalog?.reasonNames()[0] ?? "Precio"),
+    ),
     [detail, setDetail] = useState(s.data.lossDetail),
     action = useAction(),
     { close } = useLayers();
@@ -79,7 +86,9 @@ export function LossSheet({ store }: { store: ContactStore }) {
   return (
     <>
       <ErrorBanner error={action.error} />
-      {lossReasons.map((v) => (
+      {(
+        store.directory.conversations.catalog?.reasonNames() ?? lossReasons
+      ).map((v) => (
         <Option
           key={v}
           label={v}
@@ -163,12 +172,12 @@ export function TagsSheet({ store }: { store: ContactStore }) {
   return (
     <>
       <ErrorBanner error={action.error} />
-      {tags.map((v) => (
+      {(store.directory.conversations.catalog?.tagNames() ?? []).map((v) => (
         <Option
           key={v}
           kind="checkbox"
           label={v}
-          leading={<TagCapsule>{v}</TagCapsule>}
+          leading={<CatalogTag name={v} />}
           hideLabel
           checked={s.data.tags.includes(v)}
           disabled={action.busy}
@@ -183,19 +192,21 @@ export function TagsSheet({ store }: { store: ContactStore }) {
           }
         />
       ))}
-      {s.data.tags.includes(systemImportTag) && (
-        <>
-          <Option
-            kind="checkbox"
-            label={systemImportTag}
-            sub="Etiqueta de sistema · No se puede quitar"
-            checked
-            disabled
-            onPress={() => {}}
-          />
-          <Text kind="meta">Las etiquetas de importación se conservan.</Text>
-        </>
-      )}
+      {s.data.tags.includes(systemImportTag) &&
+        store.directory.conversations.catalog?.tag(systemImportTag)
+          ?.automatic && (
+          <>
+            <Option
+              kind="checkbox"
+              label={systemImportTag}
+              sub="Etiqueta de sistema · No se puede quitar"
+              checked
+              disabled
+              onPress={() => {}}
+            />
+            <Text kind="meta">Las etiquetas de importación se conservan.</Text>
+          </>
+        )}
       <Button disabled={action.busy} onPress={close}>
         Listo
       </Button>

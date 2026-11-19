@@ -82,3 +82,6 @@ SET-06/06A: 106/158 IDs, 52 pendientes, 400 pruebas. docs/refinement-b/LOTE-12-R
 
 ## Lote 13 y checkpoint 107
 AUTH-01 completada; 107/158 IDs, 51 pendientes, 407 pruebas. docs/refinement-b/CHECKPOINT-107.md y LOTE-13-APERTURA.md. Apertura solo primera vez, presupuesto 800 ms, omite reducir movimiento y no espera escrituras; QA estática web/temporización lógica, animación nativa pendiente. 60 capturas RN nuevas + 20 referencias y regresiones offline; 26 artefactos protegidos intactos. Próximo lote exacto SET-05/05A y SET-07, catálogos canónicos compartidos antes de contar índices. No modificar backend, APK/firma/B, no Gradle con ~1.4 GiB, servicios reales, push o costes. Conservar bundles incrementales y su base f3f467a; ZIP local nuevo, sin upload automático.
+
+## Lote 14 · Catálogos
+SET-05/05A/07: 110/158, 48 pendientes, 433 pruebas. Ver docs/refinement-b/LOTE-14-CATALOGOS.md. IDs/alias históricos, revisiones, fusiones y borrado/confirmación, motivos desactivados preservan historia, Otro fijo. Catálogo compartido por Inbox/CRM/Contactos/Chat; CatalogStore por organización, ContactDirectory conserva v1 default y separa otras org con v2. Asignaciones Inbox de sesión siguen con ese límite. Sin cambiar B/globales ni backend. Próximo SET-08 simulado; no proveedores, Gradle o push.

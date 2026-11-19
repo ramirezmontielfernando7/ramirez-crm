@@ -1,7 +1,10 @@
+import { CatalogStore } from "../catalog/core";
+import { preferencesStorage } from "../../services/storage";
 import React, {
   createContext,
   useContext,
   useMemo,
+  useEffect,
   useSyncExternalStore,
 } from "react";
 import { useSession } from "../../state/SessionProvider";
@@ -11,9 +14,18 @@ const Context = createContext<InboxStore | null>(null);
 export function InboxProvider({ children }: React.PropsWithChildren) {
   const { session } = useSession();
   const store = useMemo(
-    () => (session ? new InboxStore(session) : null),
+    () =>
+      session
+        ? new InboxStore(
+            session,
+            new CatalogStore(session, "demo-org-cristal", preferencesStorage),
+          )
+        : null,
     [session?.id],
   );
+  useEffect(() => {
+    if (store) void store.repository.catalog.hydrate();
+  }, [store]);
   return <Context.Provider value={store}>{children}</Context.Provider>;
 }
 export function useInbox() {

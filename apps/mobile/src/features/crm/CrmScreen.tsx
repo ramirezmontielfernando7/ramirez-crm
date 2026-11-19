@@ -35,7 +35,14 @@ export function CrmScreen() {
   }, [params.section]);
   const libraryStore = libraryFor(inbox);
   useEffect(() => {
-    const sync = () => m.patch({ status: inbox.snapshot().status });
+    const sync = () =>
+      m.patch({
+        status: inbox.snapshot().status,
+        tag:
+          m.state.tag === "Todas"
+            ? "Todas"
+            : (inbox.repository.catalog.tag(m.state.tag)?.name ?? "Todas"),
+      });
     sync();
     return inbox.subscribe(sync);
   }, [inbox, m]);

@@ -1,3 +1,4 @@
+import { initialReasons } from "../catalog/core";
 import type { Actor, Conversation } from "../inbox/model";
 export const team = [
   { id: "demo-owner", name: "Fer Ramírez", role: "Propietario" },
@@ -6,14 +7,7 @@ export const team = [
 ] as const;
 export const personName = (id: string | null) =>
   team.find((p) => p.id === id)?.name ?? "Sin asignar";
-export const lossReasons = [
-  "Precio",
-  "Sin respuesta",
-  "Compró con otro",
-  "Ya no lo necesita",
-  "Fuera de zona",
-  "Otro",
-] as const;
+export const lossReasons = initialReasons;
 export const priorities = ["Sin prioridad", "Baja", "Media", "Alta"] as const;
 export const modeLabels = {
   meta: "Meta",

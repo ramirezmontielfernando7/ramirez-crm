@@ -169,13 +169,7 @@ export function CrmOverlay(props: CrmNavigation & { id: CrmId; arg?: string }) {
   if (id === "CRM-05" && contact)
     return (
       <View style={{ gap: 8 }}>
-        {[
-          "Precio",
-          "No respondió",
-          "Sin disponibilidad",
-          "Eligió otra opción",
-          "Otro",
-        ].map((reason) => (
+        {m.repository.catalog.reasonNames().map((reason) => (
           <Option
             key={reason}
             label={reason}
@@ -337,15 +331,7 @@ export function CrmOverlay(props: CrmNavigation & { id: CrmId; arg?: string }) {
       <View style={{ gap: 10 }}>
         <Text>Etiqueta</Text>
         <FilterChips
-          options={[
-            "Promo nov",
-            "Mayoreo",
-            "Facebook Ads",
-            "VIP",
-            "Urgente",
-            "Seguimiento",
-            "Referido",
-          ]}
+          options={m.repository.catalog.tagNames()}
           value={value}
           onChange={setValue}
         />
@@ -540,14 +526,7 @@ function Filters({
           />
           <Text>Etiqueta</Text>
           <FilterChips
-            options={[
-              "Todas",
-              "Promo nov",
-              "Mayoreo",
-              "Facebook Ads",
-              "VIP",
-              "Seguimiento",
-            ]}
+            options={["Todas", ...m.repository.catalog.tagNames()]}
             value={draft.tag}
             onChange={(tag) => set({ tag })}
           />

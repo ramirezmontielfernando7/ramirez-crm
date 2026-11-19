@@ -106,11 +106,20 @@ export class CrmModel {
       consent: "Sin respuesta" as Consent,
       email: "",
       notes: "",
-      source: c.tags.includes("Facebook Ads") ? "Facebook Ads" : "Orgánico",
+      source:
+        c.source ??
+        (c.tags.includes(
+          this.repository.catalog.tag("Facebook Ads")?.name ?? "Facebook Ads",
+        )
+          ? "Facebook Ads"
+          : "Orgánico"),
       amount: 12500,
       priority: "Media",
-      loss: "",
       ...extra,
+      loss:
+        c.stage === "Perdido"
+          ? (c.lossReason ?? extra?.loss ?? "Sin respuesta")
+          : "",
     };
     if (this.projections.size < 10000 || this.projections.has(c.id))
       this.projections.set(c.id, { source: c, extra, value });
@@ -186,11 +195,18 @@ export class CrmModel {
   }
   move(id: string, stage: string, loss = "") {
     this.get(id);
-    if (stage === "Perdido" && !loss.trim())
+    if (
+      stage === "Perdido" &&
+      (!this.repository.catalog.snapshot().ready ||
+        !this.repository.catalog.reasonNames().includes(loss))
+    )
       throw Error("Selecciona un motivo de pérdida.");
     if (!this.stageList.some((s) => s.name === stage))
       throw Error("Etapa no válida.");
-    this.repository.updateContact(this.actor, id, { stage });
+    this.repository.updateContact(this.actor, id, {
+      stage,
+      lossReason: stage === "Perdido" ? loss : "",
+    });
     this.extra.set(id, {
       ...this.extra.get(id),
       loss: stage === "Perdido" ? loss : "",
@@ -227,7 +243,7 @@ export class CrmModel {
       this.manage();
       this.repository.assign(this.actor, ids, value);
     } else {
-      if (!(tags as readonly string[]).includes(value))
+      if (!this.repository.catalog.tagNames().includes(value))
         throw Error("Etiqueta inválida.");
       for (const id of ids) {
         const c = this.get(id);

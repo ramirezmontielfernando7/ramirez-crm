@@ -957,7 +957,7 @@ export class StudioStore {
     this.conversations.tagMany(
       this.library.actor,
       turn.tagTargets,
-      "Seguimiento",
+      this.conversations.catalog?.tag("Seguimiento")?.name ?? "Seguimiento",
     );
     this.notify("");
   }
@@ -968,7 +968,10 @@ export class StudioStore {
         try {
           return this.conversations
             .get(this.library.actor, id)
-            .tags.includes("Seguimiento");
+            .tags.includes(
+              this.conversations.catalog?.tag("Seguimiento")?.name ??
+                "Seguimiento",
+            );
         } catch {
           return false;
         }

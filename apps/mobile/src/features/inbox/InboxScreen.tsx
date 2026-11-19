@@ -1,3 +1,4 @@
+import { CatalogTag } from "../catalog/CatalogTag";
 import React, {
   memo,
   useCallback,
@@ -44,7 +45,6 @@ import {
   defaultFilters,
   queryConversations,
   stages,
-  tags,
   type Conversation,
   type Filters,
 } from "./model";
@@ -171,7 +171,7 @@ const ConversationRow = memo(function ConversationRow({
                   {item.group ? "Grupo de WhatsApp" : item.stage}
                 </StageCapsule>
                 {item.tags.slice(0, 2).map((tag) => (
-                  <TagCapsule key={tag}>{tag}</TagCapsule>
+                  <CatalogTag key={tag} name={tag} />
                 ))}
               </>
             )}
@@ -242,7 +242,7 @@ function FiltersSheet() {
       />
       <Section>Etiqueta</Section>
       <WrapChoices
-        options={["Toda etiqueta", ...tags]}
+        options={["Toda etiqueta", ...store.repository.catalog.tagNames()]}
         value={draft.tag}
         onChange={set("tag")}
       />

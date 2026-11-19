@@ -1,3 +1,4 @@
+import { CatalogStore, initialTags } from "../catalog/core";
 import { stagePalette } from "../../domain/stage-colors";
 let catalogEpoch = 0;
 import type { Role } from "../../domain/access";
@@ -8,15 +9,7 @@ export const stages = [
   "Cliente",
   "Perdido",
 ] as const;
-export const tags = [
-  "Promo nov",
-  "Mayoreo",
-  "Facebook Ads",
-  "VIP",
-  "Urgente",
-  "Seguimiento",
-  "Referido",
-] as const;
+export const tags = initialTags;
 export type Conversation = Readonly<{
   id: string;
   name: string;
@@ -32,6 +25,8 @@ export type Conversation = Readonly<{
   campaign: string | null;
   group: boolean;
   closed: boolean;
+  lossReason?: string;
+  source?: "Facebook Ads" | "Orgánico";
   search: string;
 }>;
 export type Actor = { id: string; role: Role };
@@ -149,6 +144,7 @@ export function seedConversations(count = 2000): readonly Conversation[] {
   });
 }
 export interface ConversationRepository {
+  readonly catalog?: CatalogStore;
   stageOptions?(): readonly string[];
   stageIdentity?(name: string): string | null;
   stageColor?(name: string): string;
@@ -165,7 +161,9 @@ export interface ConversationRepository {
   updateContact(
     actor: Actor,
     id: string,
-    patch: Partial<Pick<Conversation, "stage" | "tags" | "ai" | "assigned">>,
+    patch: Partial<
+      Pick<Conversation, "stage" | "tags" | "ai" | "assigned" | "lossReason">
+    >,
   ): void;
 }
 export class DemoConversationRepository implements ConversationRepository {
@@ -250,8 +248,42 @@ export class DemoConversationRepository implements ConversationRepository {
       return { ...next, search: searchable(next) };
     });
   }
-  constructor(data = seedConversations()) {
-    this.data = data;
+  constructor(
+    data = seedConversations(),
+    readonly catalog = new CatalogStore({ id: "demo-owner", role: "owner" }),
+  ) {
+    this.data = data.map((c) =>
+      c.source
+        ? c
+        : {
+            ...c,
+            source: c.tags.includes("Facebook Ads")
+              ? "Facebook Ads"
+              : "Orgánico",
+          },
+    );
+    let previous = catalog.snapshot().doc;
+    const apply = () => {
+      if (!catalog.snapshot().ready) return;
+      const current = catalog.snapshot().doc;
+      this.data = this.data.map((c) => {
+        const next = catalog.normalizeTags(c.tags);
+        const colorsChanged = c.tags.some(
+          (name) =>
+            previous.tags.find((t) => t.name === name)?.color !==
+            catalog.tag(name)?.color,
+        );
+        if (JSON.stringify(next) === JSON.stringify(c.tags) && !colorsChanged)
+          return c;
+        return { ...c, tags: next, search: searchable({ ...c, tags: next }) };
+      });
+      previous = current;
+      this.catalogChanged();
+    };
+    catalog.subscribe(() => {
+      if (catalog.snapshot().doc !== previous) apply();
+    });
+    if (catalog.snapshot().ready) apply();
   }
   list(actor: Actor) {
     return this.data.filter((c) => allowed(actor, c));
@@ -273,8 +305,10 @@ export class DemoConversationRepository implements ConversationRepository {
   }
   tagMany(actor: Actor, ids: readonly string[], tag: string) {
     if (
+      !this.catalog.snapshot().ready ||
       actor.role !== "owner" ||
-      tag !== "Seguimiento" ||
+      !this.catalog.tag("Seguimiento") ||
+      tag !== this.catalog.tag("Seguimiento")?.name ||
       !ids.length ||
       ids.length > 12
     )
@@ -336,7 +370,9 @@ export class DemoConversationRepository implements ConversationRepository {
   updateContact(
     actor: Actor,
     id: string,
-    patch: Partial<Pick<Conversation, "stage" | "tags" | "ai" | "assigned">>,
+    patch: Partial<
+      Pick<Conversation, "stage" | "tags" | "ai" | "assigned" | "lossReason">
+    >,
   ) {
     this.get(actor, id);
     if (
@@ -357,6 +393,16 @@ export class DemoConversationRepository implements ConversationRepository {
       throw new Error("Etapa no válida.");
     if (patch.ai !== undefined && !["on", "pause", "off"].includes(patch.ai))
       throw new Error("Estado de IA no válido.");
+    if (patch.tags && !this.catalog.snapshot().ready)
+      throw Error("Recupera el catálogo antes de etiquetar.");
+    if (
+      patch.tags &&
+      (patch.tags.length > 30 ||
+        patch.tags.some((t) => this.catalog.tag(t)?.name !== t))
+    )
+      throw Error("Etiqueta no válida.");
+    if (patch.lossReason && !this.catalog.knownReason(patch.lossReason))
+      throw Error("Motivo de pérdida no válido.");
     this.update(actor, [id], (c) => {
       const next = { ...c, ...patch };
       return { ...next, search: searchable(next) };

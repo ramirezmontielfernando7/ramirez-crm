@@ -1,3 +1,4 @@
+import { CatalogStore } from "../catalog/core";
 import {
   DemoConversationRepository,
   defaultFilters,
@@ -8,7 +9,7 @@ import {
 export type DataState = "normal" | "loading" | "empty" | "error" | "offline";
 export class InboxStore {
   private pending: string[] = [];
-  readonly repository = new DemoConversationRepository();
+  readonly repository: DemoConversationRepository;
   private listeners = new Set<() => void>();
   private state: {
     data: readonly Conversation[];
@@ -28,7 +29,23 @@ export class InboxStore {
   anchor: { id: string; index: number; within: number } | null = null;
   scrollToTop = () => {};
   offset = 0;
-  constructor(readonly actor: Actor) {
+  constructor(
+    readonly actor: Actor,
+    catalog = new CatalogStore(actor),
+  ) {
+    this.repository = new DemoConversationRepository(undefined, catalog);
+    this.repository.subscribeCatalog(() => {
+      const selected = this.state.filters.tag;
+      const next =
+        selected === "Toda etiqueta"
+          ? selected
+          : (catalog.tag(selected)?.name ?? "Toda etiqueta");
+      this.state = {
+        ...this.state,
+        filters: { ...this.state.filters, tag: next },
+      };
+      this.reload();
+    });
     this.state = { ...this.state, data: this.repository.list(actor) };
   }
   subscribe = (fn: () => void) => {

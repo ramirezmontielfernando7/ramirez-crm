@@ -153,6 +153,18 @@ function OriginalDemo() {
         )}
         <Section>Laboratorio de demostración</Section>
         {auth.session && auth.session.role !== "advisor" && (
+          <>
+            <NavRow
+              label="Etiquetas · catálogo ficticio"
+              onPress={() => router.push("/tags")}
+            />
+            <NavRow
+              label="Motivos de pérdida · catálogo ficticio"
+              onPress={() => router.push("/loss-reasons")}
+            />
+          </>
+        )}
+        {auth.session && auth.session.role !== "advisor" && (
           <NavRow
             label="Respuestas rápidas · catálogo ficticio"
             onPress={() => router.push("/quick-replies")}

@@ -115,6 +115,8 @@ function RootNavigator() {
           <Stack.Screen name="studio-create" />
           <Stack.Screen name="studio-evaluation/[id]" />
           <Stack.Screen name="assistant" />
+          <Stack.Screen name="tags" />
+          <Stack.Screen name="loss-reasons" />
           <Stack.Screen name="quick-replies" />
           <Stack.Screen name="notification-settings" />
           <Stack.Screen name="usage" />

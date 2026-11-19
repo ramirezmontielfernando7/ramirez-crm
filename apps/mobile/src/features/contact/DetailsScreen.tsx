@@ -1,3 +1,4 @@
+import { CatalogTag } from "../catalog/CatalogTag";
 import React, { useCallback, useRef } from "react";
 import { Pressable, ScrollView, View } from "react-native";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
@@ -336,7 +337,7 @@ export function DetailsScreen({
           {!!conversation.tags.length && (
             <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
               {conversation.tags.map((tag) => (
-                <TagCapsule key={tag}>{tag}</TagCapsule>
+                <CatalogTag key={tag} name={tag} />
               ))}
             </View>
           )}

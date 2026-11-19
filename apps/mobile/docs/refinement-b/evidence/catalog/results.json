@@ -1,0 +1,22 @@
+{
+  "ids": [
+    "SET-05",
+    "SET-05A",
+    "SET-07"
+  ],
+  "checks": [
+    "3 IDs captured actual RN in both themes/sizes, approved palette and internal headers, no new product selectors",
+    "Save failure retains editor; create/retry, palette, Contact selection, canonical Inbox search and rename propagation without duplicate assignment",
+    "Delete requires confirmation; cancel preserves unsaved editor; confirm removes tag from canonical assignments",
+    "Automatic import tag shown separately and merges to manual target only after confirmation",
+    "New loss reason used in actual Contact/Chat flow; deactivation excludes new selections and preserves historical reason; Otro fixed",
+    "Owner and Coordinator manage; Advisor denied both direct catalog routes; org catalog persists across actors",
+    "Loading, empty, retry and offline states use approved components"
+  ],
+  "actualCaptures": 21,
+  "officialReferences": 6,
+  "errors": [],
+  "networkRequests": 0,
+  "httpServerStarted": false,
+  "native": false
+}

@@ -1,3 +1,4 @@
+import { CatalogTag } from "../catalog/CatalogTag";
 import React, { memo, useMemo, useSyncExternalStore } from "react";
 import {
   FlatList,
@@ -107,7 +108,7 @@ const ContactRow = memo(function ContactRow({
         <View style={{ flexDirection: "row", gap: 6 }}>
           <StageCapsule>{item.stage}</StageCapsule>
           {item.tags.slice(0, 1).map((t) => (
-            <TagCapsule key={t}>{t}</TagCapsule>
+            <CatalogTag key={t} name={t} />
           ))}
         </View>
       </View>
@@ -293,7 +294,7 @@ export function CrmView(props: CrmNavigation) {
           <Section>Etiquetas</Section>
           <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
             {selected.tags.map((t) => (
-              <TagCapsule key={t}>{t}</TagCapsule>
+              <CatalogTag key={t} name={t} />
             ))}
           </View>
           <Section>Notas de trabajo</Section>
@@ -589,7 +590,7 @@ export function CrmView(props: CrmNavigation) {
                       </View>
                       <View style={{ flexDirection: "row", gap: 6 }}>
                         {r.tags.slice(0, 2).map((t) => (
-                          <TagCapsule key={t}>{t}</TagCapsule>
+                          <CatalogTag key={t} name={t} />
                         ))}
                         <Text kind="meta">
                           {r.assigned ? "Asignado" : "Sin asignar"}

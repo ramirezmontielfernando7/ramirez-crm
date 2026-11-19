@@ -1,3 +1,4 @@
+import { importTag, type CatalogStore } from "../catalog/core";
 import {
   stages,
   tags as tagCatalog,
@@ -31,12 +32,13 @@ export type ContactSnapshot = Readonly<{
   noteDraft: string;
   filter: string;
 }>;
-export const systemImportTag = "Importación · demo";
+export const systemImportTag = importTag;
 const allTags = [...tagCatalog, systemImportTag];
 const isPerson = (v: unknown) => v === null || team.some((p) => p.id === v);
 export function decodeDetails(
   raw: string,
   catalog: readonly string[] = stages,
+  business?: CatalogStore,
 ): ContactData {
   const d = JSON.parse(raw) as ContactData;
   const text = (v: unknown, max: number) =>
@@ -51,7 +53,9 @@ export function decodeDetails(
     !Array.isArray(d.tags) ||
     d.tags.length > 30 ||
     new Set(d.tags).size !== d.tags.length ||
-    !d.tags.every((t) => allTags.includes(t)) ||
+    !d.tags.every((t) =>
+      business ? business.knownTag(t) : allTags.includes(t),
+    ) ||
     !priorities.includes(d.priority as (typeof priorities)[number]) ||
     !(
       d.amountCents === null ||
@@ -61,7 +65,9 @@ export function decodeDetails(
     ) ||
     !text(d.lossReason, 100) ||
     (d.lossReason !== "" &&
-      !(lossReasons as readonly string[]).includes(d.lossReason)) ||
+      !(business
+        ? business.knownReason(d.lossReason)
+        : (lossReasons as readonly string[]).includes(d.lossReason))) ||
     !text(d.lossDetail, 2000) ||
     (d.stage === "Perdido" && !d.lossReason) ||
     !Number.isSafeInteger(d.sequence) ||
@@ -107,7 +113,12 @@ export const actionKey = () =>
   `demo-action-${Date.now().toString(36)}-${++requestCounter}`;
 export class ContactDirectory {
   readonly workRepo: WorkRepository;
-  readonly organizationId = "demo-org-cristal";
+  readonly organizationId: string;
+  contactPrefix() {
+    return this.organizationId === "demo-org-cristal"
+      ? `dashfort.demo.contact.v1.${this.actor.id}.`
+      : `dashfort.demo.contact.v2.${this.organizationId}.${this.actor.id}.`;
+  }
   private stores = new Map<string, ContactStore>();
   private listeners = new Set<() => void>();
   private settings: DemoFlags;
@@ -119,6 +130,8 @@ export class ContactDirectory {
     readonly changed: () => void,
     readonly now: () => number = Date.now,
   ) {
+    this.organizationId =
+      conversations.catalog?.organizationId ?? "demo-org-cristal";
     this.settings = defaultFlags(actor);
     this.workRepo = new WorkRepository(
       actor,
@@ -131,7 +144,13 @@ export class ContactDirectory {
     this.workRepo.subscribe(() => this.stores.forEach((s) => s.syncWork()));
   }
   private async readLegacyWork(): Promise<readonly LegacyWork[]> {
-    const prefix = `dashfort.demo.contact.v1.${this.actor.id}.`;
+    await this.conversations.catalog?.hydrate();
+    if (
+      this.conversations.catalog &&
+      !this.conversations.catalog.snapshot().ready
+    )
+      throw Error("Recupera los catálogos antes de leer tareas.");
+    const prefix = this.contactPrefix();
     const keys = this.storage.keys
       ? await this.storage.keys(prefix)
       : this.conversations.list(this.actor).map((c) => prefix + c.id);
@@ -153,6 +172,7 @@ export class ContactDirectory {
       const d = decodeDetails(
         raw,
         this.conversations.stageOptions?.() ?? stages,
+        this.conversations.catalog,
       );
       result.push({
         contactId: id,
@@ -237,7 +257,7 @@ export class ContactStore {
       noteDraft: "",
       filter: "Todo",
     };
-    this.storageKey = `dashfort.demo.contact.v1.${directory.actor.id}.${id}`;
+    this.storageKey = directory.contactPrefix() + id;
   }
   get actor() {
     return this.directory.actor;
@@ -299,11 +319,15 @@ export class ContactStore {
   private basePatch(data: ContactData) {
     const c = this.authorize();
     const p: {
-      -readonly [K in "stage" | "tags" | "ai" | "assigned"]?: Conversation[K];
+      -readonly [
+        K in "stage" | "tags" | "ai" | "assigned" | "lossReason"
+      ]?: Conversation[K];
     } = {};
     if (c.stage !== data.stage) p.stage = data.stage;
     if (c.assigned !== data.assigned) p.assigned = data.assigned;
     if (c.ai !== data.ai) p.ai = data.ai;
+    if ((c.lossReason ?? "") !== data.lossReason)
+      p.lossReason = data.lossReason;
     if (JSON.stringify(c.tags) !== JSON.stringify(data.tags))
       p.tags = data.tags;
     if (Object.keys(p).length) {
@@ -324,7 +348,8 @@ export class ContactStore {
       d.stage === c.stage &&
       d.assigned === c.assigned &&
       d.ai === c.ai &&
-      JSON.stringify(d.tags) === JSON.stringify(c.tags)
+      JSON.stringify(d.tags) === JSON.stringify(c.tags) &&
+      (c.lossReason === undefined || d.lossReason === c.lossReason)
     )
       return;
     this.patch({
@@ -335,7 +360,9 @@ export class ContactStore {
         ai: c.ai,
         tags: c.tags,
         lossReason:
-          c.stage === "Perdido" ? d.lossReason || "Sin respuesta" : "",
+          c.stage === "Perdido"
+            ? (c.lossReason ?? (d.lossReason || "Sin respuesta"))
+            : "",
         lossDetail: c.stage === "Perdido" ? d.lossDetail : "",
       },
     });
@@ -346,14 +373,33 @@ export class ContactStore {
     this.hydration = (async () => {
       try {
         const before = this.authorize();
+        if (
+          this.directory.conversations.catalog &&
+          !this.directory.conversations.catalog.snapshot().ready
+        )
+          await this.directory.conversations.catalog.hydrate();
+        if (
+          this.directory.conversations.catalog &&
+          !this.directory.conversations.catalog.snapshot().ready
+        )
+          throw Error("Recupera el catálogo antes de los detalles.");
         const raw = await this.directory.storage.get(this.storageKey);
         let data = raw
           ? decodeDetails(
               raw,
               this.directory.conversations.stageOptions?.() ?? stages,
+              this.directory.conversations.catalog,
             )
           : this.state.data;
         const current = this.authorize();
+        const business = this.directory.conversations.catalog;
+        if (business)
+          data = { ...data, tags: business.normalizeTags(data.tags) };
+        if (current.lossReason !== undefined)
+          data = {
+            ...data,
+            lossReason: current.stage === "Perdido" ? current.lossReason : "",
+          };
         if (current.stage !== before.stage)
           data = {
             ...data,
@@ -366,7 +412,12 @@ export class ContactStore {
           };
         if (current.assigned !== before.assigned)
           data = { ...data, assigned: current.assigned };
-        if (JSON.stringify(current.tags) !== JSON.stringify(before.tags))
+        if (
+          JSON.stringify(current.tags) !==
+          JSON.stringify(
+            business ? business.normalizeTags(before.tags) : before.tags,
+          )
+        )
           data = { ...data, tags: current.tags };
         if (current.ai !== before.ai) data = { ...data, ai: current.ai };
         if (this.actor.role === "advisor" && data.assigned !== this.actor.id)
@@ -468,6 +519,7 @@ export class ContactStore {
           decodeDetails(
             JSON.stringify(data),
             this.directory.conversations.stageOptions?.() ?? stages,
+            this.directory.conversations.catalog,
           );
           await this.directory.storage.set(
             this.storageKey,
@@ -514,7 +566,11 @@ export class ContactStore {
         throw new Error("Elige una etapa válida.");
       if (
         stage === "Perdido" &&
-        !(lossReasons as readonly string[]).includes(reason)
+        !(
+          (this.directory.conversations.catalog?.reasonNames() ??
+            lossReasons) as readonly string[]
+        ).includes(reason) &&
+        !(d.stage === "Perdido" && d.lossReason === reason)
       )
         throw new Error("Elige un motivo de pérdida.");
       if (detail.length > 2000)
@@ -555,7 +611,12 @@ export class ContactStore {
       if (
         selected.length > 30 ||
         new Set(selected).size !== selected.length ||
-        selected.some((t) => !allTags.includes(t))
+        selected.some(
+          (t) =>
+            !(this.directory.conversations.catalog
+              ? this.directory.conversations.catalog.tag(t)?.name === t
+              : allTags.includes(t)),
+        )
       )
         throw new Error("Selecciona etiquetas válidas.");
       if (
