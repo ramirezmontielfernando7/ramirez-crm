@@ -261,7 +261,7 @@ jobs:
           - name: campañas y datos de Meta
             scripts: "e2e-datos-meta e2e-campanas-v2 e2e-etiquetas-limpias"
           - name: agentes, navegación y trabajo
-            scripts: "e2e-navegacion e2e-apariencia e2e-agentes e2e-pausa-agentes e2e-trabajo"
+            scripts: "e2e-navegacion e2e-apariencia e2e-agentes e2e-pausa-agentes e2e-trabajo e2e-primeros-pasos"
           # Espera ~2 min un temporizador real (chats olvidados): va solo
           # para no alargar la fila de arriba.
           - name: mensajes automáticos

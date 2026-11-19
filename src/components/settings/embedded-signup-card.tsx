@@ -257,7 +257,8 @@ export function EmbeddedSignupCard({
             icon={<SquarePlus className="h-5 w-5" />}
             title="Quiero un número nuevo"
           >
-            Un número que no esté en ninguna app de WhatsApp. Meta te manda un código por SMS o llamada para verificarlo.
+            Un número que no esté en ninguna app de WhatsApp. Meta le manda un código por SMS o llamada a ese número
+            para verificarlo.
           </FlowOption>
         </div>
 
@@ -284,19 +285,40 @@ export function EmbeddedSignupCard({
             </div>
           </div>
         ) : (
-          <div className="max-w-xs space-y-1.5">
-            <Label htmlFor="es-pin">PIN de seguridad (6 dígitos)</Label>
-            <Input
-              id="es-pin"
-              inputMode="numeric"
-              maxLength={6}
-              placeholder="123456"
-              value={pin}
-              onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 6))}
-            />
-            <p className="text-xs text-muted-foreground">
-              Protege tu número (verificación en dos pasos). Guárdalo: Meta te lo pide si mueves el número.
-            </p>
+          <div className="space-y-4">
+            <div className="rounded-md border bg-subtle p-3 text-xs text-text-2" data-testid="numero-nuevo-pasos">
+              <p className="font-medium text-foreground">Así funciona (ten contigo el teléfono de ese número)</p>
+              <ol className="mt-1.5 list-decimal space-y-1 pl-4">
+                <li>Inventa abajo un PIN de 6 dígitos. No te llega a ningún lado: tú lo eliges y lo guardas.</li>
+                <li>
+                  Pulsa «Conectar con Facebook». En la ventana de Facebook escribe tu número nuevo y elige «SMS» o
+                  «Llamada».
+                </li>
+                <li>
+                  Meta manda un <strong>código de 6 dígitos a ese número nuevo</strong> (por mensaje o te marca).
+                  Escríbelo en la misma ventana de Facebook.
+                </li>
+                <li>Cuando la ventana diga que terminó, ciérrala: aquí verás tu número conectado.</li>
+              </ol>
+              <p className="mt-1.5">
+                ¿No llega el código? Espera 1 minuto y pide «Llamada»: sirve también con líneas fijas. Si el número
+                estaba en WhatsApp, primero borra esa cuenta en la app.
+              </p>
+            </div>
+            <div className="max-w-xs space-y-1.5">
+              <Label htmlFor="es-pin">Tu PIN de seguridad (inventa 6 dígitos)</Label>
+              <Input
+                id="es-pin"
+                inputMode="numeric"
+                maxLength={6}
+                placeholder="123456"
+                value={pin}
+                onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 6))}
+              />
+              <p className="text-xs text-muted-foreground">
+                Protege tu número (verificación en dos pasos). Guárdalo: Meta te lo pide si mueves el número.
+              </p>
+            </div>
           </div>
         )}
 

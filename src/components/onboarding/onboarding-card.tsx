@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { Check } from "lucide-react";
+import { Check, ChevronRight } from "lucide-react";
 import {
+  ONBOARDING_EXTRA,
   ONBOARDING_STEP,
   currentStep,
   doneCount,
@@ -22,7 +23,8 @@ export function OnboardingCard({
   className,
 }: {
   state: OnboardingState;
-  onHide: () => void;
+  /** Sin él (la guía ya está en Tutoriales) no se ofrecen «Tutoriales» ni «Ocultar guía». */
+  onHide?: () => void;
   className?: string;
 }) {
   const current = currentStep(state);
@@ -58,7 +60,7 @@ export function OnboardingCard({
           />
         </div>
         <h2 id="onboarding-title" className="pt-1 text-[21px] font-semibold leading-tight">
-          ¡Te damos la bienvenida!
+          {current ? "¡Te damos la bienvenida!" : "¡Todo listo para atender!"}
         </h2>
         <p className="text-sm text-text-2">
           {withAgent
@@ -128,26 +130,62 @@ export function OnboardingCard({
         })}
       </ol>
 
+      {state.extras.length > 0 && (
+        <div className="border-t" data-onboarding-extras>
+          <p className="px-4 pb-1 pt-3 text-[11.5px] font-semibold uppercase tracking-wide text-text-3">
+            Opcional · para sacarle más jugo
+          </p>
+          <ul>
+            {state.extras.map((x) => {
+              const extra = ONBOARDING_EXTRA[x.key];
+              return (
+                <li key={x.key} data-onboarding-extra={x.key} data-done={x.done ? "true" : undefined}>
+                  <Link
+                    href={x.href ?? extra.href}
+                    className="group flex items-center gap-3 px-4 py-2.5 hover:bg-subtle focus-visible:bg-subtle focus-visible:outline-none"
+                  >
+                    {x.done ? (
+                      <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-success text-white">
+                        <Check className="h-3 w-3" strokeWidth={2.6} aria-hidden />
+                        <span className="sr-only">Listo:</span>
+                      </span>
+                    ) : (
+                      <span className="h-5 w-5 shrink-0 rounded-full border border-dashed" aria-hidden />
+                    )}
+                    <span className="min-w-0 flex-1">
+                      <span className={cn("block text-[13.5px] font-medium", x.done && "text-text-3 line-through")}>
+                        {extra.title}
+                      </span>
+                      {!x.done && <span className="block text-[12.5px] leading-5 text-text-2">{extra.body}</span>}
+                    </span>
+                    {!x.done && (
+                      <span className="inline-flex shrink-0 items-center text-[13px] font-medium text-brand-ink">
+                        {extra.cta}
+                        <ChevronRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" aria-hidden />
+                      </span>
+                    )}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
+
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t bg-subtle px-4 py-2.5 text-[13px]">
-        <Link href="/settings/team" className="font-medium text-brand-ink hover:underline">
-          + Invita a tu equipo
-        </Link>
-        <Link href="/contacts" className="font-medium text-brand-ink hover:underline">
-          + Importa tus contactos
-        </Link>
         <button type="button" onClick={openTour} data-testid="onboarding-tour" className="font-medium text-brand-ink hover:underline">
           ▶ Recorrido de 1 minuto
         </button>
-        <Link href="/ayuda" className="font-medium text-brand-ink hover:underline">
-          Tutoriales
-        </Link>
-        <button
-          type="button"
-          onClick={onHide}
-          className="ml-auto text-text-3 hover:text-foreground"
-        >
-          Ocultar guía
-        </button>
+        {onHide && (
+          <Link href="/ayuda" className="font-medium text-brand-ink hover:underline">
+            Tutoriales
+          </Link>
+        )}
+        {onHide && (
+          <button type="button" onClick={onHide} className="ml-auto text-text-3 hover:text-foreground">
+            Ocultar guía
+          </button>
+        )}
       </div>
     </section>
   );

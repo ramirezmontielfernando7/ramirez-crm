@@ -5,13 +5,17 @@ import { GraduationCap, Play } from "lucide-react";
 import { PageShell } from "@/components/ui/page-shell";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useViewer } from "@/components/viewer-context";
+import { OnboardingCard } from "@/components/onboarding/onboarding-card";
+import { useOnboarding } from "@/components/onboarding/use-onboarding";
 import { openTour } from "@/lib/tour-dialog";
 import { TUTORIALS, visibleFor } from "@/lib/tutorials";
 
 /** «Tutoriales»: el recorrido de 1 minuto y una guía corta por tarea. */
 export function HelpClient() {
   const viewer = useViewer();
-  const items = visibleFor(TUTORIALS, viewer);
+  const { state } = useOnboarding();
+  // El tutorial del conector de IA, solo si la empresa tiene ese complemento.
+  const items = visibleFor(TUTORIALS, viewer).filter((t) => !t.needsConectorIa || state?.conectorIa);
   return (
     <PageShell
       pillar={false}
@@ -29,6 +33,12 @@ export function HelpClient() {
       }
     >
       <div className="mx-auto w-full max-w-3xl space-y-3 px-4 py-6 sm:px-0">
+        {state?.canManage && (
+          <div className="pb-3">
+            <h2 className="pb-2 text-[13px] font-semibold uppercase tracking-wide text-text-3">Tu avance</h2>
+            <OnboardingCard state={state} className="max-w-none" />
+          </div>
+        )}
         <p className="text-sm text-text-2">
           Guías cortas para empezar. Cada una dice los pasos y te lleva a la pantalla para hacerlo.
         </p>
