@@ -18,3 +18,9 @@ description = "Huellas PÚBLICAS del certificado de la APK (salida de apksigner)
 condition = "AND"
 paths = ['''^apps/mobile/docs/apk-probada/evidence/firma-apk\.txt$''']
 rules = ["generic-api-key"]
+
+[[allowlists]]
+description = "Prosa de una guía de la app móvil («configuración no secreto, proyecto/contenedor/…»): falso positivo, sin llaves. Aprobado por Fer 2026-11-19."
+condition = "AND"
+paths = ['''^apps/mobile/docs/integration-i2p/ENTORNO-Y-ACTIVACION\.md$''']
+rules = ["generic-api-key"]
