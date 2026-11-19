@@ -428,11 +428,17 @@ export class StudioStore {
     });
   }
   loadVersion(id: string, revision: number, number: number, key = studioKey()) {
+    let applied = false,
+      initialBuffer: DraftBuffer | undefined,
+      initialConfig: AgentConfig | undefined;
     return this.change(key, ["load", id, revision, number], (d) => {
       const a = this.get(id);
       this.revise(a, revision);
       const v = a.versions.find((v) => v.number === number);
       if (!v) throw Error("Versión no disponible.");
+      initialBuffer = this.buffers.get(id);
+      initialConfig = initialBuffer?.config ?? a.draft;
+      applied = true;
       return {
         doc: {
           ...d,
@@ -453,7 +459,24 @@ export class StudioStore {
         },
       };
     }).then(() => {
-      this.buffers.delete(id);
+      if (!applied) return;
+      const current = this.buffers.get(id),
+        a = this.get(id);
+      if (current === initialBuffer) this.buffers.delete(id);
+      else if (current && initialConfig) {
+        const delta = Object.fromEntries(
+          (Object.keys(current.config) as (keyof AgentConfig)[])
+            .filter((k) => current.config[k] !== initialConfig![k])
+            .map((k) => [k, current.config[k]]),
+        );
+        const config = Object.freeze({ ...a.draft, ...delta });
+        if (same(config, a.draft)) this.buffers.delete(id);
+        else
+          this.buffers.set(
+            id,
+            Object.freeze({ ...current, config, base: a.revision }),
+          );
+      }
       this.notify("");
     });
   }

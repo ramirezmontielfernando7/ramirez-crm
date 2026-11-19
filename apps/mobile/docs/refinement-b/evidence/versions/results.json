@@ -1,0 +1,20 @@
+{
+  "ids": [
+    "LAB-05",
+    "LAB-06",
+    "LAB-06C",
+    "LAB-07"
+  ],
+  "checks": [
+    "4 IDs captured both themes/sizes; publication and load confirmations cancel/confirm; published config unaffected by old draft load",
+    "Failed publication stays in dialog; retry creates exactly one version",
+    "Saved draft and independent published history survive session-provider remount",
+    "Agent with no published version has a usable empty state"
+  ],
+  "actualCaptures": 20,
+  "officialReferences": 8,
+  "errors": [],
+  "networkRequests": 0,
+  "native": false,
+  "httpServerStarted": false
+}

@@ -61,3 +61,6 @@ LAB-10/11/12 implementadas compartiendo LibraryStore. 79/158 IDs, 79 pendientes,
 ## Lote 06 · Agentes y pausa expresa del propietario
 Desde 7ee7fd9 se implementan LAB-01/02/03/04/08/09/09A; 86/158 IDs, 72 pendientes, 303 tests. Ver docs/refinement-b/LOTE-06-AGENTES.md. Agentes y documentos comparten la escritura atómica de LibraryStore; lectores dinámicos de Conocimiento, borradores separados de versiones, preview determinista sin IA. No cambiar B, backend, APK ni firma.
 El propietario pidió detenerse por cuota: cerrar comprobaciones, commit/bundle local y PAUSAR. No iniciar nuevos lotes hasta que avise. Al retomar: LAB-05/06/06C/07, después LAB-20/21 y LAB-30/31. Existen métodos/capas preparados pero esos IDs NO se contabilizan aún; requieren pruebas completas. Verificar especialmente snapshots de versiones y persistencia/recreación de identidades de etapas. Sin push/servicios/Gradle con espacio insuficiente.
+
+## Reanudación autorizada · Lote 07
+El propietario avisó «listo, retoma donde te quedaste»: sustituye la pausa anterior y permite continuar el plan autónomo seguro. LAB-05/06/06C/07 verificados, 90/158 IDs, 68 pendientes, 315 tests. Ver docs/refinement-b/LOTE-07-VERSIONES.md. No activar publicaciones/IA reales. Siguiente LAB-20/21, después LAB-30/31 y dependencias. Mantener B, backend, APK, firma y límites de almacenamiento/servicios.

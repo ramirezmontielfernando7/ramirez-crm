@@ -92,10 +92,12 @@ export function freezeStudio(d: StudioDoc): StudioDoc {
               draft: Object.freeze({ ...a.draft }),
               versions: Object.freeze(
                 a.versions.map((v) =>
-                  Object.freeze({
-                    ...v,
-                    config: Object.freeze({ ...v.config }),
-                  }),
+                  Object.isFrozen(v) && Object.isFrozen(v.config)
+                    ? v
+                    : Object.freeze({
+                        ...v,
+                        config: Object.freeze({ ...v.config }),
+                      }),
                 ),
               ),
             }),

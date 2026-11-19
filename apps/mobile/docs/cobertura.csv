@@ -81,10 +81,10 @@ LAB-01,Agentes,T-M10,Implementada simulada · QA módulo integrado RN Web,Pendie
 LAB-02,Creador de agentes (chat),T-M10,Implementada simulada · QA módulo integrado RN Web,Pendiente nativo; docs/refinement-b/LOTE-06-AGENTES.md
 LAB-03,Editor del agente,T-M10,Implementada simulada · QA módulo integrado RN Web,Pendiente nativo; docs/refinement-b/LOTE-06-AGENTES.md
 LAB-04,Vista previa del agente,T-M10,Implementada simulada · QA módulo integrado RN Web,Pendiente nativo; docs/refinement-b/LOTE-06-AGENTES.md
-LAB-05,Publicar agente,T-M10,Pendiente,Pendiente
-LAB-06,Versiones publicadas,T-M10,Pendiente,Pendiente
-LAB-06C,Cargar versión al borrador,T-M10,Pendiente,Pendiente
-LAB-07,Pausar todos los agentes,T-M10,Pendiente,Pendiente
+LAB-05,Publicar agente,T-M10,Implementada simulada · QA módulo integrado RN Web,Pendiente nativo; docs/refinement-b/LOTE-07-VERSIONES.md
+LAB-06,Versiones publicadas,T-M10,Implementada simulada · QA módulo integrado RN Web,Pendiente nativo; docs/refinement-b/LOTE-07-VERSIONES.md
+LAB-06C,Cargar versión al borrador,T-M10,Implementada simulada · QA módulo integrado RN Web,Pendiente nativo; docs/refinement-b/LOTE-07-VERSIONES.md
+LAB-07,Pausar todos los agentes,T-M10,Implementada simulada · QA módulo integrado RN Web,Pendiente nativo; docs/refinement-b/LOTE-07-VERSIONES.md
 LAB-08,Menú ⋮ de Agentes,T-M10,Implementada simulada · QA módulo integrado RN Web,Pendiente nativo; docs/refinement-b/LOTE-06-AGENTES.md
 LAB-09,Menú ⋮ del agente,T-M10,Implementada simulada · QA módulo integrado RN Web,Pendiente nativo; docs/refinement-b/LOTE-06-AGENTES.md
 LAB-09A,Archivar agente,T-M10,Implementada simulada · QA módulo integrado RN Web,Pendiente nativo; docs/refinement-b/LOTE-06-AGENTES.md

@@ -166,7 +166,10 @@ async function mount(page, screen, theme = "light", role = "owner") {
   await page.waitForTimeout(100);
 }
 try {
-  if (process.argv.includes("--agents")) {
+  if (process.argv.includes("--versions")) {
+    const { runVersions } = await import("./versions-qa.mjs");
+    await runVersions(context, await compile(false), root, () => requests);
+  } else if (process.argv.includes("--agents")) {
     const { runAgents } = await import("./agents-qa.mjs");
     await runAgents(context, await compile(false), root, () => requests);
   } else if (process.argv.includes("--knowledge")) {
