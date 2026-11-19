@@ -109,6 +109,8 @@ function RootNavigator() {
           <Stack.Screen name="media/[id]" />
           <Stack.Screen name="contact/[id]" />
           <Stack.Screen name="history/[id]" />
+          <Stack.Screen name="agenda" />
+          <Stack.Screen name="library/[id]" />
         </Stack.Protected>
         <Stack.Screen name="demo" />
         <Stack.Screen name="design/[id]" />

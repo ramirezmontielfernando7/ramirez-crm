@@ -1,3 +1,7 @@
+# Checkpoint B · Agenda y Biblioteca
+
+B original preservada; Agenda CRM-20…25 y editor de Biblioteca con navegación interna verificados. 70/158 IDs implementados, 88 pendientes. 235 pruebas de lógica aprobadas. APK pendiente por margen de disco insuficiente; sin servicios reales ni cambios de backend. Ver [lote 02](docs/refinement-b/LOTE-02-AGENDA.md). Próximo lote autónomo: Tareas/Notas CRM-30…33, unificando tareas vinculadas con T-M4. Informes siguientes históricos.
+
 # Continuación B · Biblioteca y recuperación de espacio
 
 B original implementada; Biblioteca CRM-40/41/42 funcional en simulación. 64/158 IDs con código, 94 pendientes. Se recuperaron 1,64 GiB de cachés conservando ambos worktrees, APK y firmas. Compilación Android aún bloqueada por margen insuficiente; no se fuerza Gradle. Ver [espacio y APK](docs/refinement-b/ESPACIO-Y-APK.md) y [lote 01](docs/refinement-b/LOTE-01-BIBLIOTECA.md). Próximo lote autorizado: Agenda CRM-20…25, sin backend ni nueva aprobación visual. Informes siguientes históricos.

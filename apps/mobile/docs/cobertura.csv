@@ -64,12 +64,12 @@ CRM-14,Filtros de contactos,T-M7,Implementada simulada · QA módulo integrado R
 CRM-15,Acciones con seleccionados,T-M7,Implementada simulada · QA módulo integrado RN Web,Pendiente nativo; docs/refinement-b
 CRM-16,Menú ⋮ de Contactos,T-M7,Implementada simulada · QA módulo integrado RN Web,Pendiente nativo; docs/refinement-b
 CRM-17,Importar contactos,T-M7,Implementada simulada · QA módulo integrado RN Web,Pendiente nativo; docs/refinement-b
-CRM-20,Agenda · día,T-M9,Pendiente,Pendiente
-CRM-21,Detalle de la cita,T-M9,Pendiente,Pendiente
-CRM-22,Bloquear horario,T-M9,Pendiente,Pendiente
-CRM-23,Mover cita,T-M9,Pendiente,Pendiente
-CRM-24,Agenda · mes,T-M9,Pendiente,Pendiente
-CRM-25,Menú ⋮ de Agenda,T-M9,Pendiente,Pendiente
+CRM-20,Agenda · día,T-M9,Implementada simulada · QA módulo integrado RN Web,Pendiente nativo; docs/refinement-b/LOTE-02-AGENDA.md
+CRM-21,Detalle de la cita,T-M9,Implementada simulada · QA módulo integrado RN Web,Pendiente nativo; docs/refinement-b/LOTE-02-AGENDA.md
+CRM-22,Bloquear horario,T-M9,Implementada simulada · QA módulo integrado RN Web,Pendiente nativo; docs/refinement-b/LOTE-02-AGENDA.md
+CRM-23,Mover cita,T-M9,Implementada simulada · QA módulo integrado RN Web,Pendiente nativo; docs/refinement-b/LOTE-02-AGENDA.md
+CRM-24,Agenda · mes,T-M9,Implementada simulada · QA módulo integrado RN Web,Pendiente nativo; docs/refinement-b/LOTE-02-AGENDA.md
+CRM-25,Menú ⋮ de Agenda,T-M9,Implementada simulada · QA módulo integrado RN Web,Pendiente nativo; docs/refinement-b/LOTE-02-AGENDA.md
 CRM-30,Tareas,T-M9,Pendiente,Pendiente
 CRM-31,Detalle de la tarea,T-M9,Pendiente,Pendiente
 CRM-32,Notas,T-M9,Pendiente,Pendiente

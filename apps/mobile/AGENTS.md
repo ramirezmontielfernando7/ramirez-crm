@@ -45,3 +45,6 @@ El propietario aprobó exactamente la B original del laboratorio 7f068da, desde 
 
 ## Checkpoint B + espacio + Biblioteca
 B original integrada y verificada en 33f1fc5/1fe5833. Cachés derivadas limpiadas por autorización expresa posterior; informe en docs/refinement-b/ESPACIO-Y-APK.md y commit ebe7583. No se fuerza Gradle con ~1,77 GiB libres. Biblioteca CRM-40/41/42 implementada con datos ficticios, 221 tests móviles y QA RN Web; inventario 64/158 y 94 pendientes. Ver docs/refinement-b/LOTE-01-BIBLIOTECA.md. Siguiente lote autónomo: Agenda CRM-20…25, después Tareas/Notas CRM-30…33. Mantener el backend 562a8b3 y todas las APK/firmas/bundles. No subir entregas a servicios externos bajo la restricción actual. No solicitar otra aprobación visual de B; no activar backend ni notificaciones remotas.
+
+## Lote 02 · Agenda y navegación interna
+Ver docs/refinement-b/LOTE-02-AGENDA.md. Agenda CRM-20…25 implementada; Biblioteca CRM-41 en ruta interna sin TabBar y con el mismo modelo del tab. Se preserva B; internos con Atrás mantienen 17/22. Inventario 70/158, 88 pendientes; 235 tests. Próximo lote autónomo: Tareas/Notas CRM-30…33 con fuente coherente para tareas vinculadas T-M4. Backend 562a8b3 intacto; APK sigue bloqueada por disco. Sin nuevas aprobaciones visuales ni conexiones reales/servidores/push/servicios externos.

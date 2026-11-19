@@ -286,6 +286,12 @@ export class LibraryStore {
     this.patch({ screen: "CRM-41", entryId: id, error: "" });
   }
   back() {
+    if (
+      this.state.screen === "CRM-40" &&
+      this.state.entryId === null &&
+      !this.state.error
+    )
+      return;
     this.patch({ screen: "CRM-40", entryId: null, error: "" });
   }
   forChat() {

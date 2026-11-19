@@ -21,17 +21,20 @@ const mocks = {
   safe: `import {View} from 'react-native';export const SafeAreaView=View;export const SafeAreaProvider=View;export const useSafeAreaInsets=()=>({top:0,bottom:0,left:0,right:0});`,
   sound: `export default {playTouchSound(){}};`,
   storage: `const m=new Map;export const preferencesStorage={get:async k=>{if(window.qaFailRead)throw Error("Lectura local simulada");return m.get(k)??null},set:async(k,v)=>{if(window.qaFailWrite)throw Error("Escritura local simulada");m.set(k,v)},remove:async k=>{m.delete(k)}};`,
-  router: `import {useEffect} from 'react';export const useFocusEffect=fn=>useEffect(fn,[fn]);export const useLocalSearchParams=()=>({id:window.qaChatId});export const router={push:p=>window.qaNavigate(p),replace:p=>window.qaNavigate(p),back:()=>window.qaNavigate('/(tabs)/inbox'),canGoBack:()=>true};`,
+  router: `import {useEffect} from 'react';export const useFocusEffect=fn=>useEffect(fn,[fn]);export const useLocalSearchParams=()=>window.qaParams;export const router={push:p=>window.qaNavigate(p),replace:p=>window.qaNavigate(p,true),back:()=>window.qaGoBack(),canGoBack:()=>window.qaCanGoBack()};`,
 };
 const entry = `import React,{useState} from 'react';import {createRoot} from 'react-dom/client';import {View} from 'react-native';
 import InboxScreen from './src/features/inbox/InboxScreen';import {CrmScreen,qaInspect,qaInspectLibrary} from './src/features/crm/CrmScreen';
 import {ConversationScreen} from './src/features/chat/ConversationScreen';import {LayerProvider} from './src/components/Layers';
 import {InboxProvider,useInbox} from './src/features/inbox/store';import {ChatProvider,useChatDirectory} from './src/features/chat/context';import {ContactProvider} from './src/features/contact/context';import {TabBar} from './src/components/TabBar';
-window.qaTheme='light';window.qaActor={id:'demo-owner',name:'Fer Ramírez',role:'owner',source:'demo',expiresAt:Date.now()+86400000};window.qaChatId='demo-conv-1';let screen='inbox',render,epoch=0;
-window.qaNavigate=p=>{window.qaLastRoute=p;if(p.startsWith('/conversation/')){window.qaChatId=p.split('/').pop();screen='chat'}else if(p.includes('inbox'))screen='inbox';render(v=>v+1);};
-window.mountRefinement=(s,t,role='owner')=>{screen=s;window.qaTheme=t;window.qaActor={...window.qaActor,id:'demo-'+role,role};epoch++;render(v=>v+1);};
-function Body(){const inbox=useInbox(),chats=useChatDirectory();window.qaInbox=inbox;window.qaModel=()=>qaInspect(inbox);window.qaLibrary=()=>qaInspectLibrary(inbox);const routes=['inbox','crm','studio','marketing','more'].map(name=>({key:name,name}));return <View style={{flex:1}}>{screen==='inbox'?<InboxScreen/>:screen==='chat'?<ConversationScreen chat={chats.get(window.qaChatId)}/>:<CrmScreen/>}{screen!=='chat'&&<TabBar state={{index:screen==='inbox'?0:1,routes}} emitter={{emit:()=>({defaultPrevented:false})}} navigateToTab={()=>{}}/>}</View>}
+import {AgendaScreen,qaInspectAgenda} from './src/features/agenda/AgendaScreen';import {LibraryEntryScreen} from './src/features/library/LibraryEntryScreen';import {ModuleScreen} from './src/screens/ModuleScreen';
+window.qaTheme='light';window.qaActor={id:'demo-owner',name:'Fer Ramírez',role:'owner',source:'demo',expiresAt:Date.now()+86400000};window.qaChatId='demo-conv-1';window.qaParams={id:window.qaChatId};let screen='inbox',render,epoch=0,history=[];
+window.qaNavigate=(p,replace=false)=>{window.qaLastRoute=p;if(!replace)history.push(screen);if(p.startsWith('/conversation/')){window.qaChatId=p.split('/').pop();window.qaParams={id:window.qaChatId};screen='chat'}else if(p.startsWith('/library/')){window.qaParams={id:p.split('/').pop()};screen='library'}else if(p==='/agenda')screen='agenda';else if(p.includes('inbox'))screen='inbox';else if(p.includes('more'))screen='more';else if(p.includes('crm')){screen='crm';window.qaParams={section:p.includes('section=library')?'library':undefined};}render(v=>v+1);};
+window.qaCanGoBack=()=>history.length>0;window.qaGoBack=()=>{screen=history.pop()??'inbox';render(v=>v+1);};
+window.mountRefinement=(s,t,role='owner')=>{screen=s;window.qaTheme=t;window.qaActor={...window.qaActor,id:'demo-'+role,role};window.qaParams={id:window.qaChatId};history=[];epoch++;render(v=>v+1);};
+function Body(){const inbox=useInbox(),chats=useChatDirectory();window.qaInbox=inbox;window.qaModel=()=>qaInspect(inbox);window.qaLibrary=()=>qaInspectLibrary(inbox);window.qaAgenda=()=>qaInspectAgenda(inbox);const routes=['inbox','crm','studio','marketing','more'].map(name=>({key:name,name}));const crmRoot=['crm','contacts','library'].includes(screen);return <View style={{flex:1}}>{crmRoot?<><View style={{flex:1,display:screen==='library'?'none':'flex'}}><CrmScreen/></View>{screen==='library'&&<LibraryEntryScreen/>}</>:screen==='agenda'?<AgendaScreen/>:screen==='more'?<ModuleScreen module='more' title='Más' task='T-M8'/>:screen==='chat'?<ConversationScreen chat={chats.get(window.qaChatId)}/>:<InboxScreen/>}{!['chat','agenda','library'].includes(screen)&&<TabBar state={{index:screen==='inbox'?0:screen==='more'?4:1,routes}} emitter={{emit:()=>({defaultPrevented:false})}} navigateToTab={()=>{}}/>}</View>}
 function App(){const [v,setV]=useState(0);render=setV;return <InboxProvider key={epoch}><ChatProvider><ContactProvider><LayerProvider><Body/></LayerProvider></ContactProvider></ChatProvider></InboxProvider>};createRoot(document.getElementById('root')).render(<App/>);`;
+
 const fonts = [
   ["400Regular", "Inter_400Regular"],
   ["500Medium", "Inter_500Medium"],
@@ -106,7 +109,10 @@ async function compile(before) {
                 ["show", baseline + ":apps/mobile/src/" + rel],
                 { cwd: root, encoding: "utf8" },
               );
-            else if (rel === "features/crm/CrmScreen.tsx")
+            else if (
+              rel === "features/crm/CrmScreen.tsx" ||
+              rel === "features/agenda/AgendaScreen.tsx"
+            )
               text = fs.readFileSync(a.path, "utf8");
             else return;
             if (rel === "features/crm/CrmScreen.tsx")
@@ -115,7 +121,13 @@ async function compile(before) {
                   "if (!session ||",
                   "window.qaActions = actions;\n  if (!session ||",
                 ) +
-                "\nexport const qaInspect = inbox => models.get(inbox); export const qaInspectLibrary = inbox => libraries.get(inbox);";
+                "\nexport const qaInspect = inbox => models.get(inbox); export const qaInspectLibrary = inbox => " +
+                (text.includes("libraryFor(")
+                  ? "libraryFor(inbox);"
+                  : "libraries.get(inbox);");
+            if (rel === "features/agenda/AgendaScreen.tsx")
+              text +=
+                "\nexport const qaInspectAgenda = inbox => stores.get(inbox);";
             return { contents: text, loader: "tsx" };
           });
         },
@@ -155,6 +167,9 @@ try {
   if (process.argv.includes("--library")) {
     const { runLibrary } = await import("./library-qa.mjs");
     await runLibrary(context, await compile(false), root, () => requests);
+  } else if (process.argv.includes("--agenda")) {
+    const { runAgenda } = await import("./agenda-qa.mjs");
+    await runAgenda(context, await compile(false), root, () => requests);
   } else {
     let after;
     for (const mode of ["before", "implemented"]) {

@@ -39,6 +39,11 @@ export async function runLibrary(context, html, root, networkCount = () => 0) {
       await p
         .getByRole("button", { name: "Catálogo mayoreo 2026.pdf", exact: true })
         .click();
+      assert.equal(
+        await p.getByText("Bandeja", { exact: true }).count(),
+        0,
+        "Library editor is an internal stack screen without the root tab bar",
+      );
       await p.screenshot({
         path: path.join(out, `CRM-41-${theme}-${width}x${height}.png`),
       });
@@ -222,6 +227,11 @@ export async function runLibrary(context, html, root, networkCount = () => 0) {
     0,
   );
   checks.push("advisor sees only chat-eligible entries and cannot edit");
+  await p.evaluate(() => window.qaNavigate("/library/demo-library-faq"));
+  await p.getByText("Entrada no disponible", { exact: true }).waitFor();
+  checks.push(
+    "direct internal route cannot bypass advisor knowledge permissions",
+  );
   await p.evaluate(() => {
     window.qaFailRead = true;
     window.mountRefinement("crm", "light", "owner");

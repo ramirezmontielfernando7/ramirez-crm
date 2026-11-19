@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { BackHandler, View } from "react-native";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { Screen } from "../../components/Screen";
 import { EmptyState } from "../../components/ui";
 import { useLayers } from "../../components/Layers";
@@ -12,10 +12,8 @@ import { CrmView, type CrmNavigation } from "./CrmView";
 import { CrmOverlay, layerTitles } from "./CrmOverlay";
 import { useSession } from "../../state/SessionProvider";
 import { canAccess } from "../../domain/access";
-import { LibraryStore } from "../library/core";
 import { LibraryView } from "../library/LibraryView";
-import { preferencesStorage } from "../../services/storage";
-const libraries = new WeakMap<object, LibraryStore>();
+import { libraryFor } from "../library/state";
 const models = new WeakMap<object, CrmModel>();
 export function CrmScreen() {
   const inbox = useInbox(),
@@ -28,17 +26,14 @@ export function CrmScreen() {
     models.set(inbox, model);
   }
   const m = model;
-  const [section, setSection] = useState<"crm" | "library">("crm");
-  let library = libraries.get(inbox);
-  if (!library) {
-    library = new LibraryStore(
-      inbox.actor,
-      "demo-org-cristal",
-      preferencesStorage,
-    );
-    libraries.set(inbox, library);
-  }
-  const libraryStore = library;
+  const params = useLocalSearchParams<{ section?: string }>();
+  const [section, setSection] = useState<"crm" | "library">(
+    params.section === "library" ? "library" : "crm",
+  );
+  useEffect(() => {
+    if (params.section === "library") setSection("library");
+  }, [params.section]);
+  const libraryStore = libraryFor(inbox);
   useEffect(() => {
     const sync = () => m.patch({ status: inbox.snapshot().status });
     sync();

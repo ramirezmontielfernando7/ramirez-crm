@@ -1,3 +1,4 @@
+import { router } from "expo-router";
 import React, { useEffect, useState, useSyncExternalStore } from "react";
 import {
   BackHandler,
@@ -58,8 +59,7 @@ export function LibraryView({
   useEffect(() => {
     void store.hydrate();
   }, [store]);
-  if (s.screen === "CRM-41")
-    return <LibraryEditor key={s.entryId ?? "new"} store={store} />;
+
   const menu = () =>
     layers.open({
       kind: "menu",
@@ -137,7 +137,7 @@ export function LibraryView({
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel={item.title}
-                onPress={() => store.open(item.id)}
+                onPress={() => openLibraryEntry(store, item.id)}
                 style={{
                   flex: 1,
                   minHeight: 64,
@@ -205,7 +205,9 @@ export function LibraryView({
               }
               action={
                 store.canManage ? (
-                  <Button onPress={() => store.open(null)}>Agregar</Button>
+                  <Button onPress={() => openLibraryEntry(store, null)}>
+                    Agregar
+                  </Button>
                 ) : undefined
               }
             />
@@ -216,7 +218,7 @@ export function LibraryView({
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Agregar a la Biblioteca"
-          onPress={() => store.open(null)}
+          onPress={() => openLibraryEntry(store, null)}
           style={{
             position: "absolute",
             right: 18,
@@ -335,7 +337,7 @@ function LibraryMenu({ store }: { store: LibraryStore }) {
           label="Agregar entrada"
           onPress={() => {
             layers.close();
-            store.open(null);
+            openLibraryEntry(store, null);
           }}
         />
       )}
@@ -344,7 +346,15 @@ function LibraryMenu({ store }: { store: LibraryStore }) {
   );
 }
 
-function LibraryEditor({ store }: { store: LibraryStore }) {
+export function LibraryEditor({
+  store,
+  entryId,
+  onClose,
+}: {
+  store: LibraryStore;
+  entryId: string | null;
+  onClose: () => void;
+}) {
   const { colors: c } = useTheme();
   const s = useSyncExternalStore(
       store.subscribe,
@@ -352,7 +362,9 @@ function LibraryEditor({ store }: { store: LibraryStore }) {
       store.snapshot,
     ),
     layers = useLayers();
-  const entry = s.entryId ? store.get(s.entryId) : null;
+  const entry = entryId
+    ? (s.entries.find((e) => e.id === entryId) ?? null)
+    : null;
   const initial: LibraryDraft = {
     id: entry?.id,
     expectedVersion: entry?.version,
@@ -386,7 +398,7 @@ function LibraryEditor({ store }: { store: LibraryStore }) {
                 variant="danger"
                 onPress={() => {
                   layers.close();
-                  store.back();
+                  onClose();
                 }}
               >
                 Descartar
@@ -394,7 +406,7 @@ function LibraryEditor({ store }: { store: LibraryStore }) {
             </>
           ),
         })
-      : store.back();
+      : onClose();
   useEffect(() => {
     const sub = BackHandler.addEventListener("hardwareBackPress", () => {
       if (layers.layer) return false;
@@ -418,7 +430,7 @@ function LibraryEditor({ store }: { store: LibraryStore }) {
           ),
         ],
       });
-      store.back();
+      onClose();
       layers.toast("Entrada guardada localmente");
     } catch (e) {
       setError((e as Error).message);
@@ -440,7 +452,10 @@ function LibraryEditor({ store }: { store: LibraryStore }) {
             onPress={() => {
               void store
                 .remove(entry.id, entry.version)
-                .then(layers.close)
+                .then(() => {
+                  layers.close();
+                  onClose();
+                })
                 .catch((e) => {
                   layers.close();
                   setError(e.message);
@@ -628,4 +643,9 @@ function LibraryEditor({ store }: { store: LibraryStore }) {
       </ScrollView>
     </>
   );
+}
+
+function openLibraryEntry(store: LibraryStore, id: string | null) {
+  store.open(id);
+  router.push(`/library/${id ?? "new"}`);
 }

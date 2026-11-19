@@ -1,7 +1,12 @@
 import React, { useState } from "react";
 import { View } from "react-native";
 import { router } from "expo-router";
-import { LogOut, FlaskConical, Palette } from "lucide-react-native";
+import {
+  LogOut,
+  FlaskConical,
+  Palette,
+  CalendarDays,
+} from "lucide-react-native";
 import { Screen } from "../components/Screen";
 import {
   AppBar,
@@ -107,6 +112,11 @@ export function ModuleScreen({
                     </View>
                   </View>
                 </Card>
+                <NavRow
+                  icon={CalendarDays}
+                  label="Agenda"
+                  onPress={() => router.push("/agenda")}
+                />
                 <NavRow
                   icon={FlaskConical}
                   label="Controles de la demo"
