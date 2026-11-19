@@ -164,6 +164,37 @@ export interface ConversationRepository {
 export class DemoConversationRepository implements ConversationRepository {
   private data: readonly Conversation[];
   private sequence = 0;
+  private stageNames = new Set<string>(stages);
+  configureStages(actor: Actor, names: readonly string[]) {
+    if (
+      actor.role === "advisor" ||
+      names.length < 1 ||
+      names.length > 30 ||
+      names.some((n) => !n.trim() || n.length > 60)
+    )
+      throw new Error("No se pueden configurar etapas.");
+    this.stageNames = new Set(names);
+  }
+  editIdentity(actor: Actor, id: string, name: string, phone: string) {
+    this.get(actor, id);
+    if (
+      !name.trim() ||
+      name.length > 120 ||
+      !/^\+?[0-9 ()-]{10,20}$/.test(phone) ||
+      phone.replace(/\D/g, "").length < 10
+    )
+      throw new Error("Escribe nombre y teléfono completo con lada.");
+    if (
+      this.data.some(
+        (c) => c.id !== id && normalize(c.phone) === normalize(phone),
+      )
+    )
+      throw new Error("Ya existe otro contacto con ese teléfono.");
+    this.update(actor, [id], (c) => {
+      const next = { ...c, name: name.trim(), phone };
+      return { ...next, search: searchable(next) };
+    });
+  }
   constructor(data = seedConversations()) {
     this.data = data;
   }
@@ -247,10 +278,7 @@ export class DemoConversationRepository implements ConversationRepository {
       )
     )
       throw new Error("Elige una persona activa del equipo.");
-    if (
-      patch.stage !== undefined &&
-      !(stages as readonly string[]).includes(patch.stage)
-    )
+    if (patch.stage !== undefined && !this.stageNames.has(patch.stage))
       throw new Error("Etapa no válida.");
     if (patch.ai !== undefined && !["on", "pause", "off"].includes(patch.ai))
       throw new Error("Estado de IA no válido.");
