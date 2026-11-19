@@ -1,0 +1,18 @@
+{
+  "componentPreviews": 38,
+  "officialReferenceCaptures": 38,
+  "behaviorChecks": [
+    "search to contact",
+    "edit identity",
+    "advisor scope"
+  ],
+  "errors": [],
+  "blockedNetworkRequests": 0,
+  "httpServerStarted": false,
+  "native": false,
+  "limitations": [
+    "fixture theme/layer host",
+    "100 fake rows",
+    "not full Expo runtime or native keyboard/scroll QA"
+  ]
+}

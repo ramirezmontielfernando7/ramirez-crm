@@ -1,0 +1,7 @@
+auth-only/existing-auth.ts: syntax passed; not backend typecheck
+auth-only/prepare-node.ts: syntax passed; not backend typecheck
+src/instrumentation.ts: syntax passed; not backend typecheck
+scripts/migrate.mjs: node --check passed; not executed
+scripts/isolation-guard.mjs: node --check passed; not executed
+auth-only/policy.mjs: node --check passed; not executed
+auth-only/handler.mjs: node --check passed; not executed

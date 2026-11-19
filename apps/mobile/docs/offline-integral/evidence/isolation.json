@@ -1,0 +1,13 @@
+{
+  "baseMobile": "d0b27e29ea89706cdc0fdc795338670c4e9c10b5",
+  "baseBackend": "0b611126717ede5dca0f4ea766f28b99befd648c",
+  "secretPatternScannedTextFiles": 57,
+  "matches": 0,
+  "manualReview": "fixture-only materials, selected screenshots; no credentials or private certificates added",
+  "mainUnchanged": true,
+  "oldBackupPreserved": true,
+  "apkSha256": "36f3a4781220eff96ef9938e1d07adbf9ceac7797254ad3cc94f2b7d75b18f7a",
+  "uiTokensDependenciesUnchanged": true,
+  "mobileScopeOnly": true,
+  "backendSeparateWorktree": true
+}

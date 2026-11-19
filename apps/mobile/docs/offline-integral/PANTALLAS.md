@@ -1,0 +1,107 @@
+# Cobertura actual
+
+42 IDs previos conservados. 19 IDs CRM con código y previews de componentes: no equivalen a validación integrada Expo o nativa. 61 IDs con implementación; 97 pendientes de implementación. Todos los 158 IDs tienen definición en el prototipo oficial; no se inventa falta de maquetas.
+
+## Nuevos componentes
+CRM-01, CRM-02, CRM-03, CRM-04, CRM-05, CRM-06, CRM-07, CRM-07C, CRM-07D, CRM-08, CRM-09, CRM-10, CRM-11, CRM-12, CRM-13, CRM-14, CRM-15, CRM-16, CRM-17
+
+## Pendientes de implementación
+- AUTH-01 · Animación de apertura
+- EQP-01 · Equipo · lista de conversaciones
+- EQP-02 · Chat de equipo
+- EQP-06 · Chat de equipo · supervisión
+- EQP-03 · Nuevo mensaje o grupo
+- EQP-04 · Información del grupo
+- EQP-05 · Mencionar
+- NUM-01 · Mi número · lista
+- NUM-02 · Mi número · chat
+- NUM-03 · Mi número · opciones del chat
+- NUM-04 · Nuevo chat desde Mi número
+- CRM-20 · Agenda · día
+- CRM-21 · Detalle de la cita
+- CRM-22 · Bloquear horario
+- CRM-23 · Mover cita
+- CRM-24 · Agenda · mes
+- CRM-25 · Menú ⋮ de Agenda
+- CRM-30 · Tareas
+- CRM-31 · Detalle de la tarea
+- CRM-32 · Notas
+- CRM-33 · Editor de nota
+- CRM-40 · Biblioteca
+- CRM-41 · Entrada de la Biblioteca
+- CRM-42 · Menú ⋮ de Biblioteca
+- LAB-01 · Agentes
+- LAB-02 · Creador de agentes (chat)
+- LAB-03 · Editor del agente
+- LAB-04 · Vista previa del agente
+- LAB-05 · Publicar agente
+- LAB-06 · Versiones publicadas
+- LAB-06C · Cargar versión al borrador
+- LAB-07 · Pausar todos los agentes
+- LAB-08 · Menú ⋮ de Agentes
+- LAB-09 · Menú ⋮ del agente
+- LAB-09A · Archivar agente
+- LAB-10 · Conocimiento y documentos
+- LAB-11 · Subir documento
+- LAB-12 · Detalle del documento
+- LAB-20 · Asignación por etapa
+- LAB-21 · Elegir agente de la etapa
+- LAB-30 · Pruebas · clientes simulados
+- LAB-31 · Detalle de la prueba
+- MKT-01 · Campañas
+- MKT-02 · Detalle de la campaña
+- MKT-03 · Nueva campaña (asistente)
+- MKT-04 · Confirmar el envío
+- MKT-05 · Menú ⋮ de Campañas
+- MKT-06 · Menú ⋮ de la campaña
+- MKT-31 · Ajustes de campañas
+- MKT-10 · Audiencias
+- MKT-11 · Detalle de la base
+- MKT-12 · Subir una base (desde el teléfono)
+- MKT-20 · Plantillas de WhatsApp
+- MKT-21 · Detalle de la plantilla
+- MKT-22 · Nueva plantilla
+- MKT-30 · Métricas y costos
+- MORE-01 · Más
+- MORE-05 · Avisos
+- RES-01 · Resultados
+- RES-02 · Periodo y asesor
+- AST-01 · Asistente
+- AST-02 · Conversaciones del asistente
+- AST-03 · Modo y crédito
+- AST-04 · Asistente · sin crédito
+- MORE-06 · Uso y plan
+- MORE-07 · Mejora tu plan
+- MORE-09 · Solicitar cambio de plan
+- MORE-10 · Aviso «a este ritmo»
+- SET-01 · Ajustes
+- SET-02 · Canales y conexiones
+- SET-02A · Conectar con Facebook
+- SET-02B · Salud del número
+- SET-02C · Conexión directa
+- SET-03 · Equipo y permisos
+- SET-03A · Invitar persona
+- SET-03B · Persona del equipo
+- SET-04 · Anuncios (Meta)
+- SET-05 · Etiquetas
+- SET-05A · Editar etiqueta
+- SET-06 · Respuestas rápidas
+- SET-06A · Editar respuesta rápida
+- SET-07 · Motivos de pérdida
+- SET-08 · Agenda y conectores
+- SET-09 · Chat de equipo (ajustes)
+- SET-10 · Bajas automáticas
+- SET-11 · Mi IA
+- SET-11A · Qué hizo tu IA
+- SET-12 · Conector del equipo
+- SET-13 · Mi número
+- SET-13A · Vincular dispositivo
+- SET-14 · Notificaciones
+- SET-15 · Apariencia
+- SET-16 · Marca
+- SET-17 · Navegación
+- PLT-01 · Mi panel
+- PLT-02 · Organizaciones
+- PLT-03 · Ficha de la organización
+
+No se añaden IDs por contratos o simuladores sin UI. Equipo/Mi número, Agenda, Biblioteca, Ajustes, Marketing, IA y administración permanecen como pendientes donde indica el inventario. D es una entrega parcial: no se declara terminado el megaproyecto.

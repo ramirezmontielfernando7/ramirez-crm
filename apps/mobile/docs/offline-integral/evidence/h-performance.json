@@ -1,0 +1,9 @@
+{
+  "runtime": "Node, not native rendering",
+  "contacts": 5000,
+  "queries": 100,
+  "medianMilliseconds": 2.3959519999999657,
+  "p95Milliseconds": 13.665040000000033,
+  "heapDeltaBytes": 5411440,
+  "limitations": "Observed process heap without forced GC; not a leak, battery or FPS benchmark"
+}
