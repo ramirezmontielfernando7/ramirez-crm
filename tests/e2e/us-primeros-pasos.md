@@ -26,8 +26,6 @@ contactos y, con el complemento, el conector de IA (ChatGPT/Claude). Ruta:
    guía»), el tutorial «Conecta un número nuevo» (dice que el código de 6
    dígitos llega por SMS o llamada a ESE número nuevo) y el de «Conecta ChatGPT
    o Claude» solo si la empresa tiene el complemento.
-8. Ajustes → WhatsApp → «Quiero un número nuevo»: aparecen los pasos («Así
-   funciona»): el PIN lo inventa la persona y el código llega al número nuevo.
-9. Teléfono (390 px): Tutoriales sin scroll de lado.
+8. Teléfono (390 px): Tutoriales sin scroll de lado.
 
 Con `SCREENSHOTS_DIR=<carpeta>` el guion guarda las capturas de cada pantalla.

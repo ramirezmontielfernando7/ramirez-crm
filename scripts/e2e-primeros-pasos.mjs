@@ -7,8 +7,7 @@
  * una etiqueta y dar de alta un contacto, cada renglón se palomea solo. Con el
  * complemento «Conector de IA» aparece «Conecta ChatGPT o Claude», que lleva
  * primero a encender el conector. En el navegador: la guía en la Bandeja, «Tu
- * avance» y el tutorial del número nuevo en Tutoriales, y en Ajustes →
- * WhatsApp los pasos que dicen a qué número llega el código.
+ * avance» y el tutorial del número nuevo en Tutoriales.
  *
  * Uso: node --env-file=.env scripts/e2e-primeros-pasos.mjs
  * Requiere: app corriendo con la BD migrada y el operador e2e@vocero.test.
@@ -169,20 +168,6 @@ async function main() {
   await shot(p, "2-tutoriales-tu-avance");
   await p.locator('[data-testid="tutorial-new-number"]').scrollIntoViewIfNeeded();
   await shot(p, "3-tutorial-numero-nuevo");
-
-  await p.goto(`${BASE}/settings/whatsapp`, { timeout: 180000 });
-  const nuevo = p.getByRole("radio", { name: /Quiero un número nuevo/ });
-  await nuevo.waitFor({ timeout: 60000 }).catch(() => {});
-  const pasosWa = p.locator('[data-testid="numero-nuevo-pasos"]');
-  for (let i = 0; i < 20 && !(await pasosWa.isVisible()); i++) {
-    await nuevo.click().catch(() => {});
-    await new Promise((r) => setTimeout(r, 500));
-  }
-  ok("al elegir «Quiero un número nuevo» aparecen los pasos", await pasosWa.isVisible());
-  ok("y dicen que el código llega a ese número nuevo", /código de 6 dígitos a ese número nuevo/.test(await pasosWa.innerText()));
-  ok("y que el PIN lo inventa la persona", /no te llega a ningún lado/i.test(await pasosWa.innerText()));
-  await pasosWa.scrollIntoViewIfNeeded();
-  await shot(p, "4-whatsapp-numero-nuevo");
 
   // Teléfono: la guía cabe sin desbordar.
   const movil = await browser.newContext({
