@@ -1,14 +1,21 @@
-import { and, count, eq, isNotNull } from "drizzle-orm";
+import { and, count, eq, isNotNull, isNull, notInArray } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { scoped } from "@/lib/db/tenant";
 import { can } from "@/lib/auth/permissions";
 import type { SessionContext } from "@/lib/auth/session";
-import { DEMO_AGENT_NAME } from "@/lib/demo";
-import { onboardingKeys, type OnboardingState, type OnboardingStepKey } from "@/lib/onboarding";
+import { DEMO_AGENT_NAME, DEMO_PHONES } from "@/lib/demo";
+import {
+  onboardingExtraKeys,
+  onboardingKeys,
+  type OnboardingExtraKey,
+  type OnboardingState,
+  type OnboardingStepKey,
+} from "@/lib/onboarding";
 import { orgHasWhatsAppConnection } from "@/server/credentials";
 import { getConnection } from "@/server/credentials/direct";
 import { getOrgModules, orgHasConexionDirecta } from "@/server/modules";
 import { hasDemo } from "@/server/seed/demo";
+import { getConnectorSettings } from "@/server/ai-connector/settings";
 
 /**
  * Auditoría UX 2026-11 (paquete A) — Qué le falta a la empresa para quedar
@@ -60,6 +67,7 @@ export async function getOnboarding(session: SessionContext): Promise<Onboarding
       .from(schema.template)
       .where(scoped(schema.template.organizationId, org, eq(schema.template.status, "approved"))),
   ]);
+  const extras = await getExtras(org, modules.conectorIa);
   const profile = profileRows[0];
   const demoAgent = profile?.name === DEMO_AGENT_NAME;
   // Con la demo cargada, su conocimiento no cuenta como «ya le contaste de tu negocio».
@@ -76,11 +84,67 @@ export async function getOnboarding(session: SessionContext): Promise<Onboarding
   const onboarding = (meta.onboarding ?? {}) as { hiddenAt?: unknown };
   return {
     steps: onboardingKeys(modules.agent).map((key) => ({ key, done: done[key] })),
+    extras: onboardingExtraKeys(modules.conectorIa).map((key) => ({
+      key,
+      done: extras[key],
+      // Con el conector aún apagado, primero se enciende en sus ajustes.
+      ...(key === "aiConnector" && !extras.connectorOn ? { href: "/settings/conector-ia" } : {}),
+    })),
+    conectorIa: modules.conectorIa,
     hidden: typeof onboarding.hiddenAt === "string",
     demo,
     whatsappConnected,
     approvedTemplates: templateRows[0]?.n ?? 0,
     canManage: can(session, "settings.manage"),
+  };
+}
+
+/** Las etapas con las que nace toda empresa: si siguen igual, aún no las hizo suyas. */
+const SEED_STAGE_NAMES = ["Nuevo", "En conversación", "Interesado", "Cliente", "Perdido"];
+
+/**
+ * Onboarding guiado (2026-11) — lo opcional, palomeado solo: alguien más en el
+ * equipo, etapas o etiquetas propias, contactos reales (ni los de ejemplo ni
+ * los simulados del Laboratorio, que nacen archivados) y una IA conectada.
+ */
+async function getExtras(
+  org: string,
+  conectorIa: boolean
+): Promise<Record<OnboardingExtraKey | "connectorOn", boolean>> {
+  const db = getDb();
+  const [members, stages, tags, contacts, connections, connector] = await Promise.all([
+    db.select({ n: count() }).from(schema.member).where(scoped(schema.member.organizationId, org)),
+    db
+      .select({ name: schema.pipelineStage.name })
+      .from(schema.pipelineStage)
+      .where(scoped(schema.pipelineStage.organizationId, org)),
+    db.select({ n: count() }).from(schema.contactTag).where(scoped(schema.contactTag.organizationId, org)),
+    db
+      .select({ n: count() })
+      .from(schema.contact)
+      .where(
+        scoped(
+          schema.contact.organizationId,
+          org,
+          and(isNull(schema.contact.archivedAt), notInArray(schema.contact.waIdentity, [...DEMO_PHONES]))
+        )
+      ),
+    conectorIa
+      ? db
+          .select({ n: count() })
+          .from(schema.aiConnection)
+          .where(scoped(schema.aiConnection.organizationId, org, isNull(schema.aiConnection.revokedAt)))
+      : Promise.resolve([{ n: 0 }]),
+    conectorIa ? getConnectorSettings(org) : Promise.resolve(null),
+  ]);
+  const names = stages.map((s) => s.name).sort();
+  const stagesChanged = names.join("|") !== [...SEED_STAGE_NAMES].sort().join("|");
+  return {
+    team: (members[0]?.n ?? 0) > 1,
+    pipeline: stagesChanged || (tags[0]?.n ?? 0) > 0,
+    contacts: (contacts[0]?.n ?? 0) > 0,
+    aiConnector: (connections[0]?.n ?? 0) > 0,
+    connectorOn: !!connector?.enabled,
   };
 }
 

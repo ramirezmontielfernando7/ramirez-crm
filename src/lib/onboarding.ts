@@ -6,9 +6,19 @@
 
 export type OnboardingStepKey = "account" | "whatsapp" | "agent" | "publish" | "ai";
 
+/**
+ * Onboarding guiado (2026-11) — lo opcional para sacarle más jugo: no cuenta
+ * en el avance ni detiene la guía, pero se palomea solo cuando se hace.
+ */
+export type OnboardingExtraKey = "team" | "pipeline" | "contacts" | "aiConnector";
+
 export type OnboardingState = {
   /** Pasos que aplican a esta empresa (sin agente de IA en el plan, solo los dos primeros). */
   steps: { key: OnboardingStepKey; done: boolean }[];
+  /** Lo opcional que aplica a esta empresa (el conector de IA solo con su complemento). */
+  extras: { key: OnboardingExtraKey; done: boolean; href?: string }[];
+  /** La empresa tiene el complemento «Conector de IA» (ChatGPT, Claude…). */
+  conectorIa: boolean;
   /** El Propietario cerró la guía («Ocultar guía»). */
   hidden: boolean;
   /** Hay datos de ejemplo cargados. */
@@ -28,7 +38,7 @@ export const ONBOARDING_STEP: Record<
   account: { title: "Activa tu cuenta", body: "", cta: null, href: null, minutes: null },
   whatsapp: {
     title: "Conecta tu WhatsApp",
-    body: "Escaneas un código con tu WhatsApp Business y listo. Tus chats de los últimos 6 meses llegan solos.",
+    body: "Si ya usas WhatsApp Business en tu celular, escaneas un código y listo: tus chats de los últimos 6 meses llegan solos. Si es un número nuevo, Meta le manda un código por SMS o llamada a ese número.",
     cta: "Conectar WhatsApp",
     href: "/settings/whatsapp",
     minutes: 2,
@@ -55,6 +65,41 @@ export const ONBOARDING_STEP: Record<
     minutes: null,
   },
 };
+
+export const ONBOARDING_EXTRA: Record<
+  OnboardingExtraKey,
+  { title: string; body: string; cta: string; href: string }
+> = {
+  team: {
+    title: "Invita a tu equipo",
+    body: "Cada asesor entra con su propio acceso y ve solo lo que le toca.",
+    cta: "Invitar",
+    href: "/settings/team",
+  },
+  pipeline: {
+    title: "Pon tus etapas y etiquetas",
+    body: "Que el embudo diga cómo vendes tú: «Cotizó», «Visitó», «Pagó»…",
+    cta: "Ajustar",
+    href: "/pipeline",
+  },
+  contacts: {
+    title: "Sube tus contactos",
+    body: "Tu lista de clientes desde Excel o CSV.",
+    cta: "Importar",
+    href: "/contacts",
+  },
+  aiConnector: {
+    title: "Conecta ChatGPT o Claude",
+    body: "Pregúntale a tu IA de siempre por tus chats y ventas, sin abrir el CRM.",
+    cta: "Conectar",
+    href: "/settings/mi-ia",
+  },
+};
+
+/** Lo opcional, en orden; el conector de IA solo si la empresa tiene el complemento. */
+export function onboardingExtraKeys(conectorIa: boolean): OnboardingExtraKey[] {
+  return conectorIa ? ["team", "pipeline", "contacts", "aiConnector"] : ["team", "pipeline", "contacts"];
+}
 
 /** Orden de los pasos según si el plan trae agente de IA. */
 export function onboardingKeys(withAgent: boolean): OnboardingStepKey[] {

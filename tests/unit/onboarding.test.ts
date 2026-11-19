@@ -3,6 +3,7 @@ import {
   campaignBlockers,
   currentStep,
   doneCount,
+  onboardingExtraKeys,
   onboardingKeys,
   showOnboarding,
   type OnboardingState,
@@ -11,6 +12,8 @@ import { isDemoPhone } from "@/lib/demo";
 
 const base = (over: Partial<OnboardingState> = {}): OnboardingState => ({
   steps: onboardingKeys(true).map((key) => ({ key, done: key === "account" })),
+  extras: onboardingExtraKeys(false).map((key) => ({ key, done: false })),
+  conectorIa: false,
   hidden: false,
   demo: false,
   whatsappConnected: false,
@@ -23,6 +26,14 @@ describe("primeros pasos (auditoría UX 2026-11, paquete A)", () => {
   it("con agente son 5 pasos; sin agente, solo cuenta y WhatsApp", () => {
     expect(onboardingKeys(true)).toEqual(["account", "whatsapp", "agent", "publish", "ai"]);
     expect(onboardingKeys(false)).toEqual(["account", "whatsapp"]);
+  });
+
+  it("lo opcional no cuenta en el avance; el conector de IA solo con su complemento", () => {
+    expect(onboardingExtraKeys(false)).toEqual(["team", "pipeline", "contacts"]);
+    expect(onboardingExtraKeys(true)).toEqual(["team", "pipeline", "contacts", "aiConnector"]);
+    const conTodo = base({ extras: onboardingExtraKeys(true).map((key) => ({ key, done: true })) });
+    expect(doneCount(conTodo)).toBe(1);
+    expect(showOnboarding(conTodo)).toBe(true);
   });
 
   it("el paso que toca es el primero sin hacer", () => {

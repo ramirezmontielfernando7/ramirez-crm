@@ -14,7 +14,8 @@ describe("tutoriales y recorrido", () => {
   it("esconde lo que el plan o el rol no tienen", () => {
     expect(visibleFor(TUTORIALS, all)).toHaveLength(TUTORIALS.length);
     const asesor = visibleFor(TUTORIALS, { hasModule: () => true, can: () => false }).map((t) => t.key);
-    expect(asesor).toEqual(["inbox", "contacts", "pipeline"]);
+    // El del conector de IA también: el Propietario puede abrírselo a su rol (Tutoriales lo esconde sin el complemento).
+    expect(asesor).toEqual(["inbox", "contacts", "pipeline", "ai-connector"]);
     const sinAgente = visibleFor(TOUR, { hasModule: (m) => m !== "agent" && m !== "campaigns", can: () => true }).map((s) => s.key);
     expect(sinAgente).not.toContain("agent");
     expect(sinAgente).not.toContain("campaigns");
