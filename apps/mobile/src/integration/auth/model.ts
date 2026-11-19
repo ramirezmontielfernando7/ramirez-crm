@@ -109,7 +109,7 @@ export interface SecretStore {
 /** Cache/drafts/media/notifications must detach synchronously before another scope can be installed. */
 export interface SessionBoundary {
   detach(): void;
-  attach(context: AuthContext): void;
+  attach(context: AuthContext, current?: () => boolean): void;
   cleanupFailures?(): readonly CleanupFailure[];
 }
 export type State = Readonly<{

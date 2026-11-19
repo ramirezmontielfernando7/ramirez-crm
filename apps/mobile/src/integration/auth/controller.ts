@@ -24,6 +24,7 @@ export class PreparedAuth {
   });
   private session: FixtureSession | null = null;
   private candidates = new Map<string, FixtureSession>();
+  private pending = new Set<string>();
   private epoch = 0;
   private aborters = new Set<AbortController>();
   private listeners = new Set<() => void>();
@@ -154,6 +155,7 @@ export class PreparedAuth {
         this.patch({ remoteRevocation: "unknown" });
         this.addFailures(epoch, ["revocation-read"]);
       }
+      throw new AuthFault("cleanup");
     }
   }
   private async revoke(s: FixtureSession | RevocationReference, epoch: number) {
@@ -161,6 +163,7 @@ export class PreparedAuth {
     const reference = revocationReference(
       material ? material.context.scope : s,
     );
+    if (material) this.pending.add(material.credential);
     let journalOK = true;
     try {
       await this.vault.recordRevocation(reference, "pending");
@@ -192,7 +195,10 @@ export class PreparedAuth {
         this.addFailures(epoch, ["revocation-write"]);
       }
     } else {
-      if (material) this.candidates.delete(material.credential);
+      if (material) {
+        this.candidates.delete(material.credential);
+        this.pending.delete(material.credential);
+      }
       try {
         await this.vault.confirmRevocation(reference);
       } catch {
@@ -253,7 +259,7 @@ export class PreparedAuth {
         throw new AuthFault("invalid");
       await this.vault.save(s, () => epoch === this.epoch);
       if (epoch !== this.epoch) throw new AuthFault("stale");
-      this.boundary.attach(s.context);
+      this.boundary.attach(s.context, () => epoch === this.epoch);
       if (epoch !== this.epoch) throw new AuthFault("stale");
       this.session = s;
       this.candidates.delete(s.credential);
@@ -407,7 +413,9 @@ export class PreparedAuth {
     const task = (async () => {
       try {
         const persisted = await this.vault.listRevocations();
-        const candidates = [...this.candidates.values()];
+        const candidates = [...this.candidates.values()].filter((s) =>
+          this.pending.has(s.credential),
+        );
         for (const s of candidates) await this.revoke(s, epoch);
         for (const r of persisted)
           if (

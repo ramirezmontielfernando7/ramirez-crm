@@ -13,6 +13,8 @@ export type BoundaryPart = Readonly<{
 export class CompositeSessionBoundary implements SessionBoundary {
   private failures: readonly CleanupFailure[] = [];
   private parts: readonly BoundaryPart[];
+  private revision = 0;
+  private owner: AuthContext | null = null;
   constructor(parts: readonly BoundaryPart[]) {
     if (
       parts.length > 4 ||
@@ -26,6 +28,8 @@ export class CompositeSessionBoundary implements SessionBoundary {
   }
   cleanupFailures = () => this.failures;
   detach() {
+    this.revision++;
+    this.owner = null;
     const failures: CleanupFailure[] = [];
     for (const part of this.parts) {
       try {
@@ -37,16 +41,31 @@ export class CompositeSessionBoundary implements SessionBoundary {
     this.failures = Object.freeze(failures);
     if (failures.length) throw new AuthFault("cleanup");
   }
-  attach(context: AuthContext) {
+  attach(context: AuthContext, current: () => boolean = () => true) {
+    const revision = ++this.revision;
+    this.owner = context;
+    const check = () => {
+      if (!current() || revision !== this.revision)
+        throw new AuthFault("stale");
+    };
     try {
-      for (const part of this.parts) part.attach(context);
-    } catch {
-      try {
-        this.detach();
-      } catch {
-        /* rollback already attempted every participant */
+      for (const part of this.parts) {
+        check();
+        part.attach(context);
+        check();
       }
-      throw new AuthFault("cleanup");
+    } catch (error) {
+      // Logout may already have detached. Never erase a newer installed owner.
+      if (this.owner === context || this.owner === null) {
+        try {
+          this.detach();
+        } catch {
+          /* all participants were attempted */
+        }
+      }
+      throw error instanceof AuthFault && error.code === "stale"
+        ? error
+        : new AuthFault("cleanup");
     }
   }
 }

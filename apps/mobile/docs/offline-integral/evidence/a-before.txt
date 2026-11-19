@@ -1,0 +1,84 @@
+✔ observer exception cannot stop other observers or any logout cleanup (4.042461ms)
+✔ reentrant login switches to newer user; obsolete login never calls authority (1.479169ms)
+✔ successful login ignoring AbortSignal after logout never persists active credentials and is revoked (1.661814ms)
+✔ multiple successful logins out of order keep only newest scope and revoke the orphan (1.198916ms)
+✔ boundary failure still deletes credential/revokes, blocks new access until cleanup is repaired (1.462313ms)
+✔ credential deletion failure persists a logout barrier and blocks restore after coordinator restart (0.852434ms)
+✔ barrier write failure does not skip credential removal or remote revocation (0.724522ms)
+✔ all local storage operations failing never reports cleanup or revocation certainty (0.440724ms)
+✔ journal write failure does not skip deleting active credentials and never leaks error text (0.937402ms)
+✔ cold offline restore/logout persists credential-free pending references and recovers after restart (1.311336ms)
+✔ failed versus uncertain remote outcomes survive without being called confirmed (0.82901ms)
+✔ unknown remote result may already have revoked; retry reference is idempotent in fixture (0.760305ms)
+✔ no server reference revocation capability after restart stays unknown (0.556809ms)
+✔ fresh empty logout is the only no-known-session outcome (0.116816ms)
+✔ orphan cleanup failure persists only reference, never credential from invalidated operation (0.426693ms)
+✔ scope allowlist strips malicious nested/additional properties and freezes canonical fields (0.421054ms)
+✔ active scope B cannot receive late request data from scope A (0.735659ms)
+✔ reentrant new login during logout is never erased or remotely revoked by older cleanup (0.425991ms)
+✔ revocation journal read failure still removes credential, attempts known revocation and reports unknown (0.522307ms)
+✔ credential discovery read failure still deletes binding and revokes known in-memory session (0.500665ms)
+✔ revocation can be retried concurrently without duplicate recovery flights (0.404419ms)
+✔ composite cleanup attempts every cache/draft/media/notification participant independently (8.823164ms)
+✔ failed scope attach rolls all participants back without authorizing session (0.639123ms)
+✔ bounded candidate saturation cannot skip logout erasure or known remote revocations (7.715826ms)
+✔ failed active credential persistence still revokes the newly issued server session (0.3784ms)
+✔ successful late renew ignoring AbortSignal cannot restore authority after logout (0.551751ms)
+✔ successful late switch ignoring AbortSignal cannot restore authority after logout (0.417569ms)
+✔ each independent boundary participant failure is diagnosed without skipping the other three (4.361942ms)
+✖ logout during a participant attach stops remaining stores and rolls back sensitive state (5.463733ms)
+✖ restore journal failure propagates and never installs authority (0.618242ms)
+✖ recovery does not revoke an observed binding while a validated restore response is delayed (2.939289ms)
+✔ simultaneous offline and total storage failure stays blocked; no false durable logout guarantee (0.691452ms)
+ℹ tests 32
+ℹ suites 0
+ℹ pass 29
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 426.792001
+
+✖ failing tests:
+
+test at ../../../tmp/dashfort-a-before/apps/mobile/tests/integration-i2p2.test.ts:2:22179
+✖ logout during a participant attach stops remaining stores and rolls back sensitive state (5.463733ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  3 !== 0
+
+      at TestContext.<anonymous> (/tmp/dashfort-a-before/apps/mobile/tests/integration-i2p2.test.ts:650:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 3,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at ../../../tmp/dashfort-a-before/apps/mobile/tests/integration-i2p2.test.ts:2:23101
+✖ restore journal failure propagates and never installs authority (0.618242ms)
+  AssertionError [ERR_ASSERTION]: Missing expected rejection.
+      at async TestContext.<anonymous> (/tmp/dashfort-a-before/apps/mobile/tests/integration-i2p2.test.ts:663:3)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: { message: 'cleanup' },
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at ../../../tmp/dashfort-a-before/apps/mobile/tests/integration-i2p2.test.ts:2:23679
+✖ recovery does not revoke an observed binding while a validated restore response is delayed (2.939289ms)
+  AuthFault: unauthorized
+      at FixtureAuthority.known (/tmp/dashfort-a-before/apps/mobile/src/integration/auth/fixture.ts:85:13)
+      at FixtureAuthority.validate (/tmp/dashfort-a-before/apps/mobile/src/integration/auth/fixture.ts:97:17)
+      at async TestContext.<anonymous> (/tmp/dashfort-a-before/apps/mobile/tests/integration-i2p2.test.ts:687:3)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    code: 'unauthorized'
+  }

@@ -618,3 +618,89 @@ test("each independent boundary participant failure is diagnosed without skippin
     assert.equal(c.snapshot().remoteRevocation, "confirmed");
   }
 });
+
+test("logout during a participant attach stops remaining stores and rolls back sensitive state", async () => {
+  const { CompositeSessionBoundary } =
+    await import("../src/integration/auth/boundary");
+  const f = fixture(),
+    stores = new Map();
+  let c: PreparedAuth,
+    out: Promise<void> | undefined,
+    once = false;
+  const parts = (["cache", "drafts", "media", "notifications"] as const).map(
+    (name) => ({
+      name,
+      detach() {
+        stores.delete(name);
+      },
+      attach() {
+        stores.set(name, "fixture data");
+        if (name === "cache" && !once) {
+          once = true;
+          out = c.logout();
+        }
+      },
+    }),
+  );
+  c = new PreparedAuth(f.server, f.vault, new CompositeSessionBoundary(parts));
+  await assert.rejects(c.login("owner@example.invalid", "fixture-password"), {
+    message: "stale",
+  });
+  await out;
+  assert.equal(stores.size, 0);
+  assert.equal(c.snapshot().context, null);
+  assert.equal(f.m.data.has(f.vault.key), false);
+});
+test("restore journal failure propagates and never installs authority", async () => {
+  const f = fixture();
+  await login(f);
+  f.m.fail((op, k) => op === "get" && k === f.vault.revocationsKey);
+  const c = new PreparedAuth(
+    f.server,
+    new SessionVault(f.m.store, "fixture-p2"),
+    f.boundary,
+  );
+  await assert.rejects(c.restore(), { message: "cleanup" });
+  assert.equal(c.snapshot().context, null);
+  assert.equal(c.snapshot().status, "blocked");
+  assert.ok(c.snapshot().cleanupFailures.includes("revocation-read"));
+});
+test("recovery does not revoke an observed binding while a validated restore response is delayed", async () => {
+  const f = fixture();
+  await login(f);
+  const a = authority(f.server),
+    started = deferred(),
+    release = deferred();
+  a.validate = async (s) => {
+    const v = await f.server.validate(s, new AbortController().signal);
+    started.resolve();
+    await release.promise;
+    return v;
+  };
+  const c = new PreparedAuth(a, f.vault, f.boundary);
+  const p = c.restore();
+  await started.promise;
+  await c.recoverRevocations();
+  release.resolve();
+  await p;
+  const active = (await f.vault.read())!;
+  await f.server.validate(active, new AbortController().signal);
+  assert.equal(c.snapshot().status, "authenticated");
+  assert.equal(c.snapshot().remoteRevocation, "none");
+});
+test("simultaneous offline and total storage failure stays blocked; no false durable logout guarantee", async () => {
+  const f = fixture();
+  await login(f);
+  f.server.online = false;
+  f.m.fail(() => true);
+  await assert.rejects(f.c.logout(), { message: "cleanup" });
+  assert.equal(f.c.snapshot().status, "blocked");
+  assert.equal(f.c.snapshot().remoteRevocation, "unknown");
+  assert.equal(f.m.data.has(f.vault.key), true);
+  assert.equal(f.m.data.has(f.vault.barrierKey), false);
+  f.m.fail(() => false);
+  f.server.online = true;
+  await f.c.logout();
+  assert.equal(f.m.data.has(f.vault.key), false);
+  assert.equal(f.c.snapshot().remoteRevocation, "confirmed");
+});
