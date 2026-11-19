@@ -1,0 +1,394 @@
+{
+  "source": "actual InboxScreen/ConversationRow/ui/TabBar; isolated providers",
+  "listImplementation": "actual FlashList",
+  "screenshots": 32,
+  "metrics": [
+    {
+      "filename": "bandeja-actual-light-390x844.png",
+      "variant": "actual",
+      "theme": "light",
+      "width": 390,
+      "height": 844,
+      "selectorTargets": [
+        {
+          "label": "Clientes",
+          "width": 116.65625,
+          "height": 48
+        },
+        {
+          "label": "Equipo",
+          "width": 116.671875,
+          "height": 48
+        },
+        {
+          "label": "Mi número",
+          "width": 116.671875,
+          "height": 48
+        }
+      ]
+    },
+    {
+      "filename": "bandeja-A-light-390x844.png",
+      "variant": "A",
+      "theme": "light",
+      "width": 390,
+      "height": 844,
+      "selectorTargets": [
+        {
+          "label": "Clientes",
+          "width": 116.65625,
+          "height": 48
+        },
+        {
+          "label": "Equipo",
+          "width": 116.671875,
+          "height": 48
+        },
+        {
+          "label": "Mi número",
+          "width": 116.671875,
+          "height": 48
+        }
+      ]
+    },
+    {
+      "filename": "bandeja-B-light-390x844.png",
+      "variant": "B",
+      "theme": "light",
+      "width": 390,
+      "height": 844,
+      "selectorTargets": [
+        {
+          "label": "Clientes",
+          "width": 118,
+          "height": 48
+        },
+        {
+          "label": "Equipo",
+          "width": 118,
+          "height": 48
+        },
+        {
+          "label": "Mi número",
+          "width": 118,
+          "height": 48
+        }
+      ]
+    },
+    {
+      "filename": "bandeja-C-light-390x844.png",
+      "variant": "C",
+      "theme": "light",
+      "width": 390,
+      "height": 844,
+      "selectorTargets": [
+        {
+          "label": "Clientes",
+          "width": 117.328125,
+          "height": 48
+        },
+        {
+          "label": "Equipo",
+          "width": 117.34375,
+          "height": 48
+        },
+        {
+          "label": "Mi número",
+          "width": 117.328125,
+          "height": 48
+        }
+      ]
+    },
+    {
+      "filename": "bandeja-actual-dark-390x844.png",
+      "variant": "actual",
+      "theme": "dark",
+      "width": 390,
+      "height": 844,
+      "selectorTargets": [
+        {
+          "label": "Clientes",
+          "width": 116.65625,
+          "height": 48
+        },
+        {
+          "label": "Equipo",
+          "width": 116.671875,
+          "height": 48
+        },
+        {
+          "label": "Mi número",
+          "width": 116.671875,
+          "height": 48
+        }
+      ]
+    },
+    {
+      "filename": "bandeja-A-dark-390x844.png",
+      "variant": "A",
+      "theme": "dark",
+      "width": 390,
+      "height": 844,
+      "selectorTargets": [
+        {
+          "label": "Clientes",
+          "width": 116.65625,
+          "height": 48
+        },
+        {
+          "label": "Equipo",
+          "width": 116.671875,
+          "height": 48
+        },
+        {
+          "label": "Mi número",
+          "width": 116.671875,
+          "height": 48
+        }
+      ]
+    },
+    {
+      "filename": "bandeja-B-dark-390x844.png",
+      "variant": "B",
+      "theme": "dark",
+      "width": 390,
+      "height": 844,
+      "selectorTargets": [
+        {
+          "label": "Clientes",
+          "width": 118,
+          "height": 48
+        },
+        {
+          "label": "Equipo",
+          "width": 118,
+          "height": 48
+        },
+        {
+          "label": "Mi número",
+          "width": 118,
+          "height": 48
+        }
+      ]
+    },
+    {
+      "filename": "bandeja-C-dark-390x844.png",
+      "variant": "C",
+      "theme": "dark",
+      "width": 390,
+      "height": 844,
+      "selectorTargets": [
+        {
+          "label": "Clientes",
+          "width": 117.328125,
+          "height": 48
+        },
+        {
+          "label": "Equipo",
+          "width": 117.34375,
+          "height": 48
+        },
+        {
+          "label": "Mi número",
+          "width": 117.328125,
+          "height": 48
+        }
+      ]
+    },
+    {
+      "filename": "bandeja-actual-light-360x640.png",
+      "variant": "actual",
+      "theme": "light",
+      "width": 360,
+      "height": 640,
+      "selectorTargets": [
+        {
+          "label": "Clientes",
+          "width": 106.65625,
+          "height": 48
+        },
+        {
+          "label": "Equipo",
+          "width": 106.671875,
+          "height": 48
+        },
+        {
+          "label": "Mi número",
+          "width": 106.671875,
+          "height": 48
+        }
+      ]
+    },
+    {
+      "filename": "bandeja-A-light-360x640.png",
+      "variant": "A",
+      "theme": "light",
+      "width": 360,
+      "height": 640,
+      "selectorTargets": [
+        {
+          "label": "Clientes",
+          "width": 106.65625,
+          "height": 48
+        },
+        {
+          "label": "Equipo",
+          "width": 106.671875,
+          "height": 48
+        },
+        {
+          "label": "Mi número",
+          "width": 106.671875,
+          "height": 48
+        }
+      ]
+    },
+    {
+      "filename": "bandeja-B-light-360x640.png",
+      "variant": "B",
+      "theme": "light",
+      "width": 360,
+      "height": 640,
+      "selectorTargets": [
+        {
+          "label": "Clientes",
+          "width": 108,
+          "height": 48
+        },
+        {
+          "label": "Equipo",
+          "width": 108,
+          "height": 48
+        },
+        {
+          "label": "Mi número",
+          "width": 108,
+          "height": 48
+        }
+      ]
+    },
+    {
+      "filename": "bandeja-C-light-360x640.png",
+      "variant": "C",
+      "theme": "light",
+      "width": 360,
+      "height": 640,
+      "selectorTargets": [
+        {
+          "label": "Clientes",
+          "width": 107.328125,
+          "height": 48
+        },
+        {
+          "label": "Equipo",
+          "width": 107.34375,
+          "height": 48
+        },
+        {
+          "label": "Mi número",
+          "width": 107.328125,
+          "height": 48
+        }
+      ]
+    },
+    {
+      "filename": "bandeja-actual-dark-360x640.png",
+      "variant": "actual",
+      "theme": "dark",
+      "width": 360,
+      "height": 640,
+      "selectorTargets": [
+        {
+          "label": "Clientes",
+          "width": 106.65625,
+          "height": 48
+        },
+        {
+          "label": "Equipo",
+          "width": 106.671875,
+          "height": 48
+        },
+        {
+          "label": "Mi número",
+          "width": 106.671875,
+          "height": 48
+        }
+      ]
+    },
+    {
+      "filename": "bandeja-A-dark-360x640.png",
+      "variant": "A",
+      "theme": "dark",
+      "width": 360,
+      "height": 640,
+      "selectorTargets": [
+        {
+          "label": "Clientes",
+          "width": 106.65625,
+          "height": 48
+        },
+        {
+          "label": "Equipo",
+          "width": 106.671875,
+          "height": 48
+        },
+        {
+          "label": "Mi número",
+          "width": 106.671875,
+          "height": 48
+        }
+      ]
+    },
+    {
+      "filename": "bandeja-B-dark-360x640.png",
+      "variant": "B",
+      "theme": "dark",
+      "width": 360,
+      "height": 640,
+      "selectorTargets": [
+        {
+          "label": "Clientes",
+          "width": 108,
+          "height": 48
+        },
+        {
+          "label": "Equipo",
+          "width": 108,
+          "height": 48
+        },
+        {
+          "label": "Mi número",
+          "width": 108,
+          "height": 48
+        }
+      ]
+    },
+    {
+      "filename": "bandeja-C-dark-360x640.png",
+      "variant": "C",
+      "theme": "dark",
+      "width": 360,
+      "height": 640,
+      "selectorTargets": [
+        {
+          "label": "Clientes",
+          "width": 107.328125,
+          "height": 48
+        },
+        {
+          "label": "Equipo",
+          "width": 107.34375,
+          "height": 48
+        },
+        {
+          "label": "Mi número",
+          "width": 107.328125,
+          "height": 48
+        }
+      ]
+    }
+  ],
+  "networkRequestsBlocked": 0,
+  "errors": [],
+  "native": false
+}

@@ -1,0 +1,32 @@
+{
+  "baselineBranch": "codex/dashfort-mobile-offline-20261119",
+  "baselineCommit": "f3f467abb7640ec13ffba590bc5dad91bc5cfd77",
+  "labBranch": "codex/dashfort-mobile-visual-lab-20261119",
+  "trackedChangesOutsideLab": false,
+  "untrackedOutsideLab": false,
+  "backendHeadUnchanged": "562a8b386b7f0d0df9292406167357aa988fd4d0",
+  "backendClean": true,
+  "previousApkSha256": "36f3a4781220eff96ef9938e1d07adbf9ceac7797254ad3cc94f2b7d75b18f7a",
+  "previousApkUnchanged": true,
+  "typeScriptExitCode": 0,
+  "renderResult": "32 frames rendered; actual FlashList; all selector targets >=48px; 4 search/selector checks; zero page errors.",
+  "standaloneHtmlChecks": [
+    "theme dark",
+    "360x640",
+    "header detail",
+    "Contacts uses 390x844",
+    "four columns"
+  ],
+  "comparisonBoards": 12,
+  "screenshots": 32,
+  "nativeTestsPerformed": false,
+  "networkServicesStarted": false,
+  "dependencyChanges": false,
+  "limitations": [
+    "React Native Web in offline Chromium",
+    "safe-area insets fixed at zero",
+    "normal font scale only",
+    "fixture session and navigation adapters",
+    "no Android or iOS device validation"
+  ]
+}
