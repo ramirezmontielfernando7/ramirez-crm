@@ -1,3 +1,7 @@
+import {
+  withinBusinessHours,
+  type CalendarConnectors,
+} from "../calendar-settings/core";
 import type { Actor } from "../inbox/model";
 import type { StoragePort } from "../../services/storage";
 export const agendaTeam = [
@@ -185,6 +189,7 @@ export class AgendaStore {
     readonly organizationId: string,
     private storage: StoragePort,
     private now = Date.now,
+    readonly connectors?: CalendarConnectors,
   ) {
     if (
       !/^demo-org-[\w-]{1,60}$/.test(organizationId) ||
@@ -408,8 +413,10 @@ export class AgendaStore {
     const old = this.get(id);
     dateParts(day);
     if (old.cancelled) return [];
-    return [540, 630, 720, 1020].filter((start) =>
-      this.free({ ...old, day, start }, old.id),
+    return [540, 630, 720, 1020].filter(
+      (start) =>
+        withinBusinessHours(day, start, old.duration) &&
+        this.free({ ...old, day, start }, old.id),
     );
   }
   availableDays(id: string) {

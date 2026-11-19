@@ -88,3 +88,6 @@ SET-05/05A/07: 110/158, 48 pendientes, 433 pruebas. Ver docs/refinement-b/LOTE-1
 
 ## Corrección posterior a lote 14
 Bloquear mutaciones si catálogo no está recuperado y revalidar motivo activo tras escritura; revierte un alta de pérdida concurrente con desactivación. 3 pruebas adicionales, 436 antes de SET-08. Conteos memoizados, origen de contactos nuevos independiente de etiquetas, alias y automática más estrictos. Ver actualización LOTE-14.
+
+## Lote 15 y checkpoint 111
+SET-08 implementado: 111/158, 47 pendientes, 448 pruebas. Ver docs/refinement-b/CHECKPOINT-111.md y LOTE-15-AGENDA-CONECTORES.md. Agenda comparte conectores Zoom/Meet ficticios por org, candidatos respetan horario canónico; bloques privados previos se conservan. Sin OAuth/proveedores/URLs reales; Unirse solo toast. Próximo SET-03/03A/03B con personas canónicas antes de EQP y SET-09. Entradas temporales por demo; no sumar SET-01/MORE-01. Mantener B, backend, APK/firma, los 26 artefactos y base f3 de bundles. Sin Gradle, servicios, push o costes.

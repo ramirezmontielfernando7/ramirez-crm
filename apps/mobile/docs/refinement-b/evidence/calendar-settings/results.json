@@ -1,0 +1,17 @@
+{
+  "ids": [
+    "SET-08"
+  ],
+  "checks": [
+    "SET-08 actual RN in both themes/sizes, approved hours and provider states; cancel leaves local config unchanged",
+    "Shared Agenda shows no Meet link when disconnected; failed write preserves dialog/state; retry connects sample; join only shows fake toast; disconnect restores unavailable link without canceling appointment",
+    "Actual storage-read failure blocks configuration without replacing it; retry restores persisted settings",
+    "Loading/empty/error/offline states and role gates; coordinator permitted, advisor direct route denied"
+  ],
+  "actualCaptures": 11,
+  "officialReferences": 2,
+  "errors": [],
+  "networkRequests": 0,
+  "httpServerStarted": false,
+  "native": false
+}

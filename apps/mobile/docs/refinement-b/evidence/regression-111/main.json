@@ -1,0 +1,39 @@
+{
+  "baseline": "7f068daf10e8e2b78f81bdc4c953887352d39587",
+  "implementedCaptures": 16,
+  "beforeCaptures": 16,
+  "integratedCrmCaptures": 38,
+  "checks": [
+    "19 CRM IDs through real CrmScreen, providers and LayerProvider in both themes",
+    "Inbox search opens real ConversationScreen with same stores",
+    "Contacts search-detail-edit through actual navigation and modal",
+    "Advisor cannot see foreign contact",
+    "Inbox selector targets >=48"
+  ],
+  "boxes": [
+    {
+      "text": "Clientes",
+      "width": 118,
+      "height": 48
+    },
+    {
+      "text": "Equipo",
+      "width": 118,
+      "height": 48
+    },
+    {
+      "text": "Mi número",
+      "width": 118,
+      "height": 48
+    }
+  ],
+  "errors": [],
+  "networkRequests": 0,
+  "httpServerStarted": false,
+  "native": false,
+  "limitations": [
+    "RN Web offline Chromium",
+    "fixture session/theme/storage/router; actual UI/store/layers",
+    "no full Expo Router or native keyboard validation"
+  ]
+}

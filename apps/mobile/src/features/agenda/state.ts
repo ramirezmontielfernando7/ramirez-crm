@@ -1,3 +1,4 @@
+import { connectorsFor } from "../calendar-settings/state";
 import { AgendaStore } from "./core";
 import { preferencesStorage } from "../../services/storage";
 import type { InboxStore } from "../inbox/store-core";
@@ -7,8 +8,10 @@ export function agendaFor(inbox: InboxStore) {
   if (!store) {
     store = new AgendaStore(
       inbox.actor,
-      "demo-org-cristal",
+      inbox.repository.catalog.organizationId,
       preferencesStorage,
+      Date.now,
+      connectorsFor(inbox),
     );
     stores.set(inbox, store);
   }

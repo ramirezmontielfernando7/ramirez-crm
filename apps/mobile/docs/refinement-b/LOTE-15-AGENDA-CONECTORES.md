@@ -1,0 +1,15 @@
+# Lote 15 · Agenda y conectores ficticios
+
+SET-08 implementado: **111/158 IDs, 47 pendientes, 448 pruebas** (12 de este lote, 436 anteriores). Se conserva B, cabecera interna, tarjetas, tipografía, iconos y dimensiones aprobadas. Entrada provisional en Controles de la demo; no se suman SET-01/MORE-01.
+
+Horario canónico: L–V 9–19, sábado 10–14, domingo cerrado. Agenda utiliza el mismo horario al ofrecer candidatos de cita; los bloqueos manuales privados conservan sus 24 intervalos anteriores y pueden existir fuera del horario comercial. No se reprograman ni cancelan citas guardadas al consultar la configuración. Los candidatos continúan siendo una simulación acotada, no un motor real de disponibilidad ni una integración de calendarios.
+
+Conectores por organización: Zoom conectado/Meet sin conectar inicialmente, conforme a la maqueta. Tocar permite confirmar o cancelar una transición local. El diálogo explica que no inicia sesión en el proveedor, no vincula cuentas ni crea reuniones. No hay OAuth, tokens, URLs, SDK adicionales, conexiones o costos. Los datos de demostración se almacenan con revisión y recibos acotados; conflictos o errores no anuncian éxito. Propietario/Coordinador gestionan; Asesor solo consume el estado en su Agenda.
+
+El detalle de Agenda consulta el mismo repositorio: muestra Sin enlace con el conector apagado/no recuperado; Unirse cuando la muestra está encendida. Unirse conserva el toast ficticio anterior y nunca abre el proveedor. Se corrige el comportamiento previo que ofrecía Unirse en cualquier cita Meet/Zoom sin comprobar conector. Desconectar no borra citas ni mensajes. La configuración persiste al navegar y cambiar perfil de la misma organización; otra organización tiene su propia clave.
+
+12 pruebas nuevas: valores iniciales, restauración, guardar/reintentar/idempotencia, desconexión sin cancelar, roles, conflictos, scope/corrupción, lectura fallida, identidad de operación, horarios y bloques manuales. TypeScript/formato correctos. QA offline: **11 capturas RN Web reales y 2 referencias**, ambos temas/tamaños, cancelación, error/reintento de escritura, ausencia/presencia del enlace en el detalle real, desconexión, fallo real de lectura, estados de datos y permisos. Cuatro comprobaciones agrupadas. Sin errores de página ni solicitudes de red. Galería evidence/calendar-settings/comparacion.html.
+
+Regresiones de Agenda y Tareas/Notas aprobadas (incluida restauración del scroll web). Las de CRM/Bandeja/Chat y Asistente del ciclo de Catálogos también pasan. Informes en evidence/regression-111. QA web con componentes/proveedores reales y dobles de router/sesión/almacenamiento, no prueba nativa ni Expo Router completo.
+
+Solo apps/mobile; sin nuevas dependencias, cambios de backend, main, infraestructura, producción o APK. Firma y artefactos protegidos intactos. No Gradle con el disco disponible. Próxima dependencia segura: SET-03/03A/03B, personas/permisos/invitaciones totalmente ficticias y catálogo compartido antes de desarrollar EQP. Mantener desactivados autenticación/HTTP, proveedores y envío real.

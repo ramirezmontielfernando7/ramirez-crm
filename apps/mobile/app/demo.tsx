@@ -153,6 +153,12 @@ function OriginalDemo() {
         )}
         <Section>Laboratorio de demostración</Section>
         {auth.session && auth.session.role !== "advisor" && (
+          <NavRow
+            label="Agenda y conectores · demostración"
+            onPress={() => router.push("/calendar-settings")}
+          />
+        )}
+        {auth.session && auth.session.role !== "advisor" && (
           <>
             <NavRow
               label="Etiquetas · catálogo ficticio"

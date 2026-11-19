@@ -473,6 +473,14 @@ function BookingDetail({ store, id }: { store: AgendaStore; id: string }) {
     directory = useContactDirectory(),
     layers = useLayers(),
     [error, setError] = useState("");
+  useSyncExternalStore(
+    store.connectors?.subscribe ?? (() => () => {}),
+    store.connectors?.snapshot ?? (() => null),
+    store.connectors?.snapshot ?? (() => null),
+  );
+  useEffect(() => {
+    void store.connectors?.hydrate();
+  }, [store]);
   const legacyLinks: Record<string, string> = {
     "demo-booking-b1": "demo-conv-2",
     "demo-booking-b2": "demo-conv-7",
@@ -501,7 +509,11 @@ function BookingDetail({ store, id }: { store: AgendaStore; id: string }) {
           ["Modalidad", r.modality || "—"],
           [
             "Enlace",
-            r.modality === "Meet" || r.modality === "Zoom"
+            (
+              store.connectors
+                ? store.connectors.joinable(r.modality)
+                : r.modality === "Meet" || r.modality === "Zoom"
+            )
               ? "Unirse"
               : "Sin enlace",
           ],
