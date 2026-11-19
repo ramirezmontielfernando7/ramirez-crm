@@ -1,0 +1,27 @@
+{
+  "ids": [
+    "CRM-20",
+    "CRM-21",
+    "CRM-22",
+    "CRM-23",
+    "CRM-24",
+    "CRM-25"
+  ],
+  "checks": [
+    "all six Agenda IDs in both themes and sizes; no root tab bar; November 30 present",
+    "More opens the actual protected Agenda component through the route mock",
+    "block and edit a real free interval; restore after remount",
+    "meeting link never opens a provider; failed move preserves the record; retry updates once",
+    "cancel is persisted; menu can show cancelled records",
+    "24 local slots: actual web scroll survives month navigation and route return",
+    "advisor sees only own appointments",
+    "read recovery and loading/empty/offline states"
+  ],
+  "actualCaptures": 28,
+  "officialReferences": 12,
+  "mode": "complete",
+  "errors": [],
+  "networkRequests": 0,
+  "native": false,
+  "httpServerStarted": false
+}

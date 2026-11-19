@@ -1,0 +1,15 @@
+{
+  "ids": [
+    "AUTH-01"
+  ],
+  "checks": [
+    "Approved opening component in both themes/sizes without bottom tabs; reduced-motion static presentation in this host"
+  ],
+  "actualCaptures": 4,
+  "officialReferences": 2,
+  "errors": [],
+  "networkRequests": 0,
+  "httpServerStarted": false,
+  "native": false,
+  "animationTimingMeasuredInBrowser": false
+}

@@ -79,3 +79,6 @@ MORE-05 + SET-14, 104/158 IDs, 54 pendientes, 385 pruebas. docs/refinement-b/LOT
 
 ## Lote 12 · Respuestas rápidas
 SET-06/06A: 106/158 IDs, 52 pendientes, 400 pruebas. docs/refinement-b/LOTE-12-RESPUESTAS-RAPIDAS.md. Catálogo ficticio por organización compartido con selección por / y hoja de Chat, borrador sin enviar, owner/coordinator gestionan, advisor usa. Revisión por fila y cola por storage/org; restaurar y recargar ante conflictos. Entrada temporal por demo; SET-01 sigue pendiente. Próximo AUTH-01 sin nuevos permisos ni servicios.
+
+## Lote 13 y checkpoint 107
+AUTH-01 completada; 107/158 IDs, 51 pendientes, 407 pruebas. docs/refinement-b/CHECKPOINT-107.md y LOTE-13-APERTURA.md. Apertura solo primera vez, presupuesto 800 ms, omite reducir movimiento y no espera escrituras; QA estática web/temporización lógica, animación nativa pendiente. 60 capturas RN nuevas + 20 referencias y regresiones offline; 26 artefactos protegidos intactos. Próximo lote exacto SET-05/05A y SET-07, catálogos canónicos compartidos antes de contar índices. No modificar backend, APK/firma/B, no Gradle con ~1.4 GiB, servicios reales, push o costes. Conservar bundles incrementales y su base f3f467a; ZIP local nuevo, sin upload automático.

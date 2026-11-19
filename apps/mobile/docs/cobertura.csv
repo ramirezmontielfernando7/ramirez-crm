@@ -1,5 +1,5 @@
 ID,Pantalla,Tarea,Estado,Validacion nativa
-AUTH-01,Animación de apertura,T-M13,Pendiente,Pendiente
+AUTH-01,Animación de apertura,T-M13,Implementada / QA RN Web y temporizacion logica (lote 13),Pendiente
 AUTH-02,Iniciar sesión,T-M1,Implementada con simulacion / QA navegador,Pendiente
 AUTH-03,Activar cuenta (enlace),T-M1,Implementada con simulacion / QA navegador,Pendiente
 AUTH-04,Nueva contraseña (enlace),T-M1,Implementada con simulacion / QA navegador,Pendiente
