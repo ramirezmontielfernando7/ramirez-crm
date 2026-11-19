@@ -451,3 +451,50 @@ test("Deleting the Facebook Ads tag does not rewrite a contact's historical acqu
   await f.catalog.removeTag(t.id, 1);
   assert.equal(f.crm.get("demo-conv-6").source, "Facebook Ads");
 });
+
+test("A reason deactivated during a slow contact save cannot become a new loss", async () => {
+  const f = setup();
+  await f.ready();
+  const c = f.dir.get("demo-conv-1");
+  await c.hydrate();
+  const original = f.storage.set;
+  let release!: () => void;
+  const gate = new Promise<void>((r) => (release = r));
+  let entered!: () => void;
+  const started = new Promise<void>((r) => (entered = r));
+  let hold = true;
+  f.storage.set = async function (k, v) {
+    if (k === c.storageKey && hold) {
+      hold = false;
+      entered();
+      await gate;
+    }
+    return original.call(this, k, v);
+  };
+  const operation = c.stage("Perdido", "Precio");
+  await started;
+  await f.catalog.deactivateReason("demo-reason-1", 1);
+  release();
+  await assert.rejects(operation, /cambió/);
+  assert.notEqual(f.repo.get(f.actor, c.id).stage, "Perdido");
+  assert.notEqual(JSON.parse(f.data.get(c.storageKey)!).stage, "Perdido");
+});
+test("Unavailable catalog blocks contact writes before storage, preserving old bytes", async () => {
+  const f = setup();
+  await f.ready();
+  const c = f.dir.get("demo-conv-1");
+  await c.hydrate();
+  await c.tags(["VIP"]);
+  const raw = f.data.get(c.storageKey);
+  f.storage.failRead = true;
+  await f.catalog.reload();
+  await assert.rejects(c.tags(["Promo nov"]), /catálogo/);
+  assert.equal(f.data.get(c.storageKey), raw);
+});
+test("New contacts retain organic origin after manual Facebook Ads tagging", async () => {
+  const f = setup();
+  await f.ready();
+  const c = f.repo.create(f.actor, "Prueba de catálogo", "+52 55 5550 9922");
+  f.repo.updateContact(f.actor, c.id, { tags: ["Facebook Ads"] });
+  assert.equal(f.crm.get(c.id).source, "Orgánico");
+});

@@ -482,6 +482,9 @@ export class ContactStore {
               ? "Sin conexión. Conservamos los datos y el borrador; reintenta al reconectar."
               : "Recupera los detalles antes de guardar.",
           );
+        const business = this.directory.conversations.catalog;
+        if (business && !business.snapshot().ready)
+          throw Error("Recupera el catálogo antes de guardar.");
         const c = this.authorize();
         const old = this.state.data;
         const current = {
@@ -529,7 +532,20 @@ export class ContactStore {
               events: data.events.filter((e) => !e.id.includes(":work-event:")),
             }),
           );
-          if (this.authorize() !== c) {
+          const reasonRevoked =
+            result.kind === "Etapa" &&
+            data.stage === "Perdido" &&
+            !(
+              current.stage === "Perdido" &&
+              current.lossReason === data.lossReason
+            ) &&
+            business &&
+            !business.reasonNames().includes(data.lossReason);
+          if (
+            this.authorize() !== c ||
+            reasonRevoked ||
+            (business && !business.snapshot().ready)
+          ) {
             await this.directory.storage.set(
               this.storageKey,
               JSON.stringify({

@@ -204,6 +204,11 @@ export class CatalogStore {
           row.revision < 1
         )
           throw Error("Fila de catálogo no válida.");
+        if (
+          new Set(row.aliases).size !== row.aliases.length ||
+          row.aliases.includes(row.name)
+        )
+          throw Error("Alias repetidos no válidos.");
         ids.add(row.id);
         for (const n of [row.name, ...row.aliases]) {
           const key = norm(n);
@@ -241,6 +246,7 @@ export class CatalogStore {
       !originalImport.automatic ||
       originalImport.name !== importTag ||
       originalImport.aliases.length ||
+      (!originalImport.active && !originalImport.redirect) ||
       d.tags.some((t) => t.automatic && t.id !== "demo-tag-import")
     )
       throw Error("Etiqueta automática no válida.");
@@ -421,6 +427,8 @@ export class CatalogStore {
   ) {
     const v = Object.freeze({ ...input });
     return this.mutate(key, ["tag", v], (d) => {
+      if (!v.id && v.expected !== null)
+        throw Error("Revisión nueva no válida.");
       const old = v.id ? d.tags.find((t) => t.id === v.id) : null;
       if (
         v.id &&
@@ -523,6 +531,8 @@ export class CatalogStore {
   ) {
     const v = Object.freeze({ ...input });
     return this.mutate(key, ["reason", v], (d) => {
+      if (!v.id && v.expected !== null)
+        throw Error("Revisión nueva no válida.");
       const old = v.id ? d.reasons.find((r) => r.id === v.id) : null;
       if (
         v.id &&

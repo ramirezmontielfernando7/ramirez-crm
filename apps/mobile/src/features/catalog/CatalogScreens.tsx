@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useMemo } from "react";
 import { Pressable, View } from "react-native";
 import { ChevronRight, Pencil } from "lucide-react-native";
 import { Screen } from "../../components/Screen";
@@ -115,7 +115,8 @@ export function TagsScreen() {
 function TagsView() {
   const { store, state } = useCatalog(),
     inbox = useInbox(),
-    status = useInboxState().status,
+    inboxState = useInboxState(),
+    status = inboxState.status,
     layers = useLayers(),
     { colors: c } = useTheme();
   const manual = state.doc.tags.filter((t) => t.active && !t.automatic),
@@ -128,9 +129,14 @@ function TagsView() {
         <TagEditor store={store} tag={tag} preset={preset} edit={edit} />
       ),
     });
-  const count = (name: string) =>
-    inbox.repository.list(inbox.actor).filter((c) => c.tags.includes(name))
-      .length;
+  const counts = useMemo(() => {
+    const values = new Map<string, number>();
+    for (const row of inboxState.data)
+      for (const name of row.tags)
+        values.set(name, (values.get(name) ?? 0) + 1);
+    return values;
+  }, [inboxState.data]);
+  const count = (name: string) => counts.get(name) ?? 0;
   return (
     <>
       <StudioBar title="Etiquetas" onBack={back} />
@@ -157,7 +163,10 @@ function TagsView() {
               >
                 <CatalogTag name={t.name} />
                 <View style={{ flex: 1 }} />
-                <Text kind="meta">{count(t.name)} contactos</Text>
+                <Text kind="meta">
+                  {count(t.name)}{" "}
+                  {count(t.name) === 1 ? "contacto" : "contactos"}
+                </Text>
                 <ChevronRight color={c.text3} size={18} />
               </Pressable>
             ))

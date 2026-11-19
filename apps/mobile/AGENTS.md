@@ -85,3 +85,6 @@ AUTH-01 completada; 107/158 IDs, 51 pendientes, 407 pruebas. docs/refinement-b/C
 
 ## Lote 14 · Catálogos
 SET-05/05A/07: 110/158, 48 pendientes, 433 pruebas. Ver docs/refinement-b/LOTE-14-CATALOGOS.md. IDs/alias históricos, revisiones, fusiones y borrado/confirmación, motivos desactivados preservan historia, Otro fijo. Catálogo compartido por Inbox/CRM/Contactos/Chat; CatalogStore por organización, ContactDirectory conserva v1 default y separa otras org con v2. Asignaciones Inbox de sesión siguen con ese límite. Sin cambiar B/globales ni backend. Próximo SET-08 simulado; no proveedores, Gradle o push.
+
+## Corrección posterior a lote 14
+Bloquear mutaciones si catálogo no está recuperado y revalidar motivo activo tras escritura; revierte un alta de pérdida concurrente con desactivación. 3 pruebas adicionales, 436 antes de SET-08. Conteos memoizados, origen de contactos nuevos independiente de etiquetas, alias y automática más estrictos. Ver actualización LOTE-14.

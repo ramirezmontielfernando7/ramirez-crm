@@ -351,6 +351,7 @@ export class DemoConversationRepository implements ConversationRepository {
       name: name.trim(),
       phone,
       preview: "Sin mensajes · inicia con plantilla",
+      source: "Orgánico",
       time: "Ahora",
       unread: 0,
       stage: "Nuevo",
