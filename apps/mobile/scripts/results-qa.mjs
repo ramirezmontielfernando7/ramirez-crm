@@ -1,3 +1,4 @@
+import { capturePage, settle } from "./qa-settle.mjs";
 import fs from "node:fs";
 import path from "node:path";
 import assert from "node:assert/strict";
@@ -14,6 +15,7 @@ export async function runResults(context, html, root, networkCount) {
   await p.setContent(html);
   await p.waitForFunction(() => window.mountRefinement);
   await p.evaluate(() => document.fonts.ready);
+  const shot = capturePage(p);
   const mount = async (theme = "light", role = "owner") => {
     await p.evaluate(
       ({ theme, role }) => window.mountRefinement("results", theme, role),
@@ -30,13 +32,13 @@ export async function runResults(context, html, root, networkCount) {
     for (const theme of ["light", "dark"]) {
       await p.setViewportSize({ width, height });
       await mount(theme);
-      await p.screenshot({
+      await shot({
         path: path.join(out, `RES-01-${theme}-${width}x${height}.png`),
       });
       await p
         .getByRole("button", { name: "Periodo y asesor", exact: true })
         .click();
-      await p.screenshot({
+      await shot({
         path: path.join(out, `RES-02-${theme}-${width}x${height}.png`),
       });
       await close();
@@ -45,7 +47,7 @@ export async function runResults(context, html, root, networkCount) {
         ["Origen", "origin"],
       ]) {
         await p.getByRole("tab", { name: tab, exact: true }).click();
-        await p.screenshot({
+        await shot({
           path: path.join(
             out,
             `section-${key}-${theme}-${width}x${height}.png`,
@@ -149,7 +151,7 @@ export async function runResults(context, html, root, networkCount) {
     await mount();
     await p.evaluate((status) => window.qaInbox.patch({ status }), status);
     await p.waitForTimeout(60);
-    await p.screenshot({
+    await shot({
       path: path.join(out, `state-${status}-light-390x844.png`),
     });
     if (status === "error") {

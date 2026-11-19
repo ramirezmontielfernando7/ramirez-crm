@@ -88,9 +88,9 @@ LAB-07,Pausar todos los agentes,T-M10,Pendiente,Pendiente
 LAB-08,Menú ⋮ de Agentes,T-M10,Pendiente,Pendiente
 LAB-09,Menú ⋮ del agente,T-M10,Pendiente,Pendiente
 LAB-09A,Archivar agente,T-M10,Pendiente,Pendiente
-LAB-10,Conocimiento y documentos,T-M10,Pendiente,Pendiente
-LAB-11,Subir documento,T-M10,Pendiente,Pendiente
-LAB-12,Detalle del documento,T-M10,Pendiente,Pendiente
+LAB-10,Conocimiento y documentos,T-M10,Implementada simulada · QA módulo integrado RN Web,Pendiente nativo; docs/refinement-b/LOTE-05-CONOCIMIENTO.md
+LAB-11,Subir documento,T-M10,Implementada simulada · QA módulo integrado RN Web,Pendiente nativo; docs/refinement-b/LOTE-05-CONOCIMIENTO.md
+LAB-12,Detalle del documento,T-M10,Implementada simulada · QA módulo integrado RN Web,Pendiente nativo; docs/refinement-b/LOTE-05-CONOCIMIENTO.md
 LAB-20,Asignación por etapa,T-M10,Pendiente,Pendiente
 LAB-21,Elegir agente de la etapa,T-M10,Pendiente,Pendiente
 LAB-30,Pruebas · clientes simulados,T-M10,Pendiente,Pendiente

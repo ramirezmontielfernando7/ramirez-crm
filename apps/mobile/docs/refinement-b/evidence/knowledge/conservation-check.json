@@ -1,0 +1,17 @@
+{
+  "baseline": "cca411de501a21f26ab5ad7e2827bb164d68a133",
+  "scopeOnlyAppsMobile": true,
+  "changedPathsCount": 162,
+  "privateMarkersFound": [],
+  "secretScanLimit": "Targeted patterns plus review of newly authored fixture-only code; not an exhaustive mathematical proof.",
+  "protectedArtifactsVerified": 26,
+  "backendClean": true,
+  "backendCommit": "562a8b386b7f0d0df9292406167357aa988fd4d0",
+  "diskTotalBytes": 8417406976,
+  "diskAvailableBytes": 1794134016,
+  "conservativeGradleFreeBytes": 16106127360,
+  "gradleStarted": false,
+  "pushPerformed": false,
+  "nativeTestsPerformed": false,
+  "dependenciesChanged": false
+}

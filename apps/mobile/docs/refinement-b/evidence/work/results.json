@@ -13,6 +13,7 @@
     "Note deletion confirmed and canonical",
     "Agenda → authorized canonical contact without independent task copies",
     "Actual Contact TaskSheet → Work; deletion propagates back to contact",
+    "Actual Work scroll restored after navigating to Results and back",
     "Advisor has own scope; no team filter",
     "Loading, empty, offline and error states captured"
   ],

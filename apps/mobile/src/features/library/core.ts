@@ -1,5 +1,10 @@
 import type { Actor } from "../inbox/model";
 import type { StoragePort } from "../../services/storage";
+import {
+  knowledgeDefaults,
+  knowledgeReaders,
+  type KnowledgeInfo,
+} from "../knowledge/model";
 export type LibraryFile = Readonly<{
   name: string;
   bytes: number;
@@ -16,6 +21,7 @@ export type LibraryEntry = Readonly<{
   rag: boolean;
   file: LibraryFile | null;
   version: number;
+  knowledge?: KnowledgeInfo;
 }>;
 export type LibraryDraft = Omit<
   LibraryEntry,
@@ -27,6 +33,7 @@ export type LibraryState = Readonly<{
   error: string;
   entries: readonly LibraryEntry[];
   folders: readonly string[];
+  knowledgeGroups: readonly string[];
   query: string;
   folder: string;
   tag: string;
@@ -40,6 +47,7 @@ const freeze = (e: LibraryEntry): LibraryEntry =>
     ...e,
     tags: Object.freeze([...e.tags]),
     file: e.file ? Object.freeze({ ...e.file }) : null,
+    knowledge: e.knowledge ? Object.freeze({ ...e.knowledge }) : undefined,
   });
 const norm = (v: string) =>
   v
@@ -118,6 +126,7 @@ export class LibraryStore {
       error: "",
       entries: Object.freeze(seeds(organizationId)),
       folders: Object.freeze(["Catálogos", "Políticas"]),
+      knowledgeGroups: Object.freeze(["General", "Ventas"]),
       query: "",
       folder: "Todas",
       tag: "",
@@ -158,7 +167,23 @@ export class LibraryStore {
     if (!this.canManage)
       throw Error("Tu perfil no permite gestionar conocimientos.");
   }
-  private validate(e: LibraryEntry, folders: readonly string[]) {
+  private validate(
+    e: LibraryEntry,
+    folders: readonly string[],
+    groups = this.state.knowledgeGroups,
+  ) {
+    if (
+      e.knowledge !== undefined &&
+      (!e.knowledge ||
+        typeof e.knowledge !== "object" ||
+        !groups.includes(e.knowledge.group) ||
+        (e.knowledge.reader !== null &&
+          !knowledgeReaders.some((r) => r.id === e.knowledge!.reader)) ||
+        !["indexed", "processing", "failed"].includes(e.knowledge.status) ||
+        !["library", "studio"].includes(e.knowledge.source) ||
+        typeof e.knowledge.readable !== "boolean")
+    )
+      throw Error("Los metadatos de conocimiento no son válidos.");
     if (
       !e ||
       !/^demo-library-[\w-]{1,100}$/.test(e.id) ||
@@ -204,7 +229,8 @@ export class LibraryStore {
       try {
         const raw = await this.storage.get(this.key);
         let entries = this.state.entries,
-          folders = this.state.folders;
+          folders = this.state.folders,
+          knowledgeGroups = this.state.knowledgeGroups;
         if (raw !== null) {
           if (raw.length > 8_000_000)
             throw Error("La Biblioteca local supera el límite de lectura.");
@@ -230,13 +256,32 @@ export class LibraryStore {
             throw Error(
               "La Biblioteca local no es válida; no se sobrescribió.",
             );
-          d.entries.forEach((e: LibraryEntry) => this.validate(e, d.folders));
+          const groups = d.knowledgeGroups ?? ["General", "Ventas"];
+          if (
+            !Array.isArray(groups) ||
+            groups.length > 60 ||
+            !groups.includes("General") ||
+            groups.some(
+              (g: unknown) =>
+                typeof g !== "string" ||
+                !g.trim() ||
+                g.length > 60 ||
+                g === "Exclusivos",
+            ) ||
+            new Set(groups.map((g: string) => norm(g))).size !== groups.length
+          )
+            throw Error("Grupos de conocimiento locales no válidos.");
+          d.entries.forEach((e: LibraryEntry) =>
+            this.validate(e, d.folders, groups),
+          );
+          knowledgeGroups = Object.freeze([...groups]);
           entries = Object.freeze(d.entries.map(freeze));
           folders = Object.freeze([...d.folders]);
         }
         this.patch({
           entries,
           folders,
+          knowledgeGroups,
           ready: true,
           status: "normal",
           error: "",
@@ -264,6 +309,7 @@ export class LibraryStore {
     return entries.filter(
       (e) =>
         e.organizationId === this.organizationId &&
+        e.knowledge?.source !== "studio" &&
         (this.canManage || e.chat) &&
         (folder === "Todas" || e.folder === folder) &&
         (!tag || e.tags.includes(tag)) &&
@@ -274,6 +320,7 @@ export class LibraryStore {
     const e = this.state.entries.find(
       (e) =>
         e.id === id &&
+        (e.knowledge?.source !== "studio" || this.actor.role === "owner") &&
         e.organizationId === this.organizationId &&
         (this.canManage || e.chat),
     );
@@ -301,6 +348,7 @@ export class LibraryStore {
     entries: readonly LibraryEntry[],
     folders = this.state.folders,
     navigation: Partial<Pick<LibraryState, "screen" | "entryId">> = {},
+    knowledgeGroups = this.state.knowledgeGroups,
   ) {
     if (!this.state.ready || this.state.saving)
       throw Error(
@@ -311,6 +359,7 @@ export class LibraryStore {
       organizationId: this.organizationId,
       userId: this.actor.id,
       folders,
+      knowledgeGroups,
       entries,
     });
     if (raw.length > 8_000_000)
@@ -323,6 +372,7 @@ export class LibraryStore {
       this.patch({
         entries: Object.freeze([...entries]),
         folders: Object.freeze([...folders]),
+        knowledgeGroups: Object.freeze([...knowledgeGroups]),
         saving: false,
         error: "",
         ...navigation,
@@ -359,6 +409,7 @@ export class LibraryStore {
       rag: draft.rag,
       file: draft.file,
       version: (old?.version ?? 0) + 1,
+      knowledge: draft.knowledge ?? old?.knowledge,
     });
     this.validate(next, this.state.folders);
     await this.commit(
@@ -390,5 +441,115 @@ export class LibraryStore {
     )
       throw Error("Elige otro nombre de carpeta (1–60 caracteres).");
     await this.commit(this.state.entries, [...this.state.folders, trimmed]);
+  }
+  private studio() {
+    if (this.actor.role !== "owner")
+      throw Error("Tu perfil no puede gestionar Estudio IA.");
+  }
+  knowledgeInfo(e: LibraryEntry): KnowledgeInfo {
+    return e.knowledge ?? knowledgeDefaults;
+  }
+  knowledgeList(group: string) {
+    this.studio();
+    if (this.state.status === "empty") return [];
+    return this.state.entries.filter(
+      (e) =>
+        e.rag &&
+        e.organizationId === this.organizationId &&
+        (group === "Exclusivos"
+          ? !!this.knowledgeInfo(e).reader
+          : this.knowledgeInfo(e).group === group),
+    );
+  }
+  knowledgeGet(id: string) {
+    this.studio();
+    const e = this.get(id);
+    if (!e.rag) throw Error("Documento no disponible para la IA.");
+    return e;
+  }
+  async uploadKnowledge(
+    file: LibraryFile,
+    group: string,
+    reader: string | null,
+    readable: boolean,
+  ) {
+    this.studio();
+    if (
+      !["pdf", "txt"].includes(file.kind) ||
+      !/\.(pdf|txt|md)$/i.test(file.name) ||
+      file.bytes > 20 * 1024 * 1024 ||
+      typeof readable !== "boolean"
+    )
+      throw Error("Elige un PDF con texto, TXT o MD ficticio de hasta 20 MB.");
+    return this.save({
+      title: file.name,
+      content: "",
+      folder: this.state.folders[0]!,
+      tags: [],
+      chat: false,
+      rag: true,
+      file: { name: file.name, bytes: file.bytes, kind: file.kind },
+      knowledge: {
+        group,
+        reader,
+        source: "studio",
+        status: "processing",
+        readable,
+      },
+    });
+  }
+  async moveKnowledge(id: string, version: number, group: string) {
+    this.studio();
+    const old = this.knowledgeGet(id);
+    if (old.version !== version)
+      throw Error("El documento cambió. Vuelve a abrirlo.");
+    return this.save({
+      ...old,
+      expectedVersion: version,
+      knowledge: { ...this.knowledgeInfo(old), group },
+    });
+  }
+  async removeKnowledge(id: string, version: number) {
+    this.studio();
+    const old = this.knowledgeGet(id);
+    if (old.version !== version)
+      throw Error("El documento cambió. Vuelve a abrirlo.");
+    if (old.chat)
+      return this.save({ ...old, expectedVersion: version, rag: false });
+    return this.remove(id, version);
+  }
+  async finishKnowledge() {
+    this.studio();
+    const next = this.state.entries.map((e) =>
+      e.rag && e.knowledge?.status === "processing"
+        ? freeze({
+            ...e,
+            version: e.version + 1,
+            knowledge: {
+              ...e.knowledge,
+              status: e.knowledge.readable ? "indexed" : "failed",
+            },
+          })
+        : e,
+    );
+    if (next.every((e, i) => e === this.state.entries[i])) return;
+    await this.commit(next);
+  }
+  async addKnowledgeGroup(name: string) {
+    this.studio();
+    const n = name.trim(),
+      groups = this.state.knowledgeGroups;
+    if (
+      !n ||
+      n.length > 60 ||
+      groups.length >= 60 ||
+      norm(n) === norm("Exclusivos") ||
+      groups.some((g) => norm(g) === norm(n))
+    )
+      throw Error("Elige otro nombre de grupo (1–60 caracteres).");
+    await this.commit(this.state.entries, this.state.folders, {}, [
+      ...groups,
+      n,
+    ]);
   }
 }

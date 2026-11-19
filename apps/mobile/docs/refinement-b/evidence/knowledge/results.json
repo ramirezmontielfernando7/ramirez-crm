@@ -1,0 +1,21 @@
+{
+  "ids": [
+    "LAB-10",
+    "LAB-11",
+    "LAB-12"
+  ],
+  "checks": [
+    "3 Knowledge IDs in both themes and sizes with real providers and sheets",
+    "File required; failed save retains selection; retry once; visible-only indexing and exclusive reader",
+    "Scanned sample becomes unreadable without real indexing",
+    "Move reflected in actual Library editor; delete only IA destination, preserves Chat material",
+    "Groups persist; pending Studio tabs remain explicitly uncounted and return to Knowledge",
+    "Studio permission enforced on direct route"
+  ],
+  "actualCaptures": 18,
+  "officialReferences": 6,
+  "errors": [],
+  "networkRequests": 0,
+  "httpServerStarted": false,
+  "native": false
+}

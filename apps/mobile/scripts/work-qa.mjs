@@ -1,3 +1,4 @@
+import { capturePage, settle } from "./qa-settle.mjs";
 import fs from "node:fs";
 import path from "node:path";
 import assert from "node:assert/strict";
@@ -16,6 +17,7 @@ export async function runWork(context, html, root, networkCount) {
   await p.evaluate(() => document.fonts.ready);
   const close = () =>
     p.getByRole("button", { name: "Cerrar", exact: true }).click();
+  const shot = capturePage(p);
   const mount = async (theme = "light", role = "owner") => {
     await p.evaluate(
       ({ theme, role }) => window.mountRefinement("work", theme, role),
@@ -32,7 +34,7 @@ export async function runWork(context, html, root, networkCount) {
     for (const theme of ["light", "dark"]) {
       await p.setViewportSize({ width, height });
       await mount(theme);
-      await p.screenshot({
+      await shot({
         path: path.join(out, `CRM-30-${theme}-${width}x${height}.png`),
       });
       await p
@@ -41,18 +43,18 @@ export async function runWork(context, html, root, networkCount) {
           exact: true,
         })
         .click();
-      await p.screenshot({
+      await shot({
         path: path.join(out, `CRM-31-${theme}-${width}x${height}.png`),
       });
       await close();
       await notes();
-      await p.screenshot({
+      await shot({
         path: path.join(out, `CRM-32-${theme}-${width}x${height}.png`),
       });
       await p
         .getByRole("button", { name: "Precios mayoreo", exact: true })
         .click();
-      await p.screenshot({
+      await shot({
         path: path.join(out, `CRM-33-${theme}-${width}x${height}.png`),
       });
       await close();
@@ -197,15 +199,13 @@ export async function runWork(context, html, root, networkCount) {
 
   await p.evaluate(async () => {
     for (let i = 0; i < 30; i++)
-      await window
-        .qaWork()
-        .saveTask({
-          title: "Scroll QA " + i,
-          notes: "",
-          due: Date.now() + 86400000,
-          assignee: "demo-owner",
-          contactId: null,
-        });
+      await window.qaWork().saveTask({
+        title: "Scroll QA " + i,
+        notes: "",
+        due: Date.now() + 86400000,
+        assignee: "demo-owner",
+        contactId: null,
+      });
   });
   await p.getByTestId("work-task-list").evaluate((el) => {
     el.scrollTop = 420;
@@ -241,7 +241,7 @@ export async function runWork(context, html, root, networkCount) {
     await mount();
     await p.evaluate((status) => window.qaInbox.patch({ status }), status);
     await p.waitForTimeout(60);
-    await p.screenshot({
+    await shot({
       path: path.join(out, `state-${status}-light-390x844.png`),
     });
   }

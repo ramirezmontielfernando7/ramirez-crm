@@ -1,3 +1,4 @@
+import { knowledgeDefaults } from "../knowledge/model";
 import { router } from "expo-router";
 import React, { useEffect, useState, useSyncExternalStore } from "react";
 import {
@@ -375,6 +376,7 @@ export function LibraryEditor({
     tags: entry?.tags ?? [],
     chat: entry?.chat ?? true,
     rag: entry?.rag ?? true,
+    knowledge: entry?.knowledge,
   };
   const [draft, setDraft] = useState(initial),
     [tags, setTags] = useState(initial.tags.join(", ")),
@@ -616,8 +618,34 @@ export function LibraryEditor({
         {draft.rag && (
           <PickerRow
             label="Grupo de documentos"
-            value="General"
-            onPress={() => layers.toast("General · grupo de demostración")}
+            value={draft.knowledge?.group ?? "General"}
+            onPress={() =>
+              layers.open({
+                kind: "sheet",
+                title: "Grupo de documentos",
+                content: (
+                  <>
+                    {s.knowledgeGroups.map((group) => (
+                      <Button
+                        key={group}
+                        variant="ghost"
+                        onPress={() => {
+                          patch({
+                            knowledge: {
+                              ...(draft.knowledge ?? knowledgeDefaults),
+                              group,
+                            },
+                          });
+                          layers.close();
+                        }}
+                      >
+                        {group}
+                      </Button>
+                    ))}
+                  </>
+                ),
+              })
+            }
           />
         )}
         <Field

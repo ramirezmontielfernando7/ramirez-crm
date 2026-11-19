@@ -54,3 +54,6 @@ CRM-30…33 implementadas en WorkRepository compartido con ContactDirectory y Ta
 
 ## Lote 04 · Resultados
 RES-01/02 implementadas con hechos históricos ficticios, cálculos y filtros; docs/refinement-b/LOTE-04-RESULTADOS.md. 76/158 IDs, 82 pendientes, 266 pruebas. Scroll real de Work/Results comprobado en RN Web. Siguiente dependencia segura: Conocimiento LAB-10…12, compartiendo Biblioteca, sin RAG/indexación/agentes reales. Mantener límites, B y backend intactos.
+
+## Lote 05 · Conocimiento y checkpoint 79
+LAB-10/11/12 implementadas compartiendo LibraryStore. 79/158 IDs, 79 pendientes, 281 tests; docs/refinement-b/LOTE-05-CONOCIMIENTO.md. Más y otras pestañas de Estudio siguen pendientes, no sumarlas. Fuente atómica y compatibilidad de datos anteriores; indexación ficticia solo visible/activa, sin RAG/IA/servicios reales. Galerías anteriores corregidas tras esperar el portal Modal; originales recuperables en Git. Próximo: LAB-01/02/03/04/08/09/09A, luego versiones y asignación/pruebas. No activar agentes, publicar fuera de simulación, arrancar backend/BD ni compilar con disco insuficiente.

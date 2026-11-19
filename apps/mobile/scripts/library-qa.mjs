@@ -3,7 +3,9 @@ import path from "node:path";
 import assert from "node:assert/strict";
 /** Called by the existing offline component/provider harness, never a network server. */
 export async function runLibrary(context, html, root, networkCount = () => 0) {
-  const out = path.join(root, "artifacts/continuation-library");
+  const out =
+    process.env.DASHFORT_LIBRARY_OUTPUT ??
+    path.join(root, "artifacts/continuation-library");
   fs.mkdirSync(out, { recursive: true });
   const p = await context.newPage(),
     errors = [],
