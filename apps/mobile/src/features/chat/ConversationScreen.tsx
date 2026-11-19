@@ -1,3 +1,4 @@
+import { useQuick } from "../quick/state";
 import React, {
   useCallback,
   useEffect,
@@ -38,7 +39,7 @@ import { useContactDirectory } from "../contact/context";
 import { ContactMenuRows } from "../contact/actions";
 import { ChatStore } from "./core";
 import { useChatDirectory, useChatState } from "./context";
-import { CHAT_TEXT_MAX, quickReplies, type Message } from "./model";
+import { CHAT_TEXT_MAX, type Message } from "./model";
 import { ConversationBubble } from "./Bubble";
 import {
   AttachmentSheet,
@@ -350,11 +351,13 @@ export function ConversationScreen({ chat }: { chat: ChatStore }) {
         </>
       ),
     });
-  const slash = s.draft.startsWith("/")
-    ? quickReplies.filter((q) =>
-        `/${q.shortcut}`.startsWith(s.draft.toLowerCase()),
-      )
-    : [];
+  const quickState = useQuick().state;
+  const slash =
+    s.draft.startsWith("/") && quickState.ready
+      ? quickState.doc.rows.filter((q) =>
+          `/${q.shortcut}`.startsWith(s.draft.toLowerCase()),
+        )
+      : [];
   return (
     <Screen keyboard>
       <View

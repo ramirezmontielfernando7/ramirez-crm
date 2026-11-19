@@ -1,0 +1,20 @@
+{
+  "ids": [
+    "SET-06",
+    "SET-06A"
+  ],
+  "checks": [
+    "SET-06 and SET-06A captured actual RN screens/sheets both themes/sizes; no unapproved selectors",
+    "Invalid shortcut validation and save failure preserve text; safe retry creates exactly once",
+    "New canonical shortcut immediately appears in Chat slash suggestions, replaces name and inserts draft without sending",
+    "Editing the shared catalog updates existing Chat selector and every name variable",
+    "Organization catalog survives actor switch; Coordinator can manage, Advisor can only use in authorized Chat",
+    "Loading, empty, retry and offline states; internal screen without bottom tabs"
+  ],
+  "actualCaptures": 15,
+  "officialReferences": 4,
+  "errors": [],
+  "networkRequests": 0,
+  "httpServerStarted": false,
+  "native": false
+}

@@ -76,3 +76,6 @@ MORE-06/07/09/10 y AST-04: 102/158 IDs, 56 pendientes, 369 pruebas. Ver docs/ref
 
 ## Lote 11 · Avisos
 MORE-05 + SET-14, 104/158 IDs, 54 pendientes, 385 pruebas. docs/refinement-b/LOTE-11-AVISOS.md. Avisos derivados de repos compartidos con destino exacto, preferencias por usuario/org; sonido es preferencia guardada sin audio en demo, T-M5B permanece silencioso y push remoto apagado. Próximo SET-06/06A con catálogo compartido Chat. Más/índice Ajustes siguen pendientes; no sumarlos por enlaces parciales. Mantener B, backend, APK/firma y restricciones.
+
+## Lote 12 · Respuestas rápidas
+SET-06/06A: 106/158 IDs, 52 pendientes, 400 pruebas. docs/refinement-b/LOTE-12-RESPUESTAS-RAPIDAS.md. Catálogo ficticio por organización compartido con selección por / y hoja de Chat, borrador sin enviar, owner/coordinator gestionan, advisor usa. Revisión por fila y cola por storage/org; restaurar y recargar ante conflictos. Entrada temporal por demo; SET-01 sigue pendiente. Próximo AUTH-01 sin nuevos permisos ni servicios.

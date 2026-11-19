@@ -1,3 +1,5 @@
+import { useQuick } from "../quick/state";
+import { renderQuick } from "../quick/core";
 import React, { useCallback, useRef, useState } from "react";
 import { Pressable, View, useWindowDimensions } from "react-native";
 import {
@@ -19,6 +21,8 @@ import {
   Button,
   Card,
   EmptyState,
+  ErrorState,
+  Skeleton,
   Field,
   FilterChips,
   NavRow,
@@ -34,7 +38,6 @@ import {
   samples,
   templates,
   fillTemplate,
-  quickReplies,
   library,
   libraryEntry,
   validateAttachment,
@@ -249,11 +252,14 @@ export function QuickSheet({ chat, name }: { chat: ChatStore; name: string }) {
   const { close, open } = useLayers();
   const { colors: c } = useTheme();
   const action = useAction();
-  const list = quickReplies.filter(
-    (q) =>
-      q.shortcut.includes(query.toLowerCase()) ||
-      q.body.toLowerCase().includes(query.toLowerCase()),
-  );
+  const { store: quickStore, state: quickState } = useQuick();
+  const list = quickState.ready
+    ? quickState.doc.rows.filter(
+        (q) =>
+          q.shortcut.includes(query.toLowerCase()) ||
+          q.body.toLowerCase().includes(query.toLowerCase()),
+      )
+    : [];
   return (
     <>
       <SearchBox
@@ -263,11 +269,17 @@ export function QuickSheet({ chat, name }: { chat: ChatStore; name: string }) {
         onChangeText={setQuery}
       />
       {!!action.error && <Banner type="danger">{action.error}</Banner>}
+      {!quickState.ready &&
+        (quickState.error ? (
+          <ErrorState onRetry={() => void quickStore.reload()} />
+        ) : (
+          <Skeleton rows={3} />
+        ))}
       {list.map((q) => (
         <Pressable
           accessibilityRole="button"
           key={q.shortcut}
-          accessibilityLabel={`/${q.shortcut} · ${q.body.replace("{nombre}", name.split(" ")[0]!)}`}
+          accessibilityLabel={`/${q.shortcut} · ${renderQuick(q.body, name)}`}
           style={{
             minHeight: 82,
             flexDirection: "row",
@@ -278,7 +290,7 @@ export function QuickSheet({ chat, name }: { chat: ChatStore; name: string }) {
           onPress={() =>
             void action.run(() => {
               const previous = chat.snapshot().draft;
-              const text = q.body.replace("{nombre}", name.split(" ")[0]!);
+              const text = renderQuick(q.body, name);
               chat.setDraft(
                 previous.startsWith("/")
                   ? text
@@ -297,7 +309,7 @@ export function QuickSheet({ chat, name }: { chat: ChatStore; name: string }) {
           </View>
         </Pressable>
       ))}
-      {!list.length && (
+      {quickState.ready && !list.length && (
         <EmptyState title="Sin respuestas" message="Prueba otro atajo." />
       )}
       <NavRow
