@@ -1,7 +1,5 @@
-export const knowledgeReaders = Object.freeze([
-  Object.freeze({ id: "demo-agent-a1", name: "Ventas — general" }),
-  Object.freeze({ id: "demo-agent-a2", name: "Citas y agenda" }),
-]);
+import { agentCatalog } from "../studio/model";
+export const knowledgeReaders = agentCatalog;
 export type KnowledgeInfo = Readonly<{
   group: string;
   reader: string | null;

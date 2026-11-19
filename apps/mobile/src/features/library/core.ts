@@ -1,3 +1,9 @@
+import {
+  seedStudio,
+  freezeStudio,
+  validateStudio,
+  type StudioDoc,
+} from "../studio/model";
 import type { Actor } from "../inbox/model";
 import type { StoragePort } from "../../services/storage";
 import {
@@ -34,6 +40,7 @@ export type LibraryState = Readonly<{
   entries: readonly LibraryEntry[];
   folders: readonly string[];
   knowledgeGroups: readonly string[];
+  studio: StudioDoc;
   query: string;
   folder: string;
   tag: string;
@@ -127,6 +134,7 @@ export class LibraryStore {
       entries: Object.freeze(seeds(organizationId)),
       folders: Object.freeze(["Catálogos", "Políticas"]),
       knowledgeGroups: Object.freeze(["General", "Ventas"]),
+      studio: seedStudio(),
       query: "",
       folder: "Todas",
       tag: "",
@@ -171,6 +179,7 @@ export class LibraryStore {
     e: LibraryEntry,
     folders: readonly string[],
     groups = this.state.knowledgeGroups,
+    studio = this.state.studio,
   ) {
     if (
       e.knowledge !== undefined &&
@@ -178,7 +187,10 @@ export class LibraryStore {
         typeof e.knowledge !== "object" ||
         !groups.includes(e.knowledge.group) ||
         (e.knowledge.reader !== null &&
-          !knowledgeReaders.some((r) => r.id === e.knowledge!.reader)) ||
+          !studio.agents.some(
+            (r) =>
+              r.id === e.knowledge!.reader && !r.archived && r.versions.length,
+          )) ||
         !["indexed", "processing", "failed"].includes(e.knowledge.status) ||
         !["library", "studio"].includes(e.knowledge.source) ||
         typeof e.knowledge.readable !== "boolean")
@@ -230,7 +242,8 @@ export class LibraryStore {
         const raw = await this.storage.get(this.key);
         let entries = this.state.entries,
           folders = this.state.folders,
-          knowledgeGroups = this.state.knowledgeGroups;
+          knowledgeGroups = this.state.knowledgeGroups,
+          studio = this.state.studio;
         if (raw !== null) {
           if (raw.length > 8_000_000)
             throw Error("La Biblioteca local supera el límite de lectura.");
@@ -271,8 +284,11 @@ export class LibraryStore {
             new Set(groups.map((g: string) => norm(g))).size !== groups.length
           )
             throw Error("Grupos de conocimiento locales no válidos.");
+          studio = d.studio ?? seedStudio();
+          validateStudio(studio);
+          studio = freezeStudio(studio);
           d.entries.forEach((e: LibraryEntry) =>
-            this.validate(e, d.folders, groups),
+            this.validate(e, d.folders, groups, studio),
           );
           knowledgeGroups = Object.freeze([...groups]);
           entries = Object.freeze(d.entries.map(freeze));
@@ -282,6 +298,7 @@ export class LibraryStore {
           entries,
           folders,
           knowledgeGroups,
+          studio,
           ready: true,
           status: "normal",
           error: "",
@@ -349,17 +366,21 @@ export class LibraryStore {
     folders = this.state.folders,
     navigation: Partial<Pick<LibraryState, "screen" | "entryId">> = {},
     knowledgeGroups = this.state.knowledgeGroups,
+    studio = this.state.studio,
   ) {
     if (!this.state.ready || this.state.saving)
       throw Error(
         "Espera a que termine la operación local o reintenta la lectura.",
       );
+    validateStudio(studio);
+    entries.forEach((e) => this.validate(e, folders, knowledgeGroups, studio));
     const raw = JSON.stringify({
       schema: 1,
       organizationId: this.organizationId,
       userId: this.actor.id,
       folders,
       knowledgeGroups,
+      studio,
       entries,
     });
     if (raw.length > 8_000_000)
@@ -373,6 +394,7 @@ export class LibraryStore {
         entries: Object.freeze([...entries]),
         folders: Object.freeze([...folders]),
         knowledgeGroups: Object.freeze([...knowledgeGroups]),
+        studio: freezeStudio(studio),
         saving: false,
         error: "",
         ...navigation,
@@ -551,5 +573,34 @@ export class LibraryStore {
       ...groups,
       n,
     ]);
+  }
+  readers() {
+    return this.state.studio.agents
+      .filter((a) => !a.archived && a.versions.length)
+      .map((a) => ({ id: a.id, name: a.name }));
+  }
+  readerLabel(id: string | null) {
+    return (
+      this.state.studio.agents.find((a) => a.id === id)?.name ??
+      "Todos los agentes"
+    );
+  }
+  async commitStudio(
+    expected: number,
+    studio: StudioDoc,
+    entries: readonly LibraryEntry[] = this.state.entries,
+  ) {
+    this.studio();
+    if (this.state.studio.revision !== expected)
+      throw Error("Estudio cambió. Recarga antes de continuar.");
+    if (studio.revision !== expected + 1)
+      throw Error("Revisión de Estudio no válida.");
+    await this.commit(
+      entries.map((e) => (Object.isFrozen(e) ? e : freeze(e))),
+      this.state.folders,
+      {},
+      this.state.knowledgeGroups,
+      freezeStudio(studio),
+    );
   }
 }

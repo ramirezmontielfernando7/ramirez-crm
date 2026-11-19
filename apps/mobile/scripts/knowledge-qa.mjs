@@ -189,10 +189,14 @@ export async function runKnowledge(context, html, root, networkCount) {
   await p.getByRole("button", { name: "Dirección", exact: true }).waitFor();
   await p.getByRole("tab", { name: "Agentes", exact: true }).click();
   await p
-    .getByRole("button", { name: "Ir a Conocimiento", exact: true })
-    .click();
+    .getByRole("button", {
+      name: "Editar agente: Ventas — general",
+      exact: true,
+    })
+    .waitFor();
+  await p.getByRole("tab", { name: "Conocimiento", exact: true }).click();
   checks.push(
-    "Groups persist; pending Studio tabs remain explicitly uncounted and return to Knowledge",
+    "Groups persist; actual Agents tab returns to shared Knowledge without losing groups",
   );
   for (const role of ["coordinator", "advisor"]) {
     await mount("dark", role);

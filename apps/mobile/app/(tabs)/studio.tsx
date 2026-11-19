@@ -1,1 +1,1 @@
-export { KnowledgeScreen as default } from "../../src/features/knowledge/KnowledgeScreen";
+export { StudioScreen as default } from "../../src/features/studio/StudioScreen";

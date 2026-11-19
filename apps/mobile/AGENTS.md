@@ -57,3 +57,7 @@ RES-01/02 implementadas con hechos históricos ficticios, cálculos y filtros; d
 
 ## Lote 05 · Conocimiento y checkpoint 79
 LAB-10/11/12 implementadas compartiendo LibraryStore. 79/158 IDs, 79 pendientes, 281 tests; docs/refinement-b/LOTE-05-CONOCIMIENTO.md. Más y otras pestañas de Estudio siguen pendientes, no sumarlas. Fuente atómica y compatibilidad de datos anteriores; indexación ficticia solo visible/activa, sin RAG/IA/servicios reales. Galerías anteriores corregidas tras esperar el portal Modal; originales recuperables en Git. Próximo: LAB-01/02/03/04/08/09/09A, luego versiones y asignación/pruebas. No activar agentes, publicar fuera de simulación, arrancar backend/BD ni compilar con disco insuficiente.
+
+## Lote 06 · Agentes y pausa expresa del propietario
+Desde 7ee7fd9 se implementan LAB-01/02/03/04/08/09/09A; 86/158 IDs, 72 pendientes, 303 tests. Ver docs/refinement-b/LOTE-06-AGENTES.md. Agentes y documentos comparten la escritura atómica de LibraryStore; lectores dinámicos de Conocimiento, borradores separados de versiones, preview determinista sin IA. No cambiar B, backend, APK ni firma.
+El propietario pidió detenerse por cuota: cerrar comprobaciones, commit/bundle local y PAUSAR. No iniciar nuevos lotes hasta que avise. Al retomar: LAB-05/06/06C/07, después LAB-20/21 y LAB-30/31. Existen métodos/capas preparados pero esos IDs NO se contabilizan aún; requieren pruebas completas. Verificar especialmente snapshots de versiones y persistencia/recreación de identidades de etapas. Sin push/servicios/Gradle con espacio insuficiente.

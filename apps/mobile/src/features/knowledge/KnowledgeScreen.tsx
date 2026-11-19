@@ -64,7 +64,16 @@ export function KnowledgeScreen() {
     </Screen>
   );
 }
-function KnowledgeView({ store }: { store: LibraryStore }) {
+export function KnowledgePanel({ store }: { store: LibraryStore }) {
+  return <KnowledgeView store={store} embedded />;
+}
+function KnowledgeView({
+  store,
+  embedded = false,
+}: {
+  store: LibraryStore;
+  embedded?: boolean;
+}) {
   const s = useSyncExternalStore(
       store.subscribe,
       store.snapshot,
@@ -103,7 +112,7 @@ function KnowledgeView({ store }: { store: LibraryStore }) {
     if (
       !active ||
       !focused ||
-      tab !== "Conocimiento" ||
+      (!embedded && tab !== "Conocimiento") ||
       !s.ready ||
       s.saving ||
       s.error ||
@@ -115,7 +124,17 @@ function KnowledgeView({ store }: { store: LibraryStore }) {
         void store.finishKnowledge().catch(() => {});
     }, 1200);
     return () => clearTimeout(timer);
-  }, [store, active, focused, tab, s.ready, s.saving, s.error, s.entries]);
+  }, [
+    store,
+    active,
+    focused,
+    tab,
+    embedded,
+    s.ready,
+    s.saving,
+    s.error,
+    s.entries,
+  ]);
   const rows = useMemo(
     () => (s.ready ? store.knowledgeList(group) : []),
     [store, s.ready, s.entries, s.status, group],
@@ -133,58 +152,62 @@ function KnowledgeView({ store }: { store: LibraryStore }) {
     });
   return (
     <>
-      <AppBar
-        module
-        title="Estudio IA"
-        actions={
-          <IconButton
-            icon={FolderPlus}
-            label="Nuevo grupo"
-            onPress={() =>
-              layers.open({
-                kind: "sheet",
-                title: "Nuevo grupo",
-                content: <GroupSheet store={store} />,
-              })
+      {!embedded && (
+        <>
+          <AppBar
+            module
+            title="Estudio IA"
+            actions={
+              <IconButton
+                icon={FolderPlus}
+                label="Nuevo grupo"
+                onPress={() =>
+                  layers.open({
+                    kind: "sheet",
+                    title: "Nuevo grupo",
+                    content: <GroupSheet store={store} />,
+                  })
+                }
+              />
             }
           />
-        }
-      />
-      <View
-        accessibilityRole="tablist"
-        style={{
-          flexDirection: "row",
-          borderBottomWidth: 1,
-          borderColor: c.border,
-        }}
-      >
-        {tabs.map((t) => (
-          <Pressable
-            key={t}
-            accessibilityRole="tab"
-            accessibilityState={{ selected: tab === t }}
-            aria-selected={tab === t}
-            onPress={() => setTab(t)}
+          <View
+            accessibilityRole="tablist"
             style={{
-              flex: 1,
-              minHeight: 48,
-              justifyContent: "center",
-              alignItems: "center",
-              borderBottomWidth: tab === t ? 2 : 0,
-              borderColor: c.accent,
+              flexDirection: "row",
+              borderBottomWidth: 1,
+              borderColor: c.border,
             }}
           >
-            <Text
-              kind="capsule"
-              weight="medium"
-              style={{ color: tab === t ? c.accentInk : c.text3 }}
-            >
-              {t}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
-      {tab !== "Conocimiento" ? (
+            {tabs.map((t) => (
+              <Pressable
+                key={t}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: tab === t }}
+                aria-selected={tab === t}
+                onPress={() => setTab(t)}
+                style={{
+                  flex: 1,
+                  minHeight: 48,
+                  justifyContent: "center",
+                  alignItems: "center",
+                  borderBottomWidth: tab === t ? 2 : 0,
+                  borderColor: c.accent,
+                }}
+              >
+                <Text
+                  kind="capsule"
+                  weight="medium"
+                  style={{ color: tab === t ? c.accentInk : c.text3 }}
+                >
+                  {t}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        </>
+      )}
+      {!embedded && tab !== "Conocimiento" ? (
         <EmptyState
           title={`${tab} · Próximo lote`}
           message="Este apartado todavía no está implementado."
@@ -283,7 +306,7 @@ function KnowledgeView({ store }: { store: LibraryStore }) {
                           {knowledgeStateLabel(info.status)}
                         </Text>
                         <Text kind="meta">
-                          {size(e)} · {knowledgeReaderLabel(info.reader)}
+                          {size(e)} · {store.readerLabel(info.reader)}
                         </Text>
                       </View>
                     </View>
@@ -448,11 +471,11 @@ function UploadSheet({
         ))}
       <PickerRow
         label="Quién lo lee"
-        value={knowledgeReaderLabel(reader)}
+        value={store.readerLabel(reader)}
         onPress={() => setPicking(picking === "reader" ? "" : "reader")}
       />
       {picking === "reader" &&
-        [{ id: null, name: "Todos los agentes" }, ...knowledgeReaders].map(
+        [{ id: null, name: "Todos los agentes" }, ...store.readers()].map(
           (r) => (
             <Button
               key={r.id ?? "all"}
@@ -521,7 +544,7 @@ function DocumentSheet({
           ["Estado", knowledgeStateLabel(info.status)],
           ["Tamaño para la IA", size(current)],
           ["Grupo", info.group],
-          ["Quién lo lee", knowledgeReaderLabel(info.reader)],
+          ["Quién lo lee", store.readerLabel(info.reader)],
         ].map(([k, v]) => (
           <View key={k} style={{ flexDirection: "row", gap: 12 }}>
             <Text kind="secondary" style={{ flex: 1 }}>

@@ -148,6 +148,7 @@ export function seedConversations(count = 2000): readonly Conversation[] {
 }
 export interface ConversationRepository {
   stageOptions?(): readonly string[];
+  stageIdentity?(name: string): string | null;
   list(actor: Actor): readonly Conversation[];
   get(actor: Actor, id: string): Conversation;
   archive(actor: Actor, ids: readonly string[]): void;
@@ -166,6 +167,11 @@ export class DemoConversationRepository implements ConversationRepository {
   private data: readonly Conversation[];
   private sequence = 0;
   private stageNames = new Set<string>(stages);
+  private stageSequence = stages.length;
+  private stageIds = new Map<string, string>(
+    stages.map((s, i) => [s, `demo-stage-${i + 1}`]),
+  );
+  stageIdentity = (name: string) => this.stageIds.get(name) ?? null;
   stageOptions = () => [...this.stageNames];
   configureStages(actor: Actor, names: readonly string[]) {
     if (
@@ -175,6 +181,12 @@ export class DemoConversationRepository implements ConversationRepository {
       names.some((n) => !n.trim() || n.length > 60)
     )
       throw new Error("No se pueden configurar etapas.");
+    this.stageIds = new Map(
+      names.map((name) => [
+        name,
+        this.stageIds.get(name) ?? `demo-stage-${++this.stageSequence}`,
+      ]),
+    );
     this.stageNames = new Set(names);
   }
   editIdentity(actor: Actor, id: string, name: string, phone: string) {

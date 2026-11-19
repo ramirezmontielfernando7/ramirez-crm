@@ -1,0 +1,795 @@
+import type { LibraryStore, LibraryEntry } from "../library/core";
+import type { ConversationRepository } from "../inbox/model";
+import { normalize, stages } from "../inbox/model";
+import {
+  baseAgentConfig,
+  freezeStudio,
+  validateConfig,
+  type StudioDoc,
+  type Agent,
+  type AgentConfig,
+  type EvaluationRun,
+  type Evaluation,
+} from "./model";
+export type Decision = Readonly<{
+  decision: "reply" | "handoff";
+  answer: string;
+  model: "Simulador local";
+  tokens: number;
+  knowledge: readonly string[];
+}>;
+export type DraftBuffer = Readonly<{
+  base: number;
+  config: AgentConfig;
+  generation: number;
+}>;
+let keys = 0;
+export const studioKey = () =>
+  `demo-studio-${Date.now().toString(36)}-${++keys}`;
+const same = (a: unknown, b: unknown) =>
+  JSON.stringify(a) === JSON.stringify(b);
+export class StudioStore {
+  private queue: Promise<unknown> = Promise.resolve();
+  private jobs = new Map<
+    string,
+    { signature: string; promise: Promise<string | null> }
+  >();
+  private buffers = new Map<string, DraftBuffer>();
+  private flights = new Map<string, Promise<void>>();
+  private listeners = new Set<() => void>();
+  private state: Readonly<{ revision: number; error: string }> = Object.freeze({
+    revision: 0,
+    error: "",
+  });
+  constructor(
+    readonly library: LibraryStore,
+    readonly conversations: ConversationRepository,
+    private now = Date.now,
+  ) {
+    library.subscribe(() => this.notify());
+  }
+  snapshot = () => this.state;
+  subscribe = (f: () => void) => {
+    this.listeners.add(f);
+    return () => {
+      this.listeners.delete(f);
+    };
+  };
+  private notify(error = this.state.error) {
+    this.state = Object.freeze({ revision: this.state.revision + 1, error });
+    this.listeners.forEach((f) => {
+      try {
+        f();
+      } catch {
+        /* Observers cannot interrupt a commit. */
+      }
+    });
+  }
+  private allowed() {
+    if (this.library.actor.role !== "owner")
+      throw Error("Tu perfil no tiene acceso a Estudio IA.");
+  }
+  doc() {
+    this.allowed();
+    if (!this.library.snapshot().ready)
+      throw Error("Espera a que se restaure Estudio.");
+    return this.library.snapshot().studio;
+  }
+  list() {
+    return this.doc().agents.filter((a) => !a.archived);
+  }
+  get(id: string) {
+    const a = this.doc().agents.find((a) => a.id === id && !a.archived);
+    if (!a) throw Error("Agente no disponible.");
+    return a;
+  }
+  config(id: string) {
+    const agent = this.get(id);
+    return this.buffers.get(id)?.config ?? agent.draft;
+  }
+  dirty(id: string) {
+    return this.buffers.has(id);
+  }
+  edit(id: string, patch: Partial<AgentConfig>) {
+    const a = this.get(id),
+      old = this.buffers.get(id),
+      config = Object.freeze({ ...(old?.config ?? a.draft), ...patch });
+    validateConfig(config);
+    if (a.general && !config.sharedKnowledge)
+      throw Error("El agente general siempre usa el conocimiento compartido.");
+    if (same(config, a.draft)) {
+      this.buffers.delete(id);
+    } else
+      this.buffers.set(
+        id,
+        Object.freeze({
+          base: old?.base ?? a.revision,
+          config,
+          generation: (old?.generation ?? 0) + 1,
+        }),
+      );
+    this.notify("");
+  }
+  discard(id: string) {
+    this.allowed();
+    this.buffers.delete(id);
+    this.notify("");
+  }
+  flush(id: string): Promise<void> {
+    const flight = this.flights.get(id);
+    if (flight) return flight.then(() => this.flush(id));
+    const b = this.buffers.get(id);
+    if (!b) return Promise.resolve();
+    const task = this.updateDraft(
+      id,
+      b.base,
+      b.config,
+      `draft-${id}-${b.base}-${b.generation}`,
+    )
+      .then(() => {
+        const next = this.buffers.get(id),
+          current = this.get(id);
+        if (next === b) this.buffers.delete(id);
+        else if (next)
+          this.buffers.set(
+            id,
+            Object.freeze({ ...next, base: current.revision }),
+          );
+        this.notify("");
+      })
+      .finally(() => {
+        this.flights.delete(id);
+      });
+    this.flights.set(id, task);
+    return task;
+  }
+  private change(
+    key: string,
+    signature: unknown,
+    fn: (d: StudioDoc) => {
+      doc: StudioDoc;
+      entries?: readonly LibraryEntry[];
+      result?: string;
+    },
+  ): Promise<string | null> {
+    this.allowed();
+    if (!key || key.length > 160)
+      throw Error("Identificador de operación no válido.");
+    const sig = JSON.stringify(signature),
+      job = this.jobs.get(key);
+    if (job) {
+      if (job.signature !== sig)
+        throw Error("El identificador pertenece a otra operación.");
+      return job.promise;
+    }
+    const promise = this.queue
+      .catch(() => {})
+      .then(async () => {
+        const old = this.doc(),
+          receipt = old.receipts.find((r) => r.key === key);
+        if (receipt) {
+          if (receipt.signature !== sig)
+            throw Error("El identificador pertenece a otra operación.");
+          return receipt.result ?? null;
+        }
+        const r = fn({
+          ...old,
+          revision: old.revision + 1,
+          sequence: old.sequence + 1,
+        });
+        const next = freezeStudio({
+          ...r.doc,
+          receipts: [
+            ...r.doc.receipts,
+            { key, signature: sig, result: r.result },
+          ].slice(-300),
+        });
+        await this.library.commitStudio(old.revision, next, r.entries);
+        this.notify("");
+        return r.result ?? null;
+      })
+      .catch((e) => {
+        this.jobs.delete(key);
+        this.notify(
+          e instanceof Error ? e.message : "No se pudo guardar Estudio.",
+        );
+        throw e;
+      });
+    this.jobs.set(key, { signature: sig, promise });
+    if (this.jobs.size > 300) this.jobs.delete(this.jobs.keys().next().value!);
+    this.queue = promise;
+    return promise;
+  }
+  private revise(a: Agent, expected: number) {
+    if (a.revision !== expected)
+      throw Error("El agente cambió. Vuelve a abrirlo antes de continuar.");
+  }
+  create(name = "Nuevo agente", key = studioKey()) {
+    const title = name.trim();
+    return this.change(key, ["create", title], (d) => {
+      if (!title || title.length > 120 || d.agents.length >= 100)
+        throw Error(
+          "Elige un nombre de hasta 120 caracteres; máximo 100 agentes de demo.",
+        );
+      const id = `demo-agent-local-${d.sequence}`;
+      return {
+        doc: {
+          ...d,
+          agents: [
+            ...d.agents,
+            {
+              id,
+              name: title,
+              general: false,
+              paused: false,
+              archived: false,
+              revision: 1,
+              draft: {
+                ...baseAgentConfig,
+                instructions: "",
+                handoff: "",
+                greeting: "",
+              },
+              versions: [],
+            },
+          ],
+        },
+        result: id,
+      };
+    });
+  }
+  updateDraft(
+    id: string,
+    revision: number,
+    config: AgentConfig,
+    key = studioKey(),
+  ) {
+    const copy = Object.freeze({ ...config });
+    return this.change(key, ["draft", id, revision, copy], (d) => {
+      const a = this.get(id);
+      this.revise(a, revision);
+      validateConfig(copy);
+      if (a.general && !copy.sharedKnowledge)
+        throw Error(
+          "El agente general siempre usa el conocimiento compartido.",
+        );
+      return {
+        doc: {
+          ...d,
+          agents: d.agents.map((x) =>
+            x.id === id ? { ...a, revision: a.revision + 1, draft: copy } : x,
+          ),
+        },
+      };
+    });
+  }
+  rename(id: string, revision: number, name: string, key = studioKey()) {
+    const value = name.trim();
+    return this.change(key, ["name", id, revision, value], (d) => {
+      const a = this.get(id);
+      this.revise(a, revision);
+      if (!value || value.length > 120)
+        throw Error("Escribe un nombre interno de hasta 120 caracteres.");
+      return {
+        doc: {
+          ...d,
+          agents: d.agents.map((x) =>
+            x.id === id ? { ...a, name: value, revision: a.revision + 1 } : x,
+          ),
+        },
+      };
+    });
+  }
+  async creator(text: string, key = studioKey()) {
+    const value = text.trim();
+    return this.change(key, ["creator", value], (d) => {
+      if (!value || value.length > 2000)
+        throw Error("Describe tu negocio con hasta 2000 caracteres.");
+      let a = d.agents.find((a) => a.id === d.creator.agentId && !a.archived),
+        config = a?.draft ?? baseAgentConfig;
+      const q = normalize(value);
+      config = {
+        ...config,
+        instructions: a
+          ? config.instructions + `\nPedido de prueba: ${value}`
+          : `Negocio descrito (simulación): ${value}\n${baseAgentConfig.instructions}`,
+        tone: q.includes("formal") ? "Formal, con usted" : config.tone,
+        handoff: q.includes("factura")
+          ? `${config.handoff}\nPasar a una persona si piden factura.`
+          : config.handoff,
+      };
+      validateConfig(config);
+      const id = a?.id ?? `demo-agent-local-${d.sequence}`;
+      if (!a && d.agents.length >= 100)
+        throw Error("Se alcanzó el límite de agentes ficticios.");
+      if (a && a.versions.length)
+        throw Error(
+          "El creador solo ajusta su borrador sin publicar. Crea uno nuevo.",
+        );
+      if (a && this.dirty(a.id))
+        throw Error(
+          "Guarda o descarta el borrador abierto antes de usar el creador.",
+        );
+      const agent: Agent = a
+        ? { ...a, draft: config, revision: a.revision + 1 }
+        : {
+            id,
+            name: "Joyería — ventas",
+            general: false,
+            paused: false,
+            archived: false,
+            revision: 1,
+            draft: config,
+            versions: [],
+          };
+      const answer =
+        "Preparé un borrador local con tus instrucciones. Revísalo antes de publicarlo en la simulación.";
+      return {
+        doc: {
+          ...d,
+          agents: a
+            ? d.agents.map((x) => (x.id === id ? agent : x))
+            : [...d.agents, agent],
+          creator: {
+            agentId: id,
+            turns: [
+              ...d.creator.turns,
+              { id: `demo-creator-${d.sequence}`, text: value, answer },
+            ].slice(-40),
+          },
+        },
+        result: id,
+      };
+    });
+  }
+  preview(id: string, text: string): Decision {
+    const a = this.get(id);
+    return this.evaluateConfig(a, this.config(id), text, false);
+  }
+  private evaluateConfig(
+    a: Agent,
+    config: AgentConfig,
+    text: string,
+    paused: boolean,
+  ): Decision {
+    const value = text.trim();
+    if (!value || value.length > 2000)
+      throw Error("Escribe un mensaje de prueba de hasta 2000 caracteres.");
+    const q = normalize(value);
+    const escalation =
+      /descuento|factura|molest|humano|persona|urgente/.test(q) &&
+      !!config.handoff.trim();
+    const decision = paused || escalation ? "handoff" : "reply";
+    const knowledge = this.library
+      .snapshot()
+      .entries.filter((e) => {
+        const info = this.library.knowledgeInfo(e);
+        return (
+          e.rag &&
+          info.status === "indexed" &&
+          (info.reader === a.id ||
+            (info.reader === null && (a.general || config.sharedKnowledge)))
+        );
+      })
+      .map((e) => e.title);
+    const answer =
+      decision === "handoff"
+        ? "Te paso con una persona del equipo para ayudarte."
+        : q.includes("horario")
+          ? "Nuestro horario de demostración es de lunes a viernes, de 9:00 a 19:00."
+          : q.includes("30") || q.includes("descuento")
+            ? "Claro, te doy el 30 % de descuento en tu primera compra."
+            : `¡Hola! ${config.speakAsTeam ? "Somos el equipo." : config.displayName ? `Soy ${config.displayName}.` : "Te ayudamos."} ${knowledge.length ? "Tenemos un catálogo de demostración. ¿Buscas para ti o para regalo?" : "Cuéntame qué necesitas y revisaremos la información con el equipo."}`;
+    return Object.freeze({
+      decision,
+      answer,
+      model: "Simulador local",
+      tokens: Math.ceil((value.length + answer.length) / 4),
+      knowledge: Object.freeze(knowledge),
+    });
+  }
+  publish(id: string, revision: number, key = studioKey()) {
+    return this.change(key, ["publish", id, revision], (d) => {
+      const a = this.get(id);
+      this.revise(a, revision);
+      if (this.dirty(id))
+        throw Error("Espera a guardar el borrador antes de publicarlo.");
+      if (!a.draft.instructions.trim() || !a.draft.handoff.trim())
+        throw Error("Completa instrucciones y cuándo pasa a una persona.");
+      if (a.versions.length >= 50)
+        throw Error("Se alcanzó el límite de 50 versiones.");
+      const last = a.versions.at(-1);
+      if (last && same(last.config, a.draft))
+        throw Error("No hay cambios nuevos para publicar.");
+      return {
+        doc: {
+          ...d,
+          agents: d.agents.map((x) =>
+            x.id === id
+              ? {
+                  ...a,
+                  revision: a.revision + 1,
+                  versions: [
+                    ...a.versions,
+                    {
+                      number: (last?.number ?? 0) + 1,
+                      at: this.now(),
+                      summary: last
+                        ? "Actualizó el borrador"
+                        : "Primera versión",
+                      config: { ...a.draft },
+                    },
+                  ],
+                }
+              : x,
+          ),
+        },
+      };
+    });
+  }
+  loadVersion(id: string, revision: number, number: number, key = studioKey()) {
+    return this.change(key, ["load", id, revision, number], (d) => {
+      const a = this.get(id);
+      this.revise(a, revision);
+      const v = a.versions.find((v) => v.number === number);
+      if (!v) throw Error("Versión no disponible.");
+      return {
+        doc: {
+          ...d,
+          agents: d.agents.map((x) =>
+            x.id === id
+              ? {
+                  ...a,
+                  revision: a.revision + 1,
+                  draft: {
+                    ...v.config,
+                    sharedKnowledge: a.general
+                      ? true
+                      : v.config.sharedKnowledge,
+                  },
+                }
+              : x,
+          ),
+        },
+      };
+    }).then(() => {
+      this.buffers.delete(id);
+      this.notify("");
+    });
+  }
+  pauseAll(paused: boolean, key = studioKey()) {
+    return this.change(key, ["pause-all", paused], (d) => ({
+      doc: { ...d, globalPaused: paused },
+    }));
+  }
+  pause(id: string, revision: number, paused: boolean, key = studioKey()) {
+    return this.change(key, ["pause", id, revision, paused], (d) => {
+      const a = this.get(id);
+      this.revise(a, revision);
+      return {
+        doc: {
+          ...d,
+          agents: d.agents.map((x) =>
+            x.id === id ? { ...a, paused, revision: a.revision + 1 } : x,
+          ),
+        },
+      };
+    });
+  }
+  makeGeneral(id: string, revision: number, key = studioKey()) {
+    return this.change(key, ["general", id, revision], (d) => {
+      const a = this.get(id);
+      this.revise(a, revision);
+      if (!a.versions.length)
+        throw Error("Publica una versión local antes de hacerlo general.");
+      return {
+        doc: {
+          ...d,
+          assignments: Object.fromEntries(
+            Object.entries(d.assignments).filter(([, v]) => v !== id),
+          ),
+          agents: d.agents.map((x) =>
+            x.id === id
+              ? {
+                  ...a,
+                  general: true,
+                  draft: { ...a.draft, sharedKnowledge: true },
+                  revision: a.revision + 1,
+                }
+              : x.general
+                ? { ...x, general: false, revision: x.revision + 1 }
+                : x,
+          ),
+        },
+      };
+    });
+  }
+  archive(
+    id: string,
+    revision: number,
+    policy: "general" | "delete",
+    key = studioKey(),
+  ) {
+    return this.change(key, ["archive", id, revision, policy], (d) => {
+      const a = this.get(id);
+      this.revise(a, revision);
+      if (a.general)
+        throw Error("Elige otro agente general antes de archivar este.");
+      if (!["general", "delete"].includes(policy))
+        throw Error("Elige qué hacer con sus documentos.");
+      const entries = this.library.snapshot().entries.flatMap((e) => {
+        if (e.knowledge?.reader !== id) return [e];
+        if (!e.rag)
+          return [
+            {
+              ...e,
+              version: e.version + 1,
+              knowledge: { ...e.knowledge, reader: null },
+            },
+          ];
+        if (policy === "general")
+          return [
+            {
+              ...e,
+              version: e.version + 1,
+              knowledge: { ...e.knowledge, group: "General", reader: null },
+            },
+          ];
+        return e.chat
+          ? [
+              {
+                ...e,
+                version: e.version + 1,
+                rag: false,
+                knowledge: { ...e.knowledge, reader: null },
+              },
+            ]
+          : [];
+      });
+      return {
+        doc: {
+          ...d,
+          agents: d.agents.map((x) =>
+            x.id === id
+              ? { ...a, archived: true, revision: a.revision + 1 }
+              : x,
+          ),
+          assignments: Object.fromEntries(
+            Object.entries(d.assignments).filter(([, v]) => v !== id),
+          ),
+        },
+        entries,
+      };
+    }).then(() => {
+      this.buffers.delete(id);
+      this.notify("");
+    });
+  }
+  stageRows() {
+    this.allowed();
+    return (this.conversations.stageOptions?.() ?? stages).map((name) => ({
+      name,
+      id:
+        this.conversations.stageIdentity?.(name) ??
+        `demo-stage-${stages.indexOf(name as never) + 1}`,
+    }));
+  }
+  assign(
+    stageId: string,
+    id: string | null,
+    previous: string | null,
+    key = studioKey(),
+  ) {
+    return this.change(key, ["assign", stageId, id, previous], (d) => {
+      if (!this.stageRows().some((s) => s.id === stageId))
+        throw Error("La etapa ya no existe.");
+      const current = d.assignments[stageId] ?? null;
+      if (current !== previous)
+        throw Error("La asignación cambió. Vuelve a elegir.");
+      if (id) {
+        const a = this.get(id);
+        if (a.general || !a.versions.length)
+          throw Error("Elige un agente publicado y no general.");
+      }
+      const assignments = { ...d.assignments };
+      if (id) assignments[stageId] = id;
+      else delete assignments[stageId];
+      return { doc: { ...d, assignments } };
+    });
+  }
+  route(stage: string, text: string): Decision {
+    const d = this.doc(),
+      stageId = this.stageRows().find((s) => s.name === stage)?.id;
+    const id = stageId ? d.assignments[stageId] : undefined;
+    const a =
+      d.agents.find((a) => a.id === id && !a.archived) ??
+      d.agents.find((a) => a.general && !a.archived)!;
+    return this.evaluateConfig(
+      a,
+      a.versions.at(-1)!.config,
+      text,
+      d.globalPaused || a.paused,
+    );
+  }
+  run(
+    id: string,
+    source: "draft" | "published",
+    count: 3 | 5 | 8,
+    key = studioKey(),
+  ) {
+    return this.change(key, ["run", id, source, count], (d) => {
+      const a = this.get(id);
+      if (
+        ![3, 5, 8].includes(count) ||
+        !["draft", "published"].includes(source)
+      )
+        throw Error("Elige 3, 5 u 8 clientes y una versión válida.");
+      if (this.dirty(id)) throw Error("Guarda el borrador antes de probar.");
+      const version = source === "published" ? a.versions.at(-1) : null;
+      if (source === "published" && !version)
+        throw Error("El agente aún no tiene versión publicada.");
+      const config = version?.config ?? a.draft;
+      if (!config.instructions.trim())
+        throw Error("Completa las instrucciones del borrador.");
+      const names = [
+        "Pregunta por anillos",
+        "Quiere una cita",
+        "Pide descuento",
+        "Necesita factura",
+        "Busca catálogo",
+        "Pregunta por horarios",
+        "Pide una persona",
+        "Compra para regalo",
+      ];
+      const questions = [
+        "Hola, ¿tienen anillos de plata?",
+        "¿Puedo agendar una cita?",
+        "¿Me puedes dar un 30 % de descuento?",
+        "Necesito mi factura",
+        "¿Me compartes el catálogo?",
+        "¿Cuál es el horario?",
+        "Quiero hablar con una persona",
+        "Busco un regalo",
+      ];
+      const results: Evaluation[] = Array.from({ length: count }, (_, i) => {
+        const r = this.evaluateConfig(a, config, questions[i]!, false),
+          grade =
+            i === 2 && r.decision === "reply"
+              ? "failed"
+              : i === 1
+                ? "review"
+                : "ok";
+        return {
+          id: `demo-eval-${d.sequence}-${i}`,
+          name: names[i]!,
+          question: questions[i]!,
+          answer: r.answer,
+          decision: r.decision,
+          grade,
+          summary:
+            grade === "failed"
+              ? "Prometió un descuento sin autorización."
+              : grade === "review"
+                ? "Revisa que confirme la disponibilidad de la cita."
+                : "Respondió dentro de las reglas de demostración.",
+          proposed: false,
+          repeat: 0,
+        };
+      });
+      const run: EvaluationRun = {
+        id: `demo-run-${d.sequence}`,
+        agentId: id,
+        agentName: a.name,
+        revision: a.revision,
+        source,
+        version: version?.number ?? null,
+        config: { ...config },
+        count,
+        at: this.now(),
+        results,
+      };
+      return {
+        doc: { ...d, runs: [run, ...d.runs].slice(0, 20) },
+        result: run.id,
+      };
+    });
+  }
+  runGet(id: string) {
+    const r = this.doc().runs.find((r) => r.id === id);
+    if (!r) throw Error("Prueba no disponible.");
+    return r;
+  }
+  proposeFix(
+    runId: string,
+    evaluationId: string,
+    revision: number,
+    key = studioKey(),
+  ) {
+    return this.change(key, ["fix", runId, evaluationId, revision], (d) => {
+      const run = this.runGet(runId),
+        e = run.results.find((e) => e.id === evaluationId);
+      if (!e) throw Error("Resultado no disponible.");
+      const a = this.get(run.agentId);
+      this.revise(a, revision);
+      if (e.grade === "ok") throw Error("Este resultado no necesita arreglo.");
+      if (this.dirty(a.id))
+        throw Error("Guarda primero los cambios del borrador.");
+      const fix =
+        "No prometas descuentos; si piden uno, pasa el chat a una persona.";
+      return {
+        doc: {
+          ...d,
+          agents: d.agents.map((x) =>
+            x.id === a.id
+              ? {
+                  ...a,
+                  revision: a.revision + 1,
+                  draft: {
+                    ...a.draft,
+                    instructions: a.draft.instructions.includes(fix)
+                      ? a.draft.instructions
+                      : `${a.draft.instructions}\n${fix}`,
+                    handoff: a.draft.handoff.includes("descuentos")
+                      ? a.draft.handoff
+                      : `${a.draft.handoff}\nSi piden descuentos, pasar a una persona.`,
+                  },
+                }
+              : x,
+          ),
+          runs: d.runs.map((r) =>
+            r.id === runId
+              ? {
+                  ...r,
+                  results: r.results.map((x) =>
+                    x.id === evaluationId ? { ...x, proposed: true } : x,
+                  ),
+                }
+              : r,
+          ),
+        },
+      };
+    });
+  }
+  repeat(runId: string, evaluationId: string, key = studioKey()) {
+    return this.change(key, ["repeat", runId, evaluationId], (d) => {
+      const run = this.runGet(runId),
+        e = run.results.find((e) => e.id === evaluationId);
+      if (!e) throw Error("Resultado no disponible.");
+      const a = this.get(run.agentId);
+      const r = this.evaluateConfig(a, a.draft, e.question, false),
+        grade =
+          e.question.includes("descuento") && r.decision === "reply"
+            ? "failed"
+            : e.name === "Quiere una cita"
+              ? "review"
+              : "ok";
+      return {
+        doc: {
+          ...d,
+          runs: d.runs.map((x) =>
+            x.id === runId
+              ? {
+                  ...x,
+                  results: x.results.map((v) =>
+                    v.id === e.id
+                      ? {
+                          ...v,
+                          repeat: v.repeat + 1,
+                          decision: r.decision,
+                          answer: r.answer,
+                          grade,
+                          summary:
+                            grade === "ok"
+                              ? "Respondió dentro de las reglas de demostración."
+                              : v.summary,
+                        }
+                      : v,
+                  ),
+                }
+              : x,
+          ),
+        },
+      };
+    });
+  }
+}
