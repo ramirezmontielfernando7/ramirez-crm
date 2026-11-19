@@ -1,3 +1,7 @@
+# Continuación B · Biblioteca y recuperación de espacio
+
+B original implementada; Biblioteca CRM-40/41/42 funcional en simulación. 64/158 IDs con código, 94 pendientes. Se recuperaron 1,64 GiB de cachés conservando ambos worktrees, APK y firmas. Compilación Android aún bloqueada por margen insuficiente; no se fuerza Gradle. Ver [espacio y APK](docs/refinement-b/ESPACIO-Y-APK.md) y [lote 01](docs/refinement-b/LOTE-01-BIBLIOTECA.md). Próximo lote autorizado: Agenda CRM-20…25, sin backend ni nueva aprobación visual. Informes siguientes históricos.
+
 # B original integrada · continuación móvil autorizada
 
 B aplicada con alcance explícito en componentes reales; comparación exacta de Bandeja, 70 capturas y QA de módulo de los 19 IDs CRM. 209 pruebas de lógica aprobadas. Configuración preparada 0.1.3/4; APK no compilada por espacio local insuficiente. Sin cambios de backend ni conexiones reales. Ver [resultados](docs/refinement-b/RESULTADOS.md). Los apartados siguientes conservan el historial.

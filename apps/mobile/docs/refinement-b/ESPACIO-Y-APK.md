@@ -52,6 +52,7 @@ El volumen completo actual es menor que ese presupuesto. Destruir respaldos o de
 
 - Puede seguir usándose Codex si se amplía este volumen o se le proporciona otro entorno/montaje local escribible con esa capacidad. Desde este contenedor no hay una herramienta habilitada para ampliar la cuota del volumen. Cambiar `/workspace` por `/tmp` no sirve: ambos están en el mismo volumen.
 - Si la plataforma de Codex no permite ampliarlo, usar Codex CLI/IDE en un PC propio con Android Studio/SDK y espacio suficiente. No exige EAS ni un servicio de build de pago. Transferir el código mediante el bundle Git local verificado; no es necesario hacer push.
+- Se detectó `/dev/shm` con 4,9 GiB, pero es memoria RAM temporal, no disco persistente. Compite con Gradle, R8 y C++ dentro de los ~10 GB de RAM del entorno; no garantiza el margen de compilación ni conserva datos tras reinicio. No se trasladan respaldos ni dependencias a ese tmpfs y no se usa para forzar el build. El JDK 17 completo ya está presente en el caché de toolchains conservado, además de Java 21 por defecto.
 - La firma experimental debe conservarse y ponerse a disposición del nuevo entorno de forma privada. No subir la clave al ZIP de evidencias, Drive, repositorio o un servicio de build. Si el nuevo entorno no tiene esa firma, detener el build; una firma distinta no actualizaría 0.1.2.
 - Un disco/VM externo contratado o un servicio remoto de compilación necesitaría una autorización nueva por sus posibles costos. No se inicia ninguno automáticamente. No usar el Hetzner productivo para esta alternativa.
 

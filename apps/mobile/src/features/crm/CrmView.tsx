@@ -35,6 +35,7 @@ import {
   Text,
 } from "../../components/ui";
 import { useTheme } from "../../theme/ThemeProvider";
+import { SectionTabs } from "./SectionTabs";
 import { personName } from "../contact/model";
 import { CrmModel, type CrmContact, type CrmId } from "./core";
 export type CrmNavigation = {
@@ -126,64 +127,16 @@ export function CrmView(props: CrmNavigation) {
     isDetail = screen === "CRM-11",
     manager = screen === "CRM-07";
   const segment = (
-    <View
-      accessibilityRole="tablist"
-      style={{
-        marginHorizontal: 16,
-        marginTop: 6,
-        marginBottom: 4,
-        padding: 4,
-        borderRadius: 24,
-        flexDirection: "row",
-        backgroundColor: c.sunken,
-      }}
-    >
-      {[
-        ["CRM-01", "Pipeline"],
-        ["CRM-10", "Contactos"],
-        ["library", "Biblioteca"],
-      ].map(([id, label]) => (
-        <Pressable
-          key={id}
-          accessibilityRole="tab"
-          accessibilityLabel={label}
-          accessibilityState={{
-            selected: id === (isContact ? "CRM-10" : "CRM-01"),
-          }}
-          onPress={() =>
-            id === "library"
-              ? onLayer("CRM-16", "library")
-              : m.navigate(id as CrmId, "")
-          }
-          style={{
-            flex: 1,
-            minHeight: 40,
-            borderRadius: 20,
-            alignItems: "center",
-            justifyContent: "center",
-            backgroundColor:
-              id === (isContact ? "CRM-10" : "CRM-01")
-                ? c.surface
-                : "transparent",
-          }}
-        >
-          <Text
-            kind="secondary"
-            weight="medium"
-            style={{
-              fontSize: refinementB.secondarySize,
-              color:
-                id === (isContact ? "CRM-10" : "CRM-01")
-                  ? c.accentInk
-                  : c.text2,
-            }}
-          >
-            {label}
-          </Text>
-        </Pressable>
-      ))}
-    </View>
+    <SectionTabs
+      value={isContact ? "contacts" : "pipeline"}
+      onChange={(section) =>
+        section === "library"
+          ? onLayer("CRM-16", "library")
+          : m.navigate(section === "contacts" ? "CRM-10" : "CRM-01", "")
+      }
+    />
   );
+
   if (state.status === "loading" || state.status === "error")
     return (
       <>

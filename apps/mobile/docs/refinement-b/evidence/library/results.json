@@ -1,0 +1,21 @@
+{
+  "ids": [
+    "CRM-40",
+    "CRM-41",
+    "CRM-42"
+  ],
+  "checks": [
+    "CRM-40/41/42 in both themes and sizes; Pipeline and Contacts navigation retained",
+    "search, destinations, sample attachment, failed save retry, restore after provider remount",
+    "dirty back confirmation, cancel discard and local folder creation",
+    "tag filter, delete cancellation and confirmed local deletion",
+    "advisor sees only chat-eligible entries and cannot edit",
+    "read failure recovery, loading/empty/offline states"
+  ],
+  "actualCaptures": 24,
+  "officialReferences": 6,
+  "errors": [],
+  "networkRequests": 0,
+  "native": false,
+  "networkServerStarted": false
+}

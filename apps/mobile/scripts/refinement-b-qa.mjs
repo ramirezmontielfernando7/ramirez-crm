@@ -12,6 +12,7 @@ const changedSources = [
   "components/ui.tsx",
   "features/inbox/InboxScreen.tsx",
   "features/crm/CrmView.tsx",
+  "features/crm/CrmScreen.tsx",
   "features/chat/ConversationScreen.tsx",
 ];
 const mocks = {
@@ -19,17 +20,17 @@ const mocks = {
   session: `export const useSession=()=>({session:window.qaActor,disabled:[],ready:true});`,
   safe: `import {View} from 'react-native';export const SafeAreaView=View;export const SafeAreaProvider=View;export const useSafeAreaInsets=()=>({top:0,bottom:0,left:0,right:0});`,
   sound: `export default {playTouchSound(){}};`,
-  storage: `const m=new Map;export const preferencesStorage={get:async k=>m.get(k)??null,set:async(k,v)=>{m.set(k,v)},remove:async k=>{m.delete(k)}};`,
+  storage: `const m=new Map;export const preferencesStorage={get:async k=>{if(window.qaFailRead)throw Error("Lectura local simulada");return m.get(k)??null},set:async(k,v)=>{if(window.qaFailWrite)throw Error("Escritura local simulada");m.set(k,v)},remove:async k=>{m.delete(k)}};`,
   router: `import {useEffect} from 'react';export const useFocusEffect=fn=>useEffect(fn,[fn]);export const useLocalSearchParams=()=>({id:window.qaChatId});export const router={push:p=>window.qaNavigate(p),replace:p=>window.qaNavigate(p),back:()=>window.qaNavigate('/(tabs)/inbox'),canGoBack:()=>true};`,
 };
 const entry = `import React,{useState} from 'react';import {createRoot} from 'react-dom/client';import {View} from 'react-native';
-import InboxScreen from './src/features/inbox/InboxScreen';import {CrmScreen,qaInspect} from './src/features/crm/CrmScreen';
+import InboxScreen from './src/features/inbox/InboxScreen';import {CrmScreen,qaInspect,qaInspectLibrary} from './src/features/crm/CrmScreen';
 import {ConversationScreen} from './src/features/chat/ConversationScreen';import {LayerProvider} from './src/components/Layers';
 import {InboxProvider,useInbox} from './src/features/inbox/store';import {ChatProvider,useChatDirectory} from './src/features/chat/context';import {ContactProvider} from './src/features/contact/context';import {TabBar} from './src/components/TabBar';
 window.qaTheme='light';window.qaActor={id:'demo-owner',name:'Fer Ramírez',role:'owner',source:'demo',expiresAt:Date.now()+86400000};window.qaChatId='demo-conv-1';let screen='inbox',render,epoch=0;
 window.qaNavigate=p=>{window.qaLastRoute=p;if(p.startsWith('/conversation/')){window.qaChatId=p.split('/').pop();screen='chat'}else if(p.includes('inbox'))screen='inbox';render(v=>v+1);};
 window.mountRefinement=(s,t,role='owner')=>{screen=s;window.qaTheme=t;window.qaActor={...window.qaActor,id:'demo-'+role,role};epoch++;render(v=>v+1);};
-function Body(){const inbox=useInbox(),chats=useChatDirectory();window.qaInbox=inbox;window.qaModel=()=>qaInspect(inbox);const routes=['inbox','crm','studio','marketing','more'].map(name=>({key:name,name}));return <View style={{flex:1}}>{screen==='inbox'?<InboxScreen/>:screen==='chat'?<ConversationScreen chat={chats.get(window.qaChatId)}/>:<CrmScreen/>}{screen!=='chat'&&<TabBar state={{index:screen==='inbox'?0:1,routes}} emitter={{emit:()=>({defaultPrevented:false})}} navigateToTab={()=>{}}/>}</View>}
+function Body(){const inbox=useInbox(),chats=useChatDirectory();window.qaInbox=inbox;window.qaModel=()=>qaInspect(inbox);window.qaLibrary=()=>qaInspectLibrary(inbox);const routes=['inbox','crm','studio','marketing','more'].map(name=>({key:name,name}));return <View style={{flex:1}}>{screen==='inbox'?<InboxScreen/>:screen==='chat'?<ConversationScreen chat={chats.get(window.qaChatId)}/>:<CrmScreen/>}{screen!=='chat'&&<TabBar state={{index:screen==='inbox'?0:1,routes}} emitter={{emit:()=>({defaultPrevented:false})}} navigateToTab={()=>{}}/>}</View>}
 function App(){const [v,setV]=useState(0);render=setV;return <InboxProvider key={epoch}><ChatProvider><ContactProvider><LayerProvider><Body/></LayerProvider></ContactProvider></ChatProvider></InboxProvider>};createRoot(document.getElementById('root')).render(<App/>);`;
 const fonts = [
   ["400Regular", "Inter_400Regular"],
@@ -113,7 +114,8 @@ async function compile(before) {
                 text.replace(
                   "if (!session ||",
                   "window.qaActions = actions;\n  if (!session ||",
-                ) + "\nexport const qaInspect = inbox => models.get(inbox);";
+                ) +
+                "\nexport const qaInspect = inbox => models.get(inbox); export const qaInspectLibrary = inbox => libraries.get(inbox);";
             return { contents: text, loader: "tsx" };
           });
         },
@@ -150,108 +152,110 @@ async function mount(page, screen, theme = "light", role = "owner") {
   await page.waitForTimeout(100);
 }
 try {
-  let after;
-  for (const mode of ["before", "implemented"]) {
-    const page = await context.newPage();
-    page.on("pageerror", (e) => {
-      errors.push(e.message);
-      console.log("PAGE_ERROR", e.message);
-    });
-    await page.setContent(await compile(mode === "before"));
-    await page.waitForFunction(() => window.mountRefinement);
-    await page.evaluate(() => document.fonts.ready);
-    for (const [w, h] of [
-      [390, 844],
-      [360, 640],
-    ])
-      for (const theme of ["light", "dark"])
-        for (const screen of ["inbox", "contacts", "crm", "chat"]) {
-          await page.setViewportSize({ width: w, height: h });
-          await mount(page, screen, theme);
-          await page.screenshot({
-            path: path.join(out, `${mode}-${screen}-${theme}-${w}x${h}.png`),
-          });
-        }
-    console.log("captured", mode);
-    if (mode === "implemented") after = page;
-    else await page.close();
-  }
-  const p = after;
-  await p.setViewportSize({ width: 390, height: 844 });
-  // Screen + layer + store integration, no handwritten layer host.
-  const ids = [
-    "CRM-01",
-    "CRM-02",
-    "CRM-03",
-    "CRM-04",
-    "CRM-05",
-    "CRM-06",
-    "CRM-07",
-    "CRM-07C",
-    "CRM-07D",
-    "CRM-08",
-    "CRM-09",
-    "CRM-10",
-    "CRM-11",
-    "CRM-12",
-    "CRM-13",
-    "CRM-14",
-    "CRM-15",
-    "CRM-16",
-    "CRM-17",
-  ];
-  for (const theme of ["light", "dark"])
-    for (const id of ids) {
-      await mount(p, "crm", theme);
-      await p.evaluate((id) => {
-        const m = window.qaModel();
-        const first = m.list()[0].id;
-        m.patch({ contactId: first });
-        if (["CRM-01", "CRM-07", "CRM-10", "CRM-11", "CRM-17"].includes(id))
-          m.navigate(id, first);
-        else
-          window.qaActions.onLayer(
-            id,
-            id === "CRM-07C" || id === "CRM-07D" ? "Nuevo" : undefined,
-          );
-      }, id);
-      await p.waitForTimeout(80);
-      await p.screenshot({
-        path: path.join(out, `integrated-${id}-${theme}.png`),
+  if (process.argv.includes("--library")) {
+    const { runLibrary } = await import("./library-qa.mjs");
+    await runLibrary(context, await compile(false), root, () => requests);
+  } else {
+    let after;
+    for (const mode of ["before", "implemented"]) {
+      const page = await context.newPage();
+      page.on("pageerror", (e) => {
+        errors.push(e.message);
+        console.log("PAGE_ERROR", e.message);
       });
+      await page.setContent(await compile(mode === "before"));
+      await page.waitForFunction(() => window.mountRefinement);
+      await page.evaluate(() => document.fonts.ready);
+      for (const [w, h] of [
+        [390, 844],
+        [360, 640],
+      ])
+        for (const theme of ["light", "dark"])
+          for (const screen of ["inbox", "contacts", "crm", "chat"]) {
+            await page.setViewportSize({ width: w, height: h });
+            await mount(page, screen, theme);
+            await page.screenshot({
+              path: path.join(out, `${mode}-${screen}-${theme}-${w}x${h}.png`),
+            });
+          }
+      console.log("captured", mode);
+      if (mode === "implemented") after = page;
+      else await page.close();
     }
-  checks.push(
-    "19 CRM IDs through real CrmScreen, providers and LayerProvider in both themes",
-  );
-  await mount(p, "inbox");
-  await p.getByRole("button", { name: "Buscar", exact: true }).click();
-  await p.getByRole("textbox", { name: "Buscar chats" }).fill("Karla");
-  await p.getByRole("button", { name: /Karla Méndez,/ }).click();
-  await p.getByRole("textbox", { name: "Mensaje", exact: true }).waitFor();
-  checks.push("Inbox search opens real ConversationScreen with same stores");
-  await mount(p, "contacts");
-  await p
-    .getByRole("textbox", { name: "Buscar nombre o teléfono" })
-    .fill("Karla");
-  await p.getByRole("button", { name: /Karla Méndez,/ }).click();
-  await p.getByRole("button", { name: "Editar contacto" }).click();
-  await p
-    .getByRole("textbox", { name: "Nombre", exact: true })
-    .fill("Karla Demo Editada");
-  await p.getByRole("button", { name: "Guardar", exact: true }).click();
-  await p.getByText("Karla Demo Editada", { exact: true }).waitFor();
-  checks.push(
-    "Contacts search-detail-edit through actual navigation and modal",
-  );
-  await mount(p, "crm", "light", "advisor");
-  await p.getByRole("tab", { name: "Contactos", exact: true }).click();
-  if (await p.getByRole("button", { name: /Karla Méndez,/ }).count())
-    throw Error("Advisor saw foreign contact");
-  checks.push("Advisor cannot see foreign contact");
-  await mount(p, "inbox");
-  const boxes = await p
-    .getByRole("tab")
-    .evaluateAll((n) =>
+    const p = after;
+    await p.setViewportSize({ width: 390, height: 844 });
+    // Screen + layer + store integration, no handwritten layer host.
+    const ids = [
+      "CRM-01",
+      "CRM-02",
+      "CRM-03",
+      "CRM-04",
+      "CRM-05",
+      "CRM-06",
+      "CRM-07",
+      "CRM-07C",
+      "CRM-07D",
+      "CRM-08",
+      "CRM-09",
+      "CRM-10",
+      "CRM-11",
+      "CRM-12",
+      "CRM-13",
+      "CRM-14",
+      "CRM-15",
+      "CRM-16",
+      "CRM-17",
+    ];
+    for (const theme of ["light", "dark"])
+      for (const id of ids) {
+        await mount(p, "crm", theme);
+        await p.evaluate((id) => {
+          const m = window.qaModel();
+          const first = m.list()[0].id;
+          m.patch({ contactId: first });
+          if (["CRM-01", "CRM-07", "CRM-10", "CRM-11", "CRM-17"].includes(id))
+            m.navigate(id, first);
+          else
+            window.qaActions.onLayer(
+              id,
+              id === "CRM-07C" || id === "CRM-07D" ? "Nuevo" : undefined,
+            );
+        }, id);
+        await p.waitForTimeout(80);
+        await p.screenshot({
+          path: path.join(out, `integrated-${id}-${theme}.png`),
+        });
+      }
+    checks.push(
+      "19 CRM IDs through real CrmScreen, providers and LayerProvider in both themes",
+    );
+    await mount(p, "inbox");
+    await p.getByRole("button", { name: "Buscar", exact: true }).click();
+    await p.getByRole("textbox", { name: "Buscar chats" }).fill("Karla");
+    await p.getByRole("button", { name: /Karla Méndez,/ }).click();
+    await p.getByRole("textbox", { name: "Mensaje", exact: true }).waitFor();
+    checks.push("Inbox search opens real ConversationScreen with same stores");
+    await mount(p, "contacts");
+    await p
+      .getByRole("textbox", { name: "Buscar nombre o teléfono" })
+      .fill("Karla");
+    await p.getByRole("button", { name: /Karla Méndez,/ }).click();
+    await p.getByRole("button", { name: "Editar contacto" }).click();
+    await p
+      .getByRole("textbox", { name: "Nombre", exact: true })
+      .fill("Karla Demo Editada");
+    await p.getByRole("button", { name: "Guardar", exact: true }).click();
+    await p.getByText("Karla Demo Editada", { exact: true }).waitFor();
+    checks.push(
+      "Contacts search-detail-edit through actual navigation and modal",
+    );
+    await mount(p, "crm", "light", "advisor");
+    await p.getByRole("tab", { name: "Contactos", exact: true }).click();
+    if (await p.getByRole("button", { name: /Karla Méndez,/ }).count())
+      throw Error("Advisor saw foreign contact");
+    checks.push("Advisor cannot see foreign contact");
+    await mount(p, "inbox");
+    const boxes = await p.getByRole("tab").evaluateAll((n) =>
       n
         .filter((x) =>
           ["Clientes", "Equipo", "Mi número"].includes(x.textContent),
@@ -262,36 +266,37 @@ try {
           height: x.getBoundingClientRect().height,
         })),
     );
-  if (boxes.length !== 3 || boxes.some((b) => b.height < 48))
-    throw Error("Selector touch targets");
-  checks.push("Inbox selector targets >=48");
-  if (errors.length || requests)
-    throw Error(JSON.stringify({ errors, requests }));
-  fs.writeFileSync(
-    path.join(out, "results.json"),
-    JSON.stringify(
-      {
-        baseline,
-        implementedCaptures: 16,
-        beforeCaptures: 16,
-        integratedCrmCaptures: 38,
-        checks,
-        boxes,
-        errors,
-        networkRequests: requests,
-        httpServerStarted: false,
-        native: false,
-        limitations: [
-          "RN Web offline Chromium",
-          "fixture session/theme/storage/router; actual UI/store/layers",
-          "no full Expo Router or native keyboard validation",
-        ],
-      },
-      null,
-      2,
-    ),
-  );
-  console.log(JSON.stringify({ captures: 70, checks, errors, requests }));
+    if (boxes.length !== 3 || boxes.some((b) => b.height < 48))
+      throw Error("Selector touch targets");
+    checks.push("Inbox selector targets >=48");
+    if (errors.length || requests)
+      throw Error(JSON.stringify({ errors, requests }));
+    fs.writeFileSync(
+      path.join(out, "results.json"),
+      JSON.stringify(
+        {
+          baseline,
+          implementedCaptures: 16,
+          beforeCaptures: 16,
+          integratedCrmCaptures: 38,
+          checks,
+          boxes,
+          errors,
+          networkRequests: requests,
+          httpServerStarted: false,
+          native: false,
+          limitations: [
+            "RN Web offline Chromium",
+            "fixture session/theme/storage/router; actual UI/store/layers",
+            "no full Expo Router or native keyboard validation",
+          ],
+        },
+        null,
+        2,
+      ),
+    );
+    console.log(JSON.stringify({ captures: 70, checks, errors, requests }));
+  }
 } finally {
   await browser.close();
 }

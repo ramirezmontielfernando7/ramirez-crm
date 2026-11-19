@@ -74,9 +74,9 @@ CRM-30,Tareas,T-M9,Pendiente,Pendiente
 CRM-31,Detalle de la tarea,T-M9,Pendiente,Pendiente
 CRM-32,Notas,T-M9,Pendiente,Pendiente
 CRM-33,Editor de nota,T-M9,Pendiente,Pendiente
-CRM-40,Biblioteca,T-M9,Pendiente,Pendiente
-CRM-41,Entrada de la Biblioteca,T-M9,Pendiente,Pendiente
-CRM-42,Menú ⋮ de Biblioteca,T-M9,Pendiente,Pendiente
+CRM-40,Biblioteca,T-M9,Implementada simulada · QA módulo integrado RN Web,Pendiente nativo; docs/refinement-b/LOTE-01-BIBLIOTECA.md
+CRM-41,Entrada de la Biblioteca,T-M9,Implementada simulada · QA módulo integrado RN Web,Pendiente nativo; docs/refinement-b/LOTE-01-BIBLIOTECA.md
+CRM-42,Menú ⋮ de Biblioteca,T-M9,Implementada simulada · QA módulo integrado RN Web,Pendiente nativo; docs/refinement-b/LOTE-01-BIBLIOTECA.md
 LAB-01,Agentes,T-M10,Pendiente,Pendiente
 LAB-02,Creador de agentes (chat),T-M10,Pendiente,Pendiente
 LAB-03,Editor del agente,T-M10,Pendiente,Pendiente

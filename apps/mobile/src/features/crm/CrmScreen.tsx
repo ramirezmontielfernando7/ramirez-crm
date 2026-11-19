@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { BackHandler, View } from "react-native";
 import { router } from "expo-router";
 import { Screen } from "../../components/Screen";
@@ -12,6 +12,10 @@ import { CrmView, type CrmNavigation } from "./CrmView";
 import { CrmOverlay, layerTitles } from "./CrmOverlay";
 import { useSession } from "../../state/SessionProvider";
 import { canAccess } from "../../domain/access";
+import { LibraryStore } from "../library/core";
+import { LibraryView } from "../library/LibraryView";
+import { preferencesStorage } from "../../services/storage";
+const libraries = new WeakMap<object, LibraryStore>();
 const models = new WeakMap<object, CrmModel>();
 export function CrmScreen() {
   const inbox = useInbox(),
@@ -24,6 +28,17 @@ export function CrmScreen() {
     models.set(inbox, model);
   }
   const m = model;
+  const [section, setSection] = useState<"crm" | "library">("crm");
+  let library = libraries.get(inbox);
+  if (!library) {
+    library = new LibraryStore(
+      inbox.actor,
+      "demo-org-cristal",
+      preferencesStorage,
+    );
+    libraries.set(inbox, library);
+  }
+  const libraryStore = library;
   useEffect(() => {
     const sync = () => m.patch({ status: inbox.snapshot().status });
     sync();
@@ -32,6 +47,11 @@ export function CrmScreen() {
   useEffect(() => {
     const sub = BackHandler.addEventListener("hardwareBackPress", () => {
       if (layers.layer) return false;
+      if (section === "library") {
+        if (libraryStore.snapshot().screen === "CRM-41") return false;
+        setSection("crm");
+        return true;
+      }
       if (["CRM-11", "CRM-17", "CRM-07"].includes(m.state.screen)) {
         m.navigate(m.state.screen === "CRM-07" ? "CRM-01" : "CRM-10", "");
         return true;
@@ -39,7 +59,7 @@ export function CrmScreen() {
       return false;
     });
     return () => sub.remove();
-  }, [m, layers.layer]);
+  }, [m, layers.layer, section, libraryStore]);
   const actions: CrmNavigation = {
     model: m,
     onChat: (id) => router.push(`/conversation/${id}`),
@@ -52,7 +72,7 @@ export function CrmScreen() {
       }),
     onLayer: (id: CrmId, arg?: string) => {
       if (arg === "library") {
-        layers.toast("Biblioteca pendiente de implementación");
+        setSection("library");
         return;
       }
       if (id === "CRM-02" || id === "CRM-12") {
@@ -82,7 +102,19 @@ export function CrmScreen() {
   return (
     <Screen keyboard>
       <View style={{ flex: 1 }}>
-        <CrmView {...actions} />
+        {section === "library" ? (
+          <LibraryView
+            store={libraryStore}
+            onSection={(value) => {
+              if (value !== "library") {
+                setSection("crm");
+                m.navigate(value === "contacts" ? "CRM-10" : "CRM-01", "");
+              }
+            }}
+          />
+        ) : (
+          <CrmView {...actions} />
+        )}
       </View>
     </Screen>
   );
