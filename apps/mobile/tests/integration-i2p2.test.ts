@@ -704,3 +704,43 @@ test("simultaneous offline and total storage failure stays blocked; no false dur
   assert.equal(f.m.data.has(f.vault.key), false);
   assert.equal(f.c.snapshot().remoteRevocation, "confirmed");
 });
+test("a newer login triggered inside attach survives obsolete cleanup and keeps its stores", async () => {
+  const { CompositeSessionBoundary } =
+    await import("../src/integration/auth/boundary");
+  const f = fixture(),
+    values = new Map<string, string>();
+  let c: PreparedAuth,
+    once = false,
+    next: Promise<void> | undefined,
+    out: Promise<void> | undefined;
+  const parts = (["cache", "drafts", "media", "notifications"] as const).map(
+    (name) => ({
+      name,
+      detach() {
+        values.delete(name);
+      },
+      attach(context: import("../src/integration/auth/model").AuthContext) {
+        values.set(name, context.scope.userId);
+        if (!once && context.role === "owner") {
+          once = true;
+          out = c.logout().catch((e) => {
+            assert.equal(e.code, "stale");
+          });
+          next = c.login("asesor@example.invalid", "fixture-password");
+        }
+      },
+    }),
+  );
+  c = new PreparedAuth(f.server, f.vault, new CompositeSessionBoundary(parts));
+  await assert.rejects(c.login("owner@example.invalid", "fixture-password"), {
+    message: "stale",
+  });
+  await out;
+  await next;
+  assert.equal(c.snapshot().context?.role, "asesor");
+  assert.deepEqual([...values.values()], Array(4).fill("fixture-asesor"));
+  await f.server.validate(
+    (await f.vault.read())!,
+    new AbortController().signal,
+  );
+});
