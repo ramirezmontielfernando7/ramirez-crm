@@ -1,13 +1,13 @@
 {
- "NODE_ENV":"test",
- "DASHFORT_PROFILE":"isolated-auth-v1",
- "DASHFORT_TEST_INSTANCE":"fixture-instance-<unique-reviewed-id>",
- "APP_BASE_URL":"http://127.0.0.1:3137",
- "DATABASE_URL":"postgresql://vocero_app:<generate-new-test-only>@db.i2p.invalid:5432/dashfort_auth_test",
- "DATABASE_URL_SYSTEM":"postgresql://vocero_system:<generate-new-test-only>@db.i2p.invalid:5432/dashfort_auth_test",
- "BETTER_AUTH_SECRET":"<generate-after-authorization>",
- "ENCRYPTION_KEY":"<generate-after-authorization>",
- "META_WEBHOOK_VERIFY_TOKEN":"fixture-unused-not-connected",
- "DB_POOL_MAX":"2",
- "DB_SYSTEM_POOL_MAX":"2"
+  "NODE_ENV": "test",
+  "DASHFORT_PROFILE": "isolated-auth-v1",
+  "DASHFORT_TEST_INSTANCE": "fixture-instance-<unique-reviewed-id>",
+  "APP_BASE_URL": "http://127.0.0.1:3137",
+  "DATABASE_URL": "postgresql://vocero_app:<generate-new-test-only>@db.i2p.invalid:5432/dashfort_auth_test",
+  "DATABASE_URL_SYSTEM": "postgresql://vocero_system:<generate-new-test-only>@db.i2p.invalid:5432/dashfort_auth_test",
+  "BETTER_AUTH_SECRET": "<generate-after-authorization>",
+  "ENCRYPTION_KEY": "<generate-after-authorization>",
+  "META_WEBHOOK_VERIFY_TOKEN": "fixture-unused-not-connected",
+  "DB_POOL_MAX": "2",
+  "DB_SYSTEM_POOL_MAX": "2"
 }
