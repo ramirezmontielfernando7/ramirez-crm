@@ -1,7 +1,7 @@
 import { AuthFault } from "./model";
 /** Describes protocol work only. No cookie parsing, native bridge or HTTP execution. */
 export const backendAuthCapabilities = Object.freeze({
-  revision: "0b611126717ede5dca0f4ea766f28b99befd648c",
+  revision: "daccd873eac667cc4eb19a9743e99df12538925a",
   version: "1.7.19",
   renewal: "cookie-revalidation",
   organizationSelection: false,
