@@ -24,7 +24,11 @@ export function CrmScreen() {
     models.set(inbox, model);
   }
   const m = model;
-  useEffect(() => inbox.subscribe(() => m.patch({})), [inbox, m]);
+  useEffect(() => {
+    const sync = () => m.patch({ status: inbox.snapshot().status });
+    sync();
+    return inbox.subscribe(sync);
+  }, [inbox, m]);
   useEffect(() => {
     const sub = BackHandler.addEventListener("hardwareBackPress", () => {
       if (layers.layer) return false;

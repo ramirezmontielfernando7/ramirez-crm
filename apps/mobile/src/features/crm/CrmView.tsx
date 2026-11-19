@@ -26,6 +26,9 @@ import {
   Button,
   Card,
   EmptyState,
+  ErrorState,
+  Skeleton,
+  Banner,
   Field,
   FilterChips,
   IconButton,
@@ -61,9 +64,12 @@ const ContactRow = memo(function ContactRow({
   const { colors: c } = useTheme();
   return (
     <Pressable
-      accessibilityRole="button"
+      accessibilityRole={selecting ? "checkbox" : "button"}
       accessibilityLabel={`${item.name}, ${item.phone}`}
-      accessibilityState={{ selected }}
+      accessibilityState={{
+        selected,
+        checked: selecting ? selected : undefined,
+      }}
       onPress={onPress}
       style={{
         minHeight: 88,
@@ -171,6 +177,18 @@ export function CrmView(props: CrmNavigation) {
       ))}
     </View>
   );
+  if (state.status === "loading" || state.status === "error")
+    return (
+      <>
+        <AppBar title="CRM" module />
+        {segment}
+        {state.status === "loading" ? (
+          <Skeleton rows={7} />
+        ) : (
+          <ErrorState onRetry={() => m.patch({ status: "normal" })} />
+        )}
+      </>
+    );
   if (screen === "CRM-17") return <CrmImport {...props} />;
   if (manager)
     return (
@@ -363,6 +381,11 @@ export function CrmView(props: CrmNavigation) {
         }
       />
       {!state.selecting && segment}
+      {state.status === "offline" && (
+        <Banner type="warning">
+          Sin conexión · puedes consultar los datos de demostración.
+        </Banner>
+      )}
       {isContact ? (
         <>
           <View
