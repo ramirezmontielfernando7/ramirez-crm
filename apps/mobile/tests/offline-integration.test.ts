@@ -169,3 +169,19 @@ test("foreground sync coalesces, idle/background does not poll, logout clears", 
   l.logout();
   assert.equal(clear, 1);
 });
+test("late same-org searches cannot replace newer filters", async () => {
+  const f = fixture();
+  let release!: () => void;
+  const gate = new Promise<void>((r) => (release = r));
+  const original = f.read.conversations;
+  let call = 0;
+  f.read.conversations = async () => {
+    if (++call === 1) await gate;
+    return original();
+  };
+  const old = f.c.inbox({ q: "old" });
+  await f.c.inbox({ q: "new" });
+  release();
+  await assert.rejects(old);
+  assert.equal(f.c.snapshot().stale, false);
+});

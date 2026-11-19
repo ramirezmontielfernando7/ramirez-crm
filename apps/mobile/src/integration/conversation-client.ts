@@ -4,6 +4,7 @@ import type { WireConversation, WireMessage } from "./wire";
 /** SSE has no durable replay. Every reconnect requires canonical read reconciliation. */
 export class PreparedConversations {
   private epoch = 0;
+  private queryRevision = 0;
   private scope: Scope | null = null;
   private rows = new Map<string, WireConversation>();
   private history = new Map<string, readonly WireMessage[]>();
@@ -27,6 +28,7 @@ export class PreparedConversations {
   ) {}
   bind(scope: Scope | null) {
     this.epoch++;
+    this.queryRevision++;
     this.scope = scope ? Object.freeze({ ...scope }) : null;
     this.rows.clear();
     this.history.clear();
@@ -85,6 +87,8 @@ export class PreparedConversations {
     });
     const prior = this.flights.get(key);
     if (prior) return prior;
+    if (this.flights.size >= 20) throw new IntegrationError("blocked");
+    const queryRevision = ++this.queryRevision;
     const task = (async () => {
       try {
         const p = await this.read.conversations(scope, {
@@ -92,6 +96,8 @@ export class PreparedConversations {
           cursor: append ? (this.cursor ?? undefined) : undefined,
         });
         this.check(epoch);
+        if (queryRevision !== this.queryRevision)
+          throw new IntegrationError("blocked");
         if (p.conversations.length > 500) throw new IntegrationError("invalid");
         const next = append
           ? new Map(this.rows)
@@ -103,6 +109,7 @@ export class PreparedConversations {
         this.cursor = p.nextCursor;
         this.stale = false;
       } catch (e) {
+        if (queryRevision !== this.queryRevision) throw e;
         this.fail(e, epoch);
       }
     })();

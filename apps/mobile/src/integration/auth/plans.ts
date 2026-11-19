@@ -60,7 +60,7 @@ export class MemoryBindingMaterial {
     const key = bindingKey(binding);
     if (
       bytes.length > 12000 ||
-      !new TextDecoder().decode(bytes).startsWith("fixture-cookie-")
+      !/^fixture-cookie-[\w-]{1,160}$/.test(new TextDecoder().decode(bytes))
     )
       throw new AuthFault("blocked");
     this.values.get(key)?.fill(0);
