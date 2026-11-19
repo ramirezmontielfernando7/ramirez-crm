@@ -40,7 +40,7 @@ gallery = '''<!doctype html><html lang="es"><meta charset="utf-8"><meta name="vi
 agenda_gallery = None
 if agenda.exists():
     agenda_images = {p.name: 'data:image/png;base64,' + base64.b64encode(p.read_bytes()).decode() for p in agenda.glob('*.png')}
-    agenda_gallery = gallery.replace(json.dumps(images),json.dumps(agenda_images),1).replace('Dashfort · Biblioteca','Dashfort · Agenda').replace('Biblioteca · lote 01 de continuación','Agenda · lote 02 de continuación').replace('<option>CRM-40</option><option>CRM-41</option><option>CRM-42</option>',''.join(f'<option>CRM-{i}</option>' for i in range(20,26))).replace('No se seleccionan archivos del dispositivo ni se envían documentos o mensajes.','No se abren proveedores, se crean citas reales ni se envían recordatorios.')
+    agenda_gallery = gallery.replace(json.dumps(images),json.dumps(agenda_images),1).replace('Dashfort · Biblioteca','Dashfort · Agenda').replace('Biblioteca · lote 01 de continuación','Agenda · lote 02 de continuación').replace('<option>CRM-40</option><option>CRM-41</option><option>CRM-42</option>',''.join(f'<option>CRM-{i}</option>' for i in range(20,26))).replace('No se seleccionan archivos del dispositivo ni se envían documentos o mensajes.','No se abren proveedores ni se crean citas reales ni se envían recordatorios.')
 
 files = {}
 with zipfile.ZipFile(root / 'artifacts/refinement-b/Dashfort-B-Implementada-Evidencias.zip') as archive:
