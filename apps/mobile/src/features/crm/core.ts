@@ -1,6 +1,7 @@
 import {
   DemoConversationRepository,
   stages,
+  tags,
   normalize,
   type Actor,
   type Conversation,
@@ -232,7 +233,8 @@ export class CrmModel {
       this.manage();
       this.repository.assign(this.actor, ids, value);
     } else {
-      if (!value.trim() || value.length > 60) throw Error("Etiqueta inválida.");
+      if (!(tags as readonly string[]).includes(value))
+        throw Error("Etiqueta inválida.");
       for (const id of ids) {
         const c = this.get(id);
         this.repository.updateContact(this.actor, id, {

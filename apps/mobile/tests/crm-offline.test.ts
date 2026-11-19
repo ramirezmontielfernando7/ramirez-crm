@@ -87,9 +87,9 @@ test("bulk selection actions affect only selected records and export neutralizes
   const m = setup();
   const id = m.list()[0]!.id;
   m.toggle(id);
-  m.bulk("tag", "Prueba");
+  m.bulk("tag", "VIP");
   m.bulk("assign", "demo-advisor");
-  assert.ok(m.get(id).tags.includes("Prueba"));
+  assert.ok(m.get(id).tags.includes("VIP"));
   assert.equal(m.get(id).assigned, "demo-advisor");
   const csv = m.exportSample();
   assert.equal(csv.split("\n").length, 2);
@@ -116,4 +116,38 @@ test("CRM priority and assignment are permission checked, import cannot lift a p
   assert.equal(m.get(id).assigned, "demo-advisor");
   const a = setup("advisor");
   assert.throws(() => a.assignContact(a.list()[0]!.id, "demo-owner"));
+});
+
+test("a CRM custom stage does not break existing T-M4 task persistence in the same catalog", async () => {
+  const { ContactDirectory } = await import("../src/features/contact/core");
+  const m = setup(),
+    saved = new Map<string, string>();
+  m.addStage("Cotizado");
+  const id = m.list()[0]!.id;
+  m.move(id, "Cotizado");
+  const storage = {
+    remove: async (k: string) => {
+      saved.delete(k);
+    },
+    get: async (k: string) => saved.get(k) ?? null,
+    set: async (k: string, v: string) => {
+      saved.set(k, v);
+    },
+  };
+  const d = new ContactDirectory(m.actor, m.repository, storage, () => {}),
+    store = d.get(id);
+  await store.hydrate();
+  await store.task("Revisar cotización", Date.now() + 3600000, m.actor.id);
+  assert.equal(store.snapshot().error, "");
+  assert.equal(store.snapshot().data.tasks.length, 1);
+  const reload = new ContactDirectory(
+    m.actor,
+    m.repository,
+    storage,
+    () => {},
+  ).get(id);
+  await reload.hydrate();
+  assert.equal(reload.snapshot().ready, true);
+  assert.equal(reload.snapshot().data.stage, "Cotizado");
+  assert.throws(() => m.bulk("tag", "Etiqueta desconocida"));
 });

@@ -147,6 +147,7 @@ export function seedConversations(count = 2000): readonly Conversation[] {
   });
 }
 export interface ConversationRepository {
+  stageOptions?(): readonly string[];
   list(actor: Actor): readonly Conversation[];
   get(actor: Actor, id: string): Conversation;
   archive(actor: Actor, ids: readonly string[]): void;
@@ -165,6 +166,7 @@ export class DemoConversationRepository implements ConversationRepository {
   private data: readonly Conversation[];
   private sequence = 0;
   private stageNames = new Set<string>(stages);
+  stageOptions = () => [...this.stageNames];
   configureStages(actor: Actor, names: readonly string[]) {
     if (
       actor.role === "advisor" ||

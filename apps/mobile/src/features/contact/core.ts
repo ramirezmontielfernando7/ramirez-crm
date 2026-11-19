@@ -33,14 +33,17 @@ export type ContactSnapshot = Readonly<{
 export const systemImportTag = "Importación · demo";
 const allTags = [...tagCatalog, systemImportTag];
 const isPerson = (v: unknown) => v === null || team.some((p) => p.id === v);
-export function decodeDetails(raw: string): ContactData {
+export function decodeDetails(
+  raw: string,
+  catalog: readonly string[] = stages,
+): ContactData {
   const d = JSON.parse(raw) as ContactData;
   const text = (v: unknown, max: number) =>
     typeof v === "string" && v.length <= max;
   if (
     !d ||
     d.version !== 1 ||
-    !stages.includes(d.stage as (typeof stages)[number]) ||
+    !catalog.includes(d.stage) ||
     !isPerson(d.assigned) ||
     !["on", "pause", "off"].includes(d.ai) ||
     !["meta", "direct", "hybrid"].includes(d.mode) ||
@@ -253,7 +256,12 @@ export class ContactStore {
       try {
         const before = this.authorize();
         const raw = await this.directory.storage.get(this.storageKey);
-        let data = raw ? decodeDetails(raw) : this.state.data;
+        let data = raw
+          ? decodeDetails(
+              raw,
+              this.directory.conversations.stageOptions?.() ?? stages,
+            )
+          : this.state.data;
         const current = this.authorize();
         if (current.stage !== before.stage)
           data = {
@@ -363,7 +371,10 @@ export class ContactStore {
               ...current.events,
             ].slice(0, 250),
           };
-          decodeDetails(JSON.stringify(data));
+          decodeDetails(
+            JSON.stringify(data),
+            this.directory.conversations.stageOptions?.() ?? stages,
+          );
           await this.directory.storage.set(
             this.storageKey,
             JSON.stringify(data),

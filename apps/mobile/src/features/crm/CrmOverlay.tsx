@@ -335,7 +335,20 @@ export function CrmOverlay(props: CrmNavigation & { id: CrmId; arg?: string }) {
   if (id === "CRM-15")
     return (
       <View style={{ gap: 10 }}>
-        <Field label="Etiqueta" value={value} onChangeText={setValue} />
+        <Text>Etiqueta</Text>
+        <FilterChips
+          options={[
+            "Promo nov",
+            "Mayoreo",
+            "Facebook Ads",
+            "VIP",
+            "Urgente",
+            "Seguimiento",
+            "Referido",
+          ]}
+          value={value}
+          onChange={setValue}
+        />
         <Button variant="tonal" onPress={() => act(() => m.bulk("tag", value))}>
           Etiquetar
         </Button>

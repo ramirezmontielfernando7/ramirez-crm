@@ -197,7 +197,10 @@ export function CrmView(props: CrmNavigation) {
           title="Etapas del pipeline"
           onBack={() => m.navigate("CRM-01", "")}
         />
-        <ScrollView>
+        <ScrollView
+          contentContainerStyle={{ paddingBottom: 140 }}
+          keyboardShouldPersistTaps="handled"
+        >
           <Text style={{ padding: 16, color: c.text3 }}>
             Reordena con las flechas, cambia el color tocando el punto.
           </Text>
@@ -277,7 +280,9 @@ export function CrmView(props: CrmNavigation) {
             </>
           }
         />
-        <ScrollView contentContainerStyle={{ padding: 16, gap: 14 }}>
+        <ScrollView
+          contentContainerStyle={{ padding: 16, paddingBottom: 140, gap: 14 }}
+        >
           <View style={{ alignItems: "center", gap: 6 }}>
             <Avatar name={selected.name} />
             <Text kind="title" weight="semibold">
@@ -589,6 +594,7 @@ export function CrmView(props: CrmNavigation) {
                   keyExtractor={(r) => r.id}
                   initialNumToRender={8}
                   windowSize={5}
+                  contentContainerStyle={{ paddingBottom: 150 }}
                   renderItem={({ item: r }) => (
                     <Pressable
                       accessibilityRole="button"
@@ -725,7 +731,9 @@ function CrmImport({ model: m }: CrmNavigation) {
           />
         ))}
       </View>
-      <ScrollView contentContainerStyle={{ padding: 16, gap: 14 }}>
+      <ScrollView
+        contentContainerStyle={{ padding: 16, paddingBottom: 140, gap: 14 }}
+      >
         {step === 1 ? (
           <Card>
             <Text kind="title">Elige tu archivo</Text>
