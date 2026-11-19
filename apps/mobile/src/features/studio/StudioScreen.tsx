@@ -1,3 +1,4 @@
+import { Assignments } from "./Assignments";
 import React, {
   memo,
   useState,
@@ -163,6 +164,8 @@ function StudioView({ initialSection }: { initialSection: StudioTab }) {
         )
       ) : tab === "Agentes" ? (
         <AgentsList store={store} />
+      ) : tab === "Asignación" ? (
+        <Assignments store={store} />
       ) : (
         <EmptyState
           title={`${tab} · Próximo lote`}

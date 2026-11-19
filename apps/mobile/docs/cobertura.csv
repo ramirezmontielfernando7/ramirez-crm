@@ -91,8 +91,8 @@ LAB-09A,Archivar agente,T-M10,Implementada simulada · QA módulo integrado RN W
 LAB-10,Conocimiento y documentos,T-M10,Implementada simulada · QA módulo integrado RN Web,Pendiente nativo; docs/refinement-b/LOTE-05-CONOCIMIENTO.md
 LAB-11,Subir documento,T-M10,Implementada simulada · QA módulo integrado RN Web,Pendiente nativo; docs/refinement-b/LOTE-05-CONOCIMIENTO.md
 LAB-12,Detalle del documento,T-M10,Implementada simulada · QA módulo integrado RN Web,Pendiente nativo; docs/refinement-b/LOTE-05-CONOCIMIENTO.md
-LAB-20,Asignación por etapa,T-M10,Pendiente,Pendiente
-LAB-21,Elegir agente de la etapa,T-M10,Pendiente,Pendiente
+LAB-20,Asignación por etapa,T-M10,Implementada simulada · QA módulo integrado RN Web,Pendiente nativo; docs/refinement-b/LOTE-08-ASIGNACIONES.md
+LAB-21,Elegir agente de la etapa,T-M10,Implementada simulada · QA módulo integrado RN Web,Pendiente nativo; docs/refinement-b/LOTE-08-ASIGNACIONES.md
 LAB-30,Pruebas · clientes simulados,T-M10,Pendiente,Pendiente
 LAB-31,Detalle de la prueba,T-M10,Pendiente,Pendiente
 MKT-01,Campañas,T-M11,Pendiente,Pendiente

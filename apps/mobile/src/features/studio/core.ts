@@ -590,12 +590,18 @@ export class StudioStore {
   }
   stageRows() {
     this.allowed();
-    return (this.conversations.stageOptions?.() ?? stages).map((name) => ({
-      name,
-      id:
+    return (this.conversations.stageOptions?.() ?? stages).map((name) => {
+      const index = stages.indexOf(name as (typeof stages)[number]);
+      const id =
         this.conversations.stageIdentity?.(name) ??
-        `demo-stage-${stages.indexOf(name as never) + 1}`,
-    }));
+        (index >= 0 ? `demo-stage-${index + 1}` : null);
+      if (!id) throw Error("La etapa no tiene una identidad local estable.");
+      return {
+        name,
+        id,
+        color: this.conversations.stageColor?.(name) ?? "#94a3b8",
+      };
+    });
   }
   assign(
     stageId: string,
@@ -614,7 +620,10 @@ export class StudioStore {
         if (a.general || !a.versions.length)
           throw Error("Elige un agente publicado y no general.");
       }
-      const assignments = { ...d.assignments };
+      const stageIds = new Set(this.stageRows().map((s) => s.id));
+      const assignments = Object.fromEntries(
+        Object.entries(d.assignments).filter(([key]) => stageIds.has(key)),
+      );
       if (id) assignments[stageId] = id;
       else delete assignments[stageId];
       return { doc: { ...d, assignments } };

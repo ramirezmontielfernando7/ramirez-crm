@@ -16,14 +16,8 @@ export type CrmContact = Conversation & {
   priority: string;
   loss: string;
 };
-export const palette = [
-  "#94a3b8",
-  "#12999d",
-  "#f59e0b",
-  "#22c55e",
-  "#ef4444",
-  "#8b5cf6",
-] as const;
+import { stagePalette } from "../../domain/stage-colors";
+export const palette = stagePalette;
 export type CrmId =
   | "CRM-01"
   | "CRM-02"
@@ -297,6 +291,10 @@ export class CrmModel {
       this.stageList[index]!,
       this.stageList[index - 1]!,
     ];
+    this.repository.configureStages(
+      this.actor,
+      this.stageList.map((s) => s.name),
+    );
     this.emit();
   }
   color(name: string, color: string) {
@@ -306,6 +304,7 @@ export class CrmModel {
     const s = this.stageList.find((s) => s.name === name);
     if (!s) throw Error("Etapa no válida.");
     s.color = color;
+    this.repository.setStageColor(this.actor, name, color);
     this.emit();
   }
   deleteStage(name: string, target: string) {

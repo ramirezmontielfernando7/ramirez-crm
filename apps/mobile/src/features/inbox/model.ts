@@ -1,3 +1,5 @@
+import { stagePalette } from "../../domain/stage-colors";
+let catalogEpoch = 0;
 import type { Role } from "../../domain/access";
 export const stages = [
   "Nuevo",
@@ -149,6 +151,8 @@ export function seedConversations(count = 2000): readonly Conversation[] {
 export interface ConversationRepository {
   stageOptions?(): readonly string[];
   stageIdentity?(name: string): string | null;
+  stageColor?(name: string): string;
+  subscribeCatalog?(listener: () => void): () => void;
   list(actor: Actor): readonly Conversation[];
   get(actor: Actor, id: string): Conversation;
   archive(actor: Actor, ids: readonly string[]): void;
@@ -168,6 +172,37 @@ export class DemoConversationRepository implements ConversationRepository {
   private sequence = 0;
   private stageNames = new Set<string>(stages);
   private stageSequence = stages.length;
+  private readonly stageEpoch = `${Date.now().toString(36)}-${(++catalogEpoch).toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+  private catalogListeners = new Set<() => void>();
+  private stageColors = new Map<string, string>(
+    stages.map((s, i) => [s, stagePalette[i]!]),
+  );
+  stageColor = (name: string) => this.stageColors.get(name) ?? stagePalette[0];
+  subscribeCatalog = (f: () => void) => {
+    this.catalogListeners.add(f);
+    return () => {
+      this.catalogListeners.delete(f);
+    };
+  };
+  private catalogChanged() {
+    this.catalogListeners.forEach((f) => {
+      try {
+        f();
+      } catch {
+        /* Observer failure cannot interrupt catalog changes. */
+      }
+    });
+  }
+  setStageColor(actor: Actor, name: string, color: string) {
+    if (
+      actor.role === "advisor" ||
+      !this.stageNames.has(name) ||
+      !(stagePalette as readonly string[]).includes(color)
+    )
+      throw Error("Color de etapa no válido.");
+    this.stageColors.set(name, color);
+    this.catalogChanged();
+  }
   private stageIds = new Map<string, string>(
     stages.map((s, i) => [s, `demo-stage-${i + 1}`]),
   );
@@ -184,10 +219,15 @@ export class DemoConversationRepository implements ConversationRepository {
     this.stageIds = new Map(
       names.map((name) => [
         name,
-        this.stageIds.get(name) ?? `demo-stage-${++this.stageSequence}`,
+        this.stageIds.get(name) ??
+          `demo-stage-local-${this.stageEpoch}-${++this.stageSequence}`,
       ]),
     );
+    this.stageColors = new Map(
+      names.map((name) => [name, this.stageColor(name)]),
+    );
     this.stageNames = new Set(names);
+    this.catalogChanged();
   }
   editIdentity(actor: Actor, id: string, name: string, phone: string) {
     this.get(actor, id);

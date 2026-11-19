@@ -261,7 +261,7 @@ export function validateStudio(d: StudioDoc) {
   for (const [key, id] of Object.entries(d.assignments)) {
     const a = d.agents.find((a) => a.id === id);
     if (
-      !/^demo-stage-\d+$/.test(key) ||
+      !/^demo-stage-(\d+|local-[a-z0-9-]{8,80})$/.test(key) ||
       !a ||
       a.general ||
       a.archived ||

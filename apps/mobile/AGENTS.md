@@ -64,3 +64,6 @@ El propietario pidió detenerse por cuota: cerrar comprobaciones, commit/bundle 
 
 ## Reanudación autorizada · Lote 07
 El propietario avisó «listo, retoma donde te quedaste»: sustituye la pausa anterior y permite continuar el plan autónomo seguro. LAB-05/06/06C/07 verificados, 90/158 IDs, 68 pendientes, 315 tests. Ver docs/refinement-b/LOTE-07-VERSIONES.md. No activar publicaciones/IA reales. Siguiente LAB-20/21, después LAB-30/31 y dependencias. Mantener B, backend, APK, firma y límites de almacenamiento/servicios.
+
+## Lote 08 · Asignaciones
+LAB-20/21 implementados desde 407f954: 92/158 IDs, 66 pendientes, 327 tests. docs/refinement-b/LOTE-08-ASIGNACIONES.md. Pipeline comparte identidades, orden y colores; etapas personalizadas conservan el límite de sesión y no reviven asignaciones de otra instancia. Cambios de catálogo tienen suscripción propia. Siguiente LAB-30/31 y su destino funcional del asistente; no IA real ni créditos. Mantener B, backend/firmas/APK, no Gradle ni push.

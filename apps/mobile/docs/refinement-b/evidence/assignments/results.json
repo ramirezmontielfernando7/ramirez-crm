@@ -1,0 +1,18 @@
+{
+  "ids": [
+    "LAB-20",
+    "LAB-21"
+  ],
+  "checks": [
+    "2 assignment IDs captured both themes/sizes; draft/general excluded from eligible choices",
+    "Replacement confirm/cancel; failed save retains previous binding and retry works",
+    "Actual Pipeline model additions/colors appear in Studio; assignment uses same catalog identity",
+    "Delete/recreate same-name stage never reuses old agent binding"
+  ],
+  "actualCaptures": 14,
+  "officialReferences": 4,
+  "errors": [],
+  "networkRequests": 0,
+  "httpServerStarted": false,
+  "native": false
+}
