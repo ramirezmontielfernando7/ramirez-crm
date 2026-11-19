@@ -45,25 +45,25 @@ NUM-01,Mi número · lista,T-M6,Pendiente,Pendiente
 NUM-02,Mi número · chat,T-M6,Pendiente,Pendiente
 NUM-03,Mi número · opciones del chat,T-M6,Pendiente,Pendiente
 NUM-04,Nuevo chat desde Mi número,T-M6,Pendiente,Pendiente
-CRM-01,Pipeline,T-M7,Implementada simulada · componentes web offline,Pendiente integración Expo/nativo; docs/offline-integral
-CRM-02,Detalle del trato,T-M7,Implementada simulada · componentes web offline,Pendiente integración Expo/nativo; docs/offline-integral
-CRM-03,Mover a otra etapa,T-M7,Implementada simulada · componentes web offline,Pendiente integración Expo/nativo; docs/offline-integral
-CRM-04,Editar monto,T-M7,Implementada simulada · componentes web offline,Pendiente integración Expo/nativo; docs/offline-integral
-CRM-05,Motivo de pérdida (trato),T-M7,Implementada simulada · componentes web offline,Pendiente integración Expo/nativo; docs/offline-integral
-CRM-06,Nuevo lead,T-M7,Implementada simulada · componentes web offline,Pendiente integración Expo/nativo; docs/offline-integral
-CRM-08,Buscar lead,T-M7,Implementada simulada · componentes web offline,Pendiente integración Expo/nativo; docs/offline-integral
-CRM-09,Menú ⋮ del Pipeline,T-M7,Implementada simulada · componentes web offline,Pendiente integración Expo/nativo; docs/offline-integral
-CRM-07,Gestionar etapas,T-M7,Implementada simulada · componentes web offline,Pendiente integración Expo/nativo; docs/offline-integral
-CRM-07C,Color de la etapa,T-M7,Implementada simulada · componentes web offline,Pendiente integración Expo/nativo; docs/offline-integral
-CRM-07D,Eliminar etapa,T-M7,Implementada simulada · componentes web offline,Pendiente integración Expo/nativo; docs/offline-integral
-CRM-10,Contactos,T-M7,Implementada simulada · componentes web offline,Pendiente integración Expo/nativo; docs/offline-integral
-CRM-11,Ficha del contacto,T-M7,Implementada simulada · componentes web offline,Pendiente integración Expo/nativo; docs/offline-integral
-CRM-12,Nuevo contacto / editar,T-M7,Implementada simulada · componentes web offline,Pendiente integración Expo/nativo; docs/offline-integral
-CRM-13,Menú ⋮ del contacto,T-M7,Implementada simulada · componentes web offline,Pendiente integración Expo/nativo; docs/offline-integral
-CRM-14,Filtros de contactos,T-M7,Implementada simulada · componentes web offline,Pendiente integración Expo/nativo; docs/offline-integral
-CRM-15,Acciones con seleccionados,T-M7,Implementada simulada · componentes web offline,Pendiente integración Expo/nativo; docs/offline-integral
-CRM-16,Menú ⋮ de Contactos,T-M7,Implementada simulada · componentes web offline,Pendiente integración Expo/nativo; docs/offline-integral
-CRM-17,Importar contactos,T-M7,Implementada simulada · componentes web offline,Pendiente integración Expo/nativo; docs/offline-integral
+CRM-01,Pipeline,T-M7,Implementada simulada · QA módulo integrado RN Web,Pendiente nativo; docs/refinement-b
+CRM-02,Detalle del trato,T-M7,Implementada simulada · QA módulo integrado RN Web,Pendiente nativo; docs/refinement-b
+CRM-03,Mover a otra etapa,T-M7,Implementada simulada · QA módulo integrado RN Web,Pendiente nativo; docs/refinement-b
+CRM-04,Editar monto,T-M7,Implementada simulada · QA módulo integrado RN Web,Pendiente nativo; docs/refinement-b
+CRM-05,Motivo de pérdida (trato),T-M7,Implementada simulada · QA módulo integrado RN Web,Pendiente nativo; docs/refinement-b
+CRM-06,Nuevo lead,T-M7,Implementada simulada · QA módulo integrado RN Web,Pendiente nativo; docs/refinement-b
+CRM-08,Buscar lead,T-M7,Implementada simulada · QA módulo integrado RN Web,Pendiente nativo; docs/refinement-b
+CRM-09,Menú ⋮ del Pipeline,T-M7,Implementada simulada · QA módulo integrado RN Web,Pendiente nativo; docs/refinement-b
+CRM-07,Gestionar etapas,T-M7,Implementada simulada · QA módulo integrado RN Web,Pendiente nativo; docs/refinement-b
+CRM-07C,Color de la etapa,T-M7,Implementada simulada · QA módulo integrado RN Web,Pendiente nativo; docs/refinement-b
+CRM-07D,Eliminar etapa,T-M7,Implementada simulada · QA módulo integrado RN Web,Pendiente nativo; docs/refinement-b
+CRM-10,Contactos,T-M7,Implementada simulada · QA módulo integrado RN Web,Pendiente nativo; docs/refinement-b
+CRM-11,Ficha del contacto,T-M7,Implementada simulada · QA módulo integrado RN Web,Pendiente nativo; docs/refinement-b
+CRM-12,Nuevo contacto / editar,T-M7,Implementada simulada · QA módulo integrado RN Web,Pendiente nativo; docs/refinement-b
+CRM-13,Menú ⋮ del contacto,T-M7,Implementada simulada · QA módulo integrado RN Web,Pendiente nativo; docs/refinement-b
+CRM-14,Filtros de contactos,T-M7,Implementada simulada · QA módulo integrado RN Web,Pendiente nativo; docs/refinement-b
+CRM-15,Acciones con seleccionados,T-M7,Implementada simulada · QA módulo integrado RN Web,Pendiente nativo; docs/refinement-b
+CRM-16,Menú ⋮ de Contactos,T-M7,Implementada simulada · QA módulo integrado RN Web,Pendiente nativo; docs/refinement-b
+CRM-17,Importar contactos,T-M7,Implementada simulada · QA módulo integrado RN Web,Pendiente nativo; docs/refinement-b
 CRM-20,Agenda · día,T-M9,Pendiente,Pendiente
 CRM-21,Detalle de la cita,T-M9,Pendiente,Pendiente
 CRM-22,Bloquear horario,T-M9,Pendiente,Pendiente

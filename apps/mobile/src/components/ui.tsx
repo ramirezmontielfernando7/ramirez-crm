@@ -28,6 +28,7 @@ import {
 } from "lucide-react-native";
 import { useTheme } from "../theme/ThemeProvider";
 import { typography } from "../theme/tokens";
+import { refinementB } from "../theme/refinement-b";
 export function Text({
   kind = "body",
   weight = "regular",
@@ -59,11 +60,13 @@ export function IconButton({
   label,
   onPress,
   disabled,
+  refinement,
 }: {
   icon: LucideIcon;
   label: string;
   onPress: () => void;
   disabled?: boolean;
+  refinement?: "b";
 }) {
   const { colors } = useTheme();
   return (
@@ -80,7 +83,11 @@ export function IconButton({
         opacity: disabled ? 0.4 : pressed ? 0.6 : 1,
       })}
     >
-      <Icon size={22} strokeWidth={1.8} color={colors.accentInk} />
+      <Icon
+        size={refinement === "b" ? refinementB.iconSize : 22}
+        strokeWidth={1.8}
+        color={colors.accentInk}
+      />
     </Pressable>
   );
 }
@@ -198,11 +205,13 @@ export function AppBar({
   onBack,
   module,
   actions,
+  refinement,
 }: {
   title: string;
   onBack?: () => void;
   module?: boolean;
   actions?: React.ReactNode;
+  refinement?: "b";
 }) {
   const { colors } = useTheme();
   return (
@@ -214,15 +223,30 @@ export function AppBar({
         alignItems: "center",
       }}
     >
-      {onBack && <IconButton icon={ArrowLeft} label="Atrás" onPress={onBack} />}
+      {onBack && (
+        <IconButton
+          icon={ArrowLeft}
+          label="Atrás"
+          onPress={onBack}
+          refinement={refinement}
+        />
+      )}
       <Text
         accessibilityRole="header"
         kind={module ? "module" : "title"}
-        weight="semibold"
+        weight={
+          module && refinement === "b" ? refinementB.titleWeight : "semibold"
+        }
         style={{
           flex: 1,
           paddingVertical: 8,
           color: module ? colors.accentInk : colors.text,
+          ...(module && refinement === "b"
+            ? {
+                fontSize: refinementB.titleSize,
+                lineHeight: refinementB.titleLine,
+              }
+            : {}),
         }}
       >
         {title}
@@ -536,10 +560,12 @@ export function SegmentedControl({
   options,
   value,
   onChange,
+  refinement,
 }: {
   options: readonly { key: string; label: string }[];
   value: string;
   onChange: (key: string) => void;
+  refinement?: "b";
 }) {
   const { colors: c } = useTheme();
   return (
@@ -548,8 +574,8 @@ export function SegmentedControl({
       style={{
         flexDirection: "row",
         backgroundColor: c.base,
-        borderRadius: 12,
-        padding: 4,
+        borderRadius: refinement === "b" ? refinementB.trackRadius : 12,
+        padding: refinement === "b" ? refinementB.trackPadding : 4,
       }}
     >
       {options.map((option) => (
@@ -562,7 +588,7 @@ export function SegmentedControl({
           style={{
             flex: 1,
             minHeight: 48,
-            borderRadius: 10,
+            borderRadius: refinement === "b" ? refinementB.itemRadius : 10,
             paddingHorizontal: 4,
             paddingVertical: 8,
             alignItems: "center",
@@ -575,6 +601,9 @@ export function SegmentedControl({
             weight="medium"
             style={{
               textAlign: "center",
+              ...(refinement === "b"
+                ? { fontSize: refinementB.labelSize }
+                : {}),
               color: value === option.key ? c.accentInk : c.text3,
             }}
           >
@@ -590,18 +619,22 @@ export function FilterChips({
   value,
   onChange,
   counts,
+  refinement,
 }: {
   options: readonly string[];
   value: string;
   counts?: Record<string, number>;
   onChange: (value: string) => void;
+  refinement?: "b";
 }) {
   const { colors: c } = useTheme();
   return (
     <ScrollView
       horizontal
       showsHorizontalScrollIndicator={false}
-      contentContainerStyle={{ gap: 8 }}
+      contentContainerStyle={{
+        gap: refinement === "b" ? refinementB.chipGap : 8,
+      }}
     >
       {options.map((label) => (
         <Pressable
@@ -615,8 +648,9 @@ export function FilterChips({
         >
           <View
             style={{
-              minHeight: 36,
-              paddingHorizontal: 14,
+              minHeight: refinement === "b" ? refinementB.chipHeight : 36,
+              paddingHorizontal:
+                refinement === "b" ? refinementB.chipPadding : 14,
               borderRadius: 999,
               borderWidth: 1,
               borderColor: c.border,

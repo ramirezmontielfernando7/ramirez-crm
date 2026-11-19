@@ -1,0 +1,20 @@
+/** Approved original lab B. Scoped component values, never a global palette/type reset. */
+export const refinementB = {
+  titleSize: 24,
+  titleLine: 30,
+  titleWeight: "medium",
+  headerHeight: 52,
+  iconSize: 21,
+  iconStroke: 1.8,
+  trackRadius: 26,
+  trackPadding: 2,
+  itemRadius: 24,
+  itemHeight: 48,
+  labelSize: 13.5,
+  chipHeight: 32,
+  chipPadding: 12,
+  chipGap: 6,
+  chipSize: 12.5,
+  nameSize: 15.5,
+  secondarySize: 13.5,
+} as const;

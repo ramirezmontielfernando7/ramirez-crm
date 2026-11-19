@@ -23,19 +23,15 @@ import {
 } from "lucide-react-native";
 import { Screen } from "../../components/Screen";
 import {
-  AppBar,
   Avatar,
   Banner,
   Button,
   EmptyState,
   ErrorState,
   Field,
-  FilterChips,
-  IconButton,
   NavRow,
   SearchBox,
   Section,
-  SegmentedControl,
   Skeleton,
   StageCapsule,
   TagCapsule,
@@ -53,6 +49,13 @@ import {
   type Filters,
 } from "./model";
 import { useInbox, useInboxState, type DataState } from "./store";
+import {
+  AppBar,
+  IconButton,
+  FilterChips,
+  SegmentedControl,
+} from "../../components/ModuleUi";
+import { refinementB } from "../../theme/refinement-b";
 const go = (id: string) => router.push(`/conversation/${id}`);
 const ConversationRow = memo(function ConversationRow({
   item,
@@ -132,7 +135,7 @@ const ConversationRow = memo(function ConversationRow({
             kind="name"
             weight="medium"
             numberOfLines={1}
-            style={{ flex: 1 }}
+            style={{ flex: 1, fontSize: refinementB.nameSize }}
           >
             {item.name}
           </Text>
@@ -148,7 +151,11 @@ const ConversationRow = memo(function ConversationRow({
           <Text
             kind="secondary"
             numberOfLines={1}
-            style={{ flex: 1, color: c.text3 }}
+            style={{
+              flex: 1,
+              color: c.text3,
+              fontSize: refinementB.secondarySize,
+            }}
           >
             {item.campaign ? "Plantilla enviada · sin respuesta" : item.preview}
           </Text>

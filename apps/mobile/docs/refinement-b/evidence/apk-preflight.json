@@ -1,0 +1,13 @@
+{
+  "freeDiskBytes": 166322176,
+  "recommendedFreeDiskBytes": 16106127360,
+  "platform37Present": true,
+  "buildTools37Present": true,
+  "java": "openjdk version \"21.0.13\" 2026-10-20",
+  "experimentalKeyExists": true,
+  "experimentalCertificateSha256": "0f5d018522f61cf6098871916d2c3cba8e0c6659427a7349c41f0225a983db1b",
+  "sameCertificateAs012": true,
+  "gradleStarted": false,
+  "apkGenerated": false,
+  "reason": "Insufficient local disk for a new isolated Gradle build. Keep all old APKs/source/builds unchanged; no deletion or remote build."
+}

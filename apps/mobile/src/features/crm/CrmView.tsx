@@ -21,7 +21,6 @@ import {
   Trash2,
 } from "lucide-react-native";
 import {
-  AppBar,
   Avatar,
   Button,
   Card,
@@ -30,10 +29,7 @@ import {
   Skeleton,
   Banner,
   Field,
-  FilterChips,
-  IconButton,
   Section,
-  SegmentedControl,
   StageCapsule,
   TagCapsule,
   Text,
@@ -48,6 +44,13 @@ export type CrmNavigation = {
   onTask: (id: string) => void;
   onHistory: (id: string) => void;
 };
+import {
+  AppBar,
+  IconButton,
+  FilterChips,
+  SegmentedControl,
+} from "../../components/ModuleUi";
+import { refinementB } from "../../theme/refinement-b";
 const fmt = (n: number) =>
   "$" + n.toLocaleString("es-MX", { maximumFractionDigits: 2 });
 const ContactRow = memo(function ContactRow({
@@ -88,13 +91,16 @@ const ContactRow = memo(function ContactRow({
             weight="medium"
             kind="name"
             numberOfLines={1}
-            style={{ flex: 1 }}
+            style={{ flex: 1, fontSize: refinementB.nameSize }}
           >
             {item.name}
           </Text>
           {item.consent === "Baja" && <TagCapsule danger>Baja</TagCapsule>}
         </View>
-        <Text kind="secondary" style={{ color: c.text3 }}>
+        <Text
+          kind="secondary"
+          style={{ color: c.text3, fontSize: refinementB.secondarySize }}
+        >
           {item.phone}
         </Text>
         <View style={{ flexDirection: "row", gap: 6 }}>
@@ -165,6 +171,7 @@ export function CrmView(props: CrmNavigation) {
             kind="secondary"
             weight="medium"
             style={{
+              fontSize: refinementB.secondarySize,
               color:
                 id === (isContact ? "CRM-10" : "CRM-01")
                   ? c.accentInk

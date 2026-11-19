@@ -22,13 +22,11 @@ import {
 } from "lucide-react-native";
 import { Screen } from "../../components/Screen";
 import {
-  AppBar,
   Avatar,
   Banner,
   Button,
   EmptyState,
   ErrorState,
-  IconButton,
   NavRow,
   Skeleton,
   Text,
@@ -53,6 +51,7 @@ import {
   TemplateSheet,
   useAction,
 } from "./Sheets";
+import { AppBar, IconButton } from "../../components/ModuleUi";
 const messageKey = (m: Message) => m.id;
 const messageType = (m: Message) => (m.attachment ? "media" : m.sender);
 const back = () =>

@@ -1,0 +1,64 @@
+[
+  {
+    "screen": "inbox",
+    "theme": "light",
+    "size": "390x844",
+    "identicalPixels": true
+  },
+  {
+    "screen": "inbox",
+    "theme": "light",
+    "size": "360x640",
+    "identicalPixels": true
+  },
+  {
+    "screen": "inbox",
+    "theme": "dark",
+    "size": "390x844",
+    "identicalPixels": true
+  },
+  {
+    "screen": "inbox",
+    "theme": "dark",
+    "size": "360x640",
+    "identicalPixels": true
+  },
+  {
+    "screen": "contacts",
+    "theme": "light",
+    "size": "390x844",
+    "differenceBounds": [
+      26,
+      62,
+      27,
+      63
+    ],
+    "note": "Contacts: <=4 antialiased edge pixels in the local selector; no geometry change."
+  },
+  {
+    "screen": "contacts",
+    "theme": "dark",
+    "size": "390x844",
+    "differenceBounds": [
+      24,
+      62,
+      27,
+      64
+    ],
+    "note": "Contacts: <=4 antialiased edge pixels in the local selector; no geometry change."
+  },
+  {
+    "screen": "crm",
+    "theme": "light",
+    "size": "390x844",
+    "differenceBounds": null,
+    "note": "Identical pixels."
+  },
+  {
+    "screen": "crm",
+    "theme": "dark",
+    "size": "390x844",
+    "differenceBounds": null,
+    "note": "Identical pixels."
+  }
+]
