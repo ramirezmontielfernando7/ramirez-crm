@@ -112,8 +112,8 @@ MKT-30,Métricas y costos,T-M11,Pendiente,Pendiente
 MORE-01,Más,T-M8,Pendiente,Pendiente
 MORE-08,Cerrar sesión,T-M1,Implementada con simulacion / QA navegador,Pendiente
 MORE-05,Avisos,T-M8,Pendiente,Pendiente
-RES-01,Resultados,T-M12,Pendiente,Pendiente
-RES-02,Periodo y asesor,T-M12,Pendiente,Pendiente
+RES-01,Resultados,T-M12,Implementada simulada · QA módulo integrado RN Web,Pendiente nativo; docs/refinement-b/LOTE-04-RESULTADOS.md
+RES-02,Periodo y asesor,T-M12,Implementada simulada · QA módulo integrado RN Web,Pendiente nativo; docs/refinement-b/LOTE-04-RESULTADOS.md
 AST-01,Asistente,T-M12,Pendiente,Pendiente
 AST-02,Conversaciones del asistente,T-M12,Pendiente,Pendiente
 AST-03,Modo y crédito,T-M12,Pendiente,Pendiente

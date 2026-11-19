@@ -111,6 +111,7 @@ function RootNavigator() {
           <Stack.Screen name="history/[id]" />
           <Stack.Screen name="agenda" />
           <Stack.Screen name="work" />
+          <Stack.Screen name="results" />
           <Stack.Screen name="library/[id]" />
         </Stack.Protected>
         <Stack.Screen name="demo" />

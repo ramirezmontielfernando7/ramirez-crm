@@ -195,6 +195,40 @@ export async function runWork(context, html, root, networkCount) {
     "Actual Contact TaskSheet → Work; deletion propagates back to contact",
   );
 
+  await p.evaluate(async () => {
+    for (let i = 0; i < 30; i++)
+      await window
+        .qaWork()
+        .saveTask({
+          title: "Scroll QA " + i,
+          notes: "",
+          due: Date.now() + 86400000,
+          assignee: "demo-owner",
+          contactId: null,
+        });
+  });
+  await p.getByTestId("work-task-list").evaluate((el) => {
+    el.scrollTop = 420;
+    el.dispatchEvent(new Event("scroll"));
+  });
+  await p.waitForTimeout(130);
+  const offset = await p
+    .getByTestId("work-task-list")
+    .evaluate((el) => el.scrollTop);
+  assert.ok(offset > 100);
+  await p.evaluate(() => window.qaNavigate("/results"));
+  await p.getByRole("heading", { name: "Resultados", exact: true }).waitFor();
+  await p.evaluate(() => window.qaGoBack());
+  await p.waitForTimeout(100);
+  assert.ok(
+    Math.abs(
+      (await p.getByTestId("work-task-list").evaluate((el) => el.scrollTop)) -
+        offset,
+    ) < 3,
+  );
+  checks.push(
+    "Actual Work scroll restored after navigating to Results and back",
+  );
   await mount("dark", "advisor");
   assert.equal(
     await p

@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { ChartColumn } from "lucide-react-native";
 import { View } from "react-native";
 import { router } from "expo-router";
 import {
@@ -123,6 +124,13 @@ export function ModuleScreen({
                   label="Tareas y notas"
                   onPress={() => router.push("/work")}
                 />
+                {session.role !== "advisor" && (
+                  <NavRow
+                    icon={ChartColumn}
+                    label="Resultados"
+                    onPress={() => router.push("/results")}
+                  />
+                )}
                 <NavRow
                   icon={FlaskConical}
                   label="Controles de la demo"

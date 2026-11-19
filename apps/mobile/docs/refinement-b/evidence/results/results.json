@@ -1,0 +1,21 @@
+{
+  "ids": [
+    "RES-01",
+    "RES-02"
+  ],
+  "checks": [
+    "2 IDs plus care/origin sections in both themes and sizes",
+    "More → Results; ranges recompute the ledger",
+    "Invalid dates retain sheet; custom range and active advisor apply coherently",
+    "Tab, advisor and period retained after navigating to Work and back",
+    "Actual web scroll restored independently on returning to Sales",
+    "Advisor route denied; coordinator access allowed",
+    "Loading, empty, offline, error and retry without losing query"
+  ],
+  "actualCaptures": 20,
+  "officialReferences": 4,
+  "errors": [],
+  "networkRequests": 0,
+  "native": false,
+  "httpServerStarted": false
+}

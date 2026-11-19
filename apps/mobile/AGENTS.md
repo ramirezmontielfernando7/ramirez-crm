@@ -51,3 +51,6 @@ Ver docs/refinement-b/LOTE-02-AGENDA.md. Agenda CRM-20…25 implementada; Biblio
 
 ## Lote 03 · Tareas/Notas
 CRM-30…33 implementadas en WorkRepository compartido con ContactDirectory y TaskSheet T-M4/CRM. Ver docs/refinement-b/LOTE-03-TAREAS-NOTAS.md. 74/158 IDs, 84 pendientes, 254 pruebas. Conserva formato local anterior sin sobrescribirlo, aislamiento por actor/org, idempotencia y conflictos. Siguiente lote seguro: Resultados RES-01/RES-02, sin Meta/servicios reales. B, backend 562a8b3 y APK/firmas intactos. Sin Gradle con espacio insuficiente.
+
+## Lote 04 · Resultados
+RES-01/02 implementadas con hechos históricos ficticios, cálculos y filtros; docs/refinement-b/LOTE-04-RESULTADOS.md. 76/158 IDs, 82 pendientes, 266 pruebas. Scroll real de Work/Results comprobado en RN Web. Siguiente dependencia segura: Conocimiento LAB-10…12, compartiendo Biblioteca, sin RAG/indexación/agentes reales. Mantener límites, B y backend intactos.

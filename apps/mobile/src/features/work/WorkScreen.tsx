@@ -61,6 +61,7 @@ function WorkView() {
     adding = useRef(false),
     list = useRef<FlatList<WorkTask>>(null),
     offset = useRef(saved?.offset ?? 0),
+    restoring = useRef(true),
     s = useSyncExternalStore(repo.subscribe, repo.snapshot, repo.snapshot),
     inbox = useInboxState(),
     inboxStore = useInbox(),
@@ -79,10 +80,27 @@ function WorkView() {
   useEffect(() => {
     views.set(repo, { tab, all, text, offset: offset.current });
   }, [repo, tab, all, text]);
-  useLayoutEffect(() => {
-    if (s.ready && tab === "tasks")
+  const restoreScroll = useCallback(() => {
+    if (restoring.current)
       list.current?.scrollToOffset({ offset: offset.current, animated: false });
-  }, [s.ready, tab]);
+  }, []);
+  useLayoutEffect(() => {
+    if (!s.ready || tab !== "tasks") return;
+    restoring.current = true;
+    let second: number | undefined;
+    const first = requestAnimationFrame(() => {
+      restoreScroll();
+      second = requestAnimationFrame(() => {
+        restoreScroll();
+        restoring.current = false;
+      });
+    });
+    return () => {
+      restoring.current = true;
+      cancelAnimationFrame(first);
+      if (second !== undefined) cancelAnimationFrame(second);
+    };
+  }, [s.ready, tab, restoreScroll]);
   const openTask = useCallback(
     (t: WorkTask) =>
       open({
@@ -181,7 +199,10 @@ function WorkView() {
           )}
           <FlatList
             ref={list}
+            contentOffset={{ x: 0, y: offset.current }}
+            onContentSizeChange={restoreScroll}
             onScroll={(e) => {
+              if (restoring.current) return;
               offset.current = e.nativeEvent.contentOffset.y;
               const state = views.get(repo);
               if (state) state.offset = offset.current;
@@ -190,7 +211,7 @@ function WorkView() {
             testID="work-task-list"
             data={status === "empty" ? [] : tasks}
             keyExtractor={(t) => t.id}
-            initialNumToRender={12}
+            initialNumToRender={offset.current > 0 ? 32 : 12}
             windowSize={7}
             keyboardShouldPersistTaps="handled"
             contentContainerStyle={{ paddingBottom: 32 }}
