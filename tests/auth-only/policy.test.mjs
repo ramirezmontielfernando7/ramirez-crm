@@ -249,3 +249,29 @@ test("Node preparation exports a factory without listening or invoking it", () =
   assert.ok(!/\.listen\s*\(/.test(text));
   assert.ok(!text.includes("prepareNodeServer();"));
 });
+test("test markers fail closed in full boot guard, including invalid profile and migration-only DSN", async () => {
+  const { assertFullRuntimeAllowed } =
+    await import("../../scripts/isolation-guard.mjs");
+  assert.doesNotThrow(() => assertFullRuntimeAllowed({}));
+  for (const environment of [
+    { DASHFORT_PROFILE: "typo" },
+    { DASHFORT_TEST_INSTANCE: "" },
+    { DATABASE_URL_MIGRATE: env().DATABASE_URL },
+    { DATABASE_URL_SYSTEM: env().DATABASE_URL_SYSTEM },
+    { APP_BASE_URL: env().APP_BASE_URL },
+  ])
+    assert.throws(() => assertFullRuntimeAllowed(environment));
+});
+test("guard precedes operational imports in Next and DSN/client creation in original migrator", () => {
+  const root = new URL("../../", import.meta.url),
+    instrument = readFileSync(new URL("src/instrumentation.ts", root), "utf8"),
+    migration = readFileSync(new URL("scripts/migrate.mjs", root), "utf8");
+  assert.ok(
+    instrument.indexOf("assertFullRuntimeAllowed(process.env)") <
+      instrument.indexOf('import("./instrumentation-node")'),
+  );
+  assert.ok(
+    migration.indexOf("assertFullRuntimeAllowed(process.env)") <
+      migration.indexOf("const url ="),
+  );
+});

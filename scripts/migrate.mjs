@@ -1,3 +1,5 @@
+import { assertFullRuntimeAllowed } from "./isolation-guard.mjs";
+assertFullRuntimeAllowed(process.env);
 /**
  * Migraciones al ARRANQUE del contenedor (no en pre-deploy: el pre-deploy de
  * plataformas como Coolify corre en el contenedor viejo). Se bundlea con

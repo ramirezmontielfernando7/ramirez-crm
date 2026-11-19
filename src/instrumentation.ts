@@ -5,6 +5,8 @@
  */
 export async function register(): Promise<void> {
   if (process.env.NEXT_RUNTIME === "nodejs") {
+    const { assertFullRuntimeAllowed } = await import("../scripts/isolation-guard.mjs");
+    assertFullRuntimeAllowed(process.env);
     const {
       checkMediaDir,
       cleanupOrphanRuns,
