@@ -1,3 +1,4 @@
+import { AssistantLimit } from "../usage/UsageScreens";
 import React, { useState, useEffect, useRef } from "react";
 import { View, ScrollView, Pressable } from "react-native";
 import { router } from "expo-router";
@@ -59,6 +60,8 @@ function AssistantEntry() {
     ) : (
       <Skeleton rows={3} />
     );
+  if (store.usageStats().assistantBlocked)
+    return <AssistantLimit store={store} />;
   return <AssistantView key={store.activeAssistant().id} />;
 }
 const inputDrafts = new WeakMap<StudioStore, Map<string, string>>();
@@ -401,6 +404,7 @@ export function AssistantMode({ store }: { store: StudioStore }) {
   const action = useStudioAction(),
     { close } = useLayers(),
     { colors: c } = useTheme(),
+    usage = store.usageStats(),
     mode = store.assistantData().mode;
   return (
     <>
@@ -425,13 +429,15 @@ export function AssistantMode({ store }: { store: StudioStore }) {
         <View
           style={{
             height: 6,
-            width: "34%",
+            width: `${Math.min(100, usage.assistantPercent)}%`,
             borderRadius: 4,
             backgroundColor: c.accent,
           }}
         />
       </View>
-      <Text kind="meta">34 % usado este mes · dato de demostración</Text>
+      <Text kind="meta">
+        {usage.assistantPercent} % usado este mes · dato de demostración
+      </Text>
       <Section>Avance</Section>
       <Text kind="secondary">
         Simulación local: ninguna consulta consume IA ni crédito real.

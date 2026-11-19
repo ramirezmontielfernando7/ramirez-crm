@@ -115,6 +115,9 @@ function RootNavigator() {
           <Stack.Screen name="studio-create" />
           <Stack.Screen name="studio-evaluation/[id]" />
           <Stack.Screen name="assistant" />
+          <Stack.Screen name="usage" />
+          <Stack.Screen name="plans" />
+          <Stack.Screen name="demo-usage" />
           <Stack.Screen name="studio-agent/[id]" />
           <Stack.Screen name="library/[id]" />
         </Stack.Protected>

@@ -117,11 +117,11 @@ RES-02,Periodo y asesor,T-M12,Implementada simulada · QA módulo integrado RN W
 AST-01,Asistente,T-M12,Implementada simulada · QA módulo integrado RN Web,Pendiente nativo; docs/refinement-b/LOTE-09-EVALUACIONES-ASISTENTE.md
 AST-02,Conversaciones del asistente,T-M12,Implementada simulada · QA módulo integrado RN Web,Pendiente nativo; docs/refinement-b/LOTE-09-EVALUACIONES-ASISTENTE.md
 AST-03,Modo y crédito,T-M12,Implementada simulada · QA módulo integrado RN Web,Pendiente nativo; docs/refinement-b/LOTE-09-EVALUACIONES-ASISTENTE.md
-AST-04,Asistente · sin crédito,T-M12,Pendiente,Pendiente
-MORE-06,Uso y plan,T-M12,Pendiente,Pendiente
-MORE-07,Mejora tu plan,T-M12,Pendiente,Pendiente
-MORE-09,Solicitar cambio de plan,T-M12,Pendiente,Pendiente
-MORE-10,Aviso «a este ritmo»,T-M12,Pendiente,Pendiente
+AST-04,Asistente · sin crédito,T-M12,Implementada con simulacion B / QA RN Web (lote 10),Pendiente
+MORE-06,Uso y plan,T-M12,Implementada con simulacion B / QA RN Web (lote 10),Pendiente
+MORE-07,Mejora tu plan,T-M12,Implementada con simulacion B / QA RN Web (lote 10),Pendiente
+MORE-09,Solicitar cambio de plan,T-M12,Implementada con simulacion B / QA RN Web (lote 10),Pendiente
+MORE-10,Aviso «a este ritmo»,T-M12,Implementada con simulacion B / QA RN Web (lote 10),Pendiente
 SET-01,Ajustes,T-M8,Pendiente,Pendiente
 SET-02,Canales y conexiones,T-M8,Pendiente,Pendiente
 SET-02A,Conectar con Facebook,T-M8,Pendiente,Pendiente

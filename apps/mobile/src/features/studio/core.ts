@@ -1,4 +1,13 @@
 import {
+  demoPlans,
+  usageFixture,
+  usageSummary,
+  shouldUsagePrompt,
+  type UsageScenario,
+  type PlanId,
+} from "./usage-model";
+import { team } from "../contact/model";
+import {
   emptyAssistant,
   type AssistantData,
   type AssistantTurn,
@@ -601,6 +610,125 @@ export class StudioStore {
       this.notify("");
     });
   }
+  usageData() {
+    const previous = this.doc().usage,
+      current = usageFixture(this.now());
+    if (!previous) return current;
+    if (previous.period === current.period) return previous;
+    return {
+      ...current,
+      lastPromptAt: previous.lastPromptAt,
+      snoozeUntil: previous.snoozeUntil,
+      requests: previous.requests,
+    };
+  }
+  usageStats() {
+    const data = this.usageData(),
+      summary = usageSummary(data, this.now()),
+      entries = this.library.snapshot().entries;
+    let bytes = 0;
+    for (const e of entries) {
+      if (e.file) bytes += e.file.bytes;
+      else
+        for (const ch of e.content) {
+          const n = ch.codePointAt(0)!;
+          bytes += n < 128 ? 1 : n < 2048 ? 2 : n < 65536 ? 3 : 4;
+        }
+    }
+    return {
+      ...summary,
+      data,
+      agentUsage: ["demo-agent-a1", "demo-agent-a2"].map((id, i) => ({
+        id,
+        name:
+          this.doc().agents.find((a) => a.id === id)?.name ??
+          "Agente histórico",
+        used:
+          i === 0
+            ? Math.round((data.used.agents * 10) / 13)
+            : data.used.agents - Math.round((data.used.agents * 10) / 13),
+      })),
+      storageBytes: bytes,
+      storageLimit: 5_000_000_000,
+      people: team.length,
+      peopleLimit: 5,
+      documents: entries.filter((e) => e.rag).length,
+      documentLimit: 100,
+    };
+  }
+  usageScenario(scenario: UsageScenario, key = studioKey()) {
+    return this.change(key, ["usage-scenario", scenario], (d) => {
+      if (
+        ![
+          "normal",
+          "warning",
+          "assistant-blocked",
+          "organization-blocked",
+          "no-assistant-limit",
+        ].includes(scenario)
+      )
+        throw Error("Escenario de demostración no válido.");
+      return {
+        doc: {
+          ...d,
+          usage: {
+            ...usageFixture(this.now(), scenario),
+            requests: this.usageData().requests,
+          },
+        },
+      };
+    });
+  }
+  requestPlan(plan: PlanId, key = studioKey()) {
+    return this.change(key, ["plan-request", plan], (d) => {
+      const data = this.usageData();
+      if (!demoPlans.some((p) => p.id === plan))
+        throw Error("Plan ficticio no disponible.");
+      if (data.plan === plan)
+        throw Error("Este ya es tu plan de demostración.");
+      const existing = data.requests.find((r) => r.plan === plan);
+      if (existing) return { doc: d, result: existing.id };
+      if (data.requests.length >= 64)
+        throw Error("Se alcanzó el límite de solicitudes de demostración.");
+      const id = `demo-plan-request-${d.sequence}`;
+      return {
+        doc: {
+          ...d,
+          usage: {
+            ...data,
+            requests: [
+              ...data.requests,
+              { id, plan, at: this.now(), status: "pending-local" },
+            ],
+          },
+        },
+        result: id,
+      };
+    });
+  }
+  usageShouldPrompt() {
+    return shouldUsagePrompt(this.usageData(), this.now());
+  }
+  usageClaimPrompt() {
+    const now = this.now(),
+      key = studioKey();
+    return this.change(key, ["claim-usage-prompt"], (d) => {
+      const data = this.usageData();
+      if (!shouldUsagePrompt(data, now)) return { doc: d };
+      return {
+        doc: { ...d, usage: { ...data, lastPromptAt: now, snoozeUntil: 0 } },
+        result: "show",
+      };
+    });
+  }
+  usageSnooze(key = studioKey()) {
+    return this.change(key, ["snooze-usage"], (d) => ({
+      doc: {
+        ...d,
+        usage: { ...this.usageData(), snoozeUntil: this.now() + 3 * 86400000 },
+      },
+    }));
+  }
   assistantData() {
     return this.doc().assistant ?? emptyAssistant;
   }
@@ -732,6 +860,8 @@ export class StudioStore {
     return this.change(key, ["ask", q], (d) => {
       if (!q || q.length > 2000)
         throw Error("Escribe una consulta de hasta 2000 caracteres.");
+      if (this.usageStats().assistantBlocked)
+        throw Error("El asistente alcanzó su tope de demostración.");
       const data = this.assistantData(),
         thread = this.activeAssistant(),
         norm = normalize(q);
@@ -897,7 +1027,7 @@ export class StudioStore {
       a,
       a.versions.at(-1)!.config,
       text,
-      d.globalPaused || a.paused,
+      d.globalPaused || a.paused || this.usageStats().organizationBlocked,
     );
   }
   run(

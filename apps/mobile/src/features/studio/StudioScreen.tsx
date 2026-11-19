@@ -228,6 +228,7 @@ function AgentsList({ store }: { store: StudioStore }) {
     doc = store.doc(),
     { colors: c } = useTheme(),
     action = useStudioAction(),
+    usage = store.usageStats(),
     summary = useMemo(
       () => new ResultsStore(store.library.actor).summary(),
       [store],
@@ -289,7 +290,7 @@ function AgentsList({ store }: { store: StudioStore }) {
                   `${Math.round(((summary.ai - summary.handoffs) / summary.ai) * 100)} %`,
                 ],
                 ["Pasados a una persona", String(summary.handoffs)],
-                ["IA usada este mes", "42 %"],
+                ["IA usada este mes", `${usage.aiPercent} %`],
               ].map(([label, value]) => (
                 <Card
                   key={label}
@@ -319,7 +320,7 @@ function AgentsList({ store }: { store: StudioStore }) {
                       <View
                         style={{
                           height: 6,
-                          width: "42%",
+                          width: `${Math.min(100, usage.aiPercent)}%`,
                           backgroundColor: c.accent,
                           borderRadius: 4,
                         }}

@@ -1,3 +1,4 @@
+import { freezeUsage, validateUsage, type UsageData } from "./usage-model";
 import {
   freezeAssistant,
   validateAssistant,
@@ -71,6 +72,7 @@ export type EvaluationRun = Readonly<{
 export type StudioDoc = Readonly<{
   schema: 1;
   assistant?: AssistantData;
+  usage?: UsageData;
   revision: number;
   sequence: number;
   globalPaused: boolean;
@@ -102,6 +104,7 @@ export function freezeStudio(d: StudioDoc): StudioDoc {
   return Object.freeze({
     ...d,
     assistant: d.assistant ? freezeAssistant(d.assistant) : undefined,
+    usage: d.usage ? freezeUsage(d.usage) : undefined,
     agents: Object.freeze(
       d.agents.map((a) =>
         Object.isFrozen(a)
@@ -255,6 +258,7 @@ export function validateStudio(d: StudioDoc) {
   )
     throw Error("El documento local de Estudio no es válido.");
   if (d.assistant !== undefined) validateAssistant(d.assistant);
+  if (d.usage !== undefined) validateUsage(d.usage);
   for (const a of d.agents) {
     if (
       !a ||

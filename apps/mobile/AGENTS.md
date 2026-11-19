@@ -70,3 +70,6 @@ LAB-20/21 implementados desde 407f954: 92/158 IDs, 66 pendientes, 327 tests. doc
 
 ## Lote 09 · Evaluaciones y Asistente local
 LAB-30/31 y AST-01/02/03 verificados desde 56a98a1: 97/158 IDs, 61 pendientes, 351 tests. docs/refinement-b/LOTE-09-EVALUACIONES-ASISTENTE.md. Pruebas deterministas sin IA/crédito; repeticiones conservan original y snapshots. Asistente usa mismo documento local de Estudio, propone antes de aplicar etiquetas ficticias canónicas; no envía mensajes reales. Etiquetas del repositorio Inbox/CRM siguen siendo de sesión, no fingir durabilidad. AST-04 pendiente. Próximo: MORE-06/07/09/10 + AST-04, después MORE-05 y SET-14; todo ficticio, sin billing/servicios/infraestructura. B, APK/firma y backend intactos; sin Gradle con disco insuficiente ni push.
+
+## Lote 10 · Uso y plan
+MORE-06/07/09/10 y AST-04: 102/158 IDs, 56 pendientes, 369 pruebas. Ver docs/refinement-b/LOTE-10-USO-PLAN.md. Cuotas ficticias compartidas, solicitudes locales sin cambio de plan/cobros, aviso semanal con posposición y reclamo atómico. No cambiar B ni activar facturación/IA/HTTP. Próximo MORE-05 + SET-14. Backend 562a8b3 y APK/firma conservados, sin Gradle ni push.

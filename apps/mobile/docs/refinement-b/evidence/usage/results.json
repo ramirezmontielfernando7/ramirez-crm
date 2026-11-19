@@ -1,0 +1,22 @@
+{
+  "ids": [
+    "MORE-06",
+    "MORE-07",
+    "MORE-09",
+    "MORE-10",
+    "AST-04"
+  ],
+  "checks": [
+    "5 IDs captured in both themes and viewport sizes; warning, forecast snooze, catalog, cancel, assistant cap and plan navigation",
+    "Save failure preserves dialog and no request; retry and repeated submission save a single local request without changing Pro",
+    "Loading, empty, retry, offline, organization cap and missing assistant cap states",
+    "Usage, Plans and quota laboratory deny Coordinator and Advisor direct links",
+    "More entry opens internal usage screen without bottom tabs"
+  ],
+  "actualCaptures": 28,
+  "officialReferences": 10,
+  "errors": [],
+  "networkRequests": 0,
+  "httpServerStarted": false,
+  "native": false
+}

@@ -1,3 +1,5 @@
+import { Gauge } from "lucide-react-native";
+import { UsagePromptBridge } from "../features/usage/UsageScreens";
 import { Sparkles } from "lucide-react-native";
 import React, { useState } from "react";
 import { ChartColumn } from "lucide-react-native";
@@ -96,6 +98,7 @@ export function ModuleScreen({
             <Banner>Demo aislada · Solo datos ficticios · T-M1</Banner>
             {module === "more" ? (
               <>
+                {session.role === "owner" && <UsagePromptBridge />}
                 <Card>
                   <View
                     style={{
@@ -137,6 +140,13 @@ export function ModuleScreen({
                     icon={Sparkles}
                     label="Preguntar al asistente"
                     onPress={() => router.push("/assistant")}
+                  />
+                )}
+                {session.role === "owner" && (
+                  <NavRow
+                    icon={Gauge}
+                    label="Uso y plan"
+                    onPress={() => router.push("/usage")}
                   />
                 )}
                 <NavRow
