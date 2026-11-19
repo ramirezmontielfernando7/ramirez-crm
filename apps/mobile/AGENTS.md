@@ -67,3 +67,6 @@ El propietario avisó «listo, retoma donde te quedaste»: sustituye la pausa an
 
 ## Lote 08 · Asignaciones
 LAB-20/21 implementados desde 407f954: 92/158 IDs, 66 pendientes, 327 tests. docs/refinement-b/LOTE-08-ASIGNACIONES.md. Pipeline comparte identidades, orden y colores; etapas personalizadas conservan el límite de sesión y no reviven asignaciones de otra instancia. Cambios de catálogo tienen suscripción propia. Siguiente LAB-30/31 y su destino funcional del asistente; no IA real ni créditos. Mantener B, backend/firmas/APK, no Gradle ni push.
+
+## Lote 09 · Evaluaciones y Asistente local
+LAB-30/31 y AST-01/02/03 verificados desde 56a98a1: 97/158 IDs, 61 pendientes, 351 tests. docs/refinement-b/LOTE-09-EVALUACIONES-ASISTENTE.md. Pruebas deterministas sin IA/crédito; repeticiones conservan original y snapshots. Asistente usa mismo documento local de Estudio, propone antes de aplicar etiquetas ficticias canónicas; no envía mensajes reales. Etiquetas del repositorio Inbox/CRM siguen siendo de sesión, no fingir durabilidad. AST-04 pendiente. Próximo: MORE-06/07/09/10 + AST-04, después MORE-05 y SET-14; todo ficticio, sin billing/servicios/infraestructura. B, APK/firma y backend intactos; sin Gradle con disco insuficiente ni push.

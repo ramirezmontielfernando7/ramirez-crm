@@ -379,6 +379,7 @@ function CreatorView() {
     const value = message;
     void action.run(async () => {
       await store.creator(value, key.current);
+      if (creatorText.get(store) === value) creatorText.set(store, "");
       key.current = studioKey();
       setText((t) => (t === value ? "" : t));
       scroll.current?.scrollToEnd({ animated: false });

@@ -156,6 +156,7 @@ export interface ConversationRepository {
   list(actor: Actor): readonly Conversation[];
   get(actor: Actor, id: string): Conversation;
   archive(actor: Actor, ids: readonly string[]): void;
+  tagMany?(actor: Actor, ids: readonly string[], tag: string): void;
   assign(actor: Actor, ids: readonly string[], assignee: string): void;
   create(actor: Actor, name: string, phone: string): Conversation;
   incoming(actor: Actor, id: string): void;
@@ -269,6 +270,26 @@ export class DemoConversationRepository implements ConversationRepository {
     const set = new Set(ids);
     for (const id of set) this.get(actor, id);
     this.data = this.data.map((c) => (set.has(c.id) ? patch(c) : c));
+  }
+  tagMany(actor: Actor, ids: readonly string[], tag: string) {
+    if (
+      actor.role !== "owner" ||
+      tag !== "Seguimiento" ||
+      !ids.length ||
+      ids.length > 12
+    )
+      throw Error("No se puede aplicar esta propuesta ficticia.");
+    for (const id of ids) {
+      const c = this.get(actor, id);
+      if (c.archived || c.group || c.campaign)
+        throw Error(
+          "El alcance de la propuesta cambió. Revisa sus contactos antes de aplicar.",
+        );
+    }
+    this.update(actor, ids, (c) => {
+      const next = [...new Set([...c.tags, tag])];
+      return { ...c, tags: next, search: searchable({ ...c, tags: next }) };
+    });
   }
   archive(actor: Actor, ids: readonly string[]) {
     this.update(actor, ids, (c) => ({ ...c, archived: !c.archived }));

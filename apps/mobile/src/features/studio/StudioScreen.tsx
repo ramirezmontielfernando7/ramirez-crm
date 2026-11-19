@@ -1,3 +1,4 @@
+import { Evaluations } from "./Evaluations";
 import { Assignments } from "./Assignments";
 import React, {
   memo,
@@ -74,6 +75,7 @@ function StudioView({ initialSection }: { initialSection: StudioTab }) {
   }, [store]);
   useEffect(() => {
     if (params.section === "knowledge") setTab("Conocimiento");
+    if (params.section === "tests") setTab("Pruebas");
   }, [params.section]);
   useEffect(() => {
     views.set(store, { tab, offset: views.get(store)?.offset ?? 0 });
@@ -166,6 +168,8 @@ function StudioView({ initialSection }: { initialSection: StudioTab }) {
         <AgentsList store={store} />
       ) : tab === "Asignación" ? (
         <Assignments store={store} />
+      ) : tab === "Pruebas" ? (
+        <Evaluations store={store} />
       ) : (
         <EmptyState
           title={`${tab} · Próximo lote`}

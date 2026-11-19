@@ -73,9 +73,11 @@ export function StudioComposer({
       <TextInput
         accessibilityLabel={label}
         placeholder={
-          label === "Mensaje de prueba"
-            ? "Escribe un mensaje de prueba…"
-            : "Cuéntame de tu negocio o pide un ajuste…"
+          label === "Pregunta al asistente"
+            ? "Pregunta lo que quieras"
+            : label === "Mensaje de prueba"
+              ? "Escribe un mensaje de prueba…"
+              : "Cuéntame de tu negocio o pide un ajuste…"
         }
         placeholderTextColor={c.text3}
         value={value}

@@ -1,0 +1,18 @@
+{
+  "ids": [
+    "LAB-30",
+    "LAB-31"
+  ],
+  "checks": [
+    "2 evaluation IDs captured both themes/sizes; deterministic failed case; internal detail has no root tabs",
+    "Assistant route preserves evaluation context; deterministic follow-up; return preserves original detail",
+    "Failed fix retains state; safe retry writes only draft; repeat improves grade while retaining failed original attempt",
+    "Version selector and 3/5/8 clients bind results to saved configuration snapshot"
+  ],
+  "actualCaptures": 13,
+  "officialReferences": 4,
+  "errors": [],
+  "networkRequests": 0,
+  "httpServerStarted": false,
+  "native": false
+}

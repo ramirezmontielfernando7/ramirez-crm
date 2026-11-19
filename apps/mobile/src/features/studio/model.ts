@@ -1,3 +1,8 @@
+import {
+  freezeAssistant,
+  validateAssistant,
+  type AssistantData,
+} from "./assistant-model";
 export type AgentConfig = Readonly<{
   displayName: string;
   speakAsTeam: boolean;
@@ -28,6 +33,17 @@ export type CreatorTurn = Readonly<{
   text: string;
   answer: string;
 }>;
+export type EvaluationAttempt = Readonly<{
+  revision: number;
+  source: "draft" | "published";
+  version: number | null;
+  config: AgentConfig;
+  at: number;
+  answer: string;
+  decision: "reply" | "handoff";
+  grade: "ok" | "review" | "failed";
+  knowledge: readonly string[];
+}>;
 export type Evaluation = Readonly<{
   id: string;
   name: string;
@@ -38,6 +54,7 @@ export type Evaluation = Readonly<{
   decision: "reply" | "handoff";
   proposed: boolean;
   repeat: number;
+  attempts?: readonly EvaluationAttempt[];
 }>;
 export type EvaluationRun = Readonly<{
   id: string;
@@ -53,6 +70,7 @@ export type EvaluationRun = Readonly<{
 }>;
 export type StudioDoc = Readonly<{
   schema: 1;
+  assistant?: AssistantData;
   revision: number;
   sequence: number;
   globalPaused: boolean;
@@ -83,6 +101,7 @@ export const baseAgentConfig: AgentConfig = Object.freeze({
 export function freezeStudio(d: StudioDoc): StudioDoc {
   return Object.freeze({
     ...d,
+    assistant: d.assistant ? freezeAssistant(d.assistant) : undefined,
     agents: Object.freeze(
       d.agents.map((a) =>
         Object.isFrozen(a)
@@ -113,7 +132,24 @@ export function freezeStudio(d: StudioDoc): StudioDoc {
         Object.freeze({
           ...r,
           config: Object.freeze({ ...r.config }),
-          results: Object.freeze(r.results.map((e) => Object.freeze({ ...e }))),
+          results: Object.freeze(
+            r.results.map((e) =>
+              Object.freeze({
+                ...e,
+                attempts: e.attempts
+                  ? Object.freeze(
+                      e.attempts.map((a) =>
+                        Object.freeze({
+                          ...a,
+                          config: Object.freeze({ ...a.config }),
+                          knowledge: Object.freeze([...a.knowledge]),
+                        }),
+                      ),
+                    )
+                  : undefined,
+              }),
+            ),
+          ),
         }),
       ),
     ),
@@ -218,6 +254,7 @@ export function validateStudio(d: StudioDoc) {
     d.receipts.length > 300
   )
     throw Error("El documento local de Estudio no es válido.");
+  if (d.assistant !== undefined) validateAssistant(d.assistant);
   for (const a of d.agents) {
     if (
       !a ||
@@ -310,6 +347,34 @@ export function validateStudio(d: StudioDoc) {
         e.repeat < 0
       )
         throw Error("El resultado local no es válido.");
+    for (const e of r.results)
+      if (e.attempts !== undefined) {
+        if (
+          !Array.isArray(e.attempts) ||
+          !e.attempts.length ||
+          e.attempts.length > 5
+        )
+          throw Error("Historial de intentos no válido.");
+        for (const a of e.attempts) {
+          if (
+            !a ||
+            !Number.isSafeInteger(a.revision) ||
+            a.revision < 1 ||
+            !["draft", "published"].includes(a.source) ||
+            (a.version !== null &&
+              (!Number.isSafeInteger(a.version) || a.version < 1)) ||
+            !Number.isFinite(a.at) ||
+            !text(a.answer, 4000) ||
+            !["reply", "handoff"].includes(a.decision) ||
+            !["ok", "review", "failed"].includes(a.grade) ||
+            !Array.isArray(a.knowledge) ||
+            a.knowledge.length > 12 ||
+            a.knowledge.some((n: unknown) => !text(n, 180))
+          )
+            throw Error("Intento simulado no válido.");
+          validateConfig(a.config);
+        }
+      }
     if (
       new Set(r.results.map((e: Evaluation) => e.id)).size !== r.results.length
     )

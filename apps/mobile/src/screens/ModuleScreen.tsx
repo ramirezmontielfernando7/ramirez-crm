@@ -1,3 +1,4 @@
+import { Sparkles } from "lucide-react-native";
 import React, { useState } from "react";
 import { ChartColumn } from "lucide-react-native";
 import { View } from "react-native";
@@ -129,6 +130,13 @@ export function ModuleScreen({
                     icon={ChartColumn}
                     label="Resultados"
                     onPress={() => router.push("/results")}
+                  />
+                )}
+                {session.role === "owner" && (
+                  <NavRow
+                    icon={Sparkles}
+                    label="Preguntar al asistente"
+                    onPress={() => router.push("/assistant")}
                   />
                 )}
                 <NavRow

@@ -93,8 +93,8 @@ LAB-11,Subir documento,T-M10,Implementada simulada · QA módulo integrado RN We
 LAB-12,Detalle del documento,T-M10,Implementada simulada · QA módulo integrado RN Web,Pendiente nativo; docs/refinement-b/LOTE-05-CONOCIMIENTO.md
 LAB-20,Asignación por etapa,T-M10,Implementada simulada · QA módulo integrado RN Web,Pendiente nativo; docs/refinement-b/LOTE-08-ASIGNACIONES.md
 LAB-21,Elegir agente de la etapa,T-M10,Implementada simulada · QA módulo integrado RN Web,Pendiente nativo; docs/refinement-b/LOTE-08-ASIGNACIONES.md
-LAB-30,Pruebas · clientes simulados,T-M10,Pendiente,Pendiente
-LAB-31,Detalle de la prueba,T-M10,Pendiente,Pendiente
+LAB-30,Pruebas · clientes simulados,T-M10,Implementada simulada · QA módulo integrado RN Web,Pendiente nativo; docs/refinement-b/LOTE-09-EVALUACIONES-ASISTENTE.md
+LAB-31,Detalle de la prueba,T-M10,Implementada simulada · QA módulo integrado RN Web,Pendiente nativo; docs/refinement-b/LOTE-09-EVALUACIONES-ASISTENTE.md
 MKT-01,Campañas,T-M11,Pendiente,Pendiente
 MKT-02,Detalle de la campaña,T-M11,Pendiente,Pendiente
 MKT-03,Nueva campaña (asistente),T-M11,Pendiente,Pendiente
@@ -114,9 +114,9 @@ MORE-08,Cerrar sesión,T-M1,Implementada con simulacion / QA navegador,Pendiente
 MORE-05,Avisos,T-M8,Pendiente,Pendiente
 RES-01,Resultados,T-M12,Implementada simulada · QA módulo integrado RN Web,Pendiente nativo; docs/refinement-b/LOTE-04-RESULTADOS.md
 RES-02,Periodo y asesor,T-M12,Implementada simulada · QA módulo integrado RN Web,Pendiente nativo; docs/refinement-b/LOTE-04-RESULTADOS.md
-AST-01,Asistente,T-M12,Pendiente,Pendiente
-AST-02,Conversaciones del asistente,T-M12,Pendiente,Pendiente
-AST-03,Modo y crédito,T-M12,Pendiente,Pendiente
+AST-01,Asistente,T-M12,Implementada simulada · QA módulo integrado RN Web,Pendiente nativo; docs/refinement-b/LOTE-09-EVALUACIONES-ASISTENTE.md
+AST-02,Conversaciones del asistente,T-M12,Implementada simulada · QA módulo integrado RN Web,Pendiente nativo; docs/refinement-b/LOTE-09-EVALUACIONES-ASISTENTE.md
+AST-03,Modo y crédito,T-M12,Implementada simulada · QA módulo integrado RN Web,Pendiente nativo; docs/refinement-b/LOTE-09-EVALUACIONES-ASISTENTE.md
 AST-04,Asistente · sin crédito,T-M12,Pendiente,Pendiente
 MORE-06,Uso y plan,T-M12,Pendiente,Pendiente
 MORE-07,Mejora tu plan,T-M12,Pendiente,Pendiente

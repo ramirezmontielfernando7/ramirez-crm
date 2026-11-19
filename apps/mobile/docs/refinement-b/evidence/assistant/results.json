@@ -1,0 +1,23 @@
+{
+  "ids": [
+    "AST-01",
+    "AST-02",
+    "AST-03"
+  ],
+  "checks": [
+    "3 Assistant IDs captured both themes/sizes; fixed general thread; mode menu; no bottom tab bar",
+    "Suggestion only proposes; discard retains conversation and does not mutate contacts",
+    "Explicit Apply changes shared fictitious contact repository without duplicate tags",
+    "New thread, deterministic sales reading, mode and messages restore together",
+    "Archive active thread returns to fixed general safely",
+    "Failed query preserves text and safe retry appends once",
+    "Read recovery restores prior local thread",
+    "Owner-only route remains denied to other roles"
+  ],
+  "actualCaptures": 16,
+  "officialReferences": 6,
+  "errors": [],
+  "networkRequests": 0,
+  "httpServerStarted": false,
+  "native": false
+}

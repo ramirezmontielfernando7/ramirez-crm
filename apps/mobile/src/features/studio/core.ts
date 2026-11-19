@@ -1,3 +1,9 @@
+import {
+  emptyAssistant,
+  type AssistantData,
+  type AssistantTurn,
+} from "./assistant-model";
+import { ResultsStore } from "../results/core";
 import type { LibraryStore, LibraryEntry } from "../library/core";
 import type { ConversationRepository } from "../inbox/model";
 import { normalize, stages } from "../inbox/model";
@@ -10,6 +16,7 @@ import {
   type AgentConfig,
   type EvaluationRun,
   type Evaluation,
+  type EvaluationAttempt,
 } from "./model";
 export type Decision = Readonly<{
   decision: "reply" | "handoff";
@@ -285,7 +292,10 @@ export class StudioStore {
     return this.change(key, ["creator", value], (d) => {
       if (!value || value.length > 2000)
         throw Error("Describe tu negocio con hasta 2000 caracteres.");
-      let a = d.agents.find((a) => a.id === d.creator.agentId && !a.archived),
+      let a = d.agents.find(
+          (a) =>
+            a.id === d.creator.agentId && !a.archived && !a.versions.length,
+        ),
         config = a?.draft ?? baseAgentConfig;
       const q = normalize(value);
       config = {
@@ -357,8 +367,10 @@ export class StudioStore {
       throw Error("Escribe un mensaje de prueba de hasta 2000 caracteres.");
     const q = normalize(value);
     const escalation =
-      /descuento|factura|molest|humano|persona|urgente/.test(q) &&
-      !!config.handoff.trim();
+      (/descuento|factura|molest|humano|persona|urgente/.test(q) &&
+        !!config.handoff.trim()) ||
+      (q.includes("cita") &&
+        normalize(config.handoff).includes("disponibilidadconfirmada"));
     const decision = paused || escalation ? "handoff" : "reply";
     const knowledge = this.library
       .snapshot()
@@ -371,7 +383,8 @@ export class StudioStore {
             (info.reader === null && (a.general || config.sharedKnowledge)))
         );
       })
-      .map((e) => e.title);
+      .map((e) => e.title)
+      .slice(0, 12);
     const answer =
       decision === "handoff"
         ? "Te paso con una persona del equipo para ayudarte."
@@ -588,6 +601,250 @@ export class StudioStore {
       this.notify("");
     });
   }
+  assistantData() {
+    return this.doc().assistant ?? emptyAssistant;
+  }
+  activeAssistant() {
+    const d = this.assistantData();
+    return (
+      d.threads.find(
+        (t) =>
+          t.id === d.activeId &&
+          !t.archived &&
+          (t.id === "demo-assistant-general" ||
+            this.now() - t.at <= 90 * 86400000),
+      ) ?? d.threads.find((t) => t.id === "demo-assistant-general")!
+    );
+  }
+  assistantThreads() {
+    return this.assistantData().threads.filter(
+      (t) =>
+        !t.archived &&
+        (t.id === "demo-assistant-general" ||
+          this.now() - t.at <= 90 * 86400000),
+    );
+  }
+  assistantMode(mode: AssistantData["mode"], key = studioKey()) {
+    return this.change(key, ["mode", mode], (d) => {
+      if (!["fast", "normal", "deep"].includes(mode))
+        throw Error("Modo no válido.");
+      return { doc: { ...d, assistant: { ...this.assistantData(), mode } } };
+    });
+  }
+  assistantSelect(id: string, key = studioKey()) {
+    return this.change(key, ["thread", id], (d) => {
+      if (!this.assistantThreads().some((t) => t.id === id))
+        throw Error("Hilo no disponible.");
+      return {
+        doc: { ...d, assistant: { ...this.assistantData(), activeId: id } },
+      };
+    });
+  }
+  assistantNew(title = "Hilo nuevo", key = studioKey()) {
+    return this.change(key, ["new-thread", title], (d) => {
+      const data = this.assistantData();
+      if (data.threads.length >= 20)
+        throw Error("Se alcanzó el límite de hilos de demostración.");
+      const id = `demo-assistant-${d.sequence}`;
+      return {
+        doc: {
+          ...d,
+          assistant: {
+            ...data,
+            activeId: id,
+            threads: [
+              ...data.threads,
+              {
+                id,
+                title: title.slice(0, 120) || "Hilo nuevo",
+                at: this.now(),
+                archived: false,
+                turns: [],
+              },
+            ],
+          },
+        },
+        result: id,
+      };
+    });
+  }
+  assistantArchive(id: string, key = studioKey()) {
+    return this.change(key, ["archive-thread", id], (d) => {
+      if (id === "demo-assistant-general")
+        throw Error("El chat general es fijo.");
+      if (!this.assistantThreads().some((t) => t.id === id))
+        throw Error("Hilo no disponible.");
+      const data = this.assistantData();
+      return {
+        doc: {
+          ...d,
+          assistant: {
+            ...data,
+            activeId:
+              data.activeId === id ? "demo-assistant-general" : data.activeId,
+            threads: data.threads.map((t) =>
+              t.id === id ? { ...t, archived: true } : t,
+            ),
+          },
+        },
+      };
+    });
+  }
+  assistantContext(runId: string, evaluationId: string, key = studioKey()) {
+    return this.change(key, ["context", runId, evaluationId], (d) => {
+      const run = this.runGet(runId),
+        e = run.results.find((e) => e.id === evaluationId);
+      if (!e) throw Error("Resultado no disponible.");
+      const data = this.assistantData(),
+        id = `demo-assistant-${d.sequence}`;
+      if (data.threads.length >= 20)
+        throw Error("Se alcanzó el límite de hilos de demostración.");
+      const turn: AssistantTurn = {
+        id: `demo-assistant-turn-${d.sequence}`,
+        question: `Revisa la prueba: ${e.name}`,
+        answer: `${e.summary} Agente: ${run.agentName}. Versión original: ${run.source === "published" ? `publicada v${run.version}` : "borrador"}. Este análisis es local y no modifica el agente.`,
+        context: { runId, evaluationId },
+      };
+      return {
+        doc: {
+          ...d,
+          assistant: {
+            ...data,
+            activeId: id,
+            threads: [
+              ...data.threads,
+              {
+                id,
+                title: `Prueba · ${e.name}`.slice(0, 120),
+                at: this.now(),
+                archived: false,
+                turns: [turn],
+              },
+            ],
+          },
+        },
+        result: id,
+      };
+    });
+  }
+  assistantAsk(text: string, key = studioKey()) {
+    const q = text.trim();
+    return this.change(key, ["ask", q], (d) => {
+      if (!q || q.length > 2000)
+        throw Error("Escribe una consulta de hasta 2000 caracteres.");
+      const data = this.assistantData(),
+        thread = this.activeAssistant(),
+        norm = normalize(q);
+      const tagTargets = norm.includes("etiquet")
+        ? this.conversations
+            .list(this.library.actor)
+            .filter(
+              (c) => !c.archived && !c.group && c.search.includes("cotizacion"),
+            )
+            .slice(0, 12)
+            .map((c) => c.id)
+        : undefined;
+      const context = thread.turns.findLast((t) => t.context)?.context;
+      let contextAnswer = "";
+      if (context) {
+        try {
+          const run = this.runGet(context.runId),
+            e = run.results.find((e) => e.id === context.evaluationId);
+          if (e)
+            contextAnswer = `Sobre «${e.name}»: ${e.summary} La revisión original es ${run.revision}; se conserva la prueba y sus intentos. Los cambios se proponen en el borrador.`;
+        } catch {
+          contextAnswer =
+            "Esta prueba ya salió del historial acotado; el hilo conserva su contexto original.";
+        }
+      }
+      const summary = new ResultsStore(
+        this.library.actor,
+        this.now(),
+      ).summary();
+      const answer = tagTargets
+        ? `Encontré ${tagTargets.length} chats ficticios que pidieron cotización. Propongo etiquetarlos como «Seguimiento». Solo se aplicará al pulsar Aplicar.`
+        : norm.includes("vendi") || norm.includes("ventas")
+          ? `Ventas de demostración del periodo: ${new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN", maximumFractionDigits: 0 }).format(summary.money / 100)}; ${summary.won} tratos ganados. Datos ficticios de Resultados.`
+          : norm.includes("chats")
+            ? `El registro ficticio resume ${summary.ai} respuestas de IA y ${summary.handoffs} traspasos a una persona. No se consultó ningún servicio.`
+            : contextAnswer ||
+              `Revisé ${this.list().length} agentes ficticios: ${this.list().filter((a) => a.versions.length).length} con versión publicada y ${this.list().filter((a) => a.paused).length} en pausa. ${this.doc().globalPaused ? "La pausa global está activa." : "La pausa global está desactivada."} Para cambiar un agente se conserva primero su borrador.`;
+      const turn: AssistantTurn = {
+        id: `demo-assistant-turn-${d.sequence}`,
+        question: q,
+        answer,
+        tagTargets,
+      };
+      return {
+        doc: {
+          ...d,
+          assistant: {
+            ...data,
+            threads: data.threads.map((t) =>
+              t.id === thread.id
+                ? { ...t, turns: [...t.turns, turn].slice(-40) }
+                : t,
+            ),
+          },
+        },
+      };
+    });
+  }
+  assistantDismiss(turnId: string, key = studioKey()) {
+    return this.change(key, ["dismiss", turnId], (d) => {
+      const data = this.assistantData(),
+        thread = this.activeAssistant();
+      if (!thread.turns.some((t) => t.id === turnId && t.tagTargets))
+        throw Error("Propuesta no disponible.");
+      return {
+        doc: {
+          ...d,
+          assistant: {
+            ...data,
+            threads: data.threads.map((t) =>
+              t.id === thread.id
+                ? {
+                    ...t,
+                    turns: t.turns.map((v) =>
+                      v.id === turnId ? { ...v, dismissed: true } : v,
+                    ),
+                  }
+                : t,
+            ),
+          },
+        },
+      };
+    });
+  }
+  assistantApplyTags(turnId: string) {
+    this.allowed();
+    const turn = this.activeAssistant().turns.find((t) => t.id === turnId);
+    if (turn?.dismissed) throw Error("La propuesta fue descartada.");
+    if (!turn?.tagTargets?.length)
+      throw Error("No hay propuesta de etiquetas para aplicar.");
+    if (!this.conversations.tagMany)
+      throw Error("El repositorio no ofrece cambios simulados en lote.");
+    this.conversations.tagMany(
+      this.library.actor,
+      turn.tagTargets,
+      "Seguimiento",
+    );
+    this.notify("");
+  }
+  assistantTagsApplied(turn: AssistantTurn) {
+    return (
+      !!turn.tagTargets?.length &&
+      turn.tagTargets.every((id) => {
+        try {
+          return this.conversations
+            .get(this.library.actor, id)
+            .tags.includes("Seguimiento");
+        } catch {
+          return false;
+        }
+      })
+    );
+  }
   stageRows() {
     this.allowed();
     return (this.conversations.stageOptions?.() ?? stages).map((name) => {
@@ -688,7 +945,7 @@ export class StudioStore {
           grade =
             i === 2 && r.decision === "reply"
               ? "failed"
-              : i === 1
+              : i === 1 && r.decision === "reply"
                 ? "review"
                 : "ok";
         return {
@@ -706,6 +963,19 @@ export class StudioStore {
                 : "Respondió dentro de las reglas de demostración.",
           proposed: false,
           repeat: 0,
+          attempts: [
+            {
+              revision: a.revision,
+              source,
+              version: version?.number ?? null,
+              config: { ...config },
+              at: this.now(),
+              answer: r.answer,
+              decision: r.decision,
+              grade,
+              knowledge: r.knowledge,
+            },
+          ],
         };
       });
       const run: EvaluationRun = {
@@ -746,8 +1016,13 @@ export class StudioStore {
       if (e.grade === "ok") throw Error("Este resultado no necesita arreglo.");
       if (this.dirty(a.id))
         throw Error("Guarda primero los cambios del borrador.");
-      const fix =
-        "No prometas descuentos; si piden uno, pasa el chat a una persona.";
+      const isAppointment = e.name === "Quiere una cita";
+      const fix = isAppointment
+        ? "No asegures una cita sin disponibilidad confirmada; pasa el chat a una persona."
+        : "No prometas descuentos; si piden uno, pasa el chat a una persona.";
+      const handoff = isAppointment
+        ? "Si pide cita sin disponibilidad confirmada, pasar a una persona."
+        : "Si piden descuentos, pasar a una persona.";
       return {
         doc: {
           ...d,
@@ -761,9 +1036,9 @@ export class StudioStore {
                     instructions: a.draft.instructions.includes(fix)
                       ? a.draft.instructions
                       : `${a.draft.instructions}\n${fix}`,
-                    handoff: a.draft.handoff.includes("descuentos")
+                    handoff: a.draft.handoff.includes(handoff)
                       ? a.draft.handoff
-                      : `${a.draft.handoff}\nSi piden descuentos, pasar a una persona.`,
+                      : `${a.draft.handoff}\n${handoff}`,
                   },
                 }
               : x,
@@ -788,37 +1063,67 @@ export class StudioStore {
         e = run.results.find((e) => e.id === evaluationId);
       if (!e) throw Error("Resultado no disponible.");
       const a = this.get(run.agentId);
-      const r = this.evaluateConfig(a, a.draft, e.question, false),
+      if (this.dirty(a.id))
+        throw Error("Guarda el borrador antes de repetir la prueba.");
+      const result = this.evaluateConfig(a, a.draft, e.question, false),
         grade =
-          e.question.includes("descuento") && r.decision === "reply"
+          e.question.includes("descuento") && result.decision === "reply"
             ? "failed"
-            : e.name === "Quiere una cita"
+            : e.name === "Quiere una cita" && result.decision === "reply"
               ? "review"
               : "ok";
+      const first: EvaluationAttempt = e.attempts?.[0] ?? {
+        revision: run.revision,
+        source: run.source,
+        version: run.version,
+        config: run.config,
+        at: run.at,
+        answer: e.answer,
+        decision: e.decision,
+        grade: e.grade,
+        knowledge: [],
+      };
+      const attempt: EvaluationAttempt = {
+        revision: a.revision,
+        source: "draft",
+        version: null,
+        config: { ...a.draft },
+        at: this.now(),
+        answer: result.answer,
+        decision: result.decision,
+        grade,
+        knowledge: result.knowledge,
+      };
+      const attempts = [
+        first,
+        ...(e.attempts?.slice(1) ?? []).slice(-3),
+        attempt,
+      ];
       return {
         doc: {
           ...d,
-          runs: d.runs.map((x) =>
-            x.id === runId
+          runs: d.runs.map((r) =>
+            r.id === runId
               ? {
-                  ...x,
-                  results: x.results.map((v) =>
-                    v.id === e.id
+                  ...r,
+                  results: r.results.map((x) =>
+                    x.id === evaluationId
                       ? {
-                          ...v,
-                          repeat: v.repeat + 1,
-                          decision: r.decision,
-                          answer: r.answer,
+                          ...x,
+                          repeat: x.repeat + 1,
+                          answer: result.answer,
+                          decision: result.decision,
                           grade,
                           summary:
                             grade === "ok"
                               ? "Respondió dentro de las reglas de demostración."
-                              : v.summary,
+                              : x.summary,
+                          attempts,
                         }
-                      : v,
+                      : x,
                   ),
                 }
-              : x,
+              : r,
           ),
         },
       };
