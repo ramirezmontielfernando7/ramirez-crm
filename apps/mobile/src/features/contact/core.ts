@@ -6,6 +6,7 @@ import {
   type ConversationRepository,
 } from "../inbox/model";
 import type { LocalStoragePort } from "../chat/core";
+import { WorkRepository, type LegacyWork } from "../work/core";
 import {
   canAssign,
   defaultFlags,
@@ -105,6 +106,8 @@ let requestCounter = 0;
 export const actionKey = () =>
   `demo-action-${Date.now().toString(36)}-${++requestCounter}`;
 export class ContactDirectory {
+  readonly workRepo: WorkRepository;
+  readonly organizationId = "demo-org-cristal";
   private stores = new Map<string, ContactStore>();
   private listeners = new Set<() => void>();
   private settings: DemoFlags;
@@ -117,6 +120,48 @@ export class ContactDirectory {
     readonly now: () => number = Date.now,
   ) {
     this.settings = defaultFlags(actor);
+    this.workRepo = new WorkRepository(
+      actor,
+      this.organizationId,
+      conversations,
+      storage,
+      () => this.readLegacyWork(),
+      now,
+    );
+    this.workRepo.subscribe(() => this.stores.forEach((s) => s.syncWork()));
+  }
+  private async readLegacyWork(): Promise<readonly LegacyWork[]> {
+    const prefix = `dashfort.demo.contact.v1.${this.actor.id}.`;
+    const keys = this.storage.keys
+      ? await this.storage.keys(prefix)
+      : this.conversations.list(this.actor).map((c) => prefix + c.id);
+    if (keys.length > 5000)
+      throw Error("Demasiados documentos locales para esta demostración.");
+    const result: LegacyWork[] = [];
+    for (const key of keys) {
+      if (!key.startsWith(prefix)) continue;
+      const id = key.slice(prefix.length);
+      try {
+        this.conversations.get(this.actor, id);
+      } catch {
+        continue;
+      }
+      const raw = await this.storage.get(key);
+      if (!raw) continue;
+      if (raw.length > 2_000_000)
+        throw Error("Un documento local supera el límite de lectura.");
+      const d = decodeDetails(
+        raw,
+        this.conversations.stageOptions?.() ?? stages,
+      );
+      result.push({
+        contactId: id,
+        sequence: d.sequence,
+        tasks: d.tasks,
+        events: d.events,
+      });
+    }
+    return result;
   }
   flags = () => this.settings;
   subscribeFlags = (fn: () => void) => {
@@ -132,6 +177,7 @@ export class ContactDirectory {
   };
   reconcile = () => {
     this.stores.forEach((store) => store.reconcile());
+    this.workRepo.reconcile();
   };
   get = (id: string) => {
     this.conversations.get(this.actor, id);
@@ -159,6 +205,8 @@ export class ContactDirectory {
   };
 }
 export class ContactStore {
+  private metadata: ContactData;
+  private legacyTasks: ContactData["tasks"] = [];
   readonly storageKey: string;
   private state: ContactSnapshot;
   private listeners = new Set<() => void>();
@@ -179,6 +227,7 @@ export class ContactStore {
     let data = seedDetails(c, directory.now());
     if (c.id === "demo-conv-3")
       data = { ...data, tags: [...c.tags, systemImportTag] };
+    this.metadata = data;
     this.state = {
       data,
       ready: false,
@@ -202,9 +251,51 @@ export class ContactStore {
     };
   };
   private patch(p: Partial<ContactSnapshot>) {
+    if (p.data) {
+      this.metadata = {
+        ...p.data,
+        tasks: this.legacyTasks,
+        events: p.data.events.filter((e) => !e.id.includes(":work-event:")),
+      };
+      this.directory.workRepo.rememberSequence(this.id, p.data.sequence);
+      p = { ...p, data: this.project(this.metadata) };
+    }
     this.state = { ...this.state, ...p };
     this.listeners.forEach((fn) => fn());
   }
+  private project(meta: ContactData): ContactData {
+    const work = this.directory.workRepo.contact(this.id);
+    if (!work) return meta;
+    // Work events are already newest first, including equal fixture timestamps.
+    const seen = new Set<string>();
+    const combined = [...work.events, ...meta.events]
+      .filter((e) => {
+        if (seen.has(e.id)) return false;
+        seen.add(e.id);
+        return true;
+      })
+      .sort((a, b) => b.at - a.at);
+    return {
+      ...meta,
+      tasks: work.tasks,
+      events: combined.slice(0, 250),
+      sequence: Math.max(meta.sequence, work.sequence),
+    };
+  }
+  syncWork = () => {
+    if (!this.state.ready) return;
+    const next = this.project(this.metadata),
+      old = this.state.data;
+    if (
+      JSON.stringify(next.tasks) === JSON.stringify(old.tasks) &&
+      next.events.length === old.events.length &&
+      next.events.every((e, i) => e.id === old.events[i]?.id) &&
+      next.sequence === old.sequence
+    )
+      return;
+    this.state = { ...this.state, data: next };
+    this.listeners.forEach((fn) => fn());
+  };
   private basePatch(data: ContactData) {
     const c = this.authorize();
     const p: {
@@ -280,6 +371,9 @@ export class ContactStore {
         if (current.ai !== before.ai) data = { ...data, ai: current.ai };
         if (this.actor.role === "advisor" && data.assigned !== this.actor.id)
           throw new Error("Los detalles no pertenecen a tu alcance.");
+        this.legacyTasks = data.tasks;
+        this.directory.workRepo.rememberSequence(this.id, data.sequence);
+        await this.directory.workRepo.hydrate();
         this.basePatch(data);
         this.patch({ data, ready: true, error: "" });
       } catch (e) {
@@ -377,12 +471,22 @@ export class ContactStore {
           );
           await this.directory.storage.set(
             this.storageKey,
-            JSON.stringify(data),
+            JSON.stringify({
+              ...data,
+              tasks: this.legacyTasks,
+              events: data.events.filter((e) => !e.id.includes(":work-event:")),
+            }),
           );
           if (this.authorize() !== c) {
             await this.directory.storage.set(
               this.storageKey,
-              JSON.stringify(old),
+              JSON.stringify({
+                ...old,
+                tasks: this.legacyTasks,
+                events: old.events.filter(
+                  (e) => !e.id.includes(":work-event:"),
+                ),
+              }),
             );
             throw new Error(
               "El chat cambió mientras guardabas. Reintenta con sus datos actuales.",
@@ -534,67 +638,59 @@ export class ContactStore {
         text: `Venta actualizada · Prioridad ${priority}`,
       };
     });
+  private workAction(action: () => Promise<void>): Promise<void> {
+    this.authorize();
+    const result = this.work
+      .catch(() => {})
+      .then(async () => {
+        if (!this.state.ready)
+          throw Error("Espera a que se carguen los detalles.");
+        if (this.state.view !== "normal" && this.state.view !== "empty")
+          throw Error(
+            this.state.view === "offline"
+              ? "Sin conexión. Conservamos los datos y el borrador; reintenta al reconectar."
+              : "Recupera los detalles antes de guardar.",
+          );
+        this.authorize();
+        if (this.failNext) {
+          this.failNext = false;
+          throw Error("No se pudo guardar el cambio simulado. Reintenta.");
+        }
+        this.directory.activeWrites++;
+        this.patch({ saving: true });
+        try {
+          await action();
+        } finally {
+          this.directory.activeWrites--;
+          this.patch({ saving: false });
+        }
+      });
+    this.work = result;
+    return result;
+  }
   note = (text: string, key = actionKey()) => {
     const draft = this.state.noteDraft;
-    return this.mutate(key, ["note", text], (d) => {
-      if (!text.trim() || text.length > 4000)
-        throw new Error("Escribe una nota de hasta 4.000 caracteres.");
-      return { data: d, kind: "Nota", text: text.trim() };
-    }).then(() => {
+    return this.workAction(() =>
+      this.directory.workRepo.saveNote(
+        { title: "", body: text, color: "bl", pin: false, contactId: this.id },
+        key,
+      ),
+    ).then(() => {
       if (this.state.noteDraft === draft) this.patch({ noteDraft: "" });
     });
   };
   task = (title: string, due: number, assignee: string, key = actionKey()) =>
-    this.mutate(key, ["task", title, due, assignee], (d) => {
-      if (!title.trim() || title.trim().length > 300)
-        throw new Error("Escribe una tarea de hasta 300 caracteres.");
-      if (
-        !Number.isFinite(due) ||
-        new Date(due).getFullYear() < 2000 ||
-        new Date(due).getFullYear() > 2100
-      )
-        throw new Error("Elige una fecha límite válida.");
-      if (!assignee || !isPerson(assignee))
-        throw new Error("Elige una persona activa del equipo.");
-      if (this.actor.role === "advisor" && assignee !== this.actor.id)
-        throw new Error("Tu perfil solo puede crearse tareas propias.");
-      if (d.tasks.length >= 100)
-        throw new Error(
-          "Se alcanzó el límite de 100 tareas de este chat de prueba.",
-        );
-      return {
-        data: {
-          ...d,
-          tasks: [
-            ...d.tasks,
-            {
-              id: `${this.id}:task:${d.sequence + 1}`,
-              title: title.trim(),
-              due,
-              assignee,
-              done: false,
-            },
-          ],
-        },
-        kind: "Tarea",
-        text: `Tarea creada: ${title.trim()}`,
-      };
-    });
+    this.workAction(() =>
+      this.directory.workRepo.saveTask(
+        { title, due, assignee, notes: "", contactId: this.id },
+        key,
+      ),
+    );
   toggleTask = (id: string, key = actionKey()) =>
-    this.mutate(key, ["toggleTask", id], (d) => {
-      const task = d.tasks.find((t) => t.id === id);
-      if (!task) throw new Error("Tarea no disponible.");
-      if (this.actor.role === "advisor" && task.assignee !== this.actor.id)
-        throw new Error("Tu perfil solo puede completar sus tareas.");
-      return {
-        data: {
-          ...d,
-          tasks: d.tasks.map((t) =>
-            t.id === id ? { ...t, done: !t.done } : t,
-          ),
-        },
-        kind: "Tarea",
-        text: `${task.done ? "Tarea reabierta" : "Tarea completada"}: ${task.title}`,
-      };
+    this.workAction(() => {
+      const task = this.directory.workRepo.getTask(id);
+      if (task.contactId !== this.id)
+        throw Error("Tarea no disponible en este chat.");
+      return this.directory.workRepo.toggleTask(id, key);
     });
 }

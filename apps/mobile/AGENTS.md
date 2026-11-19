@@ -48,3 +48,6 @@ B original integrada y verificada en 33f1fc5/1fe5833. Cachés derivadas limpiada
 
 ## Lote 02 · Agenda y navegación interna
 Ver docs/refinement-b/LOTE-02-AGENDA.md. Agenda CRM-20…25 implementada; Biblioteca CRM-41 en ruta interna sin TabBar y con el mismo modelo del tab. Se preserva B; internos con Atrás mantienen 17/22. Inventario 70/158, 88 pendientes; 235 tests. Próximo lote autónomo: Tareas/Notas CRM-30…33 con fuente coherente para tareas vinculadas T-M4. Backend 562a8b3 intacto; APK sigue bloqueada por disco. Sin nuevas aprobaciones visuales ni conexiones reales/servidores/push/servicios externos.
+
+## Lote 03 · Tareas/Notas
+CRM-30…33 implementadas en WorkRepository compartido con ContactDirectory y TaskSheet T-M4/CRM. Ver docs/refinement-b/LOTE-03-TAREAS-NOTAS.md. 74/158 IDs, 84 pendientes, 254 pruebas. Conserva formato local anterior sin sobrescribirlo, aislamiento por actor/org, idempotencia y conflictos. Siguiente lote seguro: Resultados RES-01/RES-02, sin Meta/servicios reales. B, backend 562a8b3 y APK/firmas intactos. Sin Gradle con espacio insuficiente.

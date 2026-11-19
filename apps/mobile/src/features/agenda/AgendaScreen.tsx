@@ -36,6 +36,7 @@ import { useTheme } from "../../theme/ThemeProvider";
 import { useSession } from "../../state/SessionProvider";
 import { canAccess } from "../../domain/access";
 import { preferencesStorage } from "../../services/storage";
+import { useContactDirectory } from "../contact/context";
 import { useOptionalInbox } from "../inbox/store";
 import {
   AgendaStore,
@@ -456,8 +457,19 @@ function BookingDetail({ store, id }: { store: AgendaStore; id: string }) {
       store.snapshot,
     ),
     r = store.get(id),
+    directory = useContactDirectory(),
     layers = useLayers(),
     [error, setError] = useState("");
+  const legacyLinks: Record<string, string> = {
+    "demo-booking-b1": "demo-conv-2",
+    "demo-booking-b2": "demo-conv-7",
+    "demo-booking-b4": "demo-conv-1",
+  };
+  const contactId = r.contactId === undefined ? legacyLinks[r.id] : r.contactId;
+  const contact =
+    contactId && directory.workRepo.canRead(contactId)
+      ? directory.conversations.get(directory.actor, contactId)
+      : null;
   const cancel = async () => {
     try {
       await store.cancel(id, r.version);
@@ -489,7 +501,21 @@ function BookingDetail({ store, id }: { store: AgendaStore; id: string }) {
             <Text kind="secondary" style={{ flex: 1 }}>
               {k}
             </Text>
-            {k === "Enlace" && v === "Unirse" ? (
+            {k === "Cliente" && contact ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`Abrir contacto: ${contact.name}`}
+                onPress={() => {
+                  layers.close();
+                  router.push(`/contact/${contact.id}`);
+                }}
+                style={{ flex: 1, minHeight: 44, justifyContent: "center" }}
+              >
+                <Text kind="secondary" style={{ textAlign: "right" }}>
+                  {contact.name}
+                </Text>
+              </Pressable>
+            ) : k === "Enlace" && v === "Unirse" ? (
               <Button
                 variant="ghost"
                 onPress={() =>
@@ -681,6 +707,7 @@ function MoveForm({ store, id }: { store: AgendaStore; id: string }) {
       store.snapshot,
     ),
     r = store.get(id),
+    directory = useContactDirectory(),
     layers = useLayers(),
     days = store.availableDays(id);
   const [day, setDay] = useState(days[0] ?? r.day),

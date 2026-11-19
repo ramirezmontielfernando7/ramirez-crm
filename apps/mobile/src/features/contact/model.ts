@@ -40,6 +40,8 @@ export type Event = Readonly<{
   at: number;
 }>;
 export type ChatTask = Readonly<{
+  notes?: string;
+  revision?: number;
   id: string;
   title: string;
   due: number;

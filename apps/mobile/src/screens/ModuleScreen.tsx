@@ -6,6 +6,7 @@ import {
   FlaskConical,
   Palette,
   CalendarDays,
+  ListChecks,
 } from "lucide-react-native";
 import { Screen } from "../components/Screen";
 import {
@@ -116,6 +117,11 @@ export function ModuleScreen({
                   icon={CalendarDays}
                   label="Agenda"
                   onPress={() => router.push("/agenda")}
+                />
+                <NavRow
+                  icon={ListChecks}
+                  label="Tareas y notas"
+                  onPress={() => router.push("/work")}
                 />
                 <NavRow
                   icon={FlaskConical}

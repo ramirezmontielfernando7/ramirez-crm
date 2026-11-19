@@ -14,6 +14,7 @@ export type Appointment = Readonly<{
   duration: number;
   title: string;
   who: string;
+  contactId?: string | null;
   modality: "Presencial" | "Meet" | "Zoom" | "";
   notes: string;
   kind: "appointment" | "block";
@@ -97,6 +98,7 @@ function seeds(organizationId: string): readonly Appointment[] {
       duration: 45,
       title: "Visita a sucursal",
       who: "Luis Ramírez",
+      contactId: "demo-conv-2",
       assignee: "demo-advisor",
       kind: "appointment",
       modality: "Presencial",
@@ -108,6 +110,7 @@ function seeds(organizationId: string): readonly Appointment[] {
       duration: 45,
       title: "Videollamada · maestría",
       who: "Unid Campus",
+      contactId: "demo-conv-7",
       assignee: "demo-coordinator",
       kind: "appointment",
       modality: "Meet",
@@ -130,6 +133,7 @@ function seeds(organizationId: string): readonly Appointment[] {
       duration: 45,
       title: "Demostración del plan Pro",
       who: "Karla Méndez",
+      contactId: "demo-conv-1",
       assignee: "demo-owner",
       kind: "appointment",
       modality: "Zoom",
@@ -285,6 +289,9 @@ export class AgendaStore {
       typeof r.title !== "string" ||
       !r.title.trim() ||
       r.title.length > 180 ||
+      (r.contactId !== undefined &&
+        r.contactId !== null &&
+        !/^demo-(conv|new)-[\w-]{1,100}$/.test(r.contactId)) ||
       typeof r.who !== "string" ||
       r.who.length > 180 ||
       typeof r.notes !== "string" ||

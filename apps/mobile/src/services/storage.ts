@@ -5,6 +5,7 @@ export interface StoragePort {
   get(key: string): Promise<string | null>;
   set(key: string, value: string): Promise<void>;
   remove(key: string): Promise<void>;
+  keys?(prefix: string): Promise<readonly string[]>;
 }
 // Web is a QA target only. Demo session metadata uses sessionStorage there; no credentials are stored.
 export const sessionStorage: StoragePort = {
@@ -26,4 +27,6 @@ export const preferencesStorage: StoragePort = {
   get: (key) => AsyncStorage.getItem(key),
   set: (key, value) => AsyncStorage.setItem(key, value),
   remove: (key) => AsyncStorage.removeItem(key),
+  keys: async (prefix) =>
+    (await AsyncStorage.getAllKeys()).filter((k) => k.startsWith(prefix)),
 };

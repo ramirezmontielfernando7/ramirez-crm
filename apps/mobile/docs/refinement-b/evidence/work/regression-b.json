@@ -1,0 +1,98 @@
+[
+  {
+    "screen": "implemented-contacts-dark-360x640.png",
+    "changedPixels": 0,
+    "maximumChannelDelta": 0,
+    "comparison": "pixel comparison passed"
+  },
+  {
+    "screen": "implemented-inbox-dark-360x640.png",
+    "changedPixels": 0,
+    "maximumChannelDelta": 0,
+    "comparison": "pixel comparison passed"
+  },
+  {
+    "screen": "implemented-contacts-light-390x844.png",
+    "changedPixels": 0,
+    "maximumChannelDelta": 0,
+    "comparison": "pixel comparison passed"
+  },
+  {
+    "screen": "implemented-chat-light-360x640.png",
+    "changedPixels": 1119,
+    "maximumChannelDelta": 183,
+    "comparison": "dynamic message times differ; manually inspected unchanged geometry"
+  },
+  {
+    "screen": "implemented-crm-light-360x640.png",
+    "changedPixels": 0,
+    "maximumChannelDelta": 0,
+    "comparison": "pixel comparison passed"
+  },
+  {
+    "screen": "implemented-chat-dark-390x844.png",
+    "changedPixels": 1545,
+    "maximumChannelDelta": 159,
+    "comparison": "dynamic message times differ; manually inspected unchanged geometry"
+  },
+  {
+    "screen": "implemented-contacts-dark-390x844.png",
+    "changedPixels": 0,
+    "maximumChannelDelta": 0,
+    "comparison": "pixel comparison passed"
+  },
+  {
+    "screen": "implemented-crm-light-390x844.png",
+    "changedPixels": 0,
+    "maximumChannelDelta": 0,
+    "comparison": "pixel comparison passed"
+  },
+  {
+    "screen": "implemented-chat-dark-360x640.png",
+    "changedPixels": 1104,
+    "maximumChannelDelta": 159,
+    "comparison": "dynamic message times differ; manually inspected unchanged geometry"
+  },
+  {
+    "screen": "implemented-inbox-light-360x640.png",
+    "changedPixels": 0,
+    "maximumChannelDelta": 0,
+    "comparison": "pixel comparison passed"
+  },
+  {
+    "screen": "implemented-crm-dark-360x640.png",
+    "changedPixels": 0,
+    "maximumChannelDelta": 0,
+    "comparison": "pixel comparison passed"
+  },
+  {
+    "screen": "implemented-inbox-light-390x844.png",
+    "changedPixels": 0,
+    "maximumChannelDelta": 0,
+    "comparison": "pixel comparison passed"
+  },
+  {
+    "screen": "implemented-crm-dark-390x844.png",
+    "changedPixels": 0,
+    "maximumChannelDelta": 0,
+    "comparison": "pixel comparison passed"
+  },
+  {
+    "screen": "implemented-inbox-dark-390x844.png",
+    "changedPixels": 0,
+    "maximumChannelDelta": 0,
+    "comparison": "pixel comparison passed"
+  },
+  {
+    "screen": "implemented-chat-light-390x844.png",
+    "changedPixels": 1561,
+    "maximumChannelDelta": 183,
+    "comparison": "dynamic message times differ; manually inspected unchanged geometry"
+  },
+  {
+    "screen": "implemented-contacts-light-360x640.png",
+    "changedPixels": 0,
+    "maximumChannelDelta": 0,
+    "comparison": "pixel comparison passed"
+  }
+]
