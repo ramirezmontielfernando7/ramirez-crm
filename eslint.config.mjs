@@ -6,6 +6,9 @@ const config = [
   {
     ignores: [
       "node_modules/**",
+      "apps/mobile/**",
+      "auth-only/**",
+      "tests/auth-only/**",
       ".next/**",
       "dist/**",
       "drizzle/**",
