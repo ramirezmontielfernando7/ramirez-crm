@@ -65,7 +65,10 @@ function WorkView() {
     s = useSyncExternalStore(repo.subscribe, repo.snapshot, repo.snapshot),
     inbox = useInboxState(),
     inboxStore = useInbox(),
-    { tab: initial } = useLocalSearchParams<{ tab?: string }>(),
+    { tab: initial, task: taskId } = useLocalSearchParams<{
+      tab?: string;
+      task?: string;
+    }>(),
     [tab, setTab] = useState(
       initial === "notes" ? "notes" : (saved?.tab ?? "tasks"),
     ),
@@ -110,6 +113,16 @@ function WorkView() {
       }),
     [open, dir],
   );
+  const openedTask = useRef("");
+  useEffect(() => {
+    if (!taskId || !s.ready || openedTask.current === taskId) return;
+    openedTask.current = taskId;
+    const task = repo.tasks(true).find((t) => t.id === taskId && !t.done);
+    if (task) {
+      setTab("tasks");
+      openTask(task);
+    }
+  }, [taskId, s.ready, repo, openTask]);
   const openNote = (n?: WorkNote) =>
     open({
       kind: "sheet",

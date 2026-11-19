@@ -1,0 +1,13 @@
+# Lote 11 · Avisos y preferencias personales
+
+MORE-05 y SET-14 implementados, desde 2982258, misma rama B: **104/158 IDs, 54 pendientes**. Más sigue siendo un shell incompleto y no se suma como MORE-01.
+
+La hoja Avisos deriva sus filas de conversaciones accesibles con IA pausada, tareas activas por vencer/vencidas, citas del repositorio Agenda y advertencia de Uso (Propietario). No crea una segunda copia de tareas, citas o contactos. El estado pausado es una muestra de traspaso, no un historial real de eventos. Las citas históricas muestran su fecha real ficticia, sin afirmar que ocurrirán «en 1 h» cuando ya pasó esa fecha. Se ocultan canceladas/bloqueos/laboratorio y contactos inaccesibles. Completar tarea o archivar chat retira la fila. No hay polling ni proceso en segundo plano.
+
+Cada toque valida visibilidad antes y después de guardar leído, sin confiar en rutas proporcionadas por una notificación. Las tareas abren el editor real; citas seleccionan fecha y detalle real en Agenda; traspasos abren Chat; consumo abre Uso y Plan. Agenda ahora expone una fábrica compartida para evitar repositorios divergentes. Preferencias, leído y fallos de escritura son locales, acotados y aislados por usuario/organización; errores no anuncian éxito. Identificadores heredados de tareas se codifican sin colisiones para leído y navegación interna.
+
+Preferencias guardan sonido, traspasos y recordatorios. Traspasos/recordatorios filtran inmediatamente la hoja. **Sonido es una preferencia persistida para la integración futura: no produce audio en esta demostración.** El canal nativo T-M5B conserva sus muestras silenciosas sin vibración. Push remoto permanece apagado; tocar el interruptor explica esa restricción sin pedir permisos, tokens ni activar transporte. No se inicia T-M5C. SET-14 acredita configuración y efectos de avisos dentro de app, no entrega push remota ni sonido nativo.
+
+Verificación: 16 pruebas nuevas de lógica (385 acumuladas), más QA RN Web: 13 capturas reales/4 referencias y siete comprobaciones agrupadas. Ambos temas y 390×844/360×640. Navegación a los cuatro destinos, marcado leído, fallo/reintento, filtros y persistencia de preferencias, estados de carga/vacío/error/sin conexión, roles. `evidence/notices/comparacion.html`. Sin errores de página ni solicitudes de red. La QA offline usa router/sesión/almacenamiento dobles, componentes y capas RN reales. Nativo Android/iOS pendiente.
+
+Solo apps/mobile, sin nuevas dependencias, cambios globales B, backend, BD, pagos, WhatsApp, IA real, compilaciones, push/PR/merge/despliegues. APK 0.1.2 y firma intactas. Próximo lote seguro: SET-06/06A (respuestas rápidas compartidas con compositor Chat); resto de Ajustes aún no se contabiliza.

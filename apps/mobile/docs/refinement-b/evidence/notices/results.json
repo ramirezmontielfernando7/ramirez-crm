@@ -1,0 +1,21 @@
+{
+  "ids": [
+    "MORE-05",
+    "SET-14"
+  ],
+  "checks": [
+    "Avisos and notification preferences captured both themes/sizes; internal settings have no product selectors; remote push stays off",
+    "Handoff opens canonical authorized fictitious chat and marks once locally",
+    "Task notice opens actual task editor; appointment notice selects exact day and detail in shared Agenda",
+    "Owner quota notice opens shared Usage screen without triggering payments",
+    "Failed preference saves keep previous value; retry works; choices persist through navigation and filter notices; push toggle cannot enable transport",
+    "Loading, empty, retryable error and offline notices states",
+    "Personal preferences allowed to all three roles; Advisor has no other actors' chat notice; quota owner only"
+  ],
+  "actualCaptures": 13,
+  "officialReferences": 4,
+  "errors": [],
+  "networkRequests": 0,
+  "httpServerStarted": false,
+  "native": false
+}

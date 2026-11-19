@@ -111,7 +111,7 @@ MKT-22,Nueva plantilla,T-M11,Pendiente,Pendiente
 MKT-30,Métricas y costos,T-M11,Pendiente,Pendiente
 MORE-01,Más,T-M8,Pendiente,Pendiente
 MORE-08,Cerrar sesión,T-M1,Implementada con simulacion / QA navegador,Pendiente
-MORE-05,Avisos,T-M8,Pendiente,Pendiente
+MORE-05,Avisos,T-M8,Implementada con simulacion B / QA RN Web (lote 11),Pendiente
 RES-01,Resultados,T-M12,Implementada simulada · QA módulo integrado RN Web,Pendiente nativo; docs/refinement-b/LOTE-04-RESULTADOS.md
 RES-02,Periodo y asesor,T-M12,Implementada simulada · QA módulo integrado RN Web,Pendiente nativo; docs/refinement-b/LOTE-04-RESULTADOS.md
 AST-01,Asistente,T-M12,Implementada simulada · QA módulo integrado RN Web,Pendiente nativo; docs/refinement-b/LOTE-09-EVALUACIONES-ASISTENTE.md
@@ -144,7 +144,7 @@ SET-11A,Qué hizo tu IA,T-M13,Pendiente,Pendiente
 SET-12,Conector del equipo,T-M13,Pendiente,Pendiente
 SET-13,Mi número,T-M6,Pendiente,Pendiente
 SET-13A,Vincular dispositivo,T-M6,Pendiente,Pendiente
-SET-14,Notificaciones,T-M5,Pendiente,Pendiente
+SET-14,Notificaciones,T-M5,Implementada con simulacion B / QA RN Web (lote 11),Pendiente
 SET-15,Apariencia,T-M8,Pendiente,Pendiente
 SET-16,Marca,T-M8,Pendiente,Pendiente
 SET-17,Navegación,T-M13,Pendiente,Pendiente

@@ -14,7 +14,8 @@ import {
   ScrollView,
   View,
 } from "react-native";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
+import { agendaFor } from "./state";
 import { CalendarDays, Lock, MoreVertical, Plus } from "lucide-react-native";
 import { Screen } from "../../components/Screen";
 import { AppBar, FilterChips, IconButton } from "../../components/ModuleUi";
@@ -47,7 +48,6 @@ import {
   timeLabel,
   type Appointment,
 } from "./core";
-const stores = new WeakMap<object, AgendaStore>();
 const back = () =>
   router.canGoBack() ? router.back() : router.replace("/(tabs)/more");
 export function AgendaScreen() {
@@ -55,12 +55,7 @@ export function AgendaScreen() {
     { session, disabled } = useSession();
   const store = useMemo(() => {
     if (!inbox) return null;
-    let s = stores.get(inbox);
-    if (!s) {
-      s = new AgendaStore(inbox.actor, "demo-org-cristal", preferencesStorage);
-      stores.set(inbox, s);
-    }
-    return s;
+    return agendaFor(inbox);
   }, [inbox]);
   if (!session || !store || !canAccess(session.role, "more", disabled))
     return (
@@ -86,6 +81,24 @@ export function AgendaView({ store }: { store: AgendaStore }) {
     ),
     { colors: c } = useTheme(),
     layers = useLayers();
+  const { booking } = useLocalSearchParams<{ booking?: string }>();
+  const openedBooking = useRef("");
+  useEffect(() => {
+    if (!booking || !s.ready || openedBooking.current === booking) return;
+    openedBooking.current = booking;
+    try {
+      const row = store.get(booking);
+      if (row.cancelled || row.kind !== "appointment") throw Error();
+      store.selectDay(row.day);
+      layers.open({
+        kind: "sheet",
+        title: row.title,
+        content: <BookingDetail store={store} id={row.id} />,
+      });
+    } catch {
+      layers.toast("La cita ya no está disponible para tu perfil.");
+    }
+  }, [booking, s.ready, store, layers.open, layers.toast]);
   const list = useRef<FlatList<Appointment>>(null);
   const restoration = useRef({ offset: store.offset(s.day), busy: true });
   const initialOffset = useMemo(

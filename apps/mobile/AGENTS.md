@@ -73,3 +73,6 @@ LAB-30/31 y AST-01/02/03 verificados desde 56a98a1: 97/158 IDs, 61 pendientes, 3
 
 ## Lote 10 · Uso y plan
 MORE-06/07/09/10 y AST-04: 102/158 IDs, 56 pendientes, 369 pruebas. Ver docs/refinement-b/LOTE-10-USO-PLAN.md. Cuotas ficticias compartidas, solicitudes locales sin cambio de plan/cobros, aviso semanal con posposición y reclamo atómico. No cambiar B ni activar facturación/IA/HTTP. Próximo MORE-05 + SET-14. Backend 562a8b3 y APK/firma conservados, sin Gradle ni push.
+
+## Lote 11 · Avisos
+MORE-05 + SET-14, 104/158 IDs, 54 pendientes, 385 pruebas. docs/refinement-b/LOTE-11-AVISOS.md. Avisos derivados de repos compartidos con destino exacto, preferencias por usuario/org; sonido es preferencia guardada sin audio en demo, T-M5B permanece silencioso y push remoto apagado. Próximo SET-06/06A con catálogo compartido Chat. Más/índice Ajustes siguen pendientes; no sumarlos por enlaces parciales. Mantener B, backend, APK/firma y restricciones.

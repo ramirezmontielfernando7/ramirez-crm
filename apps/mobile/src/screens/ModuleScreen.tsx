@@ -1,3 +1,5 @@
+import { NoticeSheet } from "../features/notices/NoticeScreens";
+import { Bell } from "lucide-react-native";
 import { Gauge } from "lucide-react-native";
 import { UsagePromptBridge } from "../features/usage/UsageScreens";
 import { Sparkles } from "lucide-react-native";
@@ -149,6 +151,17 @@ export function ModuleScreen({
                     onPress={() => router.push("/usage")}
                   />
                 )}
+                <NavRow
+                  icon={Bell}
+                  label="Avisos"
+                  onPress={() =>
+                    open({
+                      kind: "sheet",
+                      title: "Avisos",
+                      content: <NoticeSheet />,
+                    })
+                  }
+                />
                 <NavRow
                   icon={FlaskConical}
                   label="Controles de la demo"
