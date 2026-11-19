@@ -1,3 +1,7 @@
+# B original integrada · continuación móvil autorizada
+
+B aplicada con alcance explícito en componentes reales; comparación exacta de Bandeja, 70 capturas y QA de módulo de los 19 IDs CRM. 209 pruebas de lógica aprobadas. Configuración preparada 0.1.3/4; APK no compilada por espacio local insuficiente. Sin cambios de backend ni conexiones reales. Ver [resultados](docs/refinement-b/RESULTADOS.md). Los apartados siguientes conservan el historial.
+
 # Preparación integral aislada · checkpoint posterior a I2-P2
 
 Nueva rama `codex/dashfort-mobile-offline-20261119`. 207 pruebas de lógica móvil y 15 de preparación backend; 19 IDs CRM nuevos con previews, sin validar Expo/nativo completo. 61 IDs con código y 97 pendientes: no se declara terminada la app ni una integración real. HTTP cerrado, UI previa conservada, APK 0.1.2 intacta. Backend en worktree separado de main daccd873; no arrancado. Ver [resultados](docs/offline-integral/RESULTADOS.md), [pantallas](docs/offline-integral/PANTALLAS.md), [comparación](docs/offline-integral/comparacion.html) y [expediente para Claude](docs/offline-integral/EXPEDIENTE-CLAUDE.md). Ningún push/servicio/migración autorizado en esta entrega. Informes siguientes históricos.
