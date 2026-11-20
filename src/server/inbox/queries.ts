@@ -477,23 +477,40 @@ async function queryConversations(
 const COUNTS_TTL_MS = 3_000;
 const SELECTORS_TTL_MS = 15_000;
 const MEMO_MAX = 2_000;
-const memo = new Map<string, { at: number; value: Promise<unknown> }>();
+type MemoEntry = { at: number; value?: Promise<unknown>; pending?: Promise<unknown> };
+const memo = new Map<string, MemoEntry>();
 
+/**
+ * Como mucho UN cálculo en curso por llave. Mientras se recalcula, quien
+ * pregunta recibe el último resultado (si existe): bajo carga un conteo puede
+ * tardar más que el TTL, y sin esto se encimaban cálculos iguales.
+ */
 function memoized<T>(key: string, ttlMs: number, load: () => Promise<T>): Promise<T> {
   // Las pruebas cambian datos y vuelven a contar al instante: sin cache.
   if (process.env.VITEST) return load();
   const now = Date.now();
   const hit = memo.get(key);
-  if (hit && now - hit.at < ttlMs) return hit.value as Promise<T>;
-  const value = load();
-  memo.set(key, { at: now, value });
-  value.catch(() => {
-    if (memo.get(key)?.value === value) memo.delete(key);
-  });
+  if (hit?.value && now - hit.at < ttlMs) return hit.value as Promise<T>;
+  if (hit?.pending) return (hit.value ?? hit.pending) as Promise<T>;
+  const entry: MemoEntry = hit ?? { at: 0 };
+  const pending = load();
+  entry.pending = pending;
+  memo.set(key, entry);
+  pending.then(
+    () => {
+      entry.value = pending;
+      entry.at = Date.now();
+      entry.pending = undefined;
+    },
+    () => {
+      entry.pending = undefined;
+      if (!entry.value) memo.delete(key);
+    }
+  );
   if (memo.size > MEMO_MAX) {
-    for (const [k, v] of memo) if (now - v.at > SELECTORS_TTL_MS) memo.delete(k);
+    for (const [k, v] of memo) if (!v.pending && now - v.at > SELECTORS_TTL_MS) memo.delete(k);
   }
-  return value;
+  return (entry.value ?? pending) as Promise<T>;
 }
 
 /**
