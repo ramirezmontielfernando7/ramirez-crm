@@ -19,7 +19,7 @@ const idleSnapshot = () => idleState;
 const idleSubscribe = () => () => {};
 const Context = createContext<InboxStore | null>(null);
 export function InboxProvider({ children }: React.PropsWithChildren) {
-  const { session } = useSession();
+  const { session, disabled } = useSession();
   const { store: roster, state: rosterState } = useTeam();
   const store = useMemo(
     () =>
@@ -36,6 +36,7 @@ export function InboxProvider({ children }: React.PropsWithChildren) {
         : null,
     [session?.id, session?.role, rosterState.ready],
   );
+  if (store) store.marketingEnabled = !disabled.includes("marketing");
   const policy = useMemo(
     () =>
       store

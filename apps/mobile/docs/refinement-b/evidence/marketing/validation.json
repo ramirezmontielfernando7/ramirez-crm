@@ -1,0 +1,46 @@
+{
+  "base": "37898d3055d3fc9894327e20608a0949de90fd29",
+  "implemented": 145,
+  "completedThisRun": [
+    "MKT-10",
+    "MKT-11",
+    "MKT-12",
+    "MKT-01",
+    "MKT-02",
+    "MKT-03",
+    "MKT-04",
+    "MKT-05",
+    "MKT-06",
+    "MKT-31",
+    "MKT-30"
+  ],
+  "pending": [
+    "MORE-01",
+    "SET-01",
+    "SET-02",
+    "SET-02A",
+    "SET-02B",
+    "SET-02C",
+    "SET-04",
+    "SET-15",
+    "SET-16",
+    "SET-17",
+    "PLT-01",
+    "PLT-02",
+    "PLT-03"
+  ],
+  "tests": 564,
+  "newTests": 25,
+  "native": false,
+  "captures": 22,
+  "references": 22,
+  "protected26Unchanged": true,
+  "previousChainVerified": true,
+  "nextLot": [
+    "SET-02",
+    "SET-02A",
+    "SET-02B",
+    "SET-02C",
+    "SET-04"
+  ]
+}

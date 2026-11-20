@@ -95,20 +95,20 @@ LAB-20,Asignación por etapa,T-M10,Implementada simulada · QA módulo integrado
 LAB-21,Elegir agente de la etapa,T-M10,Implementada simulada · QA módulo integrado RN Web,Pendiente nativo; docs/refinement-b/LOTE-08-ASIGNACIONES.md
 LAB-30,Pruebas · clientes simulados,T-M10,Implementada simulada · QA módulo integrado RN Web,Pendiente nativo; docs/refinement-b/LOTE-09-EVALUACIONES-ASISTENTE.md
 LAB-31,Detalle de la prueba,T-M10,Implementada simulada · QA módulo integrado RN Web,Pendiente nativo; docs/refinement-b/LOTE-09-EVALUACIONES-ASISTENTE.md
-MKT-01,Campañas,T-M11,Pendiente,Pendiente
-MKT-02,Detalle de la campaña,T-M11,Pendiente,Pendiente
-MKT-03,Nueva campaña (asistente),T-M11,Pendiente,Pendiente
-MKT-04,Confirmar el envío,T-M11,Pendiente,Pendiente
-MKT-05,Menú ⋮ de Campañas,T-M11,Pendiente,Pendiente
-MKT-06,Menú ⋮ de la campaña,T-M11,Pendiente,Pendiente
-MKT-31,Ajustes de campañas,T-M11,Pendiente,Pendiente
-MKT-10,Audiencias,T-M11,Pendiente,Pendiente
-MKT-11,Detalle de la base,T-M11,Pendiente,Pendiente
-MKT-12,Subir una base (desde el teléfono),T-M11,Pendiente,Pendiente
+MKT-01,Campañas,T-M11,Implementada / simulacion local y QA RN Web (audiencias y campañas),Pendiente Android/iOS
+MKT-02,Detalle de la campaña,T-M11,Implementada / simulacion local y QA RN Web (audiencias y campañas),Pendiente Android/iOS
+MKT-03,Nueva campaña (asistente),T-M11,Implementada / simulacion local y QA RN Web (audiencias y campañas),Pendiente Android/iOS
+MKT-04,Confirmar el envío,T-M11,Implementada / simulacion local y QA RN Web (audiencias y campañas),Pendiente Android/iOS
+MKT-05,Menú ⋮ de Campañas,T-M11,Implementada / simulacion local y QA RN Web (audiencias y campañas),Pendiente Android/iOS
+MKT-06,Menú ⋮ de la campaña,T-M11,Implementada / simulacion local y QA RN Web (audiencias y campañas),Pendiente Android/iOS
+MKT-31,Ajustes de campañas,T-M11,Implementada / simulacion local y QA RN Web (audiencias y campañas),Pendiente Android/iOS
+MKT-10,Audiencias,T-M11,Implementada / simulacion local y QA RN Web (audiencias y campañas),Pendiente Android/iOS
+MKT-11,Detalle de la base,T-M11,Implementada / simulacion local y QA RN Web (audiencias y campañas),Pendiente Android/iOS
+MKT-12,Subir una base (desde el teléfono),T-M11,Implementada / simulacion local y QA RN Web (audiencias y campañas),Pendiente Android/iOS
 MKT-20,Plantillas de WhatsApp,T-M11,Implementada / simulacion local y QA RN Web (plantillas compartidas),Pendiente Android/iOS
 MKT-21,Detalle de la plantilla,T-M11,Implementada / simulacion local y QA RN Web (plantillas compartidas),Pendiente Android/iOS
 MKT-22,Nueva plantilla,T-M11,Implementada / simulacion local y QA RN Web (plantillas compartidas),Pendiente Android/iOS
-MKT-30,Métricas y costos,T-M11,Pendiente,Pendiente
+MKT-30,Métricas y costos,T-M11,Implementada / simulacion local y QA RN Web (audiencias y campañas),Pendiente Android/iOS
 MORE-01,Más,T-M8,Pendiente,Pendiente
 MORE-08,Cerrar sesión,T-M1,Implementada con simulacion / QA navegador,Pendiente
 MORE-05,Avisos,T-M8,Implementada con simulacion B / QA RN Web (lote 11),Pendiente

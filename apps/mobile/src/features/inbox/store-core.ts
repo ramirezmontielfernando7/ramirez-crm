@@ -9,6 +9,7 @@ import {
 } from "./model";
 export type DataState = "normal" | "loading" | "empty" | "error" | "offline";
 export class InboxStore {
+  marketingEnabled = true;
   private pending: string[] = [];
   readonly repository: DemoConversationRepository;
   private listeners = new Set<() => void>();

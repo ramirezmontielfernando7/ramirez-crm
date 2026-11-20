@@ -153,6 +153,12 @@ function OriginalDemo() {
         )}
         <Section>Laboratorio de demostración</Section>
         {auth.session && auth.session.role !== "advisor" && (
+          <NavRow
+            label="Laboratorio de campañas"
+            onPress={() => router.push("/campaign-lab")}
+          />
+        )}
+        {auth.session && auth.session.role !== "advisor" && (
           <>
             <NavRow
               label="Plantillas de Marketing"

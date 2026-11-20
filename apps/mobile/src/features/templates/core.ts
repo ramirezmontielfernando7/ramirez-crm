@@ -89,6 +89,7 @@ export class TemplateStore {
     readonly team: TeamRepository,
     readonly actor: string,
     private io: StoragePort,
+    private adminEnabled: () => boolean = () => true,
   ) {
     this.key = `dashfort.demo.templates.v1.${team.organizationId}`;
     this.state = {
@@ -291,6 +292,7 @@ export class TemplateStore {
     const job = (q.get(this.key) ?? Promise.resolve())
       .catch(() => {})
       .then(async () => {
+        if (!this.adminEnabled()) throw Error("Marketing está deshabilitado.");
         if (this.check().role === "advisor")
           throw Error("Tu rol no administra plantillas.");
         const raw = await this.io.get(this.key),

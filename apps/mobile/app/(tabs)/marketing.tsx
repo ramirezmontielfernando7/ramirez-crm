@@ -1,8 +1,14 @@
 import { useLocalSearchParams } from "expo-router";
 import { TemplateList } from "../../src/features/templates/Screens";
-import { ModuleScreen } from "../../src/screens/ModuleScreen";
+import {
+  Audiences,
+  CampaignList,
+  CampaignMetrics,
+} from "../../src/features/marketing/Screens";
 export default function Page() {
   const { section } = useLocalSearchParams<{ section?: string }>();
   if (section === "templates") return <TemplateList />;
-  return <ModuleScreen module="marketing" title="Marketing" task="T-M11" />;
+  if (section === "audiences") return <Audiences />;
+  if (section === "metrics") return <CampaignMetrics />;
+  return <CampaignList />;
 }

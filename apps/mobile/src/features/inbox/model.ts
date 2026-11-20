@@ -386,6 +386,78 @@ export class DemoConversationRepository implements ConversationRepository {
     this.data = [result, ...this.data];
     return result;
   }
+  /** Atomic projection of validated demo import metadata; never copies messages. */
+  importFictitiousBatch(
+    actor: Actor,
+    rows: readonly {
+      id: string;
+      name: string;
+      phone: string;
+      creator: string;
+      updateName: boolean;
+    }[],
+  ) {
+    actor = this.team?.actor(actor.id) ?? actor;
+    if (actor.role === "advisor") throw Error("Tu rol no importa bases.");
+    const copy = [...this.data],
+      byId = new Map(copy.map((c, i) => [c.id, i])),
+      byPhone = new Map(copy.map((c) => [c.phone.replace(/\D/g, ""), c]));
+    for (const r of rows) {
+      if (
+        !/^demo-(conv|new)-\d+$/.test(r.id) ||
+        !/^\+1555010\d{4}$/.test(r.phone) ||
+        !r.name.trim() ||
+        r.name.length > 80 ||
+        !(this.team
+          ? this.team.known(r.creator)
+          : ["demo-owner", "demo-coordinator", "demo-advisor"].includes(
+              r.creator,
+            ))
+      )
+        throw Error("Contacto ficticio no válido.");
+      const index = byId.get(r.id),
+        old = index === undefined ? undefined : copy[index],
+        phone = byPhone.get(r.phone.replace(/\D/g, ""));
+      if (
+        (old && old.phone.replace(/\D/g, "") !== r.phone.replace(/\D/g, "")) ||
+        (phone && phone.id !== r.id)
+      )
+        throw Error("La identidad del contacto cambió.");
+      if (old) {
+        if (r.updateName) {
+          const next = { ...old, name: r.name };
+          const updated = { ...next, search: searchable(next) };
+          copy[index!] = updated;
+          byPhone.set(r.phone.replace(/\D/g, ""), updated);
+        }
+        continue;
+      }
+      const next: Conversation = {
+        id: r.id,
+        name: r.name,
+        phone: r.phone,
+        preview: "Sin mensajes · contacto importado ficticio",
+        source: "Orgánico",
+        time: "Ahora",
+        unread: 0,
+        stage: "Nuevo",
+        tags: [],
+        assigned:
+          !this.team || this.team.available(r.creator) ? r.creator : null,
+        ai: "off",
+        archived: false,
+        campaign: null,
+        group: false,
+        closed: true,
+        search: "",
+      };
+      const added = { ...next, search: searchable(next) };
+      byId.set(added.id, copy.length);
+      byPhone.set(r.phone.replace(/\D/g, ""), added);
+      copy.push(added);
+    }
+    this.data = copy;
+  }
   /** Stable identity for an explicitly transferred fictitious personal contact. */
   createPersonal(actor: Actor, name: string, phone: string) {
     const digits = phone.replace(/\D/g, "");

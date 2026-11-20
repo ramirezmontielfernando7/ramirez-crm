@@ -12,6 +12,7 @@ export function templatesFor(inbox: InboxStore) {
       teamFor(inbox.repository.catalog.organizationId),
       inbox.actor.id,
       storageFor(inbox),
+      () => inbox.marketingEnabled,
     );
     stores.set(inbox, s);
   }

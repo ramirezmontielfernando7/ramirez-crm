@@ -1,3 +1,7 @@
+import { useSession } from "../../state/SessionProvider";
+import { canAccess } from "../../domain/access";
+import { MarketingTabs } from "../marketing/Tabs";
+import { useMarketing } from "../marketing/state";
 import { useTheme } from "../../theme/ThemeProvider";
 import React, { useRef, useState } from "react";
 import { View, FlatList, Pressable } from "react-native";
@@ -56,6 +60,19 @@ function useAction() {
 }
 function Ready({ children }: React.PropsWithChildren) {
   const { store, state } = useTemplates();
+  const { session, disabled } = useSession();
+  if (!session || !canAccess(session.role, "marketing", disabled))
+    return (
+      <EmptyState
+        title="Acceso no permitido"
+        message="Marketing no está disponible para tu perfil."
+        action={
+          <Button onPress={() => router.replace("/(tabs)/inbox")}>
+            Volver a Bandeja
+          </Button>
+        }
+      />
+    );
   return !state.ready ? (
     state.error ? (
       <ErrorState onRetry={() => void store.hydrate()} />
@@ -99,32 +116,7 @@ export function TemplateList() {
           </>
         }
       />
-      <View style={{ flexDirection: "row", paddingHorizontal: 16 }}>
-        {["Campañas", "Audiencias", "Plantillas", "Métricas"].map((label) => (
-          <Pressable
-            key={label}
-            accessibilityRole="tab"
-            accessibilityState={{
-              selected: label === "Plantillas",
-              disabled: label !== "Plantillas",
-            }}
-            disabled={label !== "Plantillas"}
-            style={{
-              paddingVertical: 12,
-              paddingHorizontal: 8,
-              borderBottomWidth: label === "Plantillas" ? 2 : 0,
-              borderColor: c.accent,
-            }}
-          >
-            <Text
-              kind="secondary"
-              style={{ color: label === "Plantillas" ? c.accentInk : c.text3 }}
-            >
-              {label}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
+      <MarketingTabs value="templates" />
       <Ready>
         <FilterChips options={filters} value={filter} onChange={setFilter} />
         <FlatList
@@ -225,7 +217,8 @@ export function TemplateDetail() {
   );
 }
 function Detail({ id }: { id: string }) {
-  const { store } = useTemplates();
+  const { store } = useTemplates(),
+    marketing = useMarketing();
   let t;
   try {
     t = store.get(id);
@@ -277,7 +270,11 @@ function Detail({ id }: { id: string }) {
                 ? "Baja"
                 : "—"}
           </Text>
-          <Text>Usada en · sin campañas activadas en esta simulación</Text>
+          <Text>
+            Usada en ·{" "}
+            {marketing.state.ready ? marketing.store.usage(t.id) : "…"} campañas
+            ficticias
+          </Text>
         </Card>
         {t.status === "rejected" && (
           <Button onPress={() => router.push(`/template-new?source=${t.id}`)}>

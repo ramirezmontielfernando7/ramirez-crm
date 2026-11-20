@@ -1,0 +1,15 @@
+{
+  "captures": 22,
+  "references": 22,
+  "errors": [],
+  "requests": 0,
+  "native": false,
+  "checks": [
+    "Sample select/map/consent/import failure retry",
+    "Audience detail → five-step wizard",
+    "Reinforced confirmation and wrong count",
+    "Manual pause/resume/cancel/duplicate",
+    "Manual results and safety pause",
+    "Role denial and restored sources"
+  ]
+}
