@@ -116,6 +116,9 @@ function RootNavigator() {
           <Stack.Screen name="studio-evaluation/[id]" />
           <Stack.Screen name="assistant" />
           <Stack.Screen name="team-lab" />
+          <Stack.Screen name="internal-supervision-lab" />
+          <Stack.Screen name="internal-chat/[id]" />
+          <Stack.Screen name="internal-info/[id]" />
           <Stack.Screen name="team" />
           <Stack.Screen name="calendar-settings" />
           <Stack.Screen name="tags" />

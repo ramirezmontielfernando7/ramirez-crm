@@ -103,3 +103,6 @@ SET-03/03A/03B completos en simulación local y QA RN Web: 114/158, 44 pendiente
 
 ## Continuación autorizada EQP · base parcial
 La nueva solicitud permite continuar EQP y sustituye el cierre anterior que prohibía iniciarlo. Ver docs/refinement-b/EQP-BASE.md. TeamChatStore puro + 8 pruebas: 477 totales, 114/158 y 44 pendientes. No UI ni IDs EQP contabilizados. Próximo EQP-01/02/03 con puerto protegido/compartido y revocación durante IO, después 04/05 y supervisión explícita 06+SET09. No reconstruir Equipo; no servicios, Gradle ni push. Conservar cadena desde f3.
+
+## Cierre EQP en simulación local
+Solicitud vigente autoriza EQP-01…06 y continuación local segura. Desde 58c90c5: 120/158, 38 pendientes, 489 pruebas; ver docs/refinement-b/EQP-CIERRE.md. Navegación, borradores, pertenencia, idempotencia y supervisión explícita auditada/solo lectura con revocación. QA RN Web 24 capturas + 12 referencias y regresiones aprobadas; no validación nativa. Próximo SET-09, sin reconstruir Equipo ni cambiar B. Mantener APK/firma, 26 protegidos y cadena Offline f3 →111→preparación→integración→cierreEquipo→baseEQP→nuevo. No Gradle con espacio insuficiente, backend, servicios, push o costes.

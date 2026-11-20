@@ -35,12 +35,12 @@ INB-26,Nueva tarea para este chat,T-M4,Implementada simulada,Lógica y RN Web; Q
 INB-27,Visor de imagen,T-M3,Implementada · simulación,QA web; nativo pendiente · docs/tm3
 INB-28,Eliminar chat,T-M3,Implementada · simulación,QA web; nativo pendiente · docs/tm3
 INB-29,Mensaje no entregado,T-M3,Implementada · simulación,QA web; nativo pendiente · docs/tm3
-EQP-01,Equipo · lista de conversaciones,T-M6,Pendiente,Pendiente
-EQP-02,Chat de equipo,T-M6,Pendiente,Pendiente
-EQP-06,Chat de equipo · supervisión,T-M6,Pendiente,Pendiente
-EQP-03,Nuevo mensaje o grupo,T-M6,Pendiente,Pendiente
-EQP-04,Información del grupo,T-M6,Pendiente,Pendiente
-EQP-05,Mencionar,T-M6,Pendiente,Pendiente
+EQP-01,Equipo · lista de conversaciones,T-M6,Implementada / simulacion local y QA RN Web (EQP),Pendiente Android/iOS
+EQP-02,Chat de equipo,T-M6,Implementada / simulacion local y QA RN Web (EQP),Pendiente Android/iOS
+EQP-06,Chat de equipo · supervisión,T-M6,Implementada / simulacion local y QA RN Web (EQP),Pendiente Android/iOS
+EQP-03,Nuevo mensaje o grupo,T-M6,Implementada / simulacion local y QA RN Web (EQP),Pendiente Android/iOS
+EQP-04,Información del grupo,T-M6,Implementada / simulacion local y QA RN Web (EQP),Pendiente Android/iOS
+EQP-05,Mencionar,T-M6,Implementada / simulacion local y QA RN Web (EQP),Pendiente Android/iOS
 NUM-01,Mi número · lista,T-M6,Pendiente,Pendiente
 NUM-02,Mi número · chat,T-M6,Pendiente,Pendiente
 NUM-03,Mi número · opciones del chat,T-M6,Pendiente,Pendiente

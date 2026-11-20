@@ -154,6 +154,12 @@ function OriginalDemo() {
         <Section>Laboratorio de demostración</Section>
         {auth.session?.role === "owner" && (
           <NavRow
+            label="Supervisión interna · laboratorio"
+            onPress={() => router.push("/internal-supervision-lab")}
+          />
+        )}
+        {auth.session?.role === "owner" && (
+          <NavRow
             label="Laboratorio de invitaciones"
             onPress={() => router.push("/team-lab")}
           />

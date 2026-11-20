@@ -1,0 +1,17 @@
+{
+  "actualCaptures": 24,
+  "references": 12,
+  "checks": [
+    "Six EQP IDs both themes/sizes",
+    "Bandeja selector and internal routes",
+    "Direct save failure, retry and no duplicates",
+    "Attachment preview",
+    "Create group, leave confirmation/cancel",
+    "Advisor announcements read-only",
+    "Explicit supervision, audited access, read-only view and revocation",
+    "Draft restoration and customer mention masked for unauthorized reader"
+  ],
+  "errors": [],
+  "networkRequests": 0,
+  "native": false
+}

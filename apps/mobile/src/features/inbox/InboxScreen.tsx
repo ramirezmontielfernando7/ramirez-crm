@@ -1,3 +1,5 @@
+import { InternalList } from "../team-chat/Screens";
+import { useLocalSearchParams } from "expo-router";
 import { CatalogTag } from "../catalog/CatalogTag";
 import React, {
   memo,
@@ -440,7 +442,11 @@ function StateControls() {
     </>
   );
 }
-export default function InboxScreen() {
+export default function InboxEntry() {
+  const { area } = useLocalSearchParams<{ area?: string }>();
+  return area === "team" ? <InternalList /> : <InboxScreen />;
+}
+function InboxScreen() {
   const store = useInbox();
   const s = useInboxState();
   const { colors: c } = useTheme();
@@ -696,19 +702,23 @@ export default function InboxScreen() {
             ]}
             value="clients"
             onChange={(key) =>
-              open({
-                kind: "dialog",
-                title: key === "team" ? "Equipo" : "Mi número",
-                content: (
-                  <>
-                    <Text>
-                      Este módulo se implementará en T-M6. La Bandeja de
-                      Clientes ya está disponible.
-                    </Text>
-                    <Button onPress={close}>Volver a Clientes</Button>
-                  </>
-                ),
-              })
+              key === "clients"
+                ? undefined
+                : key === "team"
+                  ? router.replace("/(tabs)/inbox?area=team")
+                  : open({
+                      kind: "dialog",
+                      title: key === "team" ? "Equipo" : "Mi número",
+                      content: (
+                        <>
+                          <Text>
+                            Este módulo se implementará en T-M6. La Bandeja de
+                            Clientes ya está disponible.
+                          </Text>
+                          <Button onPress={close}>Volver a Clientes</Button>
+                        </>
+                      ),
+                    })
             }
           />
           <FilterChips
