@@ -91,3 +91,6 @@ Bloquear mutaciones si catálogo no está recuperado y revalidar motivo activo t
 
 ## Lote 15 y checkpoint 111
 SET-08 implementado: 111/158, 47 pendientes, 448 pruebas. Ver docs/refinement-b/CHECKPOINT-111.md y LOTE-15-AGENDA-CONECTORES.md. Agenda comparte conectores Zoom/Meet ficticios por org, candidatos respetan horario canónico; bloques privados previos se conservan. Sin OAuth/proveedores/URLs reales; Unirse solo toast. Próximo SET-03/03A/03B con personas canónicas antes de EQP y SET-09. Entradas temporales por demo; no sumar SET-01/MORE-01. Mantener B, backend, APK/firma, los 26 artefactos y base f3 de bundles. Sin Gradle, servicios, push o costes.
+
+## Equipo · preparación parcial posterior a 111
+Ver docs/refinement-b/EQUIPO-PREPARACION.md. TeamRepository aislado + 12 pruebas; 460 totales. Sin conexión al runtime ni UI nueva: siguen 111/158 y 47 pendientes. No contar SET-03/03A/03B. Reanudar unificando personas en Inbox/Contactos/Work/Agenda/Uso, invalidación de permisos en proveedores, reemisión/reset ficticios y después pantallas/QA. No backend, servicios, Gradle ni push. Conservar cadena f3 → 111 → preparación.
