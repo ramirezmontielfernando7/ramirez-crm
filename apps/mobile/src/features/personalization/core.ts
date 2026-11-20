@@ -223,6 +223,19 @@ export class PersonalizationStore {
           personal = p
             ? this.personalDecode(this.parse(p))
             : this.state.personal;
+        // The previous APK stored a device-wide demo theme. Preserve it only for
+        // the original demo organization when no scoped personal document exists.
+        // No credentials or other account preferences are imported or overwritten.
+        let restoredPersonal = personal;
+        if (!p && this.team.organizationId === "demo-org-cristal") {
+          const legacy = await this.io.get("dashfort.demo.theme");
+          this.check();
+          if (legacy === "light" || legacy === "dark" || legacy === "system")
+            restoredPersonal = this.personalDecode({
+              ...personal,
+              theme: legacy,
+            });
+        }
         this.patch({
           ready: true,
           error: "",
@@ -231,8 +244,8 @@ export class PersonalizationStore {
               ? brand
               : this.state.brand,
           personal:
-            personal.revision >= this.state.personal.revision
-              ? personal
+            restoredPersonal.revision >= this.state.personal.revision
+              ? restoredPersonal
               : this.state.personal,
         });
       } catch {

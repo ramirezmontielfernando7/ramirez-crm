@@ -398,3 +398,26 @@ test("Platform retained views clear metadata immediately after membership deacti
   assert.throws(() => s.organization("o2"));
   stop();
 });
+
+test("Legacy device theme is preserved without overwriting bytes or crossing into another organization", async () => {
+  const f = fixture();
+  f.data.set("dashfort.demo.theme", "dark");
+  await f.team.hydrate();
+  const s = f.store();
+  await s.hydrate();
+  assert.equal(s.snapshot().personal.theme, "dark");
+  assert.equal(f.data.size, 1);
+  await s.personal({ theme: "light" });
+  const restored = f.store();
+  await restored.hydrate();
+  assert.equal(restored.snapshot().personal.theme, "light");
+  assert.equal(f.data.get("dashfort.demo.theme"), "dark");
+  const other = fixture("demo-org-other", f.data);
+  await other.team.hydrate();
+  const o = other.store();
+  await o.hydrate();
+  assert.equal(
+    resolveAppearance(o.snapshot().brand, o.snapshot().personal).theme,
+    "light",
+  );
+});
