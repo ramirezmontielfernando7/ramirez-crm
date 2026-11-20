@@ -113,11 +113,7 @@ export async function countCampaignPending(
     .from(schema.conversation)
     .innerJoin(schema.contact, eq(schema.conversation.contactId, schema.contact.id))
     .where(
-      scopedContacts(
-        schema.conversation.organizationId,
-        access,
-        schema.conversation.contactId,
-        companyChat(),
+      scopedContacts(schema.conversation.organizationId, access, schema.contact.id, contactoDeLaEmpresa, companyChat(),
         viewCondition("campaigns"),
         access.seesAll ? assignmentCondition(access, filter) : undefined
       )
@@ -138,15 +134,7 @@ export async function countUnread(access: Access): Promise<number> {
     .select({ n: sql<number>`coalesce(sum(${schema.conversation.unreadCount}), 0)::int` })
     .from(schema.conversation)
     .innerJoin(schema.contact, eq(schema.conversation.contactId, schema.contact.id))
-    .where(
-      scopedContacts(
-        schema.conversation.organizationId,
-        access,
-        schema.conversation.contactId,
-        companyChat(),
-        viewCondition("main")
-      )
-    );
+    .where(scopedContacts(schema.conversation.organizationId, access, schema.contact.id, contactoDeLaEmpresa, companyChat(), viewCondition("main")));
   return rows[0]?.n ?? 0;
 }
 
@@ -186,6 +174,32 @@ type ListOptions = {
    */
   numberClients?: boolean;
 };
+
+/**
+ * Para el alcance (020) de un chat evaluado sobre su contacto YA unido:
+ * `scopedContacts(conversation.organizationId, access, contact.id, contactoDeLaEmpresa, …)`.
+ * Mismas reglas que sobre `conversation.contact_id` (privados fuera; al
+ * asesor, lo suyo), pero sin la subconsulta `exists` por fila: en los conteos
+ * sobre toda la bandeja esa subconsulta pesaba más que el conteo (prueba de
+ * carga, 36 mil chats). La organización del contacto va explícita para no
+ * depender de que coincida con la del chat.
+ */
+const contactoDeLaEmpresa = eq(schema.contact.organizationId, schema.conversation.organizationId);
+
+/**
+ * El lead del contacto ya unido, sin búsqueda lateral: `lead_contact_uq`
+ * garantiza a lo más uno por contacto (el mismo que encuentra `leadActualDe`),
+ * y el contacto ya pasó por el alcance (`contactoDeLaEmpresa`). Para recorrer TODA la bandeja
+ * (conteos, selector de etapas) la búsqueda lateral costaba una consulta por chat.
+ */
+const leadDelContacto = and(
+  eq(schema.lead.organizationId, schema.conversation.organizationId),
+  eq(schema.lead.contactId, schema.contact.id)
+);
+const etapaDelLead = and(
+  eq(schema.pipelineStage.organizationId, schema.lead.organizationId),
+  eq(schema.pipelineStage.id, schema.lead.stageId)
+);
 
 /** La llave de orden de la lista (y de su índice, migración 0053). */
 const sortKeySql = sql`coalesce(${schema.conversation.lastMessageAt}, ${schema.conversation.createdAt})`;
@@ -490,11 +504,10 @@ export async function countConversations(access: Access, f: ListFilters): Promis
 
 async function computeCounts(access: Access, f: ListFilters): Promise<InboxCounts> {
   const db = getDb();
-  const leadActual = leadActualDe(access);
   const main = and(isNull(schema.contact.waGroupJid), isNull(schema.conversation.campaignPendingId));
   const campaign = and(isNull(schema.contact.waGroupJid), isNotNull(schema.conversation.campaignPendingId));
   const groupsEnabled = await orgHasConexionDirecta(access.organizationId);
-  const filtros = and(...screenFilters(access, f, leadActual.stageName)) ?? sql`true`;
+  const filtros = and(...screenFilters(access, f, schema.pipelineStage.name)) ?? sql`true`;
   const enBandeja =
     f.channel !== "all" ? eq(schema.conversation.channel, f.channel) : sql`true`;
   const n = (cond: SQL | undefined) => sql<number>`(count(*) filter (where ${cond ?? sql`true`}))::int`;
@@ -525,37 +538,53 @@ async function computeCounts(access: Access, f: ListFilters): Promise<InboxCount
     .from(schema.conversation)
     .innerJoin(schema.contact, eq(schema.conversation.contactId, schema.contact.id))
     .leftJoin(schema.adAttribution, anuncioDeLaConversacion)
-    .where(scopedContacts(schema.conversation.organizationId, access, schema.conversation.contactId, real))
+    .where(scopedContacts(schema.conversation.organizationId, access, schema.contact.id, contactoDeLaEmpresa, real))
     .$dynamic();
-  // El lead actual solo lo usa el filtro de etapa: sin él, unirlo costaba una
-  // subconsulta por chat (~36 mil por conteo en la prueba de carga). Drizzle
-  // arma el SQL al final, así que la unión puede ir después del `where`.
-  const [totals] = await (f.stage !== "all" ? totalsQuery.leftJoinLateral(leadActual, sql`true`) : totalsQuery);
+  // La etapa solo la usa su filtro: sin él no se une nada. Con él, unión
+  // directa (un lead por contacto, ver `leadDelContacto`): la lateral costaba
+  // una subconsulta por chat (~36 mil por conteo en la prueba de carga).
+  // Drizzle arma el SQL al final, así que la unión puede ir después del `where`.
+  const [totals] = await (f.stage !== "all"
+    ? totalsQuery.leftJoin(schema.lead, leadDelContacto).leftJoin(schema.pipelineStage, etapaDelLead)
+    : totalsQuery);
 
   // Lo que ofrecen los selectores: lo PRESENTE en la principal (con
   // archivados), sin los filtros de pantalla, como cuando se sacaba de la
   // lista completa. Las etapas, en el orden en que aparecían en ella.
   const { stageRows, tagRows, ownerRows } = await memoized(`selectors|${accessKey(access)}`, SELECTORS_TTL_MS, async () => {
-  const stageRows = await memoized(`stages|${accessKey(access)}`, STAGES_TTL_MS, () => db
-    .select({ name: leadActual.stageName })
-    .from(schema.conversation)
-    .innerJoin(schema.contact, eq(schema.conversation.contactId, schema.contact.id))
-    .leftJoinLateral(leadActual, sql`true`)
-    .where(scopedContacts(schema.conversation.organizationId, access, schema.conversation.contactId, real, or(main, isNotNull(schema.contact.waGroupJid)), isNotNull(leadActual.stageName)))
-    .groupBy(leadActual.stageName)
-    .orderBy(desc(sql`max(${sortKeySql})`)));
+  const stageRows = await memoized(`stages|${accessKey(access)}`, STAGES_TTL_MS, () => {
+    // Se agrupa por id de etapa y el nombre se pone al final: agrupar 36 mil
+    // filas por TEXTO (con la intercalación del idioma) era lo caro.
+    // Prueba de carga: ~2.3 s → ~0.13 s.
+    const presentes = db
+      .select({ stageId: schema.lead.stageId, last: sql`max(${sortKeySql})`.as("last") })
+      .from(schema.conversation)
+      .innerJoin(schema.contact, eq(schema.conversation.contactId, schema.contact.id))
+      .innerJoin(schema.lead, leadDelContacto)
+      .where(scopedContacts(schema.conversation.organizationId, access, schema.contact.id, contactoDeLaEmpresa, real, or(main, isNotNull(schema.contact.waGroupJid))))
+      .groupBy(schema.lead.stageId)
+      .as("presentes");
+    return db
+      .select({ name: schema.pipelineStage.name })
+      .from(presentes)
+      .innerJoin(
+        schema.pipelineStage,
+        and(eq(schema.pipelineStage.organizationId, access.organizationId), eq(schema.pipelineStage.id, presentes.stageId))
+      )
+      .orderBy(desc(presentes.last));
+  });
   const tagRows = await db
     .selectDistinct({ id: schema.contactTag.id, name: schema.contactTag.name })
     .from(schema.conversation)
     .innerJoin(schema.contact, eq(schema.conversation.contactId, schema.contact.id))
     .innerJoin(schema.contactTagAssignment, eq(schema.contactTagAssignment.contactId, schema.contact.id))
     .innerJoin(schema.contactTag, eq(schema.contactTag.id, schema.contactTagAssignment.tagId))
-    .where(scopedContacts(schema.conversation.organizationId, access, schema.conversation.contactId, real, or(main, isNotNull(schema.contact.waGroupJid)), isNull(schema.contactTag.systemOrigin)));
+    .where(scopedContacts(schema.conversation.organizationId, access, schema.contact.id, contactoDeLaEmpresa, real, or(main, isNotNull(schema.contact.waGroupJid)), isNull(schema.contactTag.systemOrigin)));
   const ownerRows = await db
     .selectDistinct({ id: schema.contact.assignedUserId, name: assigneeNameSql })
     .from(schema.conversation)
     .innerJoin(schema.contact, eq(schema.conversation.contactId, schema.contact.id))
-    .where(scopedContacts(schema.conversation.organizationId, access, schema.conversation.contactId, real, or(main, isNotNull(schema.contact.waGroupJid)), isNotNull(schema.contact.assignedUserId)));
+    .where(scopedContacts(schema.conversation.organizationId, access, schema.contact.id, contactoDeLaEmpresa, real, or(main, isNotNull(schema.contact.waGroupJid)), isNotNull(schema.contact.assignedUserId)));
 
   return { stageRows, tagRows, ownerRows };
   });
@@ -578,7 +607,7 @@ async function computeCounts(access: Access, f: ListFilters): Promise<InboxCount
     campaignPending: t.campaignPending ?? 0,
     channels,
     queryHits: t.queryHits ?? 0,
-    stages: stageRows.map((r) => r.name).filter((s): s is string => !!s),
+    stages: [...new Set(stageRows.map((r) => r.name).filter((s): s is string => !!s))],
     tags: tagRows.map((r) => [r.id, r.name]),
     owners: ownerRows.filter((r): r is { id: string; name: string | null } => !!r.id).map((r) => [r.id, r.name ?? ""]),
   };
