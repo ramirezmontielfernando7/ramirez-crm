@@ -200,3 +200,17 @@ test("Other organization and forged restored scope cannot inherit invitations", 
   await g.store.reload();
   assert.equal(g.store.snapshot().ready, false);
 });
+
+test("Reissue invalidates previous invite and preserves member identity", async () => {
+  const f = setup();
+  await f.store.hydrate();
+  const first = await f.store.invite("demo-owner", invite, "first");
+  const second = await f.store.reissue("demo-owner", first, "renew");
+  assert.notEqual(second, first);
+  await assert.rejects(f.store.accept(first, "old"));
+  const member = await f.store.accept(second, "new");
+  assert.equal(
+    f.store.snapshot().doc.invitations.find((i) => i.id === first)?.memberId,
+    member,
+  );
+});

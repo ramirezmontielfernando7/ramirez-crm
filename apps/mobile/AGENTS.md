@@ -94,3 +94,6 @@ SET-08 implementado: 111/158, 47 pendientes, 448 pruebas. Ver docs/refinement-b/
 
 ## Equipo · preparación parcial posterior a 111
 Ver docs/refinement-b/EQUIPO-PREPARACION.md. TeamRepository aislado + 12 pruebas; 460 totales. Sin conexión al runtime ni UI nueva: siguen 111/158 y 47 pendientes. No contar SET-03/03A/03B. Reanudar unificando personas en Inbox/Contactos/Work/Agenda/Uso, invalidación de permisos en proveedores, reemisión/reset ficticios y después pantallas/QA. No backend, servicios, Gradle ni push. Conservar cadena f3 → 111 → preparación.
+
+## Equipo · integración parcial posterior a 00b497c
+Ver docs/refinement-b/EQUIPO-INTEGRACION-PARCIAL.md. 111/158 y 47 pendientes, 463 pruebas. Hay runtime inicial de equipo y tres vistas preliminares, NO sumar IDs. Reanudar por listas CRM/nombres históricos, permisos diferidos de todos los repositorios, Agenda nuevas asignaciones, confirmación/reset ficticio/lab, estados y QA de acciones completo. Capturas preliminares no equivalen a aprobación de la implementación. No APK/distribución ni servicios. Mantener 26 artefactos y cadena de bundles f3 → 111 → 00b497c → nuevo incremental.

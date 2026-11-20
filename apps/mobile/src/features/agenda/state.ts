@@ -12,6 +12,7 @@ export function agendaFor(inbox: InboxStore) {
       preferencesStorage,
       Date.now,
       connectorsFor(inbox),
+      inbox.repository.team,
     );
     stores.set(inbox, store);
   }

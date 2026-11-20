@@ -1,8 +1,10 @@
+import { useTeam } from "../features/team/state";
 import React, {
   createContext,
   useContext,
   useEffect,
   useRef,
+  useMemo,
   useState,
 } from "react";
 import { AppState } from "react-native";
@@ -23,6 +25,7 @@ const Context = createContext<{
   restore: () => Promise<void>;
 }>(null!);
 export function SessionProvider({ children }: React.PropsWithChildren) {
+  const { state: teamState } = useTeam();
   const [session, setSession] = useState<Session | null>(null);
   const [ready, setReady] = useState(false);
   const [notice, setNotice] = useState("");
@@ -90,10 +93,20 @@ export function SessionProvider({ children }: React.PropsWithChildren) {
     setDisabled([]);
     setNotice("");
   };
+  const member = teamState.doc.members.find(
+    (m) => m.id === session?.id && m.active,
+  );
+  const effectiveSession = useMemo(
+    () =>
+      session && teamState.ready && member
+        ? { ...session, role: member.role }
+        : null,
+    [session, teamState.ready, member?.id, member?.role],
+  );
   return (
     <Context.Provider
       value={{
-        session,
+        session: effectiveSession,
         ready,
         notice,
         disabled,

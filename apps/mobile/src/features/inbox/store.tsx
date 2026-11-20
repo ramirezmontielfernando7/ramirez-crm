@@ -1,3 +1,5 @@
+import { ErrorState, Skeleton } from "../../components/ui";
+import { teamFor, useTeam } from "../team/state";
 import { CatalogStore } from "../catalog/core";
 import { preferencesStorage } from "../../services/storage";
 import React, {
@@ -13,19 +15,27 @@ export type { DataState } from "./store-core";
 const Context = createContext<InboxStore | null>(null);
 export function InboxProvider({ children }: React.PropsWithChildren) {
   const { session } = useSession();
+  const { store: roster, state: rosterState } = useTeam();
   const store = useMemo(
     () =>
-      session
+      session && rosterState.ready
         ? new InboxStore(
             session,
             new CatalogStore(session, "demo-org-cristal", preferencesStorage),
+            teamFor(),
           )
         : null,
-    [session?.id],
+    [session?.id, session?.role, rosterState.ready],
   );
   useEffect(() => {
     if (store) void store.repository.catalog.hydrate();
   }, [store]);
+  if (!rosterState.ready)
+    return rosterState.error ? (
+      <ErrorState onRetry={() => void roster.reload()} />
+    ) : (
+      <Skeleton rows={3} />
+    );
   return <Context.Provider value={store}>{children}</Context.Provider>;
 }
 export function useInbox() {

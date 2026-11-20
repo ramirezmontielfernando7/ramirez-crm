@@ -1,3 +1,4 @@
+import { usePeople } from "../team/state";
 import React, { useState, useSyncExternalStore } from "react";
 import { Pressable, View } from "react-native";
 import {
@@ -88,6 +89,7 @@ export function TaskEditor({
   directory: ContactDirectory;
   initial: WorkTask;
 }) {
+  const { team, personName } = usePeople();
   const repo = dir.workRepo,
     s = useSyncExternalStore(repo.subscribe, repo.snapshot, repo.snapshot),
     layers = useLayers(),

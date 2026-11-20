@@ -1,3 +1,4 @@
+import type { TeamRepository } from "../team/core";
 import { CatalogStore, initialTags } from "../catalog/core";
 import { stagePalette } from "../../domain/stage-colors";
 let catalogEpoch = 0;
@@ -145,6 +146,7 @@ export function seedConversations(count = 2000): readonly Conversation[] {
 }
 export interface ConversationRepository {
   readonly catalog?: CatalogStore;
+  readonly team?: TeamRepository;
   stageOptions?(): readonly string[];
   stageIdentity?(name: string): string | null;
   stageColor?(name: string): string;
@@ -193,6 +195,7 @@ export class DemoConversationRepository implements ConversationRepository {
     });
   }
   setStageColor(actor: Actor, name: string, color: string) {
+    actor = this.team?.actor(actor.id) ?? actor;
     if (
       actor.role === "advisor" ||
       !this.stageNames.has(name) ||
@@ -208,6 +211,7 @@ export class DemoConversationRepository implements ConversationRepository {
   stageIdentity = (name: string) => this.stageIds.get(name) ?? null;
   stageOptions = () => [...this.stageNames];
   configureStages(actor: Actor, names: readonly string[]) {
+    actor = this.team?.actor(actor.id) ?? actor;
     if (
       actor.role === "advisor" ||
       names.length < 1 ||
@@ -251,6 +255,7 @@ export class DemoConversationRepository implements ConversationRepository {
   constructor(
     data = seedConversations(),
     readonly catalog = new CatalogStore({ id: "demo-owner", role: "owner" }),
+    readonly team?: TeamRepository,
   ) {
     this.data = data.map((c) =>
       c.source
@@ -286,9 +291,11 @@ export class DemoConversationRepository implements ConversationRepository {
     if (catalog.snapshot().ready) apply();
   }
   list(actor: Actor) {
+    actor = this.team?.actor(actor.id) ?? actor;
     return this.data.filter((c) => allowed(actor, c));
   }
   get(actor: Actor, id: string) {
+    actor = this.team?.actor(actor.id) ?? actor;
     const c = this.data.find((c) => c.id === id);
     if (!c || !allowed(actor, c))
       throw new Error("Conversación no disponible para tu perfil.");
@@ -304,6 +311,7 @@ export class DemoConversationRepository implements ConversationRepository {
     this.data = this.data.map((c) => (set.has(c.id) ? patch(c) : c));
   }
   tagMany(actor: Actor, ids: readonly string[], tag: string) {
+    actor = this.team?.actor(actor.id) ?? actor;
     if (
       !this.catalog.snapshot().ready ||
       actor.role !== "owner" ||
@@ -329,9 +337,14 @@ export class DemoConversationRepository implements ConversationRepository {
     this.update(actor, ids, (c) => ({ ...c, archived: !c.archived }));
   }
   assign(actor: Actor, ids: readonly string[], assignee: string) {
+    actor = this.team?.actor(actor.id) ?? actor;
     if (actor.role === "advisor")
       throw new Error("Tu perfil no puede asignar conversaciones.");
-    if (!["demo-owner", "demo-coordinator", "demo-advisor"].includes(assignee))
+    if (
+      !(this.team
+        ? this.team.available(assignee)
+        : ["demo-owner", "demo-coordinator", "demo-advisor"].includes(assignee))
+    )
       throw new Error("Elige una persona del equipo de prueba.");
     this.update(actor, ids, (c) => ({ ...c, assigned: assignee }));
   }
@@ -385,9 +398,11 @@ export class DemoConversationRepository implements ConversationRepository {
     if (
       patch.assigned !== undefined &&
       patch.assigned !== null &&
-      !["demo-owner", "demo-coordinator", "demo-advisor"].includes(
-        patch.assigned,
-      )
+      !(this.team
+        ? this.team.available(patch.assigned)
+        : ["demo-owner", "demo-coordinator", "demo-advisor"].includes(
+            patch.assigned,
+          ))
     )
       throw new Error("Elige una persona activa del equipo.");
     if (patch.stage !== undefined && !this.stageNames.has(patch.stage))

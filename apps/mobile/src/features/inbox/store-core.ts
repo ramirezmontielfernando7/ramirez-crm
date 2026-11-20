@@ -1,3 +1,4 @@
+import type { TeamRepository } from "../team/core";
 import { CatalogStore } from "../catalog/core";
 import {
   DemoConversationRepository,
@@ -32,8 +33,16 @@ export class InboxStore {
   constructor(
     readonly actor: Actor,
     catalog = new CatalogStore(actor),
+    team?: TeamRepository,
   ) {
-    this.repository = new DemoConversationRepository(undefined, catalog);
+    if (team)
+      this.actor = Object.freeze({
+        id: actor.id,
+        get role() {
+          return team.actor(actor.id).role;
+        },
+      });
+    this.repository = new DemoConversationRepository(undefined, catalog, team);
     this.repository.subscribeCatalog(() => {
       const selected = this.state.filters.tag;
       const next =

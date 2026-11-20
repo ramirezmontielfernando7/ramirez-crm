@@ -1,3 +1,4 @@
+import { usePeople } from "../team/state";
 import { CatalogTag } from "../catalog/CatalogTag";
 import React, { useRef, useState } from "react";
 import { View } from "react-native";
@@ -130,6 +131,7 @@ export function LossSheet({ store }: { store: ContactStore }) {
   );
 }
 export function AssignSheet({ store }: { store: ContactStore }) {
+  const { team, personName } = usePeople();
   const s = useContactState(store),
     action = useAction(),
     { close } = useLayers();
@@ -428,6 +430,7 @@ export function SaleSheet({
   );
 }
 export function TaskSheet({ store }: { store: ContactStore }) {
+  const { team, personName } = usePeople();
   const now = new Date();
   now.setHours(17, 0, 0, 0);
   if (now.getTime() < Date.now()) now.setDate(now.getDate() + 1);

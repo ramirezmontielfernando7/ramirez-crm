@@ -212,6 +212,84 @@ export class TeamRepository {
     this.patch({ ready: false });
     await this.hydrate();
   }
+  actor(id: string) {
+    if (!this.state.ready)
+      throw Error("Recupera el equipo antes de continuar.");
+    const m = this.state.doc.members.find((m) => m.id === id && m.active);
+    if (!m) throw Error("El acceso de esta persona está desactivado.");
+    return { id: m.id, role: m.role };
+  }
+  known(id: string) {
+    return this.state.doc.members.some((m) => m.id === id);
+  }
+  available(id: string) {
+    return (
+      this.state.ready &&
+      this.state.doc.members.some((m) => m.id === id && m.active)
+    );
+  }
+  people() {
+    return this.state.doc.members.filter((m) => m.active);
+  }
+  seats() {
+    return this.state.doc.members.filter(
+      (m) =>
+        m.active ||
+        this.state.doc.invitations.some(
+          (i) =>
+            i.memberId === m.id &&
+            i.status === "pending" &&
+            i.expiresAt > this.now(),
+        ),
+    ).length;
+  }
+  reissue(actor: string, id: string, key: string) {
+    return this.change(key, ["reissue", actor, id], (d) => {
+      this.manage(d, actor);
+      const i = d.invitations.find((i) => i.id === id);
+      if (
+        !i ||
+        i.status === "accepted" ||
+        d.members.find((m) => m.id === i.memberId)?.active
+      )
+        throw Error("La invitación no se puede reemitir.");
+      if (d.invitations.length >= 100) throw Error("Límite local alcanzado.");
+      const occupied = d.members.filter(
+        (m) =>
+          m.active ||
+          d.invitations.some(
+            (x) =>
+              x.memberId === m.id &&
+              x.memberId !== i.memberId &&
+              x.status === "pending" &&
+              x.expiresAt > this.now(),
+          ),
+      ).length;
+      if (occupied >= 5) throw Error("Sin plazas en el plan ficticio.");
+      const sequence = d.sequence + 1,
+        nextId = `demo-invite-${sequence}`;
+      return {
+        doc: {
+          ...d,
+          sequence,
+          invitations: [
+            ...d.invitations.map((x) =>
+              x.memberId === i.memberId && x.status === "pending"
+                ? { ...x, status: "revoked" as const }
+                : x,
+            ),
+            {
+              id: nextId,
+              memberId: i.memberId,
+              status: "pending" as const,
+              expiresAt: this.now() + 7 * 86400000,
+            },
+          ],
+        },
+        result: nextId,
+      };
+    });
+  }
   invitationState(id: string) {
     const i = this.state.doc.invitations.find((i) => i.id === id);
     if (!i) throw Error("Invitación no disponible.");

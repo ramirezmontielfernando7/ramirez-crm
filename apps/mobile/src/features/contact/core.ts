@@ -1,3 +1,4 @@
+import type { TeamRepository } from "../team/core";
 import { importTag, type CatalogStore } from "../catalog/core";
 import {
   stages,
@@ -39,8 +40,13 @@ export function decodeDetails(
   raw: string,
   catalog: readonly string[] = stages,
   business?: CatalogStore,
+  roster?: TeamRepository,
 ): ContactData {
   const d = JSON.parse(raw) as ContactData;
+  const isPerson = (v: unknown) =>
+    v === null ||
+    (typeof v === "string" &&
+      (roster ? roster.known(v) : team.some((p) => p.id === v)));
   const text = (v: unknown, max: number) =>
     typeof v === "string" && v.length <= max;
   if (
@@ -173,6 +179,7 @@ export class ContactDirectory {
         raw,
         this.conversations.stageOptions?.() ?? stages,
         this.conversations.catalog,
+        this.conversations.team,
       );
       result.push({
         contactId: id,
@@ -389,6 +396,7 @@ export class ContactStore {
               raw,
               this.directory.conversations.stageOptions?.() ?? stages,
               this.directory.conversations.catalog,
+              this.directory.conversations.team,
             )
           : this.state.data;
         const current = this.authorize();
@@ -523,6 +531,7 @@ export class ContactStore {
             JSON.stringify(data),
             this.directory.conversations.stageOptions?.() ?? stages,
             this.directory.conversations.catalog,
+            this.directory.conversations.team,
           );
           await this.directory.storage.set(
             this.storageKey,
@@ -612,7 +621,12 @@ export class ContactStore {
     this.mutate(key, ["assign", assigned], (d) => {
       if (!canAssign(this.actor))
         throw new Error("Tu perfil no puede asignar conversaciones.");
-      if (!isPerson(assigned))
+      if (!(
+        assigned === null ||
+        (this.directory.conversations.team
+          ? this.directory.conversations.team.available(assigned)
+          : isPerson(assigned))
+      ))
         throw new Error("Elige una persona activa del equipo.");
       if (d.assigned === assigned) return null;
       const name = team.find((p) => p.id === assigned)?.name ?? "Sin asignar";

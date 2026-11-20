@@ -650,7 +650,7 @@ export class StudioStore {
       })),
       storageBytes: bytes,
       storageLimit: 5_000_000_000,
-      people: team.length,
+      people: this.conversations.team?.seats() ?? team.length,
       peopleLimit: 5,
       documents: entries.filter((e) => e.rag).length,
       documentLimit: 100,

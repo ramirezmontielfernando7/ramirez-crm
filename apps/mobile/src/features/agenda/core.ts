@@ -1,3 +1,4 @@
+import type { TeamRepository } from "../team/core";
 import {
   withinBusinessHours,
   type CalendarConnectors,
@@ -190,6 +191,7 @@ export class AgendaStore {
     private storage: StoragePort,
     private now = Date.now,
     readonly connectors?: CalendarConnectors,
+    readonly team?: TeamRepository,
   ) {
     if (
       !/^demo-org-[\w-]{1,60}$/.test(organizationId) ||
@@ -197,7 +199,14 @@ export class AgendaStore {
       !["owner", "coordinator", "advisor"].includes(actor.role)
     )
       throw Error("Scope ficticio inválido.");
-    this.actor = Object.freeze({ ...actor });
+    this.actor = team
+      ? Object.freeze({
+          id: actor.id,
+          get role() {
+            return team.actor(actor.id).role;
+          },
+        })
+      : Object.freeze({ ...actor });
     this.key = `dashfort:agenda:v1:${organizationId}:${actor.id}`;
     this.state = Object.freeze({
       ready: false,
@@ -285,7 +294,9 @@ export class AgendaStore {
     if (
       !/^demo-booking-[\w-]{1,100}$/.test(r.id) ||
       r.organizationId !== this.organizationId ||
-      !(agendaTeam as readonly string[]).includes(r.assignee) ||
+      !(this.team
+        ? this.team.known(r.assignee)
+        : (agendaTeam as readonly string[]).includes(r.assignee)) ||
       !Number.isSafeInteger(r.start) ||
       r.start < 480 ||
       r.start % 15 !== 0 ||

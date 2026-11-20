@@ -91,7 +91,14 @@ export class WorkRepository {
       !["owner", "coordinator", "advisor"].includes(actor.role)
     )
       throw Error("Scope ficticio inválido.");
-    this.actor = Object.freeze({ ...actor });
+    this.actor = conversations.team
+      ? Object.freeze({
+          id: actor.id,
+          get role() {
+            return conversations.team!.actor(actor.id).role;
+          },
+        })
+      : Object.freeze({ ...actor });
     this.key = `dashfort.demo.work.v1.${organizationId}.${actor.id}`;
     this.state = Object.freeze({
       ready: false,
@@ -241,7 +248,9 @@ export class WorkRepository {
         !Number.isFinite(new Date(t.due).getTime()) ||
         new Date(t.due).getFullYear() < 2000 ||
         new Date(t.due).getFullYear() > 2100 ||
-        !people.includes(t.assignee) ||
+        !(this.conversations.team
+          ? this.conversations.team.known(t.assignee)
+          : people.includes(t.assignee)) ||
         typeof t.done !== "boolean" ||
         !link(t.contactId) ||
         !Number.isSafeInteger(t.revision) ||
@@ -584,7 +593,11 @@ export class WorkRepository {
           new Date(input.due).getFullYear() > 2100
         )
           throw Error("Elige una fecha límite válida.");
-        if (!people.includes(input.assignee))
+        if (
+          !(this.conversations.team
+            ? this.conversations.team.available(input.assignee)
+            : people.includes(input.assignee))
+        )
           throw Error("Elige una persona activa del equipo.");
         const old = input.id ? this.getTask(input.id) : null;
         if (old && old.revision !== input.revision)
