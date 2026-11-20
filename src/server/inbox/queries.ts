@@ -2,6 +2,7 @@ import { and, count, desc, eq, gt, inArray, isNotNull, isNull, or, sql, type SQL
 import { getDb, schema } from "@/lib/db";
 import { companyChat, scopedContacts, scopedConversations, seesAllChats, type Access } from "@/lib/db/tenant";
 import { isWindowOpen, windowRemainingMs } from "@/server/inbox/window";
+import { COUNTS_TTL_MS, SELECTORS_TTL_MS, STAGES_TTL_MS, memoized } from "@/server/inbox/counts-memo";
 import type { ConversationDto } from "@/lib/types";
 import type { InboxView } from "@/lib/campaign-inbox";
 import { isTagColor, type TagDto } from "@/lib/tags";
@@ -468,54 +469,6 @@ async function queryConversations(
  * (ver el tipo `InboxCounts`).
  */
 /**
- * Prueba de carga (2026-11): con ~36 mil chats por empresa, recontar la bandeja
- * cuesta ~1.7 s y la pide cada asesor tras cada aviso. Se comparte el resultado
- * unos segundos (y la misma consulta en curso) por persona y filtros; los
- * selectores (etapas, etiquetas, responsables) cambian poco y duran más.
- * Cache por proceso: con una sola copia de la app basta.
- */
-const COUNTS_TTL_MS = 3_000;
-const SELECTORS_TTL_MS = 15_000;
-/** Las etapas presentes casi no cambian y su consulta es la más cara de los selectores. */
-const STAGES_TTL_MS = 60_000;
-const MEMO_MAX = 2_000;
-type MemoEntry = { at: number; value?: Promise<unknown>; pending?: Promise<unknown> };
-const memo = new Map<string, MemoEntry>();
-
-/**
- * Como mucho UN cálculo en curso por llave. Mientras se recalcula, quien
- * pregunta recibe el último resultado (si existe): bajo carga un conteo puede
- * tardar más que el TTL, y sin esto se encimaban cálculos iguales.
- */
-function memoized<T>(key: string, ttlMs: number, load: () => Promise<T>): Promise<T> {
-  // Las pruebas cambian datos y vuelven a contar al instante: sin cache.
-  if (process.env.VITEST) return load();
-  const now = Date.now();
-  const hit = memo.get(key);
-  if (hit?.value && now - hit.at < ttlMs) return hit.value as Promise<T>;
-  if (hit?.pending) return (hit.value ?? hit.pending) as Promise<T>;
-  const entry: MemoEntry = hit ?? { at: 0 };
-  const pending = load();
-  entry.pending = pending;
-  memo.set(key, entry);
-  pending.then(
-    () => {
-      entry.value = pending;
-      entry.at = Date.now();
-      entry.pending = undefined;
-    },
-    () => {
-      entry.pending = undefined;
-      if (!entry.value) memo.delete(key);
-    }
-  );
-  if (memo.size > MEMO_MAX) {
-    for (const [k, v] of memo) if (!v.pending && now - v.at > STAGES_TTL_MS) memo.delete(k);
-  }
-  return (entry.value ?? pending) as Promise<T>;
-}
-
-/**
  * Quién pregunta, tal como lo ve el alcance: misma llave = mismo resultado.
  * Quien ve TODOS los chats (`seesAllChats`) ve lo mismo que sus compañeros:
  * `scopedContacts` y `leadActualDe` solo usan la organización. Lo único
@@ -530,10 +483,6 @@ function accessKey(access: Access, f?: ListFilters): string {
   return [access.organizationId, access.userId, access.seesAll ? "1" : "0", access.chatView ?? ""].join("|");
 }
 
-/** Solo para tests. */
-export function resetCountsMemo(): void {
-  memo.clear();
-}
 
 export async function countConversations(access: Access, f: ListFilters): Promise<InboxCounts> {
   return memoized(`counts|${accessKey(access, f)}|${JSON.stringify(f)}`, COUNTS_TTL_MS, () => computeCounts(access, f));
@@ -576,12 +525,12 @@ async function computeCounts(access: Access, f: ListFilters): Promise<InboxCount
     .from(schema.conversation)
     .innerJoin(schema.contact, eq(schema.conversation.contactId, schema.contact.id))
     .leftJoin(schema.adAttribution, anuncioDeLaConversacion)
+    .where(scopedContacts(schema.conversation.organizationId, access, schema.conversation.contactId, real))
     .$dynamic();
   // El lead actual solo lo usa el filtro de etapa: sin él, unirlo costaba una
-  // subconsulta por chat (~36 mil por conteo en la prueba de carga).
-  const [totals] = await (f.stage !== "all" ? totalsQuery.leftJoinLateral(leadActual, sql`true`) : totalsQuery).where(
-    scopedContacts(schema.conversation.organizationId, access, schema.conversation.contactId, real)
-  );
+  // subconsulta por chat (~36 mil por conteo en la prueba de carga). Drizzle
+  // arma el SQL al final, así que la unión puede ir después del `where`.
+  const [totals] = await (f.stage !== "all" ? totalsQuery.leftJoinLateral(leadActual, sql`true`) : totalsQuery);
 
   // Lo que ofrecen los selectores: lo PRESENTE en la principal (con
   // archivados), sin los filtros de pantalla, como cuando se sacaba de la

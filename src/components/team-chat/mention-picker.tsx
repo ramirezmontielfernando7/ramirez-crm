@@ -59,23 +59,25 @@ export function MentionPicker({
 
   // Prueba de carga (2026-11): la lista completa pesaba ~22 MB con 36 mil chats.
   // Se piden los recientes y, al escribir, se busca en el servidor (como la bandeja).
+  // Con 0-1 letras se quedan los recientes (no se vuelve a pedir en cada tecla).
+  const term = query.trim();
+  const search = term.length >= 2 ? term : "";
   useEffect(() => {
     let cancelled = false;
-    const term = query.trim();
     const params = new URLSearchParams({ limit: String(CHAT_LIMIT) });
-    if (term.length >= 2) params.set("q", term);
+    if (search) params.set("q", search);
     const timer = setTimeout(() => {
       void fetchJson<{ conversations: ConversationDto[] }>(`/api/conversations?${params}`).then((res) => {
         if (cancelled) return;
         if (res.ok) setChats(res.data.conversations);
         else setError(`No se pudieron cargar los chats: ${res.error}`);
       });
-    }, term.length >= 2 ? 250 : 0);
+    }, search ? 250 : 0);
     return () => {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [query]);
+  }, [search]);
 
   useEffect(() => {
     const onDown = (e: MouseEvent) => {

@@ -4,6 +4,7 @@ import { newId } from "@/lib/db/ids";
 import { scoped } from "@/lib/db/tenant";
 import { logActivities, logActivitySafe } from "@/server/activity/log";
 import { isTagColor, normalizeTagName, type TagDto } from "@/lib/tags";
+import { forgetInboxCounts } from "@/server/inbox/counts-memo";
 
 /**
  * 021 — Etiquetas de contacto.
@@ -141,6 +142,7 @@ export async function updateTag(
       .where(scoped(schema.contactTag.organizationId, organizationId, eq(schema.contactTag.id, tagId)))
       .returning();
     if (!updated[0]) throw new TagError("not_found", "Etiqueta no encontrada");
+    forgetInboxCounts(organizationId);
     return serializeTag(updated[0]);
   } catch (err) {
     if (isUniqueViolation(err)) {
@@ -157,6 +159,7 @@ export async function deleteTag(organizationId: string, tagId: string): Promise<
     .where(scoped(schema.contactTag.organizationId, organizationId, eq(schema.contactTag.id, tagId)))
     .returning({ id: schema.contactTag.id });
   if (!deleted[0]) throw new TagError("not_found", "Etiqueta no encontrada");
+  forgetInboxCounts(organizationId);
 }
 
 
@@ -236,6 +239,7 @@ export async function setContactTags(
         .onConflictDoNothing();
     }
   });
+  forgetInboxCounts(organizationId);
   const after = (await tagsForContacts(organizationId, [contactId])).get(contactId) ?? [];
 
   // 022: cada etiqueta puesta o quitada queda en la línea de tiempo.
@@ -314,6 +318,7 @@ export async function tagContactsInBulk(
       detail: { tag: tag.name },
     }))
   ).catch(() => undefined);
+  if (changed.length > 0) forgetInboxCounts(organizationId);
   return changed.length;
 }
 
@@ -452,6 +457,7 @@ export async function mergeTags(
     return { target, moved: gained.length, alreadyHad: all - gained.length, audiences: repointed.length };
   });
 
+  forgetInboxCounts(organizationId);
   const counted = (await listTags(organizationId, { system: "include" })).find((t) => t.id === targetId);
   return {
     tag: counted ?? serializeTag(result.target),
