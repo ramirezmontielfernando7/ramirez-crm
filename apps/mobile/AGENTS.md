@@ -100,3 +100,6 @@ Ver docs/refinement-b/EQUIPO-INTEGRACION-PARCIAL.md. 111/158 y 47 pendientes, 46
 
 ## Cierre definitivo de Equipo
 SET-03/03A/03B completos en simulación local y QA RN Web: 114/158, 44 pendientes, 469 pruebas. Ver docs/refinement-b/EQUIPO-CIERRE.md, sustituye notas parciales anteriores. Selectores/nombres históricos compartidos, permisos de persistencia ligados al rol antes/después de IO, reset sin credenciales ni tokens, confirmación de desactivación y último propietario. Regresiones de todos los módulos afectados aprobadas; no APK/QA nativa. Misión vigente termina aquí: NO iniciar EQP, backend, servicios o push. Conservar artefactos y cadena f3 → 111 → 00b497c → 4864eb9 → cierre.
+
+## Continuación autorizada EQP · base parcial
+La nueva solicitud permite continuar EQP y sustituye el cierre anterior que prohibía iniciarlo. Ver docs/refinement-b/EQP-BASE.md. TeamChatStore puro + 8 pruebas: 477 totales, 114/158 y 44 pendientes. No UI ni IDs EQP contabilizados. Próximo EQP-01/02/03 con puerto protegido/compartido y revocación durante IO, después 04/05 y supervisión explícita 06+SET09. No reconstruir Equipo; no servicios, Gradle ni push. Conservar cadena desde f3.
