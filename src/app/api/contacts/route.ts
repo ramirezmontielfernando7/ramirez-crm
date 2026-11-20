@@ -1,4 +1,4 @@
-import { count, desc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, count, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
 import { apiError, parseBody, withAuth } from "@/lib/api";
 import { getDb, schema } from "@/lib/db";
@@ -34,46 +34,29 @@ export const GET = withAuth(async (session, req: Request) => {
 
   const db = getDb();
 
-  // Etapa de cada contacto en una consulta aparte: una subconsulta
-  // correlacionada aquí choca con el `id` de `lead` ("column reference id is
-  // ambiguous"), y un join duplicaría contactos con más de un lead.
-  const leadStages = await db
-    .select({
-      contactId: schema.lead.contactId,
-      stageName: schema.pipelineStage.name,
-      priority: schema.lead.priority,
-    })
-    .from(schema.lead)
-    .innerJoin(
-      schema.pipelineStage,
-      eq(schema.pipelineStage.id, schema.lead.stageId)
-    )
-    .where(
-      scopedContacts(schema.lead.organizationId, session.access, schema.lead.contactId)
-    );
-  const stageByContact = new Map(
-    leadStages.map((r) => [r.contactId, r.stageName])
-  );
-  const priorityByContact = new Map(
-    leadStages.map((r) => [r.contactId, r.priority])
-  );
-
   const search = contactSearchCondition(q);
 
-  // El filtro de etapa se aplica ANTES del límite: si no, un contacto de la
-  // etapa buscada podría quedar fuera por el corte de 200.
-  const stageContactIds = stage
-    ? leadStages.filter((r) => r.stageName === stage).map((r) => r.contactId)
-    : null;
-  if (stageContactIds?.length === 0)
-    return Response.json({ contacts: [], total: 0, page, pageSize });
+  // El filtro de etapa se aplica EN la consulta, antes del límite: si no, un
+  // contacto de la etapa buscada podría quedar fuera por el corte de la página.
+  // Antes se bajaban las etapas de TODOS los contactos para filtrar y pintar
+  // una página (prueba de carga: 36 mil filas por visita); ahora la etapa se
+  // filtra aquí y se lee solo para la página (abajo).
+  const enLaEtapa = stage
+    ? sql`exists (
+        select 1 from "lead" l
+        join "pipeline_stage" ps on ps."organization_id" = l."organization_id" and ps."id" = l."stage_id"
+        where l."organization_id" = ${session.organizationId}
+          and l."contact_id" = "contact"."id"
+          and ps."name" = ${stage}
+      )`
+    : undefined;
 
   // Los archivados se quitan EN la consulta, antes del corte de la página.
   // Mismas condiciones para la página y para el total (cada consulta lleva su
   // scopedContacts() a la vista: lo vigila tenant-query-guard).
   const conditions = [
     search,
-    stageContactIds ? inArray(schema.contact.id, stageContactIds) : undefined,
+    enLaEtapa,
     includeArchived ? undefined : isNull(schema.contact.archivedAt),
     ...contactFilterConditions(filter),
   ];
@@ -116,10 +99,38 @@ export const GET = withAuth(async (session, req: Request) => {
 
   const visible = rows.map((r) => r.contact);
   const extraById = new Map(rows.map((r) => [r.contact.id, r]));
-  const tagsByContact = await tagsForContacts(
-    session.organizationId,
-    visible.map((c) => c.id)
-  );
+  const visibleIds = visible.map((c) => c.id);
+  // Etapa y prioridad solo de la página (consulta aparte: una subconsulta
+  // correlacionada arriba choca con el `id` de `lead`).
+  const [leadStages, tagsByContact] = await Promise.all([
+    visibleIds.length === 0
+      ? []
+      : db
+          .select({
+            contactId: schema.lead.contactId,
+            stageName: schema.pipelineStage.name,
+            priority: schema.lead.priority,
+          })
+          .from(schema.lead)
+          .innerJoin(
+            schema.pipelineStage,
+            and(
+              eq(schema.pipelineStage.organizationId, schema.lead.organizationId),
+              eq(schema.pipelineStage.id, schema.lead.stageId)
+            )
+          )
+          .where(
+            scopedContacts(
+              schema.lead.organizationId,
+              session.access,
+              schema.lead.contactId,
+              inArray(schema.lead.contactId, visibleIds)
+            )
+          ),
+    tagsForContacts(session.organizationId, visibleIds),
+  ]);
+  const stageByContact = new Map(leadStages.map((r) => [r.contactId, r.stageName]));
+  const priorityByContact = new Map(leadStages.map((r) => [r.contactId, r.priority]));
   const contacts = visible.map((c) => {
     const extra = extraById.get(c.id);
     const last = extra?.lastMessageAt ?? null;
