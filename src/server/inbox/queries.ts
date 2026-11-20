@@ -476,6 +476,8 @@ async function queryConversations(
  */
 const COUNTS_TTL_MS = 3_000;
 const SELECTORS_TTL_MS = 15_000;
+/** Las etapas presentes casi no cambian y su consulta es la más cara de los selectores. */
+const STAGES_TTL_MS = 60_000;
 const MEMO_MAX = 2_000;
 type MemoEntry = { at: number; value?: Promise<unknown>; pending?: Promise<unknown> };
 const memo = new Map<string, MemoEntry>();
@@ -508,7 +510,7 @@ function memoized<T>(key: string, ttlMs: number, load: () => Promise<T>): Promis
     }
   );
   if (memo.size > MEMO_MAX) {
-    for (const [k, v] of memo) if (!v.pending && now - v.at > SELECTORS_TTL_MS) memo.delete(k);
+    for (const [k, v] of memo) if (!v.pending && now - v.at > STAGES_TTL_MS) memo.delete(k);
   }
   return (entry.value ?? pending) as Promise<T>;
 }
@@ -585,14 +587,14 @@ async function computeCounts(access: Access, f: ListFilters): Promise<InboxCount
   // archivados), sin los filtros de pantalla, como cuando se sacaba de la
   // lista completa. Las etapas, en el orden en que aparecían en ella.
   const { stageRows, tagRows, ownerRows } = await memoized(`selectors|${accessKey(access)}`, SELECTORS_TTL_MS, async () => {
-  const stageRows = await db
+  const stageRows = await memoized(`stages|${accessKey(access)}`, STAGES_TTL_MS, () => db
     .select({ name: leadActual.stageName })
     .from(schema.conversation)
     .innerJoin(schema.contact, eq(schema.conversation.contactId, schema.contact.id))
     .leftJoinLateral(leadActual, sql`true`)
     .where(scopedContacts(schema.conversation.organizationId, access, schema.conversation.contactId, real, or(main, isNotNull(schema.contact.waGroupJid)), isNotNull(leadActual.stageName)))
     .groupBy(leadActual.stageName)
-    .orderBy(desc(sql`max(${sortKeySql})`));
+    .orderBy(desc(sql`max(${sortKeySql})`)));
   const tagRows = await db
     .selectDistinct({ id: schema.contactTag.id, name: schema.contactTag.name })
     .from(schema.conversation)
