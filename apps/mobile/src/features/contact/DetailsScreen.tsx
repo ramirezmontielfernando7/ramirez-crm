@@ -181,7 +181,10 @@ export function DetailsScreen({
               : "Sin correo"}
           </Text>
           <Text>Canal · WhatsApp</Text>
-          <Text>Consentimiento · Opt-in de demostración</Text>
+          <Text>
+            Consentimiento ·{" "}
+            {conversation.optedOut ? "Baja ficticia" : "Opt-in de demostración"}
+          </Text>
           <Button onPress={close}>Cerrar ficha</Button>
         </>
       ),
@@ -199,6 +202,11 @@ export function DetailsScreen({
           />
         }
       />
+      {conversation.optedOut && (
+        <Banner type="warning">
+          Baja ficticia registrada · historial conservado
+        </Banner>
+      )}
       {s.view === "offline" && (
         <View style={{ paddingHorizontal: 16 }}>
           <Banner type="warning">

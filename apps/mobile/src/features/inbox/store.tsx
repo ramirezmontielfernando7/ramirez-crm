@@ -1,3 +1,4 @@
+import { OptOutStore } from "../optout/core";
 import { guardedStorage } from "../team/guarded-storage";
 import { ErrorState, Skeleton } from "../../components/ui";
 import { teamFor, useTeam } from "../team/state";
@@ -13,6 +14,9 @@ import React, {
 import { useSession } from "../../state/SessionProvider";
 import { InboxStore } from "./store-core";
 export type { DataState } from "./store-core";
+const idleState = { ready: true, error: "" };
+const idleSnapshot = () => idleState;
+const idleSubscribe = () => () => {};
 const Context = createContext<InboxStore | null>(null);
 export function InboxProvider({ children }: React.PropsWithChildren) {
   const { session } = useSession();
@@ -32,12 +36,58 @@ export function InboxProvider({ children }: React.PropsWithChildren) {
         : null,
     [session?.id, session?.role, rosterState.ready],
   );
+  const policy = useMemo(
+    () =>
+      store
+        ? new OptOutStore(
+            roster,
+            store.actor.id,
+            guardedStorage(roster, store.actor.id, preferencesStorage),
+          )
+        : null,
+    [store, roster],
+  );
+  const policyState = useSyncExternalStore(
+    policy?.subscribe ?? idleSubscribe,
+    policy?.snapshot ?? idleSnapshot,
+    policy?.snapshot ?? idleSnapshot,
+  );
+  useEffect(() => {
+    if (policy && store)
+      void policy.hydrate().then(() => {
+        if (policy.snapshot().ready) {
+          store.repository.restoreOptOut(
+            store.actor,
+            policy.snapshot().doc.events.map((e) => e.contact),
+          );
+          store.reload();
+        }
+      });
+  }, [policy, store]);
   useEffect(() => {
     if (store) void store.repository.catalog.hydrate();
   }, [store]);
   if (!rosterState.ready)
     return rosterState.error ? (
       <ErrorState onRetry={() => void roster.reload()} />
+    ) : (
+      <Skeleton rows={3} />
+    );
+  if (policy && !policyState.ready)
+    return policyState.error ? (
+      <ErrorState
+        onRetry={() =>
+          void policy.hydrate().then(() => {
+            if (policy.snapshot().ready && store) {
+              store.repository.restoreOptOut(
+                store.actor,
+                policy.snapshot().doc.events.map((e) => e.contact),
+              );
+              store.reload();
+            }
+          })
+        }
+      />
     ) : (
       <Skeleton rows={3} />
     );

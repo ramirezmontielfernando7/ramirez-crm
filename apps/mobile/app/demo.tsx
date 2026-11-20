@@ -152,6 +152,18 @@ function OriginalDemo() {
           </>
         )}
         <Section>Laboratorio de demostración</Section>
+        {auth.session && auth.session.role !== "advisor" && (
+          <NavRow
+            label="Simulador de bajas"
+            onPress={() => router.push("/optout-lab")}
+          />
+        )}
+        {auth.session?.role !== "advisor" && (
+          <NavRow
+            label="Bajas automáticas · simulación"
+            onPress={() => router.push("/optout")}
+          />
+        )}
         {auth.session && (
           <NavRow
             label="Mi número · simulación"

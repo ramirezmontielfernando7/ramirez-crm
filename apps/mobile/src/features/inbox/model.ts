@@ -26,6 +26,7 @@ export type Conversation = Readonly<{
   campaign: string | null;
   group: boolean;
   closed: boolean;
+  optedOut?: boolean;
   lossReason?: string;
   source?: "Facebook Ads" | "Orgánico";
   search: string;
@@ -308,7 +309,11 @@ export class DemoConversationRepository implements ConversationRepository {
   ) {
     const set = new Set(ids);
     for (const id of set) this.get(actor, id);
-    this.data = this.data.map((c) => (set.has(c.id) ? patch(c) : c));
+    this.data = this.data.map((c) => {
+      if (!set.has(c.id)) return c;
+      const next = patch(c);
+      return next.optedOut ? { ...next, ai: "off" } : next;
+    });
   }
   tagMany(actor: Actor, ids: readonly string[], tag: string) {
     actor = this.team?.actor(actor.id) ?? actor;
@@ -395,6 +400,20 @@ export class DemoConversationRepository implements ConversationRepository {
     const stable = { ...c, id: `demo-new-9${code}` };
     this.data = this.data.map((x) => (x.id === c.id ? stable : x));
     return stable;
+  }
+  restoreOptOut(actor: Actor, ids: readonly string[]) {
+    for (const id of ids) {
+      try {
+        this.update(actor, [id], (c) => ({ ...c, optedOut: true, ai: "off" }));
+      } catch {
+        /* Inaccessible or deleted contacts stay inaccessible. */
+      }
+    }
+  }
+  markOptOut(actor: Actor, id: string) {
+    if (actor.role === "advisor")
+      throw Error("Sin permiso para simular bajas.");
+    this.update(actor, [id], (c) => ({ ...c, optedOut: true, ai: "off" }));
   }
   updateContact(
     actor: Actor,

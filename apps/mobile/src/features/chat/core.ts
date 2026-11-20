@@ -289,7 +289,7 @@ export class ChatStore {
   };
   private pendingIncoming: Sender[] = [];
   receive = (sender: Sender = "in") => {
-    this.authorize();
+    if (this.authorize().optedOut && sender === "ai") return;
     if (this.state.view === "offline") {
       this.pendingIncoming.push(sender);
       return;
@@ -331,7 +331,8 @@ export class ChatStore {
     templateId?: string;
     variables?: readonly string[];
   }): Promise<Message> => {
-    this.authorize();
+    if (this.authorize().optedOut)
+      throw Error("Contacto dado de baja en simulación.");
     if (!this.state.ready)
       throw new Error("Espera a que termine la carga local.");
     const key = input.key ?? String(++this.sequence);
@@ -412,6 +413,8 @@ export class ChatStore {
           );
         if (message.attachment) validateAttachment(message.attachment);
         let transportFailure = false;
+        if (this.authorize().optedOut)
+          throw Error("Contacto dado de baja en simulación.");
         await this.transport.send(message, (status) => {
           if (status === "failed") transportFailure = true;
           const current = this.state.messages.find((m) => m.id === message.id);
@@ -456,7 +459,8 @@ export class ChatStore {
     return work;
   }
   retry = (id: string) => {
-    this.authorize();
+    if (this.authorize().optedOut)
+      throw Error("Contacto dado de baja en simulación.");
     const message = this.state.messages.find((m) => m.id === id);
     if (!message) throw new Error("Mensaje no disponible.");
     if (this.jobs.has(id)) return this.jobs.get(id)!;

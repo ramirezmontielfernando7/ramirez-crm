@@ -469,6 +469,11 @@ export function ConversationScreen({ chat }: { chat: ChatStore }) {
           onPress={menu}
         />
       </View>
+      {conversation.optedOut && (
+        <Banner type="warning">
+          Contacto dado de baja · envíos simulados bloqueados
+        </Banner>
+      )}
       {(!!action.error || !!s.error) && s.ready && (
         <View style={{ paddingHorizontal: 12 }}>
           <Banner type="danger">{action.error || s.error}</Banner>
