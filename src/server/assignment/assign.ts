@@ -3,6 +3,7 @@ import { getDb, schema } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
 import { scoped } from "@/lib/db/tenant";
 import { publish } from "@/server/events/bus";
+import { forgetInboxCounts } from "@/server/inbox/counts-memo";
 
 /**
  * 020 — La ÚNICA puerta que escribe `contact.assigned_user_id`.
@@ -165,6 +166,7 @@ export async function assignContacts(input: AssignInput): Promise<AssignResult> 
   // Tras el commit (contrato del bus): la bandeja de quien lo recibe y la de
   // quien lo pierde se refrescan solas.
   if (result.changed.length > 0) {
+    forgetInboxCounts(input.organizationId);
     publish(input.organizationId, {
       type: "assignment.changed",
       data: {

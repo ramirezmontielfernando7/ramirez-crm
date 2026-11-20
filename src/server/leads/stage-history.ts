@@ -4,6 +4,7 @@ import { newId } from "@/lib/db/ids";
 import { scoped } from "@/lib/db/tenant";
 import type { LossReason, StageChangeSource } from "@/lib/types";
 import { reportStageChange } from "@/server/attribution/conversions";
+import { forgetInboxCounts } from "@/server/inbox/counts-memo";
 
 /**
  * La ÚNICA puerta que escribe `lead.stage_id`.
@@ -149,6 +150,7 @@ export async function moveLeadToStage(input: MoveInput): Promise<MoveResult> {
   // que el negocio marcó como "lead calificado" o a una etapa ganada se le
   // reporta a Meta. Best-effort y ya fuera de la transacción: un fallo aquí
   // jamás puede costar el movimiento del lead, que ya está en firme.
+  if (result.ok && result.changed) forgetInboxCounts(input.organizationId);
   if (result.ok && result.changed && toStageKind !== null) {
     await reportStageChange({
       organizationId: input.organizationId,

@@ -23,6 +23,7 @@ import {
   type ValidationResult,
   type ValidRow,
 } from "@/server/contacts-io/validate";
+import { forgetInboxCounts } from "@/server/inbox/counts-memo";
 
 /**
  * 021 — Importación de contactos desde CSV.
@@ -415,6 +416,7 @@ export async function importValidated(input: {
     }
   }
 
+  forgetInboxCounts(input.organizationId);
   return {
     totalRows: validation.totalRows,
     created: createdIds.length,

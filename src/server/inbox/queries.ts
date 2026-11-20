@@ -1,7 +1,8 @@
 import { and, count, desc, eq, gt, inArray, isNotNull, isNull, or, sql, type SQL } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
-import { companyChat, scopedContacts, scopedConversations, type Access } from "@/lib/db/tenant";
+import { companyChat, scopedContacts, scopedConversations, seesAllChats, type Access } from "@/lib/db/tenant";
 import { isWindowOpen, windowRemainingMs } from "@/server/inbox/window";
+import { COUNTS_TTL_MS, SELECTORS_TTL_MS, STAGES_TTL_MS, memoized } from "@/server/inbox/counts-memo";
 import type { ConversationDto } from "@/lib/types";
 import type { InboxView } from "@/lib/campaign-inbox";
 import { isTagColor, type TagDto } from "@/lib/tags";
@@ -467,7 +468,27 @@ async function queryConversations(
  * los contaba el navegador sobre la lista completa; las reglas son las mismas
  * (ver el tipo `InboxCounts`).
  */
+/**
+ * Quién pregunta, tal como lo ve el alcance: misma llave = mismo resultado.
+ * Quien ve TODOS los chats (`seesAllChats`) ve lo mismo que sus compañeros:
+ * `scopedContacts` y `leadActualDe` solo usan la organización. Lo único
+ * personal ahí es el filtro «Míos» (`ownerCondition`, solo con `seesAll`).
+ * Quien ve solo lo suyo lleva su propia llave.
+ */
+function accessKey(access: Access, f?: ListFilters): string {
+  if (seesAllChats(access)) {
+    const mine = access.seesAll && f?.owner === "mine" ? access.userId : "";
+    return [access.organizationId, "todo", access.seesAll ? "1" : "0", mine].join("|");
+  }
+  return [access.organizationId, access.userId, access.seesAll ? "1" : "0", access.chatView ?? ""].join("|");
+}
+
+
 export async function countConversations(access: Access, f: ListFilters): Promise<InboxCounts> {
+  return memoized(`counts|${accessKey(access, f)}|${JSON.stringify(f)}`, COUNTS_TTL_MS, () => computeCounts(access, f));
+}
+
+async function computeCounts(access: Access, f: ListFilters): Promise<InboxCounts> {
   const db = getDb();
   const leadActual = leadActualDe(access);
   const main = and(isNull(schema.contact.waGroupJid), isNull(schema.conversation.campaignPendingId));
@@ -481,7 +502,7 @@ export async function countConversations(access: Access, f: ListFilters): Promis
   const real = companyChat();
 
   const enLaPrincipal = and(main, filtros, enBandeja);
-  const [totals] = await db
+  const totalsQuery = db
     .select({
       total: n(main),
       all: n(and(enLaPrincipal, aLaVista)),
@@ -504,20 +525,25 @@ export async function countConversations(access: Access, f: ListFilters): Promis
     .from(schema.conversation)
     .innerJoin(schema.contact, eq(schema.conversation.contactId, schema.contact.id))
     .leftJoin(schema.adAttribution, anuncioDeLaConversacion)
-    .leftJoinLateral(leadActual, sql`true`)
-    .where(scopedContacts(schema.conversation.organizationId, access, schema.conversation.contactId, real));
+    .where(scopedContacts(schema.conversation.organizationId, access, schema.conversation.contactId, real))
+    .$dynamic();
+  // El lead actual solo lo usa el filtro de etapa: sin él, unirlo costaba una
+  // subconsulta por chat (~36 mil por conteo en la prueba de carga). Drizzle
+  // arma el SQL al final, así que la unión puede ir después del `where`.
+  const [totals] = await (f.stage !== "all" ? totalsQuery.leftJoinLateral(leadActual, sql`true`) : totalsQuery);
 
   // Lo que ofrecen los selectores: lo PRESENTE en la principal (con
   // archivados), sin los filtros de pantalla, como cuando se sacaba de la
   // lista completa. Las etapas, en el orden en que aparecían en ella.
-  const stageRows = await db
+  const { stageRows, tagRows, ownerRows } = await memoized(`selectors|${accessKey(access)}`, SELECTORS_TTL_MS, async () => {
+  const stageRows = await memoized(`stages|${accessKey(access)}`, STAGES_TTL_MS, () => db
     .select({ name: leadActual.stageName })
     .from(schema.conversation)
     .innerJoin(schema.contact, eq(schema.conversation.contactId, schema.contact.id))
     .leftJoinLateral(leadActual, sql`true`)
     .where(scopedContacts(schema.conversation.organizationId, access, schema.conversation.contactId, real, or(main, isNotNull(schema.contact.waGroupJid)), isNotNull(leadActual.stageName)))
     .groupBy(leadActual.stageName)
-    .orderBy(desc(sql`max(${sortKeySql})`));
+    .orderBy(desc(sql`max(${sortKeySql})`)));
   const tagRows = await db
     .selectDistinct({ id: schema.contactTag.id, name: schema.contactTag.name })
     .from(schema.conversation)
@@ -530,6 +556,9 @@ export async function countConversations(access: Access, f: ListFilters): Promis
     .from(schema.conversation)
     .innerJoin(schema.contact, eq(schema.conversation.contactId, schema.contact.id))
     .where(scopedContacts(schema.conversation.organizationId, access, schema.conversation.contactId, real, or(main, isNotNull(schema.contact.waGroupJid)), isNotNull(schema.contact.assignedUserId)));
+
+  return { stageRows, tagRows, ownerRows };
+  });
 
   const t = (totals ?? {}) as Record<string, number | undefined>;
   const channels: InboxCounts["channels"] = {};
