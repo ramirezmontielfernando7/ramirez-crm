@@ -1,3 +1,5 @@
+import { useTemplates } from "../templates/state";
+import { variables } from "../templates/core";
 import { useQuick } from "../quick/state";
 import { renderQuick } from "../quick/core";
 import React, { useCallback, useRef, useState } from "react";
@@ -425,6 +427,7 @@ export function TemplateSheet({
   chat: ChatStore;
   name: string;
 }) {
+  const { store: templateCatalog, state: templateState } = useTemplates();
   const [id, setId] = useState("recordatorio_cita");
   const [person, setPerson] = useState(name.split(" ")[0] ?? "Cliente");
   const [day, setDay] = useState("martes 11");
@@ -434,7 +437,7 @@ export function TemplateSheet({
   let preview = "";
   let invalid = "";
   try {
-    preview = fillTemplate(id, [person, day, time]);
+    preview = chat.renderTemplate(id, [person, day, time]);
   } catch (e) {
     invalid = (e as Error).message;
   }
@@ -444,8 +447,21 @@ export function TemplateSheet({
         Una plantilla aprobada permite enviar fuera de la ventana de 24 h. La
         ventana se abre cuando el cliente responde.
       </Banner>
+      {!templateState.ready &&
+        (templateState.error ? (
+          <ErrorState onRetry={() => void templateCatalog.hydrate()} />
+        ) : (
+          <Skeleton rows={2} />
+        ))}
       <FilterChips
-        options={templates.filter((t) => t.approved).map((t) => t.id)}
+        options={
+          templateState.ready
+            ? templateCatalog
+                .rows()
+                .filter((t) => t.status === "approved")
+                .map((t) => t.id)
+            : []
+        }
         value={id}
         onChange={setId}
       />
@@ -455,22 +471,28 @@ export function TemplateSheet({
         onChangeText={setPerson}
         maxLength={200}
       />
-      {id === "recordatorio_cita" && (
-        <>
-          <Field
-            label="Día de la cita"
-            value={day}
-            onChangeText={setDay}
-            maxLength={200}
-          />
-          <Field
-            label="Hora de la cita"
-            value={time}
-            onChangeText={setTime}
-            maxLength={200}
-          />
-        </>
-      )}
+      {templateState.ready &&
+        templateCatalog.rows().some((t) => t.id === id) &&
+        variables(templateCatalog.get(id).body) > 1 && (
+          <>
+            <Field
+              label={
+                id === "recordatorio_cita" ? "Día de la cita" : "Variable 2"
+              }
+              value={day}
+              onChangeText={setDay}
+              maxLength={200}
+            />
+            <Field
+              label={
+                id === "recordatorio_cita" ? "Hora de la cita" : "Variable 3"
+              }
+              value={time}
+              onChangeText={setTime}
+              maxLength={200}
+            />
+          </>
+        )}
       <Card>
         <Text>{preview || invalid}</Text>
       </Card>

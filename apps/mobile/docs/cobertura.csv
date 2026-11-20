@@ -105,9 +105,9 @@ MKT-31,Ajustes de campañas,T-M11,Pendiente,Pendiente
 MKT-10,Audiencias,T-M11,Pendiente,Pendiente
 MKT-11,Detalle de la base,T-M11,Pendiente,Pendiente
 MKT-12,Subir una base (desde el teléfono),T-M11,Pendiente,Pendiente
-MKT-20,Plantillas de WhatsApp,T-M11,Pendiente,Pendiente
-MKT-21,Detalle de la plantilla,T-M11,Pendiente,Pendiente
-MKT-22,Nueva plantilla,T-M11,Pendiente,Pendiente
+MKT-20,Plantillas de WhatsApp,T-M11,Implementada / simulacion local y QA RN Web (plantillas compartidas),Pendiente Android/iOS
+MKT-21,Detalle de la plantilla,T-M11,Implementada / simulacion local y QA RN Web (plantillas compartidas),Pendiente Android/iOS
+MKT-22,Nueva plantilla,T-M11,Implementada / simulacion local y QA RN Web (plantillas compartidas),Pendiente Android/iOS
 MKT-30,Métricas y costos,T-M11,Pendiente,Pendiente
 MORE-01,Más,T-M8,Pendiente,Pendiente
 MORE-08,Cerrar sesión,T-M1,Implementada con simulacion / QA navegador,Pendiente

@@ -1,7 +1,9 @@
+import { templatesFor } from "../templates/state";
 import React, {
   createContext,
   useContext,
   useMemo,
+  useEffect,
   useSyncExternalStore,
 } from "react";
 import { useOptionalInbox } from "../inbox/store";
@@ -19,10 +21,18 @@ export function ChatProvider({ children }: React.PropsWithChildren) {
             inbox.repository,
             drafts,
             inbox.chatActivity,
+            templatesFor(inbox),
           )
         : null,
     [inbox],
   );
+  useEffect(() => {
+    if (!inbox) return;
+    const t = templatesFor(inbox),
+      release = t.retain();
+    void t.hydrate();
+    return release;
+  }, [inbox]);
   return <Context.Provider value={manager}>{children}</Context.Provider>;
 }
 export const useChatDirectory = () => {

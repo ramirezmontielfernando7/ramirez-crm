@@ -1,0 +1,3 @@
+captured before
+captured implemented
+{"captures":70,"checks":["19 CRM IDs through real CrmScreen, providers and LayerProvider in both themes","Inbox search opens real ConversationScreen with same stores","Contacts search-detail-edit through actual navigation and modal","Advisor cannot see foreign contact","Inbox selector targets >=48"],"errors":[],"requests":0}

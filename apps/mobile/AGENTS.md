@@ -121,3 +121,6 @@ SET-10 completa en simulación, 128/158, 30 pendientes y 515 pruebas. Base a9e1b
 
 ## Conector IA ficticio · lote 131
 Desde beb6cb3, SET-12/11/11A completas en simulación; 131/158, 27 pendientes, 528 pruebas. Ver docs/refinement-b/CONECTOR-IA-CIERRE.md. Conexiones y cuotas locales por actor/org, rol vigente, permisos avanzados, revocación, actividad sin mensajes; laboratorio solo evalúa/registra, sin operaciones ni proveedores reales. QA 12+6 referencias; nativo pendiente. Siguiente MKT-20/21/22, compartir catálogo con Chat. Mantener B/firmas/APK/26 protegidos, cadena Offline y límites de no servicios/push/Gradle/costes.
+
+## Checkpoint 134 · conector y plantillas
+Desde beb6cb3, SET-12/11/11A y MKT-20/21/22 verificadas en simulación: 134/158, 24 pendientes, 539 pruebas. Ver docs/refinement-b/CHECKPOINT-134.md. Conector sin OAuth/MCP real ni ejecución de funciones; plantilla compartida con Chat, revisión/pausa/recibos y variables. No contar MKT-01 ni otras pestañas deshabilitadas. QA 24 capturas +12 referencias, regresiones y límites nativos explícitos. Próximo MKT-10/11/12 → MKT-01…06/31/30; no sumar MKT-11 hasta destino MKT-03 funcional. Mantener B, 26 protegidos, APK/firma, backend y cadena Offline→…→beb6cb3→nuevo. No servicios/IA/campañas reales, Gradle, push ni costes.

@@ -29,6 +29,7 @@ export type Message = Readonly<{
   failure?: string;
   attachment?: Attachment;
   templateId?: string;
+  templateRevision?: number;
   parts: readonly string[];
 }>;
 export const deliveryLabels: Record<Delivery, string> = {
@@ -319,3 +320,9 @@ export const textParts = (text: string) => {
     throw new Error(`Escribe un mensaje de hasta ${CHAT_TEXT_MAX} caracteres.`);
   return splitForMeta(text);
 };
+
+export interface TemplateSource {
+  render(id: string, values: readonly string[]): string;
+  revision(id: string): number;
+  assertApproved(id: string, revision?: number): void;
+}

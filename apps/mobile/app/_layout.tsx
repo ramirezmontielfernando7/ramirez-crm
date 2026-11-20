@@ -122,6 +122,9 @@ function RootNavigator() {
           <Stack.Screen name="optout" />
           <Stack.Screen name="ai-connector-settings" />
           <Stack.Screen name="my-ai" />
+          <Stack.Screen name="template-detail" />
+          <Stack.Screen name="template-new" />
+          <Stack.Screen name="template-lab" />
           <Stack.Screen name="my-ai-activity" />
           <Stack.Screen name="ai-connector-lab" />
           <Stack.Screen name="optout-lab" />

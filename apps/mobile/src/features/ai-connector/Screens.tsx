@@ -1,3 +1,4 @@
+import { View } from "react-native";
 import React, { useEffect, useRef, useState } from "react";
 import { router } from "expo-router";
 import { Screen } from "../../components/Screen";
@@ -396,12 +397,12 @@ export function MyAiActivity() {
               )}
               {state.ready &&
                 store.ownActivity().map((a) => (
-                  <Card key={a.id}>
+                  <View key={a.id} style={{ paddingVertical: 16, gap: 4 }}>
                     <Text>{actionLabels[a.kind]}</Text>
                     <Text kind="meta">
                       {new Date(a.at).toLocaleString("es-MX")} · Simulación
                     </Text>
-                  </Card>
+                  </View>
                 ))}
             </>
           )}

@@ -1,3 +1,4 @@
+import type { TemplateSource } from "./model";
 import type {
   Actor,
   Conversation,
@@ -113,6 +114,7 @@ export class ChatStore {
     private drafts: DraftRepository,
     private activity: (id: string, text: string) => void = () => {},
     private now: () => number = Date.now,
+    private templateSource?: TemplateSource,
   ) {
     const c = this.authorize();
     this.storageKey = `dashfort.demo.chat.v1.${actor.id}.${conversationId}`;
@@ -132,6 +134,11 @@ export class ChatStore {
       view: "normal",
       busy: 0,
     };
+  }
+  renderTemplate(id: string, values: readonly string[]) {
+    return this.templateSource
+      ? this.templateSource.render(id, values)
+      : fillTemplate(id, values);
   }
   authorize(): Conversation {
     return this.conversations.get(this.actor, this.conversationId);
@@ -339,7 +346,7 @@ export class ChatStore {
     if (!key || key.length > 120)
       throw new Error("Identificador de envío no válido.");
     const text = input.templateId
-      ? fillTemplate(input.templateId, input.variables ?? [])
+      ? this.renderTemplate(input.templateId, input.variables ?? [])
       : input.text.trim();
     if (input.attachment) {
       validateAttachment(input.attachment);
@@ -377,6 +384,9 @@ export class ChatStore {
       parts,
       attachment: input.attachment,
       templateId: input.templateId,
+      templateRevision: input.templateId
+        ? this.templateSource?.revision(input.templateId)
+        : undefined,
     };
     this.signatures.set(id, signature);
     this.outboxCount++;
@@ -415,6 +425,11 @@ export class ChatStore {
         let transportFailure = false;
         if (this.authorize().optedOut)
           throw Error("Contacto dado de baja en simulación.");
+        if (message.templateId)
+          this.templateSource?.assertApproved(
+            message.templateId,
+            message.templateRevision,
+          );
         await this.transport.send(message, (status) => {
           if (status === "failed") transportFailure = true;
           const current = this.state.messages.find((m) => m.id === message.id);
@@ -463,6 +478,11 @@ export class ChatStore {
       throw Error("Contacto dado de baja en simulación.");
     const message = this.state.messages.find((m) => m.id === id);
     if (!message) throw new Error("Mensaje no disponible.");
+    if (message.templateId)
+      this.templateSource?.assertApproved(
+        message.templateId,
+        message.templateRevision,
+      );
     if (this.jobs.has(id)) return this.jobs.get(id)!;
     if (message.status !== "failed") return Promise.resolve(message);
     if (!message.templateId && !this.isOpen())
@@ -501,6 +521,7 @@ export class ChatDirectory {
     private conversations: ConversationRepository,
     private drafts: DraftRepository,
     private activity: (id: string, text: string) => void = () => {},
+    private templateSource?: TemplateSource,
   ) {
     this.history = new DemoHistoryRepository(conversations);
   }
@@ -529,6 +550,8 @@ export class ChatDirectory {
       new DemoTransport(),
       this.drafts,
       this.activity,
+      Date.now,
+      this.templateSource,
     );
     this.stores.set(id, store);
     return store;

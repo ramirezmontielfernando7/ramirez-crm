@@ -1,0 +1,13 @@
+{
+  "captures": 12,
+  "references": 6,
+  "errors": [],
+  "requests": 0,
+  "native": false,
+  "checks": [
+    "Create/validate/failure/retry",
+    "Reject/correct/approve",
+    "Shared Chat template and pause",
+    "Role isolation and restore"
+  ]
+}
