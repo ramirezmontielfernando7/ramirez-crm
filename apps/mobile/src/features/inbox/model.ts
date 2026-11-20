@@ -381,6 +381,21 @@ export class DemoConversationRepository implements ConversationRepository {
     this.data = [result, ...this.data];
     return result;
   }
+  /** Stable identity for an explicitly transferred fictitious personal contact. */
+  createPersonal(actor: Actor, name: string, phone: string) {
+    const digits = phone.replace(/\D/g, "");
+    if (!/^1555010[0-9]{4}$/.test(digits))
+      throw Error("Solo números personales ficticios.");
+    const prior = this.data.find((c) => c.phone.replace(/\D/g, "") === digits);
+    if (prior) return this.get(actor, prior.id);
+    const c = this.create(actor, name, phone);
+    const code = Array.from(actor.id + ":" + phone.replace(/\D/g, ""))
+      .map((ch) => ch.charCodeAt(0).toString().padStart(3, "0"))
+      .join("");
+    const stable = { ...c, id: `demo-new-9${code}` };
+    this.data = this.data.map((x) => (x.id === c.id ? stable : x));
+    return stable;
+  }
   updateContact(
     actor: Actor,
     id: string,

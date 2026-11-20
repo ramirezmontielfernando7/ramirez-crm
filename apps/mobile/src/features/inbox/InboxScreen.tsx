@@ -1,3 +1,4 @@
+import { PersonalList } from "../personal/Chats";
 import { InternalList } from "../team-chat/Screens";
 import { useLocalSearchParams } from "expo-router";
 import { CatalogTag } from "../catalog/CatalogTag";
@@ -444,7 +445,13 @@ function StateControls() {
 }
 export default function InboxEntry() {
   const { area } = useLocalSearchParams<{ area?: string }>();
-  return area === "team" ? <InternalList /> : <InboxScreen />;
+  return area === "team" ? (
+    <InternalList />
+  ) : area === "number" ? (
+    <PersonalList />
+  ) : (
+    <InboxScreen />
+  );
 }
 function InboxScreen() {
   const store = useInbox();
@@ -706,19 +713,7 @@ function InboxScreen() {
                 ? undefined
                 : key === "team"
                   ? router.replace("/(tabs)/inbox?area=team")
-                  : open({
-                      kind: "dialog",
-                      title: key === "team" ? "Equipo" : "Mi número",
-                      content: (
-                        <>
-                          <Text>
-                            Este módulo se implementará en T-M6. La Bandeja de
-                            Clientes ya está disponible.
-                          </Text>
-                          <Button onPress={close}>Volver a Clientes</Button>
-                        </>
-                      ),
-                    })
+                  : router.replace("/(tabs)/inbox?area=number")
             }
           />
           <FilterChips

@@ -1,3 +1,4 @@
+import { projectCustomer } from "./project";
 import React, { useEffect, useState, useSyncExternalStore } from "react";
 import { View } from "react-native";
 import { router } from "expo-router";
@@ -36,7 +37,8 @@ export function personalFor(inbox: InboxStore) {
   return s;
 }
 export function PersonalSettings() {
-  const store = personalFor(useInbox()),
+  const inbox = useInbox(),
+    store = personalFor(inbox),
     s = useSyncExternalStore(store.subscribe, store.snapshot, store.snapshot),
     layers = useLayers(),
     [error, setError] = useState("");
@@ -70,6 +72,10 @@ export function PersonalSettings() {
                   setError("");
                   void store
                     .setPrivacy(i, v)
+                    .then(() => {
+                      for (const r of store.snapshot().doc.rooms ?? [])
+                        if (r.client) projectCustomer(inbox, store, r.id);
+                    })
                     .catch(() =>
                       setError("No se pudo guardar la preferencia local."),
                     );

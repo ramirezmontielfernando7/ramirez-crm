@@ -100,3 +100,117 @@ test("Unknown preference and inactive identity cannot write", async () => {
   );
   await assert.rejects(f.store.setPrivacy(0, true));
 });
+
+test("Personal chat needs linking, rejects real numbers and deduplicates a pair", async () => {
+  const f = fixture();
+  await f.store.hydrate();
+  await assert.rejects(f.store.create("+525555500911"));
+  await assert.rejects(f.store.create("+15550100001"));
+  f.store.renew();
+  await f.store.link();
+  const id = await f.store.create("+15550100001");
+  assert.equal(await f.store.create("+1 555 010 0001"), id);
+  assert.equal(f.store.snapshot().doc.rooms?.length, 1);
+  assert.equal(f.store.room(id).private, true);
+});
+test("Personal messages restore drafts, deduplicate and survive restart", async () => {
+  const f = fixture();
+  await f.store.hydrate();
+  f.store.renew();
+  await f.store.link();
+  const id = await f.store.create("+15550100001");
+  await f.store.draft(id, "Borrador");
+  const g = fixture("demo-owner", "demo-org-cristal", f.data);
+  await g.store.hydrate();
+  assert.equal(g.store.room(id).draft, "Borrador");
+  await g.store.send(id, "Hola", "send");
+  await g.store.send(id, "Hola", "send");
+  assert.equal(g.store.room(id).messages.length, 1);
+  assert.equal(g.store.room(id).draft, "");
+  await assert.rejects(g.store.send(id, "Otro", "send"));
+});
+test("Archived and disconnected personal rooms reject sending and preserve history", async () => {
+  const f = fixture();
+  await f.store.hydrate();
+  f.store.renew();
+  await f.store.link();
+  const id = await f.store.create("+15550100001");
+  await f.store.send(id, "Hola", "one");
+  await f.store.archive(id, true);
+  await assert.rejects(f.store.send(id, "No", "two"));
+  await f.store.archive(id, false);
+  await f.store.disconnect();
+  await assert.rejects(f.store.send(id, "No", "three"));
+  assert.equal(f.store.room(id).messages.length, 1);
+});
+test("Personal conversion requires explicit privacy permissions and retains personal history only", async () => {
+  const f = fixture();
+  await f.store.hydrate();
+  f.store.renew();
+  await f.store.link();
+  const id = await f.store.create("+15550100001");
+  await f.store.send(id, "Privado", "one");
+  await assert.rejects(f.store.convert(id));
+  await f.store.privacy(id, false);
+  await assert.rejects(f.store.convert(id));
+  await f.store.setPrivacy(0, true);
+  await f.store.convert(id);
+  await f.store.convert(id);
+  assert.equal(f.store.room(id).client, true);
+  await assert.rejects(f.store.send(id, "No", "two"));
+  assert.equal(f.store.room(id).messages[0]!.text, "Privado");
+});
+test("Personal room access cannot cross actor or organization and concurrent sends preserve messages", async () => {
+  const f = fixture();
+  await f.store.hydrate();
+  f.store.renew();
+  await f.store.link();
+  const id = await f.store.create("+15550100001");
+  await Promise.all([f.store.send(id, "A", "a"), f.store.send(id, "B", "b")]);
+  assert.equal(f.store.room(id).messages.length, 2);
+  for (const g of [
+    fixture("demo-advisor", "demo-org-cristal", f.data),
+    fixture("demo-owner", "demo-org-other", f.data),
+  ]) {
+    await g.store.hydrate();
+    assert.throws(() => g.store.room(id));
+  }
+});
+
+test("Demo projection copies only authorized metadata, deduplicates and rejects another scope", async () => {
+  const { InboxStore } = await import("../src/features/inbox/store-core");
+  const { projectCustomer } = await import("../src/features/personal/project");
+  const f = fixture();
+  await f.store.hydrate();
+  f.store.renew();
+  await f.store.link();
+  const id = await f.store.create("+15550100001"),
+    inbox = new InboxStore({ id: "demo-owner", role: "owner" });
+  await assert.rejects(f.store.convert(id));
+  assert.throws(() => projectCustomer(inbox, f.store, id));
+  await f.store.send(id, "Texto privado", "one");
+  await f.store.privacy(id, false);
+  await f.store.setPrivacy(0, true);
+  await f.store.convert(id);
+  const a = projectCustomer(inbox, f.store, id),
+    b = projectCustomer(inbox, f.store, id);
+  assert.equal(a.id, b.id);
+  const restarted = new InboxStore({ id: "demo-owner", role: "owner" });
+  restarted.create("Otro ficticio", "+15550109999");
+  assert.equal(projectCustomer(restarted, f.store, id).id, a.id);
+  assert.equal(a.ai, "off");
+  assert.equal(a.preview.includes("Texto privado"), false);
+  assert.throws(() =>
+    projectCustomer(
+      new InboxStore({ id: "demo-advisor", role: "advisor" }),
+      f.store,
+      id,
+    ),
+  );
+  await f.store.setPrivacy(1, true);
+  projectCustomer(inbox, f.store, id);
+  assert.equal(inbox.repository.get(inbox.actor, a.id).ai, "on");
+  await f.store.setPrivacy(1, false);
+  projectCustomer(inbox, f.store, id);
+  assert.equal(inbox.repository.get(inbox.actor, a.id).ai, "off");
+});

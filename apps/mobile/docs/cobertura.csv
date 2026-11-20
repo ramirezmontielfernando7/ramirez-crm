@@ -41,10 +41,10 @@ EQP-06,Chat de equipo · supervisión,T-M6,Implementada / simulacion local y QA 
 EQP-03,Nuevo mensaje o grupo,T-M6,Implementada / simulacion local y QA RN Web (EQP),Pendiente Android/iOS
 EQP-04,Información del grupo,T-M6,Implementada / simulacion local y QA RN Web (EQP),Pendiente Android/iOS
 EQP-05,Mencionar,T-M6,Implementada / simulacion local y QA RN Web (EQP),Pendiente Android/iOS
-NUM-01,Mi número · lista,T-M6,Pendiente,Pendiente
-NUM-02,Mi número · chat,T-M6,Pendiente,Pendiente
-NUM-03,Mi número · opciones del chat,T-M6,Pendiente,Pendiente
-NUM-04,Nuevo chat desde Mi número,T-M6,Pendiente,Pendiente
+NUM-01,Mi número · lista,T-M6,Implementada / simulacion local y QA RN Web (NUM),Pendiente Android/iOS
+NUM-02,Mi número · chat,T-M6,Implementada / simulacion local y QA RN Web (NUM),Pendiente Android/iOS
+NUM-03,Mi número · opciones del chat,T-M6,Implementada / simulacion local y QA RN Web (NUM),Pendiente Android/iOS
+NUM-04,Nuevo chat desde Mi número,T-M6,Implementada / simulacion local y QA RN Web (NUM),Pendiente Android/iOS
 CRM-01,Pipeline,T-M7,Implementada simulada · QA módulo integrado RN Web,Pendiente nativo; docs/refinement-b
 CRM-02,Detalle del trato,T-M7,Implementada simulada · QA módulo integrado RN Web,Pendiente nativo; docs/refinement-b
 CRM-03,Mover a otra etapa,T-M7,Implementada simulada · QA módulo integrado RN Web,Pendiente nativo; docs/refinement-b

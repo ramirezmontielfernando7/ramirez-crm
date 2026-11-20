@@ -1,0 +1,28 @@
+serve projections and allow retry without duplicate tasks (27.07569ms)
+✔ stale task and note editors cannot overwrite newer revisions (13.939481ms)
+✔ advisor reads own tasks only and cannot assign or link inaccessible contacts (7.332675ms)
+✔ revocation during a storage write rolls back old and new contact links (10.912167ms)
+✔ failed rollback quarantines further writes until explicit reload (6.092568ms)
+✔ notes are internal timeline events, never messages or conversation preview updates (9.165416ms)
+✔ metadata changes do not overwrite canonical tasks and events (5.112291ms)
+✔ only current actor legacy keys are read and other organization documents fail closed (11.662998ms)
+✔ reentrant and throwing subscribers cannot duplicate or interrupt queued work (15.264594ms)
+✔ fixtures survive restart without resurrecting a deleted fixture (11.065137ms)
+✔ corrupted local sequence and failed reads do not overwrite evidence (17.251256ms)
+✔ 5000 task cap and virtual-list source avoid a write beyond capacity (21.704183ms)
+✔ delete receipts are replay-safe after deletion and restart (7.934732ms)
+✔ queued payloads are immutable and concurrent identical operation IDs write once (3.313271ms)
+✔ invalid note colors, impossible timestamps and unknown assignees cannot persist (4.642874ms)
+ℹ tests 507
+ℹ suites 0
+ℹ pass 507
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 11556.266601
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.3
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.3
+npm notice To update run: npm install -g npm@12.2.3
+npm notice
