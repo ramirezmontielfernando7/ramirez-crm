@@ -1,0 +1,14 @@
+{
+  "captures": 12,
+  "references": 6,
+  "errors": [],
+  "requests": 0,
+  "native": false,
+  "checks": [
+    "Connect, rename, revoke/cancel",
+    "Daily cap and advanced action denial",
+    "Config validation and save failure/retry",
+    "Role denial, actor isolation, session restoration",
+    "Log contains only enum metadata"
+  ]
+}

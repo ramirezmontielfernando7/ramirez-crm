@@ -120,6 +120,10 @@ function RootNavigator() {
           <Stack.Screen name="internal-settings" />
           <Stack.Screen name="personal-settings" />
           <Stack.Screen name="optout" />
+          <Stack.Screen name="ai-connector-settings" />
+          <Stack.Screen name="my-ai" />
+          <Stack.Screen name="my-ai-activity" />
+          <Stack.Screen name="ai-connector-lab" />
           <Stack.Screen name="optout-lab" />
           <Stack.Screen name="personal-chat" />
           <Stack.Screen name="internal-chat/[id]" />

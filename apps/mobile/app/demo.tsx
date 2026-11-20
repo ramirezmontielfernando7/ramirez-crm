@@ -152,6 +152,24 @@ function OriginalDemo() {
           </>
         )}
         <Section>Laboratorio de demostración</Section>
+        {auth.session && (
+          <>
+            <NavRow
+              label="Mi IA · simulación"
+              onPress={() => router.push("/my-ai")}
+            />
+            <NavRow
+              label="Laboratorio de Mi IA"
+              onPress={() => router.push("/ai-connector-lab")}
+            />
+          </>
+        )}
+        {auth.session?.role === "owner" && (
+          <NavRow
+            label="Conector del equipo · simulación"
+            onPress={() => router.push("/ai-connector-settings")}
+          />
+        )}
         {auth.session && auth.session.role !== "advisor" && (
           <NavRow
             label="Simulador de bajas"

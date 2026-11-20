@@ -118,3 +118,6 @@ Desde 636ec668285a2e5a2047a9e700ab21a8ba0df9b7, NUM-01…04 completos en simulac
 
 ## Checkpoint 128 · bajas ficticias
 SET-10 completa en simulación, 128/158, 30 pendientes y 515 pruebas. Base a9e1b0b; ver docs/refinement-b/CHECKPOINT-128.md. Definición oficial: baja de contactos STOP/BAJA, no usuarios ni programación. Simulador separado, reglas y eventos persistidos, permisos por rol/org, bloqueo de envíos/IA y restauración al iniciar Inbox. Sin borrar historial ni propietarios. QA RN Web 4+2 referencias y regresiones; nativo pendiente. Próximo SET-12 → SET-11/11A solo conexión/acciones ficticias. Conservar B, 26 protegidos, APK/firma/cadena f3→…→a9e1b0b→nuevo; no Gradle, servicios, backend, push ni costes.
+
+## Conector IA ficticio · lote 131
+Desde beb6cb3, SET-12/11/11A completas en simulación; 131/158, 27 pendientes, 528 pruebas. Ver docs/refinement-b/CONECTOR-IA-CIERRE.md. Conexiones y cuotas locales por actor/org, rol vigente, permisos avanzados, revocación, actividad sin mensajes; laboratorio solo evalúa/registra, sin operaciones ni proveedores reales. QA 12+6 referencias; nativo pendiente. Siguiente MKT-20/21/22, compartir catálogo con Chat. Mantener B/firmas/APK/26 protegidos, cadena Offline y límites de no servicios/push/Gradle/costes.
