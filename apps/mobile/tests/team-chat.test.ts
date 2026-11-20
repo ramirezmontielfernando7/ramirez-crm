@@ -317,3 +317,98 @@ test("Messages sort chronologically with stable equal-time order and operation r
     ["Primero", "Segundo", "Tarde"],
   );
 });
+
+test("Delegated groups and Avisos permissions are persisted and revoked effectively", async () => {
+  const f = setup();
+  await f.chat.hydrate();
+  const coord = new TeamChatStore(f.team, "demo-coordinator", f.io),
+    advisor = new TeamChatStore(f.team, "demo-advisor", f.io);
+  await Promise.all([coord.hydrate(), advisor.hydrate()]);
+  assert.equal(coord.canCreateGroups(), false);
+  assert.equal(advisor.canPublishAnnouncements(), false);
+  await f.chat.setPolicy("coordinatorGroups", true, "groups");
+  await f.chat.setPolicy("advisorAnnouncements", true, "avisos");
+  assert.equal(coord.canCreateGroups(), true);
+  await coord.create(["demo-advisor"], "Grupo delegado", "group");
+  await advisor.send("demo-room-announcements", "Aviso ficticio", "notice");
+  const restored = setup(f.data);
+  await restored.chat.hydrate();
+  assert.equal(restored.chat.snapshot().doc.policy?.coordinatorGroups, true);
+  assert.equal(restored.chat.snapshot().doc.policy?.advisorAnnouncements, true);
+  await f.chat.setPolicy("coordinatorGroups", false, "no-groups");
+  await f.chat.setPolicy("advisorAnnouncements", false, "no-avisos");
+  await assert.rejects(coord.create(["demo-advisor"], "Bloqueado", "group-no"));
+  await assert.rejects(
+    advisor.send("demo-room-announcements", "No", "notice-no"),
+  );
+});
+test("Only owner can change policies; invalid fields, values and restored policies are rejected", async () => {
+  const f = setup();
+  await f.chat.hydrate();
+  const c = new TeamChatStore(f.team, "demo-coordinator", f.io);
+  await c.hydrate();
+  await assert.rejects(
+    c.setPolicy("coordinatorGroups", true, "denied"),
+    /propietario/,
+  );
+  await assert.rejects(
+    f.chat.setPolicy("unknown" as never, true, "bad-field"),
+    /válida/,
+  );
+  await assert.rejects(
+    f.chat.setPolicy("coordinatorGroups", "true" as never, "bad-value"),
+    /válida/,
+  );
+  await f.chat.setPolicy("coordinatorGroups", false, "save");
+  const d = JSON.parse(f.data.get(f.chat.key)!);
+  d.policy.external = true;
+  f.data.set(f.chat.key, JSON.stringify(d));
+  const g = setup(f.data);
+  await g.chat.hydrate();
+  assert.equal(g.chat.snapshot().ready, false);
+});
+test("Concurrent policy updates merge distinct fields without losing values", async () => {
+  const f = setup();
+  await f.chat.hydrate();
+  await Promise.all([
+    f.chat.setPolicy("coordinatorGroups", true, "a"),
+    f.chat.setPolicy("advisorAnnouncements", true, "b"),
+  ]);
+  assert.deepEqual(f.chat.snapshot().doc.policy, {
+    coordinatorGroups: true,
+    advisorAnnouncements: true,
+  });
+  assert.equal(Object.isFrozen(f.chat.snapshot().doc.policy), true);
+});
+test("Queued delegation revocation takes effect before a pending coordinator group creation", async () => {
+  const f = setup();
+  await f.chat.hydrate();
+  const c = new TeamChatStore(f.team, "demo-coordinator", f.io);
+  await c.hydrate();
+  await f.chat.setPolicy("coordinatorGroups", true, "on");
+  const revoking = f.chat.setPolicy("coordinatorGroups", false, "off");
+  const creating = c.create(["demo-advisor"], "No debe crearse", "group");
+  await revoking;
+  await assert.rejects(creating, /delegado/);
+  assert.equal(
+    c.snapshot().doc.rooms.some((r) => r.name === "No debe crearse"),
+    false,
+  );
+});
+test("Policy save failure preserves effective permission and same-key retry remains idempotent", async () => {
+  const f = setup();
+  await f.chat.hydrate();
+  const original = f.io.set;
+  f.io.set = async () => {
+    throw Error("disk");
+  };
+  await assert.rejects(f.chat.setPolicy("advisorAnnouncements", true, "retry"));
+  assert.equal(f.chat.snapshot().doc.policy?.advisorAnnouncements, false);
+  f.io.set = original;
+  await f.chat.setPolicy("advisorAnnouncements", true, "retry");
+  await f.chat.setPolicy("advisorAnnouncements", true, "retry");
+  assert.equal(
+    f.chat.snapshot().doc.receipts.filter((r) => r.key === "retry").length,
+    1,
+  );
+});

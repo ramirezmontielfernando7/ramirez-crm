@@ -117,6 +117,7 @@ function RootNavigator() {
           <Stack.Screen name="assistant" />
           <Stack.Screen name="team-lab" />
           <Stack.Screen name="internal-supervision-lab" />
+          <Stack.Screen name="internal-settings" />
           <Stack.Screen name="internal-chat/[id]" />
           <Stack.Screen name="internal-info/[id]" />
           <Stack.Screen name="team" />

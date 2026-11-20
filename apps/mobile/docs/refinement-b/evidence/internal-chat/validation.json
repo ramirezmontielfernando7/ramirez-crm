@@ -1,6 +1,7 @@
 {
   "base": "58c90c588a1494fa04c62414657e54c155a368d9",
-  "implemented": 120,
+  "eqpCommit": "2d3da0ee84a3d3f38c81d1448482819ea4be2b11",
+  "implemented": 121,
   "pending": [
     "NUM-01",
     "NUM-02",
@@ -27,7 +28,6 @@
     "SET-02B",
     "SET-02C",
     "SET-04",
-    "SET-09",
     "SET-10",
     "SET-11",
     "SET-11A",
@@ -41,7 +41,14 @@
     "PLT-02",
     "PLT-03"
   ],
-  "logicTests": 489,
+  "logicTests": 494,
+  "newLogicTests": 17,
+  "typescript": "passed",
+  "format": "passed",
+  "regressionMain": "passed",
+  "regressionTeam": "passed",
+  "actualCaptures": 28,
+  "references": 14,
   "protected26": {
     "/workspace/work/apk-tm4/source/mobile/android/app/build/generated/assets/react/release/index.android.bundle": true,
     "/workspace/work/apk-tm4/source/mobile/android/app/build/intermediates/assets/release/mergeReleaseAssets/index.android.bundle": true,
@@ -70,5 +77,64 @@
     "/workspace/work/apk-tm3/signing/dashfort-experimental.keystore": true,
     "/workspace/work/entrega-dashfort-tm4/dashfort-mobile-tm4.bundle": true
   },
-  "native": false
+  "bundleChain": [
+    {
+      "path": "artifacts/offline-integral/dashfort-mobile-offline.bundle",
+      "verified": true,
+      "prerequisites": [
+        "d0b27e29ea89706cdc0fdc795338670c4e9c10b5"
+      ],
+      "sha256": "25e8c60c5d9d214568913f35b5d46ea84625da518c1035105671083852e58bfe"
+    },
+    {
+      "path": "artifacts/continuation-b/dashfort-mobile-111-2d3dee2.bundle",
+      "verified": true,
+      "prerequisites": [
+        "f3f467abb7640ec13ffba590bc5dad91bc5cfd77"
+      ],
+      "sha256": "a38dd97caadf8d9eeeb3678fd9dbf0e5527bf662dbb000a704197c7c187da6ef"
+    },
+    {
+      "path": "artifacts/continuation-b/team-preparation-00b497c.bundle",
+      "verified": true,
+      "prerequisites": [
+        "2d3dee2542dd7f4d86182b917d0165abc90382fb"
+      ],
+      "sha256": "0f8c8dd2bcaa223f02d178a878b80783818901e8d68342ac0a89e88000c3bd38"
+    },
+    {
+      "path": "artifacts/continuation-b/team-integration-4864eb9.bundle",
+      "verified": true,
+      "prerequisites": [
+        "00b497c86d43568bc1a2a17ffaf89ea525b9ae01"
+      ],
+      "sha256": "e4482f435d6b5db1e4297a000000a8ed750b0898b7a723f44eae23e6732292c8"
+    },
+    {
+      "path": "artifacts/continuation-b/team-complete-114-4bfd3f6.bundle",
+      "verified": true,
+      "prerequisites": [
+        "4864eb91ac1f3c17a1261b19068791dbaeecc176"
+      ],
+      "sha256": "d545eb9f1e6e7c532e0cd6c8a79ee9ed44c3c89f285624fd5bedfe5779aa93ce"
+    },
+    {
+      "path": "artifacts/continuation-b/eqp-base-58c90c5.bundle",
+      "verified": true,
+      "prerequisites": [
+        "4bfd3f68da9c01c7ca94ed1e61fcdc510e6588d0"
+      ],
+      "sha256": "a03b3875b00516b511199b1a948f8afd6c76d2f2459aebb03c98156e4582bbe3"
+    }
+  ],
+  "native": false,
+  "httpServerStarted": false,
+  "nextLot": [
+    "SET-13",
+    "SET-13A",
+    "NUM-01",
+    "NUM-02",
+    "NUM-03",
+    "NUM-04"
+  ]
 }

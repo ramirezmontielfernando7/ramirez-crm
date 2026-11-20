@@ -21,6 +21,10 @@ type Doc = Readonly<{
   schema: 1;
   revision?: number;
   supervisors?: readonly string[];
+  policy?: Readonly<{
+    coordinatorGroups: boolean;
+    advisorAnnouncements: boolean;
+  }>;
   audit?: readonly { actor: string; room: string; at: number }[];
   organizationId: string;
   sequence: number;
@@ -34,6 +38,11 @@ const freeze = (d: Doc): Doc =>
   Object.freeze({
     ...d,
     supervisors: Object.freeze([...(d.supervisors ?? [])]),
+    policy: Object.freeze({
+      coordinatorGroups: false,
+      advisorAnnouncements: false,
+      ...d.policy,
+    }),
     audit: Object.freeze((d.audit ?? []).map((a) => Object.freeze({ ...a }))),
     rooms: Object.freeze(
       d.rooms.map((r) =>
@@ -144,6 +153,47 @@ export class TeamChatStore {
       if (!this.references) peers.get(this.team)?.delete(this);
     };
   }
+  canCreateGroups() {
+    const a = this.team.actor(this.actorId);
+    return (
+      a.role === "owner" ||
+      (a.role === "coordinator" &&
+        this.state.doc.policy?.coordinatorGroups === true)
+    );
+  }
+  canPublishAnnouncements() {
+    return (
+      this.team.actor(this.actorId).role !== "advisor" ||
+      this.state.doc.policy?.advisorAnnouncements === true
+    );
+  }
+  setPolicy(
+    field: "coordinatorGroups" | "advisorAnnouncements",
+    value: boolean,
+    key: string,
+  ) {
+    if (
+      !["coordinatorGroups", "advisorAnnouncements"].includes(field) ||
+      typeof value !== "boolean"
+    )
+      return Promise.reject(Error("Política no válida."));
+    return this.change(key, ["policy", field, value], (d) => {
+      if (this.team.actor(this.actorId).role !== "owner")
+        throw Error("Solo propietario configura el chat interno.");
+      return {
+        doc: {
+          ...d,
+          policy: {
+            coordinatorGroups: false,
+            advisorAnnouncements: false,
+            ...d.policy,
+            [field]: value,
+          },
+        },
+        result: "policy",
+      };
+    });
+  }
   setSupervisors(ids: readonly string[], key: string) {
     const allowed = [...new Set(ids)];
     return this.change(key, ["supervisors", allowed], (d) => {
@@ -217,6 +267,16 @@ export class TeamChatStore {
       d.receipts.length > 200
     )
       throw Error("Chat interno local no válido.");
+    if (
+      d.policy !== undefined &&
+      (!d.policy ||
+        Object.keys(d.policy).some(
+          (k) => !["coordinatorGroups", "advisorAnnouncements"].includes(k),
+        ) ||
+        typeof d.policy.coordinatorGroups !== "boolean" ||
+        typeof d.policy.advisorAnnouncements !== "boolean")
+    )
+      throw Error("Política no válida.");
     for (const r of d.rooms)
       if (
         !r ||
@@ -353,8 +413,12 @@ export class TeamChatStore {
     return raw;
   }
   async saveDraft(id: string, text: string) {
-    this.get(id);
-    if (this.supervised(id)) throw Error("Supervisión de solo lectura.");
+    const room = this.get(id);
+    if (
+      this.supervised(id) ||
+      (room.kind === "announcements" && !this.canPublishAnnouncements())
+    )
+      throw Error("Conversación de solo lectura.");
     if (text.length > 4000) throw Error("Borrador demasiado largo.");
     await this.storage.set(`${this.key}.draft.${this.actorId}.${id}`, text);
   }
@@ -432,9 +496,16 @@ export class TeamChatStore {
         throw Error("Elige personas activas.");
       if (
         name !== null &&
-        (actor.role !== "owner" || !name.trim() || name.length > 80)
+        ((actor.role !== "owner" &&
+          !(
+            actor.role === "coordinator" && d.policy?.coordinatorGroups === true
+          )) ||
+          !name.trim() ||
+          name.length > 80)
       )
-        throw Error("Crear grupos requiere propietario y nombre válido.");
+        throw Error(
+          "Crear grupos requiere propietario o coordinador delegado y nombre válido.",
+        );
       const old =
         name === null
           ? d.rooms.find(
@@ -490,7 +561,8 @@ export class TeamChatStore {
         this.supervised(id) ||
         !this.visible(r) ||
         (r.kind === "announcements" &&
-          this.team.actor(this.actorId).role === "advisor")
+          this.team.actor(this.actorId).role === "advisor" &&
+          d.policy?.advisorAnnouncements !== true)
       )
         throw Error("Esta conversación es de solo lectura.");
       if (!input.text && !input.attachment) throw Error("Escribe un mensaje.");

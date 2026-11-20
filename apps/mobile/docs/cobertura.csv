@@ -137,7 +137,7 @@ SET-06,Respuestas rápidas,T-M13,Implementada con simulacion B / QA RN Web (lote
 SET-06A,Editar respuesta rápida,T-M13,Implementada con simulacion B / QA RN Web (lote 12),Pendiente
 SET-07,Motivos de pérdida,T-M13,Implementada con simulacion B / QA RN Web (lote 14),Pendiente
 SET-08,Agenda y conectores,T-M13,Implementada con simulacion B / QA RN Web (lote 15),Pendiente
-SET-09,Chat de equipo (ajustes),T-M13,Pendiente,Pendiente
+SET-09,Chat de equipo (ajustes),T-M13,Implementada / simulacion local y QA RN Web (chat interno),Pendiente Android/iOS
 SET-10,Bajas automáticas,T-M13,Pendiente,Pendiente
 SET-11,Mi IA,T-M13,Pendiente,Pendiente
 SET-11A,Qué hizo tu IA,T-M13,Pendiente,Pendiente

@@ -30,6 +30,7 @@ import {
   SearchBox,
   Section,
   Skeleton,
+  Switch,
   Text,
 } from "../../components/ui";
 import { StudioBar } from "../studio/StudioBar";
@@ -317,12 +318,15 @@ function NewMessage() {
           />
         ),
       )}
-      {store.team.actor(store.actorId).role === "owner" && !group && (
+      {store.canCreateGroups() && !group && (
         <Button variant="tonal" onPress={() => setGroup(true)}>
           Nuevo grupo
         </Button>
       )}
-      {group && (
+      {group && !store.canCreateGroups() && (
+        <Banner type="warning">Se retiró el permiso para crear grupos.</Banner>
+      )}
+      {group && store.canCreateGroups() && (
         <>
           <Field
             label="Nombre del grupo"
@@ -386,12 +390,16 @@ function ChatContent({ store, id }: { store: TeamChatStore; id: string }) {
     layers = useLayers(),
     action = useAction(),
     list = useRef<FlatList<Message>>(null),
+    followLatest = useRef(true),
     [text, setText] = useState(drafts.get(store)?.get(id) ?? ""),
     [attachment, setAttachment] = useState<
       { name: string; bytes: number } | undefined
     >(),
     [client, setClient] = useState<string | undefined>(),
     key = useRef(catalogKey());
+  const readOnly =
+    store.supervised(id) ||
+    (room.kind === "announcements" && !store.canPublishAnnouncements());
   const messages = useMemo(
     () => store.messages(id),
     [store, id, store.snapshot().doc.messages],
@@ -403,16 +411,16 @@ function ChatContent({ store, id }: { store: TeamChatStore; id: string }) {
     ),
     [draftError, setDraftError] = useState("");
   useEffect(() => {
-    if (!draftReady || store.supervised(id)) return;
+    if (!draftReady || readOnly) return;
     let d = drafts.get(store);
     if (!d) {
       d = new Map();
       drafts.set(store, d);
     }
     d.set(id, text);
-  }, [store, id, text, draftReady]);
+  }, [store, id, text, draftReady, readOnly]);
   useEffect(() => {
-    if (draftReady || store.supervised(id)) return;
+    if (draftReady || readOnly) return;
     let live = true;
     void store
       .draft(id)
@@ -428,9 +436,9 @@ function ChatContent({ store, id }: { store: TeamChatStore; id: string }) {
     return () => {
       live = false;
     };
-  }, [store, id, draftReady]);
+  }, [store, id, draftReady, readOnly]);
   useEffect(() => {
-    if (!draftReady || store.supervised(id)) return;
+    if (!draftReady || readOnly) return;
     const t = setTimeout(() => {
       if (draftValue.current !== text) return;
       void store
@@ -439,11 +447,7 @@ function ChatContent({ store, id }: { store: TeamChatStore; id: string }) {
         .catch(() => setDraftError("No se pudo guardar el borrador local."));
     }, 350);
     return () => clearTimeout(t);
-  }, [store, id, text, draftReady]);
-  const readOnly =
-    store.supervised(id) ||
-    (room.kind === "announcements" &&
-      store.team.actor(store.actorId).role === "advisor");
+  }, [store, id, text, draftReady, readOnly]);
   return (
     <>
       <InternalBar
@@ -459,11 +463,25 @@ function ChatContent({ store, id }: { store: TeamChatStore; id: string }) {
       {!!draftError && <Banner type="danger">{draftError}</Banner>}
       <FlatList
         ref={list}
+        testID="internal-thread"
+        initialNumToRender={12}
+        maxToRenderPerBatch={12}
+        windowSize={7}
+        onScroll={(event) => {
+          const e = event.nativeEvent;
+          followLatest.current =
+            e.contentSize.height -
+              e.layoutMeasurement.height -
+              e.contentOffset.y <
+            80;
+        }}
+        scrollEventThrottle={32}
         data={messages}
         keyExtractor={(m) => m.id}
-        onContentSizeChange={() =>
-          list.current?.scrollToEnd({ animated: false })
-        }
+        onContentSizeChange={() => {
+          if (followLatest.current)
+            list.current?.scrollToEnd({ animated: false });
+        }}
         style={{ backgroundColor: c.sunken }}
         contentContainerStyle={{ padding: 16, gap: 12 }}
         ListEmptyComponent={
@@ -652,6 +670,7 @@ function ChatContent({ store, id }: { store: TeamChatStore; id: string }) {
               }}
               onPress={() =>
                 void action.run(async () => {
+                  followLatest.current = true;
                   await store.send(id, text, key.current, attachment, client);
                   draftValue.current = "";
                   await store.saveDraft(id, "");
@@ -912,6 +931,65 @@ export function SupervisionLab() {
           {!!action.error && <Banner type="danger">{action.error}</Banner>}
         </Ready>
       </PageScroll>
+    </Screen>
+  );
+}
+
+export function InternalSettings() {
+  const { store, state } = useInternal(),
+    action = useAction();
+  return (
+    <Screen>
+      <StudioBar title="Chat de equipo" onBack={() => router.back()} />
+      <Ready>
+        <PageScroll>
+          {store.team.actor(store.actorId).role !== "owner" ? (
+            <EmptyState
+              title="Acceso no permitido"
+              message="Solo propietario configura grupos, Avisos y supervisión."
+            />
+          ) : (
+            <>
+              {!!action.error && <Banner type="danger">{action.error}</Banner>}
+              <Switch
+                label="Supervisión de conversaciones"
+                value={!!state.doc.supervisors?.length}
+                onChange={(v) =>
+                  void action.run(() =>
+                    store.setSupervisors(
+                      v ? [store.actorId] : [],
+                      catalogKey(),
+                    ),
+                  )
+                }
+              />
+              <Text kind="meta">
+                Habilitar te concede supervisión explícita de solo lectura. Cada
+                acceso queda registrado. Desactivar retira todos los permisos de
+                supervisión de esta organización ficticia.
+              </Text>
+              <Switch
+                label="El Coordinador puede crear grupos"
+                value={state.doc.policy?.coordinatorGroups === true}
+                onChange={(v) =>
+                  void action.run(() =>
+                    store.setPolicy("coordinatorGroups", v, catalogKey()),
+                  )
+                }
+              />
+              <Switch
+                label="Los asesores pueden publicar en Avisos"
+                value={state.doc.policy?.advisorAnnouncements === true}
+                onChange={(v) =>
+                  void action.run(() =>
+                    store.setPolicy("advisorAnnouncements", v, catalogKey()),
+                  )
+                }
+              />
+            </>
+          )}
+        </PageScroll>
+      </Ready>
     </Screen>
   );
 }

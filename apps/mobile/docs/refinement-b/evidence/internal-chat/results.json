@@ -1,8 +1,11 @@
 {
-  "actualCaptures": 24,
-  "references": 12,
+  "actualCaptures": 28,
+  "references": 14,
   "checks": [
-    "Six EQP IDs both themes/sizes",
+    "Six EQP IDs and SET-09 both themes/sizes",
+    "Empty/error retry/offline states",
+    "Earlier history remains visible when another message arrives",
+    "Delegation, announcements, save failure and revocation via SET-09",
     "Bandeja selector and internal routes",
     "Direct save failure, retry and no duplicates",
     "Attachment preview",

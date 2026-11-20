@@ -1,4 +1,6 @@
-# Equipo interno · 120/158
+# Equipo interno · cierre EQP
+
+Estado vigente: **121/158 y 494 pruebas** tras SET-09; ver CHECKPOINT-121.md. Lo siguiente conserva la evidencia del primer cierre de los seis IDs EQP.
 
 Base 58c90c588a1494fa04c62414657e54c155a368d9, rama B existente. EQP-01/02/03/04/05/06 completos en simulación local con QA RN Web; 38 IDs pendientes. No equivale a validación nativa ni mensajería real.
 
