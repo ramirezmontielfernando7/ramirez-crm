@@ -1,0 +1,2538 @@
+{
+  "total": 158,
+  "implemented": 158,
+  "pending": [],
+  "definitionSetMatches": true,
+  "scope": "Design IDs include states, sheets and dialogs, not 158 independent routes. This verifier checks traceability, not runtime completeness. Prior 150 accepted at 9e50c40; final 8 executed in this lot.",
+  "sourceInventorySha256": "4e807d3c4d54325f8f184d01615eff5c339576d2a1e038b747730c2c485cdd45",
+  "screens": [
+    {
+      "id": "AUTH-01",
+      "title": "Animación de apertura",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 679
+      },
+      "implementation": "src/features/opening/OpeningScreen.tsx",
+      "entryFile": "app/index.tsx",
+      "logicTests": "tests/opening.test.ts",
+      "webQA": "Implementada / QA RN Web y temporizacion logica (lote 13)",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "AUTH-02",
+      "title": "Iniciar sesión",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 680
+      },
+      "implementation": "src/screens/Access.tsx",
+      "entryFile": "app/login.tsx",
+      "logicTests": "tests/foundation.test.ts",
+      "webQA": "Implementada con simulacion / QA navegador",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "AUTH-03",
+      "title": "Activar cuenta (enlace)",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 689
+      },
+      "implementation": "src/screens/Access.tsx",
+      "entryFile": "app/login.tsx",
+      "logicTests": "tests/foundation.test.ts",
+      "webQA": "Implementada con simulacion / QA navegador",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "AUTH-04",
+      "title": "Nueva contraseña (enlace)",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 690
+      },
+      "implementation": "src/screens/Access.tsx",
+      "entryFile": "app/login.tsx",
+      "logicTests": "tests/foundation.test.ts",
+      "webQA": "Implementada con simulacion / QA navegador",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "AUTH-05",
+      "title": "Crear cuenta (cerrado)",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 691
+      },
+      "implementation": "src/screens/Access.tsx",
+      "entryFile": "app/login.tsx",
+      "logicTests": "tests/foundation.test.ts",
+      "webQA": "Implementada con simulacion / QA navegador",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "AUTH-06",
+      "title": "¿Olvidaste tu contraseña?",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 692
+      },
+      "implementation": "src/screens/Access.tsx",
+      "entryFile": "app/login.tsx",
+      "logicTests": "tests/foundation.test.ts",
+      "webQA": "Implementada con simulacion / QA navegador",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "INB-01",
+      "title": "Bandeja · lista de Clientes",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 738
+      },
+      "implementation": "src/features/inbox/InboxScreen.tsx",
+      "entryFile": "app/(tabs)/inbox.tsx",
+      "logicTests": "tests/inbox.test.ts",
+      "webQA": "Implementada con simulacion T-M2 / QA navegador",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "INB-02",
+      "title": "Búsqueda en la Bandeja",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 739
+      },
+      "implementation": "src/features/inbox/InboxScreen.tsx",
+      "entryFile": "app/(tabs)/inbox.tsx",
+      "logicTests": "tests/inbox.test.ts",
+      "webQA": "Implementada con simulacion T-M2 / QA navegador",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "INB-03",
+      "title": "Selección múltiple de chats",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 740
+      },
+      "implementation": "src/features/inbox/InboxScreen.tsx",
+      "entryFile": "app/(tabs)/inbox.tsx",
+      "logicTests": "tests/inbox.test.ts",
+      "webQA": "Implementada con simulacion T-M2 / QA navegador",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "INB-06",
+      "title": "Bandeja · cargando",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 741
+      },
+      "implementation": "src/features/inbox/InboxScreen.tsx",
+      "entryFile": "app/(tabs)/inbox.tsx",
+      "logicTests": "tests/inbox.test.ts",
+      "webQA": "Implementada con simulacion T-M2 / QA navegador",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "INB-07",
+      "title": "Bandeja · vacía",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 742
+      },
+      "implementation": "src/features/inbox/InboxScreen.tsx",
+      "entryFile": "app/(tabs)/inbox.tsx",
+      "logicTests": "tests/inbox.test.ts",
+      "webQA": "Implementada con simulacion T-M2 / QA navegador",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "INB-08",
+      "title": "Bandeja · sin conexión",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 743
+      },
+      "implementation": "src/features/inbox/InboxScreen.tsx",
+      "entryFile": "app/(tabs)/inbox.tsx",
+      "logicTests": "tests/inbox.test.ts",
+      "webQA": "Implementada con simulacion T-M2 / QA navegador",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "INB-09",
+      "title": "Bandeja · pestaña Campañas",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 744
+      },
+      "implementation": "src/features/inbox/InboxScreen.tsx",
+      "entryFile": "app/(tabs)/inbox.tsx",
+      "logicTests": "tests/inbox.test.ts",
+      "webQA": "Implementada con simulacion T-M2 / QA navegador",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "INB-04",
+      "title": "Menú ⋮ de la Bandeja",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 745
+      },
+      "implementation": "src/features/inbox/InboxScreen.tsx",
+      "entryFile": "app/(tabs)/inbox.tsx",
+      "logicTests": "tests/inbox.test.ts",
+      "webQA": "Implementada con simulacion T-M2 / QA navegador",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "INB-05",
+      "title": "Filtros de la Bandeja",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 746
+      },
+      "implementation": "src/features/inbox/InboxScreen.tsx",
+      "entryFile": "app/(tabs)/inbox.tsx",
+      "logicTests": "tests/inbox.test.ts",
+      "webQA": "Implementada con simulacion T-M2 / QA navegador",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "INB-10",
+      "title": "Nuevo chat",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 751
+      },
+      "implementation": "src/features/inbox/InboxScreen.tsx",
+      "entryFile": "app/(tabs)/inbox.tsx",
+      "logicTests": "tests/inbox.test.ts",
+      "webQA": "Implementada con simulacion T-M2 / QA navegador",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "INB-11",
+      "title": "Chat abierto",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 779
+      },
+      "implementation": "src/features/chat/ConversationScreen.tsx",
+      "entryFile": "app/conversation/[id].tsx",
+      "logicTests": "tests/chat.test.ts",
+      "webQA": "Implementada · simulación",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "INB-12",
+      "title": "Menú ⋮ del chat",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 780
+      },
+      "implementation": "src/features/chat/ConversationScreen.tsx",
+      "entryFile": "app/conversation/[id].tsx",
+      "logicTests": "tests/chat.test.ts",
+      "webQA": "Implementada · simulación",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "INB-13",
+      "title": "Adjuntar",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 782
+      },
+      "implementation": "src/features/chat/Sheets.tsx",
+      "entryFile": "app/conversation/[id].tsx",
+      "logicTests": "tests/chat.test.ts",
+      "webQA": "Implementada · simulación",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "INB-14",
+      "title": "Respuestas rápidas",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 785
+      },
+      "implementation": "src/features/chat/Sheets.tsx",
+      "entryFile": "app/conversation/[id].tsx",
+      "logicTests": "tests/chat.test.ts",
+      "webQA": "Implementada · simulación",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "INB-15",
+      "title": "Biblioteca · enviar material",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 787
+      },
+      "implementation": "src/features/chat/Sheets.tsx",
+      "entryFile": "app/conversation/[id].tsx",
+      "logicTests": "tests/chat.test.ts",
+      "webQA": "Implementada · simulación",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "INB-16",
+      "title": "Emojis",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 789
+      },
+      "implementation": "src/features/chat/Sheets.tsx",
+      "entryFile": "app/conversation/[id].tsx",
+      "logicTests": "tests/chat.test.ts",
+      "webQA": "Implementada · simulación",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "INB-17",
+      "title": "Enviar plantilla (ventana cerrada)",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 792
+      },
+      "implementation": "src/features/chat/Sheets.tsx",
+      "entryFile": "app/conversation/[id].tsx",
+      "logicTests": "tests/chat.test.ts",
+      "webQA": "Implementada · simulación",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "INB-18",
+      "title": "Asistente de redacción",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 796
+      },
+      "implementation": "src/features/chat/Sheets.tsx",
+      "entryFile": "app/conversation/[id].tsx",
+      "logicTests": "tests/chat.test.ts",
+      "webQA": "Implementada · simulación",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "INB-19",
+      "title": "Detalles del contacto",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 814
+      },
+      "implementation": "src/features/contact/DetailsScreen.tsx",
+      "entryFile": "app/contact/[id].tsx",
+      "logicTests": "tests/contact.test.ts",
+      "webQA": "Implementada simulada",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "INB-20",
+      "title": "Historial del chat",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 816
+      },
+      "implementation": "src/features/contact/HistoryScreen.tsx",
+      "entryFile": "app/contact/[id].tsx",
+      "logicTests": "tests/contact.test.ts",
+      "webQA": "Implementada simulada",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "INB-21",
+      "title": "Cambiar etapa",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 819
+      },
+      "implementation": "src/features/contact/Sheets.tsx",
+      "entryFile": "app/contact/[id].tsx",
+      "logicTests": "tests/contact.test.ts",
+      "webQA": "Implementada simulada",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "INB-22",
+      "title": "Asignar chat",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 821
+      },
+      "implementation": "src/features/contact/Sheets.tsx",
+      "entryFile": "app/contact/[id].tsx",
+      "logicTests": "tests/contact.test.ts",
+      "webQA": "Implementada simulada",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "INB-23",
+      "title": "Etiquetas del contacto",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 823
+      },
+      "implementation": "src/features/contact/Sheets.tsx",
+      "entryFile": "app/contact/[id].tsx",
+      "logicTests": "tests/contact.test.ts",
+      "webQA": "Implementada simulada",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "INB-24",
+      "title": "IA en este chat",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 825
+      },
+      "implementation": "src/features/contact/Sheets.tsx",
+      "entryFile": "app/contact/[id].tsx",
+      "logicTests": "tests/contact.test.ts",
+      "webQA": "Implementada simulada",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "INB-30",
+      "title": "Conexión del chat",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 829
+      },
+      "implementation": "src/features/contact/Sheets.tsx",
+      "entryFile": "app/contact/[id].tsx",
+      "logicTests": "tests/contact.test.ts",
+      "webQA": "Implementada simulada",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "INB-25",
+      "title": "Motivo de pérdida",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 832
+      },
+      "implementation": "src/features/contact/Sheets.tsx",
+      "entryFile": "app/contact/[id].tsx",
+      "logicTests": "tests/contact.test.ts",
+      "webQA": "Implementada simulada",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "INB-26",
+      "title": "Nueva tarea para este chat",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 834
+      },
+      "implementation": "src/features/contact/Sheets.tsx",
+      "entryFile": "app/contact/[id].tsx",
+      "logicTests": "tests/contact.test.ts",
+      "webQA": "Implementada simulada",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "INB-27",
+      "title": "Visor de imagen",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 835
+      },
+      "implementation": "app/media/[id].tsx",
+      "entryFile": "app/media/[id].tsx",
+      "logicTests": "tests/chat.test.ts",
+      "webQA": "Implementada · simulación",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "INB-28",
+      "title": "Eliminar chat",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 836
+      },
+      "implementation": "src/features/chat/Sheets.tsx",
+      "entryFile": "app/conversation/[id].tsx",
+      "logicTests": "tests/chat.test.ts",
+      "webQA": "Implementada · simulación",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "INB-29",
+      "title": "Mensaje no entregado",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 837
+      },
+      "implementation": "src/features/chat/ConversationScreen.tsx",
+      "entryFile": "app/conversation/[id].tsx",
+      "logicTests": "tests/chat.test.ts",
+      "webQA": "Implementada · simulación",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "EQP-01",
+      "title": "Equipo · lista de conversaciones",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 852
+      },
+      "implementation": "src/features/team-chat/Screens.tsx",
+      "entryFile": "app/(tabs)/inbox.tsx",
+      "logicTests": "tests/team-chat.test.ts",
+      "webQA": "Implementada / simulacion local y QA RN Web (EQP)",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "EQP-02",
+      "title": "Chat de equipo",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 861
+      },
+      "implementation": "src/features/team-chat/Screens.tsx",
+      "entryFile": "app/internal-chat/[id].tsx",
+      "logicTests": "tests/team-chat.test.ts",
+      "webQA": "Implementada / simulacion local y QA RN Web (EQP)",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "EQP-06",
+      "title": "Chat de equipo · supervisión",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 862
+      },
+      "implementation": "src/features/team-chat/Screens.tsx",
+      "entryFile": "app/internal-chat/[id].tsx",
+      "logicTests": "tests/team-chat.test.ts",
+      "webQA": "Implementada / simulacion local y QA RN Web (EQP)",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "EQP-03",
+      "title": "Nuevo mensaje o grupo",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 863
+      },
+      "implementation": "src/features/team-chat/Screens.tsx",
+      "entryFile": "app/(tabs)/inbox.tsx",
+      "logicTests": "tests/team-chat.test.ts",
+      "webQA": "Implementada / simulacion local y QA RN Web (EQP)",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "EQP-04",
+      "title": "Información del grupo",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 866
+      },
+      "implementation": "src/features/team-chat/Screens.tsx",
+      "entryFile": "app/internal-info/[id].tsx",
+      "logicTests": "tests/team-chat.test.ts",
+      "webQA": "Implementada / simulacion local y QA RN Web (EQP)",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "EQP-05",
+      "title": "Mencionar",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 868
+      },
+      "implementation": "src/features/team-chat/Screens.tsx",
+      "entryFile": "app/internal-chat/[id].tsx",
+      "logicTests": "tests/team-chat.test.ts",
+      "webQA": "Implementada / simulacion local y QA RN Web (EQP)",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "NUM-01",
+      "title": "Mi número · lista",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 876
+      },
+      "implementation": "src/features/personal/Chats.tsx",
+      "entryFile": "app/(tabs)/inbox.tsx",
+      "logicTests": "tests/personal.test.ts",
+      "webQA": "Implementada / simulacion local y QA RN Web (NUM)",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "NUM-02",
+      "title": "Mi número · chat",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 877
+      },
+      "implementation": "src/features/personal/Chats.tsx",
+      "entryFile": "app/personal-chat.tsx",
+      "logicTests": "tests/personal.test.ts",
+      "webQA": "Implementada / simulacion local y QA RN Web (NUM)",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "NUM-03",
+      "title": "Mi número · opciones del chat",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 879
+      },
+      "implementation": "src/features/personal/Chats.tsx",
+      "entryFile": "app/personal-chat.tsx",
+      "logicTests": "tests/personal.test.ts",
+      "webQA": "Implementada / simulacion local y QA RN Web (NUM)",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "NUM-04",
+      "title": "Nuevo chat desde Mi número",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 880
+      },
+      "implementation": "src/features/personal/Chats.tsx",
+      "entryFile": "app/(tabs)/inbox.tsx",
+      "logicTests": "tests/personal.test.ts",
+      "webQA": "Implementada / simulacion local y QA RN Web (NUM)",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "CRM-01",
+      "title": "Pipeline",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 902
+      },
+      "implementation": "src/features/crm/CrmView.tsx",
+      "entryFile": "app/(tabs)/crm.tsx",
+      "logicTests": "tests/crm-offline.test.ts",
+      "webQA": "Implementada simulada · QA módulo integrado RN Web",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "CRM-02",
+      "title": "Detalle del trato",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 903
+      },
+      "implementation": "src/features/crm/CrmOverlay.tsx",
+      "entryFile": "app/(tabs)/crm.tsx",
+      "logicTests": "tests/crm-offline.test.ts",
+      "webQA": "Implementada simulada · QA módulo integrado RN Web",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "CRM-03",
+      "title": "Mover a otra etapa",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 906
+      },
+      "implementation": "src/features/crm/CrmOverlay.tsx",
+      "entryFile": "app/(tabs)/crm.tsx",
+      "logicTests": "tests/crm-offline.test.ts",
+      "webQA": "Implementada simulada · QA módulo integrado RN Web",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "CRM-04",
+      "title": "Editar monto",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 908
+      },
+      "implementation": "src/features/crm/CrmOverlay.tsx",
+      "entryFile": "app/(tabs)/crm.tsx",
+      "logicTests": "tests/crm-offline.test.ts",
+      "webQA": "Implementada simulada · QA módulo integrado RN Web",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "CRM-05",
+      "title": "Motivo de pérdida (trato)",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 910
+      },
+      "implementation": "src/features/crm/CrmOverlay.tsx",
+      "entryFile": "app/(tabs)/crm.tsx",
+      "logicTests": "tests/crm-offline.test.ts",
+      "webQA": "Implementada simulada · QA módulo integrado RN Web",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "CRM-06",
+      "title": "Nuevo lead",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 912
+      },
+      "implementation": "src/features/crm/CrmOverlay.tsx",
+      "entryFile": "app/(tabs)/crm.tsx",
+      "logicTests": "tests/crm-offline.test.ts",
+      "webQA": "Implementada simulada · QA módulo integrado RN Web",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "CRM-08",
+      "title": "Buscar lead",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 913
+      },
+      "implementation": "src/features/crm/CrmOverlay.tsx",
+      "entryFile": "app/(tabs)/crm.tsx",
+      "logicTests": "tests/crm-offline.test.ts",
+      "webQA": "Implementada simulada · QA módulo integrado RN Web",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "CRM-09",
+      "title": "Menú ⋮ del Pipeline",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 915
+      },
+      "implementation": "src/features/crm/CrmOverlay.tsx",
+      "entryFile": "app/(tabs)/crm.tsx",
+      "logicTests": "tests/crm-offline.test.ts",
+      "webQA": "Implementada simulada · QA módulo integrado RN Web",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "CRM-07",
+      "title": "Gestionar etapas",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 916
+      },
+      "implementation": "src/features/crm/CrmOverlay.tsx",
+      "entryFile": "app/(tabs)/crm.tsx",
+      "logicTests": "tests/crm-offline.test.ts",
+      "webQA": "Implementada simulada · QA módulo integrado RN Web",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "CRM-07C",
+      "title": "Color de la etapa",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 918
+      },
+      "implementation": "src/features/crm/CrmOverlay.tsx",
+      "entryFile": "app/(tabs)/crm.tsx",
+      "logicTests": "tests/crm-offline.test.ts",
+      "webQA": "Implementada simulada · QA módulo integrado RN Web",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "CRM-07D",
+      "title": "Eliminar etapa",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 919
+      },
+      "implementation": "src/features/crm/CrmOverlay.tsx",
+      "entryFile": "app/(tabs)/crm.tsx",
+      "logicTests": "tests/crm-offline.test.ts",
+      "webQA": "Implementada simulada · QA módulo integrado RN Web",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "CRM-10",
+      "title": "Contactos",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 931
+      },
+      "implementation": "src/features/crm/CrmView.tsx",
+      "entryFile": "app/(tabs)/crm.tsx",
+      "logicTests": "tests/crm-offline.test.ts",
+      "webQA": "Implementada simulada · QA módulo integrado RN Web",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "CRM-11",
+      "title": "Ficha del contacto",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 932
+      },
+      "implementation": "src/features/crm/CrmOverlay.tsx",
+      "entryFile": "app/(tabs)/crm.tsx",
+      "logicTests": "tests/crm-offline.test.ts",
+      "webQA": "Implementada simulada · QA módulo integrado RN Web",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "CRM-12",
+      "title": "Nuevo contacto / editar",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 940
+      },
+      "implementation": "src/features/crm/CrmOverlay.tsx",
+      "entryFile": "app/(tabs)/crm.tsx",
+      "logicTests": "tests/crm-offline.test.ts",
+      "webQA": "Implementada simulada · QA módulo integrado RN Web",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "CRM-13",
+      "title": "Menú ⋮ del contacto",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 942
+      },
+      "implementation": "src/features/crm/CrmOverlay.tsx",
+      "entryFile": "app/(tabs)/crm.tsx",
+      "logicTests": "tests/crm-offline.test.ts",
+      "webQA": "Implementada simulada · QA módulo integrado RN Web",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "CRM-14",
+      "title": "Filtros de contactos",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 943
+      },
+      "implementation": "src/features/crm/CrmOverlay.tsx",
+      "entryFile": "app/(tabs)/crm.tsx",
+      "logicTests": "tests/crm-offline.test.ts",
+      "webQA": "Implementada simulada · QA módulo integrado RN Web",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "CRM-15",
+      "title": "Acciones con seleccionados",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 945
+      },
+      "implementation": "src/features/crm/CrmOverlay.tsx",
+      "entryFile": "app/(tabs)/crm.tsx",
+      "logicTests": "tests/crm-offline.test.ts",
+      "webQA": "Implementada simulada · QA módulo integrado RN Web",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "CRM-16",
+      "title": "Menú ⋮ de Contactos",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 946
+      },
+      "implementation": "src/features/crm/CrmOverlay.tsx",
+      "entryFile": "app/(tabs)/crm.tsx",
+      "logicTests": "tests/crm-offline.test.ts",
+      "webQA": "Implementada simulada · QA módulo integrado RN Web",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "CRM-17",
+      "title": "Importar contactos",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 947
+      },
+      "implementation": "src/features/crm/CrmOverlay.tsx",
+      "entryFile": "app/(tabs)/crm.tsx",
+      "logicTests": "tests/crm-offline.test.ts",
+      "webQA": "Implementada simulada · QA módulo integrado RN Web",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "CRM-20",
+      "title": "Agenda · día",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 951
+      },
+      "implementation": "src/features/agenda/AgendaScreen.tsx",
+      "entryFile": "app/agenda.tsx",
+      "logicTests": "tests/agenda.test.ts",
+      "webQA": "Implementada simulada · QA módulo integrado RN Web",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "CRM-21",
+      "title": "Detalle de la cita",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 954
+      },
+      "implementation": "src/features/agenda/AgendaScreen.tsx",
+      "entryFile": "app/agenda.tsx",
+      "logicTests": "tests/agenda.test.ts",
+      "webQA": "Implementada simulada · QA módulo integrado RN Web",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "CRM-22",
+      "title": "Bloquear horario",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 956
+      },
+      "implementation": "src/features/agenda/AgendaScreen.tsx",
+      "entryFile": "app/agenda.tsx",
+      "logicTests": "tests/agenda.test.ts",
+      "webQA": "Implementada simulada · QA módulo integrado RN Web",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "CRM-23",
+      "title": "Mover cita",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 957
+      },
+      "implementation": "src/features/agenda/AgendaScreen.tsx",
+      "entryFile": "app/agenda.tsx",
+      "logicTests": "tests/agenda.test.ts",
+      "webQA": "Implementada simulada · QA módulo integrado RN Web",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "CRM-24",
+      "title": "Agenda · mes",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 958
+      },
+      "implementation": "src/features/agenda/AgendaScreen.tsx",
+      "entryFile": "app/agenda.tsx",
+      "logicTests": "tests/agenda.test.ts",
+      "webQA": "Implementada simulada · QA módulo integrado RN Web",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "CRM-25",
+      "title": "Menú ⋮ de Agenda",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 961
+      },
+      "implementation": "src/features/agenda/AgendaScreen.tsx",
+      "entryFile": "app/agenda.tsx",
+      "logicTests": "tests/agenda.test.ts",
+      "webQA": "Implementada simulada · QA módulo integrado RN Web",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "CRM-30",
+      "title": "Tareas",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 965
+      },
+      "implementation": "src/features/work/WorkScreen.tsx",
+      "entryFile": "app/work.tsx",
+      "logicTests": "tests/work.test.ts",
+      "webQA": "Implementada simulada · QA módulo integrado RN Web",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "CRM-31",
+      "title": "Detalle de la tarea",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 969
+      },
+      "implementation": "src/features/work/WorkScreen.tsx",
+      "entryFile": "app/work.tsx",
+      "logicTests": "tests/work.test.ts",
+      "webQA": "Implementada simulada · QA módulo integrado RN Web",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "CRM-32",
+      "title": "Notas",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 971
+      },
+      "implementation": "src/features/work/WorkScreen.tsx",
+      "entryFile": "app/work.tsx",
+      "logicTests": "tests/work.test.ts",
+      "webQA": "Implementada simulada · QA módulo integrado RN Web",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "CRM-33",
+      "title": "Editor de nota",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 974
+      },
+      "implementation": "src/features/work/WorkScreen.tsx",
+      "entryFile": "app/work.tsx",
+      "logicTests": "tests/work.test.ts",
+      "webQA": "Implementada simulada · QA módulo integrado RN Web",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "CRM-40",
+      "title": "Biblioteca",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 978
+      },
+      "implementation": "src/features/library/LibraryView.tsx",
+      "entryFile": "app/(tabs)/crm.tsx",
+      "logicTests": "tests/library.test.ts",
+      "webQA": "Implementada simulada · QA módulo integrado RN Web",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "CRM-41",
+      "title": "Entrada de la Biblioteca",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 981
+      },
+      "implementation": "src/features/library/LibraryView.tsx",
+      "entryFile": "app/library/[id].tsx",
+      "logicTests": "tests/library.test.ts",
+      "webQA": "Implementada simulada · QA módulo integrado RN Web",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "CRM-42",
+      "title": "Menú ⋮ de Biblioteca",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 983
+      },
+      "implementation": "src/features/library/LibraryView.tsx",
+      "entryFile": "app/(tabs)/crm.tsx",
+      "logicTests": "tests/library.test.ts",
+      "webQA": "Implementada simulada · QA módulo integrado RN Web",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "LAB-01",
+      "title": "Agentes",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 989
+      },
+      "implementation": "src/features/studio/StudioScreen.tsx",
+      "entryFile": "app/(tabs)/studio.tsx",
+      "logicTests": "tests/studio-agents.test.ts",
+      "webQA": "Implementada simulada · QA módulo integrado RN Web",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "LAB-02",
+      "title": "Creador de agentes (chat)",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 997
+      },
+      "implementation": "src/features/studio/AgentScreens.tsx",
+      "entryFile": "app/(tabs)/studio.tsx",
+      "logicTests": "tests/studio-agents.test.ts",
+      "webQA": "Implementada simulada · QA módulo integrado RN Web",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "LAB-03",
+      "title": "Editor del agente",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 1000
+      },
+      "implementation": "src/features/studio/AgentScreens.tsx",
+      "entryFile": "app/(tabs)/studio.tsx",
+      "logicTests": "tests/studio-agents.test.ts",
+      "webQA": "Implementada simulada · QA módulo integrado RN Web",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "LAB-04",
+      "title": "Vista previa del agente",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 1011
+      },
+      "implementation": "src/features/studio/AgentScreens.tsx",
+      "entryFile": "app/(tabs)/studio.tsx",
+      "logicTests": "tests/studio-agents.test.ts",
+      "webQA": "Implementada simulada · QA módulo integrado RN Web",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "LAB-05",
+      "title": "Publicar agente",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 1014
+      },
+      "implementation": "src/features/studio/overlays.tsx",
+      "entryFile": "app/(tabs)/studio.tsx",
+      "logicTests": "tests/studio-versions.test.ts",
+      "webQA": "Implementada simulada · QA módulo integrado RN Web",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "LAB-06",
+      "title": "Versiones publicadas",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 1015
+      },
+      "implementation": "src/features/studio/overlays.tsx",
+      "entryFile": "app/(tabs)/studio.tsx",
+      "logicTests": "tests/studio-versions.test.ts",
+      "webQA": "Implementada simulada · QA módulo integrado RN Web",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "LAB-06C",
+      "title": "Cargar versión al borrador",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 1016
+      },
+      "implementation": "src/features/studio/overlays.tsx",
+      "entryFile": "app/(tabs)/studio.tsx",
+      "logicTests": "tests/studio-versions.test.ts",
+      "webQA": "Implementada simulada · QA módulo integrado RN Web",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "LAB-07",
+      "title": "Pausar todos los agentes",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 1017
+      },
+      "implementation": "src/features/studio/overlays.tsx",
+      "entryFile": "app/(tabs)/studio.tsx",
+      "logicTests": "tests/studio-versions.test.ts",
+      "webQA": "Implementada simulada · QA módulo integrado RN Web",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "LAB-08",
+      "title": "Menú ⋮ de Agentes",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 1019
+      },
+      "implementation": "src/features/studio/overlays.tsx",
+      "entryFile": "app/(tabs)/studio.tsx",
+      "logicTests": "tests/studio-agents.test.ts",
+      "webQA": "Implementada simulada · QA módulo integrado RN Web",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "LAB-09",
+      "title": "Menú ⋮ del agente",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 1020
+      },
+      "implementation": "src/features/studio/overlays.tsx",
+      "entryFile": "app/(tabs)/studio.tsx",
+      "logicTests": "tests/studio-agents.test.ts",
+      "webQA": "Implementada simulada · QA módulo integrado RN Web",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "LAB-09A",
+      "title": "Archivar agente",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 1021
+      },
+      "implementation": "src/features/studio/overlays.tsx",
+      "entryFile": "app/(tabs)/studio.tsx",
+      "logicTests": "tests/studio-agents.test.ts",
+      "webQA": "Implementada simulada · QA módulo integrado RN Web",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "LAB-10",
+      "title": "Conocimiento y documentos",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 1024
+      },
+      "implementation": "src/features/knowledge/KnowledgeScreen.tsx",
+      "entryFile": "app/(tabs)/studio.tsx",
+      "logicTests": "tests/knowledge.test.ts",
+      "webQA": "Implementada simulada · QA módulo integrado RN Web",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "LAB-11",
+      "title": "Subir documento",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 1027
+      },
+      "implementation": "src/features/knowledge/KnowledgeScreen.tsx",
+      "entryFile": "app/(tabs)/studio.tsx",
+      "logicTests": "tests/knowledge.test.ts",
+      "webQA": "Implementada simulada · QA módulo integrado RN Web",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "LAB-12",
+      "title": "Detalle del documento",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 1028
+      },
+      "implementation": "src/features/knowledge/KnowledgeScreen.tsx",
+      "entryFile": "app/(tabs)/studio.tsx",
+      "logicTests": "tests/knowledge.test.ts",
+      "webQA": "Implementada simulada · QA módulo integrado RN Web",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "LAB-20",
+      "title": "Asignación por etapa",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 1030
+      },
+      "implementation": "src/features/studio/Assignments.tsx",
+      "entryFile": "app/(tabs)/studio.tsx",
+      "logicTests": "tests/studio-assignments.test.ts",
+      "webQA": "Implementada simulada · QA módulo integrado RN Web",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "LAB-21",
+      "title": "Elegir agente de la etapa",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 1033
+      },
+      "implementation": "src/features/studio/Assignments.tsx",
+      "entryFile": "app/(tabs)/studio.tsx",
+      "logicTests": "tests/studio-assignments.test.ts",
+      "webQA": "Implementada simulada · QA módulo integrado RN Web",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "LAB-30",
+      "title": "Pruebas · clientes simulados",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 1036
+      },
+      "implementation": "src/features/studio/Evaluations.tsx",
+      "entryFile": "app/(tabs)/studio.tsx",
+      "logicTests": "tests/studio-evaluations.test.ts",
+      "webQA": "Implementada simulada · QA módulo integrado RN Web",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "LAB-31",
+      "title": "Detalle de la prueba",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 1040
+      },
+      "implementation": "src/features/studio/Evaluations.tsx",
+      "entryFile": "app/studio-evaluation/[id].tsx",
+      "logicTests": "tests/studio-evaluations.test.ts",
+      "webQA": "Implementada simulada · QA módulo integrado RN Web",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "MKT-01",
+      "title": "Campañas",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 1047
+      },
+      "implementation": "src/features/marketing/Screens.tsx",
+      "entryFile": "app/(tabs)/marketing.tsx",
+      "logicTests": "tests/marketing.test.ts",
+      "webQA": "Implementada / simulacion local y QA RN Web (audiencias y campañas)",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "MKT-02",
+      "title": "Detalle de la campaña",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 1050
+      },
+      "implementation": "src/features/marketing/Screens.tsx",
+      "entryFile": "app/(tabs)/marketing.tsx",
+      "logicTests": "tests/marketing.test.ts",
+      "webQA": "Implementada / simulacion local y QA RN Web (audiencias y campañas)",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "MKT-03",
+      "title": "Nueva campaña (asistente)",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 1056
+      },
+      "implementation": "src/features/marketing/Screens.tsx",
+      "entryFile": "app/(tabs)/marketing.tsx",
+      "logicTests": "tests/marketing.test.ts",
+      "webQA": "Implementada / simulacion local y QA RN Web (audiencias y campañas)",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "MKT-04",
+      "title": "Confirmar el envío",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 1063
+      },
+      "implementation": "src/features/marketing/Screens.tsx",
+      "entryFile": "app/(tabs)/marketing.tsx",
+      "logicTests": "tests/marketing.test.ts",
+      "webQA": "Implementada / simulacion local y QA RN Web (audiencias y campañas)",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "MKT-05",
+      "title": "Menú ⋮ de Campañas",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 1064
+      },
+      "implementation": "src/features/marketing/Screens.tsx",
+      "entryFile": "app/(tabs)/marketing.tsx",
+      "logicTests": "tests/marketing.test.ts",
+      "webQA": "Implementada / simulacion local y QA RN Web (audiencias y campañas)",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "MKT-06",
+      "title": "Menú ⋮ de la campaña",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 1065
+      },
+      "implementation": "src/features/marketing/Screens.tsx",
+      "entryFile": "app/(tabs)/marketing.tsx",
+      "logicTests": "tests/marketing.test.ts",
+      "webQA": "Implementada / simulacion local y QA RN Web (audiencias y campañas)",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "MKT-31",
+      "title": "Ajustes de campañas",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 1066
+      },
+      "implementation": "src/features/marketing/Screens.tsx",
+      "entryFile": "app/(tabs)/marketing.tsx",
+      "logicTests": "tests/marketing.test.ts",
+      "webQA": "Implementada / simulacion local y QA RN Web (audiencias y campañas)",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "MKT-10",
+      "title": "Audiencias",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 1068
+      },
+      "implementation": "src/features/marketing/Screens.tsx",
+      "entryFile": "app/(tabs)/marketing.tsx",
+      "logicTests": "tests/marketing.test.ts",
+      "webQA": "Implementada / simulacion local y QA RN Web (audiencias y campañas)",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "MKT-11",
+      "title": "Detalle de la base",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 1070
+      },
+      "implementation": "src/features/marketing/Screens.tsx",
+      "entryFile": "app/(tabs)/marketing.tsx",
+      "logicTests": "tests/marketing.test.ts",
+      "webQA": "Implementada / simulacion local y QA RN Web (audiencias y campañas)",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "MKT-12",
+      "title": "Subir una base (desde el teléfono)",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 1071
+      },
+      "implementation": "src/features/marketing/Screens.tsx",
+      "entryFile": "app/(tabs)/marketing.tsx",
+      "logicTests": "tests/marketing.test.ts",
+      "webQA": "Implementada / simulacion local y QA RN Web (audiencias y campañas)",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "MKT-20",
+      "title": "Plantillas de WhatsApp",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 1074
+      },
+      "implementation": "src/features/templates/Screens.tsx",
+      "entryFile": "app/(tabs)/marketing.tsx",
+      "logicTests": "tests/templates.test.ts",
+      "webQA": "Implementada / simulacion local y QA RN Web (plantillas compartidas)",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "MKT-21",
+      "title": "Detalle de la plantilla",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 1077
+      },
+      "implementation": "src/features/templates/Screens.tsx",
+      "entryFile": "app/(tabs)/marketing.tsx",
+      "logicTests": "tests/templates.test.ts",
+      "webQA": "Implementada / simulacion local y QA RN Web (plantillas compartidas)",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "MKT-22",
+      "title": "Nueva plantilla",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 1079
+      },
+      "implementation": "src/features/templates/Screens.tsx",
+      "entryFile": "app/(tabs)/marketing.tsx",
+      "logicTests": "tests/templates.test.ts",
+      "webQA": "Implementada / simulacion local y QA RN Web (plantillas compartidas)",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "MKT-30",
+      "title": "Métricas y costos",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 1082
+      },
+      "implementation": "src/features/marketing/Screens.tsx",
+      "entryFile": "app/(tabs)/marketing.tsx",
+      "logicTests": "tests/marketing.test.ts",
+      "webQA": "Implementada / simulacion local y QA RN Web (audiencias y campañas)",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "MORE-01",
+      "title": "Más",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 1089
+      },
+      "implementation": "src/features/more/Screens.tsx",
+      "entryFile": "app/(tabs)/more.tsx",
+      "logicTests": "tests/final-screens.test.ts",
+      "webQA": "final-screens:46 checks",
+      "webEvidence": "docs/refinement-b/evidence/final-screens/comparacion.html",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "MORE-08",
+      "title": "Cerrar sesión",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 1098
+      },
+      "implementation": "src/features/more/Screens.tsx",
+      "entryFile": "app/(tabs)/more.tsx",
+      "logicTests": "tests/final-screens.test.ts",
+      "webQA": "Implementada con simulacion / QA navegador",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "MORE-05",
+      "title": "Avisos",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 1099
+      },
+      "implementation": "src/features/notices/NoticeScreens.tsx",
+      "entryFile": "app/(tabs)/more.tsx",
+      "logicTests": "tests/notices.test.ts",
+      "webQA": "Implementada con simulacion B / QA RN Web (lote 11)",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "RES-01",
+      "title": "Resultados",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 1104
+      },
+      "implementation": "src/features/results/ResultsScreen.tsx",
+      "entryFile": "app/results.tsx",
+      "logicTests": "tests/results.test.ts",
+      "webQA": "Implementada simulada · QA módulo integrado RN Web",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "RES-02",
+      "title": "Periodo y asesor",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 1107
+      },
+      "implementation": "src/features/results/ResultsScreen.tsx",
+      "entryFile": "app/results.tsx",
+      "logicTests": "tests/results.test.ts",
+      "webQA": "Implementada simulada · QA módulo integrado RN Web",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "AST-01",
+      "title": "Asistente",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 1111
+      },
+      "implementation": "src/features/studio/AssistantScreen.tsx",
+      "entryFile": "app/assistant.tsx",
+      "logicTests": "tests/studio-assistant.test.ts",
+      "webQA": "Implementada simulada · QA módulo integrado RN Web",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "AST-02",
+      "title": "Conversaciones del asistente",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 1116
+      },
+      "implementation": "src/features/studio/AssistantScreen.tsx",
+      "entryFile": "app/assistant.tsx",
+      "logicTests": "tests/studio-assistant.test.ts",
+      "webQA": "Implementada simulada · QA módulo integrado RN Web",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "AST-03",
+      "title": "Modo y crédito",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 1117
+      },
+      "implementation": "src/features/studio/AssistantScreen.tsx",
+      "entryFile": "app/assistant.tsx",
+      "logicTests": "tests/studio-assistant.test.ts",
+      "webQA": "Implementada simulada · QA módulo integrado RN Web",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "AST-04",
+      "title": "Asistente · sin crédito",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 1119
+      },
+      "implementation": "src/features/studio/AssistantScreen.tsx",
+      "entryFile": "app/assistant.tsx",
+      "logicTests": "tests/studio-assistant.test.ts",
+      "webQA": "Implementada con simulacion B / QA RN Web (lote 10)",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "MORE-06",
+      "title": "Uso y plan",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 1123
+      },
+      "implementation": "src/features/usage/UsageScreens.tsx",
+      "entryFile": "app/usage.tsx",
+      "logicTests": "tests/studio-usage.test.ts",
+      "webQA": "Implementada con simulacion B / QA RN Web (lote 10)",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "MORE-07",
+      "title": "Mejora tu plan",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 1125
+      },
+      "implementation": "src/features/usage/UsageScreens.tsx",
+      "entryFile": "app/usage.tsx",
+      "logicTests": "tests/studio-usage.test.ts",
+      "webQA": "Implementada con simulacion B / QA RN Web (lote 10)",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "MORE-09",
+      "title": "Solicitar cambio de plan",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 1128
+      },
+      "implementation": "src/features/usage/UsageScreens.tsx",
+      "entryFile": "app/usage.tsx",
+      "logicTests": "tests/studio-usage.test.ts",
+      "webQA": "Implementada con simulacion B / QA RN Web (lote 10)",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "MORE-10",
+      "title": "Aviso «a este ritmo»",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 1129
+      },
+      "implementation": "src/features/usage/UsageScreens.tsx",
+      "entryFile": "app/usage.tsx",
+      "logicTests": "tests/studio-usage.test.ts",
+      "webQA": "Implementada con simulacion B / QA RN Web (lote 10)",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "SET-01",
+      "title": "Ajustes",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 1139
+      },
+      "implementation": "src/features/more/Screens.tsx",
+      "entryFile": "app/settings.tsx",
+      "logicTests": "tests/final-screens.test.ts",
+      "webQA": "final-screens:46 checks",
+      "webEvidence": "docs/refinement-b/evidence/final-screens/comparacion.html",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "SET-02",
+      "title": "Canales y conexiones",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 1145
+      },
+      "implementation": "src/features/channels/Screens.tsx",
+      "entryFile": "app/channel-settings.tsx",
+      "logicTests": "tests/channels.test.ts",
+      "webQA": "Implementada / simulacion local y QA RN Web (canales)",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "SET-02A",
+      "title": "Conectar con Facebook",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 1148
+      },
+      "implementation": "src/features/channels/Screens.tsx",
+      "entryFile": "app/channel-settings.tsx",
+      "logicTests": "tests/channels.test.ts",
+      "webQA": "Implementada / simulacion local y QA RN Web (canales)",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "SET-02B",
+      "title": "Salud del número",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 1149
+      },
+      "implementation": "src/features/channels/Screens.tsx",
+      "entryFile": "app/channel-settings.tsx",
+      "logicTests": "tests/channels.test.ts",
+      "webQA": "Implementada / simulacion local y QA RN Web (canales)",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "SET-02C",
+      "title": "Conexión directa",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 1150
+      },
+      "implementation": "src/features/channels/Screens.tsx",
+      "entryFile": "app/channel-settings.tsx",
+      "logicTests": "tests/channels.test.ts",
+      "webQA": "Implementada / simulacion local y QA RN Web (canales)",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "SET-03",
+      "title": "Equipo y permisos",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 1153
+      },
+      "implementation": "src/features/team/TeamScreen.tsx",
+      "entryFile": "app/team.tsx",
+      "logicTests": "tests/team.test.ts",
+      "webQA": "Implementada con simulacion B / QA RN Web (cierre Equipo)",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "SET-03A",
+      "title": "Invitar persona",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 1155
+      },
+      "implementation": "src/features/team/TeamScreen.tsx",
+      "entryFile": "app/team.tsx",
+      "logicTests": "tests/team.test.ts",
+      "webQA": "Implementada con simulacion B / QA RN Web (cierre Equipo)",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "SET-03B",
+      "title": "Persona del equipo",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 1156
+      },
+      "implementation": "src/features/team/TeamScreen.tsx",
+      "entryFile": "app/team.tsx",
+      "logicTests": "tests/team.test.ts",
+      "webQA": "Implementada con simulacion B / QA RN Web (cierre Equipo)",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "SET-04",
+      "title": "Anuncios (Meta)",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 1157
+      },
+      "implementation": "src/features/channels/Screens.tsx",
+      "entryFile": "app/ads-settings.tsx",
+      "logicTests": "tests/channels.test.ts",
+      "webQA": "Implementada / simulacion local y QA RN Web (canales)",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "SET-05",
+      "title": "Etiquetas",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 1159
+      },
+      "implementation": "src/features/catalog/CatalogScreens.tsx",
+      "entryFile": "app/tags.tsx",
+      "logicTests": "tests/catalog.test.ts",
+      "webQA": "Implementada con simulacion B / QA RN Web (lote 14)",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "SET-05A",
+      "title": "Editar etiqueta",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 1160
+      },
+      "implementation": "src/features/catalog/CatalogScreens.tsx",
+      "entryFile": "app/tags.tsx",
+      "logicTests": "tests/catalog.test.ts",
+      "webQA": "Implementada con simulacion B / QA RN Web (lote 14)",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "SET-06",
+      "title": "Respuestas rápidas",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 1161
+      },
+      "implementation": "src/features/quick/QuickScreen.tsx",
+      "entryFile": "app/quick-replies.tsx",
+      "logicTests": "tests/quick.test.ts",
+      "webQA": "Implementada con simulacion B / QA RN Web (lote 12)",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "SET-06A",
+      "title": "Editar respuesta rápida",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 1162
+      },
+      "implementation": "src/features/quick/QuickScreen.tsx",
+      "entryFile": "app/quick-replies.tsx",
+      "logicTests": "tests/quick.test.ts",
+      "webQA": "Implementada con simulacion B / QA RN Web (lote 12)",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "SET-07",
+      "title": "Motivos de pérdida",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 1163
+      },
+      "implementation": "src/features/catalog/CatalogScreens.tsx",
+      "entryFile": "app/loss-reasons.tsx",
+      "logicTests": "tests/catalog.test.ts",
+      "webQA": "Implementada con simulacion B / QA RN Web (lote 14)",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "SET-08",
+      "title": "Agenda y conectores",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 1164
+      },
+      "implementation": "src/features/calendar-settings/CalendarSettingsScreen.tsx",
+      "entryFile": "app/calendar-settings.tsx",
+      "logicTests": "tests/calendar-settings.test.ts",
+      "webQA": "Implementada con simulacion B / QA RN Web (lote 15)",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "SET-09",
+      "title": "Chat de equipo (ajustes)",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 1165
+      },
+      "implementation": "src/features/team-chat/Screens.tsx",
+      "entryFile": "app/internal-settings.tsx",
+      "logicTests": "tests/team-chat.test.ts",
+      "webQA": "Implementada / simulacion local y QA RN Web (chat interno)",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "SET-10",
+      "title": "Bajas automáticas",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 1166
+      },
+      "implementation": "src/features/optout/Screen.tsx",
+      "entryFile": "app/optout.tsx",
+      "logicTests": "tests/optout.test.ts",
+      "webQA": "Implementada / simulacion local y QA RN Web (bajas)",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "SET-11",
+      "title": "Mi IA",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 1167
+      },
+      "implementation": "src/features/ai-connector/Screens.tsx",
+      "entryFile": "app/my-ai.tsx",
+      "logicTests": "tests/ai-connector.test.ts",
+      "webQA": "Implementada / simulacion local y QA RN Web (conector IA)",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "SET-11A",
+      "title": "Qué hizo tu IA",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 1168
+      },
+      "implementation": "src/features/ai-connector/Screens.tsx",
+      "entryFile": "app/my-ai.tsx",
+      "logicTests": "tests/ai-connector.test.ts",
+      "webQA": "Implementada / simulacion local y QA RN Web (conector IA)",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "SET-12",
+      "title": "Conector del equipo",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 1169
+      },
+      "implementation": "src/features/ai-connector/Screens.tsx",
+      "entryFile": "app/ai-connector-settings.tsx",
+      "logicTests": "tests/ai-connector.test.ts",
+      "webQA": "Implementada / simulacion local y QA RN Web (conector IA)",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "SET-13",
+      "title": "Mi número",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 1170
+      },
+      "implementation": "src/features/personal/Settings.tsx",
+      "entryFile": "app/personal-settings.tsx",
+      "logicTests": "tests/personal.test.ts",
+      "webQA": "Implementada / simulacion local y QA RN Web (Mi numero)",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "SET-13A",
+      "title": "Vincular dispositivo",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 1171
+      },
+      "implementation": "src/features/personal/Settings.tsx",
+      "entryFile": "app/personal-settings.tsx",
+      "logicTests": "tests/personal.test.ts",
+      "webQA": "Implementada / simulacion local y QA RN Web (Mi numero)",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "SET-14",
+      "title": "Notificaciones",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 1172
+      },
+      "implementation": "src/features/notices/NoticeScreens.tsx",
+      "entryFile": "app/notification-settings.tsx",
+      "logicTests": "tests/notices.test.ts",
+      "webQA": "Implementada con simulacion B / QA RN Web (lote 11)",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "SET-15",
+      "title": "Apariencia",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 1173
+      },
+      "implementation": "src/features/personalization/Screens.tsx",
+      "entryFile": "app/appearance.tsx",
+      "logicTests": "tests/final-screens.test.ts",
+      "webQA": "final-screens:46 checks",
+      "webEvidence": "docs/refinement-b/evidence/final-screens/comparacion.html",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "SET-16",
+      "title": "Marca",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 1174
+      },
+      "implementation": "src/features/personalization/Screens.tsx",
+      "entryFile": "app/brand.tsx",
+      "logicTests": "tests/final-screens.test.ts",
+      "webQA": "final-screens:46 checks",
+      "webEvidence": "docs/refinement-b/evidence/final-screens/comparacion.html",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "SET-17",
+      "title": "Navegación",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 1175
+      },
+      "implementation": "src/features/personalization/Screens.tsx",
+      "entryFile": "app/navigation-settings.tsx",
+      "logicTests": "tests/final-screens.test.ts",
+      "webQA": "final-screens:46 checks",
+      "webEvidence": "docs/refinement-b/evidence/final-screens/comparacion.html",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "PLT-01",
+      "title": "Mi panel",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 1178
+      },
+      "implementation": "src/features/platform/Screens.tsx",
+      "entryFile": "app/platform-panel.tsx",
+      "logicTests": "tests/final-screens.test.ts",
+      "webQA": "final-screens:46 checks",
+      "webEvidence": "docs/refinement-b/evidence/final-screens/comparacion.html",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "PLT-02",
+      "title": "Organizaciones",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 1179
+      },
+      "implementation": "src/features/platform/Screens.tsx",
+      "entryFile": "app/platform-organizations.tsx",
+      "logicTests": "tests/final-screens.test.ts",
+      "webQA": "final-screens:46 checks",
+      "webEvidence": "docs/refinement-b/evidence/final-screens/comparacion.html",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "PLT-03",
+      "title": "Ficha de la organización",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 1180
+      },
+      "implementation": "src/features/platform/Screens.tsx",
+      "entryFile": "app/platform-detail.tsx",
+      "logicTests": "tests/final-screens.test.ts",
+      "webQA": "final-screens:46 checks",
+      "webEvidence": "docs/refinement-b/evidence/final-screens/comparacion.html",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "DS-01",
+      "title": "Colores y modo oscuro",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 1186
+      },
+      "implementation": "app/design/[id].tsx",
+      "entryFile": "app/design/[id].tsx",
+      "logicTests": "tests/foundation.test.ts",
+      "webQA": "Implementada con simulacion / QA navegador",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "DS-02",
+      "title": "Tipografía, espaciado y radios",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 1188
+      },
+      "implementation": "app/design/[id].tsx",
+      "entryFile": "app/design/[id].tsx",
+      "logicTests": "tests/foundation.test.ts",
+      "webQA": "Implementada con simulacion / QA navegador",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "DS-03",
+      "title": "Botones, campos y controles",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 1191
+      },
+      "implementation": "app/design/[id].tsx",
+      "entryFile": "app/design/[id].tsx",
+      "logicTests": "tests/foundation.test.ts",
+      "webQA": "Implementada con simulacion / QA navegador",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "DS-04",
+      "title": "Componentes de chat",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 1193
+      },
+      "implementation": "app/design/[id].tsx",
+      "entryFile": "app/design/[id].tsx",
+      "logicTests": "tests/foundation.test.ts",
+      "webQA": "Implementada con simulacion / QA navegador",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "DS-05",
+      "title": "Estados: cargando, vacío, error y avisos",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 1195
+      },
+      "implementation": "app/design/[id].tsx",
+      "entryFile": "app/design/[id].tsx",
+      "logicTests": "tests/foundation.test.ts",
+      "webQA": "Implementada con simulacion / QA navegador",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    },
+    {
+      "id": "DS-06",
+      "title": "Navegación: barra, hoja, menú y diálogo",
+      "implemented": "local simulation",
+      "approvedDefinition": {
+        "file": "docs/reference/dashfort-mobile-prototipo.html",
+        "line": 1197
+      },
+      "implementation": "app/design/[id].tsx",
+      "entryFile": "app/design/[id].tsx",
+      "logicTests": "tests/foundation.test.ts",
+      "webQA": "Implementada con simulacion / QA navegador",
+      "webEvidence": "Historical evidence in docs/tm2, docs/tm3, docs/tm4 and docs/refinement-b; current regression summary in CHECKPOINT-158.md",
+      "nativeQA": "pending for 0.1.3",
+      "realIntegration": "pending; never authorized by coverage"
+    }
+  ]
+}

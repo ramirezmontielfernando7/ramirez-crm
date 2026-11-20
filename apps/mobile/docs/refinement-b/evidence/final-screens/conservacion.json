@@ -1,0 +1,281 @@
+{
+  "protectedCount": 26,
+  "protectedUnchanged": true,
+  "fullBackupUnchanged": true,
+  "fullBackupSha256": "ae41b769a56936bda0ad476b866f146749f185422c72cfd4ab9f65a4941e2b98",
+  "previousGitBundlesVerified": [
+    {
+      "path": "artifacts/continuation-b/connector-templates-134-37898d3.bundle",
+      "sha256": "45b0da0949df7b6f20f832a9742f29b543e01cc65f950ad9ad0d6d32a2f4b921",
+      "prerequisites": [
+        "beb6cb36b58cd19d42784fa320faa727ca06e682"
+      ],
+      "verifiedAgainstExistingGit": true,
+      "prerequisitesPresentInFullBackup": true
+    },
+    {
+      "path": "artifacts/continuation-b/dashfort-mobile-102.bundle",
+      "sha256": "c9fd8747191defa81dc8b109e8997ebc65814e7c05777881aaf92fc533b8ef94",
+      "prerequisites": [
+        "f3f467abb7640ec13ffba590bc5dad91bc5cfd77"
+      ],
+      "verifiedAgainstExistingGit": true,
+      "prerequisitesPresentInFullBackup": true
+    },
+    {
+      "path": "artifacts/continuation-b/dashfort-mobile-107-fef4387.bundle",
+      "sha256": "19e8bd73c092fea2ba7d0476321cc65cab94f69aaaaf7464e87e3bcd12f68f8f",
+      "prerequisites": [
+        "f3f467abb7640ec13ffba590bc5dad91bc5cfd77"
+      ],
+      "verifiedAgainstExistingGit": true,
+      "prerequisitesPresentInFullBackup": true
+    },
+    {
+      "path": "artifacts/continuation-b/dashfort-mobile-110-c6c46db.bundle",
+      "sha256": "7327e6e4e99d5f842dc158c56f6b70fa7045e14d5015f29dc72692baee31605a",
+      "prerequisites": [
+        "f3f467abb7640ec13ffba590bc5dad91bc5cfd77"
+      ],
+      "verifiedAgainstExistingGit": true,
+      "prerequisitesPresentInFullBackup": true
+    },
+    {
+      "path": "artifacts/continuation-b/dashfort-mobile-111-2d3dee2.bundle",
+      "sha256": "a38dd97caadf8d9eeeb3678fd9dbf0e5527bf662dbb000a704197c7c187da6ef",
+      "prerequisites": [
+        "f3f467abb7640ec13ffba590bc5dad91bc5cfd77"
+      ],
+      "verifiedAgainstExistingGit": true,
+      "prerequisitesPresentInFullBackup": true
+    },
+    {
+      "path": "artifacts/continuation-b/dashfort-mobile-79-7ee7fd9.bundle",
+      "sha256": "6d10a7e5e98310cb11d6a5939b65a1b6bb4c2224b29970b59a517ed9efbf9086",
+      "prerequisites": [
+        "f3f467abb7640ec13ffba590bc5dad91bc5cfd77"
+      ],
+      "verifiedAgainstExistingGit": true,
+      "prerequisitesPresentInFullBackup": true
+    },
+    {
+      "path": "artifacts/continuation-b/dashfort-mobile-86-a4268bf.bundle",
+      "sha256": "bc9ccbce6c5621abae2c1d43a76fb40b082799454098cf8deff581d8551e1865",
+      "prerequisites": [
+        "f3f467abb7640ec13ffba590bc5dad91bc5cfd77"
+      ],
+      "verifiedAgainstExistingGit": true,
+      "prerequisitesPresentInFullBackup": true
+    },
+    {
+      "path": "artifacts/continuation-b/dashfort-mobile-90-versions.bundle",
+      "sha256": "311fefeaec9144829cf3520a9bd8c02f971d60d0ca8ff7629ef3080051a002a8",
+      "prerequisites": [
+        "f3f467abb7640ec13ffba590bc5dad91bc5cfd77"
+      ],
+      "verifiedAgainstExistingGit": true,
+      "prerequisitesPresentInFullBackup": true
+    },
+    {
+      "path": "artifacts/continuation-b/dashfort-mobile-92-assignments.bundle",
+      "sha256": "8c300be65a1b96c17d8ae038e1bf4ea8b17077a4609dc50e0b86cc06c8093875",
+      "prerequisites": [
+        "f3f467abb7640ec13ffba590bc5dad91bc5cfd77"
+      ],
+      "verifiedAgainstExistingGit": true,
+      "prerequisitesPresentInFullBackup": true
+    },
+    {
+      "path": "artifacts/continuation-b/dashfort-mobile-97-cec3612.bundle",
+      "sha256": "99de4489271e452523e8ed425f42b372e202353eae8dbff293a762d7d7636500",
+      "prerequisites": [
+        "f3f467abb7640ec13ffba590bc5dad91bc5cfd77"
+      ],
+      "verifiedAgainstExistingGit": true,
+      "prerequisitesPresentInFullBackup": true
+    },
+    {
+      "path": "artifacts/continuation-b/dashfort-mobile-97-evaluations-assistant.bundle",
+      "sha256": "93749c67324490152948be15bdeafe3a904a3446b2755b0482dd5c9ebf79f511",
+      "prerequisites": [
+        "f3f467abb7640ec13ffba590bc5dad91bc5cfd77"
+      ],
+      "verifiedAgainstExistingGit": true,
+      "prerequisitesPresentInFullBackup": true
+    },
+    {
+      "path": "artifacts/continuation-b/dashfort-mobile-b-cca411d.bundle",
+      "sha256": "2ad758e53e1acbecb991dc9267f1234acc6c8f5efdc8ca08c1cbca98004be081",
+      "prerequisites": [
+        "f3f467abb7640ec13ffba590bc5dad91bc5cfd77"
+      ],
+      "verifiedAgainstExistingGit": true,
+      "prerequisitesPresentInFullBackup": true
+    },
+    {
+      "path": "artifacts/continuation-b/dashfort-mobile-b-e6dfde5.bundle",
+      "sha256": "fec63427ecaafc12d4dab139cc558f40a24fb3457241032402455034ae371561",
+      "prerequisites": [
+        "f3f467abb7640ec13ffba590bc5dad91bc5cfd77"
+      ],
+      "verifiedAgainstExistingGit": true,
+      "prerequisitesPresentInFullBackup": true
+    },
+    {
+      "path": "artifacts/continuation-b/dashfort-mobile-results-20261119.bundle",
+      "sha256": "71ae5f4cf9c9a0eeda5ffd8f6fd4ca9acce33cf9a6d9eb70d858e35284e68c5f",
+      "prerequisites": [
+        "f3f467abb7640ec13ffba590bc5dad91bc5cfd77"
+      ],
+      "verifiedAgainstExistingGit": true,
+      "prerequisitesPresentInFullBackup": true
+    },
+    {
+      "path": "artifacts/continuation-b/dashfort-mobile-work-f86fe39.bundle",
+      "sha256": "caba8cea778c245ea6a3a714e07253975ce7c5a64a12852d2791d55b48885a9d",
+      "prerequisites": [
+        "f3f467abb7640ec13ffba590bc5dad91bc5cfd77"
+      ],
+      "verifiedAgainstExistingGit": true,
+      "prerequisitesPresentInFullBackup": true
+    },
+    {
+      "path": "artifacts/continuation-b/eqp-base-58c90c5.bundle",
+      "sha256": "a03b3875b00516b511199b1a948f8afd6c76d2f2459aebb03c98156e4582bbe3",
+      "prerequisites": [
+        "4bfd3f68da9c01c7ca94ed1e61fcdc510e6588d0"
+      ],
+      "verifiedAgainstExistingGit": true,
+      "prerequisitesPresentInFullBackup": true
+    },
+    {
+      "path": "artifacts/continuation-b/marketing-145-b6bd9ab.bundle",
+      "sha256": "529ec19887cb4f23de3898a99eae36c10577e792ae61eb82c34f9fef14f2f96f",
+      "prerequisites": [
+        "37898d3055d3fc9894327e20608a0949de90fd29"
+      ],
+      "verifiedAgainstExistingGit": true,
+      "prerequisitesPresentInFullBackup": true
+    },
+    {
+      "path": "artifacts/continuation-b/numbers-127-a9e1b0b.bundle",
+      "sha256": "a897feb7958cf67147775d179ef0ab75fc471659b18dbfd38f78365bff48ec82",
+      "prerequisites": [
+        "636ec668285a2e5a2047a9e700ab21a8ba0df9b7"
+      ],
+      "verifiedAgainstExistingGit": true,
+      "prerequisitesPresentInFullBackup": true
+    },
+    {
+      "path": "artifacts/continuation-b/optout-128-beb6cb3.bundle",
+      "sha256": "3fb3748e7a5239338358c85eaad175434a741afb707e9d8c5e8db127c5d7a131",
+      "prerequisites": [
+        "a9e1b0b50517f56328072b59f04cd3d5235e53ac"
+      ],
+      "verifiedAgainstExistingGit": true,
+      "prerequisitesPresentInFullBackup": true
+    },
+    {
+      "path": "artifacts/continuation-b/personal-123-636ec66.bundle",
+      "sha256": "196608f6022dd5002f11e8d3f8286ea2e604e38606b554c9f52a6e9403ec75cb",
+      "prerequisites": [
+        "de0a16f4fcc238833c74cc281cb6cdf92dc73b4d"
+      ],
+      "verifiedAgainstExistingGit": true,
+      "prerequisitesPresentInFullBackup": true
+    },
+    {
+      "path": "artifacts/continuation-b/team-chat-121-de0a16f.bundle",
+      "sha256": "7f57e45bffeb0f9196aa070c88ebd359ae7678fb70ece83d7132b51c0f0fbde1",
+      "prerequisites": [
+        "58c90c588a1494fa04c62414657e54c155a368d9"
+      ],
+      "verifiedAgainstExistingGit": true,
+      "prerequisitesPresentInFullBackup": true
+    },
+    {
+      "path": "artifacts/continuation-b/team-complete-114-4bfd3f6.bundle",
+      "sha256": "d545eb9f1e6e7c532e0cd6c8a79ee9ed44c3c89f285624fd5bedfe5779aa93ce",
+      "prerequisites": [
+        "4864eb91ac1f3c17a1261b19068791dbaeecc176"
+      ],
+      "verifiedAgainstExistingGit": true,
+      "prerequisitesPresentInFullBackup": true
+    },
+    {
+      "path": "artifacts/continuation-b/team-integration-4864eb9.bundle",
+      "sha256": "e4482f435d6b5db1e4297a000000a8ed750b0898b7a723f44eae23e6732292c8",
+      "prerequisites": [
+        "00b497c86d43568bc1a2a17ffaf89ea525b9ae01"
+      ],
+      "verifiedAgainstExistingGit": true,
+      "prerequisitesPresentInFullBackup": true
+    },
+    {
+      "path": "artifacts/continuation-b/team-preparation-00b497c.bundle",
+      "sha256": "0f8c8dd2bcaa223f02d178a878b80783818901e8d68342ac0a89e88000c3bd38",
+      "prerequisites": [
+        "2d3dee2542dd7f4d86182b917d0165abc90382fb"
+      ],
+      "verifiedAgainstExistingGit": true,
+      "prerequisitesPresentInFullBackup": true
+    },
+    {
+      "path": "artifacts/full-backup/dashfort-completo-9e50c40.bundle",
+      "sha256": "ae41b769a56936bda0ad476b866f146749f185422c72cfd4ab9f65a4941e2b98",
+      "prerequisites": [],
+      "verifiedAgainstExistingGit": true,
+      "prerequisitesPresentInFullBackup": true
+    },
+    {
+      "path": "artifacts/integration-i1/dashfort-mobile-i1.bundle",
+      "sha256": "1264fbb89746a157d4f7bb1a10bfd94a6936280c6497f6e5c65152c6ed749034",
+      "prerequisites": [
+        "3b85b3bcc0f0039108b7d625541b55c612d6b636"
+      ],
+      "verifiedAgainstExistingGit": true,
+      "prerequisitesPresentInFullBackup": true
+    },
+    {
+      "path": "artifacts/integration-i2p/dashfort-mobile-i2p.bundle",
+      "sha256": "1b989588d9aeef9a81f13d66308f1fe104cdf723c4c3ec996c4ecf5f23a0eaf4",
+      "prerequisites": [
+        "00fb8caad3e61beef0d7a802ee87e17cfb53df8c"
+      ],
+      "verifiedAgainstExistingGit": true,
+      "prerequisitesPresentInFullBackup": true
+    },
+    {
+      "path": "artifacts/integration-i2p2/dashfort-mobile-i2p2.bundle",
+      "sha256": "c85ba6487ab10b691d69b76ac7e18dc713147ff455121c7d47986ec79eda4ae4",
+      "prerequisites": [
+        "00fb8caad3e61beef0d7a802ee87e17cfb53df8c"
+      ],
+      "verifiedAgainstExistingGit": true,
+      "prerequisitesPresentInFullBackup": true
+    },
+    {
+      "path": "artifacts/offline-integral/dashfort-auth-offline.bundle",
+      "sha256": "00280b6d0f5aa9ea580e6618f30e54d6fd6c33458a338a134b49d00f93b72195",
+      "prerequisites": [
+        "0b611126717ede5dca0f4ea766f28b99befd648c",
+        "daccd873eac667cc4eb19a9743e99df12538925a"
+      ],
+      "verifiedAgainstExistingGit": true,
+      "prerequisitesPresentInFullBackup": true
+    },
+    {
+      "path": "artifacts/offline-integral/dashfort-mobile-offline.bundle",
+      "sha256": "25e8c60c5d9d214568913f35b5d46ea84625da518c1035105671083852e58bfe",
+      "prerequisites": [
+        "d0b27e29ea89706cdc0fdc795338670c4e9c10b5"
+      ],
+      "verifiedAgainstExistingGit": true,
+      "prerequisitesPresentInFullBackup": true
+    }
+  ],
+  "backendWorktreeUnchanged": true,
+  "backendSha": "562a8b386b7f0d0df9292406167357aa988fd4d0",
+  "freeBytes": 932433920,
+  "privateSigningContentsNeverPrintedOrPackaged": true
+}

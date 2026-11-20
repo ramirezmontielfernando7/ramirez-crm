@@ -1,0 +1,9 @@
+{
+  "checks": 46,
+  "errors": [],
+  "networkRequests": 0,
+  "screens": 8,
+  "captures": 16,
+  "references": 16,
+  "qa": "React Native Web; router/session/storage doubles; real personalization/theme providers; no Android/iOS validation"
+}

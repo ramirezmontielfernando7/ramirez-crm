@@ -65,3 +65,6 @@ T-M4 implementa INB-19…26 e INB-30 con datos ficticios. Rama aislada codex/das
 
 ## T-M5A · Continuación autorizada
 T-M4/0.1.1 fue probada y aprobada por el propietario, y ebeb4bf quedó respaldado en GitHub. T-M5A parte de ese commit e incorpora únicamente contratos/simulación, sin cambios visuales de la app aprobada ni APK nueva. Ver tm5a/RESULTADOS.md. El respaldo de T-M5A aún es local; no iniciar B/C ni hacer push sin autorización.
+
+## Cierre posterior: 158/158 IDs en simulación
+El estado vigente sustituye los conteos históricos de este archivo: ver refinement-b/CHECKPOINT-158.md y refinement-b/INVENTARIO-158.json. 594 pruebas y QA RN Web aprobado; Android/iOS 0.1.3 e integración real pendientes. B original como valor predeterminado; sin APK nueva, backend, producción ni push.

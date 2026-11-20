@@ -27,3 +27,6 @@ La etapa vigente es T-M4, desde el checkpoint de la APK probada. Las prohibicion
 
 ## Autorización T-M5A
 Solo contratos y simulación; rama desde ebeb4bf, sin APK nueva ni cambios de diseño. No iniciar T-M5B/C automáticamente. Plan siguiente en tm5a/T-M5B.md.
+
+## Estado vigente: inventario simulado cerrado
+158/158 IDs locales; no iniciar más funcionalidades ni conexiones. La siguiente fase propuesta es validación nativa 0.1.3 con espacio suficiente, según refinement-b/CONTINUIDAD-VALIDACION-NATIVA.md. Integración real y operaciones de backend/infraestructura permanecen detrás de revisión y autorización.

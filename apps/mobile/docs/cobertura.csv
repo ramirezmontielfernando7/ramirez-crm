@@ -109,7 +109,7 @@ MKT-20,Plantillas de WhatsApp,T-M11,Implementada / simulacion local y QA RN Web 
 MKT-21,Detalle de la plantilla,T-M11,Implementada / simulacion local y QA RN Web (plantillas compartidas),Pendiente Android/iOS
 MKT-22,Nueva plantilla,T-M11,Implementada / simulacion local y QA RN Web (plantillas compartidas),Pendiente Android/iOS
 MKT-30,Métricas y costos,T-M11,Implementada / simulacion local y QA RN Web (audiencias y campañas),Pendiente Android/iOS
-MORE-01,Más,T-M8,Pendiente,Pendiente
+MORE-01,Más,T-M8,Implementada / simulacion local y QA RN Web (cierre 158),Pendiente Android/iOS 0.1.3
 MORE-08,Cerrar sesión,T-M1,Implementada con simulacion / QA navegador,Pendiente
 MORE-05,Avisos,T-M8,Implementada con simulacion B / QA RN Web (lote 11),Pendiente
 RES-01,Resultados,T-M12,Implementada simulada · QA módulo integrado RN Web,Pendiente nativo; docs/refinement-b/LOTE-04-RESULTADOS.md
@@ -122,7 +122,7 @@ MORE-06,Uso y plan,T-M12,Implementada con simulacion B / QA RN Web (lote 10),Pen
 MORE-07,Mejora tu plan,T-M12,Implementada con simulacion B / QA RN Web (lote 10),Pendiente
 MORE-09,Solicitar cambio de plan,T-M12,Implementada con simulacion B / QA RN Web (lote 10),Pendiente
 MORE-10,Aviso «a este ritmo»,T-M12,Implementada con simulacion B / QA RN Web (lote 10),Pendiente
-SET-01,Ajustes,T-M8,Pendiente,Pendiente
+SET-01,Ajustes,T-M8,Implementada / simulacion local y QA RN Web (cierre 158),Pendiente Android/iOS 0.1.3
 SET-02,Canales y conexiones,T-M8,Implementada / simulacion local y QA RN Web (canales),Pendiente Android/iOS
 SET-02A,Conectar con Facebook,T-M8,Implementada / simulacion local y QA RN Web (canales),Pendiente Android/iOS
 SET-02B,Salud del número,T-M8,Implementada / simulacion local y QA RN Web (canales),Pendiente Android/iOS
@@ -145,12 +145,12 @@ SET-12,Conector del equipo,T-M13,Implementada / simulacion local y QA RN Web (co
 SET-13,Mi número,T-M6,Implementada / simulacion local y QA RN Web (Mi numero),Pendiente Android/iOS
 SET-13A,Vincular dispositivo,T-M6,Implementada / simulacion local y QA RN Web (Mi numero),Pendiente Android/iOS
 SET-14,Notificaciones,T-M5,Implementada con simulacion B / QA RN Web (lote 11),Pendiente
-SET-15,Apariencia,T-M8,Pendiente,Pendiente
-SET-16,Marca,T-M8,Pendiente,Pendiente
-SET-17,Navegación,T-M13,Pendiente,Pendiente
-PLT-01,Mi panel,T-M13,Pendiente,Pendiente
-PLT-02,Organizaciones,T-M13,Pendiente,Pendiente
-PLT-03,Ficha de la organización,T-M13,Pendiente,Pendiente
+SET-15,Apariencia,T-M8,Implementada / simulacion local y QA RN Web (cierre 158),Pendiente Android/iOS 0.1.3
+SET-16,Marca,T-M8,Implementada / simulacion local y QA RN Web (cierre 158),Pendiente Android/iOS 0.1.3
+SET-17,Navegación,T-M13,Implementada / simulacion local y QA RN Web (cierre 158),Pendiente Android/iOS 0.1.3
+PLT-01,Mi panel,T-M13,Implementada / simulacion local y QA RN Web (cierre 158),Pendiente Android/iOS 0.1.3
+PLT-02,Organizaciones,T-M13,Implementada / simulacion local y QA RN Web (cierre 158),Pendiente Android/iOS 0.1.3
+PLT-03,Ficha de la organización,T-M13,Implementada / simulacion local y QA RN Web (cierre 158),Pendiente Android/iOS 0.1.3
 DS-01,Colores y modo oscuro,T-M1,Implementada con simulacion / QA navegador,Pendiente
 DS-02,"Tipografía, espaciado y radios",T-M1,Implementada con simulacion / QA navegador,Pendiente
 DS-03,"Botones, campos y controles",T-M1,Implementada con simulacion / QA navegador,Pendiente
