@@ -18,7 +18,7 @@ const memo = new Map<string, MemoEntry>();
 
 /**
  * Como mucho UN cálculo en curso por llave. Mientras se recalcula, quien
- * pregunta recibe el último resultado si es reciente: bajo carga un conteo
+ * pregunta (además de quien lo disparó) recibe el último resultado si es reciente: bajo carga un conteo
  * puede tardar más que el TTL, y sin esto se encimaban cálculos iguales. Uno
  * viejo (p. ej. de hace una hora) no se entrega: se espera el nuevo.
  */
@@ -49,7 +49,9 @@ export function memoized<T>(key: string, ttlMs: number, load: () => Promise<T>):
   if (memo.size > MEMO_MAX) {
     for (const [k, v] of memo) if (!v.pending && now - v.at > STAGES_TTL_MS * STALE_FACTOR) memo.delete(k);
   }
-  return (usable ?? pending) as Promise<T>;
+  // Quien dispara el recálculo espera el resultado nuevo (al abrir la Bandeja
+  // se ve lo de ahora); solo quienes llegan mientras tanto reciben el anterior.
+  return pending;
 }
 
 /**
