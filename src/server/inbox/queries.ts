@@ -551,7 +551,7 @@ async function computeCounts(access: Access, f: ListFilters): Promise<InboxCount
   const real = companyChat();
 
   const enLaPrincipal = and(main, filtros, enBandeja);
-  const [totals] = await db
+  const totalsQuery = db
     .select({
       total: n(main),
       all: n(and(enLaPrincipal, aLaVista)),
@@ -574,8 +574,12 @@ async function computeCounts(access: Access, f: ListFilters): Promise<InboxCount
     .from(schema.conversation)
     .innerJoin(schema.contact, eq(schema.conversation.contactId, schema.contact.id))
     .leftJoin(schema.adAttribution, anuncioDeLaConversacion)
-    .leftJoinLateral(leadActual, sql`true`)
-    .where(scopedContacts(schema.conversation.organizationId, access, schema.conversation.contactId, real));
+    .$dynamic();
+  // El lead actual solo lo usa el filtro de etapa: sin él, unirlo costaba una
+  // subconsulta por chat (~36 mil por conteo en la prueba de carga).
+  const [totals] = await (f.stage !== "all" ? totalsQuery.leftJoinLateral(leadActual, sql`true`) : totalsQuery).where(
+    scopedContacts(schema.conversation.organizationId, access, schema.conversation.contactId, real)
+  );
 
   // Lo que ofrecen los selectores: lo PRESENTE en la principal (con
   // archivados), sin los filtros de pantalla, como cuando se sacaba de la
