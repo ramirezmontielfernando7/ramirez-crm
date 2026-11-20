@@ -1,0 +1,19 @@
+{
+  "base": "b6bd9abbb2eb2a17417c96e3d9c0a5499c5835b7",
+  "implemented": 150,
+  "pending": [
+    "MORE-01",
+    "SET-01",
+    "SET-15",
+    "SET-16",
+    "SET-17",
+    "PLT-01",
+    "PLT-02",
+    "PLT-03"
+  ],
+  "tests": 572,
+  "native": false,
+  "protected26Unchanged": true,
+  "captures": 10,
+  "references": 10
+}

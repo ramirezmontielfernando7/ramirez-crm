@@ -49,6 +49,7 @@ export type ContactData = Readonly<{
   tags: readonly string[];
   ai: Conversation["ai"];
   mode: Mode;
+  modeEpoch?: number;
   amountCents: number | null;
   priority: string;
   lossReason: string;

@@ -56,6 +56,8 @@ export function decodeDetails(
     !isPerson(d.assigned) ||
     !["on", "pause", "off"].includes(d.ai) ||
     !["meta", "direct", "hybrid"].includes(d.mode) ||
+    (d.modeEpoch !== undefined &&
+      (!Number.isSafeInteger(d.modeEpoch) || d.modeEpoch < 0)) ||
     !Array.isArray(d.tags) ||
     d.tags.length > 30 ||
     new Set(d.tags).size !== d.tags.length ||
@@ -190,6 +192,36 @@ export class ContactDirectory {
     }
     return result;
   }
+  channelPolicy: { epoch: number; mode: Mode; defaultMode: Mode } = {
+    epoch: 0,
+    mode: "meta",
+    defaultMode: "meta",
+  };
+  applyChannelPolicy(p: {
+    epoch: number;
+    bulkMode: Mode;
+    defaultMode: Mode;
+    addon: boolean;
+    device: boolean;
+  }) {
+    this.channelPolicy = {
+      epoch: p.epoch,
+      mode: p.bulkMode,
+      defaultMode: p.defaultMode,
+    };
+    this.settings = { ...this.settings, addon: p.addon, linked: p.device };
+    this.stores.forEach((s) => s.refreshChannelPolicy());
+    this.listeners.forEach((f) => f());
+  }
+  resolveMode(d: ContactData): ContactData {
+    return (d.modeEpoch ?? 0) < this.channelPolicy.epoch
+      ? {
+          ...d,
+          mode: this.channelPolicy.mode,
+          modeEpoch: this.channelPolicy.epoch,
+        }
+      : d;
+  }
   flags = () => this.settings;
   subscribeFlags = (fn: () => void) => {
     this.listeners.add(fn);
@@ -251,7 +283,11 @@ export class ContactStore {
     readonly id: string,
   ) {
     const c = this.authorize();
-    let data = seedDetails(c, directory.now());
+    let data = {
+      ...seedDetails(c, directory.now()),
+      mode: directory.channelPolicy.defaultMode,
+      modeEpoch: directory.channelPolicy.epoch,
+    };
     if (c.id === "demo-conv-3")
       data = { ...data, tags: [...c.tags, systemImportTag] };
     this.metadata = data;
@@ -277,7 +313,11 @@ export class ContactStore {
       this.listeners.delete(fn);
     };
   };
+  refreshChannelPolicy() {
+    this.patch({ data: this.state.data });
+  }
   private patch(p: Partial<ContactSnapshot>) {
+    if (p.data) p = { ...p, data: this.directory.resolveMode(p.data) };
     if (p.data) {
       this.metadata = {
         ...p.data,
@@ -398,7 +438,11 @@ export class ContactStore {
               this.directory.conversations.catalog,
               this.directory.conversations.team,
             )
-          : this.state.data;
+          : {
+              ...this.state.data,
+              mode: this.directory.channelPolicy.defaultMode,
+              modeEpoch: this.directory.channelPolicy.epoch,
+            };
         const current = this.authorize();
         const business = this.directory.conversations.catalog;
         if (business)
@@ -703,7 +747,7 @@ export class ContactStore {
       if (error) throw new Error(error);
       if (d.mode === mode) return null;
       return {
-        data: { ...d, mode },
+        data: { ...d, mode, modeEpoch: this.directory.channelPolicy.epoch },
         kind: "Conexión",
         text:
           mode === "meta"

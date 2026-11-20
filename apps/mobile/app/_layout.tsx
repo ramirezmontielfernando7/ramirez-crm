@@ -130,6 +130,10 @@ function RootNavigator() {
           <Stack.Screen name="campaign-detail" />
           <Stack.Screen name="campaign-settings" />
           <Stack.Screen name="campaign-lab" />
+          <Stack.Screen name="channel-settings" />
+          <Stack.Screen name="direct-settings" />
+          <Stack.Screen name="ads-settings" />
+          <Stack.Screen name="channel-lab" />
           <Stack.Screen name="my-ai-activity" />
           <Stack.Screen name="ai-connector-lab" />
           <Stack.Screen name="optout-lab" />

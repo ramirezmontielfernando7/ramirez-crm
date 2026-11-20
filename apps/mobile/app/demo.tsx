@@ -153,6 +153,22 @@ function OriginalDemo() {
         )}
         <Section>Laboratorio de demostración</Section>
         {auth.session && auth.session.role !== "advisor" && (
+          <>
+            <NavRow
+              label="Canales y conexiones"
+              onPress={() => router.push("/channel-settings")}
+            />
+            <NavRow
+              label="Anuncios (Meta)"
+              onPress={() => router.push("/ads-settings")}
+            />
+            <NavRow
+              label="Laboratorio de canales"
+              onPress={() => router.push("/channel-lab")}
+            />
+          </>
+        )}
+        {auth.session && auth.session.role !== "advisor" && (
           <NavRow
             label="Laboratorio de campañas"
             onPress={() => router.push("/campaign-lab")}

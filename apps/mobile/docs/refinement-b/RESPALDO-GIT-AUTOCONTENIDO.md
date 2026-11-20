@@ -1,8 +1,10 @@
-# Respaldo Git completo y autocontenido · plan, no ejecutado
+# Respaldo Git completo y autocontenido · estrategia y presupuesto local
 
 El paquete incremental de esta ejecución sigue necesitando los anteriores. Para eliminar esa dependencia se recomienda un bundle con **todas las referencias y toda la historia alcanzable**, verificado en un repositorio vacío. Esto conserva también las ramas locales del backend reservado sin arrancarlo ni modificar sus archivos. No requiere GitHub, servicios remotos ni pagos.
 
-El almacén Git observado antes del nuevo commit ocupa aproximadamente 101 MiB entre objetos sueltos y packs (69,92 + 30,91 MiB). Eso no determina exactamente el tamaño de otro pack ni el espacio temporal. Con solo ~1 GiB libre, este plan **no se ejecutó aquí**. Usar un disco local/USB ya disponible o un entorno aislado con al menos 2 GiB de margen exclusivo para crear y verificar el respaldo; para desarrollo Android se necesita capacidad adicional. No solicitar automáticamente una instancia mayor ni contratar almacenamiento.
+La primera estimación recomendaba otro volumen. En esta ejecución se midieron 17.609 objetos alcanzables: 208.886.104 bytes sin comprimir (mayor objeto: 2.989.750 bytes). Había 1.128.214.528 bytes libres; dos copias sin comprimir más 300 MiB de reserva requieren 732.345.008 bytes. Por ello resulta viable un intento local limitado, sin servicios ni costos, dejando margen para el checkpoint.
+
+El intento se realiza después de cerrar el commit: límite duro de 250 MiB por archivo, al menos 800 MiB libres al comenzar, bundle `--all` y clon bare de verificación en artifacts/full-backup. El resultado y SHA se registran en su manifiesto externo, evitando autorreferencia. Si se supera el límite o falla la verificación, detenerse y conservar todo lo anterior. No se crean ZIP duplicados ni se borra la cadena incremental. El bundle local es privado (0600) y no se sube. Sigue siendo preferible trasladarlo luego, con autorización, a otro volumen privado con al menos 2 GiB disponibles. Android continúa necesitando bastante más almacenamiento.
 
 ## Preparación y conservación
 
@@ -11,7 +13,7 @@ El almacén Git observado antes del nuevo commit ocupa aproximadamente 101 MiB e
 3. Revisar datos sensibles del historial y las referencias antes de trasladarlo. Un `--all` incluye la historia del CRM, no solo apps/mobile. Mantenerlo privado, con acceso restringido y cifrado del volumen/archivo si corresponde. No subirlo a Drive/GitHub ni compartirlo bajo esta autorización.
 4. Comprobar si hay Git LFS o submódulos. Sus objetos externos/repositorios requieren copia local adicional; no descargar nada automáticamente. Un bundle de Git por sí solo no contiene esos objetos externos.
 
-## Comandos propuestos (no ejecutados)
+## Procedimiento de referencia
 
 Ejecutar desde la raíz del repositorio, con `/mnt/respaldo-dashfort` ya creado en el volumen adecuado. Los nombres son ejemplos; no sobrescribir paquetes existentes.
 
