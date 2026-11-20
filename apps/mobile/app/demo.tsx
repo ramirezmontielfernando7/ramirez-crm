@@ -152,6 +152,12 @@ function OriginalDemo() {
           </>
         )}
         <Section>Laboratorio de demostración</Section>
+        {auth.session && (
+          <NavRow
+            label="Permiso de plataforma · solo metadatos ficticios"
+            onPress={() => router.push("/platform-lab")}
+          />
+        )}
         {auth.session && auth.session.role !== "advisor" && (
           <>
             <NavRow

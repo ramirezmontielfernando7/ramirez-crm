@@ -69,7 +69,7 @@ export function ConversationScreen({ chat }: { chat: ChatStore }) {
     conversation.ai === "pause" &&
     conversation.assigned === chat.actor.id;
   const inbox = useInbox();
-  const { colors: c } = useTheme();
+  const { colors: c, fontFamily } = useTheme();
   const { open, close, toast } = useLayers();
   const action = useAction();
   const list = useRef<FlashListRef<Message>>(null);
@@ -717,7 +717,7 @@ export function ConversationScreen({ chat }: { chat: ChatStore }) {
                   minHeight: 48,
                   maxHeight: 120,
                   paddingVertical: 12,
-                  fontFamily: "Inter_400Regular",
+                  fontFamily: fontFamily(),
                   fontSize: 15,
                   color: c.text,
                 }}

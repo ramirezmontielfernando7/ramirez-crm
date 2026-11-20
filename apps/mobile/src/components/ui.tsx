@@ -38,7 +38,7 @@ export function Text({
   kind?: keyof typeof typography;
   weight?: "regular" | "medium" | "semibold";
 }) {
-  const { colors } = useTheme();
+  const { colors, fontFamily } = useTheme();
   const [fontSize, lineHeight] = typography[kind];
   return (
     <NativeText
@@ -46,7 +46,7 @@ export function Text({
       style={[
         {
           color: colors.text,
-          fontFamily: `Inter_${weight === "semibold" ? "600SemiBold" : weight === "medium" ? "500Medium" : "400Regular"}`,
+          fontFamily: fontFamily(weight),
           fontSize,
           lineHeight,
         },
@@ -164,7 +164,7 @@ export function Field({
   style,
   ...props
 }: TextInputProps & { label: string; error?: string; hint?: string }) {
-  const { colors: c } = useTheme();
+  const { colors: c, fontFamily } = useTheme();
   return (
     <View style={{ gap: 6 }}>
       <Text weight="medium" kind="secondary">
@@ -178,6 +178,7 @@ export function Field({
           styles.input,
           {
             color: c.text,
+            fontFamily: fontFamily(),
             backgroundColor: c.surface,
             borderColor: error ? c.danger : c.borderStrong,
           },
@@ -529,9 +530,13 @@ export function PickerRow({
 export function NavRow({
   label,
   onPress,
+  hint,
+  end,
   icon: Icon = ChevronRight,
 }: {
   label: string;
+  hint?: string;
+  end?: string;
   onPress: () => void;
   icon?: LucideIcon;
 }) {
@@ -539,6 +544,8 @@ export function NavRow({
   return (
     <Pressable
       accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityHint={hint}
       onPress={onPress}
       style={{
         minHeight: 52,
@@ -551,7 +558,15 @@ export function NavRow({
       }}
     >
       <Icon color={c.accentInk} size={22} strokeWidth={1.8} />
-      <Text style={{ flex: 1 }}>{label}</Text>
+      <View style={{ flex: 1 }}>
+        <Text>{label}</Text>
+        {!!hint && (
+          <Text kind="meta" style={{ color: c.text3 }}>
+            {hint}
+          </Text>
+        )}
+      </View>
+      {end && <Text kind="meta">{end}</Text>}
       <ChevronRight color={c.text3} size={18} />
     </Pressable>
   );
@@ -673,7 +688,7 @@ export function FilterChips({
   );
 }
 export function SearchBox(props: TextInputProps) {
-  const { colors: c } = useTheme();
+  const { colors: c, fontFamily } = useTheme();
   return (
     <View
       style={{
@@ -695,7 +710,7 @@ export function SearchBox(props: TextInputProps) {
           minHeight: 48,
           fontSize: 16,
           color: c.text,
-          fontFamily: "Inter_400Regular",
+          fontFamily: fontFamily(),
         }}
       />
     </View>
@@ -1016,7 +1031,7 @@ export function Composer({
   onChange: (text: string) => void;
   onSend: () => void;
 }) {
-  const { colors: c } = useTheme();
+  const { colors: c, fontFamily } = useTheme();
   return (
     <View
       style={{
@@ -1045,7 +1060,7 @@ export function Composer({
           padding: 10,
           color: c.text,
           fontSize: 15,
-          fontFamily: "Inter_400Regular",
+          fontFamily: fontFamily(),
         }}
       />
       <IconButton

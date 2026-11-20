@@ -386,7 +386,7 @@ function ChatContent({ store, id }: { store: TeamChatStore; id: string }) {
   const room = store.get(id),
     { personName } = usePeople(),
     inbox = useInbox(),
-    { colors: c } = useTheme(),
+    { colors: c, fontFamily } = useTheme(),
     layers = useLayers(),
     action = useAction(),
     list = useRef<FlatList<Message>>(null),
@@ -620,7 +620,7 @@ function ChatContent({ store, id }: { store: TeamChatStore; id: string }) {
                   minHeight: 48,
                   maxHeight: 120,
                   paddingVertical: 12,
-                  fontFamily: "Inter_400Regular",
+                  fontFamily: fontFamily(),
                   fontSize: 15,
                   color: c.text,
                 }}

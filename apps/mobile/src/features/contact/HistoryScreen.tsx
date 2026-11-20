@@ -112,7 +112,7 @@ const renderEvent = ({ item }: { item: Event }) => <EventRow event={item} />;
 export function HistoryScreen({ store }: { store: ContactStore }) {
   const s = useContactState(store),
     cvo = useConversation(store.id)!,
-    { colors: c, dark } = useTheme(),
+    { colors: c, dark, fontFamily } = useTheme(),
     actions = useContactActions(store),
     action = useAction();
   const list = useRef<FlashListRef<Event>>(null),
@@ -281,7 +281,7 @@ export function HistoryScreen({ store }: { store: ContactStore }) {
             submitBehavior="newline"
             style={{
               flex: 1,
-              fontFamily: "Inter_400Regular",
+              fontFamily: fontFamily(),
               fontSize: 15,
               color: c.text,
               minHeight: 48,

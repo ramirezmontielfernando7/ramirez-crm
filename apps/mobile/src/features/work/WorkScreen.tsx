@@ -78,7 +78,7 @@ function WorkView() {
     [text, setText] = useState(saved?.text ?? ""),
     [error, setError] = useState(""),
     { open } = useLayers(),
-    { colors: c, dark } = useTheme();
+    { colors: c, dark, fontFamily } = useTheme();
   useEffect(() => {
     void repo.hydrate().then(() => repo.fixtures());
   }, [repo]);
@@ -248,7 +248,7 @@ function WorkView() {
                     borderRadius: 12,
                     paddingHorizontal: 14,
                     color: c.text,
-                    fontFamily: "Inter_400Regular",
+                    fontFamily: fontFamily(),
                     fontSize: 16,
                   }}
                 />

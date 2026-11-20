@@ -1,0 +1,38 @@
+[
+  {
+    "family": "Geist",
+    "url": "https://raw.githubusercontent.com/google/fonts/main/ofl/geist/Geist%5Bwght%5D.ttf",
+    "sourceSha256": "73894e0448cae90a92b6c2f8732b7bb9acb7b94c418bff559dad4a18e1de9659",
+    "license": "https://raw.githubusercontent.com/google/fonts/main/ofl/geist/OFL.txt",
+    "weights": [
+      400,
+      500,
+      600
+    ],
+    "conversion": "fontTools instancer; other axes at defaults; static TrueType for native compatibility"
+  },
+  {
+    "family": "DMSans",
+    "url": "https://raw.githubusercontent.com/google/fonts/main/ofl/dmsans/DMSans%5Bopsz%2Cwght%5D.ttf",
+    "sourceSha256": "8cd08d97e89c24d0aa92edd2f0f4c8ee6195eee9b7c9f154865a58b02f0c1c0d",
+    "license": "https://raw.githubusercontent.com/google/fonts/main/ofl/dmsans/OFL.txt",
+    "weights": [
+      400,
+      500,
+      600
+    ],
+    "conversion": "fontTools instancer; other axes at defaults; static TrueType for native compatibility"
+  },
+  {
+    "family": "PlusJakarta",
+    "url": "https://raw.githubusercontent.com/google/fonts/main/ofl/plusjakartasans/PlusJakartaSans%5Bwght%5D.ttf",
+    "sourceSha256": "89b3fb38aa0d275d7a731d0d817a4f1622b316b4d7fbdedcf02ee9099ff68bc8",
+    "license": "https://raw.githubusercontent.com/google/fonts/main/ofl/plusjakartasans/OFL.txt",
+    "weights": [
+      400,
+      500,
+      600
+    ],
+    "conversion": "fontTools instancer; other axes at defaults; static TrueType for native compatibility"
+  }
+]

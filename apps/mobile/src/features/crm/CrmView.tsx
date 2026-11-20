@@ -120,7 +120,7 @@ export function CrmView(props: CrmNavigation) {
   const { personName } = usePeople();
   const { model: m, onLayer, onChat, onTask } = props;
   const revision = useSyncExternalStore(m.subscribe, m.snapshot, m.snapshot),
-    { colors: c } = useTheme(),
+    { colors: c, fontFamily } = useTheme(),
     { width } = useWindowDimensions();
   const state = m.state,
     screen = state.screen;
@@ -380,7 +380,7 @@ export function CrmView(props: CrmNavigation) {
               style={{
                 flex: 1,
                 color: c.text,
-                fontFamily: "Inter_400Regular",
+                fontFamily: fontFamily(),
                 fontSize: 15,
                 height: 44,
                 padding: 0,

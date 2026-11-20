@@ -60,7 +60,7 @@ export function StudioComposer({
   sendLabel?: string;
   disabled?: boolean;
 }) {
-  const { colors: c } = useTheme();
+  const { colors: c, fontFamily } = useTheme();
   return (
     <View
       style={{
@@ -97,7 +97,7 @@ export function StudioComposer({
           borderRadius: 24,
           paddingHorizontal: 14,
           paddingVertical: 12,
-          fontFamily: "Inter_400Regular",
+          fontFamily: fontFamily(),
           fontSize: 15,
           color: c.text,
           backgroundColor: c.surface,

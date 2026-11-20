@@ -1,3 +1,4 @@
+import { useOptionalPersonalization } from "../features/personalization/state";
 import { useInboxUnread, useOptionalInbox } from "../features/inbox/store";
 import { Pressable, View, useWindowDimensions } from "react-native";
 import {
@@ -29,6 +30,7 @@ const icons: Record<Module, LucideIcon> = {
   more: Menu,
 };
 export function TabBar({ state, emitter, navigateToTab }: BottomTabBarProps) {
+  const personalization = useOptionalPersonalization();
   const unread = useInboxUnread();
   const inbox = useOptionalInbox();
   const { session, disabled } = useSession();
@@ -36,7 +38,9 @@ export function TabBar({ state, emitter, navigateToTab }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
   const { height } = useWindowDimensions();
   if (!session) return null;
-  const allowed = visibleModules(session.role, disabled);
+  const allowed =
+    personalization?.navigation(session.role, disabled) ??
+    visibleModules(session.role, disabled);
   return (
     <View
       accessibilityRole="tablist"
@@ -59,6 +63,11 @@ export function TabBar({ state, emitter, navigateToTab }: BottomTabBarProps) {
     >
       {state.routes
         .filter((route) => allowed.includes(route.name as Module))
+        .sort(
+          (a, b) =>
+            allowed.indexOf(a.name as Module) -
+            allowed.indexOf(b.name as Module),
+        )
         .map((route) => {
           const selected = state.routes[state.index]?.key === route.key;
           const Icon = icons[route.name as Module];

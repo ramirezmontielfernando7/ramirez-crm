@@ -256,7 +256,7 @@ function Thread({ id }: { id: string }) {
     [text, setText] = useState(r.draft),
     a = useAction(),
     key = useRef(catalogKey()),
-    { colors: c } = useTheme(),
+    { colors: c, fontFamily } = useTheme(),
     layers = useLayers();
   return (
     <>
@@ -374,7 +374,7 @@ function Thread({ id }: { id: string }) {
               borderColor: c.borderStrong,
               padding: 12,
               color: c.text,
-              fontFamily: "Inter_400Regular",
+              fontFamily: fontFamily(),
               fontSize: 15,
             }}
           />

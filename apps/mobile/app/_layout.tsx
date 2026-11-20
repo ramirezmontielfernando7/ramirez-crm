@@ -1,3 +1,4 @@
+import { PersonalizationProvider } from "../src/features/personalization/state";
 import React, { useEffect, useRef } from "react";
 import { BackHandler, Platform, View } from "react-native";
 import { Stack, router, usePathname } from "expo-router";
@@ -27,6 +28,15 @@ function RootNavigator() {
     Inter_400Regular,
     Inter_500Medium,
     Inter_600SemiBold,
+    Geist_400: require("../assets/fonts/Geist_400.ttf"),
+    Geist_500: require("../assets/fonts/Geist_500.ttf"),
+    Geist_600: require("../assets/fonts/Geist_600.ttf"),
+    DMSans_400: require("../assets/fonts/DMSans_400.ttf"),
+    DMSans_500: require("../assets/fonts/DMSans_500.ttf"),
+    DMSans_600: require("../assets/fonts/DMSans_600.ttf"),
+    PlusJakarta_400: require("../assets/fonts/PlusJakarta_400.ttf"),
+    PlusJakarta_500: require("../assets/fonts/PlusJakarta_500.ttf"),
+    PlusJakarta_600: require("../assets/fonts/PlusJakarta_600.ttf"),
   });
   useEffect(() => {
     close();
@@ -130,6 +140,14 @@ function RootNavigator() {
           <Stack.Screen name="campaign-detail" />
           <Stack.Screen name="campaign-settings" />
           <Stack.Screen name="campaign-lab" />
+          <Stack.Screen name="platform-panel" />
+          <Stack.Screen name="platform-organizations" />
+          <Stack.Screen name="platform-detail" />
+          <Stack.Screen name="platform-lab" />
+          <Stack.Screen name="settings" />
+          <Stack.Screen name="appearance" />
+          <Stack.Screen name="brand" />
+          <Stack.Screen name="navigation-settings" />
           <Stack.Screen name="channel-settings" />
           <Stack.Screen name="direct-settings" />
           <Stack.Screen name="ads-settings" />
@@ -164,15 +182,17 @@ export default function Layout() {
       <ThemeProvider>
         <SessionProvider>
           <InboxProvider>
-            <ContactProvider>
-              <ChatProvider>
-                <NotificationProvider>
-                  <LayerProvider>
-                    <RootNavigator />
-                  </LayerProvider>
-                </NotificationProvider>
-              </ChatProvider>
-            </ContactProvider>
+            <PersonalizationProvider>
+              <ContactProvider>
+                <ChatProvider>
+                  <NotificationProvider>
+                    <LayerProvider>
+                      <RootNavigator />
+                    </LayerProvider>
+                  </NotificationProvider>
+                </ChatProvider>
+              </ContactProvider>
+            </PersonalizationProvider>
           </InboxProvider>
         </SessionProvider>
       </ThemeProvider>

@@ -1,9 +1,18 @@
+import {
+  fontFamily as resolveFont,
+  palette,
+  type ThemeProfile,
+} from "./personalized";
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { AccessibilityInfo, useColorScheme } from "react-native";
-import { dark, light, type Colors, type ThemeMode } from "./tokens";
+import { light, type Colors, type ThemeMode } from "./tokens";
 import { preferencesStorage } from "../services/storage";
 const Context = createContext<{
   colors: Colors;
+  fontFamily: (weight?: "regular" | "medium" | "semibold") => string;
+  chatStyle: "classic" | "whatsapp";
+  brandName: string;
+  brandAsset: "original" | "sample";
   dark: boolean;
   mode: ThemeMode;
   reducedMotion: boolean;
@@ -11,13 +20,24 @@ const Context = createContext<{
   error: string;
 }>({
   colors: light,
+  fontFamily: (weight) => resolveFont("Inter", weight),
+  chatStyle: "classic",
+  brandName: "Dashfort",
+  brandAsset: "original",
   dark: false,
   mode: "light",
   reducedMotion: true,
   setMode: async () => {},
   error: "",
 });
-export function ThemeProvider({ children }: React.PropsWithChildren) {
+export function ThemeProvider({
+  children,
+  profile,
+  onMode,
+}: React.PropsWithChildren<{
+  profile?: ThemeProfile;
+  onMode?: (mode: ThemeMode) => Promise<void>;
+}>) {
   const system = useColorScheme();
   const [mode, setModeState] = useState<ThemeMode>("light");
   const [reducedMotion, setReducedMotion] = useState(true);
@@ -40,6 +60,7 @@ export function ThemeProvider({ children }: React.PropsWithChildren) {
     return () => sub.remove();
   }, []);
   const setMode = async (value: ThemeMode) => {
+    if (onMode) return onMode(value);
     setModeState(value);
     try {
       await preferencesStorage.set("dashfort.demo.theme", value);
@@ -48,13 +69,19 @@ export function ThemeProvider({ children }: React.PropsWithChildren) {
       setError("El tema cambió, pero no se pudo guardar.");
     }
   };
-  const isDark = mode === "dark" || (mode === "system" && system === "dark");
+  const resolvedMode = profile?.theme ?? mode;
+  const isDark =
+    resolvedMode === "dark" || (resolvedMode === "system" && system === "dark");
   return (
     <Context.Provider
       value={{
-        colors: isDark ? dark : light,
+        colors: palette(profile?.accent ?? "#0e7c80", isDark),
+        fontFamily: (weight) => resolveFont(profile?.font ?? "Inter", weight),
+        chatStyle: profile?.chat ?? "classic",
+        brandName: profile?.name ?? "Dashfort",
+        brandAsset: profile?.asset ?? "original",
         dark: isDark,
-        mode,
+        mode: resolvedMode,
         reducedMotion,
         setMode,
         error,

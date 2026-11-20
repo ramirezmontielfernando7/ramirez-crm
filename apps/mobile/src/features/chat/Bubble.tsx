@@ -31,7 +31,7 @@ export const ConversationBubble = memo(function ConversationBubble({
   onTemplate: () => void;
   locked: boolean;
 }) {
-  const { colors: c } = useTheme();
+  const { colors: c, chatStyle } = useTheme();
   const center = m.sender === "note" || m.sender === "system";
   const incoming = m.sender === "in";
   const bg =
@@ -92,9 +92,10 @@ export const ConversationBubble = memo(function ConversationBubble({
           maxWidth: center ? "96%" : "86%",
           backgroundColor: m.sender === "system" ? "transparent" : bg,
           padding: center ? 8 : 12,
-          borderRadius: center ? 12 : 16,
-          borderTopLeftRadius: incoming ? 4 : 16,
-          borderTopRightRadius: !incoming && !center ? 4 : 16,
+          borderRadius: center ? 12 : chatStyle === "whatsapp" ? 8 : 16,
+          borderTopLeftRadius: incoming ? 4 : chatStyle === "whatsapp" ? 8 : 16,
+          borderTopRightRadius:
+            !incoming && !center ? 4 : chatStyle === "whatsapp" ? 8 : 16,
           gap: 5,
           borderWidth: incoming ? 1 : 0,
           borderColor: c.border,
