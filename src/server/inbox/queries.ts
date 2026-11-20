@@ -467,7 +467,50 @@ async function queryConversations(
  * los contaba el navegador sobre la lista completa; las reglas son las mismas
  * (ver el tipo `InboxCounts`).
  */
+/**
+ * Prueba de carga (2026-11): con ~36 mil chats por empresa, recontar la bandeja
+ * cuesta ~1.7 s y la pide cada asesor tras cada aviso. Se comparte el resultado
+ * unos segundos (y la misma consulta en curso) por persona y filtros; los
+ * selectores (etapas, etiquetas, responsables) cambian poco y duran más.
+ * Cache por proceso: con una sola copia de la app basta.
+ */
+const COUNTS_TTL_MS = 3_000;
+const SELECTORS_TTL_MS = 15_000;
+const MEMO_MAX = 2_000;
+const memo = new Map<string, { at: number; value: Promise<unknown> }>();
+
+function memoized<T>(key: string, ttlMs: number, load: () => Promise<T>): Promise<T> {
+  // Las pruebas cambian datos y vuelven a contar al instante: sin cache.
+  if (process.env.VITEST) return load();
+  const now = Date.now();
+  const hit = memo.get(key);
+  if (hit && now - hit.at < ttlMs) return hit.value as Promise<T>;
+  const value = load();
+  memo.set(key, { at: now, value });
+  value.catch(() => {
+    if (memo.get(key)?.value === value) memo.delete(key);
+  });
+  if (memo.size > MEMO_MAX) {
+    for (const [k, v] of memo) if (now - v.at > SELECTORS_TTL_MS) memo.delete(k);
+  }
+  return value;
+}
+
+/** Quién pregunta, tal como lo ve el alcance: misma llave = mismo resultado. */
+function accessKey(access: Access): string {
+  return [access.organizationId, access.userId, access.seesAll ? "1" : "0", access.chatView ?? ""].join("|");
+}
+
+/** Solo para tests. */
+export function resetCountsMemo(): void {
+  memo.clear();
+}
+
 export async function countConversations(access: Access, f: ListFilters): Promise<InboxCounts> {
+  return memoized(`counts|${accessKey(access)}|${JSON.stringify(f)}`, COUNTS_TTL_MS, () => computeCounts(access, f));
+}
+
+async function computeCounts(access: Access, f: ListFilters): Promise<InboxCounts> {
   const db = getDb();
   const leadActual = leadActualDe(access);
   const main = and(isNull(schema.contact.waGroupJid), isNull(schema.conversation.campaignPendingId));
@@ -510,6 +553,7 @@ export async function countConversations(access: Access, f: ListFilters): Promis
   // Lo que ofrecen los selectores: lo PRESENTE en la principal (con
   // archivados), sin los filtros de pantalla, como cuando se sacaba de la
   // lista completa. Las etapas, en el orden en que aparecían en ella.
+  const { stageRows, tagRows, ownerRows } = await memoized(`selectors|${accessKey(access)}`, SELECTORS_TTL_MS, async () => {
   const stageRows = await db
     .select({ name: leadActual.stageName })
     .from(schema.conversation)
@@ -530,6 +574,9 @@ export async function countConversations(access: Access, f: ListFilters): Promis
     .from(schema.conversation)
     .innerJoin(schema.contact, eq(schema.conversation.contactId, schema.contact.id))
     .where(scopedContacts(schema.conversation.organizationId, access, schema.conversation.contactId, real, or(main, isNotNull(schema.contact.waGroupJid)), isNotNull(schema.contact.assignedUserId)));
+
+  return { stageRows, tagRows, ownerRows };
+  });
 
   const t = (totals ?? {}) as Record<string, number | undefined>;
   const channels: InboxCounts["channels"] = {};

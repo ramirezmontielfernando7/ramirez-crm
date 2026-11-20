@@ -10,6 +10,9 @@ import { fetchJson } from "@/lib/fetch-json";
 import { matchesQuery } from "@/lib/search";
 import { SPRING } from "@/components/motion";
 
+/** Chats que trae el selector de menciones (recientes o la búsqueda). */
+const CHAT_LIMIT = 30;
+
 /**
  * 026 — Buscador de menciones del chat de equipo, en dos secciones:
  *  - Compañeros: solo quienes pueden leer ESTE hilo (Avisos: todo el equipo;
@@ -41,11 +44,6 @@ export function MentionPicker({
 
   useEffect(() => {
     let cancelled = false;
-    void fetchJson<{ conversations: ConversationDto[] }>("/api/conversations").then((res) => {
-      if (cancelled) return;
-      if (res.ok) setChats(res.data.conversations);
-      else setError(`No se pudieron cargar los chats: ${res.error}`);
-    });
     // En Avisos lee todo el equipo: se piden sus nombres.
     if (kind === "announcements") {
       void fetchJson<{ people: TeamPersonDto[] }>("/api/team-chat/people").then((res) => {
@@ -58,6 +56,26 @@ export function MentionPicker({
       cancelled = true;
     };
   }, [kind]);
+
+  // Prueba de carga (2026-11): la lista completa pesaba ~22 MB con 36 mil chats.
+  // Se piden los recientes y, al escribir, se busca en el servidor (como la bandeja).
+  useEffect(() => {
+    let cancelled = false;
+    const term = query.trim();
+    const params = new URLSearchParams({ limit: String(CHAT_LIMIT) });
+    if (term.length >= 2) params.set("q", term);
+    const timer = setTimeout(() => {
+      void fetchJson<{ conversations: ConversationDto[] }>(`/api/conversations?${params}`).then((res) => {
+        if (cancelled) return;
+        if (res.ok) setChats(res.data.conversations);
+        else setError(`No se pudieron cargar los chats: ${res.error}`);
+      });
+    }, term.length >= 2 ? 250 : 0);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [query]);
 
   useEffect(() => {
     const onDown = (e: MouseEvent) => {
