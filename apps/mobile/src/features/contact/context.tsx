@@ -1,3 +1,4 @@
+import { storageFor } from "../team/storage";
 import React, {
   createContext,
   useContext,
@@ -17,7 +18,7 @@ export function ContactProvider({ children }: React.PropsWithChildren) {
         ? new ContactDirectory(
             inbox.actor,
             inbox.repository,
-            preferencesStorage,
+            storageFor(inbox),
             inbox.reload,
           )
         : null,

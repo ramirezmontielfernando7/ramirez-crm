@@ -1,3 +1,4 @@
+import { storageFor } from "../team/storage";
 import React, {
   useEffect,
   useSyncExternalStore,
@@ -42,7 +43,7 @@ const stores = new WeakMap<InboxStore, NoticeStore>();
 export function noticesFor(inbox: InboxStore) {
   let s = stores.get(inbox);
   if (!s) {
-    s = new NoticeStore(inbox.actor, "demo-org-cristal", preferencesStorage);
+    s = new NoticeStore(inbox.actor, "demo-org-cristal", storageFor(inbox));
     stores.set(inbox, s);
   }
   return s;

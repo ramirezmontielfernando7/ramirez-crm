@@ -1,0 +1,8 @@
+{
+  "actualCaptures": 13,
+  "errors": [],
+  "networkRequests": 0,
+  "native": false,
+  "complete": true,
+  "checks": "Invite failure/retry, expiration/reissue/acceptance, contact assignment, Usage seats, reset, confirmation/cancel, historical name, last owner, storage read recovery"
+}

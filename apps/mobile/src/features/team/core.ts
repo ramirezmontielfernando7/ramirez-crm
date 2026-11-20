@@ -8,6 +8,7 @@ export type Member = Readonly<{
   active: boolean;
   receiveNew: boolean;
   revision: number;
+  resetCount?: number;
 }>;
 export type Invitation = Readonly<{
   id: string;
@@ -144,7 +145,11 @@ export class TeamRepository {
         typeof m.active !== "boolean" ||
         typeof m.receiveNew !== "boolean" ||
         !Number.isSafeInteger(m.revision) ||
-        m.revision < 1
+        m.revision < 1 ||
+        (m.resetCount !== undefined &&
+          (!Number.isSafeInteger(m.resetCount) ||
+            m.resetCount < 0 ||
+            m.resetCount > 1000000))
       )
         throw Error("Persona ficticia no válida.");
       ids.add(m.id);
@@ -287,6 +292,46 @@ export class TeamRepository {
           ],
         },
         result: nextId,
+      };
+    });
+  }
+  resetAccess(actor: string, id: string, key: string) {
+    return this.change(key, ["reset-demo", actor, id], (d) => {
+      this.manage(d, actor);
+      const m = d.members.find((m) => m.id === id && m.active);
+      if (!m) throw Error("Persona activa no disponible.");
+      return {
+        doc: {
+          ...d,
+          members: d.members.map((x) =>
+            x.id === id
+              ? {
+                  ...x,
+                  resetCount: (x.resetCount ?? 0) + 1,
+                  revision: x.revision + 1,
+                }
+              : x,
+          ),
+        },
+        result: id,
+      };
+    });
+  }
+  expireDemo(actor: string, id: string, key: string) {
+    return this.change(key, ["expire-demo", actor, id], (d) => {
+      this.manage(d, actor);
+      const i = d.invitations.find(
+        (i) => i.id === id && i.status === "pending",
+      );
+      if (!i) throw Error("Invitación no pendiente.");
+      return {
+        doc: {
+          ...d,
+          invitations: d.invitations.map((x) =>
+            x.id === id ? { ...x, expiresAt: this.now() - 1 } : x,
+          ),
+        },
+        result: id,
       };
     });
   }

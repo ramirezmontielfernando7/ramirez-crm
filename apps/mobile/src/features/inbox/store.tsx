@@ -1,3 +1,4 @@
+import { guardedStorage } from "../team/guarded-storage";
 import { ErrorState, Skeleton } from "../../components/ui";
 import { teamFor, useTeam } from "../team/state";
 import { CatalogStore } from "../catalog/core";
@@ -21,7 +22,11 @@ export function InboxProvider({ children }: React.PropsWithChildren) {
       session && rosterState.ready
         ? new InboxStore(
             session,
-            new CatalogStore(session, "demo-org-cristal", preferencesStorage),
+            new CatalogStore(
+              session,
+              "demo-org-cristal",
+              guardedStorage(roster, session.id, preferencesStorage),
+            ),
             teamFor(),
           )
         : null,

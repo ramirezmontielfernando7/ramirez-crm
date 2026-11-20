@@ -97,3 +97,6 @@ Ver docs/refinement-b/EQUIPO-PREPARACION.md. TeamRepository aislado + 12 pruebas
 
 ## Equipo · integración parcial posterior a 00b497c
 Ver docs/refinement-b/EQUIPO-INTEGRACION-PARCIAL.md. 111/158 y 47 pendientes, 463 pruebas. Hay runtime inicial de equipo y tres vistas preliminares, NO sumar IDs. Reanudar por listas CRM/nombres históricos, permisos diferidos de todos los repositorios, Agenda nuevas asignaciones, confirmación/reset ficticio/lab, estados y QA de acciones completo. Capturas preliminares no equivalen a aprobación de la implementación. No APK/distribución ni servicios. Mantener 26 artefactos y cadena de bundles f3 → 111 → 00b497c → nuevo incremental.
+
+## Cierre definitivo de Equipo
+SET-03/03A/03B completos en simulación local y QA RN Web: 114/158, 44 pendientes, 469 pruebas. Ver docs/refinement-b/EQUIPO-CIERRE.md, sustituye notas parciales anteriores. Selectores/nombres históricos compartidos, permisos de persistencia ligados al rol antes/después de IO, reset sin credenciales ni tokens, confirmación de desactivación y último propietario. Regresiones de todos los módulos afectados aprobadas; no APK/QA nativa. Misión vigente termina aquí: NO iniciar EQP, backend, servicios o push. Conservar artefactos y cadena f3 → 111 → 00b497c → 4864eb9 → cierre.

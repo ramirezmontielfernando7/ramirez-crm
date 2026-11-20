@@ -629,7 +629,10 @@ export class ContactStore {
       ))
         throw new Error("Elige una persona activa del equipo.");
       if (d.assigned === assigned) return null;
-      const name = team.find((p) => p.id === assigned)?.name ?? "Sin asignar";
+      const name =
+        (
+          this.directory.conversations.team?.snapshot().doc.members ?? team
+        ).find((p) => p.id === assigned)?.name ?? "Sin asignar";
       return {
         data: { ...d, assigned },
         kind: "Asignación",
@@ -687,7 +690,7 @@ export class ContactStore {
     this.mutate(key, ["take"], (d) => ({
       data: { ...d, ai: "pause", assigned: this.actor.id },
       kind: "Asignación",
-      text: `${team.find((p) => p.id === this.actor.id)?.name ?? "Tú"} tomó este chat; IA en pausa`,
+      text: `${(this.directory.conversations.team?.snapshot().doc.members ?? team).find((p) => p.id === this.actor.id)?.name ?? "Tú"} tomó este chat; IA en pausa`,
     }));
   mode = (mode: Mode, key = actionKey()) =>
     this.mutate(key, ["mode", mode], (d) => {

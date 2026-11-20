@@ -1,3 +1,4 @@
+import { usePeople } from "../team/state";
 import React, {
   memo,
   useCallback,
@@ -55,6 +56,7 @@ export function WorkScreen() {
   );
 }
 function WorkView() {
+  const { personName } = usePeople();
   const dir = useContactDirectory(),
     repo = dir.workRepo,
     saved = views.get(repo),

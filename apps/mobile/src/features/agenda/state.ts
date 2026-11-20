@@ -1,3 +1,4 @@
+import { storageFor } from "../team/storage";
 import { connectorsFor } from "../calendar-settings/state";
 import { AgendaStore } from "./core";
 import { preferencesStorage } from "../../services/storage";
@@ -9,7 +10,7 @@ export function agendaFor(inbox: InboxStore) {
     store = new AgendaStore(
       inbox.actor,
       inbox.repository.catalog.organizationId,
-      preferencesStorage,
+      storageFor(inbox),
       Date.now,
       connectorsFor(inbox),
       inbox.repository.team,

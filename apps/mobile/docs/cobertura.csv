@@ -127,9 +127,9 @@ SET-02,Canales y conexiones,T-M8,Pendiente,Pendiente
 SET-02A,Conectar con Facebook,T-M8,Pendiente,Pendiente
 SET-02B,Salud del número,T-M8,Pendiente,Pendiente
 SET-02C,Conexión directa,T-M8,Pendiente,Pendiente
-SET-03,Equipo y permisos,T-M8,Pendiente,Pendiente
-SET-03A,Invitar persona,T-M8,Pendiente,Pendiente
-SET-03B,Persona del equipo,T-M8,Pendiente,Pendiente
+SET-03,Equipo y permisos,T-M8,Implementada con simulacion B / QA RN Web (cierre Equipo),Pendiente
+SET-03A,Invitar persona,T-M8,Implementada con simulacion B / QA RN Web (cierre Equipo),Pendiente
+SET-03B,Persona del equipo,T-M8,Implementada con simulacion B / QA RN Web (cierre Equipo),Pendiente
 SET-04,Anuncios (Meta),T-M13,Pendiente,Pendiente
 SET-05,Etiquetas,T-M13,Implementada con simulacion B / QA RN Web (lote 14),Pendiente
 SET-05A,Editar etiqueta,T-M13,Implementada con simulacion B / QA RN Web (lote 14),Pendiente

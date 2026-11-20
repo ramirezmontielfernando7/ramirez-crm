@@ -1,3 +1,4 @@
+import { storageFor } from "../team/storage";
 import type { InboxStore } from "../inbox/store-core";
 import { preferencesStorage } from "../../services/storage";
 import { LibraryStore } from "./core";
@@ -9,7 +10,7 @@ export function libraryFor(inbox: InboxStore) {
     store = new LibraryStore(
       inbox.actor,
       "demo-org-cristal",
-      preferencesStorage,
+      storageFor(inbox),
     );
     stores.set(inbox, store);
   }

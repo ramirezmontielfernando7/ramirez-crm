@@ -1,3 +1,4 @@
+import { usePeople } from "../team/state";
 import { CatalogTag } from "../catalog/CatalogTag";
 import React, { memo, useMemo, useSyncExternalStore } from "react";
 import {
@@ -116,6 +117,7 @@ const ContactRow = memo(function ContactRow({
   );
 });
 export function CrmView(props: CrmNavigation) {
+  const { personName } = usePeople();
   const { model: m, onLayer, onChat, onTask } = props;
   const revision = useSyncExternalStore(m.subscribe, m.snapshot, m.snapshot),
     { colors: c } = useTheme(),

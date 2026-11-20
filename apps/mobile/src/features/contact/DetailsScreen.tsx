@@ -1,3 +1,4 @@
+import { usePeople } from "../team/state";
 import { CatalogTag } from "../catalog/CatalogTag";
 import React, { useCallback, useRef } from "react";
 import { Pressable, ScrollView, View } from "react-native";
@@ -95,6 +96,7 @@ export function DetailsScreen({
   store: ContactStore;
   chat: ChatStore;
 }) {
+  const { personName } = usePeople();
   const s = useContactState(store),
     flags = useContactFlags(),
     conversation = useConversation(store.id)!;

@@ -1,3 +1,4 @@
+import { usePeople } from "../team/state";
 import React, { useState, useSyncExternalStore } from "react";
 import { View, ScrollView, Pressable } from "react-native";
 import {
@@ -45,6 +46,7 @@ export const layerTitles: Partial<Record<CrmId, string>> = {
 };
 export function CrmOverlay(props: CrmNavigation & { id: CrmId; arg?: string }) {
   const { model: m, id, onLayer, onChat, onHistory, arg } = props;
+  const { team, personName } = usePeople();
   useSyncExternalStore(m.subscribe, m.snapshot, m.snapshot);
   const { close, toast } = useLayers();
   const [error, setError] = useState(""),
@@ -117,14 +119,16 @@ export function CrmOverlay(props: CrmNavigation & { id: CrmId; arg?: string }) {
             />
           ))}
         {value === "edit-assign" &&
-          ["demo-owner", "demo-coordinator", "demo-advisor"].map((uid) => (
-            <Option
-              key={uid}
-              label={personName(uid)}
-              checked={contact.assigned === uid}
-              onPress={() => act(() => m.assignContact(contact.id, uid))}
-            />
-          ))}
+          team
+            .map((p) => p.id)
+            .map((uid) => (
+              <Option
+                key={uid}
+                label={personName(uid)}
+                checked={contact.assigned === uid}
+                onPress={() => act(() => m.assignContact(contact.id, uid))}
+              />
+            ))}
         <Button
           variant="secondary"
           onPress={() => {
@@ -341,19 +345,17 @@ export function CrmOverlay(props: CrmNavigation & { id: CrmId; arg?: string }) {
         {m.actor.role !== "advisor" && (
           <>
             <Text>Asignar a…</Text>
-            {[
-              ["demo-owner", "Fernando"],
-              ["demo-coordinator", "Ana"],
-              ["demo-advisor", "Luis"],
-            ].map(([uid, name]) => (
-              <Button
-                key={uid}
-                variant="secondary"
-                onPress={() => act(() => m.bulk("assign", uid!))}
-              >
-                {name!}
-              </Button>
-            ))}
+            {team
+              .map((p) => [p.id, p.name])
+              .map(([uid, name]) => (
+                <Button
+                  key={uid}
+                  variant="secondary"
+                  onPress={() => act(() => m.bulk("assign", uid!))}
+                >
+                  {name!}
+                </Button>
+              ))}
             <Button
               variant="secondary"
               onPress={() =>
@@ -506,6 +508,7 @@ function Filters({
   pipeline: boolean;
   done: () => void;
 }) {
+  const { team, personName } = usePeople();
   const [draft, setDraft] = useState({ ...m.state });
   const set = (p: Partial<typeof draft>) => setDraft({ ...draft, ...p });
   return (
@@ -541,13 +544,7 @@ function Filters({
       {m.actor.role !== "advisor" && (
         <>
           <Text>Asesor</Text>
-          {[
-            "Todos",
-            "Sin asignar",
-            "demo-owner",
-            "demo-coordinator",
-            "demo-advisor",
-          ].map((who) => (
+          {["Todos", "Sin asignar", ...team.map((p) => p.id)].map((who) => (
             <Option
               key={who}
               label={who.startsWith("demo-") ? personName(who) : who}

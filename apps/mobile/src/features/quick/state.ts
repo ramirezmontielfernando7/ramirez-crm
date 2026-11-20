@@ -1,3 +1,4 @@
+import { storageFor } from "../team/storage";
 import { useEffect, useSyncExternalStore } from "react";
 import { useInbox } from "../inbox/store";
 import type { InboxStore } from "../inbox/store-core";
@@ -10,7 +11,7 @@ export function quickFor(inbox: InboxStore) {
     store = new QuickRepository(
       inbox.actor,
       "demo-org-cristal",
-      preferencesStorage,
+      storageFor(inbox),
     );
     stores.set(inbox, store);
   }
