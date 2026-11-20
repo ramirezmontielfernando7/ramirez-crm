@@ -1,6 +1,6 @@
 import { and, count, desc, eq, gt, inArray, isNotNull, isNull, or, sql, type SQL } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
-import { companyChat, scopedContacts, scopedConversations, type Access } from "@/lib/db/tenant";
+import { companyChat, scopedContacts, scopedConversations, seesAllChats, type Access } from "@/lib/db/tenant";
 import { isWindowOpen, windowRemainingMs } from "@/server/inbox/window";
 import type { ConversationDto } from "@/lib/types";
 import type { InboxView } from "@/lib/campaign-inbox";
@@ -496,8 +496,18 @@ function memoized<T>(key: string, ttlMs: number, load: () => Promise<T>): Promis
   return value;
 }
 
-/** Quién pregunta, tal como lo ve el alcance: misma llave = mismo resultado. */
-function accessKey(access: Access): string {
+/**
+ * Quién pregunta, tal como lo ve el alcance: misma llave = mismo resultado.
+ * Quien ve TODOS los chats (`seesAllChats`) ve lo mismo que sus compañeros:
+ * `scopedContacts` y `leadActualDe` solo usan la organización. Lo único
+ * personal ahí es el filtro «Míos» (`ownerCondition`, solo con `seesAll`).
+ * Quien ve solo lo suyo lleva su propia llave.
+ */
+function accessKey(access: Access, f?: ListFilters): string {
+  if (seesAllChats(access)) {
+    const mine = access.seesAll && f?.owner === "mine" ? access.userId : "";
+    return [access.organizationId, "todo", access.seesAll ? "1" : "0", mine].join("|");
+  }
   return [access.organizationId, access.userId, access.seesAll ? "1" : "0", access.chatView ?? ""].join("|");
 }
 
@@ -507,7 +517,7 @@ export function resetCountsMemo(): void {
 }
 
 export async function countConversations(access: Access, f: ListFilters): Promise<InboxCounts> {
-  return memoized(`counts|${accessKey(access)}|${JSON.stringify(f)}`, COUNTS_TTL_MS, () => computeCounts(access, f));
+  return memoized(`counts|${accessKey(access, f)}|${JSON.stringify(f)}`, COUNTS_TTL_MS, () => computeCounts(access, f));
 }
 
 async function computeCounts(access: Access, f: ListFilters): Promise<InboxCounts> {
