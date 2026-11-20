@@ -152,6 +152,12 @@ function OriginalDemo() {
           </>
         )}
         <Section>Laboratorio de demostración</Section>
+        {auth.session && (
+          <NavRow
+            label="Mi número · simulación"
+            onPress={() => router.push("/personal-settings")}
+          />
+        )}
         {auth.session?.role === "owner" && (
           <NavRow
             label="Chat de equipo · ajustes ficticios"

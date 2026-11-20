@@ -328,11 +328,16 @@ export async function runInternal(context, html, root, networkCount) {
   });
   const thread = p.getByTestId("internal-thread");
   await settle(p);
+  await p.waitForTimeout(600);
   await thread.evaluate((el) => {
     el.scrollTop = 0;
     el.dispatchEvent(new Event("scroll", { bubbles: true }));
   });
-  await p.waitForTimeout(100);
+  await p.waitForTimeout(400);
+  assert.ok(
+    await thread.evaluate((el) => el.scrollTop < 100),
+    "Reader must start at earlier history",
+  );
   await p.evaluate(() =>
     window
       .qaInternal()

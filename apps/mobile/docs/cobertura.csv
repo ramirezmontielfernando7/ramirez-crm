@@ -142,8 +142,8 @@ SET-10,Bajas automáticas,T-M13,Pendiente,Pendiente
 SET-11,Mi IA,T-M13,Pendiente,Pendiente
 SET-11A,Qué hizo tu IA,T-M13,Pendiente,Pendiente
 SET-12,Conector del equipo,T-M13,Pendiente,Pendiente
-SET-13,Mi número,T-M6,Pendiente,Pendiente
-SET-13A,Vincular dispositivo,T-M6,Pendiente,Pendiente
+SET-13,Mi número,T-M6,Implementada / simulacion local y QA RN Web (Mi numero),Pendiente Android/iOS
+SET-13A,Vincular dispositivo,T-M6,Implementada / simulacion local y QA RN Web (Mi numero),Pendiente Android/iOS
 SET-14,Notificaciones,T-M5,Implementada con simulacion B / QA RN Web (lote 11),Pendiente
 SET-15,Apariencia,T-M8,Pendiente,Pendiente
 SET-16,Marca,T-M8,Pendiente,Pendiente
