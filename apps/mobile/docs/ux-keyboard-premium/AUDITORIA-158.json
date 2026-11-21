@@ -1,0 +1,2851 @@
+{
+  "scope": "Source traceability and shared host audit, not 158 manual/native passes",
+  "ids": 158,
+  "uniqueSourceModules": 40,
+  "screens": [
+    {
+      "ID": "AUTH-01",
+      "source": "src/features/opening/OpeningScreen.tsx",
+      "entry": "app/index.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 0,
+        "Button": 0,
+        "Pressable": 0,
+        "modalCalls": 0,
+        "scrollWrapper": false
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "AUTH-02",
+      "source": "src/screens/Access.tsx",
+      "entry": "app/login.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 7,
+        "Button": 6,
+        "Pressable": 0,
+        "modalCalls": 1,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "AUTH-03",
+      "source": "src/screens/Access.tsx",
+      "entry": "app/login.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 7,
+        "Button": 6,
+        "Pressable": 0,
+        "modalCalls": 1,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "AUTH-04",
+      "source": "src/screens/Access.tsx",
+      "entry": "app/login.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 7,
+        "Button": 6,
+        "Pressable": 0,
+        "modalCalls": 1,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "AUTH-05",
+      "source": "src/screens/Access.tsx",
+      "entry": "app/login.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 7,
+        "Button": 6,
+        "Pressable": 0,
+        "modalCalls": 1,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "AUTH-06",
+      "source": "src/screens/Access.tsx",
+      "entry": "app/login.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 7,
+        "Button": 6,
+        "Pressable": 0,
+        "modalCalls": 1,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "INB-01",
+      "source": "src/features/inbox/InboxScreen.tsx",
+      "entry": "app/(tabs)/inbox.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 2,
+        "Button": 11,
+        "Pressable": 4,
+        "modalCalls": 7,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": true,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "INB-02",
+      "source": "src/features/inbox/InboxScreen.tsx",
+      "entry": "app/(tabs)/inbox.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 2,
+        "Button": 11,
+        "Pressable": 4,
+        "modalCalls": 7,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "INB-03",
+      "source": "src/features/inbox/InboxScreen.tsx",
+      "entry": "app/(tabs)/inbox.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 2,
+        "Button": 11,
+        "Pressable": 4,
+        "modalCalls": 7,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "INB-06",
+      "source": "src/features/inbox/InboxScreen.tsx",
+      "entry": "app/(tabs)/inbox.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 2,
+        "Button": 11,
+        "Pressable": 4,
+        "modalCalls": 7,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "INB-07",
+      "source": "src/features/inbox/InboxScreen.tsx",
+      "entry": "app/(tabs)/inbox.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 2,
+        "Button": 11,
+        "Pressable": 4,
+        "modalCalls": 7,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "INB-08",
+      "source": "src/features/inbox/InboxScreen.tsx",
+      "entry": "app/(tabs)/inbox.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 2,
+        "Button": 11,
+        "Pressable": 4,
+        "modalCalls": 7,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "INB-09",
+      "source": "src/features/inbox/InboxScreen.tsx",
+      "entry": "app/(tabs)/inbox.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 2,
+        "Button": 11,
+        "Pressable": 4,
+        "modalCalls": 7,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "INB-04",
+      "source": "src/features/inbox/InboxScreen.tsx",
+      "entry": "app/(tabs)/inbox.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 2,
+        "Button": 11,
+        "Pressable": 4,
+        "modalCalls": 7,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "INB-05",
+      "source": "src/features/inbox/InboxScreen.tsx",
+      "entry": "app/(tabs)/inbox.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 2,
+        "Button": 11,
+        "Pressable": 4,
+        "modalCalls": 7,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "INB-10",
+      "source": "src/features/inbox/InboxScreen.tsx",
+      "entry": "app/(tabs)/inbox.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 2,
+        "Button": 11,
+        "Pressable": 4,
+        "modalCalls": 7,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "INB-11",
+      "source": "src/features/chat/ConversationScreen.tsx",
+      "entry": "app/conversation/[id].tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 1,
+        "Field": 0,
+        "Button": 12,
+        "Pressable": 3,
+        "modalCalls": 11,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": true,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "INB-12",
+      "source": "src/features/chat/ConversationScreen.tsx",
+      "entry": "app/conversation/[id].tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 1,
+        "Field": 0,
+        "Button": 12,
+        "Pressable": 3,
+        "modalCalls": 11,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "INB-13",
+      "source": "src/features/chat/Sheets.tsx",
+      "entry": "app/conversation/[id].tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 5,
+        "Button": 12,
+        "Pressable": 6,
+        "modalCalls": 3,
+        "scrollWrapper": false
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "INB-14",
+      "source": "src/features/chat/Sheets.tsx",
+      "entry": "app/conversation/[id].tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 5,
+        "Button": 12,
+        "Pressable": 6,
+        "modalCalls": 3,
+        "scrollWrapper": false
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "INB-15",
+      "source": "src/features/chat/Sheets.tsx",
+      "entry": "app/conversation/[id].tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 5,
+        "Button": 12,
+        "Pressable": 6,
+        "modalCalls": 3,
+        "scrollWrapper": false
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "INB-16",
+      "source": "src/features/chat/Sheets.tsx",
+      "entry": "app/conversation/[id].tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 5,
+        "Button": 12,
+        "Pressable": 6,
+        "modalCalls": 3,
+        "scrollWrapper": false
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "INB-17",
+      "source": "src/features/chat/Sheets.tsx",
+      "entry": "app/conversation/[id].tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 5,
+        "Button": 12,
+        "Pressable": 6,
+        "modalCalls": 3,
+        "scrollWrapper": false
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "INB-18",
+      "source": "src/features/chat/Sheets.tsx",
+      "entry": "app/conversation/[id].tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 5,
+        "Button": 12,
+        "Pressable": 6,
+        "modalCalls": 3,
+        "scrollWrapper": false
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "INB-19",
+      "source": "src/features/contact/DetailsScreen.tsx",
+      "entry": "app/contact/[id].tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 0,
+        "Button": 7,
+        "Pressable": 1,
+        "modalCalls": 3,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "INB-20",
+      "source": "src/features/contact/HistoryScreen.tsx",
+      "entry": "app/contact/[id].tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 1,
+        "Field": 0,
+        "Button": 3,
+        "Pressable": 1,
+        "modalCalls": 0,
+        "scrollWrapper": false
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "INB-21",
+      "source": "src/features/contact/Sheets.tsx",
+      "entry": "app/contact/[id].tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 5,
+        "Button": 13,
+        "Pressable": 0,
+        "modalCalls": 2,
+        "scrollWrapper": false
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "INB-22",
+      "source": "src/features/contact/Sheets.tsx",
+      "entry": "app/contact/[id].tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 5,
+        "Button": 13,
+        "Pressable": 0,
+        "modalCalls": 2,
+        "scrollWrapper": false
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "INB-23",
+      "source": "src/features/contact/Sheets.tsx",
+      "entry": "app/contact/[id].tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 5,
+        "Button": 13,
+        "Pressable": 0,
+        "modalCalls": 2,
+        "scrollWrapper": false
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "INB-24",
+      "source": "src/features/contact/Sheets.tsx",
+      "entry": "app/contact/[id].tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 5,
+        "Button": 13,
+        "Pressable": 0,
+        "modalCalls": 2,
+        "scrollWrapper": false
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "INB-30",
+      "source": "src/features/contact/Sheets.tsx",
+      "entry": "app/contact/[id].tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 5,
+        "Button": 13,
+        "Pressable": 0,
+        "modalCalls": 2,
+        "scrollWrapper": false
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "INB-25",
+      "source": "src/features/contact/Sheets.tsx",
+      "entry": "app/contact/[id].tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 5,
+        "Button": 13,
+        "Pressable": 0,
+        "modalCalls": 2,
+        "scrollWrapper": false
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "INB-26",
+      "source": "src/features/contact/Sheets.tsx",
+      "entry": "app/contact/[id].tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 5,
+        "Button": 13,
+        "Pressable": 0,
+        "modalCalls": 2,
+        "scrollWrapper": false
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "INB-27",
+      "source": "app/media/[id].tsx",
+      "entry": "app/media/[id].tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 0,
+        "Button": 1,
+        "Pressable": 1,
+        "modalCalls": 0,
+        "scrollWrapper": false
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "INB-28",
+      "source": "src/features/chat/Sheets.tsx",
+      "entry": "app/conversation/[id].tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 5,
+        "Button": 12,
+        "Pressable": 6,
+        "modalCalls": 3,
+        "scrollWrapper": false
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "INB-29",
+      "source": "src/features/chat/ConversationScreen.tsx",
+      "entry": "app/conversation/[id].tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 1,
+        "Field": 0,
+        "Button": 12,
+        "Pressable": 3,
+        "modalCalls": 11,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "EQP-01",
+      "source": "src/features/team-chat/Screens.tsx",
+      "entry": "app/(tabs)/inbox.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 1,
+        "Field": 1,
+        "Button": 11,
+        "Pressable": 2,
+        "modalCalls": 6,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "EQP-02",
+      "source": "src/features/team-chat/Screens.tsx",
+      "entry": "app/internal-chat/[id].tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 1,
+        "Field": 1,
+        "Button": 11,
+        "Pressable": 2,
+        "modalCalls": 6,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "EQP-06",
+      "source": "src/features/team-chat/Screens.tsx",
+      "entry": "app/internal-chat/[id].tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 1,
+        "Field": 1,
+        "Button": 11,
+        "Pressable": 2,
+        "modalCalls": 6,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "EQP-03",
+      "source": "src/features/team-chat/Screens.tsx",
+      "entry": "app/(tabs)/inbox.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 1,
+        "Field": 1,
+        "Button": 11,
+        "Pressable": 2,
+        "modalCalls": 6,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "EQP-04",
+      "source": "src/features/team-chat/Screens.tsx",
+      "entry": "app/internal-info/[id].tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 1,
+        "Field": 1,
+        "Button": 11,
+        "Pressable": 2,
+        "modalCalls": 6,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "EQP-05",
+      "source": "src/features/team-chat/Screens.tsx",
+      "entry": "app/internal-chat/[id].tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 1,
+        "Field": 1,
+        "Button": 11,
+        "Pressable": 2,
+        "modalCalls": 6,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "NUM-01",
+      "source": "src/features/personal/Chats.tsx",
+      "entry": "app/(tabs)/inbox.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 1,
+        "Field": 1,
+        "Button": 7,
+        "Pressable": 1,
+        "modalCalls": 5,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "NUM-02",
+      "source": "src/features/personal/Chats.tsx",
+      "entry": "app/personal-chat.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 1,
+        "Field": 1,
+        "Button": 7,
+        "Pressable": 1,
+        "modalCalls": 5,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "NUM-03",
+      "source": "src/features/personal/Chats.tsx",
+      "entry": "app/personal-chat.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 1,
+        "Field": 1,
+        "Button": 7,
+        "Pressable": 1,
+        "modalCalls": 5,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "NUM-04",
+      "source": "src/features/personal/Chats.tsx",
+      "entry": "app/(tabs)/inbox.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 1,
+        "Field": 1,
+        "Button": 7,
+        "Pressable": 1,
+        "modalCalls": 5,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "CRM-01",
+      "source": "src/features/crm/CrmView.tsx",
+      "entry": "app/(tabs)/crm.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 1,
+        "Field": 1,
+        "Button": 8,
+        "Pressable": 4,
+        "modalCalls": 0,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": true,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "CRM-02",
+      "source": "src/features/crm/CrmOverlay.tsx",
+      "entry": "app/(tabs)/crm.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 7,
+        "Button": 16,
+        "Pressable": 1,
+        "modalCalls": 0,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "CRM-03",
+      "source": "src/features/crm/CrmOverlay.tsx",
+      "entry": "app/(tabs)/crm.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 7,
+        "Button": 16,
+        "Pressable": 1,
+        "modalCalls": 0,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "CRM-04",
+      "source": "src/features/crm/CrmOverlay.tsx",
+      "entry": "app/(tabs)/crm.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 7,
+        "Button": 16,
+        "Pressable": 1,
+        "modalCalls": 0,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "CRM-05",
+      "source": "src/features/crm/CrmOverlay.tsx",
+      "entry": "app/(tabs)/crm.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 7,
+        "Button": 16,
+        "Pressable": 1,
+        "modalCalls": 0,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "CRM-06",
+      "source": "src/features/crm/CrmOverlay.tsx",
+      "entry": "app/(tabs)/crm.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 7,
+        "Button": 16,
+        "Pressable": 1,
+        "modalCalls": 0,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "CRM-08",
+      "source": "src/features/crm/CrmOverlay.tsx",
+      "entry": "app/(tabs)/crm.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 7,
+        "Button": 16,
+        "Pressable": 1,
+        "modalCalls": 0,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "CRM-09",
+      "source": "src/features/crm/CrmOverlay.tsx",
+      "entry": "app/(tabs)/crm.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 7,
+        "Button": 16,
+        "Pressable": 1,
+        "modalCalls": 0,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "CRM-07",
+      "source": "src/features/crm/CrmOverlay.tsx",
+      "entry": "app/(tabs)/crm.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 7,
+        "Button": 16,
+        "Pressable": 1,
+        "modalCalls": 0,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "CRM-07C",
+      "source": "src/features/crm/CrmOverlay.tsx",
+      "entry": "app/(tabs)/crm.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 7,
+        "Button": 16,
+        "Pressable": 1,
+        "modalCalls": 0,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "CRM-07D",
+      "source": "src/features/crm/CrmOverlay.tsx",
+      "entry": "app/(tabs)/crm.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 7,
+        "Button": 16,
+        "Pressable": 1,
+        "modalCalls": 0,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "CRM-10",
+      "source": "src/features/crm/CrmView.tsx",
+      "entry": "app/(tabs)/crm.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 1,
+        "Field": 1,
+        "Button": 8,
+        "Pressable": 4,
+        "modalCalls": 0,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "CRM-11",
+      "source": "src/features/crm/CrmOverlay.tsx",
+      "entry": "app/(tabs)/crm.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 7,
+        "Button": 16,
+        "Pressable": 1,
+        "modalCalls": 0,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "CRM-12",
+      "source": "src/features/crm/CrmOverlay.tsx",
+      "entry": "app/(tabs)/crm.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 7,
+        "Button": 16,
+        "Pressable": 1,
+        "modalCalls": 0,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "CRM-13",
+      "source": "src/features/crm/CrmOverlay.tsx",
+      "entry": "app/(tabs)/crm.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 7,
+        "Button": 16,
+        "Pressable": 1,
+        "modalCalls": 0,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "CRM-14",
+      "source": "src/features/crm/CrmOverlay.tsx",
+      "entry": "app/(tabs)/crm.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 7,
+        "Button": 16,
+        "Pressable": 1,
+        "modalCalls": 0,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "CRM-15",
+      "source": "src/features/crm/CrmOverlay.tsx",
+      "entry": "app/(tabs)/crm.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 7,
+        "Button": 16,
+        "Pressable": 1,
+        "modalCalls": 0,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "CRM-16",
+      "source": "src/features/crm/CrmOverlay.tsx",
+      "entry": "app/(tabs)/crm.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 7,
+        "Button": 16,
+        "Pressable": 1,
+        "modalCalls": 0,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "CRM-17",
+      "source": "src/features/crm/CrmOverlay.tsx",
+      "entry": "app/(tabs)/crm.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 7,
+        "Button": 16,
+        "Pressable": 1,
+        "modalCalls": 0,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "CRM-20",
+      "source": "src/features/agenda/AgendaScreen.tsx",
+      "entry": "app/agenda.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 1,
+        "Button": 6,
+        "Pressable": 5,
+        "modalCalls": 5,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "CRM-21",
+      "source": "src/features/agenda/AgendaScreen.tsx",
+      "entry": "app/agenda.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 1,
+        "Button": 6,
+        "Pressable": 5,
+        "modalCalls": 5,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "CRM-22",
+      "source": "src/features/agenda/AgendaScreen.tsx",
+      "entry": "app/agenda.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 1,
+        "Button": 6,
+        "Pressable": 5,
+        "modalCalls": 5,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "CRM-23",
+      "source": "src/features/agenda/AgendaScreen.tsx",
+      "entry": "app/agenda.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 1,
+        "Button": 6,
+        "Pressable": 5,
+        "modalCalls": 5,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "CRM-24",
+      "source": "src/features/agenda/AgendaScreen.tsx",
+      "entry": "app/agenda.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 1,
+        "Button": 6,
+        "Pressable": 5,
+        "modalCalls": 5,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "CRM-25",
+      "source": "src/features/agenda/AgendaScreen.tsx",
+      "entry": "app/agenda.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 1,
+        "Button": 6,
+        "Pressable": 5,
+        "modalCalls": 5,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "CRM-30",
+      "source": "src/features/work/WorkScreen.tsx",
+      "entry": "app/work.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 1,
+        "Field": 0,
+        "Button": 0,
+        "Pressable": 4,
+        "modalCalls": 2,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "CRM-31",
+      "source": "src/features/work/WorkScreen.tsx",
+      "entry": "app/work.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 1,
+        "Field": 0,
+        "Button": 0,
+        "Pressable": 4,
+        "modalCalls": 2,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "CRM-32",
+      "source": "src/features/work/WorkScreen.tsx",
+      "entry": "app/work.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 1,
+        "Field": 0,
+        "Button": 0,
+        "Pressable": 4,
+        "modalCalls": 2,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "CRM-33",
+      "source": "src/features/work/WorkScreen.tsx",
+      "entry": "app/work.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 1,
+        "Field": 0,
+        "Button": 0,
+        "Pressable": 4,
+        "modalCalls": 2,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "CRM-40",
+      "source": "src/features/library/LibraryView.tsx",
+      "entry": "app/(tabs)/crm.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 4,
+        "Button": 13,
+        "Pressable": 2,
+        "modalCalls": 6,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "CRM-41",
+      "source": "src/features/library/LibraryView.tsx",
+      "entry": "app/library/[id].tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 4,
+        "Button": 13,
+        "Pressable": 2,
+        "modalCalls": 6,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "CRM-42",
+      "source": "src/features/library/LibraryView.tsx",
+      "entry": "app/(tabs)/crm.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 4,
+        "Button": 13,
+        "Pressable": 2,
+        "modalCalls": 6,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "LAB-01",
+      "source": "src/features/studio/StudioScreen.tsx",
+      "entry": "app/(tabs)/studio.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 0,
+        "Button": 4,
+        "Pressable": 3,
+        "modalCalls": 2,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "LAB-02",
+      "source": "src/features/studio/AgentScreens.tsx",
+      "entry": "app/(tabs)/studio.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 5,
+        "Button": 5,
+        "Pressable": 1,
+        "modalCalls": 2,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "LAB-03",
+      "source": "src/features/studio/AgentScreens.tsx",
+      "entry": "app/(tabs)/studio.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 5,
+        "Button": 5,
+        "Pressable": 1,
+        "modalCalls": 2,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "LAB-04",
+      "source": "src/features/studio/AgentScreens.tsx",
+      "entry": "app/(tabs)/studio.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 5,
+        "Button": 5,
+        "Pressable": 1,
+        "modalCalls": 2,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "LAB-05",
+      "source": "src/features/studio/overlays.tsx",
+      "entry": "app/(tabs)/studio.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 1,
+        "Button": 12,
+        "Pressable": 1,
+        "modalCalls": 7,
+        "scrollWrapper": false
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "LAB-06",
+      "source": "src/features/studio/overlays.tsx",
+      "entry": "app/(tabs)/studio.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 1,
+        "Button": 12,
+        "Pressable": 1,
+        "modalCalls": 7,
+        "scrollWrapper": false
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "LAB-06C",
+      "source": "src/features/studio/overlays.tsx",
+      "entry": "app/(tabs)/studio.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 1,
+        "Button": 12,
+        "Pressable": 1,
+        "modalCalls": 7,
+        "scrollWrapper": false
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "LAB-07",
+      "source": "src/features/studio/overlays.tsx",
+      "entry": "app/(tabs)/studio.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 1,
+        "Button": 12,
+        "Pressable": 1,
+        "modalCalls": 7,
+        "scrollWrapper": false
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "LAB-08",
+      "source": "src/features/studio/overlays.tsx",
+      "entry": "app/(tabs)/studio.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 1,
+        "Button": 12,
+        "Pressable": 1,
+        "modalCalls": 7,
+        "scrollWrapper": false
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "LAB-09",
+      "source": "src/features/studio/overlays.tsx",
+      "entry": "app/(tabs)/studio.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 1,
+        "Button": 12,
+        "Pressable": 1,
+        "modalCalls": 7,
+        "scrollWrapper": false
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "LAB-09A",
+      "source": "src/features/studio/overlays.tsx",
+      "entry": "app/(tabs)/studio.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 1,
+        "Button": 12,
+        "Pressable": 1,
+        "modalCalls": 7,
+        "scrollWrapper": false
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "LAB-10",
+      "source": "src/features/knowledge/KnowledgeScreen.tsx",
+      "entry": "app/(tabs)/studio.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 1,
+        "Button": 13,
+        "Pressable": 3,
+        "modalCalls": 3,
+        "scrollWrapper": false
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "LAB-11",
+      "source": "src/features/knowledge/KnowledgeScreen.tsx",
+      "entry": "app/(tabs)/studio.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 1,
+        "Button": 13,
+        "Pressable": 3,
+        "modalCalls": 3,
+        "scrollWrapper": false
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "LAB-12",
+      "source": "src/features/knowledge/KnowledgeScreen.tsx",
+      "entry": "app/(tabs)/studio.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 1,
+        "Button": 13,
+        "Pressable": 3,
+        "modalCalls": 3,
+        "scrollWrapper": false
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "LAB-20",
+      "source": "src/features/studio/Assignments.tsx",
+      "entry": "app/(tabs)/studio.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 0,
+        "Button": 2,
+        "Pressable": 1,
+        "modalCalls": 1,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "LAB-21",
+      "source": "src/features/studio/Assignments.tsx",
+      "entry": "app/(tabs)/studio.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 0,
+        "Button": 2,
+        "Pressable": 1,
+        "modalCalls": 1,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "LAB-30",
+      "source": "src/features/studio/Evaluations.tsx",
+      "entry": "app/(tabs)/studio.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 0,
+        "Button": 4,
+        "Pressable": 1,
+        "modalCalls": 1,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "LAB-31",
+      "source": "src/features/studio/Evaluations.tsx",
+      "entry": "app/studio-evaluation/[id].tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 0,
+        "Button": 4,
+        "Pressable": 1,
+        "modalCalls": 1,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "MKT-01",
+      "source": "src/features/marketing/Screens.tsx",
+      "entry": "app/(tabs)/marketing.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 10,
+        "Button": 22,
+        "Pressable": 1,
+        "modalCalls": 5,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "MKT-02",
+      "source": "src/features/marketing/Screens.tsx",
+      "entry": "app/(tabs)/marketing.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 10,
+        "Button": 22,
+        "Pressable": 1,
+        "modalCalls": 5,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "MKT-03",
+      "source": "src/features/marketing/Screens.tsx",
+      "entry": "app/(tabs)/marketing.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 10,
+        "Button": 22,
+        "Pressable": 1,
+        "modalCalls": 5,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "MKT-04",
+      "source": "src/features/marketing/Screens.tsx",
+      "entry": "app/(tabs)/marketing.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 10,
+        "Button": 22,
+        "Pressable": 1,
+        "modalCalls": 5,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "MKT-05",
+      "source": "src/features/marketing/Screens.tsx",
+      "entry": "app/(tabs)/marketing.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 10,
+        "Button": 22,
+        "Pressable": 1,
+        "modalCalls": 5,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "MKT-06",
+      "source": "src/features/marketing/Screens.tsx",
+      "entry": "app/(tabs)/marketing.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 10,
+        "Button": 22,
+        "Pressable": 1,
+        "modalCalls": 5,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "MKT-31",
+      "source": "src/features/marketing/Screens.tsx",
+      "entry": "app/(tabs)/marketing.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 10,
+        "Button": 22,
+        "Pressable": 1,
+        "modalCalls": 5,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "MKT-10",
+      "source": "src/features/marketing/Screens.tsx",
+      "entry": "app/(tabs)/marketing.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 10,
+        "Button": 22,
+        "Pressable": 1,
+        "modalCalls": 5,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "MKT-11",
+      "source": "src/features/marketing/Screens.tsx",
+      "entry": "app/(tabs)/marketing.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 10,
+        "Button": 22,
+        "Pressable": 1,
+        "modalCalls": 5,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "MKT-12",
+      "source": "src/features/marketing/Screens.tsx",
+      "entry": "app/(tabs)/marketing.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 10,
+        "Button": 22,
+        "Pressable": 1,
+        "modalCalls": 5,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "MKT-20",
+      "source": "src/features/templates/Screens.tsx",
+      "entry": "app/(tabs)/marketing.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 5,
+        "Button": 4,
+        "Pressable": 1,
+        "modalCalls": 0,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "MKT-21",
+      "source": "src/features/templates/Screens.tsx",
+      "entry": "app/(tabs)/marketing.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 5,
+        "Button": 4,
+        "Pressable": 1,
+        "modalCalls": 0,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "MKT-22",
+      "source": "src/features/templates/Screens.tsx",
+      "entry": "app/(tabs)/marketing.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 5,
+        "Button": 4,
+        "Pressable": 1,
+        "modalCalls": 0,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "MKT-30",
+      "source": "src/features/marketing/Screens.tsx",
+      "entry": "app/(tabs)/marketing.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 10,
+        "Button": 22,
+        "Pressable": 1,
+        "modalCalls": 5,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "MORE-01",
+      "source": "src/features/more/Screens.tsx",
+      "entry": "app/(tabs)/more.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 0,
+        "Button": 2,
+        "Pressable": 0,
+        "modalCalls": 2,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "MORE-08",
+      "source": "src/features/more/Screens.tsx",
+      "entry": "app/(tabs)/more.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 0,
+        "Button": 2,
+        "Pressable": 0,
+        "modalCalls": 2,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "MORE-05",
+      "source": "src/features/notices/NoticeScreens.tsx",
+      "entry": "app/(tabs)/more.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 0,
+        "Button": 0,
+        "Pressable": 1,
+        "modalCalls": 0,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "RES-01",
+      "source": "src/features/results/ResultsScreen.tsx",
+      "entry": "app/results.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 2,
+        "Button": 1,
+        "Pressable": 1,
+        "modalCalls": 1,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "RES-02",
+      "source": "src/features/results/ResultsScreen.tsx",
+      "entry": "app/results.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 2,
+        "Button": 1,
+        "Pressable": 1,
+        "modalCalls": 1,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "AST-01",
+      "source": "src/features/studio/AssistantScreen.tsx",
+      "entry": "app/assistant.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 0,
+        "Button": 4,
+        "Pressable": 1,
+        "modalCalls": 2,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "AST-02",
+      "source": "src/features/studio/AssistantScreen.tsx",
+      "entry": "app/assistant.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 0,
+        "Button": 4,
+        "Pressable": 1,
+        "modalCalls": 2,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "AST-03",
+      "source": "src/features/studio/AssistantScreen.tsx",
+      "entry": "app/assistant.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 0,
+        "Button": 4,
+        "Pressable": 1,
+        "modalCalls": 2,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "AST-04",
+      "source": "src/features/studio/AssistantScreen.tsx",
+      "entry": "app/assistant.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 0,
+        "Button": 4,
+        "Pressable": 1,
+        "modalCalls": 2,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "MORE-06",
+      "source": "src/features/usage/UsageScreens.tsx",
+      "entry": "app/usage.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 0,
+        "Button": 11,
+        "Pressable": 0,
+        "modalCalls": 2,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "MORE-07",
+      "source": "src/features/usage/UsageScreens.tsx",
+      "entry": "app/usage.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 0,
+        "Button": 11,
+        "Pressable": 0,
+        "modalCalls": 2,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "MORE-09",
+      "source": "src/features/usage/UsageScreens.tsx",
+      "entry": "app/usage.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 0,
+        "Button": 11,
+        "Pressable": 0,
+        "modalCalls": 2,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "MORE-10",
+      "source": "src/features/usage/UsageScreens.tsx",
+      "entry": "app/usage.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 0,
+        "Button": 11,
+        "Pressable": 0,
+        "modalCalls": 2,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "SET-01",
+      "source": "src/features/more/Screens.tsx",
+      "entry": "app/settings.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 0,
+        "Button": 2,
+        "Pressable": 0,
+        "modalCalls": 2,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "SET-02",
+      "source": "src/features/channels/Screens.tsx",
+      "entry": "app/channel-settings.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 2,
+        "Button": 14,
+        "Pressable": 0,
+        "modalCalls": 7,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "SET-02A",
+      "source": "src/features/channels/Screens.tsx",
+      "entry": "app/channel-settings.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 2,
+        "Button": 14,
+        "Pressable": 0,
+        "modalCalls": 7,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "SET-02B",
+      "source": "src/features/channels/Screens.tsx",
+      "entry": "app/channel-settings.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 2,
+        "Button": 14,
+        "Pressable": 0,
+        "modalCalls": 7,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "SET-02C",
+      "source": "src/features/channels/Screens.tsx",
+      "entry": "app/channel-settings.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 2,
+        "Button": 14,
+        "Pressable": 0,
+        "modalCalls": 7,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "SET-03",
+      "source": "src/features/team/TeamScreen.tsx",
+      "entry": "app/team.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 2,
+        "Button": 12,
+        "Pressable": 1,
+        "modalCalls": 4,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "SET-03A",
+      "source": "src/features/team/TeamScreen.tsx",
+      "entry": "app/team.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 2,
+        "Button": 12,
+        "Pressable": 1,
+        "modalCalls": 4,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "SET-03B",
+      "source": "src/features/team/TeamScreen.tsx",
+      "entry": "app/team.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 2,
+        "Button": 12,
+        "Pressable": 1,
+        "modalCalls": 4,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "SET-04",
+      "source": "src/features/channels/Screens.tsx",
+      "entry": "app/ads-settings.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 2,
+        "Button": 14,
+        "Pressable": 0,
+        "modalCalls": 7,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "SET-05",
+      "source": "src/features/catalog/CatalogScreens.tsx",
+      "entry": "app/tags.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 2,
+        "Button": 9,
+        "Pressable": 3,
+        "modalCalls": 7,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "SET-05A",
+      "source": "src/features/catalog/CatalogScreens.tsx",
+      "entry": "app/tags.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 2,
+        "Button": 9,
+        "Pressable": 3,
+        "modalCalls": 7,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "SET-06",
+      "source": "src/features/quick/QuickScreen.tsx",
+      "entry": "app/quick-replies.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 2,
+        "Button": 3,
+        "Pressable": 1,
+        "modalCalls": 1,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "SET-06A",
+      "source": "src/features/quick/QuickScreen.tsx",
+      "entry": "app/quick-replies.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 2,
+        "Button": 3,
+        "Pressable": 1,
+        "modalCalls": 1,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "SET-07",
+      "source": "src/features/catalog/CatalogScreens.tsx",
+      "entry": "app/loss-reasons.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 2,
+        "Button": 9,
+        "Pressable": 3,
+        "modalCalls": 7,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "SET-08",
+      "source": "src/features/calendar-settings/CalendarSettingsScreen.tsx",
+      "entry": "app/calendar-settings.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 0,
+        "Button": 2,
+        "Pressable": 1,
+        "modalCalls": 1,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "SET-09",
+      "source": "src/features/team-chat/Screens.tsx",
+      "entry": "app/internal-settings.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 1,
+        "Field": 1,
+        "Button": 11,
+        "Pressable": 2,
+        "modalCalls": 6,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "SET-10",
+      "source": "src/features/optout/Screen.tsx",
+      "entry": "app/optout.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 2,
+        "Button": 10,
+        "Pressable": 0,
+        "modalCalls": 4,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "SET-11",
+      "source": "src/features/ai-connector/Screens.tsx",
+      "entry": "app/my-ai.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 3,
+        "Button": 10,
+        "Pressable": 0,
+        "modalCalls": 4,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "SET-11A",
+      "source": "src/features/ai-connector/Screens.tsx",
+      "entry": "app/my-ai.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 3,
+        "Button": 10,
+        "Pressable": 0,
+        "modalCalls": 4,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "SET-12",
+      "source": "src/features/ai-connector/Screens.tsx",
+      "entry": "app/ai-connector-settings.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 3,
+        "Button": 10,
+        "Pressable": 0,
+        "modalCalls": 4,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "SET-13",
+      "source": "src/features/personal/Settings.tsx",
+      "entry": "app/personal-settings.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 0,
+        "Button": 3,
+        "Pressable": 0,
+        "modalCalls": 2,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "SET-13A",
+      "source": "src/features/personal/Settings.tsx",
+      "entry": "app/personal-settings.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 0,
+        "Button": 3,
+        "Pressable": 0,
+        "modalCalls": 2,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "SET-14",
+      "source": "src/features/notices/NoticeScreens.tsx",
+      "entry": "app/notification-settings.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 0,
+        "Button": 0,
+        "Pressable": 1,
+        "modalCalls": 0,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "SET-15",
+      "source": "src/features/personalization/Screens.tsx",
+      "entry": "app/appearance.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 1,
+        "Button": 4,
+        "Pressable": 2,
+        "modalCalls": 2,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "SET-16",
+      "source": "src/features/personalization/Screens.tsx",
+      "entry": "app/brand.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 1,
+        "Button": 4,
+        "Pressable": 2,
+        "modalCalls": 2,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "SET-17",
+      "source": "src/features/personalization/Screens.tsx",
+      "entry": "app/navigation-settings.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 1,
+        "Button": 4,
+        "Pressable": 2,
+        "modalCalls": 2,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "PLT-01",
+      "source": "src/features/platform/Screens.tsx",
+      "entry": "app/platform-panel.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 0,
+        "Button": 1,
+        "Pressable": 0,
+        "modalCalls": 0,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "PLT-02",
+      "source": "src/features/platform/Screens.tsx",
+      "entry": "app/platform-organizations.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 0,
+        "Button": 1,
+        "Pressable": 0,
+        "modalCalls": 0,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "PLT-03",
+      "source": "src/features/platform/Screens.tsx",
+      "entry": "app/platform-detail.tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 0,
+        "Button": 1,
+        "Pressable": 0,
+        "modalCalls": 0,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "DS-01",
+      "source": "app/design/[id].tsx",
+      "entry": "app/design/[id].tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 2,
+        "Button": 14,
+        "Pressable": 0,
+        "modalCalls": 6,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "DS-02",
+      "source": "app/design/[id].tsx",
+      "entry": "app/design/[id].tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 2,
+        "Button": 14,
+        "Pressable": 0,
+        "modalCalls": 6,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "DS-03",
+      "source": "app/design/[id].tsx",
+      "entry": "app/design/[id].tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 2,
+        "Button": 14,
+        "Pressable": 0,
+        "modalCalls": 6,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "DS-04",
+      "source": "app/design/[id].tsx",
+      "entry": "app/design/[id].tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 2,
+        "Button": 14,
+        "Pressable": 0,
+        "modalCalls": 6,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "DS-05",
+      "source": "app/design/[id].tsx",
+      "entry": "app/design/[id].tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 2,
+        "Button": 14,
+        "Pressable": 0,
+        "modalCalls": 6,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    },
+    {
+      "ID": "DS-06",
+      "source": "app/design/[id].tsx",
+      "entry": "app/design/[id].tsx",
+      "sourceMapped": true,
+      "keyboardHost": "Screen/LayerProvider common native window policy",
+      "controls": {
+        "TextInput": 0,
+        "Field": 2,
+        "Button": 14,
+        "Pressable": 0,
+        "modalCalls": 6,
+        "scrollWrapper": true
+      },
+      "manualNativeAudit": "PENDING",
+      "visualProposal": false,
+      "note": "Counts are module-level clues; shared source files repeat across IDs. Not proof that each ID passed an independent device audit."
+    }
+  ]
+}

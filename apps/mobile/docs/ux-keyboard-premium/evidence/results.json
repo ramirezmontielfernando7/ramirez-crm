@@ -1,0 +1,9 @@
+{
+  "checks": 22,
+  "errors": [],
+  "requests": 0,
+  "captures": 24,
+  "proposalOnly": true,
+  "nativeIMEValidated": false,
+  "keyboardEvidence": "Native overlap unit tests and RN Web form/modal/layout regressions only; must validate Android16 IME on a new APK."
+}
