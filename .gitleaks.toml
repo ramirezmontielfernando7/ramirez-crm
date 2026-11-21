@@ -24,3 +24,9 @@ description = "Prosa de una guía de la app móvil («configuración no secreto,
 condition = "AND"
 paths = ['''^apps/mobile/docs/integration-i2p/ENTORNO-Y-ACTIVACION\.md$''']
 rules = ["generic-api-key"]
+
+[[allowlists]]
+description = "Lista de archivos con su huella (ruta: hash) en una evidencia de la app móvil: falso positivo, no son llaves. Aprobado por Fer 2026-11-21."
+condition = "AND"
+paths = ['''^apps/mobile/docs/refinement-b/evidence/disk-recovery\.json$''']
+rules = ["generic-api-key"]
