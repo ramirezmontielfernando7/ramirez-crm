@@ -1,0 +1,177 @@
+{
+  "baseline": "cd13180bd1521a6e39c9e93c21d8161b0918cb9b",
+  "checks": [
+    "inbox/light/390: título B intacto",
+    "inbox/light/390: barra original, radio +2",
+    "selector/light/390/team: mismas tres posiciones, mismo nodo e indicador alineado",
+    "selector/light/390/number: mismas tres posiciones, mismo nodo e indicador alineado",
+    "selector/light/390/clients: mismas tres posiciones, mismo nodo e indicador alineado",
+    "chat/light/390: título B intacto",
+    "crm/light/390: título B intacto",
+    "crm/light/390: barra original, radio +2",
+    "CRM/light/390: cápsula conserva geometría original",
+    "inbox/dark/390: título B intacto",
+    "inbox/dark/390: barra original, radio +2",
+    "selector/dark/390/team: mismas tres posiciones, mismo nodo e indicador alineado",
+    "selector/dark/390/number: mismas tres posiciones, mismo nodo e indicador alineado",
+    "selector/dark/390/clients: mismas tres posiciones, mismo nodo e indicador alineado",
+    "chat/dark/390: título B intacto",
+    "crm/dark/390: título B intacto",
+    "crm/dark/390: barra original, radio +2",
+    "CRM/dark/390: cápsula conserva geometría original",
+    "inbox/light/360: título B intacto",
+    "inbox/light/360: barra original, radio +2",
+    "selector/light/360/team: mismas tres posiciones, mismo nodo e indicador alineado",
+    "selector/light/360/number: mismas tres posiciones, mismo nodo e indicador alineado",
+    "selector/light/360/clients: mismas tres posiciones, mismo nodo e indicador alineado",
+    "chat/light/360: título B intacto",
+    "crm/light/360: título B intacto",
+    "crm/light/360: barra original, radio +2",
+    "CRM/light/360: cápsula conserva geometría original",
+    "inbox/dark/360: título B intacto",
+    "inbox/dark/360: barra original, radio +2",
+    "selector/dark/360/team: mismas tres posiciones, mismo nodo e indicador alineado",
+    "selector/dark/360/number: mismas tres posiciones, mismo nodo e indicador alineado",
+    "selector/dark/360/clients: mismas tres posiciones, mismo nodo e indicador alineado",
+    "chat/dark/360: título B intacto",
+    "crm/dark/360: título B intacto",
+    "crm/dark/360: barra original, radio +2",
+    "CRM/dark/360: cápsula conserva geometría original",
+    "Panel inactivo fuera del árbol accesible",
+    "Búsqueda de Equipo conservada sin remontar",
+    "Scroll virtual conservado entre áreas",
+    "Filtro Clientes conservado entre áreas",
+    "Entrada y regreso del chat conservan ancla y filtro",
+    "Cambios rápidos cancelan el indicador anterior sin aperturas repetidas",
+    "Preferencia reducir movimiento mantiene selección y geometría",
+    "Formulario conserva texto al reducir viewport",
+    "Modal real no pierde borrador del formulario"
+  ],
+  "geometry": [
+    {
+      "width": 390,
+      "theme": "light",
+      "track": {
+        "x": 16,
+        "y": 60,
+        "width": 358,
+        "height": 52
+      },
+      "cells": [
+        {
+          "x": 18,
+          "y": 62,
+          "width": 118,
+          "height": 48
+        },
+        {
+          "x": 136,
+          "y": 62,
+          "width": 118,
+          "height": 48
+        },
+        {
+          "x": 254,
+          "y": 62,
+          "width": 118,
+          "height": 48
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "theme": "dark",
+      "track": {
+        "x": 16,
+        "y": 60,
+        "width": 358,
+        "height": 52
+      },
+      "cells": [
+        {
+          "x": 18,
+          "y": 62,
+          "width": 118,
+          "height": 48
+        },
+        {
+          "x": 136,
+          "y": 62,
+          "width": 118,
+          "height": 48
+        },
+        {
+          "x": 254,
+          "y": 62,
+          "width": 118,
+          "height": 48
+        }
+      ]
+    },
+    {
+      "width": 360,
+      "theme": "light",
+      "track": {
+        "x": 16,
+        "y": 60,
+        "width": 328,
+        "height": 52
+      },
+      "cells": [
+        {
+          "x": 18,
+          "y": 62,
+          "width": 108,
+          "height": 48
+        },
+        {
+          "x": 126,
+          "y": 62,
+          "width": 108,
+          "height": 48
+        },
+        {
+          "x": 234,
+          "y": 62,
+          "width": 108,
+          "height": 48
+        }
+      ]
+    },
+    {
+      "width": 360,
+      "theme": "dark",
+      "track": {
+        "x": 16,
+        "y": 60,
+        "width": 328,
+        "height": 52
+      },
+      "cells": [
+        {
+          "x": 18,
+          "y": 62,
+          "width": 108,
+          "height": 48
+        },
+        {
+          "x": 126,
+          "y": 62,
+          "width": 108,
+          "height": 48
+        },
+        {
+          "x": 234,
+          "y": 62,
+          "width": 108,
+          "height": 48
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "networkRequests": 0,
+  "captures": 32,
+  "nativeIMEValidated": false,
+  "P1": false
+}

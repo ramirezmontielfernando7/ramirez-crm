@@ -1,0 +1,11 @@
+{
+  "yamlValid": true,
+  "inactiveDocOnly": true,
+  "exactBranchAndPath": true,
+  "sourcePinned": "3bb90d690eaeb51af540eed8115c6b47b718c4b4",
+  "contentsReadOnly": true,
+  "standardRunner": "ubuntu-24.04",
+  "jdk": "17.0.21+9",
+  "remoteExecution": false,
+  "secretReferences": false
+}

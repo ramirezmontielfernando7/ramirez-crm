@@ -1,0 +1,20 @@
+{
+  "typecheck": {
+    "passed": true
+  },
+  "format": {
+    "passed": true
+  },
+  "logic": {
+    "passed": 610,
+    "failed": 0
+  },
+  "nativeIMEValidated": false,
+  "androidAPKGenerated": false,
+  "dependenciesChanged": false,
+  "inventory": {
+    "simulatedIDs": 158,
+    "changesToInventory": false
+  },
+  "networkServicesActivated": false
+}

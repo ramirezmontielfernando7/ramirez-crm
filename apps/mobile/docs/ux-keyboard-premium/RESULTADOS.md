@@ -1,3 +1,5 @@
+> P1 CANCELADO por decisión posterior del propietario. Documento histórico: no aplicar ni usar como propuesta vigente. Ver [Original corregido](../original-corregido/RESULTADOS.md).
+
 # Teclado y propuesta visual P1: pendiente de aprobación visual y validación nativa
 
 Base exacta de la APK probada: cd13180bd1521a6e39c9e93c21d8161b0918cb9b. Rama local nueva codex/dashfort-mobile-ux-keyboard-20261120. Fuente y lógica anteriores conservadas. La autorización nueva permite corregir el teclado y explorar P1; no sustituye masivamente B ni autoriza push/Actions/otra compilación remota.

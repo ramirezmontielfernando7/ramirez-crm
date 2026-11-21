@@ -1,0 +1,162 @@
+{
+  "method": "Exact RGB pixel comparison of RN Web captures, no images edited",
+  "limitation": "Not a native performance or IME test; content/antialiasing may differ",
+  "pairs": [
+    {
+      "pair": "chat-dark-360",
+      "pixelsChanged": 0,
+      "percentChanged": 0.0,
+      "bounds": null
+    },
+    {
+      "pair": "chat-dark-390",
+      "pixelsChanged": 0,
+      "percentChanged": 0.0,
+      "bounds": null
+    },
+    {
+      "pair": "chat-light-360",
+      "pixelsChanged": 0,
+      "percentChanged": 0.0,
+      "bounds": null
+    },
+    {
+      "pair": "chat-light-390",
+      "pixelsChanged": 0,
+      "percentChanged": 0.0,
+      "bounds": null
+    },
+    {
+      "pair": "crm-dark-360",
+      "pixelsChanged": 775,
+      "percentChanged": 0.3364,
+      "bounds": [
+        0,
+        558,
+        360,
+        640
+      ]
+    },
+    {
+      "pair": "crm-dark-390",
+      "pixelsChanged": 787,
+      "percentChanged": 0.2391,
+      "bounds": [
+        0,
+        754,
+        390,
+        844
+      ]
+    },
+    {
+      "pair": "crm-light-360",
+      "pixelsChanged": 1290,
+      "percentChanged": 0.5599,
+      "bounds": [
+        0,
+        558,
+        360,
+        640
+      ]
+    },
+    {
+      "pair": "crm-light-390",
+      "pixelsChanged": 1278,
+      "percentChanged": 0.3883,
+      "bounds": [
+        0,
+        754,
+        390,
+        844
+      ]
+    },
+    {
+      "pair": "inbox-dark-360",
+      "pixelsChanged": 4004,
+      "percentChanged": 1.7378,
+      "bounds": [
+        0,
+        228,
+        360,
+        640
+      ]
+    },
+    {
+      "pair": "inbox-dark-390",
+      "pixelsChanged": 6509,
+      "percentChanged": 1.9775,
+      "bounds": [
+        0,
+        228,
+        390,
+        844
+      ]
+    },
+    {
+      "pair": "inbox-light-360",
+      "pixelsChanged": 4486,
+      "percentChanged": 1.947,
+      "bounds": [
+        0,
+        228,
+        360,
+        640
+      ]
+    },
+    {
+      "pair": "inbox-light-390",
+      "pixelsChanged": 6961,
+      "percentChanged": 2.1148,
+      "bounds": [
+        0,
+        228,
+        390,
+        844
+      ]
+    },
+    {
+      "pair": "number-dark-390",
+      "pixelsChanged": 28715,
+      "percentChanged": 8.7237,
+      "bounds": [
+        0,
+        60,
+        390,
+        844
+      ]
+    },
+    {
+      "pair": "number-light-390",
+      "pixelsChanged": 29138,
+      "percentChanged": 8.8522,
+      "bounds": [
+        0,
+        60,
+        390,
+        844
+      ]
+    },
+    {
+      "pair": "team-dark-390",
+      "pixelsChanged": 31254,
+      "percentChanged": 9.4951,
+      "bounds": [
+        0,
+        60,
+        390,
+        844
+      ]
+    },
+    {
+      "pair": "team-light-390",
+      "pixelsChanged": 31633,
+      "percentChanged": 9.6102,
+      "bounds": [
+        0,
+        60,
+        390,
+        844
+      ]
+    }
+  ]
+}

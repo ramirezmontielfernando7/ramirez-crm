@@ -1,0 +1,1 @@
+{"total": 158, "implemented": 158, "pending": [], "definitionSetMatches": true, "scope": "Design IDs include states, sheets and dialogs, not 158 independent routes. This verifier checks traceability, not runtime completeness. Prior 150 accepted at 9e50c40; final 8 executed in this lot.", "sourceInventorySha256": "4e807d3c4d54325f8f184d01615eff5c339576d2a1e038b747730c2c485cdd45"}

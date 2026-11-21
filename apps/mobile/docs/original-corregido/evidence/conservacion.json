@@ -1,0 +1,12 @@
+{
+  "protectedCount": 26,
+  "missing": 0,
+  "changed": 0,
+  "apk013Sha256": "8300ec39e769ca33b5af4e933d30131f0aa7ec7a1aa9370b67445d437ac90813",
+  "apk013Intact": true,
+  "backendHead": "562a8b386b7f0d0df9292406167357aa988fd4d0",
+  "backendClean": true,
+  "productionOperationsExecuted": false,
+  "externalOperationsExecuted": false,
+  "gradleExecuted": false
+}

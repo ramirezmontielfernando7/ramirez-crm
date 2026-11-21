@@ -1,0 +1,20 @@
+{
+  "actualCaptures": 28,
+  "references": 14,
+  "checks": [
+    "Six EQP IDs and SET-09 both themes/sizes",
+    "Empty/error retry/offline states",
+    "Earlier history remains visible when another message arrives",
+    "Delegation, announcements, save failure and revocation via SET-09",
+    "Bandeja selector and internal routes",
+    "Direct save failure, retry and no duplicates",
+    "Attachment preview",
+    "Create group, leave confirmation/cancel",
+    "Advisor announcements read-only",
+    "Explicit supervision, audited access, read-only view and revocation",
+    "Draft restoration and customer mention masked for unauthorized reader"
+  ],
+  "errors": [],
+  "networkRequests": 0,
+  "native": false
+}

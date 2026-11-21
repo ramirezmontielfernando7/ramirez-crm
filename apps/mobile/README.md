@@ -1,3 +1,7 @@
+# Diseño B original corregido · P1 cancelado
+
+Solo correcciones autorizadas de selector fijo, teclado, transiciones discretas, radio exterior22→24 y simetría mínima. Sin rediseño ni cambios de lógica/datos. Ver [comparador](docs/original-corregido/COMPARADOR.html) y [resultados](docs/original-corregido/RESULTADOS.md). Candidato0.1.4/versionCode5, todavía sin APK nueva; requiere autorización para otro run remoto y validación en Motorola. Los checkpoints siguientes son históricos.
+
 # Checkpoint B · Agenda y Biblioteca
 
 B original preservada; Agenda CRM-20…25 y editor de Biblioteca con navegación interna verificados. 70/158 IDs implementados, 88 pendientes. 235 pruebas de lógica aprobadas. APK pendiente por margen de disco insuficiente; sin servicios reales ni cambios de backend. Ver [lote 02](docs/refinement-b/LOTE-02-AGENDA.md). Próximo lote autónomo: Tareas/Notas CRM-30…33, unificando tareas vinculadas con T-M4. Informes siguientes históricos.
