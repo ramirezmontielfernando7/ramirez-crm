@@ -469,7 +469,7 @@ function OfficialNumberCard({
               }}
               onBlur={() => void saveName()}
             />
-            {many && (
+            {(many || down) && (
               <Button size="sm" variant="outline" onClick={() => void remove()} data-testid="numero-quitar">
                 Quitar
               </Button>
@@ -511,7 +511,7 @@ function OfficialNumberCard({
         {down && (
           <p className="text-sm text-danger-text" data-testid="numero-desconectado-ayuda">
             Meta ya no tiene este número en tu cuenta de WhatsApp Business. No se puede enviar ni recibir por aquí.
-            Vuelve a conectarlo con «Conectar otro número» y después quita esta tarjeta con «Quitar».
+            Conéctalo de nuevo con «Conectar otro número» y quita esta tarjeta con «Quitar».
           </p>
         )}
         {summary?.alerts.map((a) => (

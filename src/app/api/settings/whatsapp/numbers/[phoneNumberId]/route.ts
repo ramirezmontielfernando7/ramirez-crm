@@ -3,6 +3,7 @@ import { TAG_COLORS } from "@/lib/tags";
 import { apiError, parseBody, withAuth } from "@/lib/api";
 import { removeNumber, setNumberLabel } from "@/server/whatsapp/credentials";
 import { listWhatsAppNumbers } from "@/server/credentials";
+import { getHealthSummary } from "@/server/whatsapp/health";
 
 export const dynamic = "force-dynamic";
 
@@ -30,7 +31,9 @@ export const PATCH = withAuth(async (session, req: Request, ctx: Ctx) => {
 
 /**
  * 0080 — Desconecta un número. Sus chats pasan al número principal. El
- * último número no se quita desde aquí: sin número no se puede contestar.
+ * último número no se quita desde aquí: sin número no se puede contestar…
+ * salvo que Meta ya lo reporte caído (DISCONNECTED…): entonces no sirve para
+ * enviar y dejarlo solo estorba para conectar el nuevo.
  */
 export const DELETE = withAuth(async (session, _req: Request, ctx: Ctx) => {
   const { phoneNumberId } = await ctx.params;
@@ -39,6 +42,12 @@ export const DELETE = withAuth(async (session, _req: Request, ctx: Ctx) => {
     return apiError(404, "not_found", "Ese número no está conectado");
   }
   if (all.length <= 1) {
+    const h = await getHealthSummary(session.organizationId, phoneNumberId);
+    const status = h.today?.status?.toUpperCase() ?? null;
+    if (status && status !== "CONNECTED") {
+      await removeNumber(session.organizationId, phoneNumberId);
+      return Response.json({ ok: true });
+    }
     return apiError(409, "last_number", "Es tu único número: conecta otro antes de quitar este");
   }
   await removeNumber(session.organizationId, phoneNumberId);
