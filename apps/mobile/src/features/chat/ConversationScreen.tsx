@@ -1,3 +1,4 @@
+import { KeyboardScrollView as ScrollView } from "../keyboard/KeyboardScrollView";
 import { useQuick } from "../quick/state";
 import React, {
   useCallback,
@@ -6,7 +7,7 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { AppState, Pressable, ScrollView, TextInput, View } from "react-native";
+import { AppState, Pressable, TextInput, View } from "react-native";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { FlashList, type FlashListRef } from "@shopify/flash-list";
 import {

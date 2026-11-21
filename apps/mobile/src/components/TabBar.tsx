@@ -1,3 +1,4 @@
+import { useKeyboardFrame } from "../features/keyboard/state";
 import { useOptionalPersonalization } from "../features/personalization/state";
 import { useInboxUnread, useOptionalInbox } from "../features/inbox/store";
 import { Pressable, View, useWindowDimensions } from "react-native";
@@ -30,6 +31,7 @@ const icons: Record<Module, LucideIcon> = {
   more: Menu,
 };
 export function TabBar({ state, emitter, navigateToTab }: BottomTabBarProps) {
+  const keyboard = useKeyboardFrame();
   const personalization = useOptionalPersonalization();
   const unread = useInboxUnread();
   const inbox = useOptionalInbox();
@@ -37,7 +39,7 @@ export function TabBar({ state, emitter, navigateToTab }: BottomTabBarProps) {
   const { colors: c } = useTheme();
   const insets = useSafeAreaInsets();
   const { height } = useWindowDimensions();
-  if (!session) return null;
+  if (!session || keyboard.visible) return null;
   const allowed =
     personalization?.navigation(session.role, disabled) ??
     visibleModules(session.role, disabled);

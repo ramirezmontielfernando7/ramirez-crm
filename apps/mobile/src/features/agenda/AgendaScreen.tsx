@@ -1,3 +1,4 @@
+import { KeyboardScrollView as ScrollView } from "../keyboard/KeyboardScrollView";
 import React, {
   useEffect,
   useMemo,
@@ -7,13 +8,7 @@ import React, {
   useRef,
   useCallback,
 } from "react";
-import {
-  BackHandler,
-  FlatList,
-  Pressable,
-  ScrollView,
-  View,
-} from "react-native";
+import { BackHandler, FlatList, Pressable, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { agendaFor } from "./state";
 import { CalendarDays, Lock, MoreVertical, Plus } from "lucide-react-native";

@@ -1,13 +1,8 @@
+import { KeyboardScrollView as ScrollView } from "../keyboard/KeyboardScrollView";
 import { knowledgeDefaults } from "../knowledge/model";
 import { router } from "expo-router";
 import React, { useEffect, useState, useSyncExternalStore } from "react";
-import {
-  BackHandler,
-  FlatList,
-  Pressable,
-  ScrollView,
-  View,
-} from "react-native";
+import { BackHandler, FlatList, Pressable, View } from "react-native";
 import {
   FileText,
   FileUp,

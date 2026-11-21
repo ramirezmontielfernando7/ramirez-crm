@@ -1,6 +1,7 @@
+import { KeyboardScrollView as ScrollView } from "../keyboard/KeyboardScrollView";
 import { usePeople } from "../team/state";
 import React, { useState, useSyncExternalStore } from "react";
-import { View, ScrollView, Pressable } from "react-native";
+import { View, Pressable } from "react-native";
 import {
   Button,
   Field,

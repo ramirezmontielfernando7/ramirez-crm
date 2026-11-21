@@ -1,3 +1,4 @@
+import { KeyboardScrollView as ScrollView } from "../keyboard/KeyboardScrollView";
 import { usePeople } from "../team/state";
 import { CatalogTag } from "../catalog/CatalogTag";
 import React, { memo, useMemo, useSyncExternalStore } from "react";
@@ -5,7 +6,6 @@ import {
   FlatList,
   TextInput,
   Pressable,
-  ScrollView,
   View,
   useWindowDimensions,
 } from "react-native";

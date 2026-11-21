@@ -1,5 +1,6 @@
+import { KeyboardScrollView as ScrollView } from "../keyboard/KeyboardScrollView";
 import React, { useEffect, useCallback, useRef, useState } from "react";
-import { View, ScrollView } from "react-native";
+import { View } from "react-native";
 import { router, useFocusEffect } from "expo-router";
 import { Gauge } from "lucide-react-native";
 import { Screen } from "../../components/Screen";

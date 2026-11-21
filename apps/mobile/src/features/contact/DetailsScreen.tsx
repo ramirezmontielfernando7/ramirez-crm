@@ -1,7 +1,8 @@
+import { KeyboardScrollView as ScrollView } from "../keyboard/KeyboardScrollView";
 import { usePeople } from "../team/state";
 import { CatalogTag } from "../catalog/CatalogTag";
 import React, { useCallback, useRef } from "react";
-import { Pressable, ScrollView, View } from "react-native";
+import { Pressable, View } from "react-native";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import {
   Check,

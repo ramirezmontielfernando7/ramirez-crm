@@ -1,5 +1,6 @@
+import { KeyboardScrollView as ScrollView } from "../keyboard/KeyboardScrollView";
 import React, { useSyncExternalStore, useRef } from "react";
-import { View, Pressable, ScrollView } from "react-native";
+import { View, Pressable } from "react-native";
 import {
   Banner,
   Button,

@@ -1,6 +1,7 @@
+import { KeyboardScrollView as ScrollView } from "../keyboard/KeyboardScrollView";
 import { AssistantLimit } from "../usage/UsageScreens";
 import React, { useState, useEffect, useRef } from "react";
-import { View, ScrollView, Pressable } from "react-native";
+import { View, Pressable } from "react-native";
 import { router } from "expo-router";
 import {
   Archive,

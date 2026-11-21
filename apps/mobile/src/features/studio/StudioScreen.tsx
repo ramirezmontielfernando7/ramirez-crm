@@ -1,3 +1,4 @@
+import { KeyboardScrollView as ScrollView } from "../keyboard/KeyboardScrollView";
 import { Evaluations } from "./Evaluations";
 import { Assignments } from "./Assignments";
 import React, {
@@ -7,7 +8,7 @@ import React, {
   useMemo,
   useSyncExternalStore,
 } from "react";
-import { View, Pressable, FlatList, ScrollView } from "react-native";
+import { View, Pressable, FlatList } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import {
   Bot,

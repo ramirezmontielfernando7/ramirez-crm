@@ -1,7 +1,8 @@
+import { KeyboardScrollView as ScrollView } from "../keyboard/KeyboardScrollView";
 import { StudioBubble, StudioComposer } from "./StudioBubble";
 import { StudioBar } from "./StudioBar";
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { View, ScrollView, Pressable, BackHandler } from "react-native";
+import { View, Pressable, BackHandler } from "react-native";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import {
   BookOpen,

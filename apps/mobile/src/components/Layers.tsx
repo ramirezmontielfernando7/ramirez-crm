@@ -1,3 +1,5 @@
+import { KeyboardScrollView as ScrollView } from "../features/keyboard/KeyboardScrollView";
+import { KeyboardViewport } from "../features/keyboard/KeyboardViewport";
 import React, {
   createContext,
   useCallback,
@@ -7,12 +9,10 @@ import React, {
   useState,
 } from "react";
 import {
-  KeyboardAvoidingView,
   Modal,
   PanResponder,
   Platform,
   Pressable,
-  ScrollView,
   View,
   useWindowDimensions,
 } from "react-native";
@@ -87,9 +87,8 @@ export function LayerProvider({ children }: React.PropsWithChildren) {
         onRequestClose={close}
         statusBarTranslucent
       >
-        <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-          style={{
+        <KeyboardViewport
+          contentStyle={{
             flex: 1,
             justifyContent:
               layer?.kind === "sheet"
@@ -122,6 +121,7 @@ export function LayerProvider({ children }: React.PropsWithChildren) {
               paddingBottom:
                 layer?.kind === "sheet" ? Math.max(20, insets.bottom) : 16,
               maxHeight: height * 0.88,
+              flexShrink: 1,
               marginTop: layer?.kind === "menu" ? 12 : 0,
             }}
           >
@@ -161,7 +161,7 @@ export function LayerProvider({ children }: React.PropsWithChildren) {
               {layer?.content}
             </ScrollView>
           </View>
-        </KeyboardAvoidingView>
+        </KeyboardViewport>
       </Modal>
       {!!message && (
         <View

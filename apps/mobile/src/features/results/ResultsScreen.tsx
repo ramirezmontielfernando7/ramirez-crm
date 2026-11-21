@@ -1,3 +1,4 @@
+import { KeyboardScrollView as ScrollView } from "../keyboard/KeyboardScrollView";
 import React, {
   useMemo,
   useState,
@@ -6,7 +7,7 @@ import React, {
   useRef,
   useSyncExternalStore,
 } from "react";
-import { View, ScrollView, Pressable } from "react-native";
+import { View, Pressable } from "react-native";
 import { router } from "expo-router";
 import { SlidersHorizontal, ChartColumn } from "lucide-react-native";
 import { Screen } from "../../components/Screen";

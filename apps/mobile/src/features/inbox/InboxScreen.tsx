@@ -1,3 +1,4 @@
+import { KeyboardScrollView as ScrollView } from "../keyboard/KeyboardScrollView";
 import { PersonalList } from "../personal/Chats";
 import { InternalList } from "../team-chat/Screens";
 import { useLocalSearchParams } from "expo-router";
@@ -10,7 +11,7 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { ScrollView, Pressable, View, useWindowDimensions } from "react-native";
+import { Pressable, View, useWindowDimensions } from "react-native";
 import { useFocusEffect, router } from "expo-router";
 import { FlashList, type FlashListRef } from "@shopify/flash-list";
 import {

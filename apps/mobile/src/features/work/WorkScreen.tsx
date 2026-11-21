@@ -1,3 +1,4 @@
+import { KeyboardScrollView as ScrollView } from "../keyboard/KeyboardScrollView";
 import { usePeople } from "../team/state";
 import React, {
   memo,
@@ -9,7 +10,7 @@ import React, {
   useLayoutEffect,
   useSyncExternalStore,
 } from "react";
-import { FlatList, Pressable, ScrollView, TextInput, View } from "react-native";
+import { FlatList, Pressable, TextInput, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { Check, Clock3, MessageCircle, Plus } from "lucide-react-native";
 import { Screen } from "../../components/Screen";

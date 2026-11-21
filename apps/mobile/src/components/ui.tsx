@@ -1,8 +1,8 @@
+import { KeyboardScrollView as ScrollView } from "../features/keyboard/KeyboardScrollView";
 import React, { memo } from "react";
 import {
   ActivityIndicator,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text as NativeText,
   TextInput,

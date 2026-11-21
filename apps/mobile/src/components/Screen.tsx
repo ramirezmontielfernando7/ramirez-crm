@@ -1,10 +1,11 @@
 import React from "react";
-import { KeyboardAvoidingView, Platform, View } from "react-native";
+import { View } from "react-native";
+import { KeyboardViewport } from "../features/keyboard/KeyboardViewport";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useTheme } from "../theme/ThemeProvider";
 export function Screen({
   children,
-  keyboard = false,
+  keyboard = true,
   backgroundColor,
 }: React.PropsWithChildren<{ keyboard?: boolean; backgroundColor?: string }>) {
   const { colors } = useTheme();
@@ -13,13 +14,9 @@ export function Screen({
       edges={["top", "left", "right", "bottom"]}
       style={{ flex: 1, backgroundColor: backgroundColor ?? colors.surface }}
     >
-      <KeyboardAvoidingView
-        enabled={keyboard && Platform.OS === "ios"}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={{ flex: 1 }}
-      >
+      <KeyboardViewport enabled={keyboard}>
         <View style={{ flex: 1 }}>{children}</View>
-      </KeyboardAvoidingView>
+      </KeyboardViewport>
     </SafeAreaView>
   );
 }
