@@ -1,6 +1,7 @@
 import { cache } from "react";
 import { headers } from "next/headers";
 import { getAuth } from "@/lib/auth";
+import { mobileBearerHeaders } from "@/lib/auth/mobile";
 import { can, type Permission } from "@/lib/auth/permissions";
 import type { Access } from "@/lib/db/tenant";
 import { resolveMembership } from "@/server/auth/on-signup";
@@ -67,9 +68,12 @@ export async function requireSession(): Promise<SessionContext> {
  * Fuera de un render de servidor (rutas de API) `cache` no guarda nada y se
  * consulta como siempre.
  */
-export const getAuthSession = cache(async () =>
-  getAuth().api.getSession({ headers: await headers() })
-);
+async function readAuthSession(requestHeaders: Headers) {
+  const translated = await mobileBearerHeaders(requestHeaders);
+  return getAuth().api.getSession({ headers: translated ?? requestHeaders });
+}
+
+export const getAuthSession = cache(async () => readAuthSession(await headers()));
 
 type AuthSession = NonNullable<Awaited<ReturnType<typeof getAuthSession>>>;
 
@@ -117,7 +121,7 @@ const requireSessionOnce = cache(async (): Promise<SessionContext> => {
  * (no es lo mismo que «ya no tiene sesión»).
  */
 export async function sessionFromHeaders(h: Headers): Promise<SessionContext | null> {
-  const session = await getAuth().api.getSession({ headers: h });
+  const session = await readAuthSession(h);
   if (!session) return null;
   try {
     return await contextOf(session);
