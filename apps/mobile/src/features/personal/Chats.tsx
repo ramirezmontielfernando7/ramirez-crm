@@ -1,3 +1,4 @@
+import { AreaHeader, AreaTabsSlot } from "../inbox/AreaTabs";
 import { projectCustomer } from "./project";
 import React, {
   useEffect,
@@ -80,41 +81,27 @@ export function PersonalList() {
     a = useAction();
   return (
     <Screen>
-      <AppBar
-        module
-        title="Bandeja"
-        actions={
-          <IconButton
-            icon={Plus}
-            label="Nuevo chat personal"
-            onPress={() =>
-              layers.open({
-                kind: "sheet",
-                title: "Nuevo chat personal",
-                content: <NewChat />,
-              })
-            }
-          />
-        }
-      />
-      <View style={{ padding: 16 }}>
-        <SegmentedControl
-          options={[
-            { key: "clients", label: "Clientes" },
-            { key: "team", label: "Equipo" },
-            { key: "number", label: "Mi número" },
-          ]}
-          value="number"
-          onChange={(v) =>
-            router.replace(
-              v === "team"
-                ? "/(tabs)/inbox?area=team"
-                : v === "number"
-                  ? "/(tabs)/inbox?area=number"
-                  : "/(tabs)/inbox",
-            )
+      <AreaHeader>
+        <AppBar
+          module
+          title="Bandeja"
+          actions={
+            <IconButton
+              icon={Plus}
+              label="Nuevo chat personal"
+              onPress={() =>
+                layers.open({
+                  kind: "sheet",
+                  title: "Nuevo chat personal",
+                  content: <NewChat />,
+                })
+              }
+            />
           }
         />
+      </AreaHeader>
+      <View style={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 16 }}>
+        <AreaTabsSlot area="number" />
       </View>
       <Banner>
         Mi número · Privado. El equipo y la IA no leen tu historial personal.
@@ -143,6 +130,7 @@ export function PersonalList() {
             onPress={() => setArchived(!archived)}
           />
           <FlatList
+            contentContainerStyle={{ paddingBottom: 112 }}
             data={(state.doc.rooms ?? []).filter(
               (r) => r.archived === archived && !r.client,
             )}

@@ -1,7 +1,10 @@
 import { KeyboardScrollView as ScrollView } from "../features/keyboard/KeyboardScrollView";
-import React, { memo } from "react";
+import React, { memo, useLayoutEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Animated,
+  Easing,
+  Platform,
   Pressable,
   StyleSheet,
   Text as NativeText,
@@ -28,7 +31,7 @@ import {
 } from "lucide-react-native";
 import { useTheme } from "../theme/ThemeProvider";
 import { typography } from "../theme/tokens";
-import { refinementB } from "../theme/refinement-b";
+import { refinementB, contentCapsule } from "../theme/refinement-b";
 export function Text({
   kind = "body",
   weight = "regular",
@@ -375,9 +378,9 @@ export function TagCapsule({
   return (
     <View
       style={{
-        paddingHorizontal: 9,
-        paddingVertical: 3,
-        borderRadius: 10,
+        paddingHorizontal: contentCapsule.paddingHorizontal,
+        paddingVertical: contentCapsule.paddingVertical,
+        borderRadius: contentCapsule.radius,
         backgroundColor: danger ? c.base : c.tagBg,
         alignSelf: "flex-start",
       }}
@@ -405,9 +408,9 @@ export function StageCapsule({ children }: React.PropsWithChildren) {
   return (
     <View
       style={{
-        paddingHorizontal: 8,
-        paddingVertical: 3,
-        borderRadius: 10,
+        paddingHorizontal: contentCapsule.paddingHorizontal,
+        paddingVertical: contentCapsule.paddingVertical,
+        borderRadius: contentCapsule.radius,
         backgroundColor: c.sunken,
         flexDirection: "row",
         gap: 5,
@@ -576,50 +579,120 @@ export function SegmentedControl({
   value,
   onChange,
   refinement,
+  fixedGeometry = false,
 }: {
   options: readonly { key: string; label: string }[];
   value: string;
   onChange: (key: string) => void;
-  refinement?: "b";
+  refinement?: "b" | "crm";
+  fixedGeometry?: boolean;
 }) {
-  const { colors: c } = useTheme();
+  const { colors: c, reducedMotion } = useTheme(),
+    crm = refinement === "crm",
+    fixed = crm || fixedGeometry,
+    b = refinement === "b",
+    padding = crm ? 4 : b ? refinementB.trackPadding : 4,
+    itemHeight = crm ? 40 : 48,
+    height = itemHeight + padding * 2;
+  const [width, setWidth] = useState(0),
+    position = useRef(new Animated.Value(0)).current,
+    last = useRef({ width: 0, count: options.length }),
+    index = Math.max(
+      0,
+      options.findIndex((o) => o.key === value),
+    ),
+    cell = Math.max(0, width - padding * 2) / Math.max(1, options.length),
+    radius = crm ? 24 : b ? refinementB.trackRadius : 12,
+    itemRadius = crm ? 20 : b ? refinementB.itemRadius : 10;
+  useLayoutEffect(() => {
+    if (!fixed) return;
+    const x = index * cell;
+    if (
+      reducedMotion ||
+      last.current.width !== width ||
+      last.current.count !== options.length
+    ) {
+      position.setValue(x);
+    } else {
+      const a = Animated.timing(position, {
+        toValue: x,
+        duration: 160,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: Platform.OS !== "web",
+      });
+      a.start();
+      last.current = { width, count: options.length };
+      return () => a.stop();
+    }
+    last.current = { width, count: options.length };
+  }, [width, cell, index, options.length, position, reducedMotion, fixed]);
   return (
     <View
       accessibilityRole="tablist"
+      testID="original-segments"
+      onLayout={(e) => setWidth(e.nativeEvent.layout.width)}
       style={{
         flexDirection: "row",
-        backgroundColor: c.base,
-        borderRadius: refinement === "b" ? refinementB.trackRadius : 12,
-        padding: refinement === "b" ? refinementB.trackPadding : 4,
+        backgroundColor: crm ? c.sunken : c.base,
+        borderRadius: radius,
+        padding,
+        height: fixed ? height : undefined,
       }}
     >
+      {fixed && width > 0 && (
+        <Animated.View
+          pointerEvents="none"
+          testID="original-segment-indicator"
+          style={{
+            position: "absolute",
+            left: padding,
+            top: padding,
+            width: cell,
+            height: fixed ? itemHeight : undefined,
+            minHeight: fixed ? undefined : itemHeight,
+            borderRadius: itemRadius,
+            backgroundColor: c.surface,
+            transform: [{ translateX: position }],
+          }}
+        />
+      )}
       {options.map((option) => (
         <Pressable
           key={option.key}
           accessibilityRole="tab"
+          accessibilityLabel={option.label}
           accessibilityState={{ selected: value === option.key }}
           aria-selected={value === option.key}
           onPress={() => onChange(option.key)}
+          hitSlop={crm ? 4 : undefined}
           style={{
             flex: 1,
-            minHeight: 48,
-            borderRadius: refinement === "b" ? refinementB.itemRadius : 10,
-            paddingHorizontal: 4,
-            paddingVertical: 8,
+            height: fixed ? itemHeight : undefined,
+            minHeight: fixed ? undefined : itemHeight,
+            borderRadius: itemRadius,
+            paddingHorizontal: crm ? 0 : 4,
+            paddingVertical: crm ? 0 : 8,
             alignItems: "center",
             justifyContent: "center",
-            backgroundColor: value === option.key ? c.surface : "transparent",
+            backgroundColor:
+              (!fixed || width === 0) && value === option.key
+                ? c.surface
+                : "transparent",
           }}
         >
           <Text
             kind="secondary"
             weight="medium"
+            numberOfLines={fixed ? 1 : undefined}
             style={{
               textAlign: "center",
-              ...(refinement === "b"
-                ? { fontSize: refinementB.labelSize }
-                : {}),
-              color: value === option.key ? c.accentInk : c.text3,
+              fontSize: b
+                ? refinementB.labelSize
+                : crm
+                  ? refinementB.secondarySize
+                  : 14,
+              color:
+                value === option.key ? c.accentInk : crm ? c.text2 : c.text3,
             }}
           >
             {option.label}

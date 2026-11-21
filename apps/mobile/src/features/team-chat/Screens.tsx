@@ -1,3 +1,4 @@
+import { AreaHeader, AreaTabsSlot } from "../inbox/AreaTabs";
 import React, { useState, useRef, useEffect, useMemo } from "react";
 import { FlatList, View, Pressable, TextInput } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
@@ -180,32 +181,27 @@ export function InternalList() {
       : [];
   return (
     <Screen>
-      <AppBar
-        module
-        title="Bandeja"
-        actions={
-          <IconButton
-            icon={Plus}
-            label="Nuevo mensaje"
-            onPress={() =>
-              layers.open({
-                kind: "sheet",
-                title: "Nuevo mensaje",
-                content: <NewMessage />,
-              })
-            }
-          />
-        }
-      />
-      <View style={{ padding: 16 }}>
-        <SegmentedControl
-          options={[
-            { key: "clients", label: "Clientes" },
-            { key: "team", label: "Equipo" },
-          ]}
-          value="team"
-          onChange={() => router.replace("/(tabs)/inbox")}
+      <AreaHeader>
+        <AppBar
+          module
+          title="Bandeja"
+          actions={
+            <IconButton
+              icon={Plus}
+              label="Nuevo mensaje"
+              onPress={() =>
+                layers.open({
+                  kind: "sheet",
+                  title: "Nuevo mensaje",
+                  content: <NewMessage />,
+                })
+              }
+            />
+          }
         />
+      </AreaHeader>
+      <View style={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 16 }}>
+        <AreaTabsSlot area="team" />
       </View>
       <Ready>
         {state.ready && store.permittedSupervision() && (
@@ -229,6 +225,7 @@ export function InternalList() {
           />
         </View>
         <FlatList
+          contentContainerStyle={{ paddingBottom: 112 }}
           data={rows}
           keyExtractor={(r) => r.id}
           ListFooterComponent={

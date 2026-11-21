@@ -1,4 +1,4 @@
-/** Proposal P1 only. Never imported by production theme/tokens. */
+/** CANCELED P1: historical lab only. Never import into the application. */
 export const premium = {
   gutter: 16,
   header: 56,

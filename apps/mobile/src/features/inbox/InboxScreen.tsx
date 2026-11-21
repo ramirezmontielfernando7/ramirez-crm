@@ -1,3 +1,12 @@
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import {
+  AreaHostContext,
+  AreaHeader,
+  AreaTabsSlot,
+  areaFromParam,
+  inboxAreas,
+  type InboxArea,
+} from "./AreaTabs";
 import { KeyboardScrollView as ScrollView } from "../keyboard/KeyboardScrollView";
 import { PersonalList } from "../personal/Chats";
 import { InternalList } from "../team-chat/Screens";
@@ -8,10 +17,12 @@ import React, {
   useCallback,
   useDeferredValue,
   useMemo,
+  useEffect,
   useRef,
   useState,
+  useSyncExternalStore,
 } from "react";
-import { Pressable, View, useWindowDimensions } from "react-native";
+import { Keyboard, Pressable, View, useWindowDimensions } from "react-native";
 import { useFocusEffect, router } from "expo-router";
 import { FlashList, type FlashListRef } from "@shopify/flash-list";
 import {
@@ -445,16 +456,97 @@ function StateControls() {
   );
 }
 export default function InboxEntry() {
-  const { area } = useLocalSearchParams<{ area?: string }>();
-  return area === "team" ? (
-    <InternalList />
-  ) : area === "number" ? (
-    <PersonalList />
-  ) : (
-    <InboxScreen />
+  const { area: param } = useLocalSearchParams<{ area?: string }>(),
+    area = areaFromParam(param),
+    insets = useSafeAreaInsets(),
+    store = useInbox();
+  const readHeader = useCallback(() => {
+    const state = store.snapshot();
+    return !state.searching && !state.selecting;
+  }, [store]);
+  const normalHeader = useSyncExternalStore(
+    store.subscribe,
+    readHeader,
+    readHeader,
+  );
+  const [visited, setVisited] = useState<InboxArea[]>([area]),
+    [heights, setHeights] = useState<Partial<Record<InboxArea, number>>>({});
+  const mounted = visited.includes(area) ? visited : [...visited, area];
+  useEffect(() => {
+    setVisited((v) => (v.includes(area) ? v : [...v, area]));
+  }, [area]);
+  const report = useCallback(
+    (key: InboxArea, height: number) =>
+      setHeights((v) => (v[key] === height ? v : { ...v, [key]: height })),
+    [],
+  );
+  const show = area !== "clients" || normalHeader;
+  return (
+    <View style={{ flex: 1 }}>
+      {mounted.map((key) => (
+        <AreaHostContext.Provider
+          key={key}
+          value={{ hosted: true, area: key, active: key === area, report }}
+        >
+          <View
+            testID={`inbox-area-${key}`}
+            accessibilityElementsHidden={key !== area}
+            importantForAccessibility={
+              key === area ? "auto" : "no-hide-descendants"
+            }
+            aria-hidden={key !== area}
+            pointerEvents={key === area ? "auto" : "none"}
+            style={{
+              position: "absolute",
+              inset: 0,
+              opacity: key === area ? 1 : 0,
+              zIndex: key === area ? 1 : 0,
+            }}
+          >
+            {key === "team" ? (
+              <InternalList />
+            ) : key === "number" ? (
+              <PersonalList />
+            ) : (
+              <InboxScreen />
+            )}
+          </View>
+        </AreaHostContext.Provider>
+      ))}
+      <View
+        pointerEvents={show ? "auto" : "none"}
+        accessibilityElementsHidden={!show}
+        importantForAccessibility={show ? "auto" : "no-hide-descendants"}
+        aria-hidden={!show}
+        style={{
+          position: "absolute",
+          zIndex: 2,
+          top: insets.top + (heights[area] ?? 52) + 8,
+          left: insets.left + 16,
+          right: insets.right + 16,
+          opacity: show ? 1 : 0,
+        }}
+      >
+        <SegmentedControl
+          fixedGeometry
+          options={inboxAreas}
+          value={area}
+          onChange={(v) => {
+            const next = areaFromParam(v);
+            if (next === area) return;
+            Keyboard.dismiss();
+            setVisited((old) => (old.includes(next) ? old : [...old, next]));
+            // Update the existing tab route; replacing it can discard the native view.
+            router.setParams({ area: next });
+          }}
+        />
+      </View>
+    </View>
   );
 }
+
 function InboxScreen() {
+  const areaHost = React.useContext(AreaHostContext);
   const store = useInbox();
   const s = useInboxState();
   const { colors: c } = useTheme();
@@ -612,111 +704,99 @@ function InboxScreen() {
     s.filters.who !== "Todo el equipo";
   return (
     <Screen keyboard>
-      {s.selecting ? (
-        <AppBar
-          title={`${s.selected.size} seleccionado${s.selected.size === 1 ? "" : "s"}`}
-          onBack={() => store.cancel()}
-          actions={
-            <>
-              {store.actor.role !== "advisor" && (
+      <AreaHeader>
+        {s.selecting ? (
+          <AppBar
+            title={`${s.selected.size} seleccionado${s.selected.size === 1 ? "" : "s"}`}
+            onBack={() => store.cancel()}
+            actions={
+              <>
+                {store.actor.role !== "advisor" && (
+                  <IconButton
+                    icon={UserPlus}
+                    label="Asignar selección"
+                    disabled={!s.selected.size}
+                    onPress={() =>
+                      open({
+                        kind: "sheet",
+                        title: "Asignar conversaciones",
+                        content: <AssignSheet />,
+                      })
+                    }
+                  />
+                )}
                 <IconButton
-                  icon={UserPlus}
-                  label="Asignar selección"
+                  icon={Archive}
+                  label="Archivar selección"
                   disabled={!s.selected.size}
-                  onPress={() =>
-                    open({
-                      kind: "sheet",
-                      title: "Asignar conversaciones",
-                      content: <AssignSheet />,
-                    })
-                  }
+                  onPress={() => {
+                    store.archive();
+                    toast("Archivo simulado actualizado");
+                  }}
                 />
-              )}
-              <IconButton
-                icon={Archive}
-                label="Archivar selección"
-                disabled={!s.selected.size}
-                onPress={() => {
-                  store.archive();
-                  toast("Archivo simulado actualizado");
-                }}
-              />
-            </>
-          }
-        />
-      ) : s.searching ? (
-        <View
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            paddingRight: 12,
-          }}
-        >
-          <IconButton
-            icon={ArrowLeft}
-            label="Cerrar búsqueda"
-            onPress={() => {
-              store.patch({ searching: false });
-              store.filter({ query: "" });
-            }}
-          />
-          <View style={{ flex: 1 }}>
-            <SearchBox
-              accessibilityLabel="Buscar chats"
-              placeholder="Buscar chats, contactos o etiquetas"
-              autoFocus
-              value={s.filters.query}
-              onChangeText={(query) => store.filter({ query })}
-            />
-          </View>
-          <IconButton
-            icon={X}
-            label="Borrar búsqueda"
-            onPress={() => store.filter({ query: "" })}
-          />
-        </View>
-      ) : (
-        <AppBar
-          title="Bandeja"
-          module
-          actions={
-            <>
-              <IconButton
-                icon={Search}
-                label="Buscar"
-                onPress={() => store.patch({ searching: true })}
-              />
-              <IconButton
-                icon={SquareCheckBig}
-                label="Seleccionar varios"
-                onPress={select}
-              />
-              <IconButton
-                icon={MoreVertical}
-                label="Más opciones de Bandeja"
-                onPress={menu}
-              />
-            </>
-          }
-        />
-      )}
-      {!s.selecting && !s.searching && (
-        <View style={{ paddingHorizontal: 16, gap: 8, paddingTop: 8 }}>
-          <SegmentedControl
-            options={[
-              { key: "clients", label: "Clientes" },
-              { key: "team", label: "Equipo" },
-              { key: "number", label: "Mi número" },
-            ]}
-            value="clients"
-            onChange={(key) =>
-              key === "clients"
-                ? undefined
-                : key === "team"
-                  ? router.replace("/(tabs)/inbox?area=team")
-                  : router.replace("/(tabs)/inbox?area=number")
+              </>
             }
           />
+        ) : s.searching ? (
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              paddingRight: 12,
+            }}
+          >
+            <IconButton
+              icon={ArrowLeft}
+              label="Cerrar búsqueda"
+              onPress={() => {
+                store.patch({ searching: false });
+                store.filter({ query: "" });
+              }}
+            />
+            <View style={{ flex: 1 }}>
+              <SearchBox
+                accessibilityLabel="Buscar chats"
+                placeholder="Buscar chats, contactos o etiquetas"
+                autoFocus
+                value={s.filters.query}
+                onChangeText={(query) => store.filter({ query })}
+              />
+            </View>
+            <IconButton
+              icon={X}
+              label="Borrar búsqueda"
+              onPress={() => store.filter({ query: "" })}
+            />
+          </View>
+        ) : (
+          <AppBar
+            title="Bandeja"
+            module
+            actions={
+              <>
+                <IconButton
+                  icon={Search}
+                  label="Buscar"
+                  onPress={() => store.patch({ searching: true })}
+                />
+                <IconButton
+                  icon={SquareCheckBig}
+                  label="Seleccionar varios"
+                  onPress={select}
+                />
+                <IconButton
+                  icon={MoreVertical}
+                  label="Más opciones de Bandeja"
+                  onPress={menu}
+                />
+              </>
+            }
+          />
+        )}
+      </AreaHeader>
+      {!s.selecting && !s.searching && (
+        <View style={{ paddingHorizontal: 16, gap: 8, paddingTop: 8 }}>
+          <AreaTabsSlot area="clients" />
           <FilterChips
             options={["Todos", `No leídos`, `Míos`, "Campañas", "Grupos"]}
             value={s.filters.chip}
@@ -792,6 +872,7 @@ function InboxScreen() {
             }}
             onScroll={(e) => {
               if (
+                areaHost?.active !== false &&
                 ready.current &&
                 focused.current &&
                 JSON.stringify(filters) ===

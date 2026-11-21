@@ -18,3 +18,10 @@ export const refinementB = {
   nameSize: 15.5,
   secondarySize: 13.5,
 } as const;
+
+/** Existing compact label geometry. No change to brand or filter-capsule proportions. */
+export const contentCapsule = {
+  paddingHorizontal: 9,
+  paddingVertical: 3,
+  radius: 10,
+} as const;

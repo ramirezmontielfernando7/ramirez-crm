@@ -56,7 +56,7 @@ export function TabBar({ state, emitter, navigateToTab }: BottomTabBarProps) {
         backgroundColor: c.surface,
         borderWidth: 1,
         borderColor: c.border,
-        borderRadius: 22,
+        borderRadius: 24,
         flexDirection: "row",
         padding: 4,
         elevation: 8,

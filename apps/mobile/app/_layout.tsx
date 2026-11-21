@@ -20,7 +20,7 @@ import { NotificationProvider } from "../src/features/notifications/context";
 function RootNavigator() {
   const { ready, session } = useSession();
   const inbox = useOptionalInbox();
-  const { colors, dark } = useTheme();
+  const { colors, dark, reducedMotion } = useTheme();
   const { layer, close, toast } = useLayers();
   const pathname = usePathname();
   const lastPress = useRef<number | null>(null);
@@ -103,7 +103,7 @@ function RootNavigator() {
         screenOptions={{
           headerShown: false,
           contentStyle: { backgroundColor: colors.surface },
-          animation: "none",
+          animation: reducedMotion ? "none" : "default",
         }}
       >
         <Stack.Screen name="index" />
