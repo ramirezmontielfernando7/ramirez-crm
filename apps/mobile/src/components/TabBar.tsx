@@ -31,18 +31,59 @@ const icons: Record<Module, LucideIcon> = {
   more: Menu,
 };
 export function TabBar({ state, emitter, navigateToTab }: BottomTabBarProps) {
-  const keyboard = useKeyboardFrame();
   const personalization = useOptionalPersonalization();
   const unread = useInboxUnread();
   const inbox = useOptionalInbox();
   const { session, disabled } = useSession();
-  const { colors: c } = useTheme();
-  const insets = useSafeAreaInsets();
-  const { height } = useWindowDimensions();
-  if (!session || keyboard.visible) return null;
+  if (!session) return null;
   const allowed =
     personalization?.navigation(session.role, disabled) ??
     visibleModules(session.role, disabled);
+  const selected = state.routes[state.index]?.name;
+  return (
+    <ModuleTabBar
+      modules={allowed.filter((name) =>
+        state.routes.some((route) => route.name === name),
+      )}
+      selected={selected}
+      unread={unread}
+      onPress={(name) => {
+        const route = state.routes.find((entry) => entry.name === name);
+        if (!route) return;
+        if (selected === "inbox" && name === "inbox") inbox?.scrollToTop();
+        const event = emitter.emit({
+          type: "tabPress",
+          target: route.key,
+          canPreventDefault: true,
+        });
+        if (!event.defaultPrevented) navigateToTab(route.key);
+      }}
+      onLongPress={(name) => {
+        const route = state.routes.find((entry) => entry.name === name);
+        if (route) emitter.emit({ type: "tabLongPress", target: route.key });
+      }}
+    />
+  );
+}
+
+export function ModuleTabBar({
+  modules,
+  selected,
+  unread = 0,
+  onPress,
+  onLongPress,
+}: {
+  modules: readonly Module[];
+  selected?: string;
+  unread?: number;
+  onPress: (name: Module) => void;
+  onLongPress?: (name: Module) => void;
+}) {
+  const keyboard = useKeyboardFrame();
+  const { colors: c } = useTheme();
+  const insets = useSafeAreaInsets();
+  const { height } = useWindowDimensions();
+  if (keyboard.visible) return null;
   return (
     <View
       accessibilityRole="tablist"
@@ -63,70 +104,54 @@ export function TabBar({ state, emitter, navigateToTab }: BottomTabBarProps) {
         boxShadow: "0px 4px 20px rgba(0,0,0,0.12)",
       }}
     >
-      {state.routes
-        .filter((route) => allowed.includes(route.name as Module))
-        .sort(
-          (a, b) =>
-            allowed.indexOf(a.name as Module) -
-            allowed.indexOf(b.name as Module),
-        )
-        .map((route) => {
-          const selected = state.routes[state.index]?.key === route.key;
-          const Icon = icons[route.name as Module];
-          return (
-            <Pressable
-              key={route.key}
-              accessibilityRole="tab"
-              accessibilityLabel={labels[route.name as Module]}
-              accessibilityState={{ selected }}
-              aria-selected={selected}
-              onPress={() => {
-                if (selected && route.name === "inbox") inbox?.scrollToTop();
-                const event = emitter.emit({
-                  type: "tabPress",
-                  target: route.key,
-                  canPreventDefault: true,
-                });
-                if (!event.defaultPrevented) navigateToTab(route.key);
-              }}
-              onLongPress={() =>
-                emitter.emit({ type: "tabLongPress", target: route.key })
-              }
+      {modules.map((name) => {
+        const active = selected === name;
+        const Icon = icons[name];
+        const label = labels[name];
+        return (
+          <Pressable
+            key={name}
+            accessibilityRole="tab"
+            accessibilityLabel={label}
+            accessibilityState={{ selected: active }}
+            aria-selected={active}
+            onPress={() => onPress(name)}
+            onLongPress={onLongPress ? () => onLongPress(name) : undefined}
+            style={{
+              flex: 1,
+              minHeight: 48,
+              justifyContent: "center",
+              alignItems: "center",
+              gap: 4,
+              borderRadius: 18,
+              paddingVertical: 6,
+              backgroundColor: active ? c.wash : "transparent",
+            }}
+          >
+            {name === "inbox" && unread > 0 && (
+              <View style={{ position: "absolute", top: 0, right: 4 }}>
+                <UnreadBadge count={unread} />
+              </View>
+            )}
+            <Icon
+              size={22}
+              color={active ? c.accentInk : c.text3}
+              strokeWidth={1.8}
+            />
+            <Text
+              kind="meta"
+              weight="medium"
               style={{
-                flex: 1,
-                minHeight: 48,
-                justifyContent: "center",
-                alignItems: "center",
-                gap: 4,
-                borderRadius: 18,
-                paddingVertical: 6,
-                backgroundColor: selected ? c.wash : "transparent",
+                fontSize: 11.5,
+                color: active ? c.accentInk : c.text3,
+                textAlign: "center",
               }}
             >
-              {route.name === "inbox" && unread > 0 && (
-                <View style={{ position: "absolute", top: 0, right: 4 }}>
-                  <UnreadBadge count={unread} />
-                </View>
-              )}
-              <Icon
-                size={22}
-                color={selected ? c.accentInk : c.text3}
-                strokeWidth={1.8}
-              />
-              <Text
-                kind="meta"
-                weight="medium"
-                style={{
-                  fontSize: 11.5,
-                  color: selected ? c.accentInk : c.text3,
-                  textAlign: "center",
-                }}
-              >
-                {labels[route.name as Module]}
-              </Text>
-            </Pressable>
-          );
-        })}
+              {label}
+            </Text>
+          </Pressable>
+        );
+      })}
     </View>
   );
 }

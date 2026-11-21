@@ -16,15 +16,10 @@ import { resolveBack } from "../src/domain/access";
 import { InboxProvider, useOptionalInbox } from "../src/features/inbox/store";
 import { ContactProvider } from "../src/features/contact/context";
 import { ChatProvider } from "../src/features/chat/context";
+import { StagingRoot, stagingSelected } from "../src/screens/Staging";
 import { NotificationProvider } from "../src/features/notifications/context";
-function RootNavigator() {
-  const { ready, session } = useSession();
-  const inbox = useOptionalInbox();
-  const { colors, dark, reducedMotion } = useTheme();
-  const { layer, close, toast } = useLayers();
-  const pathname = usePathname();
-  const lastPress = useRef<number | null>(null);
-  const [fonts, fontError] = useFonts({
+function useDashfortFonts() {
+  return useFonts({
     Inter_400Regular,
     Inter_500Medium,
     Inter_600SemiBold,
@@ -38,6 +33,15 @@ function RootNavigator() {
     PlusJakarta_500: require("../assets/fonts/PlusJakarta_500.ttf"),
     PlusJakarta_600: require("../assets/fonts/PlusJakarta_600.ttf"),
   });
+}
+function RootNavigator() {
+  const { ready, session } = useSession();
+  const inbox = useOptionalInbox();
+  const { colors, dark, reducedMotion } = useTheme();
+  const { layer, close, toast } = useLayers();
+  const pathname = usePathname();
+  const lastPress = useRef<number | null>(null);
+  const [fonts, fontError] = useDashfortFonts();
   useEffect(() => {
     close();
   }, [session?.id, pathname, close]);
@@ -176,7 +180,28 @@ function RootNavigator() {
     </>
   );
 }
+function StagingLayout() {
+  const [fonts, error] = useDashfortFonts();
+  const { dark } = useTheme();
+  if (!fonts && !error) return <Skeleton rows={4} />;
+  if (error) throw error;
+  return (
+    <LayerProvider>
+      <StatusBar style={dark ? "light" : "dark"} />
+      <StagingRoot />
+    </LayerProvider>
+  );
+}
 export default function Layout() {
+  if (stagingSelected) {
+    return (
+      <SafeAreaProvider>
+        <ThemeProvider>
+          <StagingLayout />
+        </ThemeProvider>
+      </SafeAreaProvider>
+    );
+  }
   return (
     <SafeAreaProvider>
       <ThemeProvider>

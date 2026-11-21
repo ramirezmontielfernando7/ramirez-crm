@@ -5,14 +5,14 @@ import {
   isSession,
 } from "../domain/access";
 import type { StoragePort } from "./storage";
-export interface AuthRepository {
-  restore(): Promise<Session | null>;
-  signIn(email: string, password: string): Promise<Session>;
+export interface AuthRepository<TSession = Session> {
+  restore(): Promise<TSession | null>;
+  signIn(email: string, password: string): Promise<TSession>;
   redeem(
     token: string,
     password: string,
     purpose: "activate" | "reset",
-  ): Promise<Session>;
+  ): Promise<TSession>;
   signOut(): Promise<void>;
 }
 const accounts: Record<string, Role> = {

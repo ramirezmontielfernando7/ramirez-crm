@@ -29,11 +29,31 @@ function Recovery() {
   );
 }
 export function LoginScreen() {
+  const { signIn, notice } = useSession();
+  return (
+    <LoginForm
+      notice={notice}
+      demo
+      onSignIn={async (email, password) => {
+        await signIn(email, password);
+        router.replace("/(tabs)/inbox");
+      }}
+    />
+  );
+}
+export function LoginForm({
+  notice,
+  demo = false,
+  onSignIn,
+}: {
+  notice: string;
+  demo?: boolean;
+  onSignIn: (email: string, password: string) => Promise<void>;
+}) {
   const { colors: c } = useTheme();
   const { open } = useLayers();
-  const { signIn, notice } = useSession();
-  const [email, setEmail] = useState("fer@ejemplo.mx");
-  const [password, setPassword] = useState("Dashfort2026");
+  const [email, setEmail] = useState(demo ? "fer@ejemplo.mx" : "");
+  const [password, setPassword] = useState(demo ? "Dashfort2026" : "");
   const [errors, setErrors] = useState({ email: "", password: "" });
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -47,8 +67,7 @@ export function LoginScreen() {
     locked.current = true;
     setBusy(true);
     try {
-      await signIn(email, password);
-      router.replace("/(tabs)/inbox");
+      await onSignIn(email, password);
     } catch (e) {
       setError(e instanceof Error ? e.message : "No se pudo iniciar sesión.");
     } finally {
@@ -131,11 +150,13 @@ export function LoginScreen() {
           ¿Tu organización aún no tiene cuenta?{"\n"}Pídela al administrador de
           tu empresa.
         </Text>
-        <View style={{ marginTop: 24 }}>
-          <Button variant="ghost" onPress={() => router.push("/demo")}>
-            Demo aislada · T-M1
-          </Button>
-        </View>
+        {demo && (
+          <View style={{ marginTop: 24 }}>
+            <Button variant="ghost" onPress={() => router.push("/demo")}>
+              Demo aislada · T-M1
+            </Button>
+          </View>
+        )}
       </PageScroll>
     </Screen>
   );

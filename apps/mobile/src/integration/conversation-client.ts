@@ -1,6 +1,12 @@
 import { IntegrationError, type Scope } from "./contracts";
 import type { CrmReadPort, CrmActionPort, InboxQuery } from "./services";
-import type { WireConversation, WireMessage } from "./wire";
+import {
+  conversationRequest,
+  conversationsResponse,
+  messagesResponse,
+  type WireConversation,
+  type WireMessage,
+} from "./wire";
 /** SSE has no durable replay. Every reconnect requires canonical read reconciliation. */
 export class PreparedConversations {
   private epoch = 0;
@@ -199,4 +205,24 @@ export class PreparedConversations {
       this.fail(e, epoch);
     }
   }
+}
+
+/** Staging uses only the two existing CRM read endpoints. */
+export function createReadOnlyConversationClient(
+  read: (path: string) => Promise<unknown>,
+) {
+  return {
+    async page(cursor?: string) {
+      return conversationsResponse(
+        await read(conversationRequest({ cursor, limit: 40 }).path),
+      );
+    },
+    async history(id: string) {
+      if (!/^[\w-]{1,200}$/.test(id)) throw new IntegrationError("invalid");
+      return messagesResponse(
+        await read(`/api/conversations/${encodeURIComponent(id)}/messages`),
+        id,
+      );
+    },
+  };
 }

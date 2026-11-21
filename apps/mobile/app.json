@@ -2,7 +2,7 @@
   "expo": {
     "name": "Dashfort Dev",
     "slug": "dashfort-mobile-dev",
-    "version": "0.1.4",
+    "version": "0.1.5",
     "scheme": "dashfort-dev",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
@@ -23,11 +23,11 @@
         "android.permission.SCHEDULE_EXACT_ALARM",
         "android.permission.USE_EXACT_ALARM"
       ],
-      "versionCode": 5
+      "versionCode": 6
     },
     "plugins": [
       "expo-router",
-      "expo-secure-store",
+      ["expo-secure-store", { "configureAndroidBackup": true }],
       "expo-font",
       "expo-status-bar",
       [

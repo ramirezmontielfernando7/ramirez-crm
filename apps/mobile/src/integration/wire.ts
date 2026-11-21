@@ -57,6 +57,8 @@ export type WireConversation = Readonly<{
   id: string;
   contact: Readonly<{ id: string; name: string; phone: string | null }>;
   unreadCount: number;
+  preview?: string | null;
+  lastMessageAt?: string | null;
   createdAt: string;
 }>;
 export function conversationsResponse(raw: unknown): {
@@ -89,6 +91,15 @@ export function conversationsResponse(raw: unknown): {
           phone: contact.phone as string | null,
         }),
         unreadCount: c.unreadCount as number,
+        ...(c.preview === null || typeof c.preview === "string"
+          ? { preview: c.preview }
+          : {}),
+        ...(c.lastMessageAt === null || typeof c.lastMessageAt === "string"
+          ? {
+              lastMessageAt:
+                c.lastMessageAt === null ? null : timestamp(c.lastMessageAt),
+            }
+          : {}),
         createdAt: timestamp(c.createdAt),
       });
     }),
