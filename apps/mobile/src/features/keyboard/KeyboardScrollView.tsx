@@ -6,6 +6,7 @@ import {
   TextInput,
   type ScrollViewProps,
 } from "react-native";
+import { useTheme } from "../../theme/ThemeProvider";
 import { revealScrollDelta } from "./geometry";
 import { useKeyboardFrame } from "./state";
 /** Same ScrollView API. Reveals the focused input after IME/window layout and on focus changes. */
@@ -27,6 +28,9 @@ export const KeyboardScrollView = forwardRef<
   },
   ref,
 ) {
+  const { reducedMotion } = useTheme();
+  const animate = useRef(!reducedMotion);
+  animate.current = !reducedMotion;
   const scroll = useRef<KeyboardScrollView | null>(null),
     ownsFocus = useRef(false),
     frame = useKeyboardFrame(),
@@ -67,7 +71,7 @@ export const KeyboardScrollView = forwardRef<
               scroll.current?.scrollTo({
                 x: position.current.x,
                 y: Math.max(0, position.current.y + delta),
-                animated: true,
+                animated: animate.current,
               });
           }),
         );
