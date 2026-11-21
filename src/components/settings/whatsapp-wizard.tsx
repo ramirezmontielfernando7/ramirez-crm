@@ -422,14 +422,20 @@ function OfficialNumberCard({
   }
   const today = summary?.today ?? null;
   const limit = today?.messagingLimitValue ?? null;
+  // Meta dice que el número ya no está conectado: la etiqueta no puede decir «Conectado».
+  const down = summary?.alerts.some((a) => a.code === "number_status") ?? false;
   const tile = "rounded-lg bg-subtle px-3 py-2.5";
   return (
     <Card className="min-w-0" data-testid="phone-health-card">
       <CardHeader className="flex-row items-center justify-between space-y-0 border-b border-border py-3">
         <CardTitle className="flex items-center gap-2 text-[14px]">
-          <MessageCircle className="h-[18px] w-[18px] text-success" strokeWidth={1.8} />
+          <MessageCircle className={`h-[18px] w-[18px] ${down ? "text-danger-text" : "text-success"}`} strokeWidth={1.8} />
           {connection.label || "WhatsApp oficial"}
-          <Badge variant="success">Conectado</Badge>
+          {down ? (
+            <Badge variant="destructive" data-testid="numero-desconectado">Desconectado</Badge>
+          ) : (
+            <Badge variant="success">Conectado</Badge>
+          )}
         </CardTitle>
         <Button
           size="sm"
@@ -501,6 +507,12 @@ function OfficialNumberCard({
           </dl>
         ) : (
           <p className="text-sm text-muted-foreground">Todavía no hay lectura de hoy. Pulsa «Actualizar».</p>
+        )}
+        {down && (
+          <p className="text-sm text-danger-text" data-testid="numero-desconectado-ayuda">
+            Meta ya no tiene este número en tu cuenta de WhatsApp Business. No se puede enviar ni recibir por aquí.
+            Vuelve a conectarlo con «Conectar otro número» y después quita esta tarjeta con «Quitar».
+          </p>
         )}
         {summary?.alerts.map((a) => (
           <p key={a.code} className={a.level === "danger" ? "text-sm text-danger-text" : "text-sm text-warning-text"}>
