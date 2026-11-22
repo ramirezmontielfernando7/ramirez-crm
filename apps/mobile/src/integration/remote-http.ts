@@ -30,6 +30,12 @@ import {
 } from "./remote-live";
 import type { WireConversation } from "./wire";
 
+import {
+  allowsWorkspaceRequest,
+  lossReasonsResponse,
+  pipelineResponse,
+} from "./remote-workspace";
+
 type Method = "GET" | "POST" | "PATCH" | "PUT";
 
 export type RemoteMode = "staging" | "production";
@@ -141,6 +147,7 @@ export function allowsRemoteRequest(
   allowSend = false,
 ): boolean {
   if (/\s/.test(path)) return false;
+  if (allowsWorkspaceRequest(method, path, allowSend)) return true;
   if (allowsCrmRequest(method, path, allowSend)) return true;
   if (method === "POST")
     return (
@@ -589,6 +596,32 @@ export class RemoteAuthRepository implements AuthRepository<RemoteSession> {
     }
   }
 
+  async pipeline(stage?: { id: string; offset: number }) {
+    const suffix = stage
+      ? `&stageId=${idSegment(stage.id)}&offset=${stage.offset}`
+      : "";
+    return pipelineResponse(
+      await this.read("/api/pipeline/board?take=50" + suffix),
+    );
+  }
+
+  async lossReasons() {
+    return lossReasonsResponse(await this.read("/api/pipeline/loss-reasons"));
+  }
+
+  moveLead(id: string, stageId: string, lossReason?: string) {
+    return this.updateCrm(async (request) => {
+      const raw = crmRecord(
+        await request("PATCH", `/api/pipeline/leads/${idSegment(id)}`, {
+          stageId: idSegment(stageId),
+          ...(lossReason ? { lossReason: idSegment(lossReason) } : {}),
+        }),
+      );
+      if (crmRecord(raw.lead).id !== id) throw new RemoteHttpError(502);
+      return true;
+    });
+  }
+
   async contact(id: string) {
     return crmContact(await this.read(`/api/contacts/${idSegment(id)}`), id);
   }
@@ -797,7 +830,8 @@ export class RemoteAuthRepository implements AuthRepository<RemoteSession> {
           path === "/api/mobile/session",
           this.mode,
           value?.error?.message,
-          allowsCrmRequest(method, path, this.allowSend),
+          allowsCrmRequest(method, path, this.allowSend) ||
+            allowsWorkspaceRequest(method, path, this.allowSend),
         );
       if (!value) throw new RemoteHttpError(502);
       return value;

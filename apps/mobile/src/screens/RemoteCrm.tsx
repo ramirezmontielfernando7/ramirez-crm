@@ -58,9 +58,11 @@ import {
   RemoteTasks,
 } from "./RemoteRelations";
 
+import { RemotePipeline } from "./RemotePipeline";
+
 const remoteModules = ["inbox", "crm", "studio", "marketing", "more"] as const;
 const demoModules = {
-  crm: "CRM",
+  crm: "Pipeline",
   studio: "Estudio IA",
   marketing: "Marketing",
 };
@@ -292,7 +294,9 @@ function RemoteWorkspace({
                 ? "Bandeja"
                 : module === "more"
                   ? "Más"
-                  : `${demoModules[module]} · Demo`
+                  : module === "crm"
+                    ? "Pipeline"
+                    : `${demoModules[module]} · Demo`
             }
           />
           {module === "inbox" && (
@@ -346,8 +350,23 @@ function RemoteWorkspace({
                 <Button onPress={() => void logout()}>Cerrar sesión</Button>
               </PageScroll>
             )}
+            {module === "crm" && (
+              <PageScroll style={{ paddingBottom: 112 }}>
+                <RemotePipeline
+                  repository={repository}
+                  expired={expired}
+                  openChat={async (id) => {
+                    const row = await read.byId(id);
+                    if (!row) throw new RemoteHttpError(404);
+                    setChat(row);
+                  }}
+                />
+              </PageScroll>
+            )}
             {((module === "inbox" && section !== "clients") ||
-              (module !== "inbox" && module !== "more")) && (
+              (module !== "inbox" &&
+                module !== "more" &&
+                module !== "crm")) && (
               <PageScroll>
                 <Banner>
                   {module === "inbox"
