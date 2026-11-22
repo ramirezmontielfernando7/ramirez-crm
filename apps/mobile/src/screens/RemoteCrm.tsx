@@ -70,12 +70,9 @@ import { RemoteAgents, RemoteChatAI, RemoteWritingAssist } from "./RemoteAi";
 
 import { RemoteResults } from "./RemoteResults";
 
+import { RemoteCampaigns } from "./RemoteCampaigns";
+
 const remoteModules = ["inbox", "crm", "studio", "marketing", "more"] as const;
-const demoModules = {
-  crm: "Pipeline",
-  studio: "Estudio IA",
-  marketing: "Marketing",
-};
 const sections = [
   { key: "clients", label: "Clientes" },
   { key: "team", label: "Equipo" },
@@ -319,15 +316,13 @@ function RemoteWorkspace({
           <AppBar
             module
             title={
-              module === "inbox"
-                ? "Bandeja"
-                : module === "more"
-                  ? "Más"
-                  : module === "crm"
-                    ? "Pipeline"
-                    : module === "studio"
-                      ? "Estudio IA"
-                      : `${demoModules[module]} · Demo`
+              {
+                inbox: "Bandeja",
+                more: "Más",
+                crm: "Pipeline",
+                studio: "Estudio IA",
+                marketing: "Marketing",
+              }[module]
             }
           />
           {module === "inbox" && (
@@ -402,17 +397,17 @@ function RemoteWorkspace({
                 <RemoteAgents repository={repository} expired={expired} />
               </PageScroll>
             )}
-            {((module === "inbox" && section !== "clients") ||
-              (module !== "inbox" &&
-                module !== "more" &&
-                module !== "crm")) && (
+            {module === "marketing" && (
+              <PageScroll style={{ paddingBottom: 112 }}>
+                <RemoteCampaigns repository={repository} expired={expired} />
+              </PageScroll>
+            )}
+            {module === "inbox" && section !== "clients" && (
               <PageScroll>
                 <Banner>
-                  {module === "inbox"
-                    ? section === "team"
-                      ? "Equipo · Demo"
-                      : "Mi número · Demo"
-                    : "Disponible en modo demo."}
+                  {section === "team"
+                    ? "Equipo · Disponible en la versión web"
+                    : "Mi número · Disponible en la versión web"}
                 </Banner>
               </PageScroll>
             )}

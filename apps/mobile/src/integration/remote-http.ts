@@ -33,6 +33,8 @@ import type { WireConversation } from "./wire";
 import {
   agentsResponse,
   analyticsResponse,
+  campaignsResponse,
+  campaignMetricsResponse,
   reportQuery,
   type AnalyticsBlock,
   type ReportRange,
@@ -753,6 +755,16 @@ export class RemoteAuthRepository implements AuthRepository<RemoteSession> {
       clearTimeout(timeout);
       signal.removeEventListener("abort", abort);
     }
+  }
+
+  async campaigns() {
+    return campaignsResponse(await this.read("/api/campaigns"));
+  }
+
+  async campaignMetrics(range?: ReportRange) {
+    return campaignMetricsResponse(
+      await this.read(`/api/campaigns/metrics${reportQuery(range)}`),
+    );
   }
 
   async analytics(block: AnalyticsBlock, range?: ReportRange) {

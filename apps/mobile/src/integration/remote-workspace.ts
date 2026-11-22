@@ -33,6 +33,17 @@ function allowsAnalytics(path: string) {
   );
 }
 
+const campaignMetricsPath =
+  /^\/api\/campaigns\/metrics(?:\?from=(\d{4}-\d{2}-\d{2})&to=(\d{4}-\d{2}-\d{2}))?$/;
+function allowsCampaigns(path: string) {
+  if (path === "/api/campaigns") return true;
+  const match = campaignMetricsPath.exec(path);
+  return (
+    !!match &&
+    (!match[1] || validReportRange({ from: match[1], to: match[2] ?? "" }))
+  );
+}
+
 export function allowsWorkspaceRequest(
   method: string,
   path: string,
@@ -41,6 +52,7 @@ export function allowsWorkspaceRequest(
   if (method === "GET")
     return (
       allowsAnalytics(path) ||
+      allowsCampaigns(path) ||
       path === "/api/writing-assist" ||
       path === "/api/lab/agents" ||
       path === "/api/pipeline/board?take=50" ||
@@ -281,5 +293,61 @@ export function analyticsResponse(block: AnalyticsBlock, raw: unknown) {
     empty: empty === true,
     metrics,
     groups,
+  };
+}
+
+const campaignStatuses: Record<string, string> = {
+  draft: "Borrador",
+  scheduled: "Programada",
+  sending: "Enviando",
+  paused: "En pausa",
+  completed: "Completada",
+  cancelled: "Cancelada",
+  failed: "Fallida",
+};
+export function campaignsResponse(raw: unknown) {
+  return rows(raw, "campaigns").flatMap((row) => {
+    if (!isRemoteId(row.id) || typeof row.name !== "string") return [];
+    const counts = readRecord(row.counts);
+    const delivery = readRecord(row.delivery);
+    return [
+      {
+        id: row.id,
+        name: row.name,
+        state:
+          typeof row.status === "string"
+            ? (campaignStatuses[row.status] ?? "Estado desconocido")
+            : "Estado desconocido",
+        values: [
+          displayMetric("Destinatarios", row.total),
+          displayMetric("Enviados", counts.sent),
+          displayMetric("Entregados", delivery.delivered),
+          displayMetric("Leídos", delivery.read),
+          displayMetric("Fallidos", counts.failed),
+        ],
+      },
+    ];
+  });
+}
+
+export function campaignMetricsResponse(raw: unknown) {
+  const body = crmRecord(raw);
+  const totals = readRecord(body.totals);
+  const values = (row: Record<string, unknown>) => [
+    displayMetric("Enviados", row.sent),
+    displayMetric("Entregados", row.delivered),
+    displayMetric("Leídos", row.read),
+    displayMetric("Respondieron", row.replied),
+    displayMetric("Fallidos", row.failed),
+    displayMetric("Bajas", row.optOuts),
+  ];
+  return {
+    period: reportPeriod(body.period),
+    totals: values(totals),
+    campaigns: rows(body, "campaigns").flatMap((r) =>
+      isRemoteId(r.id) && typeof r.name === "string"
+        ? [{ id: r.id, name: r.name, values: values(r) }]
+        : [],
+    ),
   };
 }
