@@ -32,6 +32,10 @@ import type { WireConversation } from "./wire";
 
 import {
   agentsResponse,
+  analyticsResponse,
+  reportQuery,
+  type AnalyticsBlock,
+  type ReportRange,
   allowsWorkspaceRequest,
   lossReasonsResponse,
   pipelineResponse,
@@ -749,6 +753,15 @@ export class RemoteAuthRepository implements AuthRepository<RemoteSession> {
       clearTimeout(timeout);
       signal.removeEventListener("abort", abort);
     }
+  }
+
+  async analytics(block: AnalyticsBlock, range?: ReportRange) {
+    return analyticsResponse(
+      block,
+      await this.read(
+        `/api/analytics/${block}${block === "hygiene" ? "" : reportQuery(range)}`,
+      ),
+    );
   }
 
   async agents() {

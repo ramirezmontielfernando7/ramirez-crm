@@ -68,6 +68,8 @@ import { clearRemoteMedia } from "./remote-media-cache";
 
 import { RemoteAgents, RemoteChatAI, RemoteWritingAssist } from "./RemoteAi";
 
+import { RemoteResults } from "./RemoteResults";
+
 const remoteModules = ["inbox", "crm", "studio", "marketing", "more"] as const;
 const demoModules = {
   crm: "Pipeline",
@@ -281,7 +283,7 @@ function RemoteWorkspace({
   const [module, setModule] = useState<Module>("inbox");
   const [section, setSection] = useState("clients");
   const [page, setPage] = useState<
-    "contact" | "tasks" | "agenda" | "schedule" | null
+    "contact" | "tasks" | "agenda" | "schedule" | "results" | null
   >(null);
   const [chat, setChat] = useState<WireConversation | null>(null);
   const onChatSnapshot = useCallback((row: WireConversation) => {
@@ -376,6 +378,9 @@ function RemoteWorkspace({
                 <Button variant="secondary" onPress={() => setPage("agenda")}>
                   Agenda
                 </Button>
+                <Button variant="secondary" onPress={() => setPage("results")}>
+                  Resultados
+                </Button>
                 <Button onPress={() => void logout()}>Cerrar sesión</Button>
               </PageScroll>
             )}
@@ -463,6 +468,13 @@ function RemoteWorkspace({
               title="Agendar cita"
               back={() => setPage("contact")}
               save={(time) => repository.addBooking(chat.contact.id, time)}
+            />
+          )}
+          {page === "results" && (
+            <RemoteResults
+              repository={repository}
+              expired={expired}
+              back={() => setPage(null)}
             />
           )}
           {page === "tasks" && (
