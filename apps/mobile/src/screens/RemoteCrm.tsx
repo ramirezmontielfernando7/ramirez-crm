@@ -72,6 +72,14 @@ import { RemoteResults } from "./RemoteResults";
 
 import { RemoteCampaigns } from "./RemoteCampaigns";
 
+import {
+  RemoteSettings,
+  remoteModulesAccess,
+  type MobileBar,
+} from "./RemoteSettings";
+import { RemoteFeedback, useRemoteData } from "./RemoteWorkspaceUi";
+import { preferencesStorage } from "../services/storage";
+
 const remoteModules = ["inbox", "crm", "studio", "marketing", "more"] as const;
 const sections = [
   { key: "clients", label: "Clientes" },
@@ -280,8 +288,48 @@ function RemoteWorkspace({
   const [module, setModule] = useState<Module>("inbox");
   const [section, setSection] = useState("clients");
   const [page, setPage] = useState<
-    "contact" | "tasks" | "agenda" | "schedule" | "results" | null
+    "contact" | "tasks" | "agenda" | "schedule" | "results" | "settings" | null
   >(null);
+  const loadAccess = useCallback(
+    () => remoteModulesAccess(repository),
+    [repository],
+  );
+  const available = useRemoteData(loadAccess, expired);
+  const capabilities = available.data;
+  const [bar, setBar] = useState<MobileBar>("standard");
+  const barKey = `dashfort.${repository.mode}.mobile-bar.v1`;
+  useEffect(() => {
+    let active = true;
+    void preferencesStorage
+      .get(barKey)
+      .then((value) => {
+        if (active && value === "crm-first") setBar(value);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [barKey]);
+  async function updateBar(next: MobileBar) {
+    if (next !== "standard" && next !== "crm-first") return;
+    await preferencesStorage.set(barKey, next);
+    setBar(next);
+  }
+  const tabs = remoteModules.filter(
+    (item) =>
+      (item !== "studio" || capabilities?.agents || module === "studio") &&
+      (item !== "marketing" ||
+        capabilities?.campaigns ||
+        module === "marketing"),
+  );
+  if (bar === "crm-first") {
+    const first = tabs[0],
+      second = tabs[1];
+    if (first === "inbox" && second === "crm") {
+      tabs[0] = second;
+      tabs[1] = first;
+    }
+  }
   const [chat, setChat] = useState<WireConversation | null>(null);
   const onChatSnapshot = useCallback((row: WireConversation) => {
     setChat((current) => (current?.id === row.id ? row : current));
@@ -367,14 +415,27 @@ function RemoteWorkspace({
                     ? "Conectado a Dashfort"
                     : "Entorno de pruebas"}
                 </Text>
-                <Button variant="secondary" onPress={() => setPage("tasks")}>
-                  Tareas
-                </Button>
-                <Button variant="secondary" onPress={() => setPage("agenda")}>
-                  Agenda
-                </Button>
-                <Button variant="secondary" onPress={() => setPage("results")}>
-                  Resultados
+                <RemoteFeedback {...available} />
+                {capabilities?.tasks && (
+                  <Button variant="secondary" onPress={() => setPage("tasks")}>
+                    Tareas
+                  </Button>
+                )}
+                {capabilities?.agenda && (
+                  <Button variant="secondary" onPress={() => setPage("agenda")}>
+                    Agenda
+                  </Button>
+                )}
+                {capabilities?.results && (
+                  <Button
+                    variant="secondary"
+                    onPress={() => setPage("results")}
+                  >
+                    Resultados
+                  </Button>
+                )}
+                <Button variant="secondary" onPress={() => setPage("settings")}>
+                  Ajustes
                 </Button>
                 <Button onPress={() => void logout()}>Cerrar sesión</Button>
               </PageScroll>
@@ -414,11 +475,7 @@ function RemoteWorkspace({
           </View>
         </Screen>
         {!overlay && (
-          <ModuleTabBar
-            modules={remoteModules}
-            selected={module}
-            onPress={setModule}
-          />
+          <ModuleTabBar modules={tabs} selected={module} onPress={setModule} />
         )}
       </View>
       {chat && (
@@ -465,8 +522,20 @@ function RemoteWorkspace({
               save={(time) => repository.addBooking(chat.contact.id, time)}
             />
           )}
+          {page === "settings" && (
+            <RemoteSettings
+              repository={repository}
+              expired={expired}
+              back={() => setPage(null)}
+              bar={bar}
+              setBar={updateBar}
+              logout={logout}
+              team={capabilities?.team === true}
+            />
+          )}
           {page === "results" && (
             <RemoteResults
+              team={capabilities?.teamResults === true}
               repository={repository}
               expired={expired}
               back={() => setPage(null)}

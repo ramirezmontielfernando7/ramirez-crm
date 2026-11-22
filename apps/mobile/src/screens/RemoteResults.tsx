@@ -92,7 +92,8 @@ export function RemoteResults({
   repository,
   expired,
   back,
-}: RemotePageProps & { back: () => void }) {
+  team,
+}: RemotePageProps & { back: () => void; team: boolean }) {
   const [block, setBlock] = useState<AnalyticsBlock>("sales");
   const [range, setRange] = useState<ReportRange>();
   const [ranges, showRanges] = useState(false);
@@ -102,7 +103,9 @@ export function RemoteResults({
       <PageScroll>
         <SegmentedControl
           value={block}
-          options={sections}
+          options={
+            team ? sections : sections.filter(({ key }) => key !== "team")
+          }
           onChange={(name) => setBlock(name as AnalyticsBlock)}
         />
         {block !== "hygiene" && (
