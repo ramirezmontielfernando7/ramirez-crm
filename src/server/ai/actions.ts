@@ -39,6 +39,9 @@ const agendaActions = [
   z.object({
     action: z.literal("offer_slots"),
     reply: z.string().optional(),
+    // Día que pidió el cliente (AAAA-MM-DD, fecha local del negocio). Sin él,
+    // el reparto de siempre. Un valor raro no tumba el turno: offerSlots lo ignora.
+    date: z.string().optional(),
   }),
   z.object({
     action: z.literal("book_slot"),
