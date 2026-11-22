@@ -27,7 +27,12 @@
     },
     "plugins": [
       "expo-router",
-      ["expo-secure-store", { "configureAndroidBackup": true }],
+      [
+        "expo-secure-store",
+        {
+          "configureAndroidBackup": true
+        }
+      ],
       "expo-font",
       "expo-status-bar",
       [
@@ -37,7 +42,23 @@
           "enableBackgroundRemoteNotifications": false
         }
       ],
-      "./plugins/with-local-notifications"
+      "./plugins/with-local-notifications",
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "Dashfort usa la cámara para tomar fotos que decidas adjuntar.",
+          "photosPermission": "Dashfort abre el selector de fotos cuando eliges un adjunto.",
+          "microphonePermission": false
+        }
+      ],
+      [
+        "expo-audio",
+        {
+          "microphonePermission": false,
+          "recordAudioAndroid": false,
+          "enableBackgroundPlayback": false
+        }
+      ]
     ],
     "updates": {
       "enabled": false

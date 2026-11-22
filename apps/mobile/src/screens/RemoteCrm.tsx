@@ -60,6 +60,12 @@ import {
 
 import { RemotePipeline } from "./RemotePipeline";
 
+import {
+  RemoteAttachmentComposer,
+  RemoteAttachmentRow,
+} from "./RemoteAttachments";
+import { clearRemoteMedia } from "./remote-media-cache";
+
 const remoteModules = ["inbox", "crm", "studio", "marketing", "more"] as const;
 const demoModules = {
   crm: "Pipeline",
@@ -141,6 +147,11 @@ function RemoteSessionScreen({
   const logoutBusy = useRef(false);
   useEffect(() => {
     let alive = true;
+    try {
+      clearRemoteMedia();
+    } catch {
+      setNotice("No se pudo limpiar la caché privada.");
+    }
     void repository
       .restore()
       .then((value) => {
@@ -163,6 +174,11 @@ function RemoteSessionScreen({
   }, [repository]);
   const expired = useCallback((error: RemoteHttpError) => {
     setSession(null);
+    try {
+      clearRemoteMedia();
+    } catch {
+      /* Retry on the next start or sign-in. */
+    }
     setNotice(error.message);
   }, []);
   useEffect(() => {
@@ -199,7 +215,11 @@ function RemoteSessionScreen({
     setLeaving(true);
     setNotice("");
     try {
-      await repository.signOut();
+      try {
+        clearRemoteMedia();
+      } finally {
+        await repository.signOut();
+      }
     } catch (error) {
       setNotice(
         error instanceof Error
@@ -222,6 +242,11 @@ function RemoteSessionScreen({
       <LoginForm
         notice={notice}
         onSignIn={async (email, password) => {
+          try {
+            clearRemoteMedia();
+          } catch {
+            throw new Error("No se pudo limpiar la caché privada.");
+          }
           const signedIn = await repository.signIn(email, password);
           setNotice("");
           setSession(signedIn);
@@ -732,7 +757,7 @@ function RemoteChat({
       <View style={{ paddingHorizontal: 16 }}>
         <Text kind="meta" style={{ color: colors.text3 }}>
           {repository.allowSend
-            ? "Texto y plantillas · Adjuntos e IA en Demo"
+            ? "Texto, plantillas y adjuntos · IA en Demo"
             : "Solo lectura"}
         </Text>
         {!!chat.assignee?.name && (
@@ -779,7 +804,18 @@ function RemoteChat({
                 item.direction === "out" ? colors.wash : colors.sunken,
             }}
           >
-            <Text>{item.text ?? "Mensaje sin texto"}</Text>
+            {item.text ? (
+              <Text>{item.text}</Text>
+            ) : (
+              !item.attachment && <Text>Mensaje sin texto</Text>
+            )}
+            {item.attachment && (
+              <RemoteAttachmentRow
+                item={item.attachment}
+                repository={repository}
+                expired={expired}
+              />
+            )}
             <Text kind="meta" style={{ color: colors.text3 }}>
               {new Date(item.createdAt).toLocaleString("es-MX", {
                 hour: "2-digit",
@@ -854,6 +890,23 @@ function RemoteTextComposer({
           chat={chat}
           expired={expired}
           refresh={refresh}
+        />
+      ),
+    });
+  }
+
+  function openAttachments() {
+    Keyboard.dismiss();
+    open({
+      kind: "sheet",
+      title: "Adjuntar archivo",
+      content: (
+        <RemoteAttachmentComposer
+          repository={repository}
+          expired={expired}
+          id={chat.id}
+          refresh={refresh}
+          offerTemplates={openTemplates}
         />
       ),
     });
@@ -977,6 +1030,11 @@ function RemoteTextComposer({
         </>
       )}
       <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
+        {repository.allowSend && Platform.OS !== "web" && (
+          <Button variant="ghost" disabled={pending} onPress={openAttachments}>
+            Adjuntar
+          </Button>
+        )}
         {!(failure?.windowClosed && canSendTemplates(chat)) && (
           <Button variant="ghost" disabled={pending} onPress={openTemplates}>
             Plantillas

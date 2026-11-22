@@ -36,6 +36,15 @@ import {
   pipelineResponse,
 } from "./remote-workspace";
 
+import {
+  acceptsMediaResponse,
+  allowsMediaRequest,
+  baseMime,
+  MEDIA_LIMIT,
+  uploadMediaKind,
+  type RemoteAttachment,
+} from "./remote-media";
+
 type Method = "GET" | "POST" | "PATCH" | "PUT";
 
 export type RemoteMode = "staging" | "production";
@@ -114,7 +123,8 @@ type RemoteErrorCode =
   | "template_changed"
   | "template_line_unsupported"
   | "meta_unavailable"
-  | "meta_error";
+  | "meta_error"
+  | "storage_quota";
 function errorCode(raw: unknown): RemoteErrorCode | undefined {
   return raw === "ORGANIZATION_SUSPENDED" ||
     raw === "organization_suspended" ||
@@ -122,6 +132,7 @@ function errorCode(raw: unknown): RemoteErrorCode | undefined {
     raw === "slot_taken" ||
     raw === "meta_unavailable" ||
     raw === "meta_error" ||
+    raw === "storage_quota" ||
     raw === "not_connected" ||
     raw === "reconnect_required" ||
     raw === "TOO_MANY_REQUESTS"
@@ -147,6 +158,7 @@ export function allowsRemoteRequest(
   allowSend = false,
 ): boolean {
   if (/\s/.test(path)) return false;
+  if (allowsMediaRequest(method, path, allowSend)) return true;
   if (allowsWorkspaceRequest(method, path, allowSend)) return true;
   if (allowsCrmRequest(method, path, allowSend)) return true;
   if (method === "POST")
@@ -191,45 +203,54 @@ export class RemoteHttpError extends Error {
     crm = false,
   ) {
     super(
-      code === "template_line_unsupported"
-        ? "La ruta del CRM solo envía plantillas por la línea principal de WhatsApp de Meta."
-        : code === "template_changed"
-          ? "La plantilla cambió o ya no está aprobada. Vuelve a abrir el catálogo."
-          : code === "not_connected" && serverMessage === "Sin número conectado"
-            ? serverMessage
-            : code === "reconnect_required" &&
-                serverMessage === "Reconecta el número"
-              ? serverMessage
-              : status === 409 &&
-                  code === "window_closed" &&
-                  serverMessage ===
-                    "La ventana de 24 horas está cerrada; usa una plantilla aprobada"
-                ? serverMessage
-                : crm && status === 409 && code === "slot_taken"
-                  ? "Ese horario ya no está disponible. Selecciona otro."
-                  : code === "SESSION_EXPIRED"
-                    ? "Tu sesión caducó. Vuelve a iniciar sesión."
-                    : status === 403 &&
-                        (code === "ORGANIZATION_SUSPENDED" ||
-                          code === "organization_suspended")
-                      ? "Tu negocio está suspendido. Contacta a soporte de la plataforma."
-                      : status === 429
-                        ? "Demasiados intentos. Espera unos minutos."
-                        : status === 401
-                          ? login
-                            ? "Correo o contraseña incorrectos."
-                            : "Tu sesión ya no está activa. Vuelve a iniciar sesión."
-                          : status === 404
-                            ? crm
-                              ? "El registro o módulo ya no está disponible."
-                              : "La conversación ya no está disponible."
-                            : status === 403
-                              ? "No tienes acceso a esta operación."
-                              : status === 0
-                                ? mode === "production"
-                                  ? "Sin conexión con Dashfort. Reintenta."
-                                  : "Sin conexión con el entorno de pruebas."
-                                : "No se pudo completar la solicitud. Reintenta.",
+      code === "storage_quota" || status === 507
+        ? "Tu negocio alcanzó su límite de almacenamiento."
+        : status === 413
+          ? "El archivo excede el límite de tamaño."
+          : status === 415
+            ? "Este tipo de archivo no está permitido."
+            : status === 410
+              ? "El archivo ya no está disponible."
+              : code === "template_line_unsupported"
+                ? "La ruta del CRM solo envía plantillas por la línea principal de WhatsApp de Meta."
+                : code === "template_changed"
+                  ? "La plantilla cambió o ya no está aprobada. Vuelve a abrir el catálogo."
+                  : code === "not_connected" &&
+                      serverMessage === "Sin número conectado"
+                    ? serverMessage
+                    : code === "reconnect_required" &&
+                        serverMessage === "Reconecta el número"
+                      ? serverMessage
+                      : status === 409 &&
+                          code === "window_closed" &&
+                          serverMessage ===
+                            "La ventana de 24 horas está cerrada; usa una plantilla aprobada"
+                        ? serverMessage
+                        : crm && status === 409 && code === "slot_taken"
+                          ? "Ese horario ya no está disponible. Selecciona otro."
+                          : code === "SESSION_EXPIRED"
+                            ? "Tu sesión caducó. Vuelve a iniciar sesión."
+                            : status === 403 &&
+                                (code === "ORGANIZATION_SUSPENDED" ||
+                                  code === "organization_suspended")
+                              ? "Tu negocio está suspendido. Contacta a soporte de la plataforma."
+                              : status === 429
+                                ? "Demasiados intentos. Espera unos minutos."
+                                : status === 401
+                                  ? login
+                                    ? "Correo o contraseña incorrectos."
+                                    : "Tu sesión ya no está activa. Vuelve a iniciar sesión."
+                                  : status === 404
+                                    ? crm
+                                      ? "El registro o módulo ya no está disponible."
+                                      : "La conversación ya no está disponible."
+                                    : status === 403
+                                      ? "No tienes acceso a esta operación."
+                                      : status === 0
+                                        ? mode === "production"
+                                          ? "Sin conexión con Dashfort. Reintenta."
+                                          : "Sin conexión con el entorno de pruebas."
+                                        : "No se pudo completar la solicitud. Reintenta.",
     );
   }
 }
@@ -270,6 +291,7 @@ export class RemoteAuthRepository implements AuthRepository<RemoteSession> {
   private writes: Promise<void> = Promise.resolve();
   private sending = false;
   private uncertainTemplates = new Set<string>();
+  private uncertainMedia = new Set<string>();
   private updatingCrm = false;
   readonly origin: string;
   private readonly key: string;
@@ -347,6 +369,7 @@ export class RemoteAuthRepository implements AuthRepository<RemoteSession> {
         throw new Error("No se pudo guardar la sesión de forma segura.");
       }
       this.uncertainTemplates.clear();
+      this.uncertainMedia.clear();
       this.current = entry;
       return { expiresAt: entry.expiresAt };
     });
@@ -401,7 +424,8 @@ export class RemoteAuthRepository implements AuthRepository<RemoteSession> {
   }
 
   read(path: string): Promise<unknown> {
-    if (path === "/api/events") return Promise.reject(new RemoteHttpError(403));
+    if (path === "/api/events" || allowsMediaRequest("GET", path, false))
+      return Promise.reject(new RemoteHttpError(403));
     return this.authenticatedRequest("GET", path);
   }
 
@@ -451,6 +475,136 @@ export class RemoteAuthRepository implements AuthRepository<RemoteSession> {
 
   async quickReplies() {
     return quickRepliesResponse(await this.read("/api/quick-replies"));
+  }
+
+  async downloadMedia(
+    media: RemoteAttachment,
+    signal: AbortSignal,
+    write: (chunk: Uint8Array) => Promise<void>,
+    limit = MEDIA_LIMIT,
+  ) {
+    const path = `/api/media/${idSegment(media.id)}`;
+    if (!allowsMediaRequest("GET", path, false)) throw new RemoteHttpError(403);
+    if (media.size !== null && media.size > limit)
+      throw new RemoteHttpError(413);
+    const session = this.current;
+    if (!session || session.expiresAt <= this.now())
+      throw new RemoteHttpError(401);
+    const controller = new AbortController();
+    const stop = () => controller.abort();
+    signal.addEventListener("abort", stop, { once: true });
+    const timeout = setTimeout(stop, 120_000);
+    let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
+    try {
+      if (signal.aborted) throw new RemoteHttpError(0);
+      const response = await this.fetch(this.origin + path, {
+        method: "GET",
+        credentials: "omit",
+        redirect: "error",
+        cache: "no-store",
+        headers: new Headers({ authorization: `Bearer ${session.token}` }),
+        signal: controller.signal,
+      });
+      if (!response.ok) {
+        const body = await response.json().catch(() => null);
+        throw new RemoteHttpError(
+          response.status,
+          errorCode(body?.error?.code) ?? errorCode(body?.code),
+          false,
+          this.mode,
+        );
+      }
+      const headers = response.headers;
+      const length = headers?.get("content-length");
+      if (
+        length !== null &&
+        length !== undefined &&
+        (!/^\d+$/.test(length) || Number(length) > limit)
+      )
+        throw new RemoteHttpError(413);
+      const mime = baseMime(headers?.get("content-type") ?? "");
+      if (!acceptsMediaResponse(media, mime) || !response.body)
+        throw new RemoteHttpError(415);
+      reader = response.body.getReader();
+      let bytes = 0;
+      for (;;) {
+        const next = await reader.read();
+        if (this.current !== session || session.expiresAt <= this.now())
+          throw new RemoteHttpError(401);
+        if (controller.signal.aborted)
+          throw new RemoteHttpError(0, undefined, false, this.mode);
+        if (next.done) break;
+        bytes += next.value.byteLength;
+        if (bytes > limit) throw new RemoteHttpError(413);
+        await write(next.value);
+      }
+      if (bytes === 0 || (length != null && bytes !== Number(length)))
+        throw new RemoteHttpError(502);
+    } catch (reason) {
+      if (requiresRemoteLogin(reason))
+        await this.clear(session).catch(() => {});
+      if (reason instanceof RemoteHttpError) throw reason;
+      throw new RemoteHttpError(0, undefined, false, this.mode);
+    } finally {
+      stop();
+      clearTimeout(timeout);
+      signal.removeEventListener("abort", stop);
+      if (reader) {
+        await reader.cancel().catch(() => {});
+        reader.releaseLock();
+      }
+    }
+  }
+
+  mediaNeedsRefresh(id: string) {
+    return this.uncertainMedia.has(id);
+  }
+  mediaHistoryChecked(id: string) {
+    this.uncertainMedia.delete(id);
+  }
+
+  async sendMedia(
+    id: string,
+    file: { uri: string; name: string; mime: string; size: number },
+    signal: AbortSignal,
+  ) {
+    if (!this.allowSend || this.mediaNeedsRefresh(id))
+      throw new RemoteHttpError(403);
+    const path = `/api/conversations/${idSegment(id)}/messages/media`;
+    if (
+      !uploadMediaKind(file.mime, file.name, file.size) ||
+      !file.uri.startsWith("file://")
+    )
+      throw new RemoteHttpError(file.size > MEDIA_LIMIT ? 413 : 415);
+    if (this.sending) return null;
+    if (signal.aborted) throw new RemoteHttpError(0);
+    const form = new FormData();
+    form.append("file", {
+      uri: file.uri,
+      name: file.name,
+      type: file.mime,
+    } as unknown as Blob);
+    this.sending = true;
+    const session = this.current;
+    try {
+      const raw = crmRecord(
+        await this.authenticatedRequest("POST", path, form, signal),
+      );
+      if (!isRemoteId(raw.messageId)) throw new RemoteHttpError(502);
+      return { queued: typeof raw.queuedUntil === "string" };
+    } catch (reason) {
+      if (
+        this.current === session &&
+        (!(reason instanceof RemoteHttpError) ||
+          reason.status === 0 ||
+          reason.status === 408 ||
+          reason.status >= 500)
+      )
+        this.uncertainMedia.add(id);
+      throw reason;
+    } finally {
+      this.sending = false;
+    }
   }
 
   async templateLineAvailable(chat: WireConversation) {
@@ -778,6 +932,7 @@ export class RemoteAuthRepository implements AuthRepository<RemoteSession> {
     method: Method,
     path: string,
     body?: object,
+    signal?: AbortSignal,
   ): Promise<unknown> {
     if (!allowsRemoteRequest(method, path, this.allowSend))
       throw new RemoteHttpError(403);
@@ -788,7 +943,7 @@ export class RemoteAuthRepository implements AuthRepository<RemoteSession> {
       throw new RemoteHttpError(401, "SESSION_EXPIRED");
     }
     try {
-      const data = await this.request(method, path, session, body);
+      const data = await this.request(method, path, session, body, signal);
       if (this.current !== session) throw new RemoteHttpError(401);
       if (session.expiresAt <= this.now())
         throw new RemoteHttpError(401, "SESSION_EXPIRED");
@@ -804,20 +959,25 @@ export class RemoteAuthRepository implements AuthRepository<RemoteSession> {
     path: string,
     session?: Credential,
     body?: object,
+    signal?: AbortSignal,
   ) {
     if (!allowsRemoteRequest(method, path, this.allowSend))
       throw new RemoteHttpError(403);
     const headers = new Headers({ accept: "application/json" });
     if (session) headers.set("authorization", `Bearer ${session.token}`);
-    if (body) headers.set("content-type", "application/json");
+    const multipart = body instanceof FormData;
+    if (body && !multipart) headers.set("content-type", "application/json");
 
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 15_000);
+    const stop = () => controller.abort();
+    signal?.addEventListener("abort", stop, { once: true });
+    if (signal?.aborted) stop();
+    const timeout = setTimeout(stop, multipart ? 180_000 : 15_000);
     try {
       const response = await this.fetch(this.origin + path, {
         method,
         headers,
-        body: body ? JSON.stringify(body) : undefined,
+        body: multipart ? body : body ? JSON.stringify(body) : undefined,
         credentials: "omit",
         redirect: "error",
         signal: controller.signal,
@@ -840,6 +1000,7 @@ export class RemoteAuthRepository implements AuthRepository<RemoteSession> {
       throw new RemoteHttpError(0, undefined, false, this.mode);
     } finally {
       clearTimeout(timeout);
+      signal?.removeEventListener("abort", stop);
     }
   }
 }

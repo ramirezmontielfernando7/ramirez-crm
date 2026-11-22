@@ -1,4 +1,5 @@
 /** Read-only shapes grounded in CRM 834806e. Does not perform requests. */
+import { attachmentFromWire, type RemoteAttachment } from "./remote-media";
 import { IntegrationError } from "./contracts";
 const record = (v: unknown): Record<string, unknown> => {
   if (!v || typeof v !== "object" || Array.isArray(v))
@@ -23,6 +24,7 @@ export type WireMessage = Readonly<{
   text: string | null;
   createdAt: string;
   aiGenerated: boolean;
+  attachment?: RemoteAttachment;
 }>;
 export function messagesResponse(
   raw: unknown,
@@ -42,7 +44,9 @@ export function messagesResponse(
       typeof m.aiGenerated !== "boolean"
     )
       throw new IntegrationError("invalid");
+    const attachment = attachmentFromWire(m.media);
     return Object.freeze({
+      ...(attachment ? { attachment } : {}),
       id: id(m.id),
       conversationId,
       direction: m.direction as WireMessage["direction"],
