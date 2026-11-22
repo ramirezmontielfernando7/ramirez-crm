@@ -5,11 +5,19 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { AppState, BackHandler, FlatList, Platform, View } from "react-native";
+import {
+  AppState,
+  BackHandler,
+  FlatList,
+  Keyboard,
+  Platform,
+  View,
+} from "react-native";
 import { fetch } from "expo/fetch";
 import Constants from "expo-constants";
 import * as SecureStore from "expo-secure-store";
-import { AppBar, SegmentedControl } from "../components/ModuleUi";
+import { UserRound } from "lucide-react-native";
+import { AppBar, IconButton, SegmentedControl } from "../components/ModuleUi";
 import { Screen } from "../components/Screen";
 import { ModuleTabBar } from "../components/TabBar";
 import {
@@ -36,6 +44,12 @@ import {
 import type { WireConversation, WireMessage } from "../integration/wire";
 import { useTheme } from "../theme/ThemeProvider";
 import { LoginForm } from "./Access";
+import {
+  BookingSlots,
+  RemoteAgenda,
+  RemoteContact,
+  RemoteTasks,
+} from "./RemoteRelations";
 
 const remoteModules = ["inbox", "crm", "studio", "marketing", "more"] as const;
 const demoModules = {
@@ -230,13 +244,19 @@ function RemoteWorkspace({
   );
   const [module, setModule] = useState<Module>("inbox");
   const [section, setSection] = useState("clients");
+  const [page, setPage] = useState<
+    "contact" | "tasks" | "agenda" | "schedule" | null
+  >(null);
   const [chat, setChat] = useState<WireConversation | null>(null);
   const [readReceipt, setReadReceipt] = useState<{ id: string }>();
   const onRead = useCallback((id: string) => setReadReceipt({ id }), []);
-  const showInbox = !chat && module === "inbox" && section === "clients";
+  const overlay = Boolean(chat || page);
+  const showInbox = !overlay && module === "inbox" && section === "clients";
   useEffect(() => {
     const sub = BackHandler.addEventListener("hardwareBackPress", () => {
-      if (chat) setChat(null);
+      if (page === "schedule") setPage("contact");
+      else if (page) setPage(null);
+      else if (chat) setChat(null);
       else if (!showInbox) {
         setModule("inbox");
         setSection("clients");
@@ -244,15 +264,15 @@ function RemoteWorkspace({
       return true;
     });
     return () => sub.remove();
-  }, [chat, showInbox]);
+  }, [chat, page, showInbox]);
 
   return (
     <View style={{ flex: 1 }}>
       <View
         style={{ flex: 1 }}
-        pointerEvents={chat ? "none" : "auto"}
-        aria-hidden={!!chat}
-        importantForAccessibility={chat ? "no-hide-descendants" : "auto"}
+        pointerEvents={overlay ? "none" : "auto"}
+        aria-hidden={overlay}
+        importantForAccessibility={overlay ? "no-hide-descendants" : "auto"}
       >
         <Screen>
           <AppBar
@@ -306,6 +326,12 @@ function RemoteWorkspace({
                     ? "Conectado a Dashfort"
                     : "Entorno de pruebas"}
                 </Text>
+                <Button variant="secondary" onPress={() => setPage("tasks")}>
+                  Tareas
+                </Button>
+                <Button variant="secondary" onPress={() => setPage("agenda")}>
+                  Agenda
+                </Button>
                 <Button onPress={() => void logout()}>Cerrar sesión</Button>
               </PageScroll>
             )}
@@ -323,7 +349,7 @@ function RemoteWorkspace({
             )}
           </View>
         </Screen>
-        {!chat && (
+        {!overlay && (
           <ModuleTabBar
             modules={remoteModules}
             selected={module}
@@ -332,16 +358,62 @@ function RemoteWorkspace({
         )}
       </View>
       {chat && (
-        <View style={{ position: "absolute", inset: 0 }}>
+        <View
+          style={{ position: "absolute", inset: 0 }}
+          pointerEvents={page ? "none" : "auto"}
+          aria-hidden={!!page}
+          importantForAccessibility={page ? "no-hide-descendants" : "auto"}
+        >
           <RemoteChat
             key={chat.id}
             chat={chat}
             read={read}
             repository={repository}
             onRead={onRead}
+            active={!page}
+            openContact={() => {
+              Keyboard.dismiss();
+              setPage("contact");
+            }}
             expired={expired}
             back={() => setChat(null)}
           />
+        </View>
+      )}
+      {page && (
+        <View style={{ position: "absolute", inset: 0 }}>
+          {page === "contact" && chat && (
+            <RemoteContact
+              repository={repository}
+              expired={expired}
+              chat={chat}
+              back={() => setPage(null)}
+              createBooking={() => setPage("schedule")}
+            />
+          )}
+          {page === "schedule" && chat && (
+            <BookingSlots
+              repository={repository}
+              expired={expired}
+              title="Agendar cita"
+              back={() => setPage("contact")}
+              save={(time) => repository.addBooking(chat.contact.id, time)}
+            />
+          )}
+          {page === "tasks" && (
+            <RemoteTasks
+              repository={repository}
+              expired={expired}
+              back={() => setPage(null)}
+            />
+          )}
+          {page === "agenda" && (
+            <RemoteAgenda
+              repository={repository}
+              expired={expired}
+              back={() => setPage(null)}
+            />
+          )}
         </View>
       )}
     </View>
@@ -511,7 +583,11 @@ function RemoteChat({
   back,
   repository,
   onRead,
+  active,
+  openContact,
 }: {
+  active: boolean;
+  openContact: () => void;
   chat: WireConversation;
   read: Reader;
   expired: (error: RemoteHttpError) => void;
@@ -547,13 +623,15 @@ function RemoteChat({
   }, [chat.id, fail, read, setError]);
   useEffect(() => {
     mounted.current = true;
-    void refresh();
     return () => {
       mounted.current = false;
       revision.current++;
     };
-  }, [refresh]);
-  useForeground(true, refresh);
+  }, []);
+  useEffect(() => {
+    if (active) void refresh();
+  }, [active, refresh]);
+  useForeground(active, refresh);
 
   const mark = useCallback(async () => {
     if (!repository.allowSend) return;
@@ -574,7 +652,17 @@ function RemoteChat({
 
   return (
     <Screen>
-      <AppBar title={chat.contact.name} onBack={back} />
+      <AppBar
+        title={chat.contact.name}
+        onBack={back}
+        actions={
+          <IconButton
+            icon={UserRound}
+            label="Ficha del contacto"
+            onPress={openContact}
+          />
+        }
+      />
       <View style={{ paddingHorizontal: 16 }}>
         <Text kind="meta" style={{ color: colors.text3 }}>
           {repository.allowSend

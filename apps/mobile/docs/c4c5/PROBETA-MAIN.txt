@@ -1,0 +1,189 @@
+import { randomBytes } from "node:crypto";
+import { eq, inArray } from "drizzle-orm";
+import { NextRequest } from "next/server";
+import { afterAll, beforeAll, expect, it, vi } from "vitest";
+import { POST as login } from "@/app/api/mobile/session/route";
+import { GET as contact } from "@/app/api/contacts/[id]/route";
+import { GET as timeline } from "@/app/api/contacts/[id]/timeline/route";
+import { POST as note } from "@/app/api/contacts/[id]/notes/route";
+import { PUT as tags } from "@/app/api/contacts/[id]/tags/route";
+import { GET as catalog } from "@/app/api/contact-tags/route";
+import { GET as team } from "@/app/api/settings/team/route";
+import { POST as assign } from "@/app/api/assignments/route";
+import { GET as tasks, POST as newTask } from "@/app/api/work/tasks/route";
+import { PATCH as updateTask } from "@/app/api/work/tasks/[id]/route";
+import { GET as bookings, POST as newBooking } from "@/app/api/bookings/route";
+import { PATCH as moveBooking } from "@/app/api/bookings/[id]/route";
+import { GET as slots } from "@/app/api/calendar/availability/route";
+import { GET as history } from "@/app/api/conversations/[id]/messages/route";
+import { middleware } from "@/middleware";
+import { getAuth } from "@/lib/auth";
+import { getSql, getSystemDb, schema } from "@/lib/db";
+import { newId } from "@/lib/db/ids";
+import { forgetOrgStatus } from "@/server/platform-admin/org-status";
+import { borrarOrganizaciones, crearOrganizacion } from "./fixtures";
+
+const ctx = vi.hoisted(() => ({ headers: new Headers() }));
+vi.mock("next/headers", () => ({ headers: async () => ctx.headers }));
+
+const db = getSystemDb();
+const base = process.env.APP_BASE_URL!;
+const orgs: string[] = [];
+const ids = { owner: newId("user"), advisor: newId("user"), foreign: newId("user") };
+const contacts = [newId("contact"), newId("contact"), newId("contact")];
+const chats = contacts.map(() => newId("conversation"));
+const tagId = newId("contactTag");
+const native = {} as Record<keyof typeof ids, Headers>;
+const password = randomBytes(24).toString("hex");
+const noNetwork = vi.fn(async () => { throw new Error("Network forbidden in fixture"); });
+
+type Handler = (req: Request, context: { params: Promise<{ id: string }> }) => Promise<Response>;
+async function call(
+  handler: Handler, session: keyof typeof ids | null,
+  method: string, path: string, body?: object, id = "",
+) {
+  const headers = new Headers(session ? native[session] : undefined);
+  if (body) headers.set("content-type", "application/json");
+  ctx.headers = headers;
+  const req = new NextRequest(base + path, { method, headers, body: body && JSON.stringify(body) });
+  expect(middleware(req).status).toBe(200);
+  return handler(req, { params: Promise.resolve({ id }) });
+}
+
+async function bodyOk(response: Response, status = 200) {
+  expect(response.status, response.ok ? undefined : await response.clone().text()).toBe(status);
+  return response.json();
+}
+
+beforeAll(async () => {
+  vi.stubGlobal("fetch", noNetwork);
+  const [role] = await getSql()`select current_user as name, rolbypassrls, rolsuper from pg_roles where rolname = current_user`;
+  expect(role).toEqual({ name: "vocero_app", rolbypassrls: false, rolsuper: false });
+  for (const letter of ["A", "B"]) {
+    const org = await crearOrganizacion("C45 " + letter);
+    orgs.push(org.id);
+    await db.insert(schema.organizationModule).values({ organizationId: org.id, agenda: true, trabajo: true });
+  }
+  const hash = await (await getAuth().$context).password.hash(password);
+  for (const [i, [key, userId]] of Object.entries(ids).entries()) {
+    const organizationId = orgs[key === "foreign" ? 1 : 0];
+    const email = `${userId}@fixture.test`;
+    await db.insert(schema.user).values({ id: userId, name: key, email, emailVerified: true });
+    await db.insert(schema.member).values({ id: newId("member"), userId, organizationId, role: key === "advisor" ? "asesor" : "owner" });
+    await db.insert(schema.account).values({ id: newId("account"), accountId: userId, userId, providerId: "credential", password: hash });
+    await db.insert(schema.contact).values({ id: contacts[i], organizationId, name: "Fixture " + key, waIdentity: contacts[i], assignedUserId: userId, notes: "Inicial" });
+    await db.insert(schema.conversation).values({ id: chats[i], contactId: contacts[i], organizationId });
+    const result = await bodyOk(await login(new Request(base + "/api/mobile/session", {
+      method: "POST", headers: { "content-type": "application/json", "x-forwarded-for": "127.0.0." + (2 + i) },
+      body: JSON.stringify({ email, password }),
+    })));
+    native[key as keyof typeof ids] = new Headers({ authorization: `Bearer ${result.token}` });
+  }
+  await db.insert(schema.contactTag).values({ id: tagId, organizationId: orgs[0], name: "Fixture tag", normalizedName: "fixture tag" });
+});
+afterAll(async () => {
+  expect(noNetwork).not.toHaveBeenCalled();
+  vi.unstubAllGlobals();
+  await borrarOrganizaciones(orgs);
+  await db.delete(schema.user).where(inArray(schema.user.id, Object.values(ids)));
+});
+
+it("C4 ficha sin teléfono, notas, etiquetas y chat dentro de su alcance", async () => {
+  const id = contacts[1], path = "/api/contacts/" + id;
+  const result = await bodyOk(await call(contact, "advisor", "GET", path, undefined, id));
+  expect(result.contact).toMatchObject({ id, phone: null, assignedUserId: ids.advisor });
+  await bodyOk(await call(note, "advisor", "POST", path + "/notes", { text: "Nota ficticia" }, id), 201);
+  const notes = await bodyOk(await call(timeline, "advisor", "GET", path + "/timeline", undefined, id));
+  expect(notes.items.map((item: {kind: string}) => item.kind)).toEqual(["note", "initial_note"]);
+  const available = await bodyOk(await call(catalog, "advisor", "GET", "/api/contact-tags"));
+  expect(available.tags.map((tag: { id: string }) => tag.id)).toContain(tagId);
+  expect((await bodyOk(await call(tags, "advisor", "PUT", path + "/tags", { tagIds: [tagId] }, id))).tags).toHaveLength(1);
+  expect((await bodyOk(await call(tags, "advisor", "PUT", path + "/tags", { tagIds: [] }, id))).tags).toEqual([]);
+  for (const index of [0, 2]) {
+    const id = contacts[index], path = "/api/contacts/" + id;
+    expect((await call(contact, "advisor", "GET", path, undefined, id)).status).toBe(404);
+    expect((await call(timeline, "advisor", "GET", path + "/timeline", undefined, id)).status).toBe(404);
+    expect((await call(note, "advisor", "POST", path + "/notes", { text: "Fixture" }, id)).status).toBe(404);
+    expect((await call(tags, "advisor", "PUT", path + "/tags", { tagIds: [] }, id)).status).toBe(404);
+    expect((await call(history, "advisor", "GET", "/api/conversations/" + chats[index] + "/messages", undefined, chats[index])).status).toBe(404);
+  }
+  expect((await call(contact, "owner", "GET", "/api/contacts/" + contacts[2], undefined, contacts[2])).status).toBe(404);
+});
+
+it("C4 matriz de asignación y pertenencia", async () => {
+  expect((await call(team, "advisor", "GET", "/api/settings/team")).status).toBe(403);
+  const result = await bodyOk(await call(team, "owner", "GET", "/api/settings/team"));
+  expect(new Set(result.members.map((member: { userId: string }) => member.userId))).toEqual(new Set([ids.owner, ids.advisor]));
+  const payload = { contactIds: [contacts[1]], userId: ids.owner };
+  expect((await call(assign, "advisor", "POST", "/api/assignments", payload)).status).toBe(403);
+  expect((await call(assign, "owner", "POST", "/api/assignments", { ...payload, contactIds: [contacts[2]] })).status).toBe(404);
+  expect((await bodyOk(await call(assign, "owner", "POST", "/api/assignments", payload))).changed).toBe(1);
+  expect((await call(contact, "advisor", "GET", "/api/contacts/" + contacts[1], undefined, contacts[1])).status).toBe(404);
+  await bodyOk(await call(assign, "owner", "POST", "/api/assignments", { ...payload, userId: ids.advisor }));
+});
+
+it("C5 tareas respetan alcance y completar/reabrir", async () => {
+  const create = async (who: keyof typeof ids) => (
+    await bodyOk(await call(newTask, who, "POST", "/api/work/tasks", { title: "Tarea " + who }), 201)
+  ).task.id as string;
+  const own = await create("advisor"), other = await create("owner"), foreign = await create("foreign");
+  const lookup = async (who: keyof typeof ids) => (
+    await bodyOk(await call(tasks, who, "GET", "/api/work/tasks?filter=all"))
+  ).tasks.map((task: { id: string }) => task.id);
+  expect(await lookup("advisor")).toEqual([own]);
+  expect(new Set(await lookup("owner"))).toEqual(new Set([own, other]));
+  expect((await call(updateTask, "advisor", "PATCH", "/api/work/tasks/" + other, { done: true }, other)).status).toBe(404);
+  expect((await call(updateTask, "owner", "PATCH", "/api/work/tasks/" + foreign, { done: true }, foreign)).status).toBe(404);
+  for (const done of [true, false]) {
+    const res = await bodyOk(await call(updateTask, "advisor", "PATCH", "/api/work/tasks/" + own, { done }, own));
+    expect(Boolean(res.task.doneAt)).toBe(done);
+  }
+});
+
+it("C5 agenda lista, crea y mueve por contacto autorizado, sin proveedor externo", async () => {
+  const path = "/api/bookings";
+  const getSlots = async (who: keyof typeof ids) => (
+    await bodyOk(await call(slots, who, "GET", "/api/calendar/availability"))
+  ).slots as { startUtc: string; dayIso: string }[];
+  const open = (await getSlots("advisor"))[0]!;
+  expect(open).toBeDefined();
+  expect((await call(newBooking, "advisor", "POST", path, { kind: "session", contactId: contacts[0], startUtc: open.startUtc })).status).toBe(404);
+  expect((await call(newBooking, "owner", "POST", path, { kind: "session", contactId: contacts[2], startUtc: open.startUtc })).status).toBe(404);
+  const create = async (who: keyof typeof ids, i: number) => {
+    const first = (await getSlots(who))[0]!;
+    return (await bodyOk(await call(newBooking, who, "POST", path, {
+      kind: "session", contactId: contacts[i], startUtc: first.startUtc,
+    }), 201)).booking.id as string;
+  };
+  const own = await create("advisor", 1), other = await create("owner", 0), foreign = await create("foreign", 2);
+  const from = open.dayIso;
+  const to = new Date(Date.parse(from) + 6 * 86400000).toISOString().slice(0, 10);
+  const lookup = async (who: keyof typeof ids) => (
+    await bodyOk(await call(bookings, who, "GET", `${path}?from=${from}&to=${to}`))
+  ).bookings.map((b: { id: string }) => b.id);
+  expect(await lookup("advisor")).toEqual([own]);
+  expect(new Set(await lookup("owner"))).toEqual(new Set([own, other]));
+  const target = (await getSlots("advisor"))[0]!;
+  for (const id of [other, foreign]) {
+    expect((await call(moveBooking, "advisor", "PATCH", path + "/" + id, { action: "reschedule", startUtc: target.startUtc }, id)).status).toBe(404);
+  }
+  expect((await bodyOk(await call(moveBooking, "advisor", "PATCH", path + "/" + own, { action: "reschedule", startUtc: target.startUtc }, own))).ok).toBe(true);
+});
+
+it("sin sesión o con organización suspendida las rutas mantienen el 401", async () => {
+  const id = contacts[1];
+  const check = async (actor: "advisor" | null) => {
+    for (const [handler, method, path, payload] of [
+      [contact, "GET", "/api/contacts/" + id, undefined],
+      [note, "POST", "/api/contacts/" + id + "/notes", { text: "Fixture" }],
+      [tags, "PUT", "/api/contacts/" + id + "/tags", { tagIds: [] }],
+      [assign, "POST", "/api/assignments", { contactIds: [id], userId: null }],
+      [tasks, "GET", "/api/work/tasks?filter=all", undefined],
+      [bookings, "GET", "/api/bookings", undefined],
+    ] as const) expect((await call(handler, actor, method, path, payload, id)).status).toBe(401);
+  };
+  await check(null);
+  await db.update(schema.organization).set({ status: "suspended" }).where(eq(schema.organization.id, orgs[0]));
+  forgetOrgStatus(orgs[0]);
+  await check("advisor");
+});

@@ -56,6 +56,7 @@ export function messagesResponse(
 export type WireConversation = Readonly<{
   id: string;
   contact: Readonly<{ id: string; name: string; phone: string | null }>;
+  assignee?: Readonly<{ id: string; name: string }>;
   unreadCount: number;
   preview?: string | null;
   lastMessageAt?: string | null;
@@ -83,8 +84,12 @@ export function conversationsResponse(raw: unknown): {
         (c.unreadCount as number) < 0
       )
         throw new IntegrationError("invalid");
+      const assignee = c.assignee == null ? null : record(c.assignee);
       return Object.freeze({
         id: id(c.id),
+        ...(assignee && typeof assignee.name === "string"
+          ? { assignee: { id: id(assignee.id), name: assignee.name } }
+          : {}),
         contact: Object.freeze({
           id: id(contact.id),
           name: contact.name,

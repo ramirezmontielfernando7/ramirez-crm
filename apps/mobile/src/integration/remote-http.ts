@@ -1,6 +1,23 @@
 import type { AuthRepository } from "../services/demo-auth";
 import type { StoragePort } from "../services/storage";
 
+import {
+  allowsCrmRequest,
+  crmCalendar,
+  crmContact,
+  crmCreatedId,
+  crmNotes,
+  crmRecord,
+  crmSlots,
+  crmTags,
+  crmTasks,
+  crmTeam,
+  isRemoteId,
+  validInstant,
+} from "./remote-crm-contract";
+
+type Method = "GET" | "POST" | "PATCH" | "PUT";
+
 export type RemoteMode = "staging" | "production";
 export type BuildMode = "demo" | RemoteMode | "invalid";
 
@@ -67,11 +84,13 @@ type RemoteErrorCode =
   | "organization_suspended"
   | "TOO_MANY_REQUESTS"
   | "SESSION_EXPIRED"
-  | "window_closed";
+  | "window_closed"
+  | "slot_taken";
 function errorCode(raw: unknown): RemoteErrorCode | undefined {
   return raw === "ORGANIZATION_SUSPENDED" ||
     raw === "organization_suspended" ||
     raw === "window_closed" ||
+    raw === "slot_taken" ||
     raw === "TOO_MANY_REQUESTS"
     ? raw
     : undefined;
@@ -93,6 +112,7 @@ export function allowsRemoteRequest(
   allowSend = false,
 ): boolean {
   if (/\s/.test(path)) return false;
+  if (allowsCrmRequest(method, path, allowSend)) return true;
   if (method === "POST")
     return (
       path === "/api/mobile/session" ||
@@ -121,6 +141,7 @@ export class RemoteHttpError extends Error {
     login = false,
     mode: RemoteMode = "staging",
     serverMessage?: unknown,
+    crm = false,
   ) {
     super(
       status === 409 &&
@@ -128,27 +149,31 @@ export class RemoteHttpError extends Error {
         serverMessage ===
           "La ventana de 24 horas está cerrada; usa una plantilla aprobada"
         ? serverMessage
-        : code === "SESSION_EXPIRED"
-          ? "Tu sesión caducó. Vuelve a iniciar sesión."
-          : status === 403 &&
-              (code === "ORGANIZATION_SUSPENDED" ||
-                code === "organization_suspended")
-            ? "Tu negocio está suspendido. Contacta a soporte de la plataforma."
-            : status === 429
-              ? "Demasiados intentos. Espera unos minutos."
-              : status === 401
-                ? login
-                  ? "Correo o contraseña incorrectos."
-                  : "Tu sesión ya no está activa. Vuelve a iniciar sesión."
-                : status === 404
-                  ? "La conversación ya no está disponible."
-                  : status === 403
-                    ? "No tienes acceso a esta operación."
-                    : status === 0
-                      ? mode === "production"
-                        ? "Sin conexión con Dashfort. Reintenta."
-                        : "Sin conexión con el entorno de pruebas."
-                      : "No se pudo completar la solicitud. Reintenta.",
+        : crm && status === 409 && code === "slot_taken"
+          ? "Ese horario ya no está disponible. Selecciona otro."
+          : code === "SESSION_EXPIRED"
+            ? "Tu sesión caducó. Vuelve a iniciar sesión."
+            : status === 403 &&
+                (code === "ORGANIZATION_SUSPENDED" ||
+                  code === "organization_suspended")
+              ? "Tu negocio está suspendido. Contacta a soporte de la plataforma."
+              : status === 429
+                ? "Demasiados intentos. Espera unos minutos."
+                : status === 401
+                  ? login
+                    ? "Correo o contraseña incorrectos."
+                    : "Tu sesión ya no está activa. Vuelve a iniciar sesión."
+                  : status === 404
+                    ? crm
+                      ? "El registro o módulo ya no está disponible."
+                      : "La conversación ya no está disponible."
+                    : status === 403
+                      ? "No tienes acceso a esta operación."
+                      : status === 0
+                        ? mode === "production"
+                          ? "Sin conexión con Dashfort. Reintenta."
+                          : "Sin conexión con el entorno de pruebas."
+                        : "No se pudo completar la solicitud. Reintenta.",
     );
   }
 }
@@ -188,6 +213,7 @@ export class RemoteAuthRepository implements AuthRepository<RemoteSession> {
   private current: Credential | null = null;
   private writes: Promise<void> = Promise.resolve();
   private sending = false;
+  private updatingCrm = false;
   readonly origin: string;
   private readonly key: string;
 
@@ -360,8 +386,160 @@ export class RemoteAuthRepository implements AuthRepository<RemoteSession> {
     }
   }
 
+  async contact(id: string) {
+    return crmContact(await this.read(`/api/contacts/${idSegment(id)}`), id);
+  }
+
+  async notes(id: string) {
+    return crmNotes(await this.read(`/api/contacts/${idSegment(id)}/timeline`));
+  }
+
+  async tags() {
+    return crmTags(await this.read("/api/contact-tags"));
+  }
+
+  async team() {
+    return crmTeam(await this.read("/api/settings/team"));
+  }
+
+  async tasks() {
+    return crmTasks(await this.read("/api/work/tasks?filter=all"));
+  }
+
+  async calendar(from: string, to: string) {
+    return crmCalendar(await this.read(`/api/bookings?from=${from}&to=${to}`));
+  }
+
+  async slots() {
+    return crmSlots(await this.read("/api/calendar/availability"));
+  }
+
+  addNote(id: string, draft: string) {
+    return this.updateCrm(async (request) => {
+      const text = boundedText(draft, 4_000);
+      return crmCreatedId(
+        await request("POST", `/api/contacts/${idSegment(id)}/notes`, { text }),
+      );
+    });
+  }
+
+  changeTag(id: string, tagId: string, add: boolean) {
+    return this.updateCrm(async (request) => {
+      const path = `/api/contacts/${idSegment(id)}`;
+      const [current, catalog] = await Promise.all([
+        request("GET", path).then((raw) => crmContact(raw, id)),
+        request("GET", "/api/contact-tags").then(crmTags),
+      ]);
+      // System labels are kept intact because the server replaces the whole set.
+      if (!catalog.some((tag) => tag.id === tagId))
+        throw new RemoteHttpError(403);
+      const ids = new Set(current.tags.map((tag) => tag.id));
+      if (ids.has(tagId) === add) return true;
+      if (add) ids.add(tagId);
+      else ids.delete(tagId);
+      if (ids.size > 50) throw new RemoteHttpError(422);
+      crmTags(await request("PUT", path + "/tags", { tagIds: [...ids] }));
+      return true;
+    });
+  }
+
+  assign(id: string, userId: string | null) {
+    return this.updateCrm(async (request) => {
+      const team = crmTeam(await request("GET", "/api/settings/team"));
+      if (userId !== null && !team.some((person) => person.id === userId))
+        throw new RemoteHttpError(403);
+      const result = crmRecord(
+        await request("POST", "/api/assignments", {
+          contactIds: [idSegment(id)],
+          userId,
+        }),
+      );
+      if (result.changed !== 0 && result.changed !== 1)
+        throw new RemoteHttpError(502);
+      return true;
+    });
+  }
+
+  addTask(draft: string, details: string) {
+    return this.updateCrm(async (request) => {
+      const title = boundedText(draft, 200);
+      const description = details.trim();
+      if (description.length > 4_000) throw new RemoteHttpError(422);
+      const raw = crmRecord(
+        await request("POST", "/api/work/tasks", {
+          title,
+          ...(description ? { description } : {}),
+        }),
+      );
+      return crmCreatedId(raw.task);
+    });
+  }
+
+  setTaskDone(id: string, done: boolean) {
+    return this.updateCrm(async (request) => {
+      if (typeof done !== "boolean") throw new RemoteHttpError(422);
+      const result = crmRecord(
+        await request("PATCH", `/api/work/tasks/${idSegment(id)}`, { done }),
+      );
+      if (crmCreatedId(result.task) !== id) throw new RemoteHttpError(502);
+      return true;
+    });
+  }
+
+  addBooking(contactId: string, startUtc: string) {
+    return this.updateCrm(async (request) => {
+      if (!validInstant(startUtc)) throw new RemoteHttpError(422);
+      const raw = crmRecord(
+        await request("POST", "/api/bookings", {
+          kind: "session",
+          contactId: idSegment(contactId),
+          startUtc,
+        }),
+      );
+      return crmCreatedId(raw.booking);
+    });
+  }
+
+  moveBooking(id: string, startUtc: string) {
+    return this.updateCrm(async (request) => {
+      if (!validInstant(startUtc)) throw new RemoteHttpError(422);
+      const raw = crmRecord(
+        await request("PATCH", `/api/bookings/${idSegment(id)}`, {
+          action: "reschedule",
+          startUtc,
+        }),
+      );
+      if (raw.ok !== true) throw new RemoteHttpError(502);
+      return true;
+    });
+  }
+
+  private async updateCrm<T>(
+    fn: (
+      request: (
+        method: Method,
+        path: string,
+        body?: object,
+      ) => Promise<unknown>,
+    ) => Promise<T>,
+  ): Promise<T | null> {
+    if (!this.allowSend) throw new RemoteHttpError(403);
+    if (this.updatingCrm) return null;
+    const session = this.current;
+    if (!session) throw new RemoteHttpError(401);
+    this.updatingCrm = true;
+    try {
+      return await fn((method, path, body) => {
+        if (session !== this.current) throw new RemoteHttpError(401);
+        return this.authenticatedRequest(method, path, body);
+      });
+    } finally {
+      this.updatingCrm = false;
+    }
+  }
+
   private async authenticatedRequest(
-    method: "GET" | "POST" | "PATCH",
+    method: Method,
     path: string,
     body?: object,
   ): Promise<unknown> {
@@ -386,7 +564,7 @@ export class RemoteAuthRepository implements AuthRepository<RemoteSession> {
   }
 
   private async request(
-    method: "GET" | "POST" | "PATCH",
+    method: Method,
     path: string,
     session?: Credential,
     body?: object,
@@ -416,6 +594,7 @@ export class RemoteAuthRepository implements AuthRepository<RemoteSession> {
           path === "/api/mobile/session",
           this.mode,
           value?.error?.message,
+          allowsCrmRequest(method, path, this.allowSend),
         );
       if (!value) throw new RemoteHttpError(502);
       return value;
@@ -426,4 +605,15 @@ export class RemoteAuthRepository implements AuthRepository<RemoteSession> {
       clearTimeout(timeout);
     }
   }
+}
+
+function idSegment(id: string) {
+  if (!isRemoteId(id)) throw new RemoteHttpError(422);
+  return id;
+}
+
+function boundedText(draft: string, max: number) {
+  const text = draft.trim();
+  if (!text || text.length > max) throw new RemoteHttpError(422);
+  return text;
 }
