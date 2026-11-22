@@ -16,6 +16,7 @@ import {
   Banner,
   Button,
   EmptyState,
+  Field,
   ListRow,
   PageScroll,
   Skeleton,
@@ -25,6 +26,8 @@ import type { Module } from "../domain/access";
 import { createReadOnlyConversationClient } from "../integration/conversation-client";
 import {
   RemoteAuthRepository,
+  REMOTE_TEXT_MAX,
+  remoteSendEnabled,
   RemoteHttpError,
   requiresRemoteLogin,
   type RemoteMode,
@@ -70,6 +73,8 @@ export function RemoteRoot({ mode }: { mode: RemoteMode | "invalid" }) {
         process.env.EXPO_PUBLIC_API_URL,
         deviceStorage(mode),
         fetch,
+        Date.now,
+        remoteSendEnabled(process.env.EXPO_PUBLIC_ALLOW_SEND),
       );
       if (Platform.OS === "web")
         throw new Error("Abre la app móvil para conectarte a Dashfort.");
@@ -226,6 +231,8 @@ function RemoteWorkspace({
   const [module, setModule] = useState<Module>("inbox");
   const [section, setSection] = useState("clients");
   const [chat, setChat] = useState<WireConversation | null>(null);
+  const [readReceipt, setReadReceipt] = useState<{ id: string }>();
+  const onRead = useCallback((id: string) => setReadReceipt({ id }), []);
   const showInbox = !chat && module === "inbox" && section === "clients";
   useEffect(() => {
     const sub = BackHandler.addEventListener("hardwareBackPress", () => {
@@ -288,6 +295,7 @@ function RemoteWorkspace({
                 read={read}
                 expired={expired}
                 open={setChat}
+                readReceipt={readReceipt}
               />
             </View>
             {module === "more" && (
@@ -329,6 +337,8 @@ function RemoteWorkspace({
             key={chat.id}
             chat={chat}
             read={read}
+            repository={repository}
+            onRead={onRead}
             expired={expired}
             back={() => setChat(null)}
           />
@@ -368,13 +378,23 @@ function RemoteInbox({
   read,
   expired,
   open,
+  readReceipt,
 }: {
   active: boolean;
   read: Reader;
   expired: (error: RemoteHttpError) => void;
   open: (row: WireConversation) => void;
+  readReceipt?: { id: string };
 }) {
   const [rows, setRows] = useState<WireConversation[]>([]);
+  useEffect(() => {
+    if (!readReceipt) return;
+    setRows((current) =>
+      current.map((row) =>
+        row.id === readReceipt.id ? { ...row, unreadCount: 0 } : row,
+      ),
+    );
+  }, [readReceipt]);
   const [busy, setBusy] = useState(true);
   const [more, setMore] = useState(false);
   const cursor = useRef<string | null>(null);
@@ -489,51 +509,84 @@ function RemoteChat({
   read,
   expired,
   back,
+  repository,
+  onRead,
 }: {
   chat: WireConversation;
   read: Reader;
   expired: (error: RemoteHttpError) => void;
   back: () => void;
+  repository: RemoteAuthRepository;
+  onRead: (id: string) => void;
 }) {
   const { colors } = useTheme();
   const [messages, setMessages] = useState<readonly WireMessage[]>([]);
   const [busy, setBusy] = useState(true);
   const revision = useRef(0);
   const { error, setError, fail } = useFailure(expired);
-  const refresh = useCallback(() => {
+  const [readError, setReadError] = useState("");
+  const mounted = useRef(false);
+  const refresh = useCallback(async () => {
     const request = ++revision.current;
     setBusy(true);
     setError("");
-    void read
-      .history(chat.id)
-      .then((history) => {
-        if (revision.current === request) setMessages(history);
-      })
-      .catch((reason) => {
-        if (revision.current === request) {
-          setMessages([]);
-          fail(reason);
-        }
-      })
-      .finally(() => {
-        if (revision.current === request) setBusy(false);
-      });
+    try {
+      const history = await read.history(chat.id);
+      if (revision.current !== request) return false;
+      setMessages(history);
+      return true;
+    } catch (reason) {
+      if (revision.current === request) {
+        setMessages([]);
+        fail(reason);
+      }
+      return false;
+    } finally {
+      if (revision.current === request) setBusy(false);
+    }
   }, [chat.id, fail, read, setError]);
   useEffect(() => {
-    refresh();
+    mounted.current = true;
+    void refresh();
     return () => {
+      mounted.current = false;
       revision.current++;
     };
   }, [refresh]);
   useForeground(true, refresh);
+
+  const mark = useCallback(async () => {
+    if (!repository.allowSend) return;
+    setReadError("");
+    try {
+      await repository.markRead(chat.id);
+      if (mounted.current) onRead(chat.id);
+    } catch (reason) {
+      if (!mounted.current) return;
+      if (requiresRemoteLogin(reason)) expired(reason);
+      else
+        setReadError(`No se pudo marcar como leído. ${errorMessage(reason)}`);
+    }
+  }, [chat.id, expired, onRead, repository]);
+  useEffect(() => {
+    void mark();
+  }, [mark]);
 
   return (
     <Screen>
       <AppBar title={chat.contact.name} onBack={back} />
       <View style={{ paddingHorizontal: 16 }}>
         <Text kind="meta" style={{ color: colors.text3 }}>
-          Solo lectura
+          {repository.allowSend
+            ? "Texto · Adjuntos y plantillas en demo"
+            : "Solo lectura"}
         </Text>
+        {!!readError && <Banner type="warning">{readError}</Banner>}
+        {!!readError && (
+          <Button variant="ghost" onPress={() => void mark()}>
+            Reintentar leído
+          </Button>
+        )}
         {!!error && <Banner type="warning">{error}</Banner>}
         {!!error && (
           <Button variant="ghost" onPress={refresh}>
@@ -581,6 +634,143 @@ function RemoteChat({
           </View>
         )}
       />
+      {repository.allowSend && (
+        <RemoteTextComposer
+          repository={repository}
+          id={chat.id}
+          expired={expired}
+          refresh={refresh}
+        />
+      )}
     </Screen>
+  );
+}
+
+function RemoteTextComposer({
+  repository,
+  id,
+  expired,
+  refresh,
+}: {
+  repository: RemoteAuthRepository;
+  id: string;
+  expired: (error: RemoteHttpError) => void;
+  refresh: () => Promise<boolean>;
+}) {
+  const { colors } = useTheme();
+  const [draft, setDraft] = useState("");
+  const [notice, setNotice] = useState("");
+  const [failure, setFailure] = useState<{
+    message: string;
+    uncertain: boolean;
+  }>();
+  const [pending, setPending] = useState(false);
+  const lock = useRef(false);
+  const mounted = useRef(false);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
+
+  async function send() {
+    if (lock.current || !draft.trim() || failure?.uncertain) return;
+    lock.current = true;
+    setPending(true);
+    setNotice("");
+    setFailure(undefined);
+    try {
+      const result = await repository.sendText(id, draft);
+      if (!mounted.current || !result) return;
+      setDraft("");
+      setNotice(result.queued ? "Mensaje en cola." : "Mensaje enviado.");
+      await refresh();
+    } catch (reason) {
+      if (!mounted.current) return;
+      if (requiresRemoteLogin(reason)) expired(reason);
+      else {
+        const uncertain =
+          !(reason instanceof RemoteHttpError) ||
+          reason.status === 0 ||
+          reason.status >= 500;
+        setFailure({
+          uncertain,
+          message: uncertain
+            ? `${errorMessage(reason)} El envío no se pudo confirmar. Revisa el historial antes de enviarlo de nuevo.`
+            : errorMessage(reason),
+        });
+      }
+    } finally {
+      lock.current = false;
+      if (mounted.current) setPending(false);
+    }
+  }
+
+  async function retry() {
+    if (!failure?.uncertain) {
+      await send();
+      return;
+    }
+    if (lock.current) return;
+    lock.current = true;
+    setPending(true);
+    try {
+      if ((await refresh()) && mounted.current) {
+        setFailure(undefined);
+        setNotice(
+          "Historial actualizado. Si el mensaje no aparece, revisa el borrador y pulsa Enviar.",
+        );
+      }
+    } finally {
+      lock.current = false;
+      if (mounted.current) setPending(false);
+    }
+  }
+
+  return (
+    <View
+      style={{
+        padding: 12,
+        gap: 6,
+        borderTopWidth: 1,
+        borderColor: colors.border,
+      }}
+    >
+      {notice ? (
+        <Text kind="meta" accessibilityLiveRegion="polite">
+          {notice}
+        </Text>
+      ) : null}
+      {failure && (
+        <>
+          <Banner type="warning">{failure.message}</Banner>
+          <Button
+            variant="ghost"
+            loading={pending}
+            onPress={() => void retry()}
+          >
+            Reintentar
+          </Button>
+        </>
+      )}
+      <Field
+        label="Mensaje"
+        placeholder="Escribe un mensaje"
+        multiline
+        maxLength={REMOTE_TEXT_MAX}
+        value={draft}
+        onChangeText={setDraft}
+        editable={!pending}
+        style={{ maxHeight: 104 }}
+      />
+      <Button
+        loading={pending}
+        disabled={!draft.trim() || failure?.uncertain}
+        onPress={() => void send()}
+      >
+        {pending ? "Enviando…" : "Enviar"}
+      </Button>
+    </View>
   );
 }

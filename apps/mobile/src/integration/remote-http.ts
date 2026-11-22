@@ -66,23 +66,42 @@ type RemoteErrorCode =
   | "ORGANIZATION_SUSPENDED"
   | "organization_suspended"
   | "TOO_MANY_REQUESTS"
-  | "SESSION_EXPIRED";
+  | "SESSION_EXPIRED"
+  | "window_closed";
 function errorCode(raw: unknown): RemoteErrorCode | undefined {
   return raw === "ORGANIZATION_SUSPENDED" ||
     raw === "organization_suspended" ||
+    raw === "window_closed" ||
     raw === "TOO_MANY_REQUESTS"
     ? raw
     : undefined;
 }
 
-export function allowsRemoteRequest(method: string, path: string): boolean {
+// Keep each mobile submission within one Meta text message.
+export const REMOTE_TEXT_MAX = 4_096;
+const conversationId = /^[a-zA-Z0-9_-]{1,200}$/;
+const historyPath = /^\/api\/conversations\/[a-zA-Z0-9_-]{1,200}\/messages$/;
+const conversationPath = /^\/api\/conversations\/[a-zA-Z0-9_-]{1,200}$/;
+
+export function remoteSendEnabled(raw: string | undefined): boolean {
+  return raw === "true";
+}
+
+export function allowsRemoteRequest(
+  method: string,
+  path: string,
+  allowSend = false,
+): boolean {
+  if (/\s/.test(path)) return false;
   if (method === "POST")
     return (
-      path === "/api/mobile/session" || path === "/api/mobile/session/revoke"
+      path === "/api/mobile/session" ||
+      path === "/api/mobile/session/revoke" ||
+      (allowSend && historyPath.test(path))
     );
+  if (method === "PATCH") return allowSend && conversationPath.test(path);
   if (method !== "GET") return false;
-  if (/^\/api\/conversations\/[a-zA-Z0-9_-]{1,200}\/messages$/.test(path))
-    return !/[\s]/.test(path);
+  if (historyPath.test(path)) return true;
   if (path === "/api/conversations") return true;
   if (
     !path.startsWith("/api/conversations?") ||
@@ -101,29 +120,35 @@ export class RemoteHttpError extends Error {
     readonly code?: RemoteErrorCode,
     login = false,
     mode: RemoteMode = "staging",
+    serverMessage?: unknown,
   ) {
     super(
-      code === "SESSION_EXPIRED"
-        ? "Tu sesión caducó. Vuelve a iniciar sesión."
-        : status === 403 &&
-            (code === "ORGANIZATION_SUSPENDED" ||
-              code === "organization_suspended")
-          ? "Tu negocio está suspendido. Contacta a soporte de la plataforma."
-          : status === 429
-            ? "Demasiados intentos. Espera unos minutos."
-            : status === 401
-              ? login
-                ? "Correo o contraseña incorrectos."
-                : "Tu sesión ya no está activa. Vuelve a iniciar sesión."
-              : status === 404
-                ? "La conversación ya no está disponible."
-                : status === 403
-                  ? "No tienes acceso a esta operación."
-                  : status === 0
-                    ? mode === "production"
-                      ? "Sin conexión con Dashfort. Reintenta."
-                      : "Sin conexión con el entorno de pruebas."
-                    : "No se pudo completar la solicitud. Reintenta.",
+      status === 409 &&
+        code === "window_closed" &&
+        serverMessage ===
+          "La ventana de 24 horas está cerrada; usa una plantilla aprobada"
+        ? serverMessage
+        : code === "SESSION_EXPIRED"
+          ? "Tu sesión caducó. Vuelve a iniciar sesión."
+          : status === 403 &&
+              (code === "ORGANIZATION_SUSPENDED" ||
+                code === "organization_suspended")
+            ? "Tu negocio está suspendido. Contacta a soporte de la plataforma."
+            : status === 429
+              ? "Demasiados intentos. Espera unos minutos."
+              : status === 401
+                ? login
+                  ? "Correo o contraseña incorrectos."
+                  : "Tu sesión ya no está activa. Vuelve a iniciar sesión."
+                : status === 404
+                  ? "La conversación ya no está disponible."
+                  : status === 403
+                    ? "No tienes acceso a esta operación."
+                    : status === 0
+                      ? mode === "production"
+                        ? "Sin conexión con Dashfort. Reintenta."
+                        : "Sin conexión con el entorno de pruebas."
+                      : "No se pudo completar la solicitud. Reintenta.",
     );
   }
 }
@@ -162,6 +187,7 @@ function credential(value: unknown): Credential {
 export class RemoteAuthRepository implements AuthRepository<RemoteSession> {
   private current: Credential | null = null;
   private writes: Promise<void> = Promise.resolve();
+  private sending = false;
   readonly origin: string;
   private readonly key: string;
 
@@ -171,6 +197,7 @@ export class RemoteAuthRepository implements AuthRepository<RemoteSession> {
     private readonly store: StoragePort,
     private readonly fetch: FetchPort,
     private readonly now = Date.now,
+    readonly allowSend = false,
   ) {
     this.origin = remoteOrigin(mode, origin);
     this.key = `dashfort.${mode}.session.v1`;
@@ -289,7 +316,57 @@ export class RemoteAuthRepository implements AuthRepository<RemoteSession> {
     });
   }
 
-  async read(path: string): Promise<unknown> {
+  read(path: string): Promise<unknown> {
+    return this.authenticatedRequest("GET", path);
+  }
+
+  async markRead(id: string): Promise<void> {
+    if (!conversationId.test(id) || /\s/.test(id))
+      throw new RemoteHttpError(403);
+    await this.authenticatedRequest("PATCH", `/api/conversations/${id}`, {
+      markRead: true,
+    });
+  }
+
+  async sendText(
+    id: string,
+    draft: string,
+  ): Promise<{ queued: boolean } | null> {
+    if (!this.allowSend || !conversationId.test(id) || /\s/.test(id))
+      throw new RemoteHttpError(403);
+    const text = draft.trim();
+    if (!text || text.length > REMOTE_TEXT_MAX) throw new RemoteHttpError(422);
+    if (this.sending) return null;
+
+    this.sending = true;
+    try {
+      const value = (await this.authenticatedRequest(
+        "POST",
+        `/api/conversations/${id}/messages`,
+        { text },
+      )) as {
+        messageId?: unknown;
+        queuedUntil?: unknown;
+      };
+      if (typeof value?.messageId !== "string" || !value.messageId)
+        throw new RemoteHttpError(502);
+      return {
+        queued:
+          typeof value.queuedUntil === "string" &&
+          Number.isFinite(Date.parse(value.queuedUntil)),
+      };
+    } finally {
+      this.sending = false;
+    }
+  }
+
+  private async authenticatedRequest(
+    method: "GET" | "POST" | "PATCH",
+    path: string,
+    body?: object,
+  ): Promise<unknown> {
+    if (!allowsRemoteRequest(method, path, this.allowSend))
+      throw new RemoteHttpError(403);
     const session = this.current;
     if (!session) throw new RemoteHttpError(401);
     if (session.expiresAt <= this.now()) {
@@ -297,7 +374,7 @@ export class RemoteAuthRepository implements AuthRepository<RemoteSession> {
       throw new RemoteHttpError(401, "SESSION_EXPIRED");
     }
     try {
-      const data = await this.request("GET", path, session);
+      const data = await this.request(method, path, session, body);
       if (this.current !== session) throw new RemoteHttpError(401);
       if (session.expiresAt <= this.now())
         throw new RemoteHttpError(401, "SESSION_EXPIRED");
@@ -309,12 +386,13 @@ export class RemoteAuthRepository implements AuthRepository<RemoteSession> {
   }
 
   private async request(
-    method: "GET" | "POST",
+    method: "GET" | "POST" | "PATCH",
     path: string,
     session?: Credential,
     body?: object,
   ) {
-    if (!allowsRemoteRequest(method, path)) throw new RemoteHttpError(403);
+    if (!allowsRemoteRequest(method, path, this.allowSend))
+      throw new RemoteHttpError(403);
     const headers = new Headers({ accept: "application/json" });
     if (session) headers.set("authorization", `Bearer ${session.token}`);
     if (body) headers.set("content-type", "application/json");
@@ -337,6 +415,7 @@ export class RemoteAuthRepository implements AuthRepository<RemoteSession> {
           errorCode(value?.error?.code) ?? errorCode(value?.code),
           path === "/api/mobile/session",
           this.mode,
+          value?.error?.message,
         );
       if (!value) throw new RemoteHttpError(502);
       return value;
