@@ -1,3 +1,4 @@
+import { crmRecord, isRemoteId } from "./remote-crm-contract";
 import { IntegrationError, type Scope } from "./contracts";
 import type { CrmReadPort, CrmActionPort, InboxQuery } from "./services";
 import {
@@ -212,17 +213,28 @@ export function createReadOnlyConversationClient(
   read: (path: string) => Promise<unknown>,
 ) {
   return {
-    async page(cursor?: string) {
+    async page(cursor?: string, limit = 40) {
       return conversationsResponse(
-        await read(conversationRequest({ cursor, limit: 40 }).path),
+        await read(conversationRequest({ cursor, limit }).path),
       );
+    },
+    async byId(id: string) {
+      if (!isRemoteId(id)) throw new IntegrationError("invalid");
+      const body = crmRecord(await read(`/api/conversations?ids=${id}`));
+      return conversationsResponse({
+        ...body,
+        nextCursor: null,
+      }).conversations.find((row) => row.id === id);
     },
     async history(id: string) {
       if (!/^[\w-]{1,200}$/.test(id)) throw new IntegrationError("invalid");
-      return messagesResponse(
+      const messages = messagesResponse(
         await read(`/api/conversations/${encodeURIComponent(id)}/messages`),
         id,
       );
+      return [
+        ...new Map(messages.map((message) => [message.id, message])).values(),
+      ];
     },
   };
 }

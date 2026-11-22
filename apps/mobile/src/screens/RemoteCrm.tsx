@@ -44,6 +44,13 @@ import {
 import type { WireConversation, WireMessage } from "../integration/wire";
 import { useTheme } from "../theme/ThemeProvider";
 import { LoginForm } from "./Access";
+import { useLayers } from "../components/Layers";
+import {
+  canSendTemplates,
+  insertQuickReply,
+} from "../integration/remote-composer";
+import { RemoteQuickReplies, RemoteTemplates } from "./RemoteComposerOptions";
+import { useRemoteLive } from "./useRemoteLive";
 import {
   BookingSlots,
   RemoteAgenda,
@@ -248,6 +255,9 @@ function RemoteWorkspace({
     "contact" | "tasks" | "agenda" | "schedule" | null
   >(null);
   const [chat, setChat] = useState<WireConversation | null>(null);
+  const onChatSnapshot = useCallback((row: WireConversation) => {
+    setChat((current) => (current?.id === row.id ? row : current));
+  }, []);
   const [readReceipt, setReadReceipt] = useState<{ id: string }>();
   const onRead = useCallback((id: string) => setReadReceipt({ id }), []);
   const overlay = Boolean(chat || page);
@@ -313,6 +323,7 @@ function RemoteWorkspace({
               <RemoteInbox
                 active={showInbox}
                 read={read}
+                repository={repository}
                 expired={expired}
                 open={setChat}
                 readReceipt={readReceipt}
@@ -370,6 +381,7 @@ function RemoteWorkspace({
             read={read}
             repository={repository}
             onRead={onRead}
+            onSnapshot={onChatSnapshot}
             active={!page}
             openContact={() => {
               Keyboard.dismiss();
@@ -420,16 +432,6 @@ function RemoteWorkspace({
   );
 }
 
-function useForeground(active: boolean, refresh: () => void) {
-  useEffect(() => {
-    if (!active) return;
-    const sub = AppState.addEventListener("change", (state) => {
-      if (state === "active") refresh();
-    });
-    return () => sub.remove();
-  }, [active, refresh]);
-}
-
 function useFailure(expired: (error: RemoteHttpError) => void) {
   const [error, setError] = useState("");
   const fail = useCallback(
@@ -448,12 +450,14 @@ function useFailure(expired: (error: RemoteHttpError) => void) {
 function RemoteInbox({
   active,
   read,
+  repository,
   expired,
   open,
   readReceipt,
 }: {
   active: boolean;
   read: Reader;
+  repository: RemoteAuthRepository;
   expired: (error: RemoteHttpError) => void;
   open: (row: WireConversation) => void;
   readReceipt?: { id: string };
@@ -472,24 +476,32 @@ function RemoteInbox({
   const cursor = useRef<string | null>(null);
   const revision = useRef(0);
   const loaded = useRef(false);
+  const loadedLength = useRef(0);
   const pending = useRef(false);
   const { error, setError, fail } = useFailure(expired);
   const load = useCallback(
-    (append = false) => {
+    (append = false, silent = false) => {
       const start = append ? cursor.current : null;
-      if (append && (!start || pending.current)) return;
+      if ((append && !start) || pending.current) return;
       pending.current = true;
       const request = ++revision.current;
-      setBusy(true);
+      if (!silent) setBusy(true);
       setError("");
-      void read
-        .page(start ?? undefined)
+      return read
+        .page(
+          start ?? undefined,
+          silent && !append
+            ? Math.max(40, Math.min(500, loadedLength.current))
+            : 40,
+        )
         .then((page) => {
           if (revision.current !== request) return;
           const next = page.nextCursor !== start ? page.nextCursor : null;
           loaded.current = true;
           cursor.current = next;
           setMore(!!next);
+          loadedLength.current =
+            (append ? loadedLength.current : 0) + page.conversations.length;
           setRows((old) => [
             ...new Map(
               (append
@@ -520,15 +532,16 @@ function RemoteInbox({
   const refresh = useCallback(() => load(), [load]);
   useEffect(() => {
     if (active) {
-      if (!loaded.current) refresh();
-      else setBusy(false);
+      if (AppState.currentState === "active" || AppState.currentState === null)
+        void load(false, loaded.current);
     }
     return () => {
       revision.current++;
       pending.current = false;
     };
-  }, [active, refresh]);
-  useForeground(active, refresh);
+  }, [active, load]);
+  const update = useCallback(() => load(false, true), [load]);
+  useRemoteLive(active, repository, update, expired);
   return (
     <FlatList
       data={rows}
@@ -536,7 +549,14 @@ function RemoteInbox({
       refreshing={busy}
       onRefresh={refresh}
       onEndReached={() => {
-        if (!busy && more && !error) load(true);
+        if (
+          active &&
+          AppState.currentState === "active" &&
+          !busy &&
+          more &&
+          !error
+        )
+          load(true);
       }}
       contentContainerStyle={{
         flexGrow: 1,
@@ -567,7 +587,9 @@ function RemoteInbox({
       renderItem={({ item }) => (
         <ListRow
           name={item.contact.name}
-          preview={item.preview ?? ""}
+          preview={[item.preview, item.assignee?.name]
+            .filter(Boolean)
+            .join(" · ")}
           unread={item.unreadCount}
           onPress={() => open(item)}
         />
@@ -583,6 +605,7 @@ function RemoteChat({
   back,
   repository,
   onRead,
+  onSnapshot,
   active,
   openContact,
 }: {
@@ -594,6 +617,7 @@ function RemoteChat({
   back: () => void;
   repository: RemoteAuthRepository;
   onRead: (id: string) => void;
+  onSnapshot: (row: WireConversation) => void;
 }) {
   const { colors } = useTheme();
   const [messages, setMessages] = useState<readonly WireMessage[]>([]);
@@ -602,25 +626,28 @@ function RemoteChat({
   const { error, setError, fail } = useFailure(expired);
   const [readError, setReadError] = useState("");
   const mounted = useRef(false);
-  const refresh = useCallback(async () => {
-    const request = ++revision.current;
-    setBusy(true);
-    setError("");
-    try {
-      const history = await read.history(chat.id);
-      if (revision.current !== request) return false;
-      setMessages(history);
-      return true;
-    } catch (reason) {
-      if (revision.current === request) {
-        setMessages([]);
-        fail(reason);
+  const refresh = useCallback(
+    async (silent = false) => {
+      const request = ++revision.current;
+      if (!silent) setBusy(true);
+      setError("");
+      try {
+        const history = await read.history(chat.id);
+        if (revision.current !== request) return false;
+        setMessages(history);
+        return true;
+      } catch (reason) {
+        if (revision.current === request) {
+          setMessages([]);
+          fail(reason);
+        }
+        return false;
+      } finally {
+        if (revision.current === request) setBusy(false);
       }
-      return false;
-    } finally {
-      if (revision.current === request) setBusy(false);
-    }
-  }, [chat.id, fail, read, setError]);
+    },
+    [chat.id, fail, read, setError],
+  );
   useEffect(() => {
     mounted.current = true;
     return () => {
@@ -629,9 +656,29 @@ function RemoteChat({
     };
   }, []);
   useEffect(() => {
-    if (active) void refresh();
+    if (
+      active &&
+      (AppState.currentState === "active" || AppState.currentState === null)
+    )
+      void refresh();
   }, [active, refresh]);
-  useForeground(active, refresh);
+  const update = useCallback(
+    async (signal: AbortSignal) => {
+      const result = await refresh(true);
+      if (!result || !mounted.current || signal.aborted) return;
+      try {
+        const row = await read.byId(chat.id);
+        if (row && mounted.current && !signal.aborted) onSnapshot(row);
+      } catch (reason) {
+        if (mounted.current && requiresRemoteLogin(reason)) expired(reason);
+      }
+    },
+    [chat.id, expired, onSnapshot, read, refresh],
+  );
+  useRemoteLive(active, repository, update, expired, {
+    conversationId: chat.id,
+    contactId: chat.contact.id,
+  });
 
   const mark = useCallback(async () => {
     if (!repository.allowSend) return;
@@ -666,9 +713,12 @@ function RemoteChat({
       <View style={{ paddingHorizontal: 16 }}>
         <Text kind="meta" style={{ color: colors.text3 }}>
           {repository.allowSend
-            ? "Texto · Adjuntos y plantillas en demo"
+            ? "Texto y plantillas · Adjuntos e IA en Demo"
             : "Solo lectura"}
         </Text>
+        {!!chat.assignee?.name && (
+          <Text kind="meta">Responsable: {chat.assignee.name}</Text>
+        )}
         {!!readError && <Banner type="warning">{readError}</Banner>}
         {!!readError && (
           <Button variant="ghost" onPress={() => void mark()}>
@@ -677,7 +727,7 @@ function RemoteChat({
         )}
         {!!error && <Banner type="warning">{error}</Banner>}
         {!!error && (
-          <Button variant="ghost" onPress={refresh}>
+          <Button variant="ghost" onPress={() => void refresh()}>
             Reintentar
           </Button>
         )}
@@ -686,7 +736,7 @@ function RemoteChat({
         data={messages}
         keyExtractor={(message) => message.id}
         refreshing={busy}
-        onRefresh={refresh}
+        onRefresh={() => void refresh()}
         contentContainerStyle={{
           paddingHorizontal: 16,
           paddingVertical: 12,
@@ -718,39 +768,50 @@ function RemoteChat({
                 day: "numeric",
                 month: "short",
               })}
+              {item.direction === "out"
+                ? ` · ${messageStatus[item.status]}`
+                : ""}
             </Text>
           </View>
         )}
       />
-      {repository.allowSend && (
-        <RemoteTextComposer
-          repository={repository}
-          id={chat.id}
-          expired={expired}
-          refresh={refresh}
-        />
-      )}
+      <RemoteTextComposer
+        repository={repository}
+        chat={chat}
+        expired={expired}
+        refresh={refresh}
+      />
     </Screen>
   );
 }
 
+const messageStatus: Record<WireMessage["status"], string> = {
+  pending: "Pendiente",
+  sent: "Enviado",
+  delivered: "Entregado",
+  read: "Leído",
+  failed: "Falló",
+};
+
 function RemoteTextComposer({
   repository,
-  id,
+  chat,
   expired,
   refresh,
 }: {
   repository: RemoteAuthRepository;
-  id: string;
+  chat: WireConversation;
   expired: (error: RemoteHttpError) => void;
   refresh: () => Promise<boolean>;
 }) {
   const { colors } = useTheme();
+  const { open, close } = useLayers();
   const [draft, setDraft] = useState("");
   const [notice, setNotice] = useState("");
   const [failure, setFailure] = useState<{
     message: string;
     uncertain: boolean;
+    windowClosed?: boolean;
   }>();
   const [pending, setPending] = useState(false);
   const lock = useRef(false);
@@ -759,8 +820,52 @@ function RemoteTextComposer({
     mounted.current = true;
     return () => {
       mounted.current = false;
+      close();
     };
-  }, []);
+  }, [close]);
+
+  function openTemplates() {
+    Keyboard.dismiss();
+    open({
+      kind: "sheet",
+      title: "Plantillas aprobadas",
+      content: (
+        <RemoteTemplates
+          repository={repository}
+          chat={chat}
+          expired={expired}
+          refresh={refresh}
+        />
+      ),
+    });
+  }
+
+  function openReplies() {
+    Keyboard.dismiss();
+    open({
+      kind: "sheet",
+      title: "Respuestas rápidas",
+      content: (
+        <RemoteQuickReplies
+          repository={repository}
+          expired={expired}
+          insert={
+            repository.allowSend
+              ? (body) =>
+                  setDraft((old) =>
+                    insertQuickReply(
+                      body,
+                      chat.contact.name,
+                      old,
+                      REMOTE_TEXT_MAX,
+                    ),
+                  )
+              : undefined
+          }
+        />
+      ),
+    });
+  }
 
   async function send() {
     if (lock.current || !draft.trim() || failure?.uncertain) return;
@@ -769,7 +874,7 @@ function RemoteTextComposer({
     setNotice("");
     setFailure(undefined);
     try {
-      const result = await repository.sendText(id, draft);
+      const result = await repository.sendText(chat.id, draft);
       if (!mounted.current || !result) return;
       setDraft("");
       setNotice(result.queued ? "Mensaje en cola." : "Mensaje enviado.");
@@ -784,6 +889,10 @@ function RemoteTextComposer({
           reason.status >= 500;
         setFailure({
           uncertain,
+          windowClosed:
+            reason instanceof RemoteHttpError &&
+            reason.status === 409 &&
+            reason.code === "window_closed",
           message: uncertain
             ? `${errorMessage(reason)} El envío no se pudo confirmar. Revisa el historial antes de enviarlo de nuevo.`
             : errorMessage(reason),
@@ -833,32 +942,56 @@ function RemoteTextComposer({
       {failure && (
         <>
           <Banner type="warning">{failure.message}</Banner>
+          {failure.windowClosed && canSendTemplates(chat) ? (
+            <Button disabled={pending} onPress={openTemplates}>
+              Enviar plantilla
+            </Button>
+          ) : (
+            <Button
+              variant="ghost"
+              loading={pending}
+              onPress={() => void retry()}
+            >
+              Reintentar
+            </Button>
+          )}
+        </>
+      )}
+      <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
+        {!(failure?.windowClosed && canSendTemplates(chat)) && (
+          <Button variant="ghost" disabled={pending} onPress={openTemplates}>
+            Plantillas
+          </Button>
+        )}
+        <Button
+          variant="ghost"
+          disabled={pending || failure?.uncertain}
+          onPress={openReplies}
+        >
+          Respuestas rápidas
+        </Button>
+      </View>
+      {repository.allowSend && (
+        <>
+          <Field
+            label="Mensaje"
+            placeholder="Escribe un mensaje"
+            multiline
+            maxLength={REMOTE_TEXT_MAX}
+            value={draft}
+            onChangeText={setDraft}
+            editable={!pending}
+            style={{ maxHeight: 104 }}
+          />
           <Button
-            variant="ghost"
             loading={pending}
-            onPress={() => void retry()}
+            disabled={!draft.trim() || failure?.uncertain}
+            onPress={() => void send()}
           >
-            Reintentar
+            {pending ? "Enviando…" : "Enviar"}
           </Button>
         </>
       )}
-      <Field
-        label="Mensaje"
-        placeholder="Escribe un mensaje"
-        multiline
-        maxLength={REMOTE_TEXT_MAX}
-        value={draft}
-        onChangeText={setDraft}
-        editable={!pending}
-        style={{ maxHeight: 104 }}
-      />
-      <Button
-        loading={pending}
-        disabled={!draft.trim() || failure?.uncertain}
-        onPress={() => void send()}
-      >
-        {pending ? "Enviando…" : "Enviar"}
-      </Button>
     </View>
   );
 }

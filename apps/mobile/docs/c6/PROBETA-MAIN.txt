@@ -1,0 +1,162 @@
+import { randomBytes } from "node:crypto";
+import { eq, inArray } from "drizzle-orm";
+import { NextRequest } from "next/server";
+import { afterAll, beforeAll, expect, it, vi } from "vitest";
+import { POST as login } from "@/app/api/mobile/session/route";
+import { GET as templates } from "@/app/api/templates/route";
+import { GET as replies } from "@/app/api/quick-replies/route";
+import { GET as primaryNumbers } from "@/app/api/whatsapp-numbers/route";
+import { GET as events } from "@/app/api/events/route";
+import { POST as templateSend } from "@/app/api/conversations/[id]/messages/template/route";
+import { GET as graphGet, POST as graphPost } from "@/app/api/dev/wa-mock/graph/[...path]/route";
+import { getWaMockState, nextTemplateId } from "@/server/dev/wa-mock-state";
+import { publish } from "@/server/events/bus";
+import { middleware } from "@/middleware";
+import { getAuth } from "@/lib/auth";
+import { getSql, getSystemDb, schema } from "@/lib/db";
+import { newId } from "@/lib/db/ids";
+import { borrarOrganizaciones, crearOrganizacion } from "./fixtures";
+
+const ctx = vi.hoisted(() => ({ headers: new Headers() }));
+vi.mock("next/headers", () => ({ headers: async () => ctx.headers }));
+
+const db = getSystemDb();
+const base = process.env.APP_BASE_URL!;
+const orgs: string[] = [];
+const wabas: string[] = [];
+const phoneNumberIds: string[] = [];
+const ids = { owner: newId("user"), advisor: newId("user"), foreign: newId("user") };
+const contacts = [newId("contact"), newId("contact"), newId("contact")];
+const chats = contacts.map(() => newId("conversation"));
+const tpl = [newId("template"), newId("template"), newId("template")];
+const native = {} as Record<keyof typeof ids, Headers>;
+const password = randomBytes(24).toString("hex");
+const fetchMock = vi.fn(async (input: string | URL, init?: RequestInit) => {
+  const url = new URL(String(input));
+  if (url.origin !== base || !url.pathname.startsWith("/api/dev/wa-mock/graph/"))
+    throw new Error("Network forbidden in fixture");
+  const path = url.pathname.slice("/api/dev/wa-mock/graph/".length).split("/");
+  return (init?.method === "POST" ? graphPost : graphGet)(new Request(url, init), { params: Promise.resolve({ path }) });
+});
+
+type Handler = (req: Request, context: { params: Promise<{ id: string }> }) => Promise<Response>;
+async function call(
+  handler: Handler, session: keyof typeof ids | null,
+  method: string, path: string, body?: object, id = "",
+) {
+  const headers = new Headers(session ? native[session] : undefined);
+  if (body) headers.set("content-type", "application/json");
+  ctx.headers = headers;
+  const req = new NextRequest(base + path, { method, headers, body: body && JSON.stringify(body) });
+  expect(middleware(req).status).toBe(200);
+  return handler(req, { params: Promise.resolve({ id }) });
+}
+
+async function bodyOk(response: Response, status = 200) {
+  expect(response.status, response.ok ? undefined : await response.clone().text()).toBe(status);
+  return response.json();
+}
+
+beforeAll(async () => {
+  vi.stubGlobal("fetch", fetchMock);
+  const [role] = await getSql()`select current_user as name, rolbypassrls, rolsuper from pg_roles where rolname = current_user`;
+  expect(role).toEqual({ name: "vocero_app", rolbypassrls: false, rolsuper: false });
+  for (const letter of ["A", "B"]) {
+    const org = await crearOrganizacion("C45 " + letter);
+    orgs.push(org.id);
+    wabas.push(org.wabaId);
+    phoneNumberIds.push(org.phoneNumberId);
+    await db.insert(schema.organizationModule).values({ organizationId: org.id, agenda: true, trabajo: true });
+  }
+  const hash = await (await getAuth().$context).password.hash(password);
+  for (const [i, [key, userId]] of Object.entries(ids).entries()) {
+    const organizationId = orgs[key === "foreign" ? 1 : 0];
+    const email = `${userId}@fixture.test`;
+    await db.insert(schema.user).values({ id: userId, name: key, email, emailVerified: true });
+    await db.insert(schema.member).values({ id: newId("member"), userId, organizationId, role: key === "advisor" ? "asesor" : "owner" });
+    await db.insert(schema.account).values({ id: newId("account"), accountId: userId, userId, providerId: "credential", password: hash });
+    await db.insert(schema.contact).values({ id: contacts[i], organizationId, name: "Fixture " + key, waIdentity: contacts[i], phone: "1202555010" + i, assignedUserId: userId });
+    await db.insert(schema.conversation).values({ id: chats[i], contactId: contacts[i], organizationId });
+    const result = await bodyOk(await login(new Request(base + "/api/mobile/session", {
+      method: "POST", headers: { "content-type": "application/json", "x-forwarded-for": "127.0.0." + (2 + i) },
+      body: JSON.stringify({ email, password }),
+    })));
+    native[key as keyof typeof ids] = new Headers({ authorization: `Bearer ${result.token}` });
+  }
+  for (let i = 0; i < tpl.length; i++) {
+    const status = i === 1 ? "pending" : "approved";
+    await db.insert(schema.template).values({
+      id: tpl[i], organizationId: orgs[i === 2 ? 1 : 0], name: "c6_fixture_" + i,
+      body: "Hola {{1}}", language: "es_MX", category: "UTILITY", status,
+    });
+    if (status === "approved") getWaMockState().templates.push({
+      id: nextTemplateId(), wabaId: wabas[i === 2 ? 1 : 0]!, name: "c6_fixture_" + i,
+      body: "Hola {{1}}", language: "es_MX", category: "UTILITY", status: "APPROVED",
+      components: [{ type: "BODY", text: "Hola {{1}}" }],
+    });
+  }
+  for (const [i, organizationId] of orgs.entries()) {
+    await db.insert(schema.quickReply).values({
+      id: newId("quickReply"), organizationId, shortcut: "fixture_" + i, body: "Respuesta ficticia", createdBy: i ? ids.foreign : ids.owner,
+    });
+  }
+});
+afterAll(async () => {
+  vi.unstubAllGlobals();
+  await borrarOrganizaciones(orgs);
+  await db.delete(schema.user).where(inArray(schema.user.id, Object.values(ids)));
+});
+
+
+it("catalogs preserve organization scope and approval on the web DTO", async () => {
+  for (const who of ["advisor", "owner"] as const) {
+    const catalog = await bodyOk(await call(templates, who, "GET", "/api/templates"));
+    expect(new Set(catalog.templates.map((item: {id:string}) => item.id))).toEqual(new Set(tpl.slice(0,2)));
+    expect(catalog.templates.find((item: {id:string}) => item.id === tpl[1]).sendable).toBe(false);
+    const result = await bodyOk(await call(replies, who, "GET", "/api/quick-replies"));
+    expect(result.replies.map((item: {shortcut:string}) => item.shortcut)).toEqual(["fixture_0"]);
+    const numbers = (await bodyOk(await call(primaryNumbers, who, "GET", "/api/whatsapp-numbers"))).numbers;
+    expect(numbers).toHaveLength(1);
+    expect(numbers[0]).toMatchObject({ id: phoneNumberIds[0], isPrimary: true });
+  }
+});
+
+it("Bearer + CSRF + RLS: restricted advisor, owner, approval and one template in wa-mock", async () => {
+  const request = (who: "advisor" | "owner", index: number, templateId: string, variables = ["Persona ficticia"]) => {
+    const id = chats[index];
+    return call(templateSend, who, "POST", "/api/conversations/" + id + "/messages/template", { templateId, variables }, id);
+  };
+  const size = () => getWaMockState().outbox.length;
+  const before = size();
+  expect((await request("advisor", 0, tpl[0])).status).toBe(404);
+  expect((await request("owner", 2, tpl[0])).status).toBe(404);
+  expect((await request("advisor", 1, tpl[2])).status).toBe(404);
+  expect((await request("advisor", 1, tpl[1])).status).toBe(422);
+  expect((await request("advisor", 1, tpl[0], [])).status).toBe(422);
+  expect(size()).toBe(before);
+  expect((await bodyOk(await request("advisor", 1, tpl[0]))).messageId).toMatch(/^msg_/);
+  expect(size()).toBe(before + 1);
+  expect((getWaMockState().outbox.at(-1)?.body as { type: string }).type).toBe("template");
+  expect(fetchMock.mock.calls).toHaveLength(1);
+});
+
+it("Bearer opens SSE with real session and scope; invalidated input is 401", async () => {
+  expect((await call(events, null, "GET", "/api/events")).status).toBe(401);
+  const res = await call(events, "advisor", "GET", "/api/events");
+  expect(res.status).toBe(200);
+  expect(res.headers.get("content-type")).toBe("text/event-stream");
+  const reader = res.body!.getReader();
+  const decoder = new TextDecoder();
+  const read = async () => decoder.decode((await reader.read()).value);
+  try {
+    expect(await read()).toContain(": conectado");
+    publish(orgs[1], { type: "message.new", data: { conversationId: chats[2], message: null } });
+    publish(orgs[0], { type: "message.new", data: { conversationId: chats[0], message: null } });
+    publish(orgs[0], { type: "message.new", data: { conversationId: chats[1], message: null } });
+    const frame = await read();
+    expect(frame).toContain("event: message.new");
+    expect(frame).toContain(chats[1]);
+  } finally {
+    await reader.cancel();
+  }
+});

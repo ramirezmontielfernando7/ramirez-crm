@@ -56,6 +56,9 @@ export function messagesResponse(
 export type WireConversation = Readonly<{
   id: string;
   contact: Readonly<{ id: string; name: string; phone: string | null }>;
+  channel?: string;
+  waNumberId?: string;
+  isGroup?: boolean;
   assignee?: Readonly<{ id: string; name: string }>;
   unreadCount: number;
   preview?: string | null;
@@ -87,6 +90,13 @@ export function conversationsResponse(raw: unknown): {
       const assignee = c.assignee == null ? null : record(c.assignee);
       return Object.freeze({
         id: id(c.id),
+        ...(typeof c.waNumberId === "string" && c.waNumberId
+          ? { waNumberId: c.waNumberId }
+          : {}),
+        ...(typeof c.channel === "string" ? { channel: c.channel } : {}),
+        ...(c.groupJid === null || typeof c.groupJid === "string"
+          ? { isGroup: c.groupJid !== null }
+          : {}),
         ...(assignee && typeof assignee.name === "string"
           ? { assignee: { id: id(assignee.id), name: assignee.name } }
           : {}),
