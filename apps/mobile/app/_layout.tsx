@@ -16,7 +16,11 @@ import { resolveBack } from "../src/domain/access";
 import { InboxProvider, useOptionalInbox } from "../src/features/inbox/store";
 import { ContactProvider } from "../src/features/contact/context";
 import { ChatProvider } from "../src/features/chat/context";
-import { StagingRoot, stagingSelected } from "../src/screens/Staging";
+import { RemoteRoot } from "../src/screens/RemoteCrm";
+import {
+  resolveBuildMode,
+  type RemoteMode,
+} from "../src/integration/remote-http";
 import { NotificationProvider } from "../src/features/notifications/context";
 function useDashfortFonts() {
   return useFonts({
@@ -180,7 +184,7 @@ function RootNavigator() {
     </>
   );
 }
-function StagingLayout() {
+function RemoteLayout({ mode }: { mode: RemoteMode | "invalid" }) {
   const [fonts, error] = useDashfortFonts();
   const { dark } = useTheme();
   if (!fonts && !error) return <Skeleton rows={4} />;
@@ -188,16 +192,17 @@ function StagingLayout() {
   return (
     <LayerProvider>
       <StatusBar style={dark ? "light" : "dark"} />
-      <StagingRoot />
+      <RemoteRoot mode={mode} />
     </LayerProvider>
   );
 }
 export default function Layout() {
-  if (stagingSelected) {
+  const mode = resolveBuildMode(process.env.EXPO_PUBLIC_MODE);
+  if (mode !== "demo") {
     return (
       <SafeAreaProvider>
         <ThemeProvider>
-          <StagingLayout />
+          <RemoteLayout mode={mode} />
         </ThemeProvider>
       </SafeAreaProvider>
     );

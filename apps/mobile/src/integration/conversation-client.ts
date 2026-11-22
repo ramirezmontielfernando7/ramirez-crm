@@ -207,7 +207,7 @@ export class PreparedConversations {
   }
 }
 
-/** Staging uses only the two existing CRM read endpoints. */
+/** Remote inbox and history use the existing CRM read endpoints. */
 export function createReadOnlyConversationClient(
   read: (path: string) => Promise<unknown>,
 ) {

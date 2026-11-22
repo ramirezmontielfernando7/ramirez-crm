@@ -7,6 +7,7 @@ import React, {
 } from "react";
 import { AppState, BackHandler, FlatList, Platform, View } from "react-native";
 import { fetch } from "expo/fetch";
+import Constants from "expo-constants";
 import * as SecureStore from "expo-secure-store";
 import { AppBar, SegmentedControl } from "../components/ModuleUi";
 import { Screen } from "../components/Screen";
@@ -23,16 +24,17 @@ import {
 import type { Module } from "../domain/access";
 import { createReadOnlyConversationClient } from "../integration/conversation-client";
 import {
-  StagingAuthRepository,
-  StagingHttpError,
-  stagingOrigin,
-} from "../integration/staging-http";
+  RemoteAuthRepository,
+  RemoteHttpError,
+  requiresRemoteLogin,
+  type RemoteMode,
+  type RemoteSession,
+} from "../integration/remote-http";
 import type { WireConversation, WireMessage } from "../integration/wire";
 import { useTheme } from "../theme/ThemeProvider";
 import { LoginForm } from "./Access";
 
-export const stagingSelected = process.env.EXPO_PUBLIC_MODE === "staging";
-const stagingModules = ["inbox", "crm", "studio", "marketing", "more"] as const;
+const remoteModules = ["inbox", "crm", "studio", "marketing", "more"] as const;
 const demoModules = {
   crm: "CRM",
   studio: "Estudio IA",
@@ -43,40 +45,46 @@ const sections = [
   { key: "team", label: "Equipo" },
   { key: "number", label: "Mi número" },
 ];
-const keychain = {
-  keychainService: "dashfort.staging",
-  keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
-};
-const secureStorage = {
-  get: (key: string) => SecureStore.getItemAsync(key, keychain),
-  set: (key: string, value: string) =>
-    SecureStore.setItemAsync(key, value, keychain),
-  remove: (key: string) => SecureStore.deleteItemAsync(key, keychain),
-};
+function deviceStorage(mode: RemoteMode) {
+  const keychain = {
+    keychainService: `dashfort.${mode}`,
+    keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
+  };
+  return {
+    get: (key: string) => SecureStore.getItemAsync(key, keychain),
+    set: (key: string, value: string) =>
+      SecureStore.setItemAsync(key, value, keychain),
+    remove: (key: string) => SecureStore.deleteItemAsync(key, keychain),
+  };
+}
 
-export function StagingRoot() {
+export function RemoteRoot({ mode }: { mode: RemoteMode | "invalid" }) {
   const [setup] = useState(() => {
     try {
+      if (mode === "invalid")
+        throw new Error(
+          "EXPO_PUBLIC_MODE debe ser demo, staging o production.",
+        );
+      const repository = new RemoteAuthRepository(
+        mode,
+        process.env.EXPO_PUBLIC_API_URL,
+        deviceStorage(mode),
+        fetch,
+      );
       if (Platform.OS === "web")
-        throw new Error("Abre la app móvil para entrar a staging.");
-      return {
-        repository: new StagingAuthRepository(
-          stagingOrigin(process.env.EXPO_PUBLIC_API_URL),
-          secureStorage,
-          fetch,
-        ),
-      };
+        throw new Error("Abre la app móvil para conectarte a Dashfort.");
+      return { repository };
     } catch (error) {
       return {
         error:
           error instanceof Error
             ? error.message
-            : "Configuración de staging inválida.",
+            : "Configuración de conexión inválida.",
       };
     }
   });
   return setup.repository ? (
-    <StagingSession repository={setup.repository} />
+    <RemoteSessionScreen repository={setup.repository} />
   ) : (
     <Screen>
       <AppBar title="Dashfort" />
@@ -88,14 +96,18 @@ export function StagingRoot() {
 }
 
 function errorMessage(error: unknown) {
-  return error instanceof StagingHttpError
+  return error instanceof RemoteHttpError
     ? error.message
     : "No se pudieron cargar los datos. Reintenta.";
 }
 
-function StagingSession({ repository }: { repository: StagingAuthRepository }) {
+function RemoteSessionScreen({
+  repository,
+}: {
+  repository: RemoteAuthRepository;
+}) {
   const [ready, setReady] = useState(false);
-  const [loggedIn, setLoggedIn] = useState(false);
+  const [session, setSession] = useState<RemoteSession | null>(null);
   const [notice, setNotice] = useState("");
   const [leaving, setLeaving] = useState(false);
   const logoutBusy = useRef(false);
@@ -104,10 +116,15 @@ function StagingSession({ repository }: { repository: StagingAuthRepository }) {
     void repository
       .restore()
       .then((value) => {
-        if (alive) setLoggedIn(!!value);
+        if (alive) setSession(value);
       })
-      .catch(() => {
-        if (alive) setNotice("No se pudo abrir el almacenamiento seguro.");
+      .catch((error) => {
+        if (alive)
+          setNotice(
+            requiresRemoteLogin(error)
+              ? error.message
+              : "No se pudo abrir el almacenamiento seguro.",
+          );
       })
       .finally(() => {
         if (alive) setReady(true);
@@ -116,14 +133,41 @@ function StagingSession({ repository }: { repository: StagingAuthRepository }) {
       alive = false;
     };
   }, [repository]);
-  const expired = useCallback((error: StagingHttpError) => {
-    setLoggedIn(false);
+  const expired = useCallback((error: RemoteHttpError) => {
+    setSession(null);
     setNotice(error.message);
   }, []);
+  useEffect(() => {
+    if (!session) return;
+    let active = true;
+    let timer: ReturnType<typeof setTimeout>;
+    const check = () => {
+      clearTimeout(timer);
+      const remaining = session.expiresAt - Date.now();
+      if (remaining > 0) {
+        timer = setTimeout(check, Math.min(remaining, 2_147_483_647));
+      } else {
+        void repository.expireIfNeeded().then((didExpire) => {
+          if (active && didExpire)
+            expired(new RemoteHttpError(401, "SESSION_EXPIRED"));
+        });
+      }
+    };
+    check();
+    const subscription = AppState.addEventListener("change", (state) => {
+      if (state === "active") check();
+    });
+    return () => {
+      active = false;
+      clearTimeout(timer);
+      subscription.remove();
+    };
+  }, [expired, repository, session]);
+
   const logout = async () => {
     if (logoutBusy.current) return;
     logoutBusy.current = true;
-    setLoggedIn(false);
+    setSession(null);
     setLeaving(true);
     setNotice("");
     try {
@@ -145,19 +189,19 @@ function StagingSession({ repository }: { repository: StagingAuthRepository }) {
         <Skeleton rows={4} />
       </Screen>
     );
-  if (!loggedIn)
+  if (!session)
     return (
       <LoginForm
         notice={notice}
         onSignIn={async (email, password) => {
-          await repository.signIn(email, password);
+          const signedIn = await repository.signIn(email, password);
           setNotice("");
-          setLoggedIn(true);
+          setSession(signedIn);
         }}
       />
     );
   return (
-    <StagingWorkspace
+    <RemoteWorkspace
       repository={repository}
       expired={expired}
       logout={logout}
@@ -166,13 +210,13 @@ function StagingSession({ repository }: { repository: StagingAuthRepository }) {
 }
 
 type Reader = ReturnType<typeof createReadOnlyConversationClient>;
-function StagingWorkspace({
+function RemoteWorkspace({
   repository,
   expired,
   logout,
 }: {
-  repository: StagingAuthRepository;
-  expired: (error: StagingHttpError) => void;
+  repository: RemoteAuthRepository;
+  expired: (error: RemoteHttpError) => void;
   logout: () => Promise<void>;
 }) {
   const read = useMemo(
@@ -239,7 +283,7 @@ function StagingWorkspace({
                 opacity: showInbox ? 1 : 0,
               }}
             >
-              <StagingInbox
+              <RemoteInbox
                 active={showInbox}
                 read={read}
                 expired={expired}
@@ -248,6 +292,12 @@ function StagingWorkspace({
             </View>
             {module === "more" && (
               <PageScroll>
+                <Text kind="meta">
+                  {Constants.expoConfig?.version} ·{" "}
+                  {repository.mode === "production"
+                    ? "Conectado a Dashfort"
+                    : "Entorno de pruebas"}
+                </Text>
                 <Button onPress={() => void logout()}>Cerrar sesión</Button>
               </PageScroll>
             )}
@@ -267,7 +317,7 @@ function StagingWorkspace({
         </Screen>
         {!chat && (
           <ModuleTabBar
-            modules={stagingModules}
+            modules={remoteModules}
             selected={module}
             onPress={setModule}
           />
@@ -275,7 +325,7 @@ function StagingWorkspace({
       </View>
       {chat && (
         <View style={{ position: "absolute", inset: 0 }}>
-          <StagingChat
+          <RemoteChat
             key={chat.id}
             chat={chat}
             read={read}
@@ -298,14 +348,11 @@ function useForeground(active: boolean, refresh: () => void) {
   }, [active, refresh]);
 }
 
-function useFailure(expired: (error: StagingHttpError) => void) {
+function useFailure(expired: (error: RemoteHttpError) => void) {
   const [error, setError] = useState("");
   const fail = useCallback(
     (reason: unknown) => {
-      if (
-        reason instanceof StagingHttpError &&
-        (reason.status === 401 || reason.code === "organization_suspended")
-      ) {
+      if (requiresRemoteLogin(reason)) {
         expired(reason);
       } else {
         setError(errorMessage(reason));
@@ -316,7 +363,7 @@ function useFailure(expired: (error: StagingHttpError) => void) {
   return { error, setError, fail };
 }
 
-function StagingInbox({
+function RemoteInbox({
   active,
   read,
   expired,
@@ -324,7 +371,7 @@ function StagingInbox({
 }: {
   active: boolean;
   read: Reader;
-  expired: (error: StagingHttpError) => void;
+  expired: (error: RemoteHttpError) => void;
   open: (row: WireConversation) => void;
 }) {
   const [rows, setRows] = useState<WireConversation[]>([]);
@@ -362,7 +409,7 @@ function StagingInbox({
         })
         .catch((reason) => {
           if (revision.current !== request) return;
-          if (reason instanceof StagingHttpError && reason.status === 403) {
+          if (reason instanceof RemoteHttpError && reason.status === 403) {
             cursor.current = null;
             setMore(false);
             setRows([]);
@@ -437,7 +484,7 @@ function StagingInbox({
   );
 }
 
-function StagingChat({
+function RemoteChat({
   chat,
   read,
   expired,
@@ -445,7 +492,7 @@ function StagingChat({
 }: {
   chat: WireConversation;
   read: Reader;
-  expired: (error: StagingHttpError) => void;
+  expired: (error: RemoteHttpError) => void;
   back: () => void;
 }) {
   const { colors } = useTheme();

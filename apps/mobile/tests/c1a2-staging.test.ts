@@ -2,10 +2,10 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { createReadOnlyConversationClient } from "../src/integration/conversation-client";
 import {
-  StagingAuthRepository,
-  StagingHttpError,
+  RemoteAuthRepository,
+  RemoteHttpError,
   stagingOrigin,
-} from "../src/integration/staging-http";
+} from "../src/integration/remote-http";
 
 test("staging rejects production, empty origin, HTTP remote and URL credentials", () => {
   for (const raw of [
@@ -40,7 +40,8 @@ function setup() {
     },
   };
   const make = (origin = "https://staging.example.test") =>
-    new StagingAuthRepository(
+    new RemoteAuthRepository(
+      "staging",
       origin,
       store,
       async (url, init) => {
@@ -133,7 +134,7 @@ test("maps suspension and rate limit; offline logout erases the local credential
     await assert.rejects(
       () => auth.signIn("fixture@example.test", "fixture"),
       (err: unknown) =>
-        err instanceof StagingHttpError &&
+        err instanceof RemoteHttpError &&
         err.code === code &&
         err.status === status,
     );
