@@ -321,7 +321,7 @@ export function AgentEditor({ id, documents = false }: { id: string; documents?:
 
   const actions = (
     <>
-      <span className="hidden text-xs text-text-3 lg:inline" title={status}>
+      <span className="hidden whitespace-nowrap text-xs text-text-3 2xl:inline" title={status}>
         {dirty ? "Cambios sin guardar" : `Guardado ${timeAgo(agent.updatedAt)}`}
       </span>
       <Button variant="outline" size="sm" onClick={() => void saveDraft()} disabled={busy || !dirty}>

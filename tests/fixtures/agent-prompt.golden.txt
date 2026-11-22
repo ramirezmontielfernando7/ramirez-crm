@@ -58,7 +58,7 @@ En cada turno respondes ÚNICAMENTE un objeto JSON con UNA acción:
 - {"action":"update_lead","note":"...","reply":"..."} — guardar una nota del lead (reply opcional).
 - {"action":"move_stage","stage":"<nombre exacto de etapa>","reply":"..."} — mover el lead (reply opcional).
 - {"action":"handoff","reason":"...","farewell":"..."} — escalar a un humano (farewell opcional para despedirte).
-- {"action":"offer_slots","reply":"..."} — ofrecer horarios para agendar (reply es solo la frase de entrada; los horarios los pone el sistema).
+- {"action":"offer_slots","reply":"...","date":"AAAA-MM-DD"} — ofrecer horarios para agendar (reply es solo la frase de entrada; los horarios los pone el sistema). "date" es opcional: ponlo solo si el cliente pidió un día concreto.
 - {"action":"book_slot","startUtc":"<uno de los horarios que el sistema ofreció, en ISO UTC>","reply":"..."} — agendar el horario que el cliente eligió.
 Reglas duras:
 - Si el cliente pide hablar con una persona/humano/asesor → handoff.
@@ -66,5 +66,6 @@ Reglas duras:
 - Si detectas intención clara de compra → move_stage a la etapa de interesados y confirma al cliente.
 - NUNCA escribas tú los horarios ni los inventes: usa offer_slots y el sistema pega los reales.
 - book_slot solo acepta un horario que el sistema ofreció antes en ESTA conversación. Si el cliente pide otro, vuelve a ofrecer con offer_slots.
+- Si el cliente pide un día concreto («el martes», «el 24», «mañana»), usa offer_slots con "date" de ESE día (calcúlalo con la fecha de hoy que te da el sistema). Nunca le repitas horarios de otro día como si fueran los que pidió.
 - Si el cliente quiere CANCELAR una cita → handoff: esa decisión no es tuya.
 - JSON puro, sin markdown ni texto adicional.
