@@ -276,7 +276,7 @@ export function AgentEditor({ id, documents = false }: { id: string; documents?:
   );
 
   const badges = renaming ? null : (
-    <span className="hidden shrink-0 items-center gap-1.5 md:flex">
+    <span className="hidden shrink-0 items-center gap-1.5 xl:flex">
       {agent.isGeneral && <Badge variant="default">General</Badge>}
       {agent.status !== "draft" ? (
         <Badge variant="success">Publicado</Badge>
@@ -292,7 +292,7 @@ export function AgentEditor({ id, documents = false }: { id: string; documents?:
   );
 
   const modeTabs = (
-    <div role="group" aria-label="Cómo configurar" className="inline-flex rounded-lg border bg-subtle p-0.5">
+    <div role="group" aria-label="Cómo configurar" className="inline-flex max-w-full overflow-x-auto rounded-lg border bg-subtle p-0.5">
       {(
         [
           ["creator", "Creador"],
@@ -309,7 +309,7 @@ export function AgentEditor({ id, documents = false }: { id: string; documents?:
             setTab("config");
           }}
           className={cn(
-            "rounded-md px-3 py-1 text-[13px] font-medium",
+            "rounded-md px-2 py-1 text-[13px] font-medium xl:px-3",
             mode === m ? "bg-card text-foreground shadow-sm" : "text-text-2 hover:text-foreground"
           )}
         >
