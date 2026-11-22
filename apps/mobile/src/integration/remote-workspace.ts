@@ -13,11 +13,17 @@ export function allowsWorkspaceRequest(
 ) {
   if (method === "GET")
     return (
+      path === "/api/writing-assist" ||
+      path === "/api/lab/agents" ||
       path === "/api/pipeline/board?take=50" ||
       boardPage.test(path) ||
       path === "/api/pipeline/loss-reasons"
     );
-  return writes && method === "PATCH" && leadPath.test(path);
+  return (
+    writes &&
+    ((method === "PATCH" && leadPath.test(path)) ||
+      (method === "POST" && path === "/api/writing-assist"))
+  );
 }
 
 export function rows(raw: unknown, key: string) {
@@ -72,4 +78,22 @@ export function lossReasonsResponse(raw: unknown) {
       ? [{ key, label }]
       : [],
   );
+}
+
+export function agentsResponse(raw: unknown) {
+  return rows(raw, "agents").flatMap((row) => {
+    if (!isRemoteId(row.id) || typeof row.internalName !== "string") return [];
+    return [
+      {
+        id: row.id,
+        name: row.internalName,
+        state:
+          row.paused === true
+            ? "En pausa"
+            : row.hasPublished === true || typeof row.publishedAt === "string"
+              ? "Publicado"
+              : "Borrador",
+      },
+    ];
+  });
 }

@@ -66,6 +66,8 @@ import {
 } from "./RemoteAttachments";
 import { clearRemoteMedia } from "./remote-media-cache";
 
+import { RemoteAgents, RemoteChatAI, RemoteWritingAssist } from "./RemoteAi";
+
 const remoteModules = ["inbox", "crm", "studio", "marketing", "more"] as const;
 const demoModules = {
   crm: "Pipeline",
@@ -321,7 +323,9 @@ function RemoteWorkspace({
                   ? "Más"
                   : module === "crm"
                     ? "Pipeline"
-                    : `${demoModules[module]} · Demo`
+                    : module === "studio"
+                      ? "Estudio IA"
+                      : `${demoModules[module]} · Demo`
             }
           />
           {module === "inbox" && (
@@ -386,6 +390,11 @@ function RemoteWorkspace({
                     setChat(row);
                   }}
                 />
+              </PageScroll>
+            )}
+            {module === "studio" && (
+              <PageScroll style={{ paddingBottom: 112 }}>
+                <RemoteAgents repository={repository} expired={expired} />
               </PageScroll>
             )}
             {((module === "inbox" && section !== "clients") ||
@@ -707,14 +716,16 @@ function RemoteChat({
       void refresh();
   }, [active, refresh]);
   const update = useCallback(
-    async (signal: AbortSignal) => {
+    async (signal?: AbortSignal) => {
       const result = await refresh(true);
-      if (!result || !mounted.current || signal.aborted) return;
+      if (!result || !mounted.current || signal?.aborted) return false;
       try {
         const row = await read.byId(chat.id);
-        if (row && mounted.current && !signal.aborted) onSnapshot(row);
+        if (row && mounted.current && !signal?.aborted) onSnapshot(row);
+        return Boolean(row);
       } catch (reason) {
         if (mounted.current && requiresRemoteLogin(reason)) expired(reason);
+        return false;
       }
     },
     [chat.id, expired, onSnapshot, read, refresh],
@@ -757,7 +768,7 @@ function RemoteChat({
       <View style={{ paddingHorizontal: 16 }}>
         <Text kind="meta" style={{ color: colors.text3 }}>
           {repository.allowSend
-            ? "Texto, plantillas y adjuntos · IA en Demo"
+            ? "Texto, plantillas y adjuntos"
             : "Solo lectura"}
         </Text>
         {!!chat.assignee?.name && (
@@ -835,6 +846,7 @@ function RemoteChat({
         chat={chat}
         expired={expired}
         refresh={refresh}
+        refreshChat={() => update()}
       />
     </Screen>
   );
@@ -853,9 +865,11 @@ function RemoteTextComposer({
   chat,
   expired,
   refresh,
+  refreshChat,
 }: {
   repository: RemoteAuthRepository;
   chat: WireConversation;
+  refreshChat: () => Promise<boolean>;
   expired: (error: RemoteHttpError) => void;
   refresh: () => Promise<boolean>;
 }) {
@@ -907,6 +921,38 @@ function RemoteTextComposer({
           id={chat.id}
           refresh={refresh}
           offerTemplates={openTemplates}
+        />
+      ),
+    });
+  }
+
+  function openAI() {
+    Keyboard.dismiss();
+    open({
+      kind: "sheet",
+      title: "IA en este chat",
+      content: (
+        <RemoteChatAI
+          repository={repository}
+          expired={expired}
+          chat={chat}
+          refresh={refreshChat}
+        />
+      ),
+    });
+  }
+
+  function openWriting() {
+    Keyboard.dismiss();
+    open({
+      kind: "sheet",
+      title: "Asistente de redacción",
+      content: (
+        <RemoteWritingAssist
+          repository={repository}
+          expired={expired}
+          draft={draft}
+          apply={setDraft}
         />
       ),
     });
@@ -1035,6 +1081,22 @@ function RemoteTextComposer({
             Adjuntar
           </Button>
         )}
+        {chat.aiAvailable && (
+          <Button variant="ghost" disabled={pending} onPress={openAI}>
+            IA del chat
+          </Button>
+        )}
+        {repository.allowSend &&
+          !!draft.trim() &&
+          draft.trim().length <= 4000 && (
+            <Button
+              variant="ghost"
+              disabled={pending || failure?.uncertain}
+              onPress={openWriting}
+            >
+              Mejorar borrador
+            </Button>
+          )}
         {!(failure?.windowClosed && canSendTemplates(chat)) && (
           <Button variant="ghost" disabled={pending} onPress={openTemplates}>
             Plantillas

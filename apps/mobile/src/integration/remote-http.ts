@@ -31,6 +31,7 @@ import {
 import type { WireConversation } from "./wire";
 
 import {
+  agentsResponse,
   allowsWorkspaceRequest,
   lossReasonsResponse,
   pipelineResponse,
@@ -748,6 +749,44 @@ export class RemoteAuthRepository implements AuthRepository<RemoteSession> {
       clearTimeout(timeout);
       signal.removeEventListener("abort", abort);
     }
+  }
+
+  async agents() {
+    return agentsResponse(await this.read("/api/lab/agents"));
+  }
+
+  async writingAvailable() {
+    return crmRecord(await this.read("/api/writing-assist")).available === true;
+  }
+
+  suggestDraft(draft: string) {
+    return this.updateCrm(async (request) => {
+      const text = boundedText(draft, 4_000);
+      const raw = crmRecord(
+        await request("POST", "/api/writing-assist", {
+          action: "improve",
+          text,
+        }),
+      );
+      if (typeof raw.text !== "string" || !raw.text.trim())
+        throw new RemoteHttpError(502);
+      return raw.text.slice(0, REMOTE_TEXT_MAX);
+    });
+  }
+
+  setConversationAI(id: string, action: "pause" | "enable" | "reactivate") {
+    return this.updateCrm(async (request) => {
+      const patch =
+        action === "reactivate"
+          ? { reactivate: true }
+          : { aiEnabled: action === "enable" };
+      const result = crmRecord(
+        await request("PATCH", `/api/conversations/${idSegment(id)}`, patch),
+      );
+      if (crmRecord(result.conversation).id !== id)
+        throw new RemoteHttpError(502);
+      return true;
+    });
   }
 
   async pipeline(stage?: { id: string; offset: number }) {

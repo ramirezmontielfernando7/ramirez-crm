@@ -63,6 +63,9 @@ export type WireConversation = Readonly<{
   channel?: string;
   waNumberId?: string;
   isGroup?: boolean;
+  aiAvailable?: boolean;
+  aiEnabled?: boolean;
+  handoffAt?: string | null;
   assignee?: Readonly<{ id: string; name: string }>;
   unreadCount: number;
   preview?: string | null;
@@ -94,6 +97,13 @@ export function conversationsResponse(raw: unknown): {
       const assignee = c.assignee == null ? null : record(c.assignee);
       return Object.freeze({
         id: id(c.id),
+        ...(typeof c.aiAvailable === "boolean"
+          ? { aiAvailable: c.aiAvailable }
+          : {}),
+        ...(typeof c.aiEnabled === "boolean" ? { aiEnabled: c.aiEnabled } : {}),
+        ...(typeof c.handoffAt === "string" || c.handoffAt === null
+          ? { handoffAt: c.handoffAt }
+          : {}),
         ...(typeof c.waNumberId === "string" && c.waNumberId
           ? { waNumberId: c.waNumberId }
           : {}),
