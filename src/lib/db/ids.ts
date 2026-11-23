@@ -96,6 +96,7 @@ const prefixes = {
   directNumber: "dnum",
   conversationAccess: "cacc",
   conversationAccessLog: "cavl",
+  mobilePushDevice: "mpd",
   user: "usr",
   account: "acc",
 } as const;

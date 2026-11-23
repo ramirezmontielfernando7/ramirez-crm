@@ -482,6 +482,8 @@ const EXENTAS_PREFIJOS = ["auth/", "bot/", "mcp", "oauth/register", "oauth/token
 
 // El login valida credenciales con Better Auth y revoke exige el Bearer firmado.
 const AUTENTICACION_MOVIL = new Set(["mobile/session POST", "mobile/session/revoke POST"]);
+const PUSH_MOVIL = ["mobile/push/register", "mobile/push/unregister"];
+
 
 async function handler(route: string, method: Method): Promise<Handler> {
   const mod = (await import(`@/app/api/${route}/route`)) as Record<string, Handler>;
@@ -597,7 +599,7 @@ describe("020 — cobertura: ninguna ruta sin decidir su permiso", () => {
         ...code.matchAll(/export (?:const|async function) (GET|POST|PUT|PATCH|DELETE)\b/g),
       ].map((m) => m[1]);
       for (const method of methods) {
-        if (!conocidas.has(`${route} ${method}`) && !AUTENTICACION_MOVIL.has(`${route} ${method}`)) sinDecidir.push(`${route} ${method}`);
+        if (!conocidas.has(`${route} ${method}`) && !AUTENTICACION_MOVIL.has(`${route} ${method}`) && !(method === "POST" && PUSH_MOVIL.includes(route))) sinDecidir.push(`${route} ${method}`);
       }
     }
     expect(
@@ -619,4 +621,9 @@ describe("020 — cobertura: ninguna ruta sin decidir su permiso", () => {
       expect(bloque, `${route} ${method}`).toContain(`permission: "${permission}"`);
     }
   });
+});
+
+it.each(PUSH_MOVIL)("%s comparte withAuth más el control de Bearer móvil", (route) => {
+  const code = readFileSync(path.join(API, route, "route.ts"), "utf8");
+  expect(code).toMatch(/export const POST = withAuth\(/);
 });

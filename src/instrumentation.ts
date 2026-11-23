@@ -67,5 +67,9 @@ export async function register(): Promise<void> {
     // con KB_DOCS; no frena el arranque).
     const { resumeKbIndexing } = await import("@/server/kb-docs/indexer");
     void resumeKbIndexing();
+    if (process.env.FCM_SERVICE_ACCOUNT_JSON?.trim()) {
+      const { startMobilePushPurge } = await import("@/server/mobile-push/purge");
+      startMobilePushPurge();
+    }
   }
 }

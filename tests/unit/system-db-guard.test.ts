@@ -47,6 +47,14 @@ const PERMITIDOS: Record<string, { usos: number; motivo: string }> = {
     usos: 1,
     motivo: "arranque: rotación de la llave de cifrado y secretos en claro → cifrados, en TODAS las organizaciones",
   },
+  "src/server/mobile-push/delivery.ts": {
+    usos: 1,
+    motivo: "C9: consulta solo el enrutamiento de la sesión de Better Auth y su vencimiento. El rol app no lee session.",
+  },
+  "src/server/mobile-push/purge.ts": {
+    usos: 1,
+    motivo: "C9: enumera solo IDs de organizaciones para la purga; cada borrado conserva RLS.",
+  },
   "src/server/platform-admin/org-status.ts": {
     usos: 1,
     motivo: "Fase 3: ¿la organización opera? (activa / suspendida / borrada) lo decide la plataforma, también antes de saber la organización de una sesión",

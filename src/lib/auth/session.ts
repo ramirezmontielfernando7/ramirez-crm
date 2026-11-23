@@ -13,6 +13,7 @@ import type { ChatView } from "@/lib/chat-visibility";
 
 export type SessionContext = {
   userId: string;
+  sessionId?: string;
   organizationId: string;
   role: string;
   /** 020 — qué datos de clientes ve esta sesión (ver `scopedContacts`). */
@@ -94,7 +95,7 @@ async function contextOf(session: AuthSession): Promise<SessionContext> {
   if (!(await isOrgActive(membership.organizationId))) {
     throw new UnauthorizedError("Organización suspendida");
   }
-  return sessionContext(
+  const context = sessionContext(
     session.user.id,
     membership.organizationId,
     membership.role,
@@ -105,6 +106,7 @@ async function contextOf(session: AuthSession): Promise<SessionContext> {
     // Qué chats ve un asesor (ajuste de la empresa; los demás roles ya ven todo).
     can({ role: membership.role }, "scope.all") ? "own" : await getChatView(membership.organizationId)
   );
+  return { ...context, sessionId: session.session.id };
 }
 
 const requireSessionOnce = cache(async (): Promise<SessionContext> => {

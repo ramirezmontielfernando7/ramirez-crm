@@ -561,6 +561,13 @@
       "when": 1794640000000,
       "tag": "0080_varios_numeros",
       "breakpoints": true
+    },
+    {
+      "idx": 81,
+      "version": "7",
+      "when": 1795392000000,
+      "tag": "0081_mobile_push_devices",
+      "breakpoints": true
     }
   ]
 }
