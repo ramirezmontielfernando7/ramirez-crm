@@ -1,5 +1,6 @@
 "use client";
 
+import { useTypewriter } from "@/lib/use-typewriter";
 import { useEffect, useRef, useState } from "react";
 import { ChevronDown, FlaskConical, RotateCcw, Send, Sparkles } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -51,6 +52,12 @@ function asDto(id: string, direction: "in" | "out", text: string): MessageDto {
  * HOY en el formulario aunque no esté guardado. No ejecuta nada: lo que el
  * agente haría sale como chips. Solo gasta cuota de IA.
  */
+/** Burbuja de prueba: la última respuesta del agente aparece «escribiéndose» (solo presentación). */
+function TypedBubble({ id, out, text, fresh, grouped }: { id: string; out: boolean; text: string; fresh: boolean; grouped: boolean }) {
+  const { shown } = useTypewriter(text, fresh);
+  return <MessageBubble m={asDto(id, out ? "out" : "in", shown)} grouped={grouped} wide />;
+}
+
 export function AgentPreview({ agentId, config, onApplyField }: { agentId: string; config: AgentConfig; onApplyField?: (field: CreatorField, value: string) => void }) {
   const [turns, setTurns] = useState<Turn[]>([]);
   const [text, setText] = useState("");
@@ -144,7 +151,7 @@ export function AgentPreview({ agentId, config, onApplyField }: { agentId: strin
             <div key={t.id} className={grouped ? "mt-[3px]" : "mt-2.5"}>
               {t.text && (
                 <div className={out ? "flex justify-end" : "flex justify-start"}>
-                  <MessageBubble m={asDto(t.id, out ? "out" : "in", t.text)} grouped={grouped} wide />
+                  <TypedBubble id={t.id} out={out} text={t.text} fresh={out && i === turns.length - 1} grouped={grouped} />
                 </div>
               )}
               {t.role === "assistant" && (
