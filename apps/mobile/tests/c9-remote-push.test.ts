@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createRequire } from "node:module";
 import { test } from "node:test";
 import { allowsRemoteRequest } from "../src/integration/remote-http";
 import {
@@ -121,4 +122,44 @@ test("C9 retries unlink on reconnection without persisting the device token", as
   unavailable = false;
   await new PushRegistration(native, unregister).disable(true);
   assert.equal(linked, false);
+});
+
+test("C9 keeps Firebase delivery on when prebuild reuses a demo manifest", async () => {
+  const target =
+    "expo.modules.notifications.service.ExpoFirebaseMessagingService";
+  const firebase = "com.google.firebase.messaging.FirebaseMessagingService";
+  const unrelated = "com.example.Service";
+  const remove = (name: string) => ({
+    $: { "android:name": name, "tools:node": "remove" },
+  });
+  const existing = {
+    manifest: {
+      $: {},
+      application: [
+        { service: [remove(target), remove(target), remove(unrelated)] },
+      ],
+    },
+  };
+  type Input = { extra: { mobilePushFirebase: boolean } };
+  type Mod = (input: Input & { modResults: typeof existing }) => Promise<{
+    modResults: typeof existing;
+  }>;
+  const plugin = createRequire(import.meta.url)(
+    "../plugins/with-local-notifications.js",
+  ) as (input: Input) => { mods: { android: { manifest: Mod } } };
+
+  for (const enabled of [false, true]) {
+    const config = { extra: { mobilePushFirebase: enabled } };
+    const { manifest } = plugin(config).mods.android;
+    const next = await manifest({
+      ...config,
+      modResults: structuredClone(existing),
+    });
+    assert.deepEqual(
+      next.modResults.manifest.application[0]?.service,
+      enabled
+        ? [remove(unrelated)]
+        : [remove(unrelated), remove(target), remove(firebase)],
+    );
+  }
 });

@@ -20,15 +20,24 @@ module.exports = (config) =>
       })),
     ];
     c.modResults.manifest.$["xmlns:tools"] = "http://schemas.android.com/tools";
-    if (c.extra?.mobilePushFirebase === true) return c;
-    app.service = [
-      ...(app.service || []),
-      ...[
-        "expo.modules.notifications.service.ExpoFirebaseMessagingService",
-        "com.google.firebase.messaging.FirebaseMessagingService",
-      ].map((name) => ({
-        $: { "android:name": name, "tools:node": "remove" },
-      })),
+    const services = [
+      "expo.modules.notifications.service.ExpoFirebaseMessagingService",
+      "com.google.firebase.messaging.FirebaseMessagingService",
     ];
+    // Prebuild may start from a manifest previously generated in demo mode.
+    const entries = (app.service || []).filter(
+      ({ $: attrs }) =>
+        attrs["tools:node"] !== "remove" ||
+        !services.includes(attrs["android:name"]),
+    );
+    app.service =
+      c.extra?.mobilePushFirebase === true
+        ? entries
+        : [
+            ...entries,
+            ...services.map((name) => ({
+              $: { "android:name": name, "tools:node": "remove" },
+            })),
+          ];
     return c;
   });

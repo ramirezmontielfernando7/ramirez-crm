@@ -47,9 +47,10 @@ renovación, baja y la validación de IDs. En Chromium offline con los component
 RN Web reales y un doble de Android se comprobó el registro en solo lectura,
 rechazo de un chat fuera del alcance, apertura autorizada, toque duplicado,
 baja seguida de revocación y toque recibido antes del login. No hubo solicitudes
-externas. Pasaron TypeScript, formato y las 696 pruebas automatizadas. El
+externas. Pasaron TypeScript, formato y las 697 pruebas automatizadas. El
 inventario comprobó 158 IDs registrados. La inspección de Expo offline confirmó
-el permiso Android, el identificador y el versionCode con una configuración
+el permiso Android, el identificador, el versionCode y el tratamiento del
+receptor FCM al reutilizar un manifiesto Demo, con una configuración
 pública ficticia. También confirmó que la configuración de producción falla
 con el mensaje previsto cuando falta ese archivo.
 

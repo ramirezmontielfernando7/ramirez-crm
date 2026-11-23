@@ -38,9 +38,13 @@ export function useRemotePush(
   const operation = useRef(false);
   const registration = useMemo(
     () =>
-      new PushRegistration(pushPort, (token, register) =>
-        repository.setPushDevice(token, register),
-      ),
+      new PushRegistration(pushPort, async (token, register) => {
+        if (register && (!session || active.current !== session))
+          throw new Error(
+            "La sesión cambió antes de registrar el dispositivo.",
+          );
+        await repository.setPushDevice(token, register);
+      }),
     [repository, session],
   );
 
