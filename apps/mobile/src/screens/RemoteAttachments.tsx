@@ -239,6 +239,7 @@ export function RemoteAttachmentComposer({
 }) {
   const { close, toast } = useLayers();
   const [attachment, setAttachment] = useState<LocalAttachment>();
+  const [prepared, setPrepared] = useState<number>();
   const [confirm, setConfirm] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -314,8 +315,16 @@ export function RemoteAttachmentComposer({
     setError("");
     const abort = new AbortController();
     upload.current = abort;
+    setPrepared(0);
     try {
-      const result = await repository.sendMedia(id, attachment, abort.signal);
+      const result = await repository.sendMedia(
+        id,
+        attachment,
+        abort.signal,
+        (percent) => {
+          if (mounted.current) setPrepared(percent);
+        },
+      );
       if (!result || !mounted.current) return;
       await refresh();
       if (mounted.current) {
@@ -330,7 +339,9 @@ export function RemoteAttachmentComposer({
         setUncertain(repository.mediaNeedsRefresh(id));
         setError(
           abort.signal.aborted
-            ? "Subida cancelada. Su resultado puede ser incierto."
+            ? repository.mediaNeedsRefresh(id)
+              ? "Subida cancelada. Su resultado puede ser incierto."
+              : "Subida cancelada."
             : errorText(reason),
         );
         if (
@@ -342,6 +353,7 @@ export function RemoteAttachmentComposer({
     } finally {
       upload.current = undefined;
       lock.current = false;
+      if (mounted.current) setPrepared(undefined);
       if (mounted.current) setBusy(false);
     }
   }
@@ -431,8 +443,12 @@ export function RemoteAttachmentComposer({
               >
                 Confirmar envío del archivo
               </Button>
-              {busy && (
-                <Text accessibilityLiveRegion="polite">Subiendo archivo…</Text>
+              {prepared !== undefined && (
+                <Text accessibilityLiveRegion="polite">
+                  {prepared < 100
+                    ? `Preparando archivo… ${prepared} %`
+                    : "Subiendo archivo…"}
+                </Text>
               )}
               <Button
                 variant="secondary"
@@ -441,7 +457,7 @@ export function RemoteAttachmentComposer({
                   else setConfirm(false);
                 }}
               >
-                {busy ? "Cancelar subida" : "Volver a editar"}
+                {prepared !== undefined ? "Cancelar subida" : "Volver a editar"}
               </Button>
             </>
           ) : (

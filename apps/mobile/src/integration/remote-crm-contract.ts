@@ -161,6 +161,11 @@ export function crmTeam(raw: unknown) {
   return list(crmRecord(raw).members, (row) => ({
     id: identifier(row.userId),
     name: string(row.name),
+    ...(row.role === "owner" ||
+    row.role === "coordinador" ||
+    row.role === "asesor"
+      ? { role: row.role }
+      : {}),
   }));
 }
 

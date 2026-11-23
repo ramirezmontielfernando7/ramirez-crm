@@ -161,7 +161,7 @@ test("C4+C5 allowlist matches only the exact method, ID and query; read-only sti
     "/api/calendar/availability?from=2026-11-23",
     "//example.test/api/contacts/ct_1",
     "/api/pipeline/leads",
-    "/api/campaigns",
+    "/api/campaigns/preview",
     "/api/ai/conversations",
   ]) {
     for (const method of methods)

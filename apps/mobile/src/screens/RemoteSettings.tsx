@@ -146,6 +146,15 @@ function Directory({ repository, expired }: RemotePageProps) {
       {result.data?.map((person) => (
         <Card key={person.id}>
           <Text>{person.name}</Text>
+          {!!person.role && (
+            <Text kind="secondary">
+              {person.role === "owner"
+                ? "Propietario"
+                : person.role === "coordinador"
+                  ? "Coordinador"
+                  : "Asesor"}
+            </Text>
+          )}
         </Card>
       ))}
     </>

@@ -48,6 +48,9 @@ import {
   allowsMediaRequest,
   baseMime,
   MEDIA_LIMIT,
+  MediaMultipart,
+  makeMediaMultipart,
+  type UploadFile,
   uploadMediaKind,
   type RemoteAttachment,
 } from "./remote-media";
@@ -572,40 +575,44 @@ export class RemoteAuthRepository implements AuthRepository<RemoteSession> {
 
   async sendMedia(
     id: string,
-    file: { uri: string; name: string; mime: string; size: number },
+    file: UploadFile,
     signal: AbortSignal,
+    progress: (percent: number) => void = () => {},
   ) {
     if (!this.allowSend || this.mediaNeedsRefresh(id))
       throw new RemoteHttpError(403);
     const path = `/api/conversations/${idSegment(id)}/messages/media`;
-    if (
-      !uploadMediaKind(file.mime, file.name, file.size) ||
-      !file.uri.startsWith("file://")
-    )
+    if (!uploadMediaKind(file.mime, file.name, file.size))
       throw new RemoteHttpError(file.size > MEDIA_LIMIT ? 413 : 415);
     if (this.sending) return null;
     if (signal.aborted) throw new RemoteHttpError(0);
-    const form = new FormData();
-    form.append("file", {
-      uri: file.uri,
-      name: file.name,
-      type: file.mime,
-    } as unknown as Blob);
     this.sending = true;
     const session = this.current;
+    let submitted = false;
     try {
+      const body = await makeMediaMultipart(file, signal, progress);
+      if (signal.aborted) throw new RemoteHttpError(0);
+      if (!session || this.current !== session) throw new RemoteHttpError(401);
+      submitted = true;
       const raw = crmRecord(
-        await this.authenticatedRequest("POST", path, form, signal),
+        await this.authenticatedRequest("POST", path, body, signal),
       );
       if (!isRemoteId(raw.messageId)) throw new RemoteHttpError(502);
       return { queued: typeof raw.queuedUntil === "string" };
-    } catch (reason) {
+    } catch (error) {
+      const reason =
+        error instanceof RemoteHttpError
+          ? error
+          : new RemoteHttpError(
+              submitted ? 502 : signal.aborted ? 0 : 422,
+              undefined,
+              false,
+              this.mode,
+            );
       if (
+        submitted &&
         this.current === session &&
-        (!(reason instanceof RemoteHttpError) ||
-          reason.status === 0 ||
-          reason.status === 408 ||
-          reason.status >= 500)
+        (reason.status === 0 || reason.status === 408 || reason.status >= 500)
       )
         this.uncertainMedia.add(id);
       throw reason;
@@ -1029,8 +1036,12 @@ export class RemoteAuthRepository implements AuthRepository<RemoteSession> {
       throw new RemoteHttpError(403);
     const headers = new Headers({ accept: "application/json" });
     if (session) headers.set("authorization", `Bearer ${session.token}`);
-    const multipart = body instanceof FormData;
-    if (body && !multipart) headers.set("content-type", "application/json");
+    const multipart = body instanceof MediaMultipart;
+    if (body)
+      headers.set(
+        "content-type",
+        multipart ? body.contentType : "application/json",
+      );
 
     const controller = new AbortController();
     const stop = () => controller.abort();
@@ -1041,7 +1052,7 @@ export class RemoteAuthRepository implements AuthRepository<RemoteSession> {
       const response = await this.fetch(this.origin + path, {
         method,
         headers,
-        body: multipart ? body : body ? JSON.stringify(body) : undefined,
+        body: multipart ? body.bytes : body ? JSON.stringify(body) : undefined,
         credentials: "omit",
         redirect: "error",
         signal: controller.signal,

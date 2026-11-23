@@ -18,8 +18,20 @@ function storage() {
 
 export function clearRemoteMedia() {
   generation++;
-  const dir = storage();
-  if (dir.exists) dir.delete();
+  const dirs = [
+    storage(),
+    new Directory(Paths.cache, "ImagePicker"),
+    new Directory(Paths.cache, "DocumentPicker"),
+  ];
+  let failed = false;
+  for (const dir of dirs) {
+    try {
+      if (dir.exists) dir.delete();
+    } catch {
+      failed = true;
+    }
+  }
+  if (failed) throw new Error("No se pudo limpiar la caché privada.");
 }
 
 function newFile(extension: string) {
@@ -94,7 +106,20 @@ export function stageAttachment(asset: {
       throw new RemoteHttpError(size > MEDIA_LIMIT ? 413 : 415);
     if (ownedCopy) source.move(file);
     else source.copy(file);
-    return { file, uri: file.uri, name, size, mime, kind };
+    async function* chunks() {
+      const reader = file!.readableStream().getReader();
+      try {
+        for (;;) {
+          const next = await reader.read();
+          if (next.done) break;
+          yield next.value;
+        }
+      } finally {
+        await reader.cancel().catch(() => {});
+        reader.releaseLock();
+      }
+    }
+    return { file, uri: file.uri, name, size, mime, kind, chunks };
   } catch (reason) {
     if (file) deleteCacheFile(file);
     if (ownedCopy) deleteCacheFile(source);

@@ -70,7 +70,7 @@ test("C3 extends only POST text and PATCH read for valid IDs", () => {
   for (const path of [
     chat,
     history,
-    `${chat}/messages/media`,
+    `${chat}/messages/media/extra`,
     `${chat}/messages/template/extra`,
     `${history}?test=1`,
     "/api/conversations/%2e%2e",

@@ -79,13 +79,18 @@ export function attachmentFromWire(raw: unknown): RemoteAttachment | undefined {
       ? v.fileSize
       : null;
   if (activeMime.test(mime) || unsafeExtension.test(name)) return;
-  if (v.kind === "image" || v.kind === "sticker") {
-    if (!/^image\/(jpeg|png|webp|gif)$/.test(mime)) return;
+  if (
+    (v.kind === "image" || v.kind === "sticker" || v.kind === "document") &&
+    /^image\/(jpeg|png|webp|gif)$/.test(mime)
+  )
     return { id: v.assetId, kind: "image", mime, name, size };
-  }
-  if (v.kind === "audio" || v.kind === "video") {
-    if (!mime.startsWith(v.kind + "/") || !typeShape.test(mime)) return;
-    return { id: v.assetId, kind: v.kind, mime, name, size };
+  for (const kind of ["audio", "video"] as const) {
+    if (
+      (v.kind === kind || v.kind === "document") &&
+      mime.startsWith(kind + "/") &&
+      typeShape.test(mime)
+    )
+      return { id: v.assetId, kind, mime, name, size };
   }
   if (v.kind === "document")
     return { id: v.assetId, kind: "document", mime, name, size };
@@ -121,4 +126,61 @@ export function acceptsMediaResponse(media: RemoteAttachment, mime: string) {
   return media.kind === "document"
     ? mime === media.mime || mime === "application/octet-stream"
     : mime === media.mime;
+}
+
+export type UploadFile = {
+  name: string;
+  mime: string;
+  size: number;
+  chunks: () => AsyncIterable<Uint8Array>;
+};
+
+export class MediaMultipart {
+  constructor(
+    readonly bytes: Uint8Array<ArrayBuffer>,
+    readonly contentType: string,
+  ) {}
+}
+
+/** Expo SDK 58 buffers request bodies. Build one bounded multipart buffer with
+ * a chunked file read, rather than making full-size file and FormData copies. */
+export async function makeMediaMultipart(
+  file: UploadFile,
+  signal: AbortSignal,
+  progress: (percent: number) => void,
+): Promise<MediaMultipart> {
+  const boundary =
+    "dashfort-" +
+    Math.random().toString(36).slice(2) +
+    Math.random().toString(36).slice(2);
+  const filename =
+    file.name.replace(/[^\w. ()-]/g, "_").slice(-160) || "Adjunto";
+  const encode = new TextEncoder();
+  const prefix = encode.encode(
+    `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="${filename}"\r\nContent-Type: ${file.mime}\r\n\r\n`,
+  );
+  const suffix = encode.encode(`\r\n--${boundary}--\r\n`);
+  const buffer = new Uint8Array(prefix.length + file.size + suffix.length);
+  buffer.set(prefix);
+  let received = 0;
+  let reported = 0;
+  for await (const bytes of file.chunks()) {
+    if (signal.aborted || received + bytes.byteLength > file.size)
+      throw new Error("Upload blocked");
+    buffer.set(bytes, prefix.length + received);
+    received += bytes.byteLength;
+    const percent = Math.floor((received * 100) / file.size);
+    if (percent >= reported + 5 && percent < 100) {
+      reported = percent;
+      progress(percent);
+    }
+  }
+  if (signal.aborted || received !== file.size)
+    throw new Error("Upload blocked");
+  buffer.set(suffix, prefix.length + file.size);
+  progress(100);
+  return new MediaMultipart(
+    buffer,
+    "multipart/form-data; boundary=" + boundary,
+  );
 }

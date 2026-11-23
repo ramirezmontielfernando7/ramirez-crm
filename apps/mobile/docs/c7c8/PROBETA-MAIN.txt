@@ -1,0 +1,182 @@
+import { randomBytes } from "node:crypto";
+import { eq, inArray } from "drizzle-orm";
+import { NextRequest } from "next/server";
+import { afterAll, beforeAll, expect, it, vi } from "vitest";
+import { POST as login } from "@/app/api/mobile/session/route";
+import { GET as authWeb } from "@/app/api/auth/[...all]/route";
+import { POST as sendMedia } from "@/app/api/conversations/[id]/messages/media/route";
+import { GET as readMedia } from "@/app/api/media/[assetId]/route";
+import { PATCH as patchConversation } from "@/app/api/conversations/[id]/route";
+import { GET as board } from "@/app/api/pipeline/board/route";
+import { PATCH as move } from "@/app/api/pipeline/leads/[id]/route";
+import { GET as results } from "@/app/api/analytics/sales/route";
+import { GET as teamResults } from "@/app/api/analytics/team/route";
+import { GET as campaigns } from "@/app/api/campaigns/route";
+import { GET as campaign } from "@/app/api/campaigns/[id]/route";
+import { GET as agents } from "@/app/api/lab/agents/route";
+import { GET as writing, POST as suggest } from "@/app/api/writing-assist/route";
+import { GET as graphGet, POST as graphPost } from "@/app/api/dev/wa-mock/graph/[...path]/route";
+import { getWaMockState } from "@/server/dev/wa-mock-state";
+import { middleware } from "@/middleware";
+import { getAuth } from "@/lib/auth";
+import { getSql, getSystemDb, schema } from "@/lib/db";
+import { newId } from "@/lib/db/ids";
+import { borrarOrganizaciones, crearOrganizacion } from "./fixtures";
+
+const ctx = vi.hoisted(() => ({ headers: new Headers() }));
+vi.mock("next/headers", () => ({ headers: async () => ctx.headers }));
+
+const db = getSystemDb();
+const base = process.env.APP_BASE_URL!;
+const orgs: string[] = [];
+const wabas: string[] = [];
+const phoneNumberIds: string[] = [];
+const ids = { owner: newId("user"), advisor: newId("user"), foreign: newId("user") };
+const contacts = [newId("contact"), newId("contact"), newId("contact")];
+const chats = contacts.map(() => newId("conversation"));
+const tpl = [newId("template"), newId("template")];
+const leads = contacts.map(() => newId("lead"));
+const campaignsIds = tpl.map(() => newId("campaign"));
+const stages: {id:string;organizationId:string}[] = [];
+const native = {} as Record<keyof typeof ids, Headers>;
+const password = randomBytes(24).toString("hex");
+const fetchMock = vi.fn(async (input: string | URL, init?: RequestInit) => {
+  const url = new URL(String(input));
+  if (url.origin !== base || !url.pathname.startsWith("/api/dev/wa-mock/graph/"))
+    throw new Error("Network forbidden in fixture");
+  const path = url.pathname.slice("/api/dev/wa-mock/graph/".length).split("/");
+  return (init?.method === "POST" ? graphPost : graphGet)(new Request(url, init), { params: Promise.resolve({ path }) });
+});
+
+type Handler = (req: Request, context: { params: Promise<{ id: string }> }) => Promise<Response>;
+async function call(
+  handler: Handler, session: keyof typeof ids | null,
+  method: string, path: string, body?: object, id = "",
+) {
+  const headers = new Headers(session ? native[session] : undefined);
+  if (body && !(body instanceof FormData)) headers.set("content-type", "application/json");
+  ctx.headers = headers;
+  const req = new NextRequest(base + path, { method, headers, body: body instanceof FormData ? body : body && JSON.stringify(body) });
+  expect(middleware(req).status).toBe(200);
+  return handler(req, { params: Promise.resolve({ id }) });
+}
+
+async function bodyOk(response: Response, status = 200) {
+  expect(response.status, response.ok ? undefined : await response.clone().text()).toBe(status);
+  return response.json();
+}
+
+beforeAll(async () => {
+  vi.stubGlobal("fetch", fetchMock);
+  const [role] = await getSql()`select current_user as name, rolbypassrls, rolsuper from pg_roles where rolname = current_user`;
+  expect(role).toEqual({ name: "vocero_app", rolbypassrls: false, rolsuper: false });
+  for (const letter of ["A", "B"]) {
+    const org = await crearOrganizacion("C78 " + letter);
+    orgs.push(org.id);
+    wabas.push(org.wabaId);
+    phoneNumberIds.push(org.phoneNumberId);
+    await db.insert(schema.organizationModule).values({ organizationId: org.id, agenda: true, trabajo: true, campaigns:true, results:true, agent:true });
+  }
+  stages.push(...await db.select().from(schema.pipelineStage).where(inArray(schema.pipelineStage.organizationId,orgs)).orderBy(schema.pipelineStage.position));
+  const hash = await (await getAuth().$context).password.hash(password);
+  for (const [i, [key, userId]] of Object.entries(ids).entries()) {
+    const organizationId = orgs[key === "foreign" ? 1 : 0];
+    const email = `${userId}@fixture.test`;
+    await db.insert(schema.user).values({ id: userId, name: key, email, emailVerified: true });
+    await db.insert(schema.member).values({ id: newId("member"), userId, organizationId, role: key === "advisor" ? "asesor" : "owner" });
+    await db.insert(schema.account).values({ id: newId("account"), accountId: userId, userId, providerId: "credential", password: hash });
+    await db.insert(schema.contact).values({ id: contacts[i], organizationId, name: "Fixture " + key, waIdentity: contacts[i], phone: "1202555010" + i, assignedUserId: userId });
+    await db.insert(schema.conversation).values({ id: chats[i], contactId: contacts[i], organizationId, lastInboundAt:new Date() });
+    await db.insert(schema.lead).values({id:leads[i], contactId:contacts[i], organizationId,
+      stageId:stages.find((stage)=>stage.organizationId===organizationId)!.id});
+    const result = await bodyOk(await login(new Request(base + "/api/mobile/session", {
+      method: "POST", headers: { "content-type": "application/json", "x-forwarded-for": "127.0.0." + (2 + i) },
+      body: JSON.stringify({ email, password }),
+    })));
+    native[key as keyof typeof ids] = new Headers({ authorization: `Bearer ${result.token}` });
+  }
+  for (let i=0;i<orgs.length;i++) {
+    await db.insert(schema.template).values({id:tpl[i],organizationId:orgs[i],name:"c78_fixture",body:"Prueba",language:"es_MX",category:"UTILITY",status:"approved"});
+    await db.insert(schema.campaign).values({id:campaignsIds[i],organizationId:orgs[i],templateId:tpl[i],name:"Campaña ficticia"});
+  }
+});
+afterAll(async () => {
+  vi.unstubAllGlobals();
+  await borrarOrganizaciones(orgs);
+  await db.delete(schema.user).where(inArray(schema.user.id, Object.values(ids)));
+});
+
+
+
+it("media inherits browser CSRF, contact scope and a single wa-mock send; binary GET uses Bearer", async () => {
+  const make = () => {
+    const form = new FormData();
+    form.set("file", new File(["%PDF-1.4\nFixture de prueba"],"fixture.pdf",{type:"application/pdf"}));
+    return form;
+  };
+  const attempt = (actor: "owner" | "advisor", index: number) => {
+    const id=chats[index];
+    return call(sendMedia,actor,"POST","/api/conversations/"+id+"/messages/media",make(),id);
+  };
+  const before=getWaMockState().outbox.length;
+  expect((await attempt("advisor",0)).status).toBe(404);
+  expect((await attempt("owner",2)).status).toBe(404);
+  expect(getWaMockState().outbox.length).toBe(before);
+  const created=await bodyOk(await attempt("advisor",1),201);
+  expect(getWaMockState().outbox.length).toBe(before+1);
+  expect((getWaMockState().outbox.at(-1)?.body as { type: string }).type).toBe("document");
+  const [row]=await db.select({assetId:schema.message.mediaAssetId}).from(schema.message).where(eq(schema.message.id,created.messageId));
+  const assetId=row!.assetId!;
+  const download=(actor:keyof typeof ids | null)=>call(
+    (req)=>readMedia(req,{params:Promise.resolve({assetId})}),actor,"GET","/api/media/"+assetId
+  );
+  expect((await download(null)).status).toBe(401);
+  expect((await download("foreign")).status).toBe(404);
+  const response=await download("advisor");
+  expect(response.status).toBe(200);
+  expect(response.headers.get("content-type")).toBe("application/pdf");
+  expect(await response.text()).toContain("%PDF-1.4");
+  await db.update(schema.conversation).set({lastInboundAt:new Date(0)}).where(eq(schema.conversation.id,chats[1]));
+  expect((await attempt("advisor",1)).status).toBe(409);
+  expect(getWaMockState().outbox.length).toBe(before+1);
+});
+
+it("pipeline stage updates and results follow the web visibility",async()=>{
+  const list=async(actor:"owner"|"advisor")=>(await bodyOk(await call(board,actor,"GET","/api/pipeline/board?take=50"))).leads.map((row:{id:string})=>row.id);
+  expect(await list("advisor")).toEqual([leads[1]]);
+  expect(new Set(await list("owner"))).toEqual(new Set(leads.slice(0,2)));
+  const stagesA=stages.filter(r=>r.organizationId===orgs[0]);
+  const apply=(actor:"owner"|"advisor",index:number,stageId:string,lossReason?:string)=>call(move,actor,"PATCH","/api/pipeline/leads/"+leads[index],{stageId,...(lossReason?{lossReason}:{})},leads[index]);
+  expect((await apply("advisor",0,stagesA[1]!.id)).status).toBe(404);
+  expect((await apply("owner",2,stagesA[1]!.id)).status).toBe(404);
+  expect((await apply("advisor",1,"invalid_stage")).status).toBe(422);
+  expect((await bodyOk(await apply("advisor",1,stagesA[1]!.id))).lead.stageId).toBe(stagesA[1]!.id);
+  expect((await apply("advisor",1,stagesA[3]!.id)).status).toBe(422);
+  expect((await bodyOk(await apply("advisor",1,stagesA[3]!.id,"otro"))).lead.stageId).toBe(stagesA[3]!.id);
+  expect((await call(results,"advisor","GET","/api/analytics/sales")).status).toBe(403);
+  for (const [actor,count] of [["owner",2],["foreign",1]] as const) {
+    const snapshot=await bodyOk(await call(results,actor,"GET","/api/analytics/sales"));
+    expect(snapshot.kpis.newLeads.current).toBe(count);
+  }
+  const own=(await bodyOk(await call(results,"owner","GET","/api/analytics/sales?userId="+ids.advisor))).kpis.newLeads.current;
+  expect(own).toBe(1);
+  expect((await call(teamResults,"advisor","GET","/api/analytics/team")).status).toBe(403);
+});
+
+it("AI uses the exact scoped PATCH while privileged listings keep 403 and campaign tenants keep 404",async()=>{
+  const ai=(actor:"advisor"|"owner",index:number,body:object)=>call(patchConversation,actor,"PATCH","/api/conversations/"+chats[index],body,chats[index]);
+  expect((await bodyOk(await ai("advisor",1,{aiEnabled:false}))).conversation.aiEnabled).toBe(false);
+  expect((await bodyOk(await ai("advisor",1,{reactivate:true}))).conversation.aiEnabled).toBe(true);
+  expect((await ai("advisor",0,{aiEnabled:false})).status).toBe(404);
+  expect((await ai("owner",2,{reactivate:true})).status).toBe(404);
+  expect((await call(agents,"advisor","GET","/api/lab/agents")).status).toBe(403);
+  expect((await call(agents,"owner","GET","/api/lab/agents")).status).toBe(200);
+  expect((await call(campaigns,"advisor","GET","/api/campaigns")).status).toBe(403);
+  const result=await bodyOk(await call(campaigns,"owner","GET","/api/campaigns"));
+  expect(result.campaigns.map((r:{id:string})=>r.id)).toEqual([campaignsIds[0]]);
+  expect((await call(campaign,"owner","GET","/api/campaigns/"+campaignsIds[1],undefined,campaignsIds[1])).status).toBe(404);
+  expect((await bodyOk(await call(writing,"advisor","GET","/api/writing-assist"))).available).toBe(false);
+  expect((await call(suggest,"advisor","POST","/api/writing-assist",{text:"",action:"improve"})).status).toBe(422);
+  const profile=await authWeb(new NextRequest(base+"/api/auth/get-session",{headers:native.advisor}));
+  expect(profile.status===401 || (profile.status===200 && await profile.json()===null)).toBe(true);
+});
