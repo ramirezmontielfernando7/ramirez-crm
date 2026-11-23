@@ -15,6 +15,7 @@ import { runWithOrganization } from "@/lib/request-context";
 import { currentPeriod } from "@/server/ai-quota/quota";
 import { recordPlatformAudit, type AuditActor } from "@/server/platform-admin/audit";
 import { PlatformError } from "@/server/platform-admin/organizations";
+import { clearLegacyAssistantLimit } from "@/server/limits";
 import { getOrgAiState, orgEstSpend, saveOrgAiOverrides, type OrgAiOverrides, type OrgAiPatch } from "./org";
 import {
   AI_DEFAULT_SCOPES,
@@ -238,13 +239,22 @@ export async function changeOrgAi(
     if (!check.ok) throw new PlatformError(422, check.code, check.message);
   }
   await runWithOrganization(organizationId, () => saveOrgAiOverrides(organizationId, patch));
+  // El tope VIEJO del asistente (`ai_quota.assistant_monthly_token_limit`, de
+  // antes de 0072) ya no tiene pantalla, pero seguía frenando y era lo que el
+  // cliente veía («907.8 k / 1 M»): quien subía el tope en «IA y topes» no
+  // veía ningún cambio. Al guardar los topes por función, el viejo se retira
+  // y manda solo lo de esta tarjeta.
+  const viejo = patch.caps ? await runWithOrganization(organizationId, () => clearLegacyAssistantLimit(organizationId)) : null;
   const cambios = (Object.keys(patch) as (keyof OrgAiOverrides)[]).filter((k) => JSON.stringify(before[k]) !== JSON.stringify((patch as Record<string, unknown>)[k]));
-  if (cambios.length > 0) {
+  if (cambios.length > 0 || viejo !== null) {
     await recordPlatformAudit({
       actor,
       action: "organization.ai_changed",
       org,
-      detail: Object.fromEntries(cambios.map((k) => [k, { de: before[k], a: patch[k] }])),
+      detail: {
+        ...Object.fromEntries(cambios.map((k) => [k, { de: before[k], a: patch[k] }])),
+        ...(viejo !== null ? { assistantTokens: { de: viejo, a: null } } : {}),
+      },
       ip,
     });
   }
