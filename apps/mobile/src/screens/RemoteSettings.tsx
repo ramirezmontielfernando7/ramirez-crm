@@ -2,7 +2,14 @@ import { useCallback, useState } from "react";
 import { Linking } from "react-native";
 import { AppBar, SegmentedControl } from "../components/ModuleUi";
 import { Screen } from "../components/Screen";
-import { Banner, Button, Card, PageScroll, Text } from "../components/ui";
+import {
+  Banner,
+  Button,
+  Card,
+  PageScroll,
+  Switch,
+  Text,
+} from "../components/ui";
 import {
   RemoteHttpError,
   requiresRemoteLogin,
@@ -15,6 +22,8 @@ import {
   type RemotePageProps,
   useRemoteData,
 } from "./RemoteWorkspaceUi";
+
+import type { RemotePushControls } from "./useRemotePush";
 
 const themes = [
   { key: "light", label: "Claro" },
@@ -61,12 +70,14 @@ export function RemoteSettings({
   expired,
   back,
   team,
+  push,
   bar,
   setBar,
   logout,
 }: RemotePageProps & {
   back: () => void;
   team: boolean;
+  push: RemotePushControls;
   bar: MobileBar;
   setBar: (option: MobileBar) => Promise<void>;
   logout: () => Promise<void>;
@@ -129,7 +140,53 @@ export function RemoteSettings({
           Facturación y administración de plataforma · Disponible en la versión
           web
         </Text>
-        <Text kind="meta">Notificaciones push · Demo</Text>
+        <Card style={{ gap: 8 }}>
+          <Text weight="semibold">Notificaciones</Text>
+          <Text kind="secondary">
+            Recibe un aviso de Android al llegar un mensaje. La pantalla
+            bloqueada no muestra el texto ni el nombre del cliente.
+          </Text>
+          {push.available ? (
+            <>
+              <Switch
+                label="Avisos de mensajes"
+                value={push.enabled}
+                onChange={(enabled) => {
+                  if (!push.busy) void push.toggle(enabled);
+                }}
+              />
+              {push.busy && (
+                <Text kind="meta" accessibilityLiveRegion="polite">
+                  Guardando…
+                </Text>
+              )}
+              {!!push.message && <Banner type="warning">{push.message}</Banner>}
+              {push.denied && (
+                <Button
+                  variant="ghost"
+                  onPress={() => void Linking.openSettings().catch(() => {})}
+                >
+                  Abrir ajustes de Android
+                </Button>
+              )}
+              {!push.enabled &&
+                push.message.startsWith("Falta desvincular") && (
+                  <Button
+                    variant="ghost"
+                    disabled={push.busy}
+                    onPress={() => void push.toggle(false)}
+                  >
+                    Reintentar desvinculación
+                  </Button>
+                )}
+            </>
+          ) : (
+            <Text kind="meta">
+              Avisos del sistema no disponibles en esta instalación.
+            </Text>
+          )}
+          <Text kind="meta">Sonidos y preferencias por tipo · Demo</Text>
+        </Card>
         {!!error && <Banner type="warning">{error}</Banner>}
         <Button onPress={() => void logout()}>Cerrar sesión</Button>
       </PageScroll>

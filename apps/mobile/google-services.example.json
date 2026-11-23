@@ -1,0 +1,17 @@
+{
+  "_example": "Solo referencia. No compila. Descarga google-services.json desde tu proyecto Firebase.",
+  "project_info": {
+    "project_number": "REEMPLAZA_NUMERO_DEL_PROYECTO",
+    "project_id": "REEMPLAZA_ID_DEL_PROYECTO"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "REEMPLAZA_ID_DE_APP_ANDROID",
+        "android_client_info": { "package_name": "com.demfort.dashfort.dev" }
+      },
+      "api_key": [{ "current_key": "REEMPLAZA_CONFIG_PUBLICA_ANDROID" }]
+    }
+  ],
+  "configuration_version": "1"
+}

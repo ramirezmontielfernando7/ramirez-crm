@@ -55,6 +55,8 @@ import {
   type RemoteAttachment,
 } from "./remote-media";
 
+import { isPushToken, pushRoutes } from "./remote-push";
+
 type Method = "GET" | "POST" | "PATCH" | "PUT";
 
 export type RemoteMode = "staging" | "production";
@@ -134,7 +136,9 @@ type RemoteErrorCode =
   | "template_line_unsupported"
   | "meta_unavailable"
   | "meta_error"
-  | "storage_quota";
+  | "storage_quota"
+  | "push_unavailable"
+  | "push_conflict";
 function errorCode(raw: unknown): RemoteErrorCode | undefined {
   return raw === "ORGANIZATION_SUSPENDED" ||
     raw === "organization_suspended" ||
@@ -143,6 +147,8 @@ function errorCode(raw: unknown): RemoteErrorCode | undefined {
     raw === "meta_unavailable" ||
     raw === "meta_error" ||
     raw === "storage_quota" ||
+    raw === "push_unavailable" ||
+    raw === "push_conflict" ||
     raw === "not_connected" ||
     raw === "reconnect_required" ||
     raw === "TOO_MANY_REQUESTS"
@@ -173,6 +179,8 @@ export function allowsRemoteRequest(
   if (allowsCrmRequest(method, path, allowSend)) return true;
   if (method === "POST")
     return (
+      path === pushRoutes.register ||
+      path === pushRoutes.unregister ||
       path === "/api/mobile/session" ||
       path === "/api/mobile/session/revoke" ||
       (allowSend && (historyPath.test(path) || templatePath.test(path)))
@@ -213,54 +221,58 @@ export class RemoteHttpError extends Error {
     crm = false,
   ) {
     super(
-      code === "storage_quota" || status === 507
-        ? "Tu negocio alcanzó su límite de almacenamiento."
-        : status === 413
-          ? "El archivo excede el límite de tamaño."
-          : status === 415
-            ? "Este tipo de archivo no está permitido."
-            : status === 410
-              ? "El archivo ya no está disponible."
-              : code === "template_line_unsupported"
-                ? "La ruta del CRM solo envía plantillas por la línea principal de WhatsApp de Meta."
-                : code === "template_changed"
-                  ? "La plantilla cambió o ya no está aprobada. Vuelve a abrir el catálogo."
-                  : code === "not_connected" &&
-                      serverMessage === "Sin número conectado"
-                    ? serverMessage
-                    : code === "reconnect_required" &&
-                        serverMessage === "Reconecta el número"
-                      ? serverMessage
-                      : status === 409 &&
-                          code === "window_closed" &&
-                          serverMessage ===
-                            "La ventana de 24 horas está cerrada; usa una plantilla aprobada"
+      code === "push_unavailable"
+        ? "Los avisos push no están disponibles en el servidor."
+        : code === "push_conflict"
+          ? "Este teléfono sigue asociado a otra sesión. Cierra esa sesión e inténtalo de nuevo."
+          : code === "storage_quota" || status === 507
+            ? "Tu negocio alcanzó su límite de almacenamiento."
+            : status === 413
+              ? "El archivo excede el límite de tamaño."
+              : status === 415
+                ? "Este tipo de archivo no está permitido."
+                : status === 410
+                  ? "El archivo ya no está disponible."
+                  : code === "template_line_unsupported"
+                    ? "La ruta del CRM solo envía plantillas por la línea principal de WhatsApp de Meta."
+                    : code === "template_changed"
+                      ? "La plantilla cambió o ya no está aprobada. Vuelve a abrir el catálogo."
+                      : code === "not_connected" &&
+                          serverMessage === "Sin número conectado"
                         ? serverMessage
-                        : crm && status === 409 && code === "slot_taken"
-                          ? "Ese horario ya no está disponible. Selecciona otro."
-                          : code === "SESSION_EXPIRED"
-                            ? "Tu sesión caducó. Vuelve a iniciar sesión."
-                            : status === 403 &&
-                                (code === "ORGANIZATION_SUSPENDED" ||
-                                  code === "organization_suspended")
-                              ? "Tu negocio está suspendido. Contacta a soporte de la plataforma."
-                              : status === 429
-                                ? "Demasiados intentos. Espera unos minutos."
-                                : status === 401
-                                  ? login
-                                    ? "Correo o contraseña incorrectos."
-                                    : "Tu sesión ya no está activa. Vuelve a iniciar sesión."
-                                  : status === 404
-                                    ? crm
-                                      ? "El registro o módulo ya no está disponible."
-                                      : "La conversación ya no está disponible."
-                                    : status === 403
-                                      ? "No tienes acceso a esta operación."
-                                      : status === 0
-                                        ? mode === "production"
-                                          ? "Sin conexión con Dashfort. Reintenta."
-                                          : "Sin conexión con el entorno de pruebas."
-                                        : "No se pudo completar la solicitud. Reintenta.",
+                        : code === "reconnect_required" &&
+                            serverMessage === "Reconecta el número"
+                          ? serverMessage
+                          : status === 409 &&
+                              code === "window_closed" &&
+                              serverMessage ===
+                                "La ventana de 24 horas está cerrada; usa una plantilla aprobada"
+                            ? serverMessage
+                            : crm && status === 409 && code === "slot_taken"
+                              ? "Ese horario ya no está disponible. Selecciona otro."
+                              : code === "SESSION_EXPIRED"
+                                ? "Tu sesión caducó. Vuelve a iniciar sesión."
+                                : status === 403 &&
+                                    (code === "ORGANIZATION_SUSPENDED" ||
+                                      code === "organization_suspended")
+                                  ? "Tu negocio está suspendido. Contacta a soporte de la plataforma."
+                                  : status === 429
+                                    ? "Demasiados intentos. Espera unos minutos."
+                                    : status === 401
+                                      ? login
+                                        ? "Correo o contraseña incorrectos."
+                                        : "Tu sesión ya no está activa. Vuelve a iniciar sesión."
+                                      : status === 404
+                                        ? crm
+                                          ? "El registro o módulo ya no está disponible."
+                                          : "La conversación ya no está disponible."
+                                        : status === 403
+                                          ? "No tienes acceso a esta operación."
+                                          : status === 0
+                                            ? mode === "production"
+                                              ? "Sin conexión con Dashfort. Reintenta."
+                                              : "Sin conexión con el entorno de pruebas."
+                                            : "No se pudo completar la solicitud. Reintenta.",
     );
   }
 }
@@ -387,6 +399,15 @@ export class RemoteAuthRepository implements AuthRepository<RemoteSession> {
 
   async redeem(): Promise<RemoteSession> {
     throw new RemoteHttpError(403);
+  }
+
+  async setPushDevice(token: string, register: boolean) {
+    if (!isPushToken(token)) throw new RemoteHttpError(422);
+    const path = register ? pushRoutes.register : pushRoutes.unregister;
+    const value = crmRecord(
+      await this.authenticatedRequest("POST", path, { token }),
+    );
+    if (value.ok !== true) throw new RemoteHttpError(502);
   }
 
   signOut() {
@@ -1047,7 +1068,14 @@ export class RemoteAuthRepository implements AuthRepository<RemoteSession> {
     const stop = () => controller.abort();
     signal?.addEventListener("abort", stop, { once: true });
     if (signal?.aborted) stop();
-    const timeout = setTimeout(stop, multipart ? 180_000 : 15_000);
+    const timeout = setTimeout(
+      stop,
+      multipart
+        ? 180_000
+        : path.startsWith("/api/mobile/push/")
+          ? 5_000
+          : 15_000,
+    );
     try {
       const response = await this.fetch(this.origin + path, {
         method,

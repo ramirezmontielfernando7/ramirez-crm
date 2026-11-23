@@ -1,4 +1,4 @@
-// Local-only demo: no Firebase auto-init, messaging transport or APNs entitlement.
+// Keep Firebase auto-init off. Only configured Android builds include the FCM receiver.
 const { withAndroidManifest } = require("expo/config-plugins");
 module.exports = (config) =>
   withAndroidManifest(config, (c) => {
@@ -20,6 +20,7 @@ module.exports = (config) =>
       })),
     ];
     c.modResults.manifest.$["xmlns:tools"] = "http://schemas.android.com/tools";
+    if (c.extra?.mobilePushFirebase === true) return c;
     app.service = [
       ...(app.service || []),
       ...[

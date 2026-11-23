@@ -80,6 +80,9 @@ import {
 import { RemoteFeedback, useRemoteData } from "./RemoteWorkspaceUi";
 import { preferencesStorage } from "../services/storage";
 
+import { useRemotePush, type RemotePushControls } from "./useRemotePush";
+import type { PushTap } from "../integration/remote-push";
+
 const remoteModules = ["inbox", "crm", "studio", "marketing", "more"] as const;
 const sections = [
   { key: "clients", label: "Clientes" },
@@ -190,6 +193,7 @@ function RemoteSessionScreen({
     }
     setNotice(error.message);
   }, []);
+  const push = useRemotePush(repository, session, expired);
   useEffect(() => {
     if (!session) return;
     let active = true;
@@ -227,7 +231,11 @@ function RemoteSessionScreen({
       try {
         clearRemoteMedia();
       } finally {
-        await repository.signOut();
+        try {
+          await push.disconnect();
+        } finally {
+          await repository.signOut();
+        }
       }
     } catch (error) {
       setNotice(
@@ -267,6 +275,9 @@ function RemoteSessionScreen({
       repository={repository}
       expired={expired}
       logout={logout}
+      pushControls={push.controls}
+      pushTap={push.tap}
+      clearPushTap={push.clearTap}
     />
   );
 }
@@ -276,10 +287,16 @@ function RemoteWorkspace({
   repository,
   expired,
   logout,
+  pushControls,
+  pushTap,
+  clearPushTap,
 }: {
   repository: RemoteAuthRepository;
   expired: (error: RemoteHttpError) => void;
   logout: () => Promise<void>;
+  pushControls: RemotePushControls;
+  pushTap?: PushTap;
+  clearPushTap: (id: string) => void;
 }) {
   const read = useMemo(
     () => createReadOnlyConversationClient((path) => repository.read(path)),
@@ -336,6 +353,31 @@ function RemoteWorkspace({
   }, []);
   const [readReceipt, setReadReceipt] = useState<{ id: string }>();
   const onRead = useCallback((id: string) => setReadReceipt({ id }), []);
+  const [pushError, setPushError] = useState("");
+  useEffect(() => {
+    if (!pushTap) return;
+    let active = true;
+    void read
+      .byId(pushTap.conversationId)
+      .then((row) => {
+        if (!active) return;
+        clearPushTap(pushTap.id);
+        setPage(null);
+        setModule("inbox");
+        setSection("clients");
+        setPushError(row ? "" : "Este chat ya no está disponible.");
+        setChat(row ?? null);
+      })
+      .catch((reason) => {
+        if (!active) return;
+        clearPushTap(pushTap.id);
+        if (requiresRemoteLogin(reason)) expired(reason);
+        else setPushError("No se pudo abrir el chat del aviso.");
+      });
+    return () => {
+      active = false;
+    };
+  }, [pushTap, read, clearPushTap, expired]);
   const overlay = Boolean(chat || page);
   const showInbox = !overlay && module === "inbox" && section === "clients";
   useEffect(() => {
@@ -373,6 +415,9 @@ function RemoteWorkspace({
               }[module]
             }
           />
+          {!!pushError && !overlay && (
+            <Banner type="warning">{pushError}</Banner>
+          )}
           {module === "inbox" && (
             <View
               style={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 8 }}
@@ -531,6 +576,7 @@ function RemoteWorkspace({
               setBar={updateBar}
               logout={logout}
               team={capabilities?.team === true}
+              push={pushControls}
             />
           )}
           {page === "results" && (

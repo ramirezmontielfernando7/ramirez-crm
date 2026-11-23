@@ -11,3 +11,6 @@ artifacts/
 
 # Evidencia de QA seleccionada y revisada; no incluye logs de SDK/cachés.
 !docs/tm4/evidence/*.log
+
+# Android Firebase config is supplied to CI outside the source tree.
+google-services.json
