@@ -730,7 +730,7 @@ export function InboxClient({
           hilo en cuanto hay conversación elegida (patrón maestro-detalle). */}
       <section
         className={cn(
-          "w-full shrink-0 overflow-hidden border-r md:w-[clamp(340px,36vw,400px)] lg:w-[420px]",
+          "w-full shrink-0 overflow-hidden border-r md:w-[clamp(340px,36vw,400px)] lg:w-[clamp(300px,25vw,420px)]",
           "lg:rounded-panel lg:border lg:bg-surface lg:shadow-panel",
           selected && "max-md:hidden"
         )}
@@ -958,14 +958,14 @@ export function InboxClient({
           "max-2xl:fixed max-2xl:inset-y-0 max-2xl:right-0 max-2xl:z-40 max-2xl:w-auto max-2xl:bg-popover max-2xl:transition-transform max-2xl:duration-nav max-2xl:ease-panel",
           // Cerrado mide 0 y el margen negativo se come el hueco del `gap`.
           panelOpen && selected
-            ? "w-[330px] max-2xl:translate-x-0 max-2xl:shadow-pop"
+            ? "w-[clamp(280px,20vw,330px)] max-2xl:translate-x-0 max-2xl:shadow-pop"
             : "w-0 border-l-0 max-2xl:translate-x-full 2xl:-ml-3"
         )}
       >
         {selected && (
           <div
             className={cn(
-              "h-full w-[330px] max-2xl:w-[min(330px,88vw)]",
+              "h-full w-[clamp(280px,20vw,330px)] max-2xl:w-[min(330px,88vw)]",
               // 2xl: el tercer panel flotante, que entra y sale deslizándose.
               "2xl:overflow-hidden 2xl:rounded-panel 2xl:border 2xl:bg-surface 2xl:shadow-panel",
               "2xl:transition-opacity 2xl:duration-nav 2xl:ease-panel",

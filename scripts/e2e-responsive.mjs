@@ -318,6 +318,22 @@ ok(
   "a 1440 px Detalles arranca cerrado y se abre encima",
   await desk.getByRole("button", { name: "Mostrar detalles" }).isVisible()
 );
+// Laptop (1280 px, p. ej. 1920 px con Windows al 150%): menú y lista se
+// angostan para que al chat le quede espacio (antes ~580 px aquí y apenas
+// ~250 px en «Mi número» con Detalles abierto).
+await desk.setViewportSize({ width: 1280, height: 720 });
+await desk.goto(`${BASE}/inbox`);
+await desk.getByText(NAME).first().click();
+await desk.getByPlaceholder("Escribe un mensaje").waitFor({ timeout: 20000 });
+await until(async () => (await anchoHilo()) >= 640, 8000);
+const laptop = await medirColumnas();
+const hilo1280 = await anchoHilo();
+ok(
+  "a 1280 px: lateral 216px, lista 320px y chat ≥ 640 px",
+  laptop.aside === 216 && laptop.secs[0] === 320 && hilo1280 >= 640,
+  JSON.stringify({ ...laptop, hilo: hilo1280 })
+);
+await desk.screenshot({ path: `${SHOTS}/laptop-inbox.png` });
 await desk.setViewportSize({ width: 1680, height: 950 });
 await desk.goto(`${BASE}/inbox`);
 await desk.getByText(NAME).first().click();
@@ -325,7 +341,9 @@ await desk.getByPlaceholder("Escribe un mensaje").waitFor({ timeout: 20000 });
 // El panel abre con transición de 220 ms: medir apenas aparece el compositor
 // atraparía un ancho a medio camino.
 const columnasOk = (t) =>
-  // Ronda 3 (maqueta): lista fija de 420 px y Detalles de 330 px.
+  // Ronda 3 (maqueta): lista de 420 px y Detalles de 330 px. Desde 2026-11
+  // la lista es `clamp(300px, 25vw, 420px)` (llega a 420 a 1680 px) y el
+  // lateral mide 13.5rem debajo de 1536 px y 14.5rem desde ahí.
   t.aside === 232 && t.secs[0] === 420 && t.secs.at(-1) === 330;
 await until(async () => columnasOk(await medirColumnas()), 8000);
 const tres = await medirColumnas();

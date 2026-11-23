@@ -211,7 +211,7 @@ export function AppNav({
         "lg:absolute lg:inset-y-3 lg:left-3 lg:z-10 lg:overflow-x-hidden",
         "lg:transition-[width,padding,transform,visibility] lg:duration-nav lg:ease-panel",
         "lg:rounded-panel lg:border lg:shadow-panel",
-        narrow ? "lg:w-14 lg:px-2" : "lg:w-[14.5rem]",
+        narrow ? "lg:w-14 lg:px-2" : "lg:w-[13.5rem] 2xl:w-[14.5rem]",
         // Oculto sale 68 px fijos (56 de su forma angosta + 12 del margen),
         // no un %: el % cambiaría con el ancho a medio camino y el borde se
         // despegaría del contenido al volver.

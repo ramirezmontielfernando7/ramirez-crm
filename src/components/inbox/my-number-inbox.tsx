@@ -307,7 +307,7 @@ export function MyNumberInbox({ own = true, team = false }: { own?: boolean; tea
     <div data-split-panels className="flex h-full lg:gap-3">
       <section
         className={cn(
-          "w-full shrink-0 overflow-hidden border-r md:w-[clamp(340px,36vw,400px)] lg:w-[420px]",
+          "w-full shrink-0 overflow-hidden border-r md:w-[clamp(340px,36vw,400px)] lg:w-[clamp(300px,25vw,420px)]",
           "lg:rounded-panel lg:border lg:bg-surface lg:shadow-panel",
           selectedId && "max-md:hidden",
         )}
@@ -431,7 +431,7 @@ export function MyNumberInbox({ own = true, team = false }: { own?: boolean; tea
                         <Link
                           href="/settings/my-number"
                           title={MY_CHATS_TEXT.shareOff}
-                          className="hidden text-[11.5px] text-text-3 underline-offset-2 hover:underline sm:inline"
+                          className="hidden text-[11.5px] text-text-3 underline-offset-2 hover:underline 2xl:inline"
                         >
                           ¿Es cliente? Actívalo en tus ajustes
                         </Link>
@@ -543,13 +543,13 @@ export function MyNumberInbox({ own = true, team = false }: { own?: boolean; tea
           "shrink-0 overflow-hidden border-l xl:overflow-visible xl:border-0",
           "xl:transition-[width,margin-left] xl:duration-nav xl:ease-panel",
           "max-xl:fixed max-xl:inset-y-0 max-xl:right-0 max-xl:z-40 max-xl:w-auto max-xl:bg-popover max-xl:transition-transform max-xl:duration-nav max-xl:ease-panel",
-          panelOpen && selected ? "w-[320px] max-xl:translate-x-0 max-xl:shadow-pop" : "w-0 border-l-0 max-xl:translate-x-full xl:-ml-3",
+          panelOpen && selected ? "w-[clamp(260px,20vw,320px)] max-xl:translate-x-0 max-xl:shadow-pop" : "w-0 border-l-0 max-xl:translate-x-full xl:-ml-3",
         )}
       >
         {selected && (
           <div
             className={cn(
-              "h-full w-[320px] max-xl:w-[min(320px,88vw)]",
+              "h-full w-[clamp(260px,20vw,320px)] max-xl:w-[min(320px,88vw)]",
               "xl:overflow-hidden xl:rounded-panel xl:border xl:bg-surface xl:shadow-panel",
               "xl:transition-opacity xl:duration-nav xl:ease-panel",
               panelOpen ? "xl:opacity-100" : "xl:pointer-events-none xl:opacity-0",
