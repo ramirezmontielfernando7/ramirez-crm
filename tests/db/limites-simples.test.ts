@@ -1,7 +1,9 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { getSystemDb, schema } from "@/lib/db";
+import { resetEnvCacheForTests } from "@/lib/env";
 import { runWithOrganization } from "@/lib/request-context";
+import { getAssistantStatus } from "@/server/assistant/status";
 import { fnSpentUsd, recordUsage, reserveTurn } from "@/server/ai-quota/quota";
 import { getOrgAiState, saveOrgAiOverrides } from "@/server/ai-settings/org";
 import { changeOrgAi } from "@/server/ai-settings/admin";
@@ -94,6 +96,42 @@ describe("0071 — límites sencillos", () => {
       ).rejects.toMatchObject({ status: 422 });
     } finally {
       await borrarOrganizaciones([C.id]);
+    }
+  });
+
+  it("guardar los topes en «IA y topes» retira el tope viejo del asistente (en tokens) y el medidor sigue al nuevo", async () => {
+    const D = await crearOrganizacion("Límites tope viejo D");
+    try {
+      process.env.OPENROUTER_API_TOKEN = "sk-prueba";
+      resetEnvCacheForTests();
+      // Como UNID: tope viejo de 1 M de tokens y bolsa de 2 USD.
+      await as(D.id, () => saveOrgLimits(D.id, { assistantTokens: 1_000_000 }, null));
+      await as(D.id, () => saveOrgAiOverrides(D.id, { monthlyUsdLimit: 2 }));
+      expect((await as(D.id, () => reserveTurn(D.id, "assistant", new Date(), 0, null, null))).ok).toBe(true);
+      await as(D.id, () => recordUsage(D.id, "assistant", { promptTokens: 1_000_000, completionTokens: 0 }, new Date(), 0, 0.5, "assistant"));
+      expect((await as(D.id, () => getAssistantStatus(D.id, "usr_x"))).state).toBe("exhausted");
+
+      // El administrador sube el tope del asistente a 1 USD en «IA y topes».
+      await changeOrgAi(D.id, { caps: { assistant: { unit: "usd", value: 1, usd: 1 } } } as never, null, null);
+      expect((await as(D.id, () => getEffectiveLimits(D.id))).assistantTokens.value).toBeNull();
+      const st = await as(D.id, () => getAssistantStatus(D.id, "usr_x"));
+      expect(st.state).toBe("available");
+      // 0.5 de 1 USD: 50 %, sin dólares a la vista.
+      expect(st.gauge).toMatchObject({ percent: 50 });
+      expect(await as(D.id, () => reserveTurn(D.id, "assistant", new Date(), 0, 2, { fn: "assistant", usdLimit: 1, mode: "block" }))).toEqual({ ok: true });
+
+      // La bitácora de plataforma deja el tope viejo retirado.
+      const [log] = await getSystemDb()
+        .select({ detail: schema.platformAuditLog.detail })
+        .from(schema.platformAuditLog)
+        .where(eq(schema.platformAuditLog.targetOrgId, D.id))
+        .orderBy(desc(schema.platformAuditLog.at))
+        .limit(1);
+      expect(log?.detail).toMatchObject({ assistantTokens: { de: 1_000_000, a: null } });
+    } finally {
+      delete process.env.OPENROUTER_API_TOKEN;
+      resetEnvCacheForTests();
+      await borrarOrganizaciones([D.id]);
     }
   });
 
