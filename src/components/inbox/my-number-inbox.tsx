@@ -4,7 +4,7 @@ import { mergeLatest } from "@/lib/mi-numero-thread";
 import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Bot, Check, ChevronLeft, ChevronRight, Lock, PanelRight, UserCheck } from "lucide-react";
+import { Bot, Check, ChevronLeft, ChevronRight, Lock, PanelRight, Search, UserCheck } from "lucide-react";
 import { fetchJson } from "@/lib/fetch-json";
 import { ACCESS_TEXT, MY_CHATS_TEXT, TEAM_TEXT } from "@/lib/mi-numero";
 import { looksLikePhone, stripPhoneAdornments } from "@/lib/phone-search";
@@ -20,7 +20,7 @@ import { Composer } from "./composer";
 import { ContactPanel } from "./contact-panel";
 import { useInboxCatalogs } from "./use-inbox-catalogs";
 import { formatTime, previewText } from "./helpers";
-import { InboxListHeader } from "./inbox-mode-switch";
+import { InboxListHeader, LaptopActions } from "./inbox-mode-switch";
 import { ListSearch } from "./list-search";
 import { MessageBubble } from "./message-bubble";
 import { NumberNewChatCard } from "./my-number-new-chat";
@@ -78,6 +78,21 @@ export function MyNumberInbox({ own = true, team = false }: { own?: boolean; tea
   const { overview, reload: reloadAccess } = useAccessOverview();
   const [rowError, setRowError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
+  // Igual que «Clientes»: en escritorio la búsqueda es una lupa en el
+  // encabezado (o la tecla «/») y debajo van los chips Todos · No leídos.
+  // En teléfono y tableta el cuadro se queda siempre a la vista.
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [unreadOnly, setUnreadOnly] = useState(false);
+  useEffect(() => {
+    const onKey = (e: globalThis.KeyboardEvent) => {
+      if (e.key !== "/" || e.metaKey || e.ctrlKey || e.altKey) return;
+      const t = e.target as HTMLElement | null;
+      if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+      setSearchOpen(true);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
   const { team: teamData, reload: reloadTeam } = useTeamNumbers(team, team ? query : "");
   const rowRef = useRef<HTMLDivElement>(null);
   const catalogs = useInboxCatalogs();
@@ -288,7 +303,7 @@ export function MyNumberInbox({ own = true, team = false }: { own?: boolean; tea
   const q = query.trim().toLowerCase();
   const qDigits = looksLikePhone(query) ? stripPhoneAdornments(query) : "";
   // Mientras llega la respuesta del servidor, se filtra lo que ya está en pantalla.
-  const shown = !q
+  const matched = !q
     ? (list?.chats ?? [])
     : (found?.chats ??
       (list?.chats ?? []).filter(
@@ -296,12 +311,30 @@ export function MyNumberInbox({ own = true, team = false }: { own?: boolean; tea
           c.contact.name.toLowerCase().includes(q) ||
           (c.contact.phone ?? "").includes(qDigits || q.replace(/\D/g, "") || "\u0000"),
       ));
+  // «No leídos» filtra lo que ya está cargado (la lista llega ordenada por el
+  // último mensaje, así que los no leídos recientes siempre están).
+  const shown = unreadOnly ? matched.filter((c) => c.unreadCount > 0) : matched;
+  const unreadTotal = (list?.chats ?? []).filter((c) => c.unreadCount > 0).length;
+  const showSearch = searchOpen || query !== "";
   const sinRegistrar = own && !!list && looksLikePhone(query) && shown.length === 0;
 
   const selected = sharedId || companyId ? null : (list?.chats.find((c) => c.id === selectedId) ?? null);
   const companyChat = findCompanyChat(teamData, companyId);
   const sharedChat = sharedId ? (overview?.sharedWithMe.find((c) => c.conversationId === sharedId) ?? null) : null;
   const request = reviewing ? (overview?.incoming[0] ?? null) : null;
+
+  const searchButton = (
+    <button
+      type="button"
+      onClick={() => (searchOpen ? (setQuery(""), setSearchOpen(false)) : setSearchOpen(true))}
+      aria-label="Buscar conversación (tecla /)"
+      aria-pressed={searchOpen}
+      title="Buscar (/)"
+      className={cn("btn-r3 g ic max-lg:hidden", searchOpen && "soft")}
+    >
+      <Search className="h-4 w-4" strokeWidth={1.75} />
+    </button>
+  );
 
   return (
     <div data-split-panels className="flex h-full lg:gap-3">
@@ -313,9 +346,48 @@ export function MyNumberInbox({ own = true, team = false }: { own?: boolean; tea
         )}
       >
         <div className="flex h-full flex-col">
-          <InboxListHeader current="number" rowRef={rowRef} />
-          <div className="shrink-0 px-4 pb-2 pt-3">
-            <ListSearch query={query} onQuery={setQuery} placeholder="Buscar nombre, teléfono o mensaje" />
+          <InboxListHeader
+            current="number"
+            flush
+            rowRef={rowRef}
+            actions={searchButton}
+            actionsBelowOnLaptop
+          />
+          <div className="inbox-list-top flex shrink-0 flex-col gap-2 px-4 pb-2.5 pt-0">
+            <ListSearch
+              autoFocus={searchOpen}
+              className={showSearch ? "max-lg:mt-3" : "max-lg:mt-3 lg:hidden"}
+              onClose={() => setSearchOpen(false)}
+              query={query}
+              onQuery={setQuery}
+              placeholder="Buscar nombre, teléfono o mensaje"
+            />
+            <div className="inbox-filter-strip flex items-center gap-1.5 lg:max-2xl:flex-wrap">
+            {own && (
+              <div role="group" aria-label="Mostrar" className="inbox-quick-filters flex flex-wrap items-center gap-1.5 lg:max-2xl:contents">
+                {[
+                  { id: "all", label: "Todos", on: !unreadOnly, pick: () => setUnreadOnly(false) },
+                  { id: "unread", label: "No leídos", on: unreadOnly, pick: () => setUnreadOnly(true) },
+                ].map((f) => (
+                  <button
+                    key={f.id}
+                    type="button"
+                    aria-pressed={f.on}
+                    onClick={f.pick}
+                    className={cn(
+                      "h-[26px] rounded-full border px-2.5 text-[12.5px] font-medium transition-colors",
+                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+                      f.on ? "border-brand-soft bg-brand-tint text-brand-ink" : "text-text-2 hover:bg-accent",
+                    )}
+                  >
+                    {f.label}
+                    {f.id === "unread" && unreadTotal > 0 && <b className="ml-1 font-semibold text-brand-text">{unreadTotal}</b>}
+                  </button>
+                ))}
+              </div>
+            )}
+            <LaptopActions>{searchButton}</LaptopActions>
+            </div>
           </div>
           <p className="flex items-start gap-2 border-y bg-secondary px-4 py-2 text-[12px] leading-snug text-text-2">
             <Lock className="mt-[1px] h-3.5 w-3.5 shrink-0" strokeWidth={2} aria-hidden />
@@ -641,7 +713,7 @@ function ClientToggle({ isClient, busy, onToggle }: { isClient: boolean; busy: b
       title={isClient ? MY_CHATS_TEXT.unmarkHelp : MY_CHATS_TEXT.markClientHelp}
       data-testid="my-number-client-toggle"
       className={cn(
-        "flex items-center gap-1.5 whitespace-nowrap rounded-full border px-3.5 py-1.5 text-[13px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50",
+        "flex items-center gap-1.5 whitespace-nowrap rounded-full border px-3.5 py-1.5 text-[13px] transition-colors max-2xl:gap-1 max-2xl:px-2.5 max-2xl:py-1 max-2xl:text-[12px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50",
         isClient
           ? "border-brand bg-brand-tint font-semibold text-brand-text"
           : "border-border-strong font-medium text-text-3 opacity-60 hover:opacity-100",

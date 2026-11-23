@@ -317,12 +317,13 @@ export function MessageBubble({
       )}
       <span
         className={cn(
-          "bubble-meta mt-0.5 flex items-center justify-end gap-1 text-[11px] leading-[14px]",
+          // Nunca en dos renglones: con el chat angosto «Celular · 12:36 ✓» se partía.
+          "bubble-meta mt-0.5 flex items-center justify-end gap-1 whitespace-nowrap text-[11px] leading-[14px]",
           out ? (ai ? "text-[var(--bubble-ai-meta)]" : "text-[var(--bubble-out-meta)]") : "text-text-3"
         )}
       >
         {m.origin === "manual" && (
-          <span className="inline-flex items-center gap-0.5" title="Enviado a mano desde la app de WhatsApp Business">
+          <span className="inline-flex shrink-0 items-center gap-0.5" title="Enviado a mano desde la app de WhatsApp Business">
             <Smartphone className="h-3 w-3" strokeWidth={1.75} /> Celular ·
           </span>
         )}

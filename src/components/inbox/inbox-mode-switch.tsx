@@ -71,7 +71,14 @@ export function InboxListHeader({
   rowRef,
   flush,
   searchBar,
+  actionsBelowOnLaptop,
 }: {
+  /**
+   * Laptop (1024–1535 px): la lista es angosta y pestañas + botones no caben
+   * en una fila; los botones se esconden aquí y la pantalla los pinta en su
+   * fila de filtros (`LaptopActions`).
+   */
+  actionsBelowOnLaptop?: boolean;
   /** Teléfono: mientras se busca, el título se vuelve la caja de búsqueda y las pestañas se esconden. */
   searchBar?: React.ReactNode;
   /** Sin línea inferior: debajo van los chips de filtro y se ve más limpio. */
@@ -126,7 +133,7 @@ export function InboxListHeader({
           })}
         </nav>
       )}
-      <div className={cn("ml-auto flex shrink-0 items-center gap-1.5", searchBar && "max-lg:hidden")}>{actions}</div>
+      <div className={cn("ml-auto flex shrink-0 items-center gap-1.5", searchBar && "max-lg:hidden", actionsBelowOnLaptop && "lg:max-2xl:hidden")}>{actions}</div>
     </header>
     {tabs.length > 1 && !searchBar && (
       <nav aria-label="Cambiar de bandeja" data-testid="inbox-phone-tabs" className="phone-tabs lg:hidden">
@@ -154,4 +161,9 @@ export function InboxListHeader({
     )}
     </>
   );
+}
+
+/** Los botones del encabezado en la fila de filtros, solo en laptop (ver `actionsBelowOnLaptop`). */
+export function LaptopActions({ children }: { children: React.ReactNode }) {
+  return <div className="ml-auto hidden shrink-0 items-center gap-1 lg:max-2xl:flex">{children}</div>;
 }
