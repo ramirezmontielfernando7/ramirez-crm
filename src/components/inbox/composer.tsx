@@ -107,6 +107,8 @@ export function Composer({
   freeTextOutsideWindow = false,
   directHint = true,
   numberChat = false,
+  reply,
+  onCancelReply,
 }: {
   conversation: Pick<ConversationDto, "id" | "contact" | "windowOpen" | "windowRemainingMs">;
   onSend: (text: string) => Promise<string | null>;
@@ -124,6 +126,8 @@ export function Composer({
    * archivos (ni ubicación ni tarjeta de contacto).
    */
   numberChat?: boolean;
+  reply?: { sender: string; preview: string };
+  onCancelReply?: () => void;
 }) {
   const phone = usePhone();
   // 030 (PR 4): sin el módulo Conocimientos no se ofrece (la API ya da 404).
@@ -623,6 +627,15 @@ export function Composer({
 
       {/* Ronda 3: la caja de la maqueta — el texto arriba y, debajo, las
           herramientas con nombre, el tiempo de la ventana y Enviar. */}
+      {reply && (
+        <div className="mb-2 flex min-w-0 items-center gap-3 rounded-md border-l-2 border-brand bg-brand-tint px-3 py-2" aria-label="Cita seleccionada">
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-xs font-semibold text-brand-text">{reply.sender}</p>
+            <p className="truncate text-xs text-text-2">{reply.preview}</p>
+          </div>
+          <button type="button" onClick={onCancelReply} className="shrink-0 px-1 text-xs text-text-2">Quitar cita</button>
+        </div>
+      )}
       <div className="composer-box rounded-[14px] border border-border-strong bg-surface px-3 pb-2 pt-2.5 transition-[border-color,box-shadow] focus-within:border-brand focus-within:ring-[3px] focus-within:ring-brand-soft">
         <input
           ref={fileRef}

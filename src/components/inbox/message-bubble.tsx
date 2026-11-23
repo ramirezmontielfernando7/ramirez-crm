@@ -242,11 +242,15 @@ export function MessageBubble({
   m,
   grouped,
   wide = false,
+  incomingName = "Cliente",
+  onJumpQuote,
 }: {
   m: MessageDto;
   grouped: boolean;
   /** Para columnas angostas (vista previa): más ancho útil. Por defecto, igual que la Bandeja. */
   wide?: boolean;
+  incomingName?: string;
+  onJumpQuote?: () => void;
 }) {
   const out = m.direction === "out";
   // Ronda 3: la IA del negocio contesta en lila con «IA» arriba; la IA
@@ -296,6 +300,14 @@ export function MessageBubble({
           <Sparkles className="h-[11px] w-[11px] shrink-0" strokeWidth={2} aria-hidden />
           <span className="truncate">{m.aiSenderName ?? DEFAULT_ASSISTANT_NAME}</span>
         </span>
+      )}
+      {m.replyTo && (
+        <button type="button" onClick={onJumpQuote} disabled={!onJumpQuote}
+          className="mb-1 block w-full min-w-0 rounded-md border-l-2 border-brand bg-background/70 px-2 py-1 text-left text-xs text-text-2"
+          aria-label={onJumpQuote ? "Ir al mensaje citado" : undefined}>
+          <span className="block font-semibold text-brand-text">{m.replyTo.direction === "out" ? "Tú" : incomingName}</span>
+          <span className="line-clamp-2 break-words">{m.replyTo.preview}</span>
+        </button>
       )}
       {m.media ? (
         <span className="block">

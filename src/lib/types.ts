@@ -93,7 +93,19 @@ export type MessageMediaDto = {
   payload: unknown;
 };
 
+export type CustomerReactionDto = { direction: "in" | "out"; emoji: string };
+export type MessageReplyDto = {
+  id: string;
+  direction: "in" | "out";
+  type: string;
+  preview: string;
+};
+
 export type MessageDto = {
+  /** Solo en eventos en vivo; el historial resuelve el contenido. */
+  hasQuote?: true;
+  reactions?: CustomerReactionDto[];
+  replyTo?: MessageReplyDto | null;
   groupSender?: string | null;
   groupSenderId?: string | null;
   id: string;

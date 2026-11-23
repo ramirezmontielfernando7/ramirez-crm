@@ -2300,7 +2300,9 @@ async function huecosPorFechaChecks() {
   );
 }
 
-main().catch((err) => {
+if (process.argv.includes("--citas-reacciones")) {
+  await import("./e2e-citas-reacciones.mjs");
+} else main().catch((err) => {
   console.error("ERROR FATAL:", err);
   process.exit(1);
 });

@@ -20,6 +20,7 @@ export async function canSeeEvent(access: Access, event: SseEvent): Promise<bool
   if (isAudienceEvent(event)) return canSeeTeamEvent(access, event);
   if (seesAllChats(access)) return true;
   switch (event.type) {
+    case "message.reaction":
     case "message.new":
     case "message.status":
       return conversationVisible(access, event.data.conversationId);

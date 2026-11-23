@@ -33,6 +33,7 @@ import {
   windowClosedMessage,
 } from "@/server/channels/capabilities";
 import { isChannelEnabled } from "@/server/channels/enabled";
+import { finishReaction, reserveReaction } from "./message-annotations";
 import { serializeMessage } from "@/server/inbox/ingest";
 import { numberAiRoute } from "@/server/mi-numero/ai";
 import {
@@ -92,6 +93,7 @@ type SendResult = {
   messageId: string;
   /** Conexión directa (PR 3): el mensaje quedó «En cola» y sale solo a esta hora. */
   queuedUntil?: Date | null;
+  replyApplied?: boolean;
 };
 
 /**
@@ -328,6 +330,7 @@ type OutboundInput = {
   conversationId: string;
   type: string;
   text: string | null;
+  replyToWaMessageId?: string | null;
   aiGenerated?: boolean;
   origin: "ai" | "operator";
   mediaAssetId?: string | null;
@@ -359,6 +362,7 @@ async function reserveOutbound(input: OutboundInput): Promise<OutboundRow> {
       organizationId: input.organizationId,
       conversationId: input.conversationId,
       waMessageId: null,
+      replyToWaMessageId: input.replyToWaMessageId ?? null,
       direction: "out",
       type: input.type,
       text: input.text,
@@ -477,6 +481,7 @@ export async function sendText(input: {
   conversationId: string;
   organizationId: string;
   text: string;
+  replyTo?: { waMessageId: string | null; transport: "meta" | "directa" | null };
   aiGenerated?: boolean;
   /**
    * 047 — lo pidió la IA conectada de una persona (conector MCP). Sale como
@@ -513,7 +518,7 @@ export async function sendText(input: {
     aiDirect: input.aiGenerated === true,
   });
   if (target.direct) {
-    return viaDirect({
+    const result = await viaDirect({
       organizationId: input.organizationId,
       conversationId: input.conversationId,
       type: "text",
@@ -522,13 +527,20 @@ export async function sendText(input: {
       aiConnectionId: input.aiConnectionId ?? null,
       aiSenderName: input.aiSenderName ?? null,
     });
+    return { ...result, ...(input.replyTo ? { replyApplied: false } : {}) };
   }
   const { credentials } = target;
+  const replyToWaMessageId = credentials && input.replyTo?.transport !== "directa"
+    ? input.replyTo?.waMessageId : undefined;
+  if (credentials && input.replyTo && !replyToWaMessageId && input.replyTo.transport !== "directa") {
+    throw new SendError("meta_error", "El mensaje citado todavía no tiene un identificador de WhatsApp.");
+  }
+  const reply = input.replyTo ? { replyApplied: Boolean(replyToWaMessageId) } : {};
 
   // Meta acepta 4,096 caracteres por texto: uno más largo sale en partes, en
   // orden (cada una espera a que Meta acepte la anterior).
   if (!target.instagram && !target.messenger && input.text.length > META_TEXT_MAX) {
-    return sendTextInParts(input, target, credentials!);
+    return { ...(await sendTextInParts(input, target, credentials!, replyToWaMessageId)), ...reply };
   }
 
   const reserved = await reserveOutbound({
@@ -536,6 +548,7 @@ export async function sendText(input: {
     conversationId: input.conversationId,
     type: "text",
     text: input.text,
+    replyToWaMessageId,
     aiGenerated: input.aiGenerated,
     origin: input.aiGenerated ? "ai" : "operator",
     aiConnectionId: input.aiConnectionId ?? null,
@@ -553,6 +566,7 @@ export async function sendText(input: {
             ...target.destinatario,
             type: "text",
             text: { body: input.text },
+            ...(replyToWaMessageId ? { context: { message_id: replyToWaMessageId } } : {}),
           });
   } catch (err) {
     return abandonOutbound(reserved, err, { keep: false });
@@ -562,7 +576,7 @@ export async function sendText(input: {
   // avanza despues por webhook. Sin esta distincion el mensaje se queda
   // con el reloj puesto para siempre.
   const status = capabilitiesFor(target.conversation.channel).deliveryReceipts ? "pending" : "sent";
-  return { messageId: await confirmOutbound(reserved, waMessageId, status) };
+  return { messageId: await confirmOutbound(reserved, waMessageId, status), ...reply };
 }
 
 /**
@@ -576,7 +590,8 @@ export async function sendText(input: {
 async function sendTextInParts(
   input: { conversationId: string; organizationId: string; text: string; aiGenerated?: boolean; aiConnectionId?: string; aiSenderName?: string | null },
   target: SendTarget,
-  credentials: Credentials
+  credentials: Credentials,
+  replyToWaMessageId?: string | null,
 ): Promise<SendResult> {
   const parts = splitForMeta(input.text);
   let lastId = "";
@@ -586,6 +601,7 @@ async function sendTextInParts(
       conversationId: input.conversationId,
       type: "text",
       text: parts[i]!,
+      replyToWaMessageId: i === 0 ? replyToWaMessageId : undefined,
       aiGenerated: input.aiGenerated,
       origin: input.aiGenerated ? "ai" : "operator",
       aiConnectionId: input.aiConnectionId ?? null,
@@ -598,6 +614,7 @@ async function sendTextInParts(
         ...target.destinatario,
         type: "text",
         text: { body: parts[i]! },
+        ...(i === 0 && replyToWaMessageId ? { context: { message_id: replyToWaMessageId } } : {}),
       });
     } catch (err) {
       if (i === 0) return abandonOutbound(reserved, err, { keep: false });
@@ -871,6 +888,44 @@ export async function callGraphSend(
   }
 }
 
+
+export async function setCustomerReaction(input: {
+  organizationId: string; conversationId: string;
+  message: { id: string; waMessageId: string | null; transport: "meta" | "directa" | null };
+  emoji: string;
+} & SendOptions) {
+  const target = await prepareSend(input.conversationId, input.organizationId, { allowDirect: input.allowDirect });
+  if (!target.credentials || input.message.transport === "directa") {
+    throw new SendError("not_connected", "Las reacciones requieren un mensaje de WhatsApp Cloud API.");
+  }
+  if (!input.message.waMessageId) {
+    throw new SendError("meta_error", "El mensaje todavía no tiene un identificador de WhatsApp.");
+  }
+  const destination = {
+    organizationId: input.organizationId,
+    conversationId: input.conversationId,
+    messageId: input.message.id,
+  };
+  const reservation = await reserveReaction(destination, input.emoji);
+  if (reservation.kind !== "reserved") return reservation.kind;
+  let waId: string;
+  try {
+    waId = await callGraphSend(target.credentials, {
+      messaging_product: "whatsapp",
+      ...target.destinatario,
+      type: "reaction",
+      reaction: { message_id: input.message.waMessageId, emoji: input.emoji },
+    });
+  } catch (error) {
+    // Keep the reservation when acceptance is unknown. Do not retry Graph automatically.
+    if (error instanceof SendError && error.code !== "meta_unavailable") {
+      await finishReaction(destination, reservation.at);
+    }
+    throw error;
+  }
+  await finishReaction(destination, reservation.at, { emoji: input.emoji, waId });
+  return "sent" as const;
+}
 
 /**
  * 014 — Envío por el canal de Instagram. Traduce los fallos al mismo
