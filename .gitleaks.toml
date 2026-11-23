@@ -30,3 +30,9 @@ description = "Lista de archivos con su huella (ruta: hash) en una evidencia de 
 condition = "AND"
 paths = ['''^apps/mobile/docs/refinement-b/evidence/disk-recovery\.json$''']
 rules = ["generic-api-key"]
+
+[[allowlists]]
+description = "Llave de API PÚBLICA de Firebase (google-services.json del cliente Android, no es secreto: viaja dentro de la APK) en los flujos que compilan la app móvil. Aprobado por Fer 2026-11-23."
+condition = "AND"
+paths = ['''^\.github/workflows/mobile-apk[0-9]+\.yml$''']
+rules = ["gcp-api-key"]
