@@ -47,6 +47,17 @@ function targets(): Target[] {
   const fb = schema.messengerCredentials;
   return [
     {
+      name: "mobile_push_devices",
+      table: schema.mobilePushDevices,
+      id: schema.mobilePushDevices.id,
+      keyVersion: schema.mobilePushDevices.keyVersion,
+      secrets: [{
+        cipher: schema.mobilePushDevices.tokenCipher,
+        iv: schema.mobilePushDevices.tokenIv,
+        tag: schema.mobilePushDevices.tokenTag,
+      }],
+    },
+    {
       name: "meta_credentials",
       table: schema.metaCredentials,
       id: schema.metaCredentials.id,

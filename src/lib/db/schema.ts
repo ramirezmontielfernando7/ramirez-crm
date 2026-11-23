@@ -57,6 +57,28 @@ export const session = pgTable("session", {
   activeOrganizationId: text("active_organization_id"),
 });
 
+export const mobilePushDevices = pgTable("mobile_push_devices", {
+  id: text("id").primaryKey(),
+  organizationId: text("organization_id").notNull().references(() => organization.id, { onDelete: "cascade" }),
+  userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+  sessionId: text("session_id").notNull().references(() => session.id, { onDelete: "cascade" }),
+  tokenHash: text("token_hash").notNull(),
+  tokenCipher: text("token_cipher").notNull(),
+  tokenIv: text("token_iv").notNull(),
+  tokenTag: text("token_tag").notNull(),
+  keyVersion: integer("key_version").notNull().default(1),
+  platform: text("platform", { enum: ["android"] }).notNull().default("android"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  lastSeenAt: timestamp("last_seen_at").notNull().defaultNow(),
+  revokedAt: timestamp("revoked_at"),
+}, (t) => [
+  uniqueIndex("mobile_push_devices_org_user_token_uq").on(t.organizationId, t.userId, t.tokenHash),
+  uniqueIndex("mobile_push_devices_active_token_uq").on(t.tokenHash).where(sql`${t.revokedAt} IS NULL`),
+  index("mobile_push_devices_session_idx").on(t.sessionId),
+  index("mobile_push_devices_seen_idx").on(t.lastSeenAt),
+  check("mobile_push_devices_platform_ck", sql`${t.platform} = 'android'`),
+]);
+
 export const account = pgTable("account", {
   id: text("id").primaryKey(),
   accountId: text("account_id").notNull(),
