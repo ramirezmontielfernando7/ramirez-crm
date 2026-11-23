@@ -55,6 +55,7 @@ import {
   type RemoteAttachment,
 } from "./remote-media";
 
+import { allowsInboxAreaRequest, inboxHistoryPath } from "./remote-inbox-areas";
 import { isPushToken, pushRoutes } from "./remote-push";
 
 type Method = "GET" | "POST" | "PATCH" | "PUT";
@@ -175,6 +176,7 @@ export function allowsRemoteRequest(
 ): boolean {
   if (/\s/.test(path)) return false;
   if (allowsMediaRequest(method, path, allowSend)) return true;
+  if (allowsInboxAreaRequest(method, path, allowSend)) return true;
   if (allowsWorkspaceRequest(method, path, allowSend)) return true;
   if (allowsCrmRequest(method, path, allowSend)) return true;
   if (method === "POST")
@@ -399,6 +401,14 @@ export class RemoteAuthRepository implements AuthRepository<RemoteSession> {
 
   async redeem(): Promise<RemoteSession> {
     throw new RemoteHttpError(403);
+  }
+
+  sendTeamText(id: string, raw: string) {
+    return this.updateCrm(async (request) => {
+      const body = raw.trim();
+      if (!body || body.length > 20_000) throw new RemoteHttpError(422);
+      return request("POST", inboxHistoryPath("team", id), { body });
+    });
   }
 
   async setPushDevice(token: string, register: boolean) {

@@ -23,6 +23,7 @@ import {
   useRemoteData,
 } from "./RemoteWorkspaceUi";
 
+import type { ChatStyle } from "../integration/chat-timeline";
 import type { RemotePushControls } from "./useRemotePush";
 
 const themes = [
@@ -73,6 +74,8 @@ export function RemoteSettings({
   push,
   bar,
   setBar,
+  appearance,
+  setAppearance,
   logout,
 }: RemotePageProps & {
   back: () => void;
@@ -80,6 +83,8 @@ export function RemoteSettings({
   push: RemotePushControls;
   bar: MobileBar;
   setBar: (option: MobileBar) => Promise<void>;
+  appearance: ChatStyle;
+  setAppearance: (option: ChatStyle) => Promise<void>;
   logout: () => Promise<void>;
 }) {
   const theme = useTheme();
@@ -114,6 +119,21 @@ export function RemoteSettings({
             onChange={(mode) => void theme.setMode(mode as ThemeMode)}
           />
           {!!theme.error && <Banner type="warning">{theme.error}</Banner>}
+          <Text weight="semibold">Estilo del chat</Text>
+          <SegmentedControl
+            options={[
+              { key: "dashfort", label: "Dashfort" },
+              { key: "whatsapp", label: "Estilo WhatsApp" },
+            ]}
+            value={appearance}
+            onChange={(key) => {
+              if (key !== "dashfort" && key !== "whatsapp") return;
+              setError("");
+              void setAppearance(key).catch(() =>
+                setError("No se pudo guardar el estilo."),
+              );
+            }}
+          />
           <Text weight="semibold">Barra inferior</Text>
           <SegmentedControl
             options={barOptions}

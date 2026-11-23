@@ -25,6 +25,11 @@ export type WireMessage = Readonly<{
   createdAt: string;
   aiGenerated: boolean;
   attachment?: RemoteAttachment;
+  sender?: string;
+  senderKey?: string;
+  sticker?: boolean;
+  reactions?: readonly { emoji: string; count: number }[];
+  quote?: { messageId: string; title: string; preview: string };
 }>;
 export function messagesResponse(
   raw: unknown,
@@ -45,13 +50,68 @@ export function messagesResponse(
     )
       throw new IntegrationError("invalid");
     const attachment = attachmentFromWire(m.media);
+    const media = m.media ? record(m.media) : undefined;
+    const quote =
+      m.quote && typeof m.quote === "object" && !Array.isArray(m.quote)
+        ? record(m.quote)
+        : undefined;
+    const quoted =
+      quote &&
+      typeof quote.messageId === "string" &&
+      /^[A-Za-z0-9_-]{1,200}$/.test(quote.messageId) &&
+      typeof quote.title === "string" &&
+      typeof quote.preview === "string"
+        ? {
+            messageId: quote.messageId,
+            title: quote.title.slice(0, 100),
+            preview: quote.preview.slice(0, 180),
+          }
+        : undefined;
+    const reactions = Array.isArray(m.reactions)
+      ? m.reactions.slice(0, 12).flatMap((value) => {
+          if (!value || typeof value !== "object" || Array.isArray(value))
+            return [];
+          const { emoji, count } = record(value);
+          return typeof emoji === "string" &&
+            emoji.length <= 16 &&
+            /\p{Extended_Pictographic}/u.test(emoji) &&
+            typeof count === "number" &&
+            Number.isSafeInteger(count) &&
+            count > 0
+            ? [{ emoji, count }]
+            : [];
+        })
+      : [];
     return Object.freeze({
-      ...(attachment ? { attachment } : {}),
+      ...(attachment
+        ? {
+            attachment,
+            sticker: m.type === "sticker" || media?.kind === "sticker",
+          }
+        : {}),
+      ...(quoted ? { quote: quoted } : {}),
+      ...(reactions.length
+        ? {
+            reactions: [
+              ...new Map(
+                reactions.map((reaction) => [reaction.emoji, reaction]),
+              ).values(),
+            ],
+          }
+        : {}),
+      ...(typeof m.groupSenderId === "string" && m.groupSenderId
+        ? { senderKey: m.groupSenderId }
+        : {}),
+      ...(typeof m.groupSender === "string" && m.groupSender
+        ? { sender: m.groupSender }
+        : {}),
       id: id(m.id),
       conversationId,
       direction: m.direction as WireMessage["direction"],
       status: m.status as WireMessage["status"],
-      text: m.text as string | null,
+      text:
+        (m.text as string | null) ??
+        (typeof media?.caption === "string" ? media.caption : null),
       createdAt: timestamp(m.createdAt),
       aiGenerated: m.aiGenerated,
     });

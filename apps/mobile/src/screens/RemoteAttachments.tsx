@@ -1,5 +1,16 @@
 import React, { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Image, Platform, View } from "react-native";
+import {
+  ActivityIndicator,
+  Image,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  View,
+  useWindowDimensions,
+} from "react-native";
+import { FileText, Headphones, Video } from "lucide-react-native";
+import { useTheme } from "../theme/ThemeProvider";
 import * as ImagePicker from "expo-image-picker";
 import * as DocumentPicker from "expo-document-picker";
 import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
@@ -32,9 +43,15 @@ export function RemoteAttachmentRow({
   item,
   repository,
   expired,
-}: Props & { item: RemoteAttachment }) {
+  sticker = false,
+}: Props & { item: RemoteAttachment; sticker?: boolean }) {
   const { open } = useLayers();
+  const { colors } = useTheme();
   const [thumbnail, setThumbnail] = useState<string>();
+  const [failed, setFailed] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [attempt, setAttempt] = useState(0);
+  const [full, setFull] = useState(false);
   useEffect(() => {
     if (Platform.OS === "web" || item.kind !== "image") return;
     const abort = new AbortController();
@@ -48,50 +65,127 @@ export function RemoteAttachmentRow({
         }
       },
       (reason) => {
-        if (!abort.signal.aborted && requiresRemoteLogin(reason))
-          expired(reason);
+        if (abort.signal.aborted) return;
+        setLoading(false);
+        setFailed(true);
+        if (requiresRemoteLogin(reason)) expired(reason);
       },
     );
     return () => {
       abort.abort();
       if (file) deleteCacheFile(file);
     };
-  }, [repository, item.id, item.kind, item.mime, item.size, expired]);
+  }, [repository, item.id, item.kind, item.mime, item.size, expired, attempt]);
+
+  const view = () => {
+    if (item.kind === "image") {
+      setFull(true);
+      return;
+    }
+    open({
+      kind: "sheet",
+      title: item.name,
+      content: (
+        <AttachmentViewer
+          item={item}
+          repository={repository}
+          expired={expired}
+        />
+      ),
+    });
+  };
+  if (item.kind !== "image") {
+    const [name, Icon] = {
+      audio: ["Abrir audio", Headphones],
+      video: ["Abrir video", Video],
+      document: ["Ver documento", FileText],
+    }[item.kind];
+    return (
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={name as string}
+        onPress={view}
+        style={{
+          padding: 8,
+          borderRadius: 8,
+          borderWidth: 1,
+          borderColor: colors.border,
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 8,
+        }}
+      >
+        {React.createElement(Icon as typeof FileText, {
+          size: 20,
+          color: colors.accent,
+        })}
+        <View style={{ flexShrink: 1 }}>
+          <Text numberOfLines={2}>{item.name}</Text>
+          <Text kind="meta">
+            {item.size === null
+              ? "Tamaño no disponible"
+              : item.size < 1024
+                ? item.size + " B"
+                : Math.round(item.size / 1024) + " KB"}
+          </Text>
+        </View>
+      </Pressable>
+    );
+  }
   return (
-    <View style={{ gap: 4 }}>
-      {thumbnail && (
-        <Image
-          source={{ uri: thumbnail }}
-          accessibilityLabel="Vista previa del adjunto"
-          style={{ height: 110, width: 160, borderRadius: 8 }}
-          resizeMode="contain"
+    <View>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={
+          failed ? "Reintentar imagen" : sticker ? "Ver sticker" : "Ver imagen"
+        }
+        onPress={() => {
+          if (failed) {
+            setFailed(false);
+            setLoading(true);
+            setThumbnail(undefined);
+            setAttempt((value) => value + 1);
+          } else view();
+        }}
+        style={{
+          width: sticker ? 132 : 218,
+          height: sticker ? 132 : 164,
+          maxWidth: "100%",
+          overflow: "hidden",
+          borderRadius: sticker ? 0 : 9,
+          backgroundColor: sticker ? "transparent" : colors.sunken,
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        {!!thumbnail && !failed && (
+          <Image
+            source={{ uri: thumbnail }}
+            accessibilityLabel="Vista previa del adjunto"
+            resizeMode="contain"
+            fadeDuration={130}
+            onLoadEnd={() => setLoading(false)}
+            onError={() => {
+              setFailed(true);
+              setLoading(false);
+            }}
+            style={{ position: "absolute", width: "100%", height: "100%" }}
+          />
+        )}
+        {failed ? (
+          <Text kind="meta">Reintentar imagen</Text>
+        ) : loading && Platform.OS !== "web" ? (
+          <ActivityIndicator accessibilityLabel="Cargando imagen" />
+        ) : null}
+      </Pressable>
+      {full && (
+        <AttachmentViewer
+          item={item}
+          repository={repository}
+          expired={expired}
+          dismiss={() => setFull(false)}
         />
       )}
-      <Button
-        variant="secondary"
-        onPress={() =>
-          open({
-            kind: "sheet",
-            title: item.name,
-            content: (
-              <AttachmentViewer
-                item={item}
-                repository={repository}
-                expired={expired}
-              />
-            ),
-          })
-        }
-      >
-        {
-          {
-            image: "Ver imagen",
-            audio: "Abrir audio",
-            video: "Abrir video",
-            document: "Ver documento",
-          }[item.kind]
-        }
-      </Button>
     </View>
   );
 }
@@ -130,11 +224,15 @@ function AttachmentViewer({
   item,
   repository,
   expired,
-}: Props & { item: RemoteAttachment }) {
+  dismiss,
+}: Props & { item: RemoteAttachment; dismiss?: () => void }) {
   const [uri, setUri] = useState<string>();
   const [error, setError] = useState("");
   const [revision, setRevision] = useState(0);
   const { close } = useLayers();
+  const { colors } = useTheme();
+  const { width, height } = useWindowDimensions();
+  const [zoom, setZoom] = useState(1);
   useEffect(() => {
     if (Platform.OS === "web") return;
     const abort = new AbortController();
@@ -174,6 +272,92 @@ function AttachmentViewer({
     } catch {
       setError("No hay un visor compatible disponible.");
     }
+  }
+
+  if (dismiss) {
+    return (
+      <Modal visible animationType="fade" onRequestClose={dismiss}>
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: colors.base,
+            justifyContent: "center",
+          }}
+        >
+          <View
+            style={{
+              padding: 12,
+              paddingTop: 24,
+              flexDirection: "row",
+              justifyContent: "space-between",
+            }}
+          >
+            <Button variant="ghost" onPress={dismiss}>
+              Cerrar imagen
+            </Button>
+            {!!uri && (
+              <View style={{ flexDirection: "row" }}>
+                <Button
+                  variant="ghost"
+                  onPress={() => setZoom((value) => Math.max(1, value - 0.5))}
+                >
+                  Reducir
+                </Button>
+                <Button
+                  variant="ghost"
+                  onPress={() => setZoom((value) => Math.min(3, value + 0.5))}
+                >
+                  Ampliar
+                </Button>
+              </View>
+            )}
+          </View>
+          {!!uri ? (
+            <ScrollView
+              maximumZoomScale={3}
+              nestedScrollEnabled
+              contentContainerStyle={{ flexGrow: 1, justifyContent: "center" }}
+            >
+              <ScrollView
+                horizontal
+                nestedScrollEnabled
+                contentContainerStyle={{
+                  flexGrow: 1,
+                  justifyContent: "center",
+                  alignItems: "center",
+                }}
+              >
+                <Image
+                  source={{ uri }}
+                  accessibilityLabel="Imagen del chat"
+                  resizeMode="contain"
+                  style={{
+                    width: width * zoom,
+                    height: Math.max(160, height - 124) * zoom,
+                  }}
+                />
+              </ScrollView>
+            </ScrollView>
+          ) : Platform.OS === "web" ? (
+            <Text>Abre la imagen en Android o iOS.</Text>
+          ) : error ? (
+            <View style={{ padding: 16 }}>
+              <Banner type="warning">{error}</Banner>
+              <Button
+                onPress={() => {
+                  setError("");
+                  setRevision((old) => old + 1);
+                }}
+              >
+                Reintentar descarga
+              </Button>
+            </View>
+          ) : (
+            <ActivityIndicator accessibilityLabel="Descargando imagen" />
+          )}
+        </View>
+      </Modal>
+    );
   }
 
   return (

@@ -60,10 +60,20 @@ import {
 
 import { RemotePipeline } from "./RemotePipeline";
 
+import { RemoteAttachmentComposer } from "./RemoteAttachments";
+import { RemoteTimeline } from "./RemoteTimeline";
+import { AreaChat, AreaList } from "./RemoteInboxAreas";
 import {
-  RemoteAttachmentComposer,
-  RemoteAttachmentRow,
-} from "./RemoteAttachments";
+  connectedOwnNumber,
+  ownNumberChats,
+  teamThreads,
+  type AreaRow,
+} from "../integration/remote-inbox-areas";
+import {
+  chatStyle,
+  newestMessages,
+  type ChatStyle,
+} from "../integration/chat-timeline";
 import { clearRemoteMedia } from "./remote-media-cache";
 
 import { RemoteAgents, RemoteChatAI, RemoteWritingAssist } from "./RemoteAi";
@@ -84,11 +94,11 @@ import { useRemotePush, type RemotePushControls } from "./useRemotePush";
 import type { PushTap } from "../integration/remote-push";
 
 const remoteModules = ["inbox", "crm", "studio", "marketing", "more"] as const;
-const sections = [
+const allSections = [
   { key: "clients", label: "Clientes" },
   { key: "team", label: "Equipo" },
   { key: "number", label: "Mi número" },
-];
+] as const;
 function deviceStorage(mode: RemoteMode) {
   const keychain = {
     keychainService: `dashfort.${mode}`,
@@ -304,6 +314,77 @@ function RemoteWorkspace({
   );
   const [module, setModule] = useState<Module>("inbox");
   const [section, setSection] = useState("clients");
+  const [areaChat, setAreaChat] = useState<{
+    area: "team" | "number";
+    row: AreaRow;
+  }>();
+  const readTeamArea = useCallback(async () => {
+    try {
+      return teamThreads(await repository.read("/api/team-chat/threads"));
+    } catch (reason) {
+      if (
+        reason instanceof RemoteHttpError &&
+        !requiresRemoteLogin(reason) &&
+        [403, 404].includes(reason.status)
+      )
+        return null;
+      throw reason;
+    }
+  }, [repository]);
+  const readNumberArea = useCallback(async () => {
+    try {
+      const number = connectedOwnNumber(
+        await repository.read("/api/settings/my-number"),
+      );
+      return number
+        ? ownNumberChats(await repository.read("/api/my-number/chats"), number)
+        : null;
+    } catch (reason) {
+      if (
+        reason instanceof RemoteHttpError &&
+        !requiresRemoteLogin(reason) &&
+        [403, 404].includes(reason.status)
+      )
+        return null;
+      throw reason;
+    }
+  }, [repository]);
+  const teamArea = useRemoteData(readTeamArea, expired);
+  const numberArea = useRemoteData(readNumberArea, expired);
+  const teamVisible = Array.isArray(teamArea.data);
+  const numberVisible = Array.isArray(numberArea.data);
+  const sections = useMemo(
+    () =>
+      allSections.filter(
+        ({ key }) =>
+          key === "clients" || (key === "team" ? teamVisible : numberVisible),
+      ),
+    [teamVisible, numberVisible],
+  );
+  const refreshTeam = teamArea.refresh;
+  const refreshNumber = numberArea.refresh;
+  useEffect(() => {
+    if (
+      (section === "team" && !teamVisible) ||
+      (section === "number" && !numberVisible)
+    ) {
+      setAreaChat(undefined);
+      setSection("clients");
+    }
+  }, [section, teamVisible, numberVisible]);
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (next) => {
+      if (next === "active") {
+        void refreshTeam();
+        void refreshNumber();
+      }
+    });
+    return () => sub.remove();
+  }, [refreshTeam, refreshNumber]);
+  const invalidateArea = useCallback(() => {
+    if (section === "team") void refreshTeam();
+    if (section === "number") void refreshNumber();
+  }, [section, refreshTeam, refreshNumber]);
   const [page, setPage] = useState<
     "contact" | "tasks" | "agenda" | "schedule" | "results" | "settings" | null
   >(null);
@@ -347,6 +428,24 @@ function RemoteWorkspace({
       tabs[1] = first;
     }
   }
+  const [appearance, setAppearance] = useState<ChatStyle>("whatsapp");
+  const appearanceKey = "dashfort.chat-style.v1";
+  useEffect(() => {
+    let live = true;
+    void preferencesStorage
+      .get(appearanceKey)
+      .then((value) => {
+        if (live) setAppearance(chatStyle(value));
+      })
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, []);
+  async function updateAppearance(next: ChatStyle) {
+    await preferencesStorage.set(appearanceKey, next);
+    setAppearance(next);
+  }
   const [chat, setChat] = useState<WireConversation | null>(null);
   const onChatSnapshot = useCallback((row: WireConversation) => {
     setChat((current) => (current?.id === row.id ? row : current));
@@ -363,6 +462,7 @@ function RemoteWorkspace({
         if (!active) return;
         clearPushTap(pushTap.id);
         setPage(null);
+        setAreaChat(undefined);
         setModule("inbox");
         setSection("clients");
         setPushError(row ? "" : "Este chat ya no está disponible.");
@@ -378,13 +478,14 @@ function RemoteWorkspace({
       active = false;
     };
   }, [pushTap, read, clearPushTap, expired]);
-  const overlay = Boolean(chat || page);
+  const overlay = Boolean(chat || areaChat || page);
   const showInbox = !overlay && module === "inbox" && section === "clients";
   useEffect(() => {
     const sub = BackHandler.addEventListener("hardwareBackPress", () => {
       if (page === "schedule") setPage("contact");
       else if (page) setPage(null);
       else if (chat) setChat(null);
+      else if (areaChat) setAreaChat(undefined);
       else if (!showInbox) {
         setModule("inbox");
         setSection("clients");
@@ -392,7 +493,7 @@ function RemoteWorkspace({
       return true;
     });
     return () => sub.remove();
-  }, [chat, page, showInbox]);
+  }, [areaChat, chat, page, showInbox]);
 
   return (
     <View style={{ flex: 1 }}>
@@ -418,7 +519,23 @@ function RemoteWorkspace({
           {!!pushError && !overlay && (
             <Banner type="warning">{pushError}</Banner>
           )}
-          {module === "inbox" && (
+          {module === "inbox" &&
+            !overlay &&
+            (teamArea.error || numberArea.error) && (
+              <View style={{ paddingHorizontal: 16 }}>
+                <RemoteFeedback
+                  error={teamArea.error || numberArea.error}
+                  pending={false}
+                  refresh={async () => {
+                    await Promise.all([
+                      teamArea.error ? refreshTeam() : undefined,
+                      numberArea.error ? refreshNumber() : undefined,
+                    ]);
+                  }}
+                />
+              </View>
+            )}
+          {module === "inbox" && sections.length > 1 && (
             <View
               style={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 8 }}
             >
@@ -426,7 +543,11 @@ function RemoteWorkspace({
                 fixedGeometry
                 value={section}
                 options={sections}
-                onChange={setSection}
+                onChange={(next) => {
+                  setSection(next);
+                  if (next === "team") void refreshTeam();
+                  if (next === "number") void refreshNumber();
+                }}
               />
             </View>
           )}
@@ -508,14 +629,25 @@ function RemoteWorkspace({
                 <RemoteCampaigns repository={repository} expired={expired} />
               </PageScroll>
             )}
-            {module === "inbox" && section !== "clients" && (
-              <PageScroll>
-                <Banner>
-                  {section === "team"
-                    ? "Equipo · Disponible en la versión web"
-                    : "Mi número · Disponible en la versión web"}
-                </Banner>
-              </PageScroll>
+            {module === "inbox" && section === "team" && teamVisible && (
+              <AreaList
+                key="team"
+                rows={teamArea.data ?? []}
+                error={teamArea.error}
+                pending={teamArea.pending}
+                refresh={refreshTeam}
+                select={(row) => setAreaChat({ area: "team", row })}
+              />
+            )}
+            {module === "inbox" && section === "number" && numberVisible && (
+              <AreaList
+                key="number"
+                rows={numberArea.data ?? []}
+                error={numberArea.error}
+                pending={numberArea.pending}
+                refresh={refreshNumber}
+                select={(row) => setAreaChat({ area: "number", row })}
+              />
             )}
           </View>
         </Screen>
@@ -523,6 +655,22 @@ function RemoteWorkspace({
           <ModuleTabBar modules={tabs} selected={module} onPress={setModule} />
         )}
       </View>
+      {areaChat && (
+        <View style={{ position: "absolute", inset: 0 }}>
+          <AreaChat
+            key={areaChat.area + ":" + areaChat.row.id}
+            {...areaChat}
+            appearance={appearance}
+            repository={repository}
+            expired={expired}
+            back={() => {
+              setAreaChat(undefined);
+              invalidateArea();
+            }}
+            lost={invalidateArea}
+          />
+        </View>
+      )}
       {chat && (
         <View
           style={{ position: "absolute", inset: 0 }}
@@ -533,6 +681,7 @@ function RemoteWorkspace({
           <RemoteChat
             key={chat.id}
             chat={chat}
+            appearance={appearance}
             read={read}
             repository={repository}
             onRead={onRead}
@@ -574,6 +723,8 @@ function RemoteWorkspace({
               back={() => setPage(null)}
               bar={bar}
               setBar={updateBar}
+              appearance={appearance}
+              setAppearance={updateAppearance}
               logout={logout}
               team={capabilities?.team === true}
               push={pushControls}
@@ -775,6 +926,7 @@ function RemoteInbox({
 
 function RemoteChat({
   chat,
+  appearance,
   read,
   expired,
   back,
@@ -785,6 +937,7 @@ function RemoteChat({
   openContact,
 }: {
   active: boolean;
+  appearance: ChatStyle;
   openContact: () => void;
   chat: WireConversation;
   read: Reader;
@@ -809,11 +962,15 @@ function RemoteChat({
       try {
         const history = await read.history(chat.id);
         if (revision.current !== request) return false;
-        setMessages(history);
+        setMessages((prior) => newestMessages(prior, history));
         return true;
       } catch (reason) {
         if (revision.current === request) {
-          setMessages([]);
+          if (
+            reason instanceof RemoteHttpError &&
+            [403, 404].includes(reason.status)
+          )
+            setMessages([]);
           fail(reason);
         }
         return false;
@@ -909,59 +1066,13 @@ function RemoteChat({
           </Button>
         )}
       </View>
-      <FlatList
-        data={messages}
-        keyExtractor={(message) => message.id}
-        refreshing={busy}
-        onRefresh={() => void refresh()}
-        contentContainerStyle={{
-          paddingHorizontal: 16,
-          paddingVertical: 12,
-          gap: 8,
-        }}
-        ListEmptyComponent={
-          busy ? (
-            <Skeleton rows={3} />
-          ) : !error ? (
-            <EmptyState title="Sin mensajes" />
-          ) : undefined
-        }
-        renderItem={({ item }) => (
-          <View
-            style={{
-              alignSelf: item.direction === "out" ? "flex-end" : "flex-start",
-              maxWidth: "86%",
-              borderRadius: 16,
-              padding: 10,
-              backgroundColor:
-                item.direction === "out" ? colors.wash : colors.sunken,
-            }}
-          >
-            {item.text ? (
-              <Text>{item.text}</Text>
-            ) : (
-              !item.attachment && <Text>Mensaje sin texto</Text>
-            )}
-            {item.attachment && (
-              <RemoteAttachmentRow
-                item={item.attachment}
-                repository={repository}
-                expired={expired}
-              />
-            )}
-            <Text kind="meta" style={{ color: colors.text3 }}>
-              {new Date(item.createdAt).toLocaleString("es-MX", {
-                hour: "2-digit",
-                minute: "2-digit",
-                day: "numeric",
-                month: "short",
-              })}
-              {item.direction === "out"
-                ? ` · ${messageStatus[item.status]}`
-                : ""}
-            </Text>
-          </View>
-        )}
+      <RemoteTimeline
+        messages={messages}
+        busy={busy}
+        refresh={() => void refresh()}
+        appearance={appearance}
+        repository={repository}
+        expired={expired}
       />
       <RemoteTextComposer
         repository={repository}
@@ -973,14 +1084,6 @@ function RemoteChat({
     </Screen>
   );
 }
-
-const messageStatus: Record<WireMessage["status"], string> = {
-  pending: "Pendiente",
-  sent: "Enviado",
-  delivered: "Entregado",
-  read: "Leído",
-  failed: "Falló",
-};
 
 function RemoteTextComposer({
   repository,
