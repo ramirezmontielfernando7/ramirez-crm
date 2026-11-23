@@ -39,6 +39,7 @@ import {
   type AssistantMessageDto,
   type AssistantThreadDto,
 } from "@/lib/assistant-engine";
+import { useTypewriter } from "@/lib/use-typewriter";
 import { fetchJson, jsonInit } from "@/lib/fetch-json";
 import { countMeter, formatTokens } from "@/lib/usage";
 import { gaugeMeter } from "@/lib/usage-visibility";
@@ -97,6 +98,8 @@ export function AssistantClient() {
   const [asking, setAsking] = useState(false);
   /** Tu pregunta se ve al instante, mientras el asistente piensa. */
   const [pending, setPending] = useState<string | null>(null);
+  /** Respuesta recién llegada: solo esa se «escribe»; al recargar un hilo salen completas. */
+  const [freshId, setFreshId] = useState<string | null>(null);
   const [askError, setAskError] = useState<string | null>(null);
   const [showArchived, setShowArchived] = useState(false);
   const [selecting, setSelecting] = useState(false);
@@ -249,6 +252,7 @@ export function AssistantClient() {
     }
     setQuestion("");
     setThreadId(r.data.threadId);
+    setFreshId(r.data.answer.id);
     setMessages((m) => [...m, r.data.question, r.data.answer]);
     void loadStatus();
     void loadThreads();
@@ -478,6 +482,7 @@ export function AssistantClient() {
                       <AnswerBubble
                         key={m.id}
                         message={m}
+                        fresh={m.id === freshId}
                         threadId={threadId}
                         onProposals={(next) =>
                           setMessages((all) =>
@@ -702,13 +707,16 @@ function Step({ state, label, hint }: { state: "done" | "now"; label: string; hi
 /** Una respuesta con sus fuentes: qué consultas corrieron y lo que devolvió cada una. */
 function AnswerBubble({
   message,
+  fresh,
   threadId,
   onProposals,
 }: {
   message: AssistantMessageDto;
+  fresh: boolean;
   threadId: string | null;
   onProposals: (next: AssistantProposal[]) => void;
 }) {
+  const { shown: typed, done } = useTypewriter(message.content, fresh);
   const meta = message.meta;
   const sources = meta?.sources ?? [];
   const cited = sources.filter((s) => s.cited);
@@ -716,8 +724,8 @@ function AnswerBubble({
   return (
     <div className="flex justify-start">
       <div className="min-w-0 max-w-full" data-testid="assistant-msg-answer">
-        <RichText text={message.content} testId="assistant-answer-text" />
-        {threadId && meta?.proposals && meta.proposals.length > 0 && (
+        <RichText text={typed} testId="assistant-answer-text" />
+        {done && threadId && meta?.proposals && meta.proposals.length > 0 && (
           <ProposalsCard threadId={threadId} messageId={message.id} proposals={meta.proposals} onChange={onProposals} />
         )}
         {meta?.coverage && (

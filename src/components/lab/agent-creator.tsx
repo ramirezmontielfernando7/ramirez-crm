@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Check, Send, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { call, type AgentConfig } from "@/components/lab/agents-api";
+import { useTypewriter } from "@/lib/use-typewriter";
 import { CREATOR_FIELD_LABEL, type CreatorField, type FieldUpdate } from "@/lib/agent-creator";
 
 type Applied = { field: CreatorField; before: string | null; after: string; undone: boolean };
@@ -16,6 +17,17 @@ type CreatorOk = { reply: string; updates: FieldUpdate[]; quickReplies: string[]
 const MAX_HISTORY = 30;
 const WELCOME =
   "¡Hola! Cuéntame de tu negocio con tus palabras y yo armo al agente. Te haré preguntas cortas y puedes pedirme ajustes cuando quieras. Para empezar: ¿a qué se dedica tu negocio y a quién le vende?";
+
+/** Respuesta del creador: la más reciente se «escribe» poco a poco; las cambios aplicados salen al terminar. */
+function CreatorReply({ text, fresh, children }: { text: string; fresh: boolean; children: React.ReactNode }) {
+  const { shown, done } = useTypewriter(text, fresh);
+  return (
+    <>
+      <p className="whitespace-pre-wrap">{shown}</p>
+      {done && children}
+    </>
+  );
+}
 
 function preview(text: string): string {
   const t = text.replace(/\s+/g, " ").trim();
@@ -115,7 +127,7 @@ export function AgentCreator({
             </div>
           ) : (
             <div key={t.id} className="max-w-[92%] text-sm leading-relaxed">
-              <p className="whitespace-pre-wrap">{t.text}</p>
+              <CreatorReply text={t.text} fresh={t.id === turns[turns.length - 1]?.id}>
               {t.applied.map((a, i) => (
                 <div key={i} className="mt-2 flex items-start gap-2.5 rounded-xl border bg-brand-tint px-3 py-2 text-[13px]">
                   <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-brand-ink" aria-hidden />
@@ -130,6 +142,7 @@ export function AgentCreator({
                   )}
                 </div>
               ))}
+              </CreatorReply>
             </div>
           )
         )}
