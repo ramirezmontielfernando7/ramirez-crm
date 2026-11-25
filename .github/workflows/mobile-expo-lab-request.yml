@@ -1,0 +1,45 @@
+name: Dashfort one-off laboratory request
+on:
+  push:
+    branches: [codex/dashfort-mobile-signing-lab-request-20261125]
+    paths: [.github/mobile-signing-lab-request.json]
+permissions: {}
+jobs:
+  request:
+    if: github.repository == 'ramirezmontielfernando7/ramirez-crm' && github.ref == 'refs/heads/codex/dashfort-mobile-signing-lab-request-20261125' && github.run_attempt == 1
+    runs-on: ubuntu-24.04
+    timeout-minutes: 4
+    permissions:
+      contents: read
+      actions: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Submit only the disposable lab to the signing workflow
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          branch=codex/dashfort-mobile-signing-20261125
+          lab_env=dashfort-mobile-signing-lab
+          gh api "repos/$GITHUB_REPOSITORY/environments/$lab_env" | jq -e '
+            .can_admins_bypass == false and .deployment_branch_policy.custom_branch_policies == true and
+            any(.protection_rules[]; .type == "required_reviewers" and .prevent_self_review == true and
+              [.reviewers[].reviewer.id] == [332673809])' >/dev/null
+          gh api "repos/$GITHUB_REPOSITORY/environments/$lab_env/deployment-branch-policies" |
+            jq -e --arg branch "$branch" '[.branch_policies[]|[.name,.type]] == [[$branch,"branch"]]' >/dev/null
+          verified=$(jq -er '
+            keys == ["apk_sha256","artifact_id","build_run_id"] and
+            all(.[]; type == "string") and
+            (.build_run_id|test("^[1-9][0-9]{0,18}$")) and
+            (.artifact_id|test("^[1-9][0-9]{0,18}$")) and
+            (.apk_sha256|test("^[a-f0-9]{64}$"))' .github/mobile-signing-lab-request.json)
+          test "$verified" = true
+          gh workflow run mobile-expo-sign.yml -R "$GITHUB_REPOSITORY" --ref "$branch" \
+            -f build_run_id="$(jq -r .build_run_id .github/mobile-signing-lab-request.json)" \
+            -f artifact_id="$(jq -r .artifact_id .github/mobile-signing-lab-request.json)" \
+            -f apk_sha256="$(jq -r .apk_sha256 .github/mobile-signing-lab-request.json)" \
+            -f source_sha=877646e55d9809a5963127426a2834534183983c \
+            -f version=0.2.2 -f version_code=13 -f profile=demo -f mode=lab

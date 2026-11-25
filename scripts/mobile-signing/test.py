@@ -142,6 +142,9 @@ class Laboratory(unittest.TestCase):
             run(scripts / "sign.sh", extracted, sha, "0.2.3", "14", fingerprint, output, tools, env=env)
             signed = next(output.glob("*.apk"))
             self.assertEqual(Path(f"{signed}.sha256").read_text().split()[0], verify.digest(signed))
+            verify.same_payload(extracted, signed)
+            with self.assertRaises(ValueError):
+                verify.same_payload(extracted, wrong_app)
             with self.assertRaises(ValueError):
                 verify.verify_certificate(tools / "apksigner", signed, verify.FINGERPRINT)
             with self.assertRaises(ValueError):
@@ -150,6 +153,13 @@ class Laboratory(unittest.TestCase):
                 run(scripts / "sign.sh", extracted, sha, "0.2.3", "14", verify.FINGERPRINT,
                     root / "refused", tools, env=env)
             self.assertFalse((root / "refused").exists())
+
+            lab_output = root / "lab-process"
+            lab_log = run(scripts / "lab.sh", extracted, sha, "0.2.3", "14", lab_output, tools)
+            lab_cert = lab_log.strip().rsplit(" ", 1)[1]
+            self.assertNotEqual(lab_cert, verify.FINGERPRINT)
+            dispatcher_apk = lab_output / "LAB-Dashfort-0.2.3-ARM64.apk"
+            verify.verify_certificate(tools / "apksigner", dispatcher_apk, lab_cert)
 
             home = root / "gnupg"
             home.mkdir(mode=0o700)

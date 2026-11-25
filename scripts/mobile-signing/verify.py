@@ -8,7 +8,7 @@ import stat
 import subprocess
 import sys
 import zipfile
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 REPO = "ramirezmontielfernando7/ramirez-crm"
 BRANCH = "codex/dashfort-mobile-signing-20261125"
@@ -126,7 +126,11 @@ def verify_apk(path, expected, version, code, aapt, signed):
         need(len(names) == len(set(names)) and "AndroidManifest.xml" in names and
              sum(entry.file_size for entry in z.infolist()) <= 500 * 1024 * 1024,
              "Estructura de APK inválida.")
-        for name in names:
+        for entry in z.infolist():
+            name = entry.filename
+            parts = PurePosixPath(name).parts
+            need(bool(parts) and not name.startswith("/") and "\\" not in name and ".." not in parts and
+                 not stat.S_ISLNK(entry.external_attr >> 16), "Nombre inseguro en APK.")
             lower = name.lower()
             need(not lower.endswith((".keystore", ".jks", ".p12", ".pfx", ".pem", ".pk8")) and
                  "service-account" not in lower and "service_account" not in lower,
@@ -145,6 +149,17 @@ def verify_apk(path, expected, version, code, aapt, signed):
     package = re.search(r"(?m)^package: name='([^']+)' versionCode='([^']+)' versionName='([^']+)'", badging)
     need(package and package.groups() == (PACKAGE, code, version), "Paquete, versionCode o versión incorrectos.")
     need(re.search(r"(?m)^native-code:\s*'arm64-v8a'\s*$", badging), "Se requiere exclusivamente ARM64.")
+
+
+def same_payload(unsigned, signed):
+    # APK v2/v3 adds a signing block outside the ZIP entries. APK resources
+    # must remain exactly as approved across alignment and signing.
+    with zipfile.ZipFile(unsigned) as before, zipfile.ZipFile(signed) as after:
+        need(before.namelist() == after.namelist(), "Cambió la lista de miembros de la APK.")
+        for name in before.namelist():
+            with before.open(name) as original, after.open(name) as result:
+                need(hashlib.file_digest(original, "sha256").digest() ==
+                     hashlib.file_digest(result, "sha256").digest(), "Cambió el contenido firmado.")
 
 
 def verify_certificate(apksigner, apk, fingerprint):
@@ -166,6 +181,7 @@ def main():
         "unpack": ("archive", "digest", "destination"),
         "apk": ("path", "digest", "version", "code", "aapt"),
         "cert": ("apksigner", "apk", "fingerprint"),
+        "payload": ("unsigned", "signed"),
     }.items():
         sub = cmd.add_parser(name)
         for arg in args:
@@ -184,6 +200,8 @@ def main():
         unpack(Path(a.archive), a.digest, Path(a.destination))
     elif a.cmd == "apk":
         verify_apk(Path(a.path), a.digest, a.version, a.code, a.aapt, a.signed)
+    elif a.cmd == "payload":
+        same_payload(Path(a.unsigned), Path(a.signed))
     else:
         verify_certificate(a.apksigner, a.apk, a.fingerprint)
 

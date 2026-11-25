@@ -14,7 +14,11 @@ gh api "repos/$repo/actions/runs/$run" > "$output/run.json"
 gh api "repos/$repo/actions/artifacts/$artifact" > "$output/artifact.json"
 archive_hash="$(python3 "$verify" run "$output/run.json" "$output/artifact.json" "$GITHUB_SHA" \
     "$run" "$artifact" "$source" "$version" "$code" "$profile" "$mode")"
-gh api "repos/$repo/actions/artifacts/$artifact/zip" > "$output/artifact.zip"
+if ! gh api "repos/$repo/actions/artifacts/$artifact/zip" > "$output/artifact.zip" 2>/dev/null; then
+  # GitHub's redirect contains a temporary bearer URL. Never print HTTP errors here.
+  printf '%s\n' 'GitHub no entregó el ZIP del artefacto.' >&2
+  exit 1
+fi
 python3 "$verify" unpack "$output/artifact.zip" "$archive_hash" "$output/unsigned.apk"
 rm -- "$output/artifact.zip"
 test "$(sha256sum "$output/unsigned.apk" | cut -d ' ' -f1)" = "$digest"

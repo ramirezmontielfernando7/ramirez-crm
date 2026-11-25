@@ -41,7 +41,7 @@ jobs:
     steps:
       - run: echo "Registration only. No Android build."
   build:
-    if: github.repository == 'ramirezmontielfernando7/ramirez-crm' && github.ref == 'refs/heads/codex/dashfort-mobile-signing-20261125' && github.event_name == 'workflow_dispatch' && github.run_attempt == 1
+    if: github.repository == 'ramirezmontielfernando7/ramirez-crm' && github.ref == 'refs/heads/codex/dashfort-mobile-signing-20261125' && github.event_name == 'workflow_dispatch' && github.run_attempt == 1 && (inputs.mode == 'lab' || vars.DASHFORT_ALLOW_PUBLIC_APK_DISTRIBUTION == 'enabled')
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     permissions:

@@ -39,6 +39,7 @@ tool "$tools/zipalign" -c -P 16 4 "$temp/signed.apk" >/dev/null 2>&1
 signed_hash=$(sha256sum "$temp/signed.apk" | cut -d ' ' -f1)
 tool python3 "$verify" apk "$temp/signed.apk" "$signed_hash" "$version" "$version_code" "$tools/aapt" --signed
 tool python3 "$verify" cert "$tools/apksigner" "$temp/signed.apk" "$expected_certificate"
+tool python3 "$verify" payload "$unsigned" "$temp/signed.apk"
 mkdir -m 700 -- "$output"
 filename=Dashfort-Mobile-"$version"-ARM64-signed.apk
 install -m 600 -- "$temp/signed.apk" "$output/$filename"

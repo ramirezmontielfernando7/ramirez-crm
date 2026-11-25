@@ -81,7 +81,7 @@ jobs:
   sign:
     needs: verify
     # Repository-level kill switch. Configure only after the independent review.
-    if: inputs.mode == 'live' && github.run_attempt == 1 && github.actor_id != '332673809' && vars.DASHFORT_SIGNING_LIVE == 'enabled'
+    if: inputs.mode == 'live' && github.run_attempt == 1 && github.actor_id != '332673809' && vars.DASHFORT_SIGNING_LIVE == 'enabled' && vars.DASHFORT_ALLOW_PUBLIC_APK_DISTRIBUTION == 'enabled'
     runs-on: ubuntu-24.04
     timeout-minutes: 12
     environment:

@@ -1,0 +1,47 @@
+name: Dashfort disposable runner smoke
+on:
+  push:
+    branches: [codex/dashfort-mobile-signing-smoke-20261125]
+    paths: [.github/workflows/mobile-expo-lab-smoke.yml]
+permissions: {}
+jobs:
+  smoke:
+    if: github.repository == 'ramirezmontielfernando7/ramirez-crm' && github.ref == 'refs/heads/codex/dashfort-mobile-signing-smoke-20261125' && github.run_attempt == 1
+    runs-on: ubuntu-24.04
+    timeout-minutes: 13
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - run: |
+          set -euo pipefail
+          bash scripts/mobile-signing/sdk.sh signing
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" 'platforms;android-37.0'
+      - name: Generate and sign only an isolated synthetic APK
+        run: |
+          set -euo pipefail
+          tools="$ANDROID_HOME/build-tools/37.0.0"
+          fixture="$(mktemp -d)"
+          trap 'rm -rf -- "$fixture"' EXIT
+          cat > "$fixture/AndroidManifest.xml" <<'XML'
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+            package="com.demfort.dashfort.dev" android:versionName="0.2.3" android:versionCode="14">
+            <uses-sdk android:minSdkVersion="24"/><application android:hasCode="false"/>
+          </manifest>
+          XML
+          "$tools/aapt2" link -I "$ANDROID_HOME/platforms/android-37.0/android.jar" \
+            --manifest "$fixture/AndroidManifest.xml" -o "$fixture/unsigned.apk"
+          python3 - "$fixture/unsigned.apk" <<'PY'
+          import sys
+          import zipfile
+          with zipfile.ZipFile(sys.argv[1], "a") as apk:
+              apk.writestr("lib/arm64-v8a/libdummy.so", b"synthetic lab bytes")
+          PY
+          digest="$(sha256sum "$fixture/unsigned.apk" | cut -d ' ' -f1)"
+          sudo -n unshare --net -- setpriv --reuid "$(id -u)" --regid "$(id -g)" --clear-groups --no-new-privs -- \
+            bash scripts/mobile-signing/lab.sh "$fixture/unsigned.apk" "$digest" 0.2.3 14 "$fixture/verified" "$tools"
+          "$tools/apksigner" verify --verbose --print-certs "$fixture/verified/LAB-Dashfort-0.2.3-ARM64.apk"
+          (cd "$fixture/verified" && sha256sum --check LAB-Dashfort-0.2.3-ARM64.apk.sha256)
