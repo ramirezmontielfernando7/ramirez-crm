@@ -15,6 +15,9 @@
 | Pérdida o indisponibilidad futura de Codex | Cifrado para destinatario independiente, muestra de recuperación probada con clave desechable, procedimiento para dos copias y passphrase separada. | Falta el destinatario verificado, permiso de transferencia y restauración real. |
 | Despliegue productivo accidental | Workflows existentes intactos. Rama aislada, registro por push inocuo, entorno con `deployment: false`, sin Release. | GitHub devuelve 403 para listar webhooks externos. Verificar integraciones con el propietario antes de activar. |
 
+| Confundir el laboratorio automático con un permiso de firma real | `automatic_lab` se rechaza si el modo no es `lab`. El job desechable no referencia entorno ni secretos, verifica otra vez el fixture fijo y requiere una huella nueva. | La aprobación nativa se prueba en otra corrida, separada del funcionamiento del runner. |
+| Entorno mal configurado por una credencial administrativa amplia | Aprovisionador de solo lectura por defecto, alcance fijo de repositorio, ref y entornos. Rechaza cambios sobre políticas ajenas y comprueba la rama antes/después. | Se necesita autorización administrativa temporal, separada del despachador. La credencial actual solo permitió inspección. |
+
 ## Desactivación y recuperación
 
 Deshabilitar la variable `DASHFORT_SIGNING_LIVE`, retirar permisos del

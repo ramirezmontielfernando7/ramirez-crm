@@ -7,8 +7,9 @@ control propuesta `codex/dashfort-mobile-signing-20261125`. La app se toma
 por SHA inmutable de una rama independiente. El build anterior de referencia
 es Expo 0.2.2 en `877646e55d9809a5963127426a2834534183983c`. Esta entrega
 contiene el código, una compilación Expo completa hospedada y las pruebas
-de procedencia y firma desechable. El flujo protegido con aprobación
-humana queda pendiente del entorno de laboratorio y su prueba final.
+de procedencia y firma desechable. El laboratorio automático completó
+el recorrido de compilación, firma y recuperación. La aprobación nativa
+queda como prueba independiente del entorno protegido.
 La clave original requiere auditoría y autorización separadas. No se crea una Release ni un despliegue.
 
 Paquete experimental `com.demfort.dashfort.dev`, solo `arm64-v8a`. El
@@ -93,18 +94,15 @@ experimentales que el propietario acepte distribuir de esa forma.
    y por API que una rama distinta no puede acceder al entorno. Cualquier
    workflow que pueda escribirse en la rama permitida debe tratarse como
    si tuviera acceso a la clave después de aprobación.
-4. Completar el laboratorio en GitHub. Crear
-   `dashfort-mobile-signing-lab` con Fer como revisor obligatorio, sin
-   autoaprobación ni bypass, acceso solo para la rama de control y sin
-   secretos. La integración devolvió HTTP 403 al crearlo. Volver a
-   compilar la demo si el commit de control cambió. El workflow de
-   lanzamiento en la rama de solicitud de laboratorio comprueba la
-   política y despacha la solicitud mediante una identidad distinta a Fer.
-   Fer aprueba desde GitHub. Comprobar el historial de aprobación con
-   `deployment: false`, verificar la firma desechable y recuperar la APK
-   y su SHA-256. La prueba sintética ya verificó el namespace hospedado.
-   Retirar el entorno de laboratorio mediante una operación autorizada
-   cuando ya no se necesite. [Pruebas ejecutadas](EVIDENCIA.md)
+4. Separar el laboratorio automático de la prueba de aprobación nativa.
+   La primera ruta usa `mode=lab` y `automatic_lab=true`, acepta solo el
+   commit demo fijado y trabaja con una clave desechable sin secretos
+   ni entorno. La segunda usa el entorno `dashfort-mobile-signing-lab`
+   sin secretos, creado por el aprovisionador administrativo. Prueba
+   la aprobación desde GitHub, `deployment: false`, el historial y la
+   separación entre iniciador y revisor. Si el commit de control cambia,
+   reconstruir el demo para que el artefacto corresponda a la revisión.
+   Véase [aprovisionamiento y aprobación](OPERACION-SIN-TERMINAL.md).
 5. Generar y verificar el respaldo cifrado original con la identidad de
    cifrado del propietario, previa autorización. Solo después, y con
    autorización independiente, cargar por canal seguro los secretos del
@@ -198,7 +196,8 @@ APK y checksum de salida. Prueba tráfico de datos simulado de GitHub y
 rechazos de origen, intento, ID, hash, ZIP, paquete, versión, firma
 preexistente y certificado incorrecto. Un respaldo cifrado efímero se
 descifra y se compara byte por byte con su entrada. También se comprobó un build completo de Expo y el namespace en GitHub.
-El aprobador del flujo integrado sigue pendiente. Los datos reales de GitHub se consultaron solo en
+El aprobador nativo queda como prueba independiente. El flujo de laboratorio
+automático está separado del firmante real. Los datos reales de GitHub se consultaron solo en
 lectura para confirmar la estructura de metadatos del run 0.2.2.
 
 Referencias oficiales de GitHub sobre [registro manual](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#workflow_dispatch),

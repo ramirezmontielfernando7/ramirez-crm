@@ -33,6 +33,11 @@ la auditoría.
 - ¿Envía el job firmante tráfico externo con secretos o ejecuta archivos de
   la APK? APT/SDK, runner, kernel y acciones fijadas son dependencias de
   confianza. La prueba hospedada del namespace es un requisito de activación.
+- ¿Está confinada la opción `automatic_lab` al demo y al certificado
+  efímero? Comprobar que el job no referencia entornos ni secretos de firma
+  y que un modo real con esa opción se rechaza en GitHub. Revisar también
+  el aprovisionador de permisos administrativos, que debe operar solo
+  sobre la rama y los entornos de firma expresamente aprobados.
 - ¿Es efectivo el gate `deployment: false` con revisión obligatoria y
   registro de revisión consultable? Si falla cualquiera de esas condiciones,
   conservar la firma deshabilitada.

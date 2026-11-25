@@ -28,7 +28,7 @@ class GitHub:
         self.opener = build_opener(NoRedirect)
 
     def call(self, path, method="GET", data=None):
-        url = f"https://api.github.com/repos/{REPO}/{path}"
+        url = f"https://api.github.com/repos/{REPO}" + (f"/{path}" if path else "")
         headers = {"Authorization": f"Bearer {self.token}", "Accept": "application/vnd.github+json",
                    "X-GitHub-Api-Version": "2022-11-28", "User-Agent": "dashfort-mobile-requests"}
         payload = None
