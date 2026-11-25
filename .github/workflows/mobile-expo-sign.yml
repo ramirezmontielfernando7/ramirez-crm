@@ -29,6 +29,11 @@ on:
         description: Expected Android versionCode
         type: string
         required: true
+      mode:
+        description: Disposable laboratory or live signing
+        type: choice
+        options: [lab, live]
+        default: lab
       profile:
         description: Expected build profile
         type: choice
@@ -42,6 +47,7 @@ env:
   SOURCE_SHA: ${{ inputs.source_sha }}
   VERSION_NAME: ${{ inputs.version }}
   VERSION_CODE: ${{ inputs.version_code }}
+  SIGNING_MODE: ${{ inputs.mode }}
   PROFILE: ${{ inputs.profile }}
 jobs:
   register:
@@ -68,14 +74,14 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          bash scripts/mobile-signing/fetch.sh "$BUILD_RUN" "$ARTIFACT_ID" "$APK_SHA256" "$SOURCE_SHA" "$VERSION_NAME" "$VERSION_CODE" "$PROFILE" "$RUNNER_TEMP/dashfort-checked"
+          bash scripts/mobile-signing/fetch.sh "$BUILD_RUN" "$ARTIFACT_ID" "$APK_SHA256" "$SOURCE_SHA" "$VERSION_NAME" "$VERSION_CODE" "$PROFILE" "$SIGNING_MODE" "$RUNNER_TEMP/dashfort-checked"
           python3 scripts/mobile-signing/verify.py apk "$RUNNER_TEMP/dashfort-checked/unsigned.apk" "$APK_SHA256" "$VERSION_NAME" "$VERSION_CODE" "$ANDROID_HOME/build-tools/37.0.0/aapt"
           jq -r '.display_title' "$RUNNER_TEMP/dashfort-checked/run.json" >> "$GITHUB_STEP_SUMMARY"
           printf '\nBuild run %s · artifact %s\n\nAPK SHA-256 `%s`\n' "$BUILD_RUN" "$ARTIFACT_ID" "$APK_SHA256" >> "$GITHUB_STEP_SUMMARY"
   sign:
     needs: verify
     # Repository-level kill switch. Configure only after the independent review.
-    if: github.run_attempt == 1 && github.actor_id != '332673809' && vars.DASHFORT_SIGNING_LIVE == 'enabled'
+    if: inputs.mode == 'live' && github.run_attempt == 1 && github.actor_id != '332673809' && vars.DASHFORT_SIGNING_LIVE == 'enabled'
     runs-on: ubuntu-24.04
     timeout-minutes: 12
     environment:
@@ -104,8 +110,8 @@ jobs:
           reviews="$(mktemp)"
           trap 'rm -f -- "$reviews"' EXIT
           gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/approvals" > "$reviews"
-          python3 scripts/mobile-signing/verify.py approval "$reviews" "$GITHUB_ACTOR_ID"
-          bash scripts/mobile-signing/fetch.sh "$BUILD_RUN" "$ARTIFACT_ID" "$APK_SHA256" "$SOURCE_SHA" "$VERSION_NAME" "$VERSION_CODE" "$PROFILE" "$RUNNER_TEMP/dashfort-checked"
+          python3 scripts/mobile-signing/verify.py approval "$reviews" "$GITHUB_ACTOR_ID" "$SIGNING_MODE"
+          bash scripts/mobile-signing/fetch.sh "$BUILD_RUN" "$ARTIFACT_ID" "$APK_SHA256" "$SOURCE_SHA" "$VERSION_NAME" "$VERSION_CODE" "$PROFILE" "$SIGNING_MODE" "$RUNNER_TEMP/dashfort-checked"
       - name: Sign and verify in a networkless namespace
         env:
           MOBILE_KEYSTORE_B64: ${{ secrets.DASHFORT_MOBILE_KEYSTORE_B64 }}
@@ -128,4 +134,47 @@ jobs:
             ${{ runner.temp }}/dashfort-signed/*.apk.sha256
           if-no-files-found: error
           retention-days: 7
+          compression-level: 0
+
+  laboratory:
+    needs: verify
+    if: inputs.mode == 'lab' && github.run_attempt == 1 && github.actor_id != '332673809'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    environment:
+      name: dashfort-mobile-signing-lab
+      deployment: false
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - run: bash scripts/mobile-signing/sdk.sh signing
+      - name: Revalidate approved laboratory request
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          reviews="$(mktemp)"
+          trap 'rm -f -- "$reviews"' EXIT
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/approvals" > "$reviews"
+          python3 scripts/mobile-signing/verify.py approval "$reviews" "$GITHUB_ACTOR_ID" lab
+          bash scripts/mobile-signing/fetch.sh "$BUILD_RUN" "$ARTIFACT_ID" "$APK_SHA256" "$SOURCE_SHA" "$VERSION_NAME" "$VERSION_CODE" "$PROFILE" lab "$RUNNER_TEMP/dashfort-checked"
+      - name: Sign in a networkless namespace with a disposable key
+        run: |
+          set -euo pipefail
+          sudo -n unshare --net -- setpriv --reuid "$(id -u)" --regid "$(id -g)" --clear-groups --no-new-privs -- \
+            bash scripts/mobile-signing/lab.sh "$RUNNER_TEMP/dashfort-checked/unsigned.apk" "$APK_SHA256" \
+            "$VERSION_NAME" "$VERSION_CODE" "$RUNNER_TEMP/dashfort-lab" "$ANDROID_HOME/build-tools/37.0.0"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: dashfort-LAB-only-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/dashfort-lab/LAB-*.apk
+            ${{ runner.temp }}/dashfort-lab/LAB-*.apk.sha256
+          if-no-files-found: error
+          retention-days: 1
           compression-level: 0

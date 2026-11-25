@@ -26,10 +26,10 @@ class Provenance(unittest.TestCase):
         self.source = "b" * 40
         self.run_data = dict(id=101, status="completed", conclusion="success", run_attempt=1,
                              event="workflow_dispatch", head_branch=verify.BRANCH, head_sha=self.commit,
-                             path=verify.BUILD, display_title=f"Expo codex/dashfort-mobile-lab {self.source} 0.2.3 14 demo",
+                             path=verify.BUILD, display_title=f"Expo codex/dashfort-mobile-lab {self.source} 0.2.3 14 demo live",
                              repository={"full_name": verify.REPO, "id": 1},
                              head_repository={"full_name": verify.REPO, "id": 1})
-        self.artifact = dict(id=201, name="dashfort-unsigned-101", size_in_bytes=300, expired=False,
+        self.artifact = dict(id=201, name="dashfort-live-unsigned-101", size_in_bytes=300, expired=False,
                              digest="sha256:" + "c" * 64, workflow_run=dict(id=101, head_branch=verify.BRANCH,
                              head_sha=self.commit, repository_id=1, head_repository_id=1))
 

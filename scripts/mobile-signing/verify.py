@@ -17,6 +17,9 @@ PACKAGE = "com.demfort.dashfort.dev"
 MAX_APK = 180 * 1024 * 1024
 OWNER_ID = 332673809
 SIGNING_ENVIRONMENT = "dashfort-mobile-signing"
+LAB_ENVIRONMENT = "dashfort-mobile-signing-lab"
+LAB_BRANCH = "codex/dashfort-mobile-c10-20261122"
+LAB_SOURCE = "877646e55d9809a5963127426a2834534183983c"
 FINGERPRINT = "0f5d018522f61cf6098871916d2c3cba8e0c6659427a7349c41f0225a983db1b"
 
 
@@ -30,11 +33,16 @@ def digest(path):
         return hashlib.file_digest(stream, "sha256").hexdigest()
 
 
-def valid_release(branch, sha, version, code, profile):
+def valid_release(branch, sha, version, code, profile, mode="live"):
     need(re.fullmatch(r"codex/dashfort-mobile-[a-z0-9-]{1,100}", branch) and branch != BRANCH,
          "Rama fuente no autorizada.")
     need(re.fullmatch(r"[0-9a-f]{40}", sha), "El commit debe ser un SHA completo.")
     need(re.fullmatch(r"[0-9]{1,5}(\.[0-9]{1,5}){2}", version), "Versión inválida.")
+    need(mode in ("lab", "live"), "Modo inválido.")
+    if mode == "lab":
+        need((branch, sha, version, code, profile) == (LAB_BRANCH, LAB_SOURCE, "0.2.2", "13", "demo"),
+             "El laboratorio solo permite el commit y perfil de control.")
+        return
     need(re.fullmatch(r"[1-9][0-9]{0,9}", code) and 13 < int(code) <= 2100000000,
          "versionCode debe superar al de 0.2.2 y estar en el rango Android.")
     need(profile in ("demo", "production"), "Perfil inválido.")
@@ -44,7 +52,7 @@ def positive_id(value):
     need(re.fullmatch(r"[1-9][0-9]{0,18}", value), "ID inválido.")
 
 
-def verify_run(run, artifact, control_sha, run_id, artifact_id, sha, version, code, profile):
+def verify_run(run, artifact, control_sha, run_id, artifact_id, sha, version, code, profile, mode="live"):
     positive_id(run_id)
     positive_id(artifact_id)
     need(run.get("id") == int(run_id) and run.get("status") == "completed" and
@@ -57,13 +65,13 @@ def verify_run(run, artifact, control_sha, run_id, artifact_id, sha, version, co
     need(repository.get("full_name") == REPO and head_repository.get("full_name") == REPO and
          type(repository.get("id")) is int and head_repository.get("id") == repository.get("id"),
          "La ejecución no pertenece al repositorio autorizado.")
-    title = re.fullmatch(r"Expo (codex/dashfort-mobile-[a-z0-9-]+) ([0-9a-f]{40}) ([0-9.]+) ([0-9]+) (demo|production)",
+    title = re.fullmatch(r"Expo (codex/dashfort-mobile-[a-z0-9-]+) ([0-9a-f]{40}) ([0-9.]+) ([0-9]+) (demo|production) (lab|live)",
                          run.get("display_title", ""))
-    need(title and title.groups()[1:] == (sha, version, code, profile), "La solicitud difiere de la ejecución.")
+    need(title and title.groups()[1:] == (sha, version, code, profile, mode), "La solicitud difiere de la ejecución.")
     valid_release(*title.groups())
     origin = artifact.get("workflow_run") or {}
     archive_digest = artifact.get("digest", "")
-    need(artifact.get("id") == int(artifact_id) and artifact.get("name") == f"dashfort-unsigned-{run_id}" and
+    need(artifact.get("id") == int(artifact_id) and artifact.get("name") == f"dashfort-{mode}-unsigned-{run_id}" and
          artifact.get("expired") is False and origin.get("id") == int(run_id) and
          origin.get("head_branch") == BRANCH and origin.get("head_sha") == control_sha and
          origin.get("repository_id") == repository["id"] and origin.get("head_repository_id") == repository["id"] and
@@ -73,17 +81,19 @@ def verify_run(run, artifact, control_sha, run_id, artifact_id, sha, version, co
     return archive_digest.removeprefix("sha256:")
 
 
-def verify_approval(reviews, initiator):
+def verify_approval(reviews, initiator, mode="live"):
     positive_id(initiator)
     need(int(initiator) != OWNER_ID, "El propietario no puede solicitar y aprobar la misma firma.")
     need(isinstance(reviews, list), "Historial de revisión inválido.")
+    need(mode in ("lab", "live"), "Modo inválido.")
+    environment = LAB_ENVIRONMENT if mode == "lab" else SIGNING_ENVIRONMENT
     for review in reviews:
         environments = review.get("environments") or []
-        if not any(item.get("name") == SIGNING_ENVIRONMENT for item in environments):
+        if not any(item.get("name") == environment for item in environments):
             continue
         need(review.get("state") != "rejected", "Hay una revisión negativa de la firma.")
     need(any(review.get("state") == "approved" and (review.get("user") or {}).get("id") == OWNER_ID
-             and any(item.get("name") == SIGNING_ENVIRONMENT for item in (review.get("environments") or []))
+             and any(item.get("name") == environment for item in (review.get("environments") or []))
              for review in reviews), "No se encontró aprobación explícita del propietario.")
 
 
@@ -150,9 +160,9 @@ def main():
     p = argparse.ArgumentParser()
     cmd = p.add_subparsers(dest="cmd", required=True)
     for name, args in {
-        "release": ("branch", "sha", "version", "code", "profile"),
-        "run": ("run_json", "artifact_json", "control", "run_id", "artifact_id", "sha", "version", "code", "profile"),
-        "approval": ("reviews_json", "initiator"),
+        "release": ("branch", "sha", "version", "code", "profile", "mode"),
+        "run": ("run_json", "artifact_json", "control", "run_id", "artifact_id", "sha", "version", "code", "profile", "mode"),
+        "approval": ("reviews_json", "initiator", "mode"),
         "unpack": ("archive", "digest", "destination"),
         "apk": ("path", "digest", "version", "code", "aapt"),
         "cert": ("apksigner", "apk", "fingerprint"),
@@ -164,12 +174,12 @@ def main():
             sub.add_argument("--signed", action="store_true")
     a = p.parse_args()
     if a.cmd == "release":
-        valid_release(a.branch, a.sha, a.version, a.code, a.profile)
+        valid_release(a.branch, a.sha, a.version, a.code, a.profile, a.mode)
     elif a.cmd == "run":
         print(verify_run(json.loads(Path(a.run_json).read_text()), json.loads(Path(a.artifact_json).read_text()),
-                         a.control, a.run_id, a.artifact_id, a.sha, a.version, a.code, a.profile))
+                         a.control, a.run_id, a.artifact_id, a.sha, a.version, a.code, a.profile, a.mode))
     elif a.cmd == "approval":
-        verify_approval(json.loads(Path(a.reviews_json).read_text()), a.initiator)
+        verify_approval(json.loads(Path(a.reviews_json).read_text()), a.initiator, a.mode)
     elif a.cmd == "unpack":
         unpack(Path(a.archive), a.digest, Path(a.destination))
     elif a.cmd == "apk":

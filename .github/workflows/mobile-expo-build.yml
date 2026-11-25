@@ -1,5 +1,5 @@
 name: Dashfort Expo unsigned
-run-name: Expo ${{ inputs.source_branch }} ${{ inputs.source_sha }} ${{ inputs.version }} ${{ inputs.version_code }} ${{ inputs.profile }}
+run-name: Expo ${{ inputs.source_branch }} ${{ inputs.source_sha }} ${{ inputs.version }} ${{ inputs.version_code }} ${{ inputs.profile }} ${{ inputs.mode }}
 on:
   push:
     branches: [codex/dashfort-mobile-signing-20261125]
@@ -22,6 +22,11 @@ on:
         description: Android versionCode
         type: string
         required: true
+      mode:
+        description: Use the disposable control fixture or a reviewed release
+        type: choice
+        options: [lab, live]
+        default: lab
       profile:
         description: Expo profile
         type: choice
@@ -46,6 +51,7 @@ jobs:
       SOURCE_SHA: ${{ inputs.source_sha }}
       VERSION_NAME: ${{ inputs.version }}
       VERSION_CODE: ${{ inputs.version_code }}
+      SIGNING_MODE: ${{ inputs.mode }}
       EXPO_PUBLIC_MODE: ${{ inputs.profile }}
       EXPO_NO_TELEMETRY: '1'
       CI: '1'
@@ -60,7 +66,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          python3 control/scripts/mobile-signing/verify.py release "$SOURCE_BRANCH" "$SOURCE_SHA" "$VERSION_NAME" "$VERSION_CODE" "$EXPO_PUBLIC_MODE"
+          python3 control/scripts/mobile-signing/verify.py release "$SOURCE_BRANCH" "$SOURCE_SHA" "$VERSION_NAME" "$VERSION_CODE" "$EXPO_PUBLIC_MODE" "$SIGNING_MODE"
           actual_sha=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$SOURCE_BRANCH" --jq .object.sha)
           test "$actual_sha" = "$SOURCE_SHA"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -83,7 +89,7 @@ jobs:
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         id: apk
         with:
-          name: dashfort-unsigned-${{ github.run_id }}
+          name: dashfort-${{ inputs.mode }}-unsigned-${{ github.run_id }}
           path: ${{ runner.temp }}/dashfort-build/unsigned.apk
           if-no-files-found: error
           retention-days: 7
