@@ -34,6 +34,10 @@ on:
         type: choice
         options: [lab, live]
         default: lab
+      automatic_lab:
+        description: Sign the fixed demo fixture without approval using a disposable key
+        type: boolean
+        default: false
       profile:
         description: Expected build profile
         type: choice
@@ -69,7 +73,12 @@ jobs:
           ref: ${{ github.sha }}
           persist-credentials: false
       - run: bash scripts/mobile-signing/sdk.sh signing
-      - name: Verify before requesting approval
+      - name: Reject automatic execution outside the disposable lab
+        if: inputs.automatic_lab && inputs.mode != 'lab'
+        run: |
+          echo 'Automatic execution is restricted to the disposable lab.' >&2
+          exit 1
+      - name: Verify before requesting approval or signing the fixed fixture
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -138,7 +147,7 @@ jobs:
 
   laboratory:
     needs: verify
-    if: inputs.mode == 'lab' && github.run_attempt == 1 && github.actor_id != '332673809'
+    if: inputs.mode == 'lab' && !inputs.automatic_lab && github.run_attempt == 1 && github.actor_id != '332673809'
     runs-on: ubuntu-24.04
     timeout-minutes: 12
     environment:
@@ -163,13 +172,15 @@ jobs:
           gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/approvals" > "$reviews"
           python3 scripts/mobile-signing/verify.py approval "$reviews" "$GITHUB_ACTOR_ID" lab
           bash scripts/mobile-signing/fetch.sh "$BUILD_RUN" "$ARTIFACT_ID" "$APK_SHA256" "$SOURCE_SHA" "$VERSION_NAME" "$VERSION_CODE" "$PROFILE" lab "$RUNNER_TEMP/dashfort-checked"
-      - name: Sign in a networkless namespace with a disposable key
+      - &lab_sign
+        name: Sign in a networkless namespace with a disposable key
         run: |
           set -euo pipefail
           sudo -n unshare --net -- setpriv --reuid "$(id -u)" --regid "$(id -g)" --clear-groups --no-new-privs -- \
             bash scripts/mobile-signing/lab.sh "$RUNNER_TEMP/dashfort-checked/unsigned.apk" "$APK_SHA256" \
             "$VERSION_NAME" "$VERSION_CODE" "$RUNNER_TEMP/dashfort-lab" "$ANDROID_HOME/build-tools/37.0.0"
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+      - &lab_artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: dashfort-LAB-only-${{ github.run_id }}
           path: |
@@ -178,3 +189,26 @@ jobs:
           if-no-files-found: error
           retention-days: 1
           compression-level: 0
+
+  laboratory_automatic:
+    needs: verify
+    if: inputs.mode == 'lab' && inputs.automatic_lab && github.run_attempt == 1
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - run: bash scripts/mobile-signing/sdk.sh signing
+      - name: Fetch and revalidate only the disposable lab fixture
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          bash scripts/mobile-signing/fetch.sh "$BUILD_RUN" "$ARTIFACT_ID" "$APK_SHA256" "$SOURCE_SHA" "$VERSION_NAME" "$VERSION_CODE" "$PROFILE" lab "$RUNNER_TEMP/dashfort-checked"
+      - *lab_sign
+      - *lab_artifact
