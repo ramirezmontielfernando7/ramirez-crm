@@ -1,0 +1,131 @@
+name: Dashfort Expo signing
+on:
+  push:
+    branches: [codex/dashfort-mobile-signing-20261125]
+    paths: [.github/workflows/mobile-expo-sign.yml]
+  workflow_dispatch:
+    inputs:
+      build_run_id:
+        description: Successful unsigned build run ID
+        type: string
+        required: true
+      artifact_id:
+        description: Exact unsigned APK artifact ID
+        type: string
+        required: true
+      apk_sha256:
+        description: SHA-256 of the unsigned APK
+        type: string
+        required: true
+      source_sha:
+        description: Full Expo source commit
+        type: string
+        required: true
+      version:
+        description: Expected Android versionName
+        type: string
+        required: true
+      version_code:
+        description: Expected Android versionCode
+        type: string
+        required: true
+      profile:
+        description: Expected build profile
+        type: choice
+        options: [demo, production]
+        default: demo
+permissions: {}
+env:
+  BUILD_RUN: ${{ inputs.build_run_id }}
+  ARTIFACT_ID: ${{ inputs.artifact_id }}
+  APK_SHA256: ${{ inputs.apk_sha256 }}
+  SOURCE_SHA: ${{ inputs.source_sha }}
+  VERSION_NAME: ${{ inputs.version }}
+  VERSION_CODE: ${{ inputs.version_code }}
+  PROFILE: ${{ inputs.profile }}
+jobs:
+  register:
+    if: github.repository == 'ramirezmontielfernando7/ramirez-crm' && github.event_name == 'push'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    steps:
+      - run: echo "Registration only. No signing."
+  verify:
+    if: github.repository == 'ramirezmontielfernando7/ramirez-crm' && github.ref == 'refs/heads/codex/dashfort-mobile-signing-20261125' && github.event_name == 'workflow_dispatch' && github.run_attempt == 1
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - run: bash scripts/mobile-signing/sdk.sh signing
+      - name: Verify before requesting approval
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          bash scripts/mobile-signing/fetch.sh "$BUILD_RUN" "$ARTIFACT_ID" "$APK_SHA256" "$SOURCE_SHA" "$VERSION_NAME" "$VERSION_CODE" "$PROFILE" "$RUNNER_TEMP/dashfort-checked"
+          python3 scripts/mobile-signing/verify.py apk "$RUNNER_TEMP/dashfort-checked/unsigned.apk" "$APK_SHA256" "$VERSION_NAME" "$VERSION_CODE" "$ANDROID_HOME/build-tools/37.0.0/aapt"
+          jq -r '.display_title' "$RUNNER_TEMP/dashfort-checked/run.json" >> "$GITHUB_STEP_SUMMARY"
+          printf '\nBuild run %s · artifact %s\n\nAPK SHA-256 `%s`\n' "$BUILD_RUN" "$ARTIFACT_ID" "$APK_SHA256" >> "$GITHUB_STEP_SUMMARY"
+  sign:
+    needs: verify
+    # Repository-level kill switch. Configure only after the independent review.
+    if: github.run_attempt == 1 && github.actor_id != '332673809' && vars.DASHFORT_SIGNING_LIVE == 'enabled'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    environment:
+      name: dashfort-mobile-signing
+      deployment: false
+    concurrency:
+      group: dashfort-mobile-signing
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - run: bash scripts/mobile-signing/sdk.sh signing
+      - name: Revalidate the approved identity and bytes
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MINIMUM_VERSION_CODE: ${{ vars.DASHFORT_MIN_VERSION_CODE }}
+        run: |
+          set -euo pipefail
+          [[ $MINIMUM_VERSION_CODE =~ ^[1-9][0-9]{0,9}$ ]]
+          (( MINIMUM_VERSION_CODE >= 13 && VERSION_CODE > MINIMUM_VERSION_CODE ))
+          reviews="$(mktemp)"
+          trap 'rm -f -- "$reviews"' EXIT
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/approvals" > "$reviews"
+          python3 scripts/mobile-signing/verify.py approval "$reviews" "$GITHUB_ACTOR_ID"
+          bash scripts/mobile-signing/fetch.sh "$BUILD_RUN" "$ARTIFACT_ID" "$APK_SHA256" "$SOURCE_SHA" "$VERSION_NAME" "$VERSION_CODE" "$PROFILE" "$RUNNER_TEMP/dashfort-checked"
+      - name: Sign and verify in a networkless namespace
+        env:
+          MOBILE_KEYSTORE_B64: ${{ secrets.DASHFORT_MOBILE_KEYSTORE_B64 }}
+          MOBILE_STORE_PASSWORD: ${{ secrets.DASHFORT_MOBILE_STORE_PASSWORD }}
+          MOBILE_KEY_PASSWORD: ${{ secrets.DASHFORT_MOBILE_KEY_PASSWORD }}
+          MOBILE_KEY_ALIAS: ${{ secrets.DASHFORT_MOBILE_KEY_ALIAS }}
+        run: |
+          set +x
+          set -euo pipefail
+          sudo -n --preserve-env=MOBILE_KEYSTORE_B64,MOBILE_STORE_PASSWORD,MOBILE_KEY_PASSWORD,MOBILE_KEY_ALIAS \
+            unshare --net -- setpriv --reuid "$(id -u)" --regid "$(id -g)" --clear-groups --no-new-privs -- \
+            bash scripts/mobile-signing/sign.sh "$RUNNER_TEMP/dashfort-checked/unsigned.apk" "$APK_SHA256" \
+            "$VERSION_NAME" "$VERSION_CODE" 0f5d018522f61cf6098871916d2c3cba8e0c6659427a7349c41f0225a983db1b \
+            "$RUNNER_TEMP/dashfort-signed" "$ANDROID_HOME/build-tools/37.0.0"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: dashfort-signed-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/dashfort-signed/*.apk
+            ${{ runner.temp }}/dashfort-signed/*.apk.sha256
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0

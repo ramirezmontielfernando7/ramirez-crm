@@ -1,0 +1,94 @@
+name: Dashfort Expo unsigned
+run-name: Expo ${{ inputs.source_branch }} ${{ inputs.source_sha }} ${{ inputs.version }} ${{ inputs.version_code }} ${{ inputs.profile }}
+on:
+  push:
+    branches: [codex/dashfort-mobile-signing-20261125]
+    paths: [.github/workflows/mobile-expo-build.yml]
+  workflow_dispatch:
+    inputs:
+      source_branch:
+        description: Approved mobile source branch
+        type: string
+        required: true
+      source_sha:
+        description: Full source SHA at the tip of the branch
+        type: string
+        required: true
+      version:
+        description: Android versionName
+        type: string
+        required: true
+      version_code:
+        description: Android versionCode
+        type: string
+        required: true
+      profile:
+        description: Expo profile
+        type: choice
+        options: [demo, production]
+        default: demo
+permissions: {}
+jobs:
+  register:
+    if: github.repository == 'ramirezmontielfernando7/ramirez-crm' && github.event_name == 'push'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    steps:
+      - run: echo "Registration only. No Android build."
+  build:
+    if: github.repository == 'ramirezmontielfernando7/ramirez-crm' && github.ref == 'refs/heads/codex/dashfort-mobile-signing-20261125' && github.event_name == 'workflow_dispatch' && github.run_attempt == 1
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    permissions:
+      contents: read
+    env:
+      SOURCE_BRANCH: ${{ inputs.source_branch }}
+      SOURCE_SHA: ${{ inputs.source_sha }}
+      VERSION_NAME: ${{ inputs.version }}
+      VERSION_CODE: ${{ inputs.version_code }}
+      EXPO_PUBLIC_MODE: ${{ inputs.profile }}
+      EXPO_NO_TELEMETRY: '1'
+      CI: '1'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          path: control
+      - name: Pin the source commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python3 control/scripts/mobile-signing/verify.py release "$SOURCE_BRANCH" "$SOURCE_SHA" "$VERSION_NAME" "$VERSION_CODE" "$EXPO_PUBLIC_MODE"
+          actual_sha=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$SOURCE_BRANCH" --jq .object.sha)
+          test "$actual_sha" = "$SOURCE_SHA"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ inputs.source_sha }}
+          persist-credentials: false
+          path: source
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: '24.22.1'
+          package-manager-cache: false
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Build Expo APK without signing materials
+        env:
+          PUBLIC_FIREBASE_CLIENT: ${{ vars.DASHFORT_MOBILE_FIREBASE_CLIENT_JSON }}
+        run: bash control/scripts/mobile-signing/build.sh
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        id: apk
+        with:
+          name: dashfort-unsigned-${{ github.run_id }}
+          path: ${{ runner.temp }}/dashfort-build/unsigned.apk
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
+      - name: Record artifact ID
+        env:
+          ARTIFACT_ID: ${{ steps.apk.outputs.artifact-id }}
+        run: printf 'Artifact ID %s\n' "$ARTIFACT_ID" >> "$GITHUB_STEP_SUMMARY"
