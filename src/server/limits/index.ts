@@ -131,6 +131,25 @@ export async function getEmbedTokenLimit(organizationId: string): Promise<number
 }
 
 /**
+ * Retira el tope VIEJO del asistente (tokens propios, de antes de los topes
+ * por función de 0072). Devuelve el que tenía la organización, o `null` si no
+ * tenía. A nombre de la organización (RLS).
+ */
+export async function clearLegacyAssistantLimit(organizationId: string): Promise<number | null> {
+  const [q] = await getDb()
+    .select({ assistant: schema.aiQuota.assistantMonthlyTokenLimit })
+    .from(schema.aiQuota)
+    .where(scoped(schema.aiQuota.organizationId, organizationId))
+    .limit(1);
+  if (q?.assistant === null || q?.assistant === undefined) return null;
+  await getDb()
+    .update(schema.aiQuota)
+    .set({ assistantMonthlyTokenLimit: null, updatedAt: new Date() })
+    .where(scoped(schema.aiQuota.organizationId, organizationId));
+  return q.assistant;
+}
+
+/**
  * Guarda los topes (solo el administrador de plataforma, que la llama desde
  * `src/server/platform-admin/`). Todo en UNA transacción a nombre de la
  * organización. Devuelve el antes y el después para la bitácora.

@@ -43,7 +43,7 @@ import {
   assignContacts,
   useAssignees,
 } from "@/components/assignment/use-assignees";
-import { InboxListHeader, LaptopActions } from "./inbox-mode-switch";
+import { InboxListHeader } from "./inbox-mode-switch";
 import { FilterMenu, type InboxFilter } from "./filter-menu";
 import { numberColorFor, numberLabelFor, numberTitle, useWhatsAppNumbers } from "./use-whatsapp-numbers";
 import { rowAiBadge } from "@/lib/agent-pause";
@@ -548,53 +548,6 @@ export const ConversationList = memo(function ConversationList({
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  const headerActions = (
-    <>
-      {canAssign && !selecting && (
-        <button
-          onClick={() => setSelecting(true)}
-          aria-label="Seleccionar varios"
-          title="Seleccionar varios"
-          className="btn-r3 g ic"
-        >
-          <CheckSquare className="h-4 w-4" strokeWidth={1.75} />
-        </button>
-      )}
-      <button
-        type="button"
-        onClick={() =>
-          searchOpen
-            ? (setQuery(""), setSearchOpen(false))
-            : setSearchOpen(true)
-        }
-        aria-label="Buscar conversación (tecla /)"
-        aria-pressed={searchOpen}
-        title="Buscar (/)"
-        className={cn("btn-r3 g ic", searchOpen && "soft")}
-      >
-        <Search className="h-4 w-4" strokeWidth={1.75} />
-      </button>
-      <FilterMenu
-        variant="icon"
-        filtros={filtros}
-        filter={filter}
-        onFilter={setFilter}
-        stages={stages}
-        stage={stage}
-        onStage={setStage}
-        tags={tagOptions}
-        tag={tag}
-        onTag={setTag}
-        owners={seesAll ? [...owners] : null}
-        owner={owner}
-        onOwner={setOwner}
-        numbers={waNumbers.map((n) => [n.id, numberTitle(n)] as [string, string])}
-        number={numberFilter}
-        onNumber={setNumberFilter}
-      />
-    </>
-  );
-
   return (
     <div className="relative flex h-full flex-col">
       <InboxListHeader
@@ -629,13 +582,56 @@ export const ConversationList = memo(function ConversationList({
             </div>
           ) : undefined
         }
-        actions={headerActions}
-        actionsBelowOnLaptop
+        actions={
+          <>
+            {canAssign && !selecting && (
+              <button
+                onClick={() => setSelecting(true)}
+                aria-label="Seleccionar varios"
+                title="Seleccionar varios"
+                className="btn-r3 g ic"
+              >
+                <CheckSquare className="h-4 w-4" strokeWidth={1.75} />
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() =>
+                searchOpen
+                  ? (setQuery(""), setSearchOpen(false))
+                  : setSearchOpen(true)
+              }
+              aria-label="Buscar conversación (tecla /)"
+              aria-pressed={searchOpen}
+              title="Buscar (/)"
+              className={cn("btn-r3 g ic", searchOpen && "soft")}
+            >
+              <Search className="h-4 w-4" strokeWidth={1.75} />
+            </button>
+            <FilterMenu
+              variant="icon"
+              filtros={filtros}
+              filter={filter}
+              onFilter={setFilter}
+              stages={stages}
+              stage={stage}
+              onStage={setStage}
+              tags={tagOptions}
+              tag={tag}
+              onTag={setTag}
+              owners={seesAll ? [...owners] : null}
+              owner={owner}
+              onOwner={setOwner}
+              numbers={waNumbers.map((n) => [n.id, numberTitle(n)] as [string, string])}
+              number={numberFilter}
+              onNumber={setNumberFilter}
+            />
+          </>
+        }
       />
       <div
         className={cn(
-          // `relative`: en laptop el menú de filtros se abre desde esta fila.
-          "inbox-list-top relative flex shrink-0 flex-col gap-2 px-4 pb-2.5 pt-0",
+          "inbox-list-top flex shrink-0 flex-col gap-2 px-4 pb-2.5 pt-0",
           phoneSearching && "hidden",
         )}
       >
@@ -656,11 +652,11 @@ export const ConversationList = memo(function ConversationList({
             hint={filtroPuesto}
           />
         )}
-        <div className="inbox-filter-strip flex items-center gap-1.5 lg:max-2xl:flex-wrap">
+        <div className="inbox-filter-strip flex items-center gap-1.5">
           <div
             role="group"
             aria-label="Mostrar"
-            className="inbox-quick-filters flex flex-wrap items-center gap-1.5 lg:max-2xl:contents"
+            className="inbox-quick-filters flex flex-wrap items-center gap-1.5"
           >
             {quick.map((q) => (
               <button
@@ -690,7 +686,6 @@ export const ConversationList = memo(function ConversationList({
               </button>
             ))}
           </div>
-          <LaptopActions>{headerActions}</LaptopActions>
           {multiChannel && (
             <div className="ml-auto flex items-center gap-1">
               {channels.map((ch) => {

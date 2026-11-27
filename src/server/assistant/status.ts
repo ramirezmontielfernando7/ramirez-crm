@@ -4,7 +4,8 @@ import { getDb, schema } from "@/lib/db";
 import { scoped } from "@/lib/db/tenant";
 import { isAiConfigured } from "@/lib/env";
 import { projectGauge } from "@/lib/usage-visibility";
-import { assistantTokensUsed, getUsageSummary } from "@/server/ai-quota/quota";
+import { assistantTokensUsed, fnSpentUsd, getUsageSummary } from "@/server/ai-quota/quota";
+import { capUsd } from "@/lib/fn-caps";
 import { orgUsdLimit } from "@/server/ai-quota/choice";
 import { getOrgAiState, orgEstSpend } from "@/server/ai-settings/org";
 import { currentPeriod, getQuotaLimits } from "@/server/ai-quota/quota";
@@ -30,14 +31,23 @@ export async function getAssistantStatus(
   const visibility = await getUsageVisibility(organizationId);
   const limit = await getAssistantTokenLimit(organizationId);
   const used = await assistantTokensUsed(organizationId, now);
-  const gauge = limit === null ? null : projectGauge(visibility === "usd" ? "percent" : visibility, used, limit);
   // 0071: sin tope propio el asistente usa la bolsa de IA (dólares, tokens o turnos).
   const bolsa = await poolOf(organizationId, now);
+  // Sin tope viejo en tokens, el medidor sale del tope de «IA y topes» (o de
+  // la bolsa), en porcentaje: el cliente nunca ve dólares.
+  const usd = limit === null ? await usdGauge(organizationId, now) : null;
+  const gauge =
+    limit !== null
+      ? projectGauge(visibility === "usd" ? "percent" : visibility, used, limit)
+      : usd
+        ? projectGauge(visibility === "status" ? "status" : "percent", usd.used, usd.limit)
+        : null;
 
   let state: AssistantState;
   if (!isAiConfigured()) state = "not_configured";
   else if (limit === null && !bolsa.exists) state = "unset";
   else if (limit !== null && used >= limit) state = "exhausted";
+  else if (usd?.blocks && usd.used >= usd.limit) state = "exhausted";
   else if ((await totalExhausted(organizationId, now)) || bolsa.exhausted) state = "ai_exhausted";
   else state = "available";
 
@@ -49,6 +59,20 @@ export async function getAssistantStatus(
     resetsOn,
     noticeAcceptedAt: await noticeAcceptedAt(organizationId, userId),
   };
+}
+
+/**
+ * El tope en dólares que vale para el asistente: el suyo de «IA y topes»
+ * (si lo tiene) o la bolsa de la organización. `blocks` = frena al llenarse.
+ */
+async function usdGauge(organizationId: string, now: Date): Promise<{ used: number; limit: number; blocks: boolean } | null> {
+  const [pool, state] = await Promise.all([orgUsdLimit(organizationId), getOrgAiState(organizationId)]);
+  const cap = capUsd(state.overrides.caps.assistant, pool);
+  if (cap !== null) {
+    return { used: await fnSpentUsd(organizationId, "assistant", now), limit: cap, blocks: state.overrides.assistantMode === "block" };
+  }
+  if (pool === null) return null;
+  return { used: await orgEstSpend(organizationId, currentPeriod(now)), limit: pool, blocks: state.overrides.poolMode !== "warn" };
 }
 
 /** 0071 — La bolsa de IA en dólares: ¿hay una, y ya se llenó (en modo «bloquear»)? */

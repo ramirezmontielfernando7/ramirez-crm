@@ -1394,12 +1394,3 @@ html[data-lite] .usage-modal { animation: none; }
 }
 @keyframes splash-in { from { transform: scale(0.6); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 @keyframes splash-out { to { opacity: 0; transform: scale(1.04); visibility: hidden; } }
-
-/* Escritorio: la lista de la Bandeja mide 300–420 px; las pestañas
-   Clientes · Mi número · Equipo (con sus contadores) se aprietan un poco
-   para que quepan junto a los botones. En laptop (1024–1535 px) los botones
-   bajan a la fila de filtros (`actionsBelowOnLaptop`). */
-@media (min-width: 1024px) {
-  .inbox-list-header .seg { flex-shrink: 1; }
-  .inbox-list-header .seg-item { padding-inline: 9px; }
-}
