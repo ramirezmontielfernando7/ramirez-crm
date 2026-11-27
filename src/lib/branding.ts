@@ -17,7 +17,7 @@ export type AccentSet = {
 };
 
 /** El acento se deriva distinto según el tema activo. */
-export type ThemeMode = "light" | "dark";
+type ThemeMode = "light" | "dark";
 
 /**
  * Icono subido. Solo el tipo y una versión: el binario vive en el volumen de
@@ -64,7 +64,7 @@ export const SIDEBAR_THEME_INFO: Record<
   navy: { label: "Azul marino", bg: "#070e20" },
 };
 
-export function isSidebarTheme(value: unknown): value is SidebarTheme {
+function isSidebarTheme(value: unknown): value is SidebarTheme {
   return typeof value === "string" && (SIDEBAR_THEMES as readonly string[]).includes(value);
 }
 

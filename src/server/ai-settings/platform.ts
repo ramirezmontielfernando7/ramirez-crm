@@ -11,9 +11,9 @@ import { suggestedPriceFor } from "@/lib/costs";
  * IA, así que van con una caché de 60 s que se limpia al guardar.
  */
 
-export const AI_DEFAULT_SCOPES = ["instance", "esencial", "pro", "ultra"] as const;
+export const AI_DEFAULT_SCOPES = ["instance", "inicio", "esencial", "pro", "ultra"] as const;
 export type AiDefaultScope = (typeof AI_DEFAULT_SCOPES)[number];
-export const PLAN_SCOPES = ["esencial", "pro", "ultra"] as const;
+export const PLAN_SCOPES = ["inicio", "esencial", "pro", "ultra"] as const;
 
 export type AiFunctionValues = {
   agentModel: string | null;

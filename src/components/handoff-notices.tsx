@@ -70,7 +70,9 @@ export function HandoffNotices() {
               <UserRound className="h-4 w-4" strokeWidth={1.8} />
             </span>
             <span className="min-w-0 flex-1">
-              <span className="block text-[13px] font-semibold">Atención humana: {n.contactName}</span>
+              <span className="block text-[13px] font-semibold">
+                {n.reason === "olvidado" ? "Sin respuesta" : "Atención humana"}: {n.contactName}
+              </span>
               <span className="block text-[12px] text-text-2">{HANDOFF_LABEL[n.reason] ?? "El agente pasó el chat a una persona"}</span>
               <Link
                 href={`/inbox?contact=${encodeURIComponent(n.contactId)}`}

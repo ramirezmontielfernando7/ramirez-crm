@@ -6,6 +6,6 @@ export const dynamic = "force-dynamic";
 
 export default async function LabPage() {
   await requirePagePermission("agent.manage");
-  await requireModulePage("lab");
+  await requireModulePage("agent");
   return <AgentsList />;
 }

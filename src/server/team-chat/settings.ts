@@ -11,7 +11,7 @@ const log = logger("team-chat");
  * supervisión del Propietario ENCENDIDA, el aviso de supervisión apagado y
  * los grupos solo del Propietario.
  */
-export type TeamChatSettings = {
+type TeamChatSettings = {
   ownerOversight: boolean;
   showOversightNotice: boolean;
   coordinatorsCanCreateGroups: boolean;

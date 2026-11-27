@@ -29,7 +29,7 @@ export type BookingListItem = {
 };
 
 /** Tope del listado sin rango: el de siempre, que leen los guiones E2E. */
-export const LIST_LIMIT = 200;
+const LIST_LIMIT = 200;
 
 /**
  * 215 — Tope de una consulta por rango. No es un límite del producto (92 días
@@ -68,7 +68,7 @@ function baseQuery() {
  * contactos más los bloqueos (no tienen cliente y le dicen qué horas están
  * ocupadas); jamás la cita del cliente de otro.
  */
-export function bookingsVisibleTo(access: Access): SQL | undefined {
+function bookingsVisibleTo(access: Access): SQL | undefined {
   if (access.seesAll) return undefined;
   return or(
     isNull(schema.booking.contactId),

@@ -4,6 +4,7 @@ import { SpeedPicker, useAssistantSpeed } from "./speed-picker";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   AlertTriangle,
+  Info,
   Archive,
   ArchiveRestore,
   ArrowUp,
@@ -25,6 +26,7 @@ import { ProposalsCard } from "@/components/assistant/proposals-card";
 import { UsageMeter } from "@/components/usage/usage-meter";
 import {
   ASSISTANT_COST_NOTICE,
+  ASSISTANT_COST_REMINDER,
   ASSISTANT_NOTICE_TITLE,
   ASSISTANT_READ_ONLY_NOTICE,
   resetLabel,
@@ -37,6 +39,7 @@ import {
   type AssistantMessageDto,
   type AssistantThreadDto,
 } from "@/lib/assistant-engine";
+import { useTypewriter } from "@/lib/use-typewriter";
 import { fetchJson, jsonInit } from "@/lib/fetch-json";
 import { countMeter, formatTokens } from "@/lib/usage";
 import { gaugeMeter } from "@/lib/usage-visibility";
@@ -95,6 +98,8 @@ export function AssistantClient() {
   const [asking, setAsking] = useState(false);
   /** Tu pregunta se ve al instante, mientras el asistente piensa. */
   const [pending, setPending] = useState<string | null>(null);
+  /** Respuesta recién llegada: solo esa se «escribe»; al recargar un hilo salen completas. */
+  const [freshId, setFreshId] = useState<string | null>(null);
   const [askError, setAskError] = useState<string | null>(null);
   const [showArchived, setShowArchived] = useState(false);
   const [selecting, setSelecting] = useState(false);
@@ -199,7 +204,7 @@ export function AssistantClient() {
   async function bulk(action: "archive" | "unarchive" | "delete", ids: string[]) {
     if (ids.length === 0) return;
     if (action === "delete") {
-      const msg = ids.length === 1 ? "¿Borrar este hilo del asistente? No se puede deshacer." : `¿Borrar ${ids.length} hilos del asistente? No se puede deshacer.`;
+      const msg = ids.length === 1 ? "¿Borrar esta conversación del asistente? No se puede deshacer." : `¿Borrar ${ids.length} conversaciones del asistente? No se puede deshacer.`;
       if (!window.confirm(msg)) return;
     }
     const r = await fetchJson("/api/assistant/threads/bulk", jsonInit("POST", { action, ids }));
@@ -247,6 +252,7 @@ export function AssistantClient() {
     }
     setQuestion("");
     setThreadId(r.data.threadId);
+    setFreshId(r.data.answer.id);
     setMessages((m) => [...m, r.data.question, r.data.answer]);
     void loadStatus();
     void loadThreads();
@@ -260,14 +266,16 @@ export function AssistantClient() {
   const canAsk = !!status?.canAsk && !!status.noticeAcceptedAt;
   const lastAnswer = [...messages].reverse().find((m) => m.role === "assistant");
   const progress = lastAnswer?.meta?.sources ?? [];
-  const title = threadId === null ? "Hilo nuevo" : (current?.title ?? "Asistente");
+  const title = threadId === null ? "Conversación nueva" : (current?.title ?? "Asistente");
 
   return (
     <PageShell pillar="asistente" tabs={[]} hideHeader variant="fluid">
       <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto bg-canvas p-3 lg:flex-row lg:overflow-hidden">
         {/* ── Izquierda: cápsula del Asistente + Hilos ───────────────────── */}
         {leftOpen && (
-          <aside className="flex shrink-0 flex-col gap-3 lg:w-[280px] lg:min-h-0" aria-label="Conversaciones del asistente">
+          // Auditoría UX 2026-11 (24): en el celular la cápsula repetía «Asistente»
+          // (ya está en el encabezado); ahí manda el selector del chat.
+          <aside className="flex shrink-0 flex-col gap-3 max-lg:hidden lg:w-[280px] lg:min-h-0" aria-label="Conversaciones del asistente">
             <div className="rounded-lg bg-surface p-2.5 shadow-card">
               <div
                 className={cn(
@@ -300,7 +308,7 @@ export function AssistantClient() {
 
             <div className="hidden min-h-0 flex-1 flex-col rounded-lg bg-surface p-4 shadow-card lg:flex">
               <div className="mb-3 flex items-center justify-between text-[11px] font-semibold uppercase tracking-wider text-text-3">
-                <span>{showArchived ? "Archivados" : "Hilos"}</span>
+                <span>{showArchived ? "Archivadas" : "Conversaciones"}</span>
                 <button
                   type="button"
                   data-testid="assistant-select-mode"
@@ -325,12 +333,12 @@ export function AssistantClient() {
                       threadId === null && "bg-brand-tint"
                     )}
                   >
-                    <Plus className="h-4 w-4" aria-hidden /> Nuevo hilo
+                    <Plus className="h-4 w-4" aria-hidden /> Nueva conversación
                   </button>
                 )}
                 {visible.length === 0 && (
                   <p className="px-2 py-2 text-xs text-text-3" data-testid="assistant-no-threads">
-                    {showArchived ? "No hay hilos archivados." : "Aún no hay hilos. Escribe en «Asistente» o abre uno nuevo."}
+                    {showArchived ? "No hay conversaciones archivadas." : "Lo que preguntes queda en «Asistente». Abre una conversación aparte para cada tema."}
                   </p>
                 )}
                 {visible.map((t) => {
@@ -394,7 +402,7 @@ export function AssistantClient() {
                 }}
                 className="mt-3 flex items-center justify-between border-t pt-3 text-[11px] font-semibold uppercase tracking-wider text-text-3 hover:text-foreground"
               >
-                <span>{showArchived ? "Volver a hilos" : "Archivados"}</span>
+                <span>{showArchived ? "Volver a conversaciones" : "Archivadas"}</span>
                 <span className="flex items-center gap-1 normal-case tracking-normal">
                   {!showArchived && archivedCount}
                   <ChevronRight className={cn("h-3.5 w-3.5", showArchived && "rotate-180")} aria-hidden />
@@ -412,7 +420,22 @@ export function AssistantClient() {
                 <PanelLeftOpen className="h-4 w-4" aria-hidden />
               </button>
             )}
-            <h2 className="min-w-0 flex-1 truncate text-sm font-semibold" data-testid="assistant-title">{title}</h2>
+            <h2 className="min-w-0 flex-1 truncate text-sm font-semibold max-lg:sr-only" data-testid="assistant-title">{title}</h2>
+            {/* Celular: sin columna de hilos, el selector ocupa el lugar del título. */}
+            <label className="sr-only" htmlFor="assistant-thread-select">Conversación</label>
+            <select
+              id="assistant-thread-select"
+              data-testid="assistant-thread-select"
+              className="h-9 min-w-0 flex-1 rounded-md border border-input bg-background px-2 text-sm lg:hidden"
+              value={threadId ?? ""}
+              onChange={(e) => void openThread(e.target.value || null)}
+            >
+              <option value="">Conversación nueva</option>
+              {general && <option value={general.id}>Chat general</option>}
+              {threads.filter((t) => !t.archived).map((t) => (
+                <option key={t.id} value={t.id}>{t.title}</option>
+              ))}
+            </select>
             {current && current.kind === "thread" && (
               <Button
                 variant="ghost"
@@ -430,24 +453,6 @@ export function AssistantClient() {
               </button>
             )}
           </header>
-
-          {/* Celular: sin columna de hilos, un selector. */}
-          <div className="shrink-0 border-b p-2 lg:hidden">
-            <label className="sr-only" htmlFor="assistant-thread-select">Conversación</label>
-            <select
-              id="assistant-thread-select"
-              data-testid="assistant-thread-select"
-              className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
-              value={threadId ?? ""}
-              onChange={(e) => void openThread(e.target.value || null)}
-            >
-              <option value="">Hilo nuevo</option>
-              {general && <option value={general.id}>Asistente</option>}
-              {threads.filter((t) => !t.archived).map((t) => (
-                <option key={t.id} value={t.id}>{t.title}</option>
-              ))}
-            </select>
-          </div>
 
           <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-4 py-6">
             <div className="mx-auto w-full max-w-[680px] space-y-4">
@@ -477,6 +482,7 @@ export function AssistantClient() {
                       <AnswerBubble
                         key={m.id}
                         message={m}
+                        fresh={m.id === freshId}
                         threadId={threadId}
                         onProposals={(next) =>
                           setMessages((all) =>
@@ -632,16 +638,16 @@ export function AssistantClient() {
               <div
                 role="note"
                 data-testid="assistant-cost-banner"
-                className="flex items-start gap-2 rounded-lg border border-warning-soft bg-warning-tint p-3 text-xs text-warning-text"
+                className="flex items-start gap-2 rounded-lg border bg-subtle p-3 text-xs text-text-2"
               >
-                <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
-                <p className="min-w-0 flex-1">{ASSISTANT_COST_NOTICE}</p>
+                <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+                <p className="min-w-0 flex-1">{ASSISTANT_COST_REMINDER}</p>
                 <button
                   type="button"
                   onClick={hideBanner}
                   aria-label="Quitar aviso"
                   data-testid="assistant-cost-banner-close"
-                  className="shrink-0 rounded p-0.5 hover:bg-warning-soft"
+                  className="shrink-0 rounded p-0.5 hover:bg-accent"
                 >
                   <X className="h-3.5 w-3.5" aria-hidden />
                 </button>
@@ -701,13 +707,16 @@ function Step({ state, label, hint }: { state: "done" | "now"; label: string; hi
 /** Una respuesta con sus fuentes: qué consultas corrieron y lo que devolvió cada una. */
 function AnswerBubble({
   message,
+  fresh,
   threadId,
   onProposals,
 }: {
   message: AssistantMessageDto;
+  fresh: boolean;
   threadId: string | null;
   onProposals: (next: AssistantProposal[]) => void;
 }) {
+  const { shown: typed, done } = useTypewriter(message.content, fresh);
   const meta = message.meta;
   const sources = meta?.sources ?? [];
   const cited = sources.filter((s) => s.cited);
@@ -715,8 +724,8 @@ function AnswerBubble({
   return (
     <div className="flex justify-start">
       <div className="min-w-0 max-w-full" data-testid="assistant-msg-answer">
-        <RichText text={message.content} testId="assistant-answer-text" />
-        {threadId && meta?.proposals && meta.proposals.length > 0 && (
+        <RichText text={typed} testId="assistant-answer-text" />
+        {done && threadId && meta?.proposals && meta.proposals.length > 0 && (
           <ProposalsCard threadId={threadId} messageId={message.id} proposals={meta.proposals} onChange={onProposals} />
         )}
         {meta?.coverage && (

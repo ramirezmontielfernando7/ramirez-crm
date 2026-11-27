@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
-import { scopedContacts, type Access } from "@/lib/db/tenant";
+import { scopedContacts, seesAllChats, type Access } from "@/lib/db/tenant";
 import { isAudienceEvent, type NumberSseEvent, type SseEvent, type TeamSseEvent } from "@/server/events/bus";
 
 /**
@@ -18,7 +18,7 @@ export async function canSeeEvent(access: Access, event: SseEvent): Promise<bool
   // clientes, pero no los directos del equipo.
   // 046: lo de un «Mi número», igual: solo su audiencia.
   if (isAudienceEvent(event)) return canSeeTeamEvent(access, event);
-  if (access.seesAll) return true;
+  if (seesAllChats(access)) return true;
   switch (event.type) {
     case "message.new":
     case "message.status":

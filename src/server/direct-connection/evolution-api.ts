@@ -14,7 +14,7 @@ const TIMEOUT_MS = 10_000;
 
 export type EvolutionServerRef = { baseUrl: string; apiKey: string };
 
-export type EvolutionResult<T> = { ok: true; data: T } | { ok: false; status: number; error: "unreachable" | "rejected" | "not_found" | "conflict" | "bad_response" };
+type EvolutionResult<T> = { ok: true; data: T } | { ok: false; status: number; error: "unreachable" | "rejected" | "not_found" | "conflict" | "bad_response" };
 
 async function call(
   server: EvolutionServerRef,

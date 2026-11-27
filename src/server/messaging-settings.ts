@@ -7,7 +7,7 @@ import { DEFAULT_STOP_KEYWORDS } from "@/lib/opt-out";
  * los valores por defecto: palabras de baja encendidas, respuesta automática
  * APAGADA y alerta de uso del límite al 80 %.
  */
-export type MessagingSettings = {
+type MessagingSettings = {
   stopKeywordsEnabled: boolean;
   stopKeywords: string[];
   stopReplyEnabled: boolean;

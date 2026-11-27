@@ -2,6 +2,7 @@ import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { eq } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
+import { scoped } from "@/lib/db/tenant";
 import { getEnv } from "@/lib/env";
 import { graphRequest, MetaApiError } from "@/lib/meta/client";
 import {
@@ -22,7 +23,7 @@ const log = logger("media");
  * el disco propio es la copia durable que la UI previsualiza.
  */
 
-export type MediaKind = (typeof schema.mediaAsset.$inferSelect)["kind"];
+type MediaKind = (typeof schema.mediaAsset.$inferSelect)["kind"];
 
 /** Límites de la Cloud API por tipo (validados ANTES de tocar red, FR-007). */
 export const MEDIA_LIMITS: Record<
@@ -195,7 +196,15 @@ export async function ensureAssetAvailable(
   } else if (deviceKeyId) {
     download = () => downloadDeviceMedia(organizationId, deviceKeyId, MEDIA_LIMITS.document.maxBytes);
   } else {
-    const creds = await getCredentialsByOrg(organizationId);
+    // 0080: con varios números, el archivo se baja con el token del número
+    // por el que llegó el chat (el principal si no consta).
+    const [owner] = await db
+      .select({ numberId: schema.conversation.waPhoneNumberId })
+      .from(schema.message)
+      .innerJoin(schema.conversation, eq(schema.conversation.id, schema.message.conversationId))
+      .where(scoped(schema.message.organizationId, organizationId, eq(schema.message.mediaAssetId, asset.id)))
+      .limit(1);
+    const creds = await getCredentialsByOrg(organizationId, owner?.numberId ?? null);
     if (!creds) return null;
     download = () => downloadGraphMedia(creds.token, waMediaId);
   }

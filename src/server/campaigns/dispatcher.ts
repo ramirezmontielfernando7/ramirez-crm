@@ -11,6 +11,7 @@ import { sendTemplate } from "@/server/whatsapp/templates";
 import { getHealthSummary } from "@/server/whatsapp/health";
 import { getCredentialsByOrg } from "@/server/whatsapp/credentials";
 import { campaignSendRate, campaignsEnabled } from "@/server/campaigns/flag";
+import { campaignsBlockedReason } from "@/server/billing/store";
 import { getCampaignSettings } from "@/server/campaigns/settings";
 import { marketingSkipReason } from "@/server/campaigns/audience";
 import { MARKETING_OPT_OUT_CODE, markMarketingOptOut } from "@/server/inbox/marketing-opt-out";
@@ -220,7 +221,7 @@ async function readHealth(organizationId: string): Promise<Health> {
   };
 }
 
-export type DispatchOptions = {
+type DispatchOptions = {
   owner?: string;
   send?: SendFn;
   /** Para pruebas: se detiene tras este número de envíos. */
@@ -290,6 +291,12 @@ export async function dispatchNumber(
       }
       if (!(await campaignsEnabled(organizationId))) {
         await pauseAll(organizationId, phoneNumberId, "Se pausó: Campañas se apagó para esta organización");
+        break;
+      }
+      // 048: interruptor de emergencia de la plataforma, prueba gratis terminada o pago vencido.
+      const blocked = await campaignsBlockedReason(organizationId);
+      if (blocked) {
+        await pauseAll(organizationId, phoneNumberId, `Se pausó: ${blocked}`);
         break;
       }
       const campaigns = await activeCampaigns(organizationId, phoneNumberId);
@@ -362,7 +369,7 @@ export async function dispatchNumber(
 }
 
 /** ¿Hay que pausar esta campaña? (tasa de fallos, calidad, cuenta, uso del límite). */
-export async function checkSafety(
+async function checkSafety(
   organizationId: string,
   campaignId: string,
   settings: CampaignSettingsDto,
@@ -473,13 +480,13 @@ function tickMs(): number {
 }
 
 /** Operación 1: detiene el programador (al apagar). */
-export function stopCampaignScheduler(): void {
+function stopCampaignScheduler(): void {
   if (globalForDispatch.__voceroCampaignScheduler) clearInterval(globalForDispatch.__voceroCampaignScheduler);
   globalForDispatch.__voceroCampaignScheduler = undefined;
 }
 
 /** Operación 1: se resuelve cuando todos los despachadores de esta réplica terminaron. */
-export async function waitForDispatchers(): Promise<void> {
+async function waitForDispatchers(): Promise<void> {
   while (running().size > 0) await Promise.allSettled([...running().values()]);
 }
 

@@ -53,7 +53,6 @@ export type Outcome = (typeof OUTCOMES)[number];
 export type LossReason = (typeof LOSS_REASONS)[number];
 export type Objection = (typeof OBJECTIONS)[number];
 export type AdvisorPerformance = (typeof ADVISOR_PERFORMANCE)[number];
-export type Confidence = (typeof CONFIDENCE)[number];
 export type InsufficientReason = (typeof INSUFFICIENT_REASONS)[number];
 
 export const OUTCOME_LABEL: Record<Outcome, string> = {
@@ -107,7 +106,7 @@ const oneOf = <T extends readonly [string, ...string[]]>(values: T, fallback: T[
     .pipe(z.enum(values))
     .catch(fallback);
 
-export const insightItemSchema = z.object({
+const insightItemSchema = z.object({
   id: z.string().min(1).max(10),
   resultado: oneOf(OUTCOMES, "no_se_sabe"),
   motivo_perdida: oneOf(LOSS_REASONS, "no_se_sabe"),
@@ -120,7 +119,6 @@ export const insightItemSchema = z.object({
     .transform((s) => s.replace(/\s+/g, " ").trim().slice(0, 300)),
 });
 export const insightBatchSchema = z.object({ analisis: z.array(insightItemSchema).max(INSIGHT_BATCH_SIZE * 2) });
-export type InsightItem = z.infer<typeof insightItemSchema>;
 export type InsightBatch = z.infer<typeof insightBatchSchema>;
 
 /** Un mensaje como lo necesita el análisis. */

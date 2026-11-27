@@ -9,29 +9,9 @@ import { SUPERVISOR_ROLES } from "./audience";
 import { myChat } from "./chats";
 import { MiNumeroFailure } from "./numbers";
 
-/**
- * Mi número (046), PR 6b — «También habla con…», pedir ver un chat ajeno y
- * la bitácora «Quién ha visto tus chats». Todo con el consentimiento del
- * dueño de cada número:
- *
- * - El aviso solo existe entre chats marcados «Es cliente» de números que
- *   tienen encendido «Avisar que también hablo con este cliente» (parejo: si
- *   lo apagas, tampoco ves el de los demás). Solo nombre y fecha, jamás lo
- *   que se escribieron.
- * - Pedir ver: quien también habla con ese cliente (su chat marcado y su
- *   aviso encendido) y solo si el dueño tiene «Permitir solicitudes». El
- *   dueño acepta o rechaza cada vez y quita el acceso cuando quiera.
- * - Con acceso: SOLO LECTURA de ese chat, y cada vez que lo abre queda en la
- *   bitácora del dueño.
- *
- * Las consultas usan `scoped()` con el número de quien pide, a propósito
- * (como `chats.ts`): `scopedContacts()` esconde los chats de los números.
- */
-
-type NumberRow = typeof schema.directNumber.$inferSelect;
 type Access = typeof schema.conversationAccess.$inferSelect;
 
-export type OverlapDto = {
+type OverlapDto = {
   /** El chat del compañero con este mismo cliente. */
   conversationId: string;
   userName: string;
@@ -121,7 +101,7 @@ export async function requestAccess(organizationId: string, userId: string, from
   notify(organizationId, targetConversationId, [target.number.userId]);
 }
 
-export type IncomingRequestDto = {
+type IncomingRequestDto = {
   id: string;
   requesterName: string;
   /** PR 7: el rol de quien supervisa los números (puede pedir sin atender al cliente); null si no. */
@@ -130,10 +110,10 @@ export type IncomingRequestDto = {
   conversationId: string;
   requestedAt: string;
 };
-export type GrantDto = { id: string; userName: string; contactName: string; conversationId: string; since: string };
-export type ViewDto = { userName: string; contactName: string; viewedAt: string };
-export type SharedChatDto = { conversationId: string; ownerName: string; contactName: string };
-export type AccessOverview = {
+type GrantDto = { id: string; userName: string; contactName: string; conversationId: string; since: string };
+type ViewDto = { userName: string; contactName: string; viewedAt: string };
+type SharedChatDto = { conversationId: string; ownerName: string; contactName: string };
+type AccessOverview = {
   incoming: IncomingRequestDto[];
   granted: GrantDto[];
   views: ViewDto[];
@@ -288,4 +268,4 @@ export async function sharedChatMessages(organizationId: string, userId: string,
   return messagePage(organizationId, conversationId, before);
 }
 
-export type { NumberRow };
+;

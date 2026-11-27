@@ -3,7 +3,7 @@
  * global para abrirla desde el menú, un aviso o la dirección vieja
  * (`/settings/uso` → `/inbox?uso=1`). Sin dependencias: `useSyncExternalStore`.
  */
-export type UsageDialogView = "uso" | "planes";
+type UsageDialogView = "uso" | "planes";
 
 let state: { open: boolean; view: UsageDialogView } = { open: false, view: "uso" };
 const listeners = new Set<() => void>();

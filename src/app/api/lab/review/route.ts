@@ -18,7 +18,7 @@ const bodySchema = z.object({
 
 /** «Revisar este chat»: analiza la conversación de prueba y sugiere ajustes. No guarda nada. */
 export const POST = withAuth(async (session, req: Request) => {
-  const off = (await moduleOff(session.organizationId, "lab")) ?? (await moduleOff(session.organizationId, "agent"));
+  const off = await moduleOff(session.organizationId, "agent");
   if (off) return off;
   if (!isAiConfigured()) return apiError(409, "ai_not_configured", "Configura tu proveedor de IA para revisar el chat");
   const limit = checkRateLimit(`lab-review:${session.userId}`, { windowMs: 60_000, max: PER_MINUTE });

@@ -11,6 +11,7 @@ import {
   CODE_PREFIX,
   CODE_TTL_MS,
   REFRESH_PREFIX,
+  REFRESH_REUSE_GRACE_MS,
   REFRESH_TTL_MS,
   isAllowedRedirectUri,
   isCimdClientId,
@@ -43,9 +44,19 @@ const log = logger("ai-connector");
  * dinámico (RFC 7591, tabla de plataforma `ai_oauth_client`).
  */
 
-export const MCP_RESOURCE = () => `${getEnv().APP_BASE_URL.replace(/\/+$/, "")}/api/mcp`;
+const MCP_RESOURCE = () => `${getEnv().APP_BASE_URL.replace(/\/+$/, "")}/api/mcp`;
 
-export type OAuthClient = { clientId: string; clientName: string; redirectUris: string[] };
+/**
+ * El `resource` (RFC 8707) que manda la app: el conector (`…/api/mcp`) o el
+ * dominio mismo (algunas apps mandan la raíz). Cualquier otro sitio, no.
+ */
+function isOurResource(raw: string): boolean {
+  const r = raw.trim().replace(/\/+$/, "");
+  const base = getEnv().APP_BASE_URL.replace(/\/+$/, "");
+  return r === MCP_RESOURCE() || r === base;
+}
+
+type OAuthClient = { clientId: string; clientName: string; redirectUris: string[] };
 
 /* ---------- Registro dinámico (RFC 7591) ---------- */
 
@@ -74,9 +85,28 @@ export async function registerClient(input: z.infer<typeof registerSchema>): Pro
 
 const cimdSchema = z.object({
   client_id: z.string(),
-  client_name: z.string().trim().min(1).max(100).optional(),
-  redirect_uris: z.array(z.string().max(500)).min(1).max(10),
+  // Un nombre largo se recorta (no tumba la conexión): solo se muestra en la pantalla de aceptar.
+  client_name: z.string().trim().min(1).max(500).transform((n) => n.slice(0, 100)).optional(),
+  redirect_uris: z.array(z.string().max(500)).min(1).max(50),
 });
+
+/**
+ * ChatGPT publica sus metadatos en chatgpt.com, detrás de una protección
+ * anti-bots que a veces rechaza a un servidor (403 o un reto en HTML). Si no
+ * se pueden leer, se reconoce SOLO su forma oficial y se aceptan SOLO sus
+ * dos regresos oficiales, en chatgpt.com: el código jamás sale hacia otro
+ * sitio, así que no abre nada que el documento no habría abierto.
+ * https://developers.openai.com/apps-sdk/build/auth
+ */
+const CHATGPT_CIMD = /^https:\/\/chatgpt\.com\/oauth\/(?:([A-Za-z0-9_-]{1,100})\/)?client\.json$/;
+
+export function chatGptFallbackClient(clientId: string): OAuthClient | null {
+  const m = CHATGPT_CIMD.exec(clientId);
+  if (!m) return null;
+  const redirectUris = ["https://chatgpt.com/connector_platform_oauth_redirect"];
+  if (m[1]) redirectUris.push(`https://chatgpt.com/connector/oauth/${m[1]}`);
+  return { clientId, clientName: "ChatGPT", redirectUris };
+}
 
 // Rangos no globales del registro IANA: privados, compartidos, locales,
 // documentación, pruebas, transición y reservados. BlockList normaliza IPv6
@@ -107,7 +137,7 @@ export function isPrivateAddress(ip: string): boolean {
   return !globalV6.check(ip, "ipv6") || nonGlobalV6.check(ip, "ipv6");
 }
 
-const CIMD_MAX_BYTES = 10_000;
+const CIMD_MAX_BYTES = 64_000;
 const CIMD_TIMEOUT_MS = 5_000;
 
 async function fetchCimd(clientId: string): Promise<OAuthClient | null> {
@@ -173,7 +203,16 @@ function safeHost(raw: string): string {
 
 /** El cliente de un `client_id`, o null si no existe o sus metadatos no sirven. */
 export async function resolveClient(clientId: string): Promise<OAuthClient | null> {
-  if (isCimdClientId(clientId)) return fetchCimd(clientId);
+  if (isCimdClientId(clientId)) {
+    const fetched = await fetchCimd(clientId);
+    if (fetched) {
+      // ChatGPT: su documento manda, pero sus regresos oficiales siempre valen.
+      const official = chatGptFallbackClient(clientId);
+      if (!official) return fetched;
+      return { ...fetched, redirectUris: [...new Set([...fetched.redirectUris, ...official.redirectUris])] };
+    }
+    return chatGptFallbackClient(clientId);
+  }
   if (!clientId.startsWith(CLIENT_PREFIX)) return null;
   const [row] = await getSystemDb()
     .select({
@@ -195,11 +234,12 @@ export const authorizeSchema = z.object({
   redirect_uri: z.string().min(1).max(500),
   code_challenge: z.string().regex(/^[A-Za-z0-9_-]{43,128}$/),
   code_challenge_method: z.literal("S256"),
-  state: z.string().max(500).optional(),
-  scope: z.string().max(100).optional(),
+  // ChatGPT manda un `state` largo (cifrado): con 500 se rechazaba la solicitud.
+  state: z.string().max(4000).optional(),
+  scope: z.string().max(500).optional(),
   resource: z.string().max(500).optional(),
 });
-export type AuthorizeParams = z.infer<typeof authorizeSchema>;
+type AuthorizeParams = z.infer<typeof authorizeSchema>;
 
 /**
  * Lo que la pantalla necesita para mostrar «X quiere actuar como tú», o el
@@ -209,9 +249,22 @@ export async function checkAuthorizeRequest(
   params: AuthorizeParams
 ): Promise<{ ok: true; client: OAuthClient } | { ok: false; reason: "client" | "redirect_uri" | "resource" }> {
   const client = await resolveClient(params.client_id);
-  if (!client) return { ok: false, reason: "client" };
-  if (!client.redirectUris.includes(params.redirect_uri)) return { ok: false, reason: "redirect_uri" };
-  if (params.resource && params.resource.replace(/\/+$/, "") !== MCP_RESOURCE()) return { ok: false, reason: "resource" };
+  const reason = !client
+    ? "client"
+    : !client.redirectUris.includes(params.redirect_uri)
+      ? "redirect_uri"
+      : params.resource && !isOurResource(params.resource)
+        ? "resource"
+        : null;
+  if (!client || reason) {
+    // Para diagnosticar desde los registros por qué una app no pudo entrar (sin llaves ni datos de nadie).
+    log.warn("solicitud de inicio de sesión de una app de IA rechazada", {
+      reason,
+      client: safeHost(params.client_id),
+      redirect: safeHost(params.redirect_uri),
+    });
+    return { ok: false, reason: reason ?? "client" };
+  }
   return { ok: true, client };
 }
 
@@ -262,14 +315,14 @@ function redirectWith(uri: string, q: Record<string, string | undefined>): strin
 
 /* ---------- Token endpoint ---------- */
 
-export type TokenResponse = {
+type TokenResponse = {
   access_token: string;
   token_type: "Bearer";
   expires_in: number;
   refresh_token: string;
   scope: string;
 };
-export type TokenError = { error: "invalid_grant" | "invalid_request" | "invalid_client" | "invalid_target"; description: string };
+type TokenError = { error: "invalid_grant" | "invalid_request" | "invalid_client" | "invalid_target"; description: string };
 
 function pkceS256(verifier: string): string {
   return createHash("sha256").update(verifier, "ascii").digest("base64url");
@@ -342,7 +395,7 @@ export async function exchangeCode(input: {
   if (!/^[A-Za-z0-9._~-]{43,128}$/.test(input.codeVerifier)) {
     return { error: "invalid_request", description: "code_verifier no válido" };
   }
-  if (input.resource && input.resource.replace(/\/+$/, "") !== MCP_RESOURCE()) {
+  if (input.resource && !isOurResource(input.resource)) {
     return { error: "invalid_target", description: "Esta llave solo vale para el conector de Dashfort" };
   }
   const now = new Date();
@@ -407,12 +460,6 @@ export async function refreshTokens(input: { refreshToken: string; clientId: str
   if (!found) return { error: "invalid_grant", description: "Llave de renovación no válida" };
   const { token, connection } = found;
   if (connection.clientId !== input.clientId) return { error: "invalid_grant", description: "La llave es de otra app" };
-  if (token.revokedAt) {
-    // Reúso de una llave ya rotada: alguien más la tiene.
-    if (!connection.revokedAt) await revokeConnectionById(connection.organizationId, connection.id, now);
-    log.warn("llave de renovación reutilizada: conexión revocada", { org: connection.organizationId, connection: connection.id });
-    return { error: "invalid_grant", description: "Llave de renovación ya usada: conexión cerrada por seguridad" };
-  }
   if (connection.revokedAt || (token.expiresAt && token.expiresAt <= now)) {
     return { error: "invalid_grant", description: "La conexión se cerró o la llave caducó" };
   }
@@ -420,6 +467,17 @@ export async function refreshTokens(input: { refreshToken: string; clientId: str
     return { error: "invalid_grant", description: "Esta persona ya no puede conectar su IA" };
   }
   const scopes = normalizeScopes(connection.scopes);
+  if (token.revokedAt) {
+    // Reúso dentro de la gracia: la misma app renovando dos veces (ChatGPT). Otro par, sin cerrar nada.
+    if (withinGrace(token.revokedAt, now)) {
+      log.info("renovación repetida dentro de la gracia", { org: connection.organizationId, connection: connection.id });
+      return db.transaction((tx) => issuePair(tx, connection.organizationId, connection.id, scopes, now));
+    }
+    // Reúso de una llave rotada hace rato: alguien más la tiene.
+    await revokeConnectionById(connection.organizationId, connection.id, now);
+    log.warn("llave de renovación reutilizada: conexión revocada", { org: connection.organizationId, connection: connection.id });
+    return { error: "invalid_grant", description: "Llave de renovación ya usada: conexión cerrada por seguridad" };
+  }
   const pair = await db.transaction(async (tx) => {
     const [consumed] = await tx
       .update(schema.aiToken)
@@ -431,10 +489,13 @@ export async function refreshTokens(input: { refreshToken: string; clientId: str
     return issuePair(tx, connection.organizationId, connection.id, scopes, now);
   });
   if (pair) return pair;
-  // Fuera de la transacción: esperar al ganador antes de revocar también su par.
-  await revokeConnectionById(connection.organizationId, connection.id, now);
-  log.warn("llave de renovación reutilizada: conexión revocada", { org: connection.organizationId, connection: connection.id });
-  return { error: "invalid_grant", description: "Llave de renovación ya usada: conexión cerrada por seguridad" };
+  // Otra petición la consumió en este mismo instante: la misma app renovando en paralelo (gracia).
+  log.info("renovación repetida dentro de la gracia", { org: connection.organizationId, connection: connection.id });
+  return db.transaction((tx) => issuePair(tx, connection.organizationId, connection.id, scopes, now));
+}
+
+function withinGrace(revokedAt: Date, now: Date): boolean {
+  return now.getTime() - revokedAt.getTime() < REFRESH_REUSE_GRACE_MS;
 }
 
 async function revokeConnectionById(organizationId: string, connectionId: string, now: Date) {

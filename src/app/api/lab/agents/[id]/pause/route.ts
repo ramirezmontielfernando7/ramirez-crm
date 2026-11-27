@@ -15,7 +15,7 @@ const putSchema = z.object({ paused: z.boolean() });
  * humana (no se quedan en silencio); su configuración no se toca.
  */
 export const PUT = withAuth(async (session, req: Request, ctx: Params) => {
-  const off = (await moduleOff(session.organizationId, "lab")) ?? (await moduleOff(session.organizationId, "agent"));
+  const off = await moduleOff(session.organizationId, "agent");
   if (off) return off;
   const { id } = await ctx.params;
   const body = await parseBody(req, putSchema);

@@ -21,17 +21,17 @@ const log = logger("campaign");
  * reintentar antes de 24 h no sirve. Tampoco un tiempo agotado esperando a
  * Meta (Operación 1): el mensaje pudo salir y reintentar lo duplicaría.
  */
-export type SendDecision =
+type SendDecision =
   | { kind: "pause"; reason: string; code: number | null }
   | { kind: "retry"; reason: string; code: number | null; rateLimit: boolean }
   | { kind: "fail"; reason: string; code: number | null; countsForHealth: boolean };
 
 /** Límite de ritmo / rendimiento: frenar y reintentar. */
-export const RATE_LIMIT_CODES = new Set([4, 80007, 130429]);
+const RATE_LIMIT_CODES = new Set([4, 80007, 130429]);
 /** Meta frenó el número por calidad: seguir empeora la reputación. */
-export const QUALITY_STOP_CODES = new Set([131048]);
+const QUALITY_STOP_CODES = new Set([131048]);
 /** La plantilla dejó de servir: fallaría con todos. */
-export const TEMPLATE_STOP_CODES = new Set([132000, 132001, 132005, 132007, 132012, 132015, 132016]);
+const TEMPLATE_STOP_CODES = new Set([132000, 132001, 132005, 132007, 132012, 132015, 132016]);
 /** Fallos del destinatario que NO dicen nada de la salud del número. */
 export const NOT_HEALTH_CODES = new Set([131026, 131049, 131050]);
 

@@ -27,8 +27,8 @@ export const CREATOR_FIELD_MAX: Record<CreatorField, number> = {
   escalationRules: 4000,
 };
 
-export const MAX_CREATOR_UPDATES = 5;
-export const MAX_QUICK_REPLIES = 4;
+const MAX_CREATOR_UPDATES = 5;
+const MAX_QUICK_REPLIES = 4;
 
 export const fieldEnum = z.enum(CREATOR_FIELDS);
 
@@ -76,7 +76,7 @@ export function sanitizeQuickReplies(raw: string[]): string[] {
     .slice(0, MAX_QUICK_REPLIES);
 }
 
-export type DiffPart = { kind: "same" | "del" | "ins"; text: string };
+type DiffPart = { kind: "same" | "del" | "ins"; text: string };
 
 /**
  * Diferencia sencilla: lo que se repite al principio y al final queda igual,

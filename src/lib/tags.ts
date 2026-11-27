@@ -29,6 +29,12 @@ export const TAG_COLOR_CLASS: Record<TagColor, string> = {
   morado: "bg-violet-500/15 text-violet-700 dark:text-violet-300",
 };
 
+/** Color automático de la etiqueta de un número (por orden), mientras nadie elija uno. */
+const AUTO_NUMBER_COLORS: readonly TagColor[] = ["azul", "verde", "ambar", "morado", "rojo"];
+export function autoNumberColor(index: number): TagColor {
+  return AUTO_NUMBER_COLORS[index % AUTO_NUMBER_COLORS.length] ?? "azul";
+}
+
 export function tagColorClass(color: string | null | undefined): string {
   return TAG_COLOR_CLASS[isTagColor(color) ? color : "gris"];
 }
@@ -60,7 +66,28 @@ const STAGE_TOKEN_BY_NAME: Record<string, string> = {
   Perdido: "var(--danger)",
 };
 
-export type StageDot = { className: string; style?: { background: string } };
+/** Color de la etapa como valor CSS (el estilo Profundo tiñe la columna con él). */
+const STAGE_COLOR_VALUE: Record<TagColor, string> = {
+  gris: "var(--text-3)",
+  azul: "var(--accent)",
+  verde: "#10b981",
+  ambar: "#f59e0b",
+  rojo: "#ef4444",
+  morado: "#8b5cf6",
+};
+
+export function stageColorValue(
+  color: string | null | undefined,
+  name: string | null | undefined,
+  kind?: "open" | "won" | "lost" | string
+): string {
+  if (isTagColor(color)) return STAGE_COLOR_VALUE[color];
+  if (kind === "won") return "var(--success)";
+  if (kind === "lost") return "var(--danger)";
+  return STAGE_TOKEN_BY_NAME[name ?? ""] ?? "var(--text-3)";
+}
+
+type StageDot = { className: string; style?: { background: string } };
 
 export function stageDot(color: string | null | undefined, name: string | null | undefined): StageDot {
   if (isTagColor(color)) return { className: TAG_DOT_CLASS[color] };

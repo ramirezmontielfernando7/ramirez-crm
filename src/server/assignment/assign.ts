@@ -3,6 +3,7 @@ import { getDb, schema } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
 import { scoped } from "@/lib/db/tenant";
 import { publish } from "@/server/events/bus";
+import { forgetInboxCounts } from "@/server/inbox/counts-memo";
 
 /**
  * 020 — La ÚNICA puerta que escribe `contact.assigned_user_id`.
@@ -18,9 +19,9 @@ import { publish } from "@/server/events/bus";
  * "arregles" moviendo el UPDATE: enruta tu cambio por aquí.
  */
 
-export type AssignmentSource = "manual" | "lote" | "auto" | "sistema" | "migracion";
+type AssignmentSource = "manual" | "lote" | "auto" | "sistema" | "migracion";
 
-export type AssignInput = {
+type AssignInput = {
   organizationId: string;
   contactIds: string[];
   /** NULL = dejar sin asignar. */
@@ -31,11 +32,13 @@ export type AssignInput = {
   reason?: string | null;
   /** Agrupa los movimientos de un lote; se genera si es `lote` y no viene. */
   batchId?: string | null;
+  /** «Tomar este chat»: solo si NADIE lo tiene (bajo el mismo candado; el segundo en tomarlo pierde). */
+  onlyIfUnassigned?: boolean;
 };
 
-export type AssignResult =
+type AssignResult =
   | { ok: true; changed: string[]; batchId: string | null }
-  | { ok: false; reason: "assignee_not_member" | "contact_not_found" };
+  | { ok: false; reason: "assignee_not_member" | "contact_not_found" | "already_assigned" };
 
 /** ¿Es esta persona miembro del negocio? Solo un miembro recibe chats. */
 export async function isMemberOf(
@@ -90,6 +93,10 @@ export async function assignContacts(input: AssignInput): Promise<AssignResult> 
 
     if (current.length !== ids.length) {
       return { ok: false as const, reason: "contact_not_found" as const };
+    }
+
+    if (input.onlyIfUnassigned && current.some((c) => c.assignedUserId !== null && c.assignedUserId !== input.toUserId)) {
+      return { ok: false as const, reason: "already_assigned" as const };
     }
 
     const cambian = current.filter((c) => c.assignedUserId !== input.toUserId);
@@ -159,6 +166,7 @@ export async function assignContacts(input: AssignInput): Promise<AssignResult> 
   // Tras el commit (contrato del bus): la bandeja de quien lo recibe y la de
   // quien lo pierde se refrescan solas.
   if (result.changed.length > 0) {
+    forgetInboxCounts(input.organizationId);
     publish(input.organizationId, {
       type: "assignment.changed",
       data: {
@@ -204,7 +212,7 @@ export async function reassignAllFrom(input: {
   });
 }
 
-export type AssignmentEventDto = {
+type AssignmentEventDto = {
   id: string;
   fromUser: { id: string; name: string } | null;
   toUser: { id: string; name: string } | null;

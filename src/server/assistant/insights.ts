@@ -171,7 +171,7 @@ async function upsert(ctx: QueryContext, conversationId: string, values: Saved):
   return row!;
 }
 
-export function buildAnalysisPrompt(nonce: string): string {
+function buildAnalysisPrompt(nonce: string): string {
   const list = (vals: readonly string[]) => vals.join(" | ");
   return [
     `${ANALYSIS_MARKER}. Lees conversaciones de WhatsApp entre un negocio y sus clientes y las clasificas para su Propietario. Respondes en español neutro.`,
@@ -303,7 +303,7 @@ function outcomeOf(c: PeriodConversation, row: InsightRow): { outcome: Outcome; 
   return { outcome: (row.outcome as Outcome | null) ?? "no_se_sabe", source: "inferido" };
 }
 
-export type InsightCoverage = { total: number; revisadas: number; sinInformacion: number; faltan: number };
+type InsightCoverage = { total: number; revisadas: number; sinInformacion: number; faltan: number };
 
 /**
  * La consulta `analisis_conversaciones` del catálogo: analiza lo que falte

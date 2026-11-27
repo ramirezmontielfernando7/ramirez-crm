@@ -6,7 +6,7 @@
  *  2. Interruptor GENERAL (API): en pausa, un mensaje real NO recibe respuesta
  *     del agente, el chat pasa a atención humana (handoff 'pausa', aviso en la
  *     línea de tiempo) y conserva etapa, asignación y no leídos.
- *  3. Pantalla (navegador real): el Estudio de IA muestra el aviso rojo
+ *  3. Pantalla (navegador real): Agentes IA muestra el aviso rojo
  *     mientras dura la pausa; «Reanudar agentes» lo quita.
  *  4. Interruptor POR AGENTE: apagar al general lo marca «Apagado» en la lista
  *     y sus chats pasan a una persona; encenderlo lo devuelve.
@@ -162,7 +162,7 @@ async function main() {
     await page.goto(`${BASE}/lab`);
     const aviso = page.getByTestId("agents-paused-banner");
     await aviso.waitFor();
-    ok("el Estudio de IA muestra el aviso de pausa", /en pausa/i.test(await aviso.innerText()));
+    ok("Agentes IA muestra el aviso de pausa", /en pausa/i.test(await aviso.innerText()));
     const fila = page.locator('[role="row"]').nth(1);
     ok("los interruptores por agente quedan bloqueados mientras dura la pausa general", await fila.getByRole("switch").isDisabled());
     await page.getByTestId("agents-resume").click();

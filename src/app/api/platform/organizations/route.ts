@@ -4,6 +4,10 @@ import { parseBody } from "@/lib/api";
 import { actorOf, withPlatformAdmin } from "@/server/platform-admin/http";
 import { createOrganization, listOrganizations } from "@/server/platform-admin/organizations";
 import { listOrgsUsage } from "@/server/platform-admin/usage";
+import { listHealthSignals } from "@/server/platform-admin/health";
+import { getManyBillingRows } from "@/server/billing/store";
+import { billingState } from "@/lib/billing";
+import { healthOf } from "@/lib/platform-health";
 
 export const dynamic = "force-dynamic";
 
@@ -15,8 +19,42 @@ export const dynamic = "force-dynamic";
  */
 export const GET = withPlatformAdmin(async () => {
   const organizations = await listOrganizations();
-  const usage = await listOrgsUsage(organizations.map((o) => o.id));
-  return Response.json({ organizations: organizations.map((o) => ({ ...o, usage: usage.get(o.id) ?? null })) });
+  const ids = organizations.map((o) => o.id);
+  const now = new Date();
+  // 048: el semáforo y el estado del cobro de cada una, también agrupados.
+  const [usage, signals, billing] = await Promise.all([listOrgsUsage(ids, now), listHealthSignals(ids, now), getManyBillingRows()]);
+  return Response.json({
+    organizations: organizations.map((o) => {
+      const u = usage.get(o.id) ?? null;
+      const b = billing.get(o.id);
+      const state = billingState(o.isPlatform || !b ? null : { trialEndsAt: b.trialEndsAt, paidUntil: b.paidUntil, graceDays: b.graceDays }, now);
+      const s = signals.get(o.id);
+      const health = healthOf(
+        {
+          status: o.status,
+          isPlatform: o.isPlatform,
+          createdAt: new Date(o.createdAt),
+          whatsappConnected: o.whatsappConnected,
+          agentModule: o.modules.agent,
+          agentOn: s?.agentOn ?? false,
+          lastMessageAt: s?.lastMessageAt ?? null,
+          lastLoginAt: s?.lastLoginAt ?? null,
+          sent7d: s?.sent7d ?? 0,
+          failed7d: s?.failed7d ?? 0,
+          aiPct: u?.ai.usdLimit ? (u.ai.estUsd / u.ai.usdLimit) * 100 : null,
+          billingKind: state.kind,
+          billingRestricted: state.restricted,
+        },
+        now
+      );
+      return {
+        ...o,
+        usage: u,
+        billing: { kind: state.kind, daysLeft: state.daysLeft, until: state.until },
+        health: { ...health, lastMessageAt: s?.lastMessageAt?.toISOString() ?? null, lastLoginAt: s?.lastLoginAt?.toISOString() ?? null },
+      };
+    }),
+  });
 });
 
 const createSchema = z.object({

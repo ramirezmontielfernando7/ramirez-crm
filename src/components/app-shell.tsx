@@ -13,11 +13,14 @@ import { BrandLogo, BrandTile } from "@/components/brand-mark";
 import { ViewerProvider } from "@/components/viewer-context";
 import { TeamUnreadLogoBadge } from "@/components/team-chat/unread-badge";
 import { AssistantLauncher } from "@/components/assistant/assistant-launcher";
+import { CommandPalette } from "@/components/command-palette";
 import { HandoffNotices } from "@/components/handoff-notices";
 import { NumberHealthBanner } from "@/components/number-health";
 import { CampaignPauseBanner } from "@/components/campaigns/campaign-pause-banner";
 import { UsageAlertBanner } from "@/components/usage-alert-banner";
+import { PlatformNoticeBanner } from "@/components/platform-notice-banner";
 import { UsageDialog } from "@/components/usage/usage-dialog";
+import { TourDialog } from "@/components/onboarding/tour-dialog";
 import { UsagePrompt } from "@/components/usage/usage-prompt";
 import { MotionProvider, NAV } from "@/components/motion";
 import { NavModeProvider } from "@/components/nav-mode";
@@ -114,6 +117,7 @@ export function AppShell({
         <HandoffNotices />
         {/* Asistente: botón discreto y Ctrl/⌘+K (solo con el módulo y el permiso). */}
         <AssistantLauncher />
+        <CommandPalette />
       </MotionProvider>
     </ViewerProvider>
   );
@@ -300,6 +304,8 @@ function ShellFrame({
             <BrandLogo branding={branding} tile={false} className="min-w-0" />
           </header>
 
+          {/* 048: aviso a todos los clientes y prueba gratis / pago (cualquier rol). */}
+          <PlatformNoticeBanner />
           {/* Campañas v2: aviso de salud del número (Propietario y Coordinador). */}
           <NumberHealthBanner campaigns={campaigns} />
           {/* Campañas v2: pausa de seguridad automática (Propietario y Coordinador). */}
@@ -327,6 +333,7 @@ function ShellFrame({
           {/* «Uso y plan» como ventana (solo el Propietario). */}
           <Suspense fallback={null}>
             <UsageDialog />
+            <TourDialog />
             <UsagePrompt />
           </Suspense>
         </div>

@@ -1,4 +1,7 @@
+import { logger } from "@/lib/log";
 import { checkRateLimit, clientIp } from "@/lib/rate-limit";
+
+const log = logger("ai-connector");
 import { exchangeCode, refreshTokens } from "@/server/ai-connector/oauth";
 
 export const dynamic = "force-dynamic";
@@ -65,7 +68,10 @@ export async function POST(req: Request): Promise<Response> {
   } else {
     return oauthError("unsupported_grant_type", "Solo authorization_code y refresh_token");
   }
-  if ("error" in out) return oauthError(out.error, out.description);
+  if ("error" in out) {
+    log.warn("token de una app de IA rechazado", { grant, error: out.error, description: out.description });
+    return oauthError(out.error, out.description);
+  }
   return Response.json(out, { headers: NO_STORE });
 }
 

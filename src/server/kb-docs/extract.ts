@@ -11,7 +11,7 @@ import { RAG_EXTRACT_MAX_BYTES } from "@/lib/upload-limits";
 
 const log = logger("kb-docs");
 
-export type Extracted = { ok: true; mime: KbDocMime; text: string } | { ok: false; code: KbDocErrorCode };
+type Extracted = { ok: true; mime: KbDocMime; text: string } | { ok: false; code: KbDocErrorCode };
 
 export async function extractDocumentText(filename: string, bytes: Uint8Array): Promise<Extracted> {
   if (bytes.length === 0) return { ok: false, code: "empty" };

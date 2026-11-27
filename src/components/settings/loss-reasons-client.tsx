@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { SettingsHeader } from "@/components/settings/settings-header";
 
 const LABEL_MAX = 60;
 
@@ -83,12 +84,11 @@ export function LossReasonsClient() {
   const archived = (reasons ?? []).filter((r) => !r.active);
 
   return (
-    <div className="max-w-3xl space-y-6">
-      <p className="text-sm text-muted-foreground">
-        Son las opciones que aparecen al marcar un trato como perdido y las que cuenta la gráfica de
-        pérdidas. Si cambias un nombre, también cambia en el historial; si quitas un motivo, los tratos
-        que ya lo usaban lo conservan.
-      </p>
+    <div className="space-y-6">
+      <SettingsHeader
+        title="Motivos de pérdida"
+        description="Las opciones al marcar un trato como perdido y las que cuenta la gráfica de pérdidas. Cambiar un nombre también lo cambia en el historial; quitar uno no se lo quita a los tratos que ya lo usaban."
+      />
 
       <Card>
         <CardHeader>

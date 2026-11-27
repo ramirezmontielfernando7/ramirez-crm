@@ -17,7 +17,7 @@ import { csvToTable, decodeCsvBytes, ImportError, type ImportTable } from "@/ser
 
 const XLSX_MAX_UNCOMPRESSED = 50 * 1024 * 1024;
 
-export type FileKind = "csv" | "xlsx";
+type FileKind = "csv" | "xlsx";
 
 /** El tipo por la extensión y los primeros bytes (un .xlsx es un zip: "PK"). */
 export function detectFileKind(fileName: string, bytes: Uint8Array): FileKind {

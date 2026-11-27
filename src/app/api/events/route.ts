@@ -1,3 +1,4 @@
+import { seesAllChats } from "@/lib/db/tenant";
 import { requireSession, sessionFromHeaders, UnauthorizedError } from "@/lib/auth/session";
 import { logger } from "@/lib/log";
 import { runWithOrganization } from "@/lib/request-context";
@@ -70,7 +71,7 @@ export async function GET(req: Request) {
           if (canSeeTeamEvent(access, event)) write(event);
           return;
         }
-        if (access.seesAll) {
+        if (seesAllChats(access)) {
           write(event);
           return;
         }

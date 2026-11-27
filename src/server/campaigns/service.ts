@@ -28,6 +28,7 @@ import { ensureDispatcher } from "@/server/campaigns/dispatcher";
 import { cancelCampaign, pauseCampaign, resumeCampaign } from "@/server/campaigns/lifecycle";
 import { humanMetaError } from "@/server/campaigns/outcome";
 import { businessTimezone } from "@/server/analytics/period";
+import { campaignsBlockedReason } from "@/server/billing/store";
 
 /**
  * 021 — Campañas: crear (borrador), lanzar y consultar.
@@ -465,6 +466,9 @@ export async function launchCampaign(
   if (current.status !== "draft") {
     throw new CampaignError("conflict", "Esta campaña ya se envió");
   }
+  // 048: interruptor de emergencia o prueba / pago: no se lanza (queda en borrador).
+  const blocked = await campaignsBlockedReason(organizationId);
+  if (blocked) throw new CampaignError("conflict", `Por ahora no se pueden enviar campañas: ${blocked}. Tu campaña queda guardada en borrador.`);
   const scheduledAt = opts.scheduledAt ?? null;
   if (scheduledAt) {
     if (scheduledAt.getTime() < Date.now() + 60_000) {
@@ -569,7 +573,11 @@ export async function setCampaignState(
   const current = await getCampaign(organizationId, campaignId);
   let ok = false;
   if (action === "pause") ok = await pauseCampaign(organizationId, campaignId, { reason: "Pausada a mano", auto: false });
-  if (action === "resume") ok = await resumeCampaign(organizationId, campaignId);
+  if (action === "resume") {
+    const blocked = await campaignsBlockedReason(organizationId);
+    if (blocked) throw new CampaignError("conflict", `Por ahora no se puede reanudar: ${blocked}.`);
+    ok = await resumeCampaign(organizationId, campaignId);
+  }
   if (action === "cancel") ok = await cancelCampaign(organizationId, campaignId);
   if (!ok) {
     const verbo = action === "pause" ? "pausar" : action === "resume" ? "reanudar" : "cancelar";

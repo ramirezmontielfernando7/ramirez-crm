@@ -1,6 +1,6 @@
 import type { NextConfig } from "next";
 import { readFileSync } from "node:fs";
-import { ENFORCED_CSP, OWN_CSP_SOURCE, securityHeaders } from "./src/lib/security/headers";
+import { enforcedCsp, OWN_CSP_SOURCE, securityHeaders } from "./src/lib/security/headers";
 
 // La versión sale de package.json y no de una constante aparte: duplicarla es
 // tenerla desactualizada en uno de los dos lados, y justo esta no puede mentir.
@@ -14,6 +14,8 @@ const nextConfig: NextConfig = {
   output: process.platform === "win32" ? undefined : "standalone",
   // El paquete `postgres` usa APIs de Node que no deben empaquetarse en el bundle.
   serverExternalPackages: ["postgres"],
+  // Sin `X-Powered-By: Next.js`: no anunciar el framework a quien escanea.
+  poweredByHeader: false,
   // Se congelan al construir: lo que queda aquí va dentro del binario y no
   // cambia en tiempo de ejecución. El commit solo se congela si `SOURCE_COMMIT`
   // llega AL BUILD (build arg `SOURCE_COMMIT`; con docker compose,
@@ -23,9 +25,9 @@ const nextConfig: NextConfig = {
   // Fase 3, PR 2 (H10): cabeceras de seguridad en TODA respuesta.
   async headers() {
     return [
-      { source: "/:path*", headers: securityHeaders(process.env.NODE_ENV !== "production") },
+      { source: "/:path*", headers: securityHeaders() },
       // Todo MENOS las rutas de adjuntos, que traen su propia CSP `sandbox`.
-      { source: OWN_CSP_SOURCE, headers: [ENFORCED_CSP] },
+      { source: OWN_CSP_SOURCE, headers: [enforcedCsp(process.env.NODE_ENV !== "production")] },
     ];
   },
   // La imagen Docker no repite typecheck ni lint (`SKIP_BUILD_CHECKS=1` en el

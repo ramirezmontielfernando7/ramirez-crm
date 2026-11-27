@@ -3,7 +3,7 @@
 import { TAG_COLORS, tagColorClass, type TagColor } from "@/lib/tags";
 import { cn } from "@/lib/utils";
 
-export const COLOR_LABEL: Record<TagColor, string> = {
+const COLOR_LABEL: Record<TagColor, string> = {
   gris: "Gris",
   azul: "Azul",
   verde: "Verde",

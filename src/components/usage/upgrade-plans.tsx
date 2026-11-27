@@ -1,9 +1,10 @@
 "use client";
 
+import { ContactUs } from "@/components/usage/contact-us";
 import { useEffect, useState } from "react";
 import { Check } from "lucide-react";
 import { fetchJson } from "@/lib/fetch-json";
-import { formatMxn, freeMonths, yearlyPrice, type CatalogScope, type PlanCatalog, type PlanCatalogEntry } from "@/lib/plan-catalog";
+import { formatMxn, isComingSoon, isSellable, freeMonths, yearlyPrice, type CatalogScope, type PlanCatalog, type PlanCatalogEntry } from "@/lib/plan-catalog";
 import type { PlanKey } from "@/lib/limits";
 import { cn } from "@/lib/utils";
 
@@ -12,7 +13,7 @@ import { cn } from "@/lib/utils";
  * plataforma, en pesos más IVA) con el actual marcado. Sin cobro real: «Elegir»
  * avisa a la plataforma (`POST /api/usage/plan-request`) y se le contacta.
  */
-type PlansResponse = { current: PlanKey; catalog: PlanCatalog };
+type PlansResponse = { current: PlanKey; catalog: PlanCatalog; contactWhatsapp?: string | null };
 
 function Card({
   plan,
@@ -30,6 +31,7 @@ function Card({
   onChoose: () => void;
 }) {
   const price = yearly ? yearlyPrice(plan) : plan.priceMonthlyMxn;
+  const soon = isComingSoon(plan.scope) && !current;
   return (
     <div
       className={cn("usage-plan flex min-w-0 flex-1 flex-col gap-2 rounded-2xl border bg-card p-5", plan.recommended && "usage-plan-rec")}
@@ -38,7 +40,8 @@ function Card({
       <h3 className="flex flex-wrap items-center gap-2 text-base font-semibold">
         {plan.name}
         {current && <span className="rounded-md bg-muted px-1.5 py-0.5 text-[11px] font-medium text-text-2">Tu plan</span>}
-        {plan.recommended && !current && <span className="usage-plan-badge rounded-md px-1.5 py-0.5 text-[11px] font-medium">Recomendado</span>}
+        {soon && <span className="rounded-md bg-muted px-1.5 py-0.5 text-[11px] font-medium text-text-2">Próximamente</span>}
+        {plan.recommended && !current && !soon && <span className="usage-plan-badge rounded-md px-1.5 py-0.5 text-[11px] font-medium">Recomendado</span>}
       </h3>
       <p className="text-3xl font-semibold tracking-tight" data-testid={`upgrade-plan-${plan.scope}-price`}>
         {formatMxn(price)}
@@ -50,6 +53,10 @@ function Card({
       </p>
       {current ? (
         <span className="rounded-lg border px-3 py-2 text-center text-sm text-text-3">Plan actual</span>
+      ) : soon ? (
+        <span className="rounded-lg border border-dashed px-3 py-2 text-center text-sm text-text-3" data-testid={`upgrade-plan-${plan.scope}-soon`}>
+          Muy pronto
+        </span>
       ) : (
         <button
           type="button"
@@ -116,11 +123,11 @@ export function UpgradePlans() {
   }
 
   if (!data) return <p className={cn("text-sm", error ? "text-destructive" : "text-text-2")}>{error ?? "Cargando planes…"}</p>;
-  const plans = Object.values(data.catalog);
+  const plans = Object.values(data.catalog).filter((p) => isSellable(p.scope) || isComingSoon(p.scope) || data.current === p.scope);
   return (
     <div data-testid="upgrade-plans">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm text-text-2">Precios en pesos más IVA. Cancelas cuando quieras.</p>
+        <p className="text-sm text-text-2">Precios en pesos, IVA incluido. Cancelas cuando quieras.</p>
         <div className="inline-flex rounded-lg bg-muted p-0.5 text-[13px]" role="group" aria-label="Periodo de cobro">
           <button type="button" onClick={() => setYearly(false)} aria-pressed={!yearly} className={cn("rounded-md px-3 py-1", !yearly && "bg-card font-medium shadow-sm")}>
             Mensual
@@ -141,7 +148,9 @@ export function UpgradePlans() {
         </p>
       )}
       {error && <p className="mt-3 text-sm text-destructive">{error}</p>}
-      <p className="mt-4 text-xs text-text-3">¿Necesitas algo distinto? Escríbenos y armamos un plan a tu medida.</p>
+      <p className="mt-4 text-xs text-text-3">
+        <ContactUs phone={data.contactWhatsapp ?? null} />
+      </p>
     </div>
   );
 }

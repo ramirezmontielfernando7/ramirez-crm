@@ -42,7 +42,7 @@ function touchedContact(organizationId: string, conversationId: string | null) {
 }
 
 /** El contacto de un chat o por su id, solo si quien pide lo ve. */
-async function contactOf(session: SessionContext, ref: { conversation_id?: string; contact_id?: string }) {
+export async function contactOf(session: SessionContext, ref: { conversation_id?: string; contact_id?: string }) {
   if (ref.conversation_id) {
     const found = await getConversation(session.access, ref.conversation_id);
     return found ? { contact: found.contact, conversationId: found.conversation.id } : null;
@@ -137,7 +137,7 @@ const updateContactArgs = z
     contact_id: z.string().min(1).max(60).optional(),
     name: z.string().trim().min(1).max(120).optional(),
     notes: z.string().max(4000).nullable().optional(),
-    ficha: z.record(z.union([z.string().max(500), z.number(), z.boolean(), z.null()])).optional(),
+    ficha: z.record(z.string(), z.union([z.string().max(500), z.number(), z.boolean(), z.null()])).optional(),
   })
   .refine(refRefine, REF_MESSAGE)
   .refine((a) => a.name !== undefined || a.notes !== undefined || a.ficha !== undefined, "Nada que cambiar");

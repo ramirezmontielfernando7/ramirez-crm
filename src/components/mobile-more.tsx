@@ -2,19 +2,18 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { LogOut, Gauge, Moon, Sun, Settings, ShieldCheck, Sparkles, UsersRound, Smartphone, type LucideIcon } from "lucide-react";
+import { LogOut, Gauge, GraduationCap, Play, Moon, Sun, Settings, ShieldCheck, Sparkles, UsersRound, Smartphone, type LucideIcon } from "lucide-react";
 import { useViewer } from "@/components/viewer-context";
 import { ContactAvatar } from "@/components/avatar";
 import { useState } from "react";
 import { applyThemeBarColor, nextThemePreference, normalizeThemePreference, THEME_COOKIE, THEME_COOKIE_MAX_AGE } from "@/lib/theme";
 import { AvisosMenu } from "@/components/notifications/avisos-menu";
 import { TeamUnreadRowBadge } from "@/components/team-chat/unread-badge";
-import { NAV_ICONS } from "@/components/nav-icons";
 import { navItemOf } from "@/components/app-nav";
 import { signOut } from "@/lib/auth/client";
 import { openUsageDialog } from "@/lib/usage-dialog";
-import { moduleDef } from "@/lib/modules/registry";
-import { availableSections, type NavEntries } from "@/lib/modules/nav-layout";
+import { openTour } from "@/lib/tour-dialog";
+import type { NavEntries } from "@/lib/modules/nav-layout";
 import { MOBILE_TAB_COUNT } from "@/components/mobile-tabbar";
 import type { ThemePreference } from "@/lib/theme";
 
@@ -41,18 +40,10 @@ export function MobileMore({
   const router = useRouter();
   const keys = nav?.keys ?? [];
   const tabs = new Set(keys.slice(0, MOBILE_TAB_COUNT));
-  const modules = { has: viewer.hasModule };
 
-  // Trabajo: Agenda y Tareas (pestañas del CRM Comercial), el chat de equipo,
-  // «Mi número» y los pilares que no caben abajo (menos el Asistente, que va aparte).
+  // Trabajo: el chat de equipo, «Mi número» y los renglones que no caben abajo
+  // (menos el Asistente, que va aparte).
   const work: Row[] = [];
-  if (keys.includes("pipeline")) {
-    for (const s of availableSections(moduleDef("pipeline"), modules, viewer.can)) {
-      if (s.module === "agenda" || s.module === "trabajo") {
-        work.push({ href: s.route, label: s.label, icon: s.module === "agenda" ? NAV_ICONS.CalendarDays : NAV_ICONS.ListChecks });
-      }
-    }
-  }
   if (viewer.hasModule("team_chat")) work.push({ href: "/chat", label: "Chat de equipo", icon: UsersRound, team: true });
   if (viewer.hasMyNumber || viewer.seesTeamNumbers) {
     work.push({ href: "/inbox/mi-numero", label: viewer.hasMyNumber ? "Mi número" : "Números", icon: Smartphone });
@@ -88,6 +79,11 @@ export function MobileMore({
         <AvisosMenu />
       </div>
       {nav?.settings && <RowLink row={{ href: "/settings", label: "Ajustes", icon: Settings }} onClose={onClose} />}
+      <button type="button" onClick={() => { onClose(); openTour(); }} className={rowClass}>
+        <Play className="h-[22px] w-[22px] text-text-2" strokeWidth={1.7} />
+        Recorrido guiado
+      </button>
+      <RowLink row={{ href: "/ayuda", label: "Tutoriales", icon: GraduationCap }} onClose={onClose} />
       {viewer.can("usage.read") && (
         <button type="button" onClick={() => openUsageDialog()} className={rowClass}>
           <Gauge className="h-[22px] w-[22px] text-text-2" strokeWidth={1.7} />

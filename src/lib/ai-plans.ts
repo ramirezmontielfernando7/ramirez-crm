@@ -16,7 +16,7 @@ export const FUNCTION_PROFILE = {
   assistant: { input: 25_000, output: 1_500, per: 1, unit: "pregunta" },
 } as const;
 
-export type ProfileKey = keyof typeof FUNCTION_PROFILE;
+type ProfileKey = keyof typeof FUNCTION_PROFILE;
 
 /** Costo aproximado de `per` llamadas típicas de esa función. */
 export function functionCost(fn: ProfileKey, price: Price | null): number | null {
@@ -26,10 +26,10 @@ export function functionCost(fn: ProfileKey, price: Price | null): number | null
 }
 
 /** Proporción de tokens de entrada en el uso real (los prompts pesan más que las respuestas). */
-export const INPUT_SHARE = 0.9;
+const INPUT_SHARE = 0.9;
 
 /** Precio mezclado por millón de tokens (entrada y salida en la proporción típica). */
-export function blendedUsdPerMtok(price: Price): number {
+function blendedUsdPerMtok(price: Price): number {
   return INPUT_SHARE * price.inputUsdPerMtok + (1 - INPUT_SHARE) * price.outputUsdPerMtok;
 }
 
@@ -65,7 +65,7 @@ export function monthFraction(now: Date): number {
   return Math.min(1, Math.max(0, (now.getTime() - start) / (end - start)));
 }
 
-export type CreditsPace = {
+type CreditsPace = {
   /** Créditos que quedan (créditos − gasto desde que empezaron). */
   remainingUsd: number | null;
   /** Hasta qué mes alcanzan al ritmo del presupuesto (ISO 'YYYY-MM-01'). */

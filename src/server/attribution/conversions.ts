@@ -28,8 +28,8 @@ const log = logger("capi");
  */
 
 /** Los dos eventos que Vocero emite (nombres del catálogo de Meta, tal cual). */
-export const QUALIFIED_EVENT = "QualifiedLead";
-export const PURCHASE_EVENT = "Purchase";
+const QUALIFIED_EVENT = "QualifiedLead";
+const PURCHASE_EVENT = "Purchase";
 
 const NO_CLID_REASON =
   "sin ctwa_clid: la conversación no vino de un anuncio de WhatsApp";
@@ -43,7 +43,7 @@ type EmitOutcome = "sent" | "failed" | "skipped" | "dedup" | "error";
  * los suyos (p. ej. el espejo `InitiateCheckout` que documenta la guía) sin
  * reimplementar el dedup ni el manejo del acuse.
  */
-export async function emitConversion(
+async function emitConversion(
   organizationId: string,
   conversationId: string,
   eventName: string,
@@ -241,7 +241,7 @@ export async function reportStageChange(input: {
 
 /* ---------------- Actividad reciente (solo lectura) ---------------- */
 
-export type ConversionActivityRow = {
+type ConversionActivityRow = {
   id: string;
   conversationId: string;
   eventName: string;
@@ -258,7 +258,7 @@ export type ConversionActivityRow = {
 
 /** Tope duro: es un panel de monitoreo, no un export. */
 const ACTIVITY_MAX_LIMIT = 50;
-export const ACTIVITY_DEFAULT_LIMIT = 25;
+const ACTIVITY_DEFAULT_LIMIT = 25;
 
 /** Pura y exportada para probar el fallback de fecha sin tocar la base. */
 export function toConversionActivityRow(row: {

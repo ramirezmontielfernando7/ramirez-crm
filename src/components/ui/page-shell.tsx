@@ -32,7 +32,7 @@ import { cn } from "@/lib/utils";
  *   (Kanban, editores). `contained`: columna centrada de `max-w-6xl` con
  *   scroll (tablas, formularios, métricas).
  */
-export type PageShellVariant = "fluid" | "contained";
+type PageShellVariant = "fluid" | "contained";
 
 export function PageShell({
   title,
@@ -95,6 +95,8 @@ export function PageShell({
     const sections = availableSections(def, { has: viewer.hasModule }, viewer.can).filter(
       (s) => !hideSections?.includes(s.route)
     );
+    // Una sola pestaña no es navegación (auditoría UX): basta el título.
+    if (sections.length < 2) return null;
     return sections.map((s) => ({
       href: s.route,
       label: s.label,

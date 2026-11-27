@@ -17,7 +17,7 @@ import { addDaysISO, tzOffsetMinutes, WEEKDAYS, zonedWallClockToUtc, type Interv
 
 export type CalendarView = "dia" | "semana" | "mes" | "lista";
 
-export const CALENDAR_VIEWS: readonly CalendarView[] = ["dia", "semana", "mes", "lista"];
+const CALENDAR_VIEWS: readonly CalendarView[] = ["dia", "semana", "mes", "lista"];
 
 /** Días que abarca la Lista si nadie eligió otro rango. */
 export const LIST_DEFAULT_DAYS = 30;
@@ -72,7 +72,7 @@ export function daysBetween(fromISO: string, toISO: string): number {
 }
 
 /** 0 = lunes … 6 = domingo. */
-export function weekdayIndex(iso: string): number {
+function weekdayIndex(iso: string): number {
   return (new Date(`${iso}T00:00:00Z`).getUTCDay() + 6) % 7;
 }
 
@@ -85,12 +85,12 @@ export function startOfWeek(iso: string): string {
   return addDaysISO(iso, -weekdayIndex(iso));
 }
 
-export function startOfMonth(iso: string): string {
+function startOfMonth(iso: string): string {
   return `${iso.slice(0, 7)}-01`;
 }
 
 /** Primer día del mes `n` meses antes o después. */
-export function addMonths(iso: string, n: number): string {
+function addMonths(iso: string, n: number): string {
   const { y, m } = parts(iso);
   const d = new Date(Date.UTC(y, m - 1 + n, 1));
   return d.toISOString().slice(0, 10);
@@ -411,7 +411,7 @@ export function tzOffsetLabel(tz: string, at: Date = new Date()): string {
 
 /* -------------------------------------------------------------- consulta */
 
-export type RangeQuery =
+type RangeQuery =
   | { ok: true; range: DateRange | null }
   | { ok: false; message: string };
 

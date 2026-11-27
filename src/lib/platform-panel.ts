@@ -24,10 +24,10 @@ type PanelOrg = {
   } | null;
 };
 
-export type PanelNearLimit = { id: string; name: string; meter: Meter; kind: "ia" | "almacenamiento" };
-export type PanelTop = { id: string; name: string; tokens: number; turns: number };
+type PanelNearLimit = { id: string; name: string; meter: Meter; kind: "ia" | "almacenamiento" };
+type PanelTop = { id: string; name: string; tokens: number; turns: number };
 
-export type PanelSummary = {
+type PanelSummary = {
   byStatus: { active: number; suspended: number; deleted: number };
   /** Solo organizaciones activas: son las que consumen. */
   ai: { tokens: number; turns: number; assignedTokens: number | null; assignedTurns: number | null; withoutLimit: number };
@@ -95,7 +95,7 @@ export function buildPanel(orgs: readonly PanelOrg[], topN = 5): PanelSummary {
 }
 
 /** 0070 — Una empresa en «Consumo de IA por empresa» (dólares estimados contra su tope). */
-export type AiUsdRow = { id: string; name: string; planKey: string | null; estUsd: number; usdLimit: number | null; ratio: number | null };
+type AiUsdRow = { id: string; name: string; planKey: string | null; estUsd: number; usdLimit: number | null; ratio: number | null };
 
 /**
  * 0070 — «Mi panel» sencillo: el consumo de IA de cada empresa ACTIVA en

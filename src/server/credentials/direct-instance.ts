@@ -15,9 +15,9 @@ import { open, type OpenFailure } from "./vault";
  * se usa la maestra del servidor. Nada de esto sale del servidor de Dashfort.
  */
 
-export type DirectConnectionRow = typeof schema.directConnection.$inferSelect;
+type DirectConnectionRow = typeof schema.directConnection.$inferSelect;
 
-export type DirectConnectionInfo = {
+type DirectConnectionInfo = {
   id: string;
   serverId: string;
   instanceName: string;
@@ -26,6 +26,8 @@ export type DirectConnectionInfo = {
   pauseReason: DirectConnectionRow["pauseReason"];
   disconnectCount: number;
   disconnectWindowStart: Date | null;
+  /** 0080: el teléfono que el dispositivo tiene vinculado (null = aún no se sabe). */
+  phoneNumber: string | null;
 };
 
 /**
@@ -54,10 +56,11 @@ export async function getDirectConnection(organizationId: string, directNumberId
     pauseReason: row.pauseReason,
     disconnectCount: row.disconnectCount,
     disconnectWindowStart: row.disconnectWindowStart,
+    phoneNumber: row.phoneNumber,
   };
 }
 
-export type DirectTargetResult =
+type DirectTargetResult =
   | { ok: true; target: EvolutionTarget }
   | { ok: false; error: "not_connected" | "not_found" | OpenFailure };
 

@@ -22,9 +22,9 @@ import { getPlatformAiDefaults } from "@/server/ai-settings/platform";
  *   «Uso y plan» del Propietario.
  */
 
-export type AiTotals = { turns: number; tokens: number };
+type AiTotals = { turns: number; tokens: number };
 
-export type OrgUsageSummary = {
+type OrgUsageSummary = {
   period: string;
   ai: AiTotals & {
     limits: QuotaLimits;
@@ -168,7 +168,7 @@ export async function listOrgsUsage(ids: string[], now = new Date()): Promise<Ma
   return out;
 }
 
-export type { AgentUsageLine, OrgUsageDetail } from "@/server/usage/detail";
+;
 
 /** El detalle de UNA organización, leído a nombre de ella (RLS). */
 export async function getOrgUsageDetail(organizationId: string, now = new Date()): Promise<OrgUsageDetail> {

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { CalendarClock, Check, ListChecks, MessageCircle, Plus, Trash2, User, X } from "lucide-react";
+import { CalendarClock, Check, ListChecks, MessageCircle, Plus, StickyNote, Trash2, User, X } from "lucide-react";
 import { fetchJson } from "@/lib/fetch-json";
 import { cn } from "@/lib/utils";
 import {
@@ -20,6 +20,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ContactSearch } from "./contact-search";
 import { noteBackground } from "./notes-client";
 import type { NoteDto } from "@/lib/work";
+import { EmptyState } from "@/components/ui/empty-state";
 
 /**
  * 033 — Tareas, como los Recordatorios del iPhone: una lista con alta rápida
@@ -117,10 +118,12 @@ function NotesPreview() {
         {notes === null ? (
           <p className="text-sm text-text-3">Cargando…</p>
         ) : notes.length === 0 ? (
-          <div className="mt-10 text-center">
-            <ListChecks className="mx-auto mb-3 h-8 w-8 text-text-3" strokeWidth={1.5} />
-            <p className="text-sm text-text-3">Aún no tienes notas. Toca una tarea para ver sus detalles.</p>
-          </div>
+          <EmptyState
+            className="mt-4"
+            icon={StickyNote}
+            title="Aún no tienes notas"
+            description="Toca una tarea para ver sus detalles."
+          />
         ) : (
           <div className="columns-1 gap-3 lg:columns-2">
             {notes.slice(0, 8).map((n) => (
@@ -301,17 +304,14 @@ export function TasksClient({
 
         <div className="min-h-0 flex-1 overflow-y-auto">
           {loaded && tasks.length === 0 ? (
-            <div className="mx-auto mt-14 max-w-xs px-4 text-center">
-              <ListChecks className="mx-auto mb-3 h-8 w-8 text-text-3" strokeWidth={1.5} />
-              <p className="font-semibold">
-                {filter === "done" ? "Nada hecho todavía" : filter === "overdue" ? "Nada vencido" : "Sin pendientes"}
-              </p>
-              <p className="mt-1 text-sm text-text-3">
-                {filter === "done"
-                  ? "Lo que marques como hecho aparece aquí."
-                  : "Escribe arriba lo que hay que hacer y presiona Enter."}
-              </p>
-            </div>
+            <EmptyState
+              className="mt-4 px-4"
+              icon={ListChecks}
+              title={filter === "done" ? "Nada hecho todavía" : filter === "overdue" ? "Nada vencido" : "Sin pendientes"}
+              description={
+                filter === "done" ? "Lo que marques como hecho aparece aquí." : "Escribe arriba lo que hay que hacer y presiona Enter."
+              }
+            />
           ) : (
             <div>
               {groupTasks(tasks, now, (t) => !!(justDone[t.id] ?? t).doneAt).map((g) => (

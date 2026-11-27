@@ -66,6 +66,37 @@ export function BotSection({
             />
           </div>
 
+          {/* 049 — el equipo (personas): mediana de primera respuesta y chats sin atender. */}
+          <div>
+            <Subhead>Atención del equipo</Subhead>
+            {data.team.chats === 0 ? (
+              <p className="text-sm text-text-3">Ningún cliente escribió en este periodo.</p>
+            ) : (
+              <div className="grid grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-4" data-testid="team-response">
+                <StatCard
+                  label="Primera respuesta del equipo"
+                  value={data.team.medianSeconds === null ? "—" : formatSegundos(data.team.medianSeconds)}
+                  hint={
+                    data.team.answeredByPerson === 0
+                      ? "ninguna persona ha contestado todavía"
+                      : `mediana de ${data.team.answeredByPerson} chats`
+                  }
+                />
+                <RateCard label="Contestados en 5 minutos" rate={data.team.within5Min} unit="contestados por una persona" />
+                <RateCard label="Contestados en 1 hora" rate={data.team.within1Hour} unit="contestados por una persona" />
+                <StatCard
+                  label="Sin ninguna respuesta"
+                  value={String(data.team.unanswered)}
+                  hint="ni de una persona ni de la IA"
+                />
+              </div>
+            )}
+            <p className="mt-2 text-xs text-text-3">
+              El reloj corre las 24 horas: un cliente que escribe de noche suma hasta que abren. Los mensajes
+              automáticos y las respuestas de la IA no cuentan aquí.
+            </p>
+          </div>
+
           {agenda && data.sessions && (
             <div>
               <Subhead>Citas del periodo</Subhead>

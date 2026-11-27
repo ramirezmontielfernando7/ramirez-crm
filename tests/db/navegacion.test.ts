@@ -80,10 +80,13 @@ async function usuario(organizationId: string): Promise<string> {
   return id;
 }
 
-// 039: el menú son pilares; el Asesor ve Bandeja y CRM Comercial. Este lo
-// deja solo con la Bandeja (y el CRM, oculto, va primero: reordenar también).
+// 2026-11: el Asesor ve Bandeja, Ventas, Contactos, Agenda y Biblioteca. Este
+// lo deja solo con la Bandeja (y lo oculto va primero: reordenar también).
 const asesorSoloBandeja = (): NavLayoutItem[] => [
   { key: "pipeline", hidden: true },
+  { key: "contacts", hidden: true },
+  { key: "agenda", hidden: true },
+  { key: "knowledge", hidden: true },
   { key: "inbox", hidden: false },
 ];
 
@@ -118,17 +121,20 @@ describe("módulos de la 0034", () => {
   });
 
   it("039: los planes Esencial, Pro y Ultra son solo la plantilla del alta; «Personalizado», los del entorno", async () => {
-    for (const profile of ["esencial", "pro", "ultra", "personalizado"] as const) {
+    for (const profile of ["inicio", "esencial", "pro", "ultra", "personalizado"] as const) {
       const email = `dueno-${profile}@nav.test`;
       const r = await createOrganization({ name: `Plan ${profile}`, ownerName: "Dueño", ownerEmail: email, profile }, ACTOR, null);
       creadas.push(r.organizationId);
       const m = await getOrgModules(r.organizationId);
-      if (profile === "esencial") {
-        expect(m).toMatchObject({ agent: false, lab: false, campaigns: false, agenda: false, asistente: false, knowledge: true, teamChat: true, trabajo: true, customNav: false });
+      if (profile === "inicio") {
+        expect(m).toMatchObject({ agent: false, lab: false, campaigns: false, agenda: false, asistente: false, knowledge: false, results: false, teamChat: true, trabajo: false, customNav: false });
+        expect([...m.channels]).toEqual(["whatsapp"]);
+      } else if (profile === "esencial") {
+        expect(m).toMatchObject({ agent: true, lab: false, campaigns: false, agenda: false, asistente: false, knowledge: true, teamChat: true, trabajo: true, customNav: false });
         expect([...m.channels]).toEqual(["whatsapp"]);
       } else if (profile === "pro") {
         expect(m).toMatchObject({ agent: true, lab: true, agenda: true, atribucion: true, campaigns: false, asistente: false, customNav: true });
-        expect([...m.channels].sort()).toEqual(["instagram", "messenger", "whatsapp"]);
+        expect([...m.channels]).toEqual(["whatsapp"]);
       } else if (profile === "ultra") {
         expect(m).toMatchObject({ agent: true, lab: true, campaigns: true, asistente: true, agenda: true });
       } else {
@@ -159,7 +165,7 @@ describe("menú por rol: guardar, restaurar y bitácora", () => {
 
   it("guarda el del Asesor, lo deja en la bitácora y restaurar vuelve al de fábrica", async () => {
     const items = await saveNavLayout({ organizationId: A.id, role: "asesor", items: asesorSoloBandeja(), actorUserId: dueña });
-    expect(items.slice(0, 3).map((i) => i.key)).toEqual(["pipeline", "inbox", "lab"]);
+    expect(items.slice(0, 4).map((i) => i.key)).toEqual(["pipeline", "contacts", "agenda", "knowledge"]);
     const guardado = await runWithOrganization(A.id, () => getNavLayouts(A.id));
     expect(guardado.asesor?.find((i) => i.key === "pipeline")?.hidden).toBe(true);
     expect(guardado.coordinador).toBeNull();
@@ -272,7 +278,7 @@ describe("API de Ajustes → Navegación y lo que cada rol ve", () => {
     expect(res.status).toBe(200);
     const asesor = await navForSession(como(A.id, "asesor"));
     expect(asesor.main.map((m) => m.key)).toEqual(["inbox"]);
-    // Oculto ≠ prohibido: lo del CRM Comercial (Biblioteca) sigue respondiendo al Asesor.
+    // Oculto ≠ prohibido: la Biblioteca sigue respondiendo al Asesor.
     expect((await llamar("GET", "knowledge")).status).toBe(200);
     // Y mostrar algo sin permiso no lo abre: Resultados sigue en 403.
     como(A.id, "owner", dueñaA);

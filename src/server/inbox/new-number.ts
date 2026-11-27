@@ -45,7 +45,7 @@ export class NewNumberError extends Error {
   }
 }
 
-export const NEW_CHATS_BLOCKED_MESSAGE = NEW_CHATS_BLOCKED_TEXT;
+const NEW_CHATS_BLOCKED_MESSAGE = NEW_CHATS_BLOCKED_TEXT;
 
 /**
  * 048 — «Chats nuevos de los asesores»: con el interruptor encendido, un
@@ -172,9 +172,9 @@ export async function openChat(
   return { contact, conversationId: conversation.id, created };
 }
 
-export type ConsentAnswer = "yes" | "unknown";
+type ConsentAnswer = "yes" | "unknown";
 
-export const NEW_NUMBER_CONSENT_SOURCE = "declarado al escribir desde la Bandeja";
+const NEW_NUMBER_CONSENT_SOURCE = "declarado al escribir desde la Bandeja";
 
 /**
  * Escribirle PRIMERO a alguien solo puede ser una plantilla aprobada, y solo

@@ -13,7 +13,7 @@ import { CHANNEL_LABEL, type Channel } from "@/lib/channels";
  * puede y no puede hacer.
  */
 
-export type OutsideWindowStrategy =
+type OutsideWindowStrategy =
   /** Solo se puede reabrir con una plantilla aprobada (WhatsApp). */
   | "template"
   /** Se marca el mensaje como respuesta de agente humano (Instagram). */
@@ -21,7 +21,7 @@ export type OutsideWindowStrategy =
   /** No hay forma: fuera de ventana no se envía. */
   | "none";
 
-export type ChannelCapabilities = {
+type ChannelCapabilities = {
   /** Etiqueta legible, para mensajes de error dirigidos al operador. */
   label: string;
   /** Ventana de servicio en ms desde el último entrante; null = sin ventana. */
@@ -42,7 +42,7 @@ export type ChannelCapabilities = {
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-export const CHANNEL_CAPABILITIES: Record<Channel, ChannelCapabilities> = {
+const CHANNEL_CAPABILITIES: Record<Channel, ChannelCapabilities> = {
   whatsapp: {
     label: CHANNEL_LABEL.whatsapp,
     windowMs: DAY_MS,

@@ -18,7 +18,7 @@ import { publish } from "@/server/events/bus";
  * Quién los agrega o quita lo decide la ruta (`assignment.manage`).
  */
 
-export type ParticipantDto = {
+type ParticipantDto = {
   userId: string;
   name: string;
   role: string;
@@ -26,7 +26,7 @@ export type ParticipantDto = {
   addedBy: { id: string; name: string } | null;
 };
 
-export type ParticipantEventDto = {
+type ParticipantEventDto = {
   id: string;
   action: "added" | "removed";
   user: { id: string; name: string } | null;

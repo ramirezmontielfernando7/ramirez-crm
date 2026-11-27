@@ -189,7 +189,7 @@ await page.waitForTimeout(300);
 ok("Enter abre el chat enfocado", await abierta(36));
 
 console.log("== Búsqueda ==");
-await page.getByRole("button", { name: /buscar/i }).first().click().catch(() => {});
+await page.getByRole("button", { name: /buscar conversación/i }).first().click().catch(() => {});
 const campo = page.getByRole("searchbox").or(page.getByPlaceholder(/buscar/i)).first();
 await campo.fill("Persona 2500");
 await page.waitForTimeout(500);

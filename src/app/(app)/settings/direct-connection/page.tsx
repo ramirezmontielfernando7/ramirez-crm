@@ -7,6 +7,7 @@ import { can } from "@/lib/auth/permissions";
 import { requirePagePermission } from "@/lib/auth/page-guard";
 import { DIRECT_TEXT } from "@/lib/direct-connection";
 import { orgHasConexionDirecta } from "@/server/modules";
+import { SettingsHeader } from "@/components/settings/settings-header";
 
 export const dynamic = "force-dynamic";
 
@@ -20,15 +21,12 @@ export default async function DirectConnectionPage() {
   const session = await requirePagePermission("direct_connection.link");
   if (!(await orgHasConexionDirecta(session.organizationId))) notFound();
   return (
-    <div className="max-w-3xl space-y-4">
+    <div className="space-y-5">
       <Link href="/settings/whatsapp" className="inline-flex items-center gap-1 text-[13px] text-text-2 hover:text-foreground">
         <ChevronLeft className="h-4 w-4" strokeWidth={1.8} />
         Canales y conexiones
       </Link>
-      <div className="space-y-1">
-        <h2 className="text-lg font-semibold">{DIRECT_TEXT.moduleName}</h2>
-        <p className="text-sm text-muted-foreground">{DIRECT_TEXT.pageIntro}</p>
-      </div>
+      <SettingsHeader mobileTitle title={DIRECT_TEXT.moduleName} description={DIRECT_TEXT.pageIntro} />
       <DirectConnectionCard />
       {can(session, "direct_connection.limits") && (
         <DirectAdvancedCard canApplyAll={can(session, "direct_connection.mode") && session.access.seesAll} />

@@ -42,9 +42,9 @@ const log = logger("mi-numero");
  *   (los de cliente se quedan, los privados se borran) es del PR 6.
  */
 
-export type NumberKind = "personal" | "empresa";
+type NumberKind = "personal" | "empresa";
 
-export type Switches = {
+type Switches = {
   shareClients: boolean;
   overlapNotice: boolean;
   allowViewRequests: boolean;
@@ -125,7 +125,7 @@ export async function miNumeroOff(
     : new Response(null, { status: 404 });
 }
 
-export type NumberDto = {
+type NumberDto = {
   id: string;
   userId: string;
   userName: string;
@@ -161,7 +161,7 @@ async function toDto(
   };
 }
 
-export type TeamNumbers = {
+type TeamNumbers = {
   max: number;
   inUse: number;
   numbers: NumberDto[];
@@ -208,7 +208,7 @@ export async function listTeamNumbers(
   };
 }
 
-export type AuthorizeInput = {
+type AuthorizeInput = {
   userId: string;
   kind: NumberKind;
   label?: string | null;
@@ -290,7 +290,7 @@ async function getLive(
   return row ?? null;
 }
 
-export type TeamPatch = {
+type TeamPatch = {
   kind?: NumberKind;
   label?: string | null;
 } & Partial<Switches>;
@@ -363,7 +363,7 @@ export async function revokeNumber(
 
 /* ───────── Lo de la persona ───────── */
 
-export type MyNumberDto = Omit<NumberDto, "userName" | "userEmail"> & {
+type MyNumberDto = Omit<NumberDto, "userName" | "userEmail"> & {
   /** Solo en un número personal la persona mueve sus interruptores. */
   canEditSwitches: boolean;
   /** 047: la empresa tiene el conector de IA (se muestra su interruptor). */
@@ -389,7 +389,7 @@ export async function myNumber(
   };
 }
 
-export type MyPatch = Partial<Switches> & {
+type MyPatch = Partial<Switches> & {
   /** La persona acepta el aviso (una vez; queda la fecha). */
   acceptNotice?: true;
   /** La persona da su OK para que su número sea de la empresa. */

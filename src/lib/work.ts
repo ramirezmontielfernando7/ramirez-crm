@@ -48,7 +48,7 @@ export type TaskDto = {
 };
 
 /** Lo mínimo de una tarea para decidir permisos. */
-export type TaskOwnership = { createdBy: string | null; assigneeUserId: string | null };
+type TaskOwnership = { createdBy: string | null; assigneeUserId: string | null };
 
 /** Editar o marcar hecha: quien la creó, su responsable, o `work.manage`. */
 export function canEditTask(t: TaskOwnership, userId: string, manages: boolean): boolean {
@@ -81,9 +81,6 @@ export const NOTE_COLOR_LABEL: Record<NoteColor, string> = {
   morado: "Morado",
 };
 
-export function isNoteColor(value: unknown): value is NoteColor {
-  return typeof value === "string" && (NOTE_COLORS as readonly string[]).includes(value);
-}
 
 export const NOTE_TITLE_MAX = 200;
 export const NOTE_BODY_MAX = 10000;

@@ -60,7 +60,7 @@ const HEADER_ALIASES: Record<ImportColumn, string[]> = {
   email: ["email", "correo", "correoelectronico", "mail", "emailaddress"],
 };
 
-export { IMPORT_COLUMNS, IMPORT_COLUMN_LABEL, type ImportColumn } from "@/lib/audiences";
+export { IMPORT_COLUMNS,  type ImportColumn } from "@/lib/audiences";
 
 /** Columna del archivo (índice) que corresponde a cada campo. */
 export type ColumnMapping = Partial<Record<ImportColumn, number>>;

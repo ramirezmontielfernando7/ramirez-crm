@@ -4,11 +4,14 @@ import {
   CATALOG_SCOPES,
   cleanFeatures,
   mergeCatalog,
+  normalizeContactPhone,
   type CatalogScope,
   type PlanCatalog,
   type PlanCatalogOverride,
 } from "@/lib/plan-catalog";
 import { recordPlatformAudit, type AuditActor } from "@/server/platform-admin/audit";
+import { mergePlanProfiles, PLATFORM_MODULE_TOGGLES, type PlanProfiles, type PlatformModuleToggle } from "@/lib/platform-modules";
+import type { ModuleProfile } from "@/lib/modules/registry";
 
 /**
  * Catálogo de planes de la plataforma (`platform_plan_catalog`, tabla de
@@ -19,7 +22,17 @@ import { recordPlatformAudit, type AuditActor } from "@/server/platform-admin/au
  */
 
 const TTL_MS = 60_000;
-let cache: { at: number; catalog: PlanCatalog; overrides: Partial<Record<CatalogScope, PlanCatalogOverride>> } | null = null;
+let cache: {
+  at: number;
+  catalog: PlanCatalog;
+  overrides: Partial<Record<CatalogScope, PlanCatalogOverride>>;
+  /** 0077: el WhatsApp de contacto de «¿Necesitas más?» (solo dígitos) o null. */
+  contactWhatsapp: string | null;
+  /** 048: qué módulos trae cada plan (fábrica + lo guardado). */
+  profiles: PlanProfiles;
+  /** 048: qué planes tienen módulos guardados a mano. */
+  customModules: ModuleProfile[];
+} | null = null;
 
 export function clearPlanCatalogCache(): void {
   cache = null;
@@ -41,10 +54,22 @@ const overrideOf = (r: Row): PlanCatalogOverride => ({
 
 async function load() {
   if (cache && Date.now() - cache.at < TTL_MS) return cache;
-  const rows = await getSystemDb().select().from(schema.platformPlanCatalog);
+  const db = getSystemDb();
+  const rows = await db.select().from(schema.platformPlanCatalog);
+  const settings = await db.select().from(schema.platformSetting);
   const overrides: Partial<Record<CatalogScope, PlanCatalogOverride>> = {};
   for (const r of rows) if ((CATALOG_SCOPES as readonly string[]).includes(r.scope)) overrides[r.scope as CatalogScope] = overrideOf(r);
-  cache = { at: Date.now(), catalog: mergeCatalog(overrides), overrides };
+  const contact = settings.find((r) => r.key === "contact_whatsapp")?.value ?? null;
+  const moduleOverrides: Partial<Record<ModuleProfile, unknown>> = {};
+  for (const r of rows) if ((CATALOG_SCOPES as readonly string[]).includes(r.scope) && r.modules) moduleOverrides[r.scope as ModuleProfile] = r.modules;
+  cache = {
+    at: Date.now(),
+    catalog: mergeCatalog(overrides),
+    overrides,
+    contactWhatsapp: normalizeContactPhone(contact),
+    profiles: mergePlanProfiles(moduleOverrides),
+    customModules: Object.keys(moduleOverrides) as ModuleProfile[],
+  };
   return cache;
 }
 
@@ -53,8 +78,63 @@ export async function getPlanCatalog(): Promise<PlanCatalog> {
   return (await load()).catalog;
 }
 
+/**
+ * 048 — Qué módulos trae cada plan HOY (fábrica + lo que guardó el
+ * administrador). Lo usan el alta, las plantillas de /platform y el reflejo
+ * del plan guardado (`syncPlanKey`).
+ */
+export async function getPlanProfiles(): Promise<PlanProfiles> {
+  return (await load()).profiles;
+}
+
+/** 048 — Los planes con módulos guardados a mano (los demás, de fábrica). */
+export async function getCustomModulePlans(): Promise<ModuleProfile[]> {
+  return (await load()).customModules;
+}
+
+/**
+ * 048 — Cambia qué módulos trae un plan (`null` = volver a los de fábrica).
+ * No toca a ninguna empresa: vale para las altas y plantillas de aquí en
+ * adelante. El Laboratorio solo con el Agente.
+ */
+export async function changePlanModules(
+  scope: ModuleProfile,
+  modules: Record<PlatformModuleToggle, boolean> | null,
+  actor: AuditActor,
+  ip: string | null
+): Promise<PlanProfiles> {
+  const db = getSystemDb();
+  const clean = modules ? (Object.fromEntries(PLATFORM_MODULE_TOGGLES.map((k) => [k, modules[k] === true])) as Record<PlatformModuleToggle, boolean>) : null;
+  if (clean && !clean.agent) clean.lab = false;
+  const set = { modules: clean, updatedAt: new Date(), updatedBy: actor?.userId ?? null };
+  await db.insert(schema.platformPlanCatalog).values({ scope, ...set }).onConflictDoUpdate({ target: schema.platformPlanCatalog.scope, set });
+  clearPlanCatalogCache();
+  await recordPlatformAudit({ actor, action: "plans.changed", detail: { plan: scope, modulos: clean ?? "de fábrica" }, ip });
+  return getPlanProfiles();
+}
+
+/** 0077: el WhatsApp de contacto de la plataforma (solo dígitos) o null si no hay. */
+export async function getPlatformContact(): Promise<string | null> {
+  return (await load()).contactWhatsapp;
+}
+
+/** Guarda (o borra con `null`/vacío) el WhatsApp de contacto. Devuelve lo guardado. */
+export async function changePlatformContact(input: string | null, actor: AuditActor, ip: string | null): Promise<string | null> {
+  const value = input && input.trim() ? normalizeContactPhone(input) : null;
+  if (input && input.trim() && !value) throw new Error("invalid_phone");
+  const db = getSystemDb();
+  const set = { value, updatedAt: new Date(), updatedBy: actor?.userId ?? null };
+  await db
+    .insert(schema.platformSetting)
+    .values({ key: "contact_whatsapp", ...set })
+    .onConflictDoUpdate({ target: schema.platformSetting.key, set });
+  clearPlanCatalogCache();
+  await recordPlatformAudit({ actor, action: "plans.changed", detail: { contactoWhatsapp: value ? `…${value.slice(-4)}` : null }, ip });
+  return value;
+}
+
 /** Cambio parcial de un plan: un campo ausente no se toca; `null` vuelve al valor de fábrica. */
-export type PlanCatalogPatch = {
+type PlanCatalogPatch = {
   name?: string | null;
   tagline?: string | null;
   priceMonthlyMxn?: number | null;

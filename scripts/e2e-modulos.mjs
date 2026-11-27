@@ -237,7 +237,7 @@ async function main() {
   }
   const webB = (await B.call("GET", "/api/settings/webhook")).json;
   ok("B no recibe URLs de Instagram ni Messenger (no es la plataforma)", !webB?.instagramUrl && !webB?.messengerUrl);
-  // 039: el menú son 5 pilares; los módulos apagados se notan en sus pestañas.
+  // 2026-11: el menú en tres grupos; los módulos apagados no tienen renglón.
   const menuDe = async (p) => {
     const nav = p.locator("aside nav").first();
     await nav.waitFor({ state: "attached", timeout: 60000 });
@@ -245,19 +245,15 @@ async function main() {
   };
   const navB = await B.pagina("/pipeline");
   const menuB = await menuDe(navB.p);
-  ok("el menú de B solo tiene Bandeja y CRM Comercial (sin Marketing, Estudio de IA ni Resultados)", menuB.join() === "Bandeja,CRM Comercial", menuB.join());
-  const tabsB = await navB.p.getByRole("navigation", { name: "Secciones de CRM Comercial" }).getByRole("link").allInnerTexts();
-  ok("…y su CRM Comercial no trae Agenda, Tareas y notas ni Biblioteca", tabsB.join() === "Pipeline,Contactos", tabsB.join());
+  ok("el menú de B solo tiene Bandeja, Ventas y Contactos (sin Agenda, Biblioteca, Campañas, Agentes IA ni Resultados)", menuB.join() === "Bandeja,Ventas,Contactos", menuB.join());
   await navB.p.close();
   const navA = await A.pagina("/pipeline");
   const menuA = await menuDe(navA.p);
   ok(
-    "el menú de A sí (Marketing, Estudio de IA y Resultados)",
-    ["Bandeja", "CRM Comercial", "Estudio de IA", "Marketing", "Resultados"].every((n) => menuA.includes(n)),
+    "el menú de A sí (Agenda, Biblioteca, Campañas, Resultados y Agentes IA)",
+    ["Bandeja", "Ventas", "Contactos", "Agenda", "Biblioteca", "Campañas", "Resultados", "Agentes IA"].every((n) => menuA.includes(n)),
     menuA.join()
   );
-  const tabsA = await navA.p.getByRole("navigation", { name: "Secciones de CRM Comercial" }).getByRole("link").allInnerTexts();
-  ok("…y su CRM Comercial trae Agenda y Biblioteca", tabsA.includes("Agenda") && tabsA.includes("Biblioteca"), tabsA.join());
   await navA.p.close();
   const ajustesB = await B.pagina("/settings/whatsapp");
   await ajustesB.p.getByRole("navigation", { name: "Secciones de Ajustes" }).waitFor({ timeout: 30000 });

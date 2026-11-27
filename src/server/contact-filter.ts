@@ -1,5 +1,4 @@
 import { and, eq, isNull, or, sql, type SQL } from "drizzle-orm";
-import { z } from "zod";
 import { schema } from "@/lib/db";
 import { digitsOnly, normalizeText } from "@/lib/search";
 import { WA_CONSENT_VALUES, type WaConsent } from "@/lib/tags";
@@ -61,12 +60,6 @@ export function filterFromSearchParams(params: URLSearchParams): ContactFilter |
   };
 }
 
-/** Mismo filtro, validado desde un body JSON (campañas). */
-export const contactFilterSchema = z.object({
-  tagIds: z.array(z.string().min(1)).max(50).optional(),
-  source: z.enum(SOURCE_FILTER_VALUES).optional(),
-  consent: z.enum(WA_CONSENT_VALUES).optional(),
-});
 
 /**
  * "Llegó por un anuncio" igual que lo deduce la ficha (018): hay atribución

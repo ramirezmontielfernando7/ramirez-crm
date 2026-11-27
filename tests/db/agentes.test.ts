@@ -475,7 +475,7 @@ describe("vista previa (POST /api/lab/preview)", () => {
     expect(await turnosLab(A.id)).toBe(usoAntes);
   });
 
-  it("agente de otra organización → 404; módulo Laboratorio apagado → 404", async () => {
+  it("agente de otra organización → 404; módulo Agente apagado → 404; Esencial (sin Laboratorio) sí puede", async () => {
     owner(B.id);
     const [gA] = await generales(A.id);
     expect((await preview({ agentId: gA!.id, config: cfg(), history: [], message: "hola" })).status).toBe(404);
@@ -486,9 +486,13 @@ describe("vista previa (POST /api/lab/preview)", () => {
     forgetOrgModules(B.id);
     try {
       const [gB] = await generales(B.id);
+      // Esencial: sin Laboratorio, la vista previa del agente sigue disponible.
+      expect((await preview({ agentId: gB!.id, config: cfg(), history: [], message: "hola" })).status).toBe(200);
+      await sys().update(schema.organizationModule).set({ agent: false, lab: false }).where(eq(schema.organizationModule.organizationId, B.id));
+      forgetOrgModules(B.id);
       expect((await preview({ agentId: gB!.id, config: cfg(), history: [], message: "hola" })).status).toBe(404);
     } finally {
-      await sys().update(schema.organizationModule).set({ lab: true }).where(eq(schema.organizationModule.organizationId, B.id));
+      await sys().update(schema.organizationModule).set({ agent: true, lab: true }).where(eq(schema.organizationModule.organizationId, B.id));
       forgetOrgModules(B.id);
     }
   });

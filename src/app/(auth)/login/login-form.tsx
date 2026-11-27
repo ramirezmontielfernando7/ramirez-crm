@@ -1,0 +1,96 @@
+"use client";
+
+import { useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { signIn } from "@/lib/auth/client";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+
+/** Solo rutas propias («/…»), nunca otro sitio («//sitio», «/\\sitio»). */
+function safeNext(raw: string | null): string | null {
+  if (!raw || !raw.startsWith("/") || raw.startsWith("//") || raw.startsWith("/\\")) return null;
+  return raw;
+}
+
+export function LoginForm({ signupOpen }: { signupOpen: boolean }) {
+  const router = useRouter();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  async function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
+    const { error: err } = await signIn.email({ email, password });
+    setLoading(false);
+    if (err) {
+      setError(
+        err.status === 429
+          ? "Demasiados intentos. Espera unos minutos."
+          : // Fase 3: el negocio está suspendido (la contraseña era correcta).
+            err.code === "ORGANIZATION_SUSPENDED"
+            ? "Tu negocio está suspendido. Contacta a soporte de la plataforma."
+            : "Correo o contraseña incorrectos."
+      );
+      return;
+    }
+    // 047 PR 3: «Iniciar sesión» de una app de IA regresa a su pantalla de aceptar.
+    router.replace(safeNext(new URLSearchParams(window.location.search).get("next")) ?? "/inbox");
+    router.refresh();
+  }
+
+  return (
+    <Card className="shadow-md">
+      <CardHeader>
+        <CardTitle>Iniciar sesión</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={onSubmit} className="space-y-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="email">Correo</Label>
+            <Input
+              id="email"
+              type="email"
+              autoComplete="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="password">Contraseña</Label>
+            <Input
+              id="password"
+              type="password"
+              autoComplete="current-password"
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+          </div>
+          {error && <p className="text-sm text-destructive">{error}</p>}
+          <Button type="submit" className="w-full" disabled={loading}>
+            {loading ? "Entrando…" : "Entrar"}
+          </Button>
+          {signupOpen ? (
+            <p className="text-center text-sm text-muted-foreground">
+              ¿Primera vez aquí?{" "}
+              <Link href="/register" className="text-primary hover:underline">
+                Crear la cuenta inicial
+              </Link>
+            </p>
+          ) : (
+            <p className="text-center text-xs text-muted-foreground">
+              ¿Olvidaste tu contraseña? Pídele un enlace nuevo a quien te dio acceso.
+            </p>
+          )}
+        </form>
+      </CardContent>
+    </Card>
+  );
+}

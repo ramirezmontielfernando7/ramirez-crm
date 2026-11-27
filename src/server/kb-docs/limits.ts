@@ -8,7 +8,7 @@ import { DEFAULT_KB_TOTAL_BYTES } from "@/lib/limits";
  * (`kb_document_limit`, los fija el operador con scripts/kb-limits.mjs) o, si
  * no tiene (o vale NULL), los del entorno.
  */
-export type KbDocLimits = { maxFileBytes: number; maxDocuments: number; maxChunks: number; maxTotalBytes: number };
+type KbDocLimits = { maxFileBytes: number; maxDocuments: number; maxChunks: number; maxTotalBytes: number };
 
 export function envKbDocLimits(): KbDocLimits {
   const env = getEnv();

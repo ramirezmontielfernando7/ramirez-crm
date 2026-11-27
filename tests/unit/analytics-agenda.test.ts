@@ -77,6 +77,14 @@ describe("botBlock y la bandera AGENDA", () => {
 describe("la sección del agente y la bandera AGENDA", () => {
   const datos: BotBlockDto = {
     period: periodo.dto,
+    team: {
+      chats: 12,
+      medianSeconds: 600,
+      answeredByPerson: 9,
+      within5Min: rate(4, 9),
+      within1Hour: rate(8, 9),
+      unanswered: 1,
+    },
     conversations: 12,
     aiReplyRate: rate(10, 11),
     firstResponseSeconds: 42,

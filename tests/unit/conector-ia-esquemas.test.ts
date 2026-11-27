@@ -43,4 +43,11 @@ describe("conector de IA — esquemas compatibles con ChatGPT", () => {
     }
     expect(out).toEqual([]);
   });
+
+  it("cada herramienta declara su esquema de acceso (ChatGPT lo pide por herramienta)", () => {
+    for (const t of tools) {
+      expect(t.securitySchemes).toEqual([{ type: "oauth2", scopes: [expect.stringMatching(/^(read|write)$/)] }]);
+      expect(typeof t.annotations.readOnlyHint).toBe("boolean");
+    }
+  });
 });

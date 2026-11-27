@@ -8,7 +8,7 @@ import { getBranding } from "@/server/branding";
  * comparten `PATCH /api/pipeline/leads/[id]` y la IA conectada (047), para
  * que las reglas (moneda del negocio, fecha de la prioridad) sean una.
  */
-export type LeadFieldsInput = {
+type LeadFieldsInput = {
   /** Centavos enteros; `null` lo borra; ausente lo deja. */
   amountCents?: number | null;
   currency?: string | null;

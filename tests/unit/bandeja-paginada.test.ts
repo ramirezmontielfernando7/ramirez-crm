@@ -26,6 +26,7 @@ function fila(id: string, minutos: number, over: Partial<ConversationDto> = {}):
     assignee: null,
     stageName: null,
     stageColor: null,
+    waNumberId: null,
     leadId: null,
     stageId: null,
     tags: [],
@@ -53,9 +54,9 @@ const q = (over: Partial<ListQuery> = {}): ListQuery => ({ view: "main", status:
 describe("parámetros de la lista", () => {
   it("solo viaja lo que filtra, y el servidor lo lee igual", () => {
     expect(listQueryParams(q()).toString()).toBe("");
-    const p = listQueryParams(q({ status: "unread", q: "  José ", stage: "Nuevo", tag: "tg_1", owner: "mine", channel: "messenger" }));
+    const p = listQueryParams(q({ status: "unread", q: "  José ", stage: "Nuevo", tag: "tg_1", owner: "mine", channel: "messenger", number: "PN-2" }));
     expect(p.get("status")).toBe("unread");
-    expect(parseListFilters(p)).toEqual({ q: "José", stage: "Nuevo", tag: "tg_1", owner: "mine", channel: "messenger" });
+    expect(parseListFilters(p)).toEqual({ q: "José", stage: "Nuevo", tag: "tg_1", owner: "mine", channel: "messenger", number: "PN-2" });
     expect(parseListStatus(p.get("status"))).toBe("unread");
   });
 

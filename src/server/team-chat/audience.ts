@@ -36,7 +36,7 @@ export function computeAudience(input: {
 }
 
 /** La audiencia de un hilo, con la membresía y los ajustes de AHORA. */
-export async function threadAudience(
+async function threadAudience(
   organizationId: string,
   thread: { id: string; kind: TeamThreadKind },
   extraParticipantIds: readonly string[] = []

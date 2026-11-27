@@ -218,7 +218,9 @@ describe("imagen: la señal llega a Node", () => {
   const dockerfile = readFileSync(path.join(RAIZ, "Dockerfile"), "utf8");
   it("tini es el PID 1, Node reemplaza a la shell y Next no instala su manejador", () => {
     expect(dockerfile).toMatch(/ENTRYPOINT \["\/sbin\/tini", "-g", "--", "vocero-entrypoint\.sh"\]/);
-    expect(dockerfile).toMatch(/CMD \["sh", "-c", "node migrate\.mjs && exec node server\.js"\]/);
+    // `exec env -u … node`: `env` también hace exec, así que Node sigue
+    // reemplazando a la shell (y el superusuario sale del entorno, auditoría 2026-11).
+    expect(dockerfile).toMatch(/CMD \["sh", "-c", "node migrate\.mjs && exec env -u DATABASE_URL_MIGRATE node server\.js"\]/);
     expect(dockerfile).toMatch(/ENV NEXT_MANUAL_SIG_HANDLE=true/);
   });
 });

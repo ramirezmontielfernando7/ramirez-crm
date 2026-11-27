@@ -10,7 +10,7 @@ type Params = { params: Promise<{ id: string }> };
 
 /** 031 — Guarda el BORRADOR. Producción no cambia hasta publicar. */
 export const PUT = withAuth(async (session, req: Request, ctx: Params) => {
-  const off = (await moduleOff(session.organizationId, "lab")) ?? (await moduleOff(session.organizationId, "agent"));
+  const off = await moduleOff(session.organizationId, "agent");
   if (off) return off;
   const { id } = await ctx.params;
   const body = await parseBody(req, agentConfigSchema);

@@ -11,9 +11,8 @@ export const STATUS_LABEL: Record<AgentSummary["status"], string> = {
   changes: "Cambios sin publicar",
 };
 
-export const NO_NAME_LABEL = "Sin nombre · habla como el negocio";
 
-export type ApiResult<T> = { ok: true; data: T } | { ok: false; status: number; code: string; message: string };
+type ApiResult<T> = { ok: true; data: T } | { ok: false; status: number; code: string; message: string };
 
 /** Llama a la API y devuelve el error en español listo para mostrar (nunca lanza). */
 export async function call<T>(path: string, init?: RequestInit & { json?: unknown }): Promise<ApiResult<T>> {

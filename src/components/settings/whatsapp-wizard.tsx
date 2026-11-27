@@ -23,6 +23,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import type { WebhookSettingsDto } from "@/lib/webhook-settings";
 import { Label } from "@/components/ui/label";
+import { ColorPicker } from "@/components/tags/color-picker";
+import { isTagColor, type TagColor } from "@/lib/tags";
 import { CONNECTION_STATUS_LABEL, type ConnectionMode } from "@/lib/direct-connection";
 import { phoneCompact } from "@/lib/utils";
 import { EmbeddedSignupCard, type EmbeddedSignupConfig } from "@/components/settings/embedded-signup-card";
@@ -34,7 +36,14 @@ type Connection = {
   verifiedName: string | null;
   status: "connected" | "reconnect_required";
   tokenLast4: string;
+  /** 0080: el nombre que la empresa le puso al número («Ventas»). */
+  label?: string | null;
+  /** 0080: color de la etiqueta del número (clave de la paleta). */
+  color?: string | null;
 };
+
+/** 0080: un número de la lista (el principal va primero). */
+type NumberRow = Connection & { isPrimary: boolean; tokenLast4: string | null };
 
 type WebhookInfo = WebhookSettingsDto;
 type PlatformWebhookInfo = Extract<WebhookSettingsDto, { managedByPlatform: false }>;
@@ -49,6 +58,7 @@ export function WhatsappWizard({
   templatesHref?: string | null;
 }) {
   const [connection, setConnection] = useState<Connection | null>(null);
+  const [numbers, setNumbers] = useState<NumberRow[]>([]);
   const [webhook, setWebhook] = useState<WebhookInfo | null>(null);
   const [embeddedSignup, setEmbeddedSignup] = useState<EmbeddedSignupConfig | null>(null);
   const [loaded, setLoaded] = useState(false);
@@ -66,6 +76,7 @@ export function WhatsappWizard({
     });
     if (c) {
       setConnection(c.connection);
+      setNumbers(c.numbers ?? []);
       setEmbeddedSignup(c.embeddedSignup ?? null);
     }
     if (w) setWebhook(w);
@@ -87,7 +98,10 @@ export function WhatsappWizard({
   const showAdvanced = advancedOpen || needsAttention;
   const advanced = (
     <>
-      <ConnectForm existing={connection} onSaved={() => void refetch()} />
+      <ConnectForm
+        existing={numbers.find((n) => n.status === "reconnect_required") ?? (numbers.length > 1 ? null : connection)}
+        onSaved={() => void refetch()}
+      />
       {webhook &&
         (webhook.managedByPlatform ? <ManagedWebhookCard webhook={webhook} /> : <WebhookCard webhook={webhook} />)}
     </>
@@ -98,11 +112,11 @@ export function WhatsappWizard({
   }
 
   return (
-    <div className="max-w-5xl space-y-5">
+    <div className="space-y-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="space-y-1">
-          <h2 className="text-[22px] font-semibold tracking-tight">Canales y conexiones</h2>
-          <p className="text-[13.5px] text-text-2">
+        <div className="min-w-[min(100%,16rem)] flex-1 space-y-1">
+          <h2 className="text-[22px] font-semibold tracking-tight max-lg:hidden">Canales y conexiones</h2>
+          <p className="text-[13.5px] leading-relaxed text-text-2">
             {connected ? "Tus números y por dónde salen los mensajes." : "Conecta tu WhatsApp para recibir y contestar chats desde Dashfort."}
           </p>
         </div>
@@ -131,7 +145,18 @@ export function WhatsappWizard({
 
       {((connection && connected) || direct) && (
         <div className="grid items-stretch gap-4 lg:grid-cols-2">
-          {connection && connected && <OfficialNumberCard connection={connection} />}
+          {numbers.length > 0
+            ? numbers
+                .filter((n) => n.status === "connected")
+                .map((n) => (
+                  <OfficialNumberCard
+                    key={n.phoneNumberId}
+                    connection={n}
+                    many={numbers.length > 1}
+                    onChanged={() => void refetch()}
+                  />
+                ))
+            : connection && connected && <OfficialNumberCard connection={connection} many={false} onChanged={() => void refetch()} />}
           {direct && <LinkedPhoneCard />}
         </div>
       )}
@@ -338,32 +363,79 @@ function NewChatsModeCard() {
 }
 
 /** «WhatsApp oficial · Conectado»: el número y su salud (lo que Meta reportó hoy, de la base propia). */
-function OfficialNumberCard({ connection }: { connection: Connection }) {
+function OfficialNumberCard({
+  connection,
+  many,
+  onChanged,
+}: {
+  connection: Connection;
+  /** 0080: hay más de un número (aparece el nombre editable y «Quitar»). */
+  many: boolean;
+  onChanged: () => void;
+}) {
   const [summary, setSummary] = useState<HealthSummaryDto | null>(null);
   const [busy, setBusy] = useState(false);
+  const healthUrl = `/api/number-health?number=${encodeURIComponent(connection.phoneNumberId)}`;
   const load = useCallback(async () => {
-    const res = await fetchJson<HealthSummaryDto>("/api/number-health");
+    const res = await fetchJson<HealthSummaryDto>(healthUrl);
     if (res.ok) setSummary(res.data);
-  }, []);
+  }, [healthUrl]);
   useEffect(() => {
     void load();
   }, [load]);
   async function refresh() {
     setBusy(true);
-    const res = await fetchJson<HealthSummaryDto>("/api/number-health", { method: "POST" });
+    const res = await fetchJson<HealthSummaryDto>(healthUrl, { method: "POST" });
     setBusy(false);
     if (res.ok) setSummary(res.data);
   }
+  // 0080: nombre del número y quitarlo.
+  const [name, setName] = useState(connection.label ?? "");
+  const [nameMsg, setNameMsg] = useState<string | null>(null);
+  const [color, setColor] = useState<TagColor | null>(isTagColor(connection.color) ? connection.color : null);
+  const numberUrl = `/api/settings/whatsapp/numbers/${encodeURIComponent(connection.phoneNumberId)}`;
+  async function saveName() {
+    if (name.trim() === (connection.label ?? "")) return;
+    const res = await fetchJson<{ ok: true }>(numberUrl, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ label: name.trim() === "" ? null : name.trim() }),
+    });
+    setNameMsg(res.ok ? "Nombre guardado" : "No se pudo guardar el nombre");
+    if (res.ok) onChanged();
+  }
+  async function saveColor(c: TagColor) {
+    setColor(c);
+    const res = await fetchJson<{ ok: true }>(numberUrl, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ color: c }),
+    });
+    setNameMsg(res.ok ? "Color guardado" : "No se pudo guardar el color");
+    if (res.ok) onChanged();
+  }
+  async function remove() {
+    if (!window.confirm("¿Quitar este número? Sus chats seguirán en la bandeja y se contestarán desde tu número principal.")) return;
+    const res = await fetchJson<{ ok: true }>(numberUrl, { method: "DELETE" });
+    if (res.ok) onChanged();
+    else setNameMsg("No se pudo quitar el número");
+  }
   const today = summary?.today ?? null;
   const limit = today?.messagingLimitValue ?? null;
+  // Meta dice que el número ya no está conectado: la etiqueta no puede decir «Conectado».
+  const down = summary?.alerts.some((a) => a.code === "number_status") ?? false;
   const tile = "rounded-lg bg-subtle px-3 py-2.5";
   return (
     <Card className="min-w-0" data-testid="phone-health-card">
       <CardHeader className="flex-row items-center justify-between space-y-0 border-b border-border py-3">
         <CardTitle className="flex items-center gap-2 text-[14px]">
-          <MessageCircle className="h-[18px] w-[18px] text-success" strokeWidth={1.8} />
-          WhatsApp oficial
-          <Badge variant="success">Conectado</Badge>
+          <MessageCircle className={`h-[18px] w-[18px] ${down ? "text-danger-text" : "text-success"}`} strokeWidth={1.8} />
+          {connection.label || "WhatsApp oficial"}
+          {down ? (
+            <Badge variant="destructive" data-testid="numero-desconectado">Desconectado</Badge>
+          ) : (
+            <Badge variant="success">Conectado</Badge>
+          )}
         </CardTitle>
         <Button
           size="sm"
@@ -381,6 +453,34 @@ function OfficialNumberCard({ connection }: { connection: Connection }) {
           <p className="text-xl font-semibold">{connection.displayPhoneNumber ?? connection.phoneNumberId}</p>
           <p className="text-sm text-muted-foreground">
             {connection.verifiedName ? `${connection.verifiedName} · ` : ""}token …{connection.tokenLast4}
+          </p>
+        </div>
+        <div className="space-y-1.5" data-testid="numero-nombre">
+          <Label htmlFor={`num-label-${connection.phoneNumberId}`}>Nombre del número</Label>
+          <div className="flex gap-2">
+            <Input
+              id={`num-label-${connection.phoneNumberId}`}
+              placeholder="Ej. Ventas Cancún"
+              maxLength={40}
+              value={name}
+              onChange={(e) => {
+                setName(e.target.value);
+                setNameMsg(null);
+              }}
+              onBlur={() => void saveName()}
+            />
+            {(many || down) && (
+              <Button size="sm" variant="outline" onClick={() => void remove()} data-testid="numero-quitar">
+                Quitar
+              </Button>
+            )}
+          </div>
+          <div className="flex items-center gap-2 pt-1" data-testid="numero-color">
+            <span className="text-xs text-muted-foreground">Color de la etiqueta</span>
+            <ColorPicker value={color} onChange={(c) => void saveColor(c)} label="Color de la etiqueta del número" small />
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {nameMsg ?? "Este nombre sale en cada chat de la bandeja y sirve para filtrar por número."}
           </p>
         </div>
         {today ? (
@@ -408,6 +508,12 @@ function OfficialNumberCard({ connection }: { connection: Connection }) {
         ) : (
           <p className="text-sm text-muted-foreground">Todavía no hay lectura de hoy. Pulsa «Actualizar».</p>
         )}
+        {down && (
+          <p className="text-sm text-danger-text" data-testid="numero-desconectado-ayuda">
+            Meta ya no tiene este número en tu cuenta de WhatsApp Business. No se puede enviar ni recibir por aquí.
+            Conéctalo de nuevo con «Conectar otro número» y quita esta tarjeta con «Quitar».
+          </p>
+        )}
         {summary?.alerts.map((a) => (
           <p key={a.code} className={a.level === "danger" ? "text-sm text-danger-text" : "text-sm text-warning-text"}>
             {a.message}
@@ -430,6 +536,7 @@ function ConnectForm({
     existing?.phoneNumberId ?? ""
   );
   const [token, setToken] = useState("");
+  const [label, setLabel] = useState(existing?.label ?? "");
   const [testResult, setTestResult] = useState<
     | { ok: true; display: string }
     | { ok: false; message: string }
@@ -477,7 +584,7 @@ function ConnectForm({
     const res = await fetch("/api/settings/whatsapp", {
       method: "PUT",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ wabaId, phoneNumberId, token }),
+      body: JSON.stringify({ wabaId, phoneNumberId, token, ...(label.trim() ? { label: label.trim() } : {}) }),
     }).catch(() => null);
     setSaving(false);
     if (!res?.ok) {
@@ -498,7 +605,7 @@ function ConnectForm({
     <Card>
       <CardHeader>
         <CardTitle>
-          {existing ? "Reconectar / actualizar el número" : "Conectar tu número de WhatsApp"}
+          {existing ? "Reconectar / actualizar el número" : "Conectar un número de WhatsApp"}
         </CardTitle>
         <CardDescription>
           Pega las credenciales de WhatsApp Cloud API. El token se valida
@@ -551,6 +658,16 @@ function ConnectForm({
               onChange={(e) => setPhoneNumberId(e.target.value)}
             />
           </div>
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="num-label-new">Nombre del número (opcional)</Label>
+          <Input
+            id="num-label-new"
+            placeholder="Ej. Ventas Mérida"
+            maxLength={40}
+            value={label}
+            onChange={(e) => setLabel(e.target.value)}
+          />
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="token">Token de acceso</Label>

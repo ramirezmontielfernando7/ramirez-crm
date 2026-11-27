@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { SettingsHeader } from "@/components/settings/settings-header";
 
 /**
  * 016 — Ajustes → Anuncios: conectar el dataset de Meta, decir qué etapa
@@ -142,7 +143,8 @@ export function AdsClient() {
   }
 
   return (
-    <div className="max-w-3xl space-y-6">
+    <div className="space-y-6">
+      <SettingsHeader title="Anuncios (Meta)" description="Avísale a Meta qué conversaciones de anuncios se volvieron clientes, para que muestre tus anuncios a gente parecida." />
       <Card>
         <CardHeader>
           <CardTitle>Conversiones de anuncios</CardTitle>
@@ -194,7 +196,7 @@ export function AdsClient() {
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="capi-stage">¿Qué etapa es un lead calificado?</Label>
+            <Label htmlFor="capi-stage">¿En qué etapa un prospecto ya es calificado?</Label>
             <select
               id="capi-stage"
               value={qualifiedStageId}
@@ -253,7 +255,7 @@ export function AdsClient() {
             <p className="text-sm text-muted-foreground">Cargando…</p>
           ) : activity.length === 0 ? (
             <p className="text-sm text-muted-foreground">
-              Todavía no hay conversiones. Aparecerán cuando un lead que llegó
+              Todavía no hay conversiones. Aparecerán cuando un prospecto que llegó
               por un anuncio avance de etapa.
             </p>
           ) : (

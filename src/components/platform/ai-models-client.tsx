@@ -37,6 +37,7 @@ const FUNCS: { fn: AiFunction; label: string; hint: string }[] = [
 ];
 
 const PLANS = [
+  { scope: "inicio", label: "Inicio" },
   { scope: "esencial", label: "Esencial" },
   { scope: "pro", label: "Pro" },
   { scope: "ultra", label: "Ultra" },
@@ -74,6 +75,7 @@ export function ModelSelect({
     <select
       className={cn(selectCls, value === null && "text-text-2")}
       value={value ?? ""}
+      aria-label="Modelo"
       onChange={(e) => onChange(e.target.value || null)}
       data-testid={testId}
     >
@@ -103,6 +105,7 @@ export function EffortSelect({
     <select
       className={cn(selectCls, value === null && "text-text-2")}
       value={value ?? ""}
+      aria-label="Esfuerzo"
       onChange={(e) => onChange((e.target.value || null) as AiEffort | null)}
       data-testid={testId}
     >
@@ -389,7 +392,7 @@ function InstanceModelsCard({ data, onSaved }: { data: Overview; onSaved: () => 
 
 /* ───────── Valores por plan ───────── */
 
-function PlanRow({ scope, label, data, onSaved }: { scope: "esencial" | "pro" | "ultra"; label: string; data: Overview; onSaved: () => void }) {
+function PlanRow({ scope, label, data, onSaved }: { scope: "inicio" | "esencial" | "pro" | "ultra"; label: string; data: Overview; onSaved: () => void }) {
   const row = data.scopes[scope];
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<Values>(valuesOf(row));

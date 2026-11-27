@@ -6,7 +6,7 @@ import { deleteMediaFile } from "@/server/whatsapp/media";
 
 const log = logger("mi-numero");
 
-export type Settled = { kept: number; deleted: number; contactsDeleted: number };
+type Settled = { kept: number; deleted: number; contactsDeleted: number };
 
 /**
  * Mi número (046), PR 6 — Lo que pasa con los chats de un número que se da de

@@ -58,6 +58,9 @@ const PROTEGIDAS: [string, Method, Permission][] = [
   ["settings/branding/favicon", "DELETE", "settings.manage"],
   ["settings/whatsapp", "GET", "settings.manage"],
   ["settings/whatsapp", "PUT", "settings.manage"],
+  // 0080: nombrar y quitar un número oficial.
+  ["settings/whatsapp/numbers/[phoneNumberId]", "PATCH", "settings.manage"],
+  ["settings/whatsapp/numbers/[phoneNumberId]", "DELETE", "settings.manage"],
   // Tech Provider (PR 1): cierre de «Conectar con Facebook».
   ["settings/whatsapp/embedded-signup", "POST", "settings.manage"],
   // Conexión directa (PR 3): límites de envío (Propietario; delegable).
@@ -107,6 +110,8 @@ const PROTEGIDAS: [string, Method, Permission][] = [
   ["calendar/settings", "GET", "settings.manage"],
   ["calendar/settings", "PUT", "settings.manage"],
   ["seed/demo", "POST", "settings.manage"],
+  ["seed/demo", "DELETE", "settings.manage"],
+  ["onboarding", "PUT", "settings.manage"],
   // 030 (PR 4): Ajustes → Navegación (menú por rol), solo el Propietario.
   ["settings/navigation", "GET", "settings.manage"],
   ["settings/navigation", "PUT", "settings.manage"],
@@ -161,6 +166,10 @@ const PROTEGIDAS: [string, Method, Permission][] = [
   // 034: eliminar un chat para siempre; archivar (PATCH) lo ve cualquiera que vea el chat.
   ["conversations/[id]", "DELETE", "conversation.delete"],
   // 036 (PR 3a): avisos de consumo (solo el Propietario).
+  ["data-export", "GET", "data.export"],
+  // 049: bienvenida / fuera de horario / chats olvidados.
+  ["settings/auto-replies", "GET", "settings.manage"],
+  ["settings/auto-replies", "PUT", "settings.manage"],
   ["usage", "GET", "usage.read"],
   ["usage/alerts", "GET", "usage.read"],
   ["usage/alerts", "POST", "usage.read"],
@@ -181,6 +190,7 @@ const PROTEGIDAS: [string, Method, Permission][] = [
   ["settings/team", "POST", "users.manage"],
   ["settings/team/[id]", "PATCH", "users.manage"],
   ["settings/team/[id]", "DELETE", "users.manage"],
+  ["settings/team/[id]/link", "POST", "users.manage"],
   // Pipeline y plantillas.
   ["pipeline/stages", "POST", "pipeline.edit"],
   ["pipeline/stages/[id]", "PATCH", "pipeline.edit"],
@@ -196,6 +206,10 @@ const PROTEGIDAS: [string, Method, Permission][] = [
   ["templates/[id]/header-image", "POST", "templates.manage"],
   // Asignación.
   ["assignments", "POST", "assignment.manage"],
+  ["settings/chat-visibility", "GET", "settings.manage"],
+  ["settings/chat-visibility", "PUT", "settings.manage"],
+  ["settings/assignment-mode", "GET", "assignment.manage"],
+  ["settings/assignment-mode", "PUT", "assignment.manage"],
   ["assignments/bulk", "POST", "assignment.manage"],
   // 021 — Etiquetas, importar/exportar y campañas.
   ["contact-tags", "POST", "tags.manage"],
@@ -235,6 +249,9 @@ const PROTEGIDAS: [string, Method, Permission][] = [
   ["analytics/ads", "GET", "results.read"],
   ["analytics/bot", "GET", "results.read"],
   ["analytics/hygiene", "GET", "results.read"],
+  ["analytics/team", "GET", "results.all"],
+  ["settings/team-sla", "GET", "results.all"],
+  ["settings/team-sla", "PUT", "settings.manage"],
   // 024 — Conocimientos: mantenerlo es de Propietario y Coordinador.
   ["knowledge", "POST", "knowledge.manage"],
   ["knowledge/[id]", "PATCH", "knowledge.manage"],
@@ -266,6 +283,7 @@ const FILTRADAS: [string, Method][] = [
   ["conversations/[id]", "PATCH"],
   // 031 (PR B): «Atiende: …» de la conversación que se puede ver (getConversation).
   ["conversations/[id]/agent", "GET"],
+  ["conversations/[id]/claim", "POST"],
   ["conversations/[id]/messages", "GET"],
   ["conversations/[id]/messages", "POST"],
   ["conversations/[id]/messages/media", "POST"],
@@ -302,6 +320,10 @@ const FILTRADAS: [string, Method][] = [
 
 /** Del negocio, sin datos de clientes: cualquier rol con sesión. */
 const DEL_NEGOCIO: [string, Method][] = [
+  // 048: aviso a todos y prueba / pago de la propia organización (sin montos).
+  ["notices", "GET"],
+  // 0080: los números oficiales (nombre y teléfono) para etiquetar la Bandeja.
+  ["whatsapp-numbers", "GET"],
   ["agent/brain-status", "GET"],
   ["pipeline/stages", "GET"],
   ["pipeline/loss-reasons", "GET"],
@@ -314,6 +336,8 @@ const DEL_NEGOCIO: [string, Method][] = [
   // 022: preferencias de interfaz de quien pide (nunca de otro).
   ["preferences", "GET"],
   ["preferences", "PUT"],
+  // Auditoría UX 2026-11: qué le falta a la empresa (sin datos de clientes).
+  ["onboarding", "GET"],
   // 023: asistente de redacción del asesor (reescribe un borrador; no lee
   // conversaciones ni contactos). Todos los roles.
   ["writing-assist", "GET"],
@@ -402,6 +426,12 @@ const POR_AUTOR: [string, Method][] = [
  * 404: como si la ruta no existiera.
  */
 const PLATAFORMA: [string, Method][] = [
+  // 048: cobro a mano, prueba gratis e interruptores de emergencia.
+  ["platform/organizations/[id]/billing", "GET"],
+  ["platform/organizations/[id]/billing", "PUT"],
+  ["platform/organizations/[id]/billing/payments", "POST"],
+  ["platform/controls", "GET"],
+  ["platform/controls", "PUT"],
   ["platform/organizations", "GET"],
   ["platform/organizations", "POST"],
   ["platform/organizations/[id]/members", "GET"],
@@ -449,6 +479,11 @@ const PLATAFORMA: [string, Method][] = [
  *   código de un solo uso y PKCE son la credencial.
  */
 const EXENTAS_PREFIJOS = ["auth/", "bot/", "mcp", "oauth/register", "oauth/token", "oauth/revoke", "webhooks/", "dev/", "health", "branding/favicon", "account-link/", "csp-report"];
+
+// El login valida credenciales con Better Auth y revoke exige el Bearer firmado.
+const AUTENTICACION_MOVIL = new Set(["mobile/session POST", "mobile/session/revoke POST"]);
+const PUSH_MOVIL = ["mobile/push/register", "mobile/push/unregister"];
+
 
 async function handler(route: string, method: Method): Promise<Handler> {
   const mod = (await import(`@/app/api/${route}/route`)) as Record<string, Handler>;
@@ -564,7 +599,7 @@ describe("020 — cobertura: ninguna ruta sin decidir su permiso", () => {
         ...code.matchAll(/export (?:const|async function) (GET|POST|PUT|PATCH|DELETE)\b/g),
       ].map((m) => m[1]);
       for (const method of methods) {
-        if (!conocidas.has(`${route} ${method}`)) sinDecidir.push(`${route} ${method}`);
+        if (!conocidas.has(`${route} ${method}`) && !AUTENTICACION_MOVIL.has(`${route} ${method}`) && !(method === "POST" && PUSH_MOVIL.includes(route))) sinDecidir.push(`${route} ${method}`);
       }
     }
     expect(
@@ -586,4 +621,9 @@ describe("020 — cobertura: ninguna ruta sin decidir su permiso", () => {
       expect(bloque, `${route} ${method}`).toContain(`permission: "${permission}"`);
     }
   });
+});
+
+it.each(PUSH_MOVIL)("%s comparte withAuth más el control de Bearer móvil", (route) => {
+  const code = readFileSync(path.join(API, route, "route.ts"), "utf8");
+  expect(code).toMatch(/export const POST = withAuth\(/);
 });

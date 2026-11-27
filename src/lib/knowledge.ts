@@ -45,7 +45,7 @@ export const KNOWLEDGE_TITLE_MAX = 200;
 /** Lo que cabe en un mensaje de WhatsApp (4096) — el cuerpo se envía tal cual. */
 export const KNOWLEDGE_BODY_MAX = 4096;
 export const KNOWLEDGE_TAGS_MAX = 10;
-export const KNOWLEDGE_TAG_MAX = 40;
+const KNOWLEDGE_TAG_MAX = 40;
 // El tope del archivo (100 MB y los de WhatsApp por tipo) vive en `upload-limits.ts`.
 
 /** Qué archivos se aceptan en el selector (PDF, imágenes, Word, texto). */

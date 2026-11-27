@@ -19,7 +19,7 @@ import { recipientCounts } from "@/server/campaigns/queue";
 
 type Transition = { from: CampaignStatus[]; set: Partial<typeof schema.campaign.$inferInsert> };
 
-export async function transition(organizationId: string, campaignId: string, t: Transition): Promise<boolean> {
+async function transition(organizationId: string, campaignId: string, t: Transition): Promise<boolean> {
   const rows = await getDb()
     .update(schema.campaign)
     .set(t.set)
@@ -118,12 +118,6 @@ export function completeCampaign(organizationId: string, campaignId: string): Pr
   });
 }
 
-export function failCampaign(organizationId: string, campaignId: string, error: string): Promise<boolean> {
-  return transition(organizationId, campaignId, {
-    from: ["sending"],
-    set: { status: "failed", finishedAt: new Date(), error: error.slice(0, 500) },
-  });
-}
 
 /** Las pausas automáticas sin resolver (para el aviso de la app). */
 export async function autoPausedCampaigns(organizationId: string) {

@@ -347,7 +347,7 @@ export function TeamChatClient() {
         ) : (
           <div className="thread-bg flex flex-1 flex-col items-center justify-center gap-2 px-6 text-center">
             <p className="text-[24px] font-semibold leading-tight text-text-2">Elige una conversación del equipo</p>
-            <p className="kicker">Chat de equipo · tiempo real</p>
+            <p className="text-sm text-text-3">Lo que se escribe aquí es interno: nunca sale a WhatsApp.</p>
           </div>
         )}
       </section>

@@ -101,6 +101,11 @@ async function main() {
     body: JSON.stringify({ wabaId: WABA, phoneNumberId: PN, token: "tok-mv" }),
   });
   ok("conexión WhatsApp guardada", conn.res.ok, JSON.stringify(conn.json));
+  // 0080: conectar AGREGA un número; este guion trabaja con el principal, así
+  // que deja solo el suyo (antes conectar reemplazaba).
+  for (const n of (await api("/api/settings/whatsapp")).json?.numbers ?? []) {
+    if (n.phoneNumberId !== PN) await api(`/api/settings/whatsapp/numbers/${encodeURIComponent(n.phoneNumberId)}`, { method: "DELETE" });
+  }
 
   console.log("\n== Alta: cuerpo con TRES variables ==");
   const name = `confirmacion_cita_${stamp}`;

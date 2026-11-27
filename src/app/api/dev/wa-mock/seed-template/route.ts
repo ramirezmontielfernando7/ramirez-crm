@@ -16,7 +16,7 @@ const bodySchema = z.object({
   language: z.string().default("es_MX"),
   category: z.string().default("MARKETING"),
   status: z.enum(["PENDING", "APPROVED", "REJECTED", "PAUSED", "DISABLED"]).default("APPROVED"),
-  components: z.array(z.record(z.unknown())).min(1),
+  components: z.array(z.record(z.string(), z.unknown())).min(1),
   qualityScore: z.string().optional(),
   rejectedReason: z.string().optional(),
 });

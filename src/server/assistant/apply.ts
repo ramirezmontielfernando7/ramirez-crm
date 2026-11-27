@@ -17,7 +17,7 @@ const log = logger("asistente");
 /** Una respuesta a la vez: dos clics seguidos no aplican dos veces. */
 const enCurso = new Set<string>();
 
-export type ApplyOutcome =
+type ApplyOutcome =
   | { ok: true; proposals: AssistantProposal[] }
   | { ok: false; status: number; code: string; message: string };
 

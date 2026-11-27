@@ -4,7 +4,7 @@
  * modelo no lo detecte. Diseñado para exigir un verbo de contacto cerca del
  * objeto humano — "somos 4 personas" NO matchea (test unitario).
  */
-export const HANDOFF_BACKUP_REGEX =
+const HANDOFF_BACKUP_REGEX =
   /(hablar|comunicar|contactar)[\s\S]{0,40}?(asesor|humano|persona|alguien)|un asesor|atenci[oó]n humana/i;
 
 export function matchesHandoffIntent(text: string): boolean {

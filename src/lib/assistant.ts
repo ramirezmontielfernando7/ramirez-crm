@@ -32,6 +32,8 @@ export type AssistantStatus = {
 export const ASSISTANT_NOTICE_TITLE = "Antes de usar el asistente";
 export const ASSISTANT_COST_NOTICE =
   "Cada pregunta al asistente consume bastante crédito de IA, porque revisa muchos datos para contestarte. El crédito del mes se puede agotar rápido; cuando se acaba, el asistente se detiene hasta el mes siguiente.";
+/** El recordatorio corto del panel (la confirmación ya dio el aviso completo). */
+export const ASSISTANT_COST_REMINDER = "Cada pregunta usa crédito de IA de tu plan. Si se acaba, el asistente descansa hasta el mes siguiente.";
 export const ASSISTANT_READ_ONLY_NOTICE =
   "El asistente lee los datos de tu organización; cualquier cambio o mensaje a un cliente solo lo propone y sale cuando tú pulsas «Aplicar».";
 

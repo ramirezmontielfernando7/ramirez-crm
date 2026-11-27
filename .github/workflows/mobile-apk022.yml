@@ -1,0 +1,167 @@
+name: Expo APK 0.2.2 unsigned
+on:
+  push:
+    branches: [claude/project-thread-bpelzp]
+    paths: [.github/workflows/mobile-apk022.yml]
+permissions:
+  contents: read
+concurrency:
+  group: dashfort-expo-022
+  cancel-in-progress: false
+jobs:
+  build:
+    if: github.repository == 'ramirezmontielfernando7/ramirez-crm' && github.ref == 'refs/heads/claude/project-thread-bpelzp'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      CI: '1'
+      EXPO_NO_TELEMETRY: '1'
+      SOURCE_SHA: 877646e55d9809a5963127426a2834534183983c
+      EXPO_PUBLIC_MODE: production
+      EXPO_PUBLIC_ALLOW_SEND: "true"
+      EXPO_PUBLIC_API_URL: https://dash.demfort.com
+    defaults:
+      run:
+        shell: bash
+        working-directory: apps/mobile
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: 877646e55d9809a5963127426a2834534183983c
+          persist-credentials: false
+          fetch-depth: 1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: '24.22.1'
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Check source and free storage
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          test ! -d android
+          df -h .
+          test "$(df --output=avail -B1 . | tail -1)" -ge 8589934592
+          node -e 'const a=require("./app.json").expo; if(a.version!=="0.2.2"||a.android.versionCode!==13||a.android.package!=="com.demfort.dashfort.dev"||a.updates.enabled!==false)process.exit(1)'
+      - name: Write public Firebase client config (not a secret)
+        run: |
+          set -euo pipefail
+          cat > google-services.json <<'JSON'
+          {
+            "project_info": {
+              "project_number": "997262590285",
+              "project_id": "demfortoficial",
+              "storage_bucket": "demfortoficial.firebasestorage.app"
+            },
+            "client": [
+              {
+                "client_info": {
+                  "mobilesdk_app_id": "1:997262590285:android:9ab384f9a1078f8daf3704",
+                  "android_client_info": { "package_name": "com.demfort.dashfort.dev" }
+                },
+                "oauth_client": [],
+                "api_key": [ { "current_key": "AIzaSyBQAeX6-GI4ZZbljOBogGqxp8Eq7jo2oww" } ],
+                "services": { "appinvite_service": { "other_platform_oauth_client": [] } }
+              }
+            ],
+            "configuration_version": "1"
+          }
+          JSON
+          ! grep -q private_key google-services.json
+      - name: Install only the mobile lockfile and run offline logic checks
+        run: |
+          set -euo pipefail
+          npm ci --no-audit --no-fund
+          npm run typecheck
+          npm run format:check
+          npm test
+          python3 scripts/verify-inventory.py
+      - name: Install exact Android toolchain
+        run: |
+          set -euo pipefail
+          test -n "$ANDROID_HOME"
+          mobile_sdkmanager="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          test -x "$mobile_sdkmanager"
+          # Avoid a pipefail/SIGPIPE false failure from yes after sdkmanager exits.
+          set +o pipefail
+          yes | "$mobile_sdkmanager" --licenses >/dev/null
+          mobile_license_status=${PIPESTATUS[1]}
+          set -o pipefail
+          test "$mobile_license_status" = 0
+          "$mobile_sdkmanager" 'platforms;android-37.0' 'build-tools;37.0.0' 'build-tools;36.0.0' 'platform-tools' 'ndk;27.1.12297006' 'cmake;3.22.1'
+          test -f "$ANDROID_HOME/platforms/android-37.0/android.jar"
+          test -x "$ANDROID_HOME/build-tools/37.0.0/apksigner"
+          test -f "$ANDROID_HOME/ndk/27.1.12297006/source.properties"
+          test -x "$ANDROID_HOME/cmake/3.22.1/bin/cmake"
+      - name: Generate fresh Android project without the experimental signing key
+        run: |
+          set -euo pipefail
+          npx --no-install expo prebuild --platform android --no-install
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          p=Path('android/app/build.gradle');s=p.read_text()
+          # Only generated release signing configuration is removed. Debug keeps its disposable template key.
+          start=s.index('        release {',s.index('    buildTypes {'))
+          end=s.index('\n        }',start)
+          release=s[start:end]
+          assert release.count('signingConfig signingConfigs.debug')==1
+          release=release.replace('signingConfig signingConfigs.debug','// CI: release intentionally unsigned')
+          p.write_text(s[:start]+release+s[end:])
+          p=Path('android/gradle.properties');s=p.read_text()
+          for k in ['android.enableMinifyInReleaseBuilds','android.enableShrinkResourcesInReleaseBuilds']:
+              s=re.sub(r'^'+re.escape(k)+r'=.*\n?','',s,flags=re.M)
+              s+='\n'+k+'=true\n'
+          p.write_text(s)
+          PY
+      - name: Build unsigned ARM64 APK with R8 enabled
+        run: |
+          set -euo pipefail
+          df -h .
+          test "$(df --output=avail -B1 . | tail -1)" -ge 8589934592
+          cd android
+          ./gradlew :app:assembleRelease --no-daemon --max-workers=2 -PreactNativeArchitectures=arm64-v8a -Dorg.gradle.jvmargs='-Xmx4g -XX:MaxMetaspaceSize=1g' --init-script ../scripts/android-lean.gradle
+      - name: Inspect unsigned artifact and source provenance
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/mobile-output"
+          mobile_apk=android/app/build/outputs/apk/release/app-release-unsigned.apk
+          test -s "$mobile_apk"
+          "$ANDROID_HOME/build-tools/37.0.0/aapt" dump badging "$mobile_apk" > "$RUNNER_TEMP/mobile-output/badging.txt"
+          "$ANDROID_HOME/build-tools/37.0.0/aapt" dump xmltree "$mobile_apk" AndroidManifest.xml > "$RUNNER_TEMP/mobile-output/manifest.txt"
+          python3 - <<'PY'
+          from pathlib import Path
+          import os,re,json,hashlib,zipfile
+          p=Path('android/app/build/outputs/apk/release/app-release-unsigned.apk')
+          out=Path(os.environ['RUNNER_TEMP'])/'mobile-output';b=(out/'badging.txt').read_text()
+          assert "package: name='com.demfort.dashfort.dev' versionCode='13' versionName='0.2.2'" in b
+          assert "native-code: 'arm64-v8a'" in b
+          assert "sdkVersion:'24'" in b and "targetSdkVersion:'36'" in b
+          with zipfile.ZipFile(p) as z:
+              assert z.testzip() is None
+              names=z.namelist();assert len(names)==len(set(names))
+              assert sorted({n.split('/')[1] for n in names if n.startswith('lib/') and n.endswith('.so')})==['arm64-v8a']
+              assert not any(n.lower().endswith(('.keystore','.jks','.p12','.pfx','.pem')) for n in names)
+              assert not any(n.startswith('META-INF/') and n.upper().endswith(('.RSA','.DSA','.EC','.SF')) for n in names)
+              assert z.read('assets/index.android.bundle')[:8]==bytes.fromhex('c61fbc03c103191f')
+          sha=hashlib.sha256(p.read_bytes()).hexdigest()
+          r={'sourceSha':os.environ['SOURCE_SHA'],'workflowCommit':os.environ['GITHUB_SHA'],'runId':os.environ['GITHUB_RUN_ID'],'version':'0.2.2','versionCode':13,'package':'com.demfort.dashfort.dev','abi':'arm64-v8a','unsigned':True,'sha256':sha,'bytes':p.stat().st_size}
+          (out/'provenance.json').write_text(json.dumps(r,indent=2)+'\n')
+          (out/'Dashfort-0.2.2-ARM64-unsigned.apk.sha256').write_text(sha+'  Dashfort-0.2.2-ARM64-unsigned.apk\n')
+          PY
+          cp "$mobile_apk" "$RUNNER_TEMP/mobile-output/Dashfort-0.2.2-ARM64-unsigned.apk"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: dashfort-expo-022-unsigned-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/mobile-output/Dashfort-0.2.2-ARM64-unsigned.apk
+            ${{ runner.temp }}/mobile-output/Dashfort-0.2.2-ARM64-unsigned.apk.sha256
+            ${{ runner.temp }}/mobile-output/provenance.json
+            ${{ runner.temp }}/mobile-output/badging.txt
+            ${{ runner.temp }}/mobile-output/manifest.txt
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
+          include-hidden-files: false

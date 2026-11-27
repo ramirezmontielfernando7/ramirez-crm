@@ -219,7 +219,7 @@ export function LimitsForm({ orgId, onSaved }: { orgId: string; onSaved: () => v
           </Label>
           <select
             id={`mode-${orgId}`}
-            className="h-8 w-full rounded-sm border bg-background px-2 text-sm"
+            className="h-8 w-full rounded-md border border-input bg-background px-2 text-sm"
             value={mode}
             onChange={(e) => setMode(e.target.value as StorageMode)}
             data-testid="platform-limit-storageMode"

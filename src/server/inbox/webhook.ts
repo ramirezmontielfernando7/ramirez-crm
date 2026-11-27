@@ -40,7 +40,7 @@ export function isValidSignature(
   return safeEqual(signatureHeader.slice("sha256=".length), expected);
 }
 
-export type SignatureCheck =
+type SignatureCheck =
   | { ok: true }
   | { ok: false; reason: "missing_secret" | "bad_signature" };
 

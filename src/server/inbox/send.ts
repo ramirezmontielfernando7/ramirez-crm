@@ -85,7 +85,7 @@ export class SendError extends Error {
 }
 
 /** El texto que ve quien envía cuando Meta no respondió a tiempo. */
-export const META_TIMEOUT_MESSAGE =
+const META_TIMEOUT_MESSAGE =
   "Meta no respondió a tiempo: no se sabe si el mensaje salió. No se reintentó para no duplicarlo";
 
 type SendResult = {
@@ -283,7 +283,9 @@ async function prepareSend(
     );
   }
 
-  const credentials = await getCredentialsByOrg(organizationId);
+  // 0080: el chat responde por el número por el que le escribieron (el
+  // principal si no consta o ya no existe).
+  const credentials = await getCredentialsByOrg(organizationId, row.conversation.waPhoneNumberId);
   if (!credentials) {
     throw new SendError("not_connected", "No hay número de WhatsApp conectado");
   }
@@ -332,6 +334,8 @@ type OutboundInput = {
   /** 047 — la IA conectada de una persona lo mandó («enviado por IA»). */
   aiConnectionId?: string | null;
   aiSenderName?: string | null;
+  /** 049 — mensaje automático sin IA (bienvenida / fuera de horario). */
+  autoKind?: "welcome" | "away" | null;
 };
 
 type OutboundRow = typeof schema.message.$inferSelect;
@@ -364,6 +368,7 @@ async function reserveOutbound(input: OutboundInput): Promise<OutboundRow> {
       mediaAssetId: input.mediaAssetId ?? null,
       aiConnectionId: input.aiConnectionId ?? null,
       aiSenderName: input.aiConnectionId ? (input.aiSenderName ?? null) : null,
+      autoKind: input.autoKind ?? null,
     })
     .returning();
   return inserted[0]!;
@@ -482,6 +487,8 @@ export async function sendText(input: {
   aiConnectionId?: string;
   /** El nombre de esa IA («Joe»), copiado en el mensaje; null = «Asistente». */
   aiSenderName?: string | null;
+  /** 049 — es un mensaje automático (bienvenida / fuera de horario): no cuenta como respuesta de una persona. */
+  autoKind?: "welcome" | "away";
 } & SendOptions): Promise<SendResult> {
   // 046 (PR 8): la IA en un chat de cliente de un «Mi número» contesta por el
   // dispositivo de ESE número (con sus límites y su freno), nunca por Meta.
@@ -533,6 +540,7 @@ export async function sendText(input: {
     origin: input.aiGenerated ? "ai" : "operator",
     aiConnectionId: input.aiConnectionId ?? null,
     aiSenderName: input.aiSenderName ?? null,
+    autoKind: input.autoKind ?? null,
   });
   let waMessageId: string;
   try {
@@ -717,7 +725,7 @@ export async function sendMediaMessage(input: {
       sendErr = err;
     } else if (err instanceof MetaApiError && err.isAuthError) {
       // Mismo criterio que el texto: SOLO 401/código 190 (fix 2026-08-04).
-      await markReconnectRequired(input.organizationId);
+      await markReconnectRequired(input.organizationId, credentials!.phoneNumberId);
       sendErr = new SendError(
         "reconnect_required",
         "El token de WhatsApp expiró: reconecta el número en Configuración"
@@ -735,14 +743,14 @@ export async function sendMediaMessage(input: {
   return { messageId: await confirmOutbound(reserved, waMessageId, "pending", asset) };
 }
 
-export type LocationInput = {
+type LocationInput = {
   latitude: number;
   longitude: number;
   name?: string;
   address?: string;
 };
 
-export type ContactInput = { name: string; phone: string };
+type ContactInput = { name: string; phone: string };
 
 /** 008 — Envía una ubicación o contactos (payload estructurado, sin archivo). */
 export async function sendStructured(
@@ -843,7 +851,7 @@ export async function callGraphSend(
   } catch (err) {
     if (err instanceof MetaApiError) {
       if (err.isAuthError) {
-        await markReconnectRequired(credentials.organizationId);
+        await markReconnectRequired(credentials.organizationId, credentials.phoneNumberId);
         throw new SendError(
           "reconnect_required",
           "El token de WhatsApp expiró: reconecta el número en Configuración"

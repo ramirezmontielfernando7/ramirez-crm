@@ -16,7 +16,7 @@ import { NavRevealButton } from "@/components/nav-mode";
  * a quien tiene su propio número y (PR 7) a quien supervisa los números del
  * equipo; sin número propio se llama «Números».
  */
-export type InboxMode = "inbox" | "number" | "chat";
+type InboxMode = "inbox" | "number" | "chat";
 
 const TABS: readonly {
   mode: InboxMode;
@@ -57,11 +57,6 @@ const shows = (viewer: Viewer) => (t: (typeof TABS)[number]) =>
 const labelOf = (viewer: Viewer, t: (typeof TABS)[number]) =>
   t.mode === "number" && !viewer.hasMyNumber ? "Números" : t.label;
 
-/** ¿Hay pestañas que mostrar? Con una sola no se dibuja ninguna. */
-export function useHasInboxTabs() {
-  const viewer = useViewer();
-  return TABS.filter(shows(viewer)).length > 1;
-}
 
 /**
  * Ronda 3 — El encabezado de 56 px de la columna de chats, igual en Clientes,

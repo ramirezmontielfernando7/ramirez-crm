@@ -507,6 +507,36 @@ async function main() {
   const bajaTemp = await owner.api(`/api/settings/team/${mTemp?.id}`, { method: "DELETE" });
   ok("…y lo da de baja por /api/settings/team/[id]", bajaTemp.res.ok, `status=${bajaTemp.res.status}`);
 
+  console.log("\n== Qué chats ven los asesores (solo los suyos / + sin asignar / todos) + Tomar este chat ==");
+  const telV = `52155${RUN}77`;
+  const nombreV = `Cliente Visibilidad ${RUN}`;
+  ok("mensaje entrante (wa-mock)", (await entrante(owner, telV, nombreV, "quiero información")).res.ok);
+  let convV = null;
+  await hasta(async () => {
+    convV = (await conversaciones(owner)).find((c) => c.contact.name === nombreV);
+    return !!convV;
+  });
+  const ve = async (c) => (await conversaciones(c)).some((x) => x.id === convV?.id);
+  const poner = (view) => owner.api("/api/settings/chat-visibility", { method: "PUT", body: JSON.stringify({ view }) });
+  ok("un asesor NO puede cambiar el ajuste (403)", (await asesorA.api("/api/settings/chat-visibility", { method: "PUT", body: JSON.stringify({ view: "all" }) })).res.status === 403);
+  ok("un valor inválido → 422", (await poner("todos-todos")).res.status === 422);
+  try {
+    ok("«solo los suyos»: el asesor no ve el chat libre", (await poner("own")).res.ok && !(await ve(asesorA)));
+    ok("…y no puede tomarlo (404: no lo ve)", (await asesorA.api(`/api/conversations/${convV?.id}/claim`, { method: "POST" })).res.status === 404);
+    ok("«los suyos y los sin asignar»: el asesor ve el chat libre", (await poner("unassigned")).res.ok && (await hasta(() => ve(asesorA), 20000)));
+    const tomar = await asesorA.api(`/api/conversations/${convV?.id}/claim`, { method: "POST" });
+    ok("el asesor A lo toma", tomar.res.ok, JSON.stringify(tomar.json));
+    const otra = await asesorB.api(`/api/conversations/${convV?.id}/claim`, { method: "POST" });
+    ok("el asesor B ya no puede (404 o 409, nunca lo roba)", otra.res.status === 404 || otra.res.status === 409, String(otra.res.status));
+    const dueno = (await conversaciones(owner)).find((c) => c.id === convV?.id);
+    ok("queda asignado al asesor A", dueno?.assignee?.id === ID_A, JSON.stringify(dueno?.assignee));
+    ok("el asesor B (con «sin asignar») no ve lo que ya es de A", !(await ve(asesorB)));
+    ok("«todos»: el asesor B ve el chat de A", (await poner("all")).res.ok && (await hasta(() => ve(asesorB), 20000)));
+  } finally {
+    await poner("own"); // la instancia de pruebas vuelve a lo de siempre
+  }
+  ok("de vuelta en «solo los suyos»: B no lo ve", await hasta(async () => !(await ve(asesorB)), 20000));
+
   console.log(`\n=====${checks - failures}/${checks} checks OK, ${failures} fallos =====`);
   process.exit(failures > 0 ? 1 : 0);
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { fetchJson } from "@/lib/fetch-json";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { useSearchParams } from "next/navigation";
@@ -7,13 +8,14 @@ import { ChevronLeft, EllipsisVertical, MoreHorizontal, PanelRight } from "lucid
 import { usePhone } from "@/lib/use-phone";
 import { m } from "framer-motion";
 import { cn, phoneCompact } from "@/lib/utils";
-import { stageDot } from "@/lib/tags";
+import { stageDot, tagColorClass } from "@/lib/tags";
 import { ContactAvatar } from "@/components/avatar";
 import { ChatModeDot } from "./chat-mode-dot";
 import { freeTextOutsideWindow, type InboxDirectContext } from "@/lib/direct-connection";
 import type { ConversationDto, MessageDto } from "@/lib/types";
 import { type Channel } from "@/lib/channels";
 import { ChannelBadge } from "@/components/channel-badge";
+import { numberColorFor, numberLabelFor, useWhatsAppNumbers } from "@/components/inbox/use-whatsapp-numbers";
 import { useEvents } from "@/components/use-events";
 import { ConversationList } from "./conversation-list";
 import { MessageThread } from "./message-thread";
@@ -33,6 +35,10 @@ import {
 import { AssigneeCapsule, type PatchRow } from "./chat-capsules";
 import { useAssignees } from "@/components/assignment/use-assignees";
 import { useViewer } from "@/components/viewer-context";
+import { useOnboarding } from "@/components/onboarding/use-onboarding";
+import { OnboardingCard } from "@/components/onboarding/onboarding-card";
+import { WhatsAppMissingBanner } from "@/components/onboarding/whatsapp-banner";
+import { showOnboarding } from "@/lib/onboarding";
 
 // Panel de Detalles (558 líneas + notas, ficha, línea de tiempo…): se baja en
 // segundo plano, no en el arranque de la Bandeja. Va dentro de una tarjeta que
@@ -57,11 +63,12 @@ type PendingOut = {
 };
 
 /**
- * `xl` es el umbral donde caben las tres columnas (lista + hilo + detalles).
- * Debajo, el panel de detalles flota sobre el hilo. Debe coincidir con el
- * breakpoint `xl:` que usan las clases de la sección de detalles.
+ * `2xl` es el umbral donde caben las tres columnas (lista + hilo + detalles)
+ * sin apretar el chat (auditoría UX 2026-11, punto 7: a 1440 px el chat
+ * quedaba en ~250 px). Debajo, el panel de detalles flota sobre el hilo.
+ * Debe coincidir con el breakpoint `2xl:` de la sección de detalles.
  */
-const PANEL_MEDIA_QUERY = "(min-width: 1280px)";
+const PANEL_MEDIA_QUERY = "(min-width: 1536px)";
 /** Respiro para juntar avisos en vivo seguidos; el mismo del globo del menú. */
 const REFETCH_DEBOUNCE_MS = 250;
 const isWideEnoughForPanel = () =>
@@ -95,6 +102,7 @@ export function InboxClient({
 }) {
   const phone = usePhone();
   const multiChannel = channels.length > 1;
+  const waNumbers = useWhatsAppNumbers();
   const [conversations, setConversations] = useState<ConversationDto[] | null>(
     initial?.conversations ?? null
   );
@@ -106,9 +114,12 @@ export function InboxClient({
   // efecto de abajo lo abre solo si de veras hay tres columnas de ancho.
   const [panelOpen, setPanelOpen] = useState(false);
   const viewer = useViewer();
+  const { state: onboarding, hide: hideOnboarding } = useOnboarding();
   const assignees = useAssignees();
   // Un fallo del selector de asignado del encabezado se dice aquí.
   const [headerNotice, setHeaderNotice] = useState<string | null>(null);
+  // Auditoría 2026-11: la lista no cargó (antes quedaba en «Cargando…» sin decir nada).
+  const [listError, setListError] = useState(false);
   useEffect(() => {
     if (!headerNotice) return;
     const t = setTimeout(() => setHeaderNotice(null), 5000);
@@ -208,6 +219,16 @@ export function InboxClient({
    * cargado (reconexión, datos de demostración), para no perder lo que la
    * persona ya bajó.
    */
+  /** «Tomar este chat»: se lo asigna quien lo ve y nadie lo tiene. */
+  const claimChat = useCallback(
+    async (id: string) => {
+      const res = await fetchJson<{ ok: true }>(`/api/conversations/${encodeURIComponent(id)}/claim`, { method: "POST" });
+      if (!res.ok) setHeaderNotice(res.error);
+      refreshConversation(id);
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    []
+  );
   const reloadList = useCallback(async (keep: boolean) => {
     const q = listQueryRef.current;
     if (!q) return;
@@ -217,9 +238,16 @@ export function InboxClient({
     const params = listQueryParams(q);
     params.set("limit", String(limit));
     const res = await fetch(`/api/conversations?${params}`).catch(() => null);
-    if (!res?.ok) return;
+    if (!res?.ok) {
+      if (seq !== listSeq.current) return;
+      // Sin lista todavía: se dice en su lugar; ya cargada: aviso breve.
+      if (loaded.current) setHeaderNotice("No pudimos actualizar tus chats. Revisa tu conexión.");
+      else setListError(true);
+      return;
+    }
     const data = (await res.json()) as { conversations: ConversationDto[]; nextCursor: string | null };
     if (seq !== listSeq.current) return;
+    setListError(false);
     nextCursor.current = data.nextCursor;
     setHasMore(data.nextCursor !== null);
     setConversations(data.conversations);
@@ -239,7 +267,10 @@ export function InboxClient({
       params.set("limit", String(PAGE_SIZE));
       params.set("cursor", cursor);
       const res = await fetch(`/api/conversations?${params}`).catch(() => null);
-      if (!res?.ok) return;
+      if (!res?.ok) {
+        if (seq === listSeq.current) setHeaderNotice("No pudimos cargar más chats. Intenta de nuevo.");
+        return;
+      }
       const data = (await res.json()) as { conversations: ConversationDto[]; nextCursor: string | null };
       if (seq !== listSeq.current) return;
       nextCursor.current = data.nextCursor;
@@ -408,7 +439,10 @@ export function InboxClient({
     const res = await fetch(
       `/api/conversations/${conversationId}/messages`
     ).catch(() => null);
-    if (!res?.ok) return;
+    if (!res?.ok) {
+      if (selectedIdRef.current === conversationId) setHeaderNotice("No pudimos cargar los mensajes de este chat. Intenta de nuevo.");
+      return;
+    }
     const data = (await res.json()) as { messages: MessageDto[] };
     if (selectedIdRef.current === conversationId) setMessages(data.messages);
   }, []);
@@ -480,7 +514,9 @@ export function InboxClient({
   const contactParam = searchParams.get("contact");
   const contactOpened = useRef<string | null>(null);
   useEffect(() => {
-    if (!contactParam || selectedIdRef.current || !conversations) return;
+    // Auditoría UX 2026-11 (C): la búsqueda (Ctrl/⌘ K) abre otro chat aunque
+    // ya haya uno abierto; solo se ignora el enlace que ya se atendió.
+    if (!contactParam || !conversations) return;
     if (contactOpened.current === contactParam) return;
     contactOpened.current = contactParam;
     const match = conversations.find((c) => c.contact.id === contactParam);
@@ -499,7 +535,7 @@ export function InboxClient({
         if (!res?.ok) return;
         const data = (await res.json()) as { conversations: ConversationDto[] };
         const c = data.conversations[0];
-        if (cancelled || selectedIdRef.current) return;
+        if (cancelled) return;
         if (c) {
           select(c.id, c);
           return;
@@ -669,11 +705,12 @@ export function InboxClient({
     async (patch: { aiEnabled?: boolean; reactivate?: boolean }) => {
       const id = selectedIdRef.current;
       if (!id) return;
-      await fetch(`/api/conversations/${id}`, {
+      const res = await fetch(`/api/conversations/${id}`, {
         method: "PATCH",
         headers: { "content-type": "application/json" },
         body: JSON.stringify(patch),
       }).catch(() => null);
+      if (!res?.ok) setHeaderNotice("No se guardó el cambio. Intenta de nuevo.");
       refreshConversation(id);
     },
     [refreshConversation]
@@ -706,6 +743,11 @@ export function InboxClient({
           loadingMore={loadingMore}
           onLoadMore={loadMore}
           onListQuery={onListQuery}
+          loadError={listError}
+          onRetry={() => {
+            setListError(false);
+            void reloadList(false);
+          }}
           channels={channels}
           selectedId={selectedId}
           onSelect={select}
@@ -753,6 +795,18 @@ export function InboxClient({
                   <p className="flex min-w-0 items-center gap-1.5 text-[15px] font-semibold leading-5">
                     {multiChannel && <ChannelBadge channel={selected.channel} />}
                     <span className="truncate">{contactLabel(selected.contact)}</span>
+                    {numberLabelFor(waNumbers, selected.waNumberId) && (
+                      <span
+                        data-number-chip
+                        title="Número de WhatsApp por el que habla este chat; tus respuestas salen por él"
+                        className={cn(
+                          "max-w-[9rem] shrink-0 truncate rounded-full px-2 text-[11px] font-semibold leading-5",
+                          tagColorClass(numberColorFor(waNumbers, selected.waNumberId))
+                        )}
+                      >
+                        {numberLabelFor(waNumbers, selected.waNumberId)}
+                      </span>
+                    )}
                     {direct && !direct.metaless && !selected.groupJid && (
                       <ChatModeDot
                         variant="chip"
@@ -790,6 +844,17 @@ export function InboxClient({
                   )}
                 </div>
                 <div className="flex shrink-0 items-center gap-1.5">
+                  {!selected.assignee && !viewer.can("assignment.manage") && (
+                    <button
+                      type="button"
+                      data-testid="claim-chat"
+                      className="btn-r3 soft"
+                      title="Asignarte este chat"
+                      onClick={() => void claimChat(selected.id)}
+                    >
+                      Tomar este chat
+                    </button>
+                  )}
                   <span className="max-sm:hidden">
                     <AssigneeCapsule
                       variant="header"
@@ -831,6 +896,12 @@ export function InboxClient({
                   </button>
                 </div>
               </header>
+              {onboarding && !onboarding.whatsappConnected && (
+                <WhatsAppMissingBanner
+                  canConnect={viewer.can("settings.manage")}
+                  message="Aún no conectas tu WhatsApp. Lo que escribas aquí no le llegará al cliente."
+                />
+              )}
               <MessageThread messages={thread} />
             </m.div>
             <Composer
@@ -847,11 +918,17 @@ export function InboxClient({
             />
           </>
         ) : (
-          <div className="thread-bg flex flex-1 flex-col items-center justify-center gap-2 px-6 text-center">
-            <p className="text-[24px] font-semibold leading-tight text-text-2">
-              Elige una conversación para ver el hilo
-            </p>
-            <p className="kicker">Bandeja · tiempo real</p>
+          <div className="thread-bg flex flex-1 flex-col items-center justify-center gap-2 overflow-y-auto px-6 py-8 text-center">
+            {onboarding && showOnboarding(onboarding) ? (
+              <OnboardingCard state={onboarding} onHide={() => void hideOnboarding()} />
+            ) : (
+              <>
+                <p className="text-[24px] font-semibold leading-tight text-text-2">
+                  Elige un chat para verlo aquí
+                </p>
+                <p className="text-sm text-muted-foreground">Los mensajes nuevos llegan solos, sin recargar.</p>
+              </>
+            )}
           </div>
         )}
       </section>
@@ -862,37 +939,37 @@ export function InboxClient({
           aria-label="Cerrar los detalles"
           tabIndex={-1}
           onClick={() => togglePanel(false)}
-          className="fixed inset-0 z-30 bg-overlay xl:hidden"
+          className="fixed inset-0 z-30 bg-overlay 2xl:hidden"
         />
       )}
 
       <section
         className={cn(
-          // xl: la sección es el HUECO de la columna y su ancho se anima con
+          // 2xl: la sección es el HUECO de la columna y su ancho se anima con
           // el mismo tiempo y curva que el menú lateral, para que el hilo se
           // estire o encoja PEGADO al panel (sin hueco vacío). La tarjeta va
           // anclada a la izquierda del hueco: sale empujada hacia la derecha
           // y entra desde ahí. Solo se reacomoda el hilo (la lista tiene
           // ancho fijo).
-          "shrink-0 overflow-hidden border-l xl:overflow-visible xl:border-0",
-          "xl:transition-[width,margin-left] xl:duration-nav xl:ease-panel",
+          "shrink-0 overflow-hidden border-l 2xl:overflow-visible 2xl:border-0",
+          "2xl:transition-[width,margin-left] 2xl:duration-nav 2xl:ease-panel",
           // Debajo de xl no hay ancho para una tercera columna: el panel se
           // vuelve un cajón que entra desde la derecha, encima del hilo.
-          "max-xl:fixed max-xl:inset-y-0 max-xl:right-0 max-xl:z-40 max-xl:w-auto max-xl:bg-popover max-xl:transition-transform max-xl:duration-nav max-xl:ease-panel",
+          "max-2xl:fixed max-2xl:inset-y-0 max-2xl:right-0 max-2xl:z-40 max-2xl:w-auto max-2xl:bg-popover max-2xl:transition-transform max-2xl:duration-nav max-2xl:ease-panel",
           // Cerrado mide 0 y el margen negativo se come el hueco del `gap`.
           panelOpen && selected
-            ? "w-[330px] max-xl:translate-x-0 max-xl:shadow-pop"
-            : "w-0 border-l-0 max-xl:translate-x-full xl:-ml-3"
+            ? "w-[330px] max-2xl:translate-x-0 max-2xl:shadow-pop"
+            : "w-0 border-l-0 max-2xl:translate-x-full 2xl:-ml-3"
         )}
       >
         {selected && (
           <div
             className={cn(
-              "h-full w-[330px] max-xl:w-[min(330px,88vw)]",
-              // xl: el tercer panel flotante, que entra y sale deslizándose.
-              "xl:overflow-hidden xl:rounded-panel xl:border xl:bg-surface xl:shadow-panel",
-              "xl:transition-opacity xl:duration-nav xl:ease-panel",
-              panelOpen ? "xl:opacity-100" : "xl:pointer-events-none xl:opacity-0"
+              "h-full w-[330px] max-2xl:w-[min(330px,88vw)]",
+              // 2xl: el tercer panel flotante, que entra y sale deslizándose.
+              "2xl:overflow-hidden 2xl:rounded-panel 2xl:border 2xl:bg-surface 2xl:shadow-panel",
+              "2xl:transition-opacity 2xl:duration-nav 2xl:ease-panel",
+              panelOpen ? "2xl:opacity-100" : "2xl:pointer-events-none 2xl:opacity-0"
             )}
           >
             {/* key por contacto: el panel y sus tarjetas (asignación,

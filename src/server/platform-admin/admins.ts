@@ -39,9 +39,9 @@ export async function currentPlatformAdmin(): Promise<PlatformAdmin | null> {
 
 /** 3 contraseñas equivocadas seguidas → 15 minutos sin poder generar enlaces. */
 export const REAUTH_MAX_FAILURES = 3;
-export const REAUTH_LOCK_MS = 15 * 60 * 1000;
+const REAUTH_LOCK_MS = 15 * 60 * 1000;
 
-export type Reauth = { ok: true } | { ok: false; reason: "wrong_password" | "locked"; lockedUntil?: Date };
+type Reauth = { ok: true } | { ok: false; reason: "wrong_password" | "locked"; lockedUntil?: Date };
 
 /**
  * El administrador vuelve a escribir SU contraseña antes de una acción
@@ -99,7 +99,7 @@ export async function reauthenticate(
   return { ok: false, reason: "wrong_password" };
 }
 
-export type PlatformAdminRow = {
+type PlatformAdminRow = {
   userId: string;
   email: string;
   name: string;

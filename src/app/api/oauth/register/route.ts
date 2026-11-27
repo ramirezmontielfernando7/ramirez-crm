@@ -35,6 +35,7 @@ export async function POST(req: Request): Promise<Response> {
   return Response.json(
     {
       client_id: client.clientId,
+      client_id_issued_at: Math.floor(Date.now() / 1000),
       client_name: client.clientName,
       redirect_uris: client.redirectUris,
       token_endpoint_auth_method: "none",

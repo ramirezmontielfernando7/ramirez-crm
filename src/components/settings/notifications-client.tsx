@@ -18,6 +18,7 @@ import {
   type NotifKind,
   type NotifPrefs,
 } from "@/lib/notification-prefs";
+import { SettingsHeader } from "@/components/settings/settings-header";
 
 type Perm = "granted" | "denied" | "default" | "unsupported";
 
@@ -54,7 +55,8 @@ export function NotificationsClient() {
   }
 
   return (
-    <div data-pm="notifications" className="space-y-5">
+    <div data-pm="notifications" className="space-y-6">
+      <SettingsHeader title="Notificaciones" description="Cómo y cuándo te avisa Dashfort. Es solo tuyo y de este navegador." />
       <Card>
         <CardHeader>
           <CardTitle>Sonido</CardTitle>

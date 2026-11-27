@@ -31,9 +31,16 @@ export function FilterMenu({
   owners,
   owner,
   onOwner,
+  numbers = [],
+  number = "all",
+  onNumber = () => {},
   className,
   variant = "pill",
 }: {
+  /** 0080: números oficiales [id, nombre]; vacío (menos de dos números) = sin selector. */
+  numbers?: [string, string][];
+  number?: string;
+  onNumber?: (n: string) => void;
   /** Ronda 3: «icon» = el embudo de 36 px del encabezado de la lista. */
   variant?: "pill" | "icon";
   filtros: { id: InboxFilter; label: string; count: number }[];
@@ -80,7 +87,7 @@ export function FilterMenu({
   const current = filtros.find((f) => f.id === filter) ?? filtros[0];
   // Filtros además del de "Mostrar": se cuentan en la cápsula.
   const extra =
-    (stage !== "all" ? 1 : 0) + (tag !== "all" ? 1 : 0) + (owners && owner !== "all" ? 1 : 0);
+    (stage !== "all" ? 1 : 0) + (tag !== "all" ? 1 : 0) + (owners && owner !== "all" ? 1 : 0) + (numbers.length > 0 && number !== "all" ? 1 : 0);
   const filtered = filter !== "all" || extra > 0;
 
   function clearAll() {
@@ -88,6 +95,7 @@ export function FilterMenu({
     onStage("all");
     onTag("all");
     onOwner("all");
+    onNumber("all");
   }
 
   return (
@@ -208,8 +216,29 @@ export function FilterMenu({
               })}
             </ul>
 
-            {(stages.length > 0 || tags.length > 0 || owners) && (
+            {(stages.length > 0 || tags.length > 0 || owners || numbers.length > 0) && (
               <div className="mt-1.5 space-y-2 border-t px-2 pb-1 pt-2.5">
+                {numbers.length > 0 && (
+                  <label className="block">
+                    <span className="kicker mb-1 block">Número</span>
+                    <select
+                      value={number}
+                      onChange={(e) => onNumber(e.target.value)}
+                      aria-label="Filtrar por número de WhatsApp"
+                      className={cn(
+                        "h-8 w-full rounded-md border bg-card px-2 text-[12.5px]",
+                        number === "all" ? "border-input" : "border-brand"
+                      )}
+                    >
+                      <option value="all">Todos los números</option>
+                      {numbers.map(([id, name]) => (
+                        <option key={id} value={id}>
+                          {name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                )}
                 {stages.length > 0 && (
                   <label className="block">
                     <span className="kicker mb-1 block">Etapa</span>

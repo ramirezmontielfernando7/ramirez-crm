@@ -225,7 +225,7 @@ function MediaBlock({ media }: { media: MessageMediaDto }) {
   );
 }
 
-export function bubbleTime(iso: string): string {
+function bubbleTime(iso: string): string {
   return new Date(iso).toLocaleTimeString("es-MX", {
     hour: "2-digit",
     minute: "2-digit",
@@ -276,6 +276,16 @@ export function MessageBubble({
           <Bot className="h-[11px] w-[11px]" strokeWidth={2} aria-hidden /> IA
         </span>
       )}
+      {m.autoKind && (
+        // 049 — mensaje automático sin IA: solo lo ve el equipo.
+        <span
+          className="bubble-who mb-0.5 flex items-center gap-1 text-[11px] font-semibold leading-4 text-text-2"
+          title="Mensaje automático (bienvenida o fuera de horario). Lo configuras en Ajustes → Mensajes automáticos."
+        >
+          <Clock3 className="h-[11px] w-[11px] shrink-0" strokeWidth={2} aria-hidden />
+          {m.autoKind === "welcome" ? "Bienvenida automática" : "Fuera de horario (automático)"}
+        </span>
+      )}
       {m.viaAiConnector && (
         // 047 — la IA conectada de una persona: su nombre («Joe») en azul,
         // para no confundirla con el agente interno. Solo la ve el equipo.
@@ -316,7 +326,12 @@ export function MessageBubble({
             <Smartphone className="h-3 w-3" strokeWidth={1.75} /> Celular ·
           </span>
         )}
-        <span className="bubble-time tabular-nums">{bubbleTime(m.createdAt)}</span>
+        {/* La hora sale en la zona de quien mira: el servidor (UTC) la pinta
+            distinta (Personalización la pinta en el servidor; auditoría UX
+            2026-11, punto 20). */}
+        <span className="bubble-time tabular-nums" suppressHydrationWarning>
+          {bubbleTime(m.createdAt)}
+        </span>
         {out && <StatusTicks status={m.status} />}
       </span>
       {out && m.status === "failed" && (

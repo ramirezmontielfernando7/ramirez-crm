@@ -24,9 +24,9 @@ function sys() {
  * `active`, quien enruta guarda el evento en `webhook_unrouted` (motivo
  * `org_suspended` / `org_deleted`) en vez de procesarlo.
  */
-export type OrgState = "active" | "suspended" | "deleted";
+type OrgState = "active" | "suspended" | "deleted";
 
-export type WhatsAppRoute = {
+type WhatsAppRoute = {
   organizationId: string;
   wabaId: string;
   status: "connected" | "reconnect_required";
@@ -96,7 +96,7 @@ export async function whatsappOwnedElsewhere(
   return { phone: Boolean(phone), waba: Boolean(waba) };
 }
 
-export type ChannelRoute = { organizationId: string; source: "zernio" | "meta"; orgStatus: OrgState };
+type ChannelRoute = { organizationId: string; source: "zernio" | "meta"; orgStatus: OrgState };
 
 /** IG_ID del perfil (webhook de Meta) → organización. */
 export async function resolveInstagramByIgUserId(igUserId: string): Promise<ChannelRoute | null> {
@@ -142,7 +142,7 @@ export async function resolveMessengerByAccountRef(accountRef: string): Promise<
   return row ?? null;
 }
 
-export type ZernioSecret =
+type ZernioSecret =
   | { ok: true; organizationId: string; secret: string | null }
   | { ok: false; error: "unknown_account" | OpenFailure };
 

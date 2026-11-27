@@ -34,7 +34,7 @@ export function agentLabel(agent: Pick<AgentRow, "internalName">): string {
  */
 export type AssignmentProblem = "archived" | "unpublished" | "general";
 
-export function assignmentProblem(agent: Pick<AgentRow, "archivedAt" | "published" | "isGeneral">): AssignmentProblem | null {
+function assignmentProblem(agent: Pick<AgentRow, "archivedAt" | "published" | "isGeneral">): AssignmentProblem | null {
   if (agent.archivedAt) return "archived";
   if (agent.isGeneral) return "general";
   if (!parseStoredConfig(agent.published)) return "unpublished";
@@ -212,7 +212,7 @@ export async function removeAgentStages(tx: Db, organizationId: string, agentId:
     .where(scoped(schema.agentStageAssignment.organizationId, organizationId, eq(schema.agentStageAssignment.agentId, agentId)));
 }
 
-export type StageAgent =
+type StageAgent =
   | { ok: true; agent: AgentRow; config: AgentConfig; stageName: string }
   | { ok: false; reason: "no_assignment" }
   | { ok: false; reason: AssignmentProblem; agentId: string; stageName: string };

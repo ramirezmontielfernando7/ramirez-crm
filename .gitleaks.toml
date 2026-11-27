@@ -1,0 +1,38 @@
+# Gitleaks: reglas de fábrica + una excepción acotada.
+# Los 17 avisos de la primera revisión eran contraseñas y llaves FALSAS de
+# pruebas (tests/) y de una guía (specs/). Cualquier secreto real en otra
+# parte (src/, scripts/, .env…) sigue haciendo fallar la revisión.
+title = "Dashfort gitleaks"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Valores de mentira en pruebas y guías"
+condition = "AND"
+paths = ['''^(tests|specs)/''']
+rules = ["generic-api-key"]
+
+[[allowlists]]
+description = "Huellas PÚBLICAS del certificado de la APK (salida de apksigner), no secretos"
+condition = "AND"
+paths = ['''^apps/mobile/docs/apk-probada/evidence/firma-apk\.txt$''']
+rules = ["generic-api-key"]
+
+[[allowlists]]
+description = "Prosa de una guía de la app móvil («configuración no secreto, proyecto/contenedor/…»): falso positivo, sin llaves. Aprobado por Fer 2026-11-19."
+condition = "AND"
+paths = ['''^apps/mobile/docs/integration-i2p/ENTORNO-Y-ACTIVACION\.md$''']
+rules = ["generic-api-key"]
+
+[[allowlists]]
+description = "Lista de archivos con su huella (ruta: hash) en una evidencia de la app móvil: falso positivo, no son llaves. Aprobado por Fer 2026-11-21."
+condition = "AND"
+paths = ['''^apps/mobile/docs/refinement-b/evidence/disk-recovery\.json$''']
+rules = ["generic-api-key"]
+
+[[allowlists]]
+description = "Llave de API PÚBLICA de Firebase (google-services.json del cliente Android, no es secreto: viaja dentro de la APK) en los flujos que compilan la app móvil. Aprobado por Fer 2026-11-23."
+condition = "AND"
+paths = ['''^\.github/workflows/mobile-apk[0-9]+\.yml$''']
+rules = ["gcp-api-key"]

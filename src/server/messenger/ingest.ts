@@ -36,7 +36,7 @@ const log = logger("messenger");
  */
 
 /** Un mensaje entrante ya en la forma que entiende el núcleo. */
-export type MessengerInbound = {
+type MessengerInbound = {
   /** Llave de enrutado: la página (Meta) o la cuenta de Zernio. */
   routeKey: string;
   /** Page-Scoped ID del remitente: la identidad del contacto (`fb:<PSID>`). */

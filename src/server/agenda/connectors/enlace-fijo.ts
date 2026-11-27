@@ -9,7 +9,7 @@ import type { AgendaConnector, MeetingResult } from "@/server/agenda/connectors/
  * 1.4.0).
  */
 
-export type EnlaceFijoCreds = { meetingLink: string | null };
+type EnlaceFijoCreds = { meetingLink: string | null };
 
 export const enlaceFijoConnector: AgendaConnector<EnlaceFijoCreds> = {
   id: "enlace-fijo",

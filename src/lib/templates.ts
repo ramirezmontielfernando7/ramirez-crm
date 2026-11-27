@@ -20,9 +20,9 @@ const VARIABLE_REGEX = /\{\{\s*(\d+)\s*\}\}/g;
 const ANY_VARIABLE_REGEX = /\{\{\s*([A-Za-z0-9_]+)\s*\}\}/g;
 
 /** Máximo de parámetros posicionales por cuerpo que acepta Meta. */
-export const MAX_TEMPLATE_VARIABLES = 10;
+const MAX_TEMPLATE_VARIABLES = 10;
 
-export type TemplateParameterFormat = "positional" | "named";
+type TemplateParameterFormat = "positional" | "named";
 
 /**
  * Formato de las variables de un cuerpo. Se deduce del texto (sin columna
@@ -115,7 +115,7 @@ export function renderBody(body: string, variables: string[] = []): string {
 }
 
 /** Un parámetro de texto del cuerpo como lo pide `POST /messages`. */
-export type BodyParameter = { type: "text"; text: string; parameter_name?: string };
+type BodyParameter = { type: "text"; text: string; parameter_name?: string };
 
 /**
  * Los parámetros del componente `body` al ENVIAR. Con nombre, cada uno lleva

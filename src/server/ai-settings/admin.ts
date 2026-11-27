@@ -46,7 +46,7 @@ const EFFORT_KEY: Record<AiFunction, keyof AiFunctionValues | null> = { agent: "
 type Layer = { origin: Origin; values: Partial<AiFunctionValues> };
 
 /** El modelo y esfuerzo que aplica a una función y de qué capa viene (pura). */
-export function effectiveFunction(fn: AiFunction, layers: Layer[]): FunctionView {
+function effectiveFunction(fn: AiFunction, layers: Layer[]): FunctionView {
   const env = getEnv();
   const pick = <T>(key: keyof AiFunctionValues | null, fallback: T): { v: T; origin: Origin } => {
     if (key) {

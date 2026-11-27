@@ -58,6 +58,7 @@ export function promptKind(p: PaceInfo): PromptKind | null {
 
 /** El plan al que conviene subir (`null` si ya está en el más alto). */
 export function nextPlan(current: PlanKey): CatalogScope | null {
+  if (current === "inicio") return "esencial";
   if (current === "esencial") return "pro";
   if (current === "pro") return "ultra";
   if (current === "ultra") return null;
@@ -73,11 +74,11 @@ export type PromptMemory = {
   month?: string;
 };
 
-export const PACE_EVERY_MS = 7 * DAY_MS;
-export const LIMIT_EVERY_MS = DAY_MS;
-export const SNOOZE_MS = 3 * DAY_MS;
+const PACE_EVERY_MS = 7 * DAY_MS;
+const LIMIT_EVERY_MS = DAY_MS;
+const SNOOZE_MS = 3 * DAY_MS;
 
-export const monthOf = (d: Date) => `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+const monthOf = (d: Date) => `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
 
 /** ¿Toca mostrar esta ventana ahora? «pace» una vez por semana, «limit» una por día. */
 export function shouldShowPrompt(kind: PromptKind, memory: PromptMemory, now: Date): boolean {

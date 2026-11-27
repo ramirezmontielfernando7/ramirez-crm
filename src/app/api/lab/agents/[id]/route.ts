@@ -10,7 +10,7 @@ type Params = { params: Promise<{ id: string }> };
 
 /** 031 — Un agente: borrador y publicado. */
 export const GET = withAuth(async (session, _req: Request, ctx: Params) => {
-  const off = (await moduleOff(session.organizationId, "lab")) ?? (await moduleOff(session.organizationId, "agent"));
+  const off = await moduleOff(session.organizationId, "agent");
   if (off) return off;
   const { id } = await ctx.params;
   const agent = await getAgent(session.organizationId, id);
@@ -22,7 +22,7 @@ const patchSchema = z.object({ internalName: z.string().trim().min(1).max(60) })
 
 /** Renombrar (nombre interno: solo lo ve el equipo). */
 export const PATCH = withAuth(async (session, req: Request, ctx: Params) => {
-  const off = (await moduleOff(session.organizationId, "lab")) ?? (await moduleOff(session.organizationId, "agent"));
+  const off = await moduleOff(session.organizationId, "agent");
   if (off) return off;
   const { id } = await ctx.params;
   const body = await parseBody(req, patchSchema);
@@ -38,7 +38,7 @@ export const PATCH = withAuth(async (session, req: Request, ctx: Params) => {
  * sin el parámetro (o `delete`) se borran. En la misma transacción.
  */
 export const DELETE = withAuth(async (session, req: Request, ctx: Params) => {
-  const off = (await moduleOff(session.organizationId, "lab")) ?? (await moduleOff(session.organizationId, "agent"));
+  const off = await moduleOff(session.organizationId, "agent");
   if (off) return off;
   const { id } = await ctx.params;
   const exclusiveDocs = new URL(req.url).searchParams.get("documents") === "general" ? "move_to_general" : "delete";

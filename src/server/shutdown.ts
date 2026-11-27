@@ -35,12 +35,12 @@ const log = logger("apagado");
 /** Tope total del apagado. Debe caber en el «Stop grace period» de Coolify (30 s por defecto). */
 export const DEFAULT_GRACE_MS = 25_000;
 /** Mínimo de espera: lo que tarda en terminar una petición HTTP normal ya en vuelo. */
-export const MIN_DRAIN_MS = 3_000;
+const MIN_DRAIN_MS = 3_000;
 /** Con menos de esto por delante, un webhook nuevo se rechaza con 503 (Meta lo reintenta). */
 export const WEBHOOK_CUTOFF_MS = 10_000;
 const POLL_MS = 100;
 
-export type ShutdownPart = {
+type ShutdownPart = {
   /** Deja de aceptar trabajo nuevo (síncrono; no debe lanzar). */
   stop?: () => void;
   /** Se resuelve cuando lo que estaba en curso terminó. */
@@ -152,7 +152,7 @@ function agentTurnsIdle(map = agentTurns()): boolean {
 
 // --- El apagado --------------------------------------------------------------
 
-export type ShutdownDeps = {
+type ShutdownDeps = {
   now: () => number;
   sleep: (ms: number) => Promise<void>;
   closePools: () => Promise<void>;
@@ -170,7 +170,7 @@ const defaultDeps = (): ShutdownDeps => ({
   minDrainMs: MIN_DRAIN_MS,
 });
 
-export type ShutdownReport = { ms: number; timedOut: boolean; pending: string[] };
+type ShutdownReport = { ms: number; timedOut: boolean; pending: string[] };
 
 /** Lo que falta por terminar, en palabras (para el log). */
 function pendingWork(s: State, drains: { name: string; done: boolean }[]): string[] {

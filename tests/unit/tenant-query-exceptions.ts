@@ -44,9 +44,9 @@ export const TENANT_QUERY_EXCEPTIONS: Record<string, { max: number; motivo: stri
       "Fase 3, PR 3 — Relleno al arrancar: a TODA organización sin fila de módulos le pone los de las variables de entorno (insert … select de organization where not exists). Pool de sistema, una vez por arranque, nunca pisa una fila existente. 036 PR 4 — getManyOrgModules: los módulos de las organizaciones de la lista de /platform en UNA consulta (inArray de sus ids) en vez de una por organización; solo interruptores, pool de sistema.",
   },
   "server/platform-admin/links.ts": {
-    max: 1,
+    max: 2,
     motivo:
-      "Fase 3, PR 2 — Al usar un enlace de un solo uso: de qué organización es la persona (para la bitácora y el aviso). Aún no hay sesión; el usuario lo dice el token.",
+      "Fase 3, PR 2 — Al usar un enlace de un solo uso: de qué organización es la persona (para la bitácora y el aviso). Aún no hay sesión; el usuario lo dice el token. Auditoría UX 2026-11 (13): `createTeamLink` mira TODAS las membresías de la persona para negarse si también está en otra empresa (solo cuenta filas, nunca devuelve datos de la otra).",
   },
   "server/instagram/credentials.ts": {
     max: 1,
@@ -87,6 +87,11 @@ export const TENANT_QUERY_EXCEPTIONS: Record<string, { max: number; motivo: stri
     max: 1,
     motivo:
       "035 — Al arrancar (documentsToResume): ids de los documentos del agente por (re)indexar en TODAS las organizaciones, pool de sistema. El indexado de cada uno corre luego a nombre de la suya con scoped().",
+  },
+  "server/billing/store.ts": {
+    max: 1,
+    motivo:
+      "048 — getManyBillingRows: la prueba gratis y el «pagado hasta» de TODAS las organizaciones para el semáforo y la columna de cobro de la lista de /platform, una lectura con el pool de sistema detrás de withPlatformAdmin. Solo fechas, nunca contenido. Lo de UNA organización va con scoped().",
   },
   "server/platform-admin/usage.ts": {
     max: 6,
@@ -136,9 +141,14 @@ export const TENANT_QUERY_EXCEPTIONS: Record<string, { max: number; motivo: stri
       "selectMessages() devuelve el select sin where; todos sus llamadores le agregan scoped(schema.teamChatMessage.organizationId, …).",
   },
   "server/analytics/bot.ts": {
-    max: 2,
+    max: 3,
     motivo:
       "El where es cohorte(), que devuelve scopedContacts(conversation.organizationId, …): el detector no ve dentro de la función.",
+  },
+  "server/auto-replies/forgotten.ts": {
+    max: 1,
+    motivo:
+      "049: la lista de organizaciones con el aviso encendido cruza organizaciones a propósito (pool de sistema, organization.status = active); la revisión de cada una va con scoped() a nombre de la suya.",
   },
   "server/bot/ficha.ts": {
     max: 2,

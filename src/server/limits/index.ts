@@ -18,6 +18,8 @@ import { countActiveModules, planKeyOfModules, type PlatformModuleToggle } from 
 import { envKbDocLimits, getOwnKbDocLimits } from "@/server/kb-docs/limits";
 import { saveKbDocLimits } from "@/server/kb-docs/store";
 import type { OrgModules } from "@/server/modules";
+import { capsOfPlan } from "@/lib/plan-catalog";
+import { getPlanCatalog, getPlanProfiles } from "@/server/plan-catalog/store";
 import { getOrgStorageUsage } from "@/server/usage/storage";
 
 /**
@@ -204,7 +206,8 @@ export async function syncPlanKey(
   organizationId: string,
   modules: Record<PlatformModuleToggle, boolean>
 ): Promise<PlanKey> {
-  const planKey = planKeyOfModules(modules);
+  // 048: contra lo que traen los planes HOY (editable en «Planes y precios»).
+  const planKey = planKeyOfModules(modules, await getPlanProfiles());
   await withTenant(organizationId, async (tx) => {
     const actual = await planRow(organizationId, tx);
     if (actual?.planKey === planKey) return;
@@ -217,6 +220,42 @@ export async function syncPlanKey(
       });
   });
   return planKey;
+}
+
+/**
+ * Aplica a la organización los topes de personas y almacenamiento de su plan
+ * (los del catálogo). Sin `previous` (el alta) llena lo que esté vacío. Con
+ * `previous` (cambio de plan) solo cambia un tope que esté vacío o que sea
+ * exactamente el del plan anterior: lo que el administrador puso a mano se
+ * respeta. `custom` no toca nada. A nombre de la organización (RLS).
+ */
+export async function applyPlanCaps(
+  organizationId: string,
+  planKey: PlanKey,
+  previous: PlanKey | null = null
+): Promise<{ members: number | null; storageBytes: number | null } | null> {
+  const catalog = await getPlanCatalog();
+  const caps = capsOfPlan(planKey, catalog);
+  if (!caps) return null;
+  const old = previous ? capsOfPlan(previous, catalog) : null;
+  return withTenant(organizationId, async (tx) => {
+    const actual = await planRow(organizationId, tx);
+    const pick = (cur: number | null | undefined, next: number, prev: number | undefined): number | null => {
+      if (cur === null || cur === undefined) return next;
+      return prev !== undefined && cur === prev ? next : cur;
+    };
+    const members = pick(actual?.maxMembers, caps.members, old?.members);
+    const storageBytes = pick(actual?.storageLimitBytes, caps.storageBytes, old?.storageBytes);
+    if (actual?.maxMembers === members && actual?.storageLimitBytes === storageBytes) return { members, storageBytes };
+    await tx
+      .insert(schema.organizationPlan)
+      .values({ organizationId, planKey, maxMembers: members, storageLimitBytes: storageBytes })
+      .onConflictDoUpdate({
+        target: schema.organizationPlan.organizationId,
+        set: { maxMembers: members, storageLimitBytes: storageBytes, updatedAt: new Date() },
+      });
+    return { members, storageBytes };
+  });
 }
 
 /* ───────── Comprobaciones antes de crecer ───────── */

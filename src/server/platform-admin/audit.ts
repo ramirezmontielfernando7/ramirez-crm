@@ -9,7 +9,7 @@ import { newId } from "@/lib/db/ids";
  * queda que se generó y, después, que se usó).
  */
 
-export type AuditAction =
+type AuditAction =
   | "organization.created"
   | "organization.suspended"
   | "organization.reactivated"
@@ -34,7 +34,14 @@ export type AuditAction =
   | "direct_server.changed"
   | "direct_server.removed"
   | "direct_connection.server_assigned"
-  | "direct_connection.ai_changed";
+  | "direct_connection.ai_changed"
+  // 048: cobro a mano, prueba gratis, interruptores de emergencia y aviso a todos.
+  | "billing.trial_changed"
+  | "billing.settings_changed"
+  | "billing.payment_recorded"
+  | "controls.kill_switch_changed"
+  | "controls.broadcast_started"
+  | "controls.broadcast_ended";
 
 export type AuditActor = { userId: string; email: string } | null;
 
@@ -67,7 +74,7 @@ export async function recordPlatformAudit(input: {
     });
 }
 
-export type AuditEntry = typeof schema.platformAuditLog.$inferSelect;
+type AuditEntry = typeof schema.platformAuditLog.$inferSelect;
 
 /** Lo más reciente primero; de una organización o de toda la plataforma. */
 export async function listPlatformAudit(opts: { organizationId?: string; limit?: number } = {}): Promise<AuditEntry[]> {

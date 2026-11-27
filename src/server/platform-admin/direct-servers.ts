@@ -107,7 +107,7 @@ export async function testServer(id: string): Promise<{ ok: boolean; instances?:
   };
 }
 
-export type OrganizationDirect = {
+type OrganizationDirect = {
   serverId: string | null;
   serverName: string | null;
   status: "pending" | "connecting" | "connected" | "disconnected" | null;

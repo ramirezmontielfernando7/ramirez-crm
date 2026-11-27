@@ -16,9 +16,16 @@ export const REFRESH_PREFIX = "dfr_";
 
 export const ACCESS_TTL_MS = 60 * 60 * 1000;
 export const REFRESH_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+/**
+ * Gracia para reusar una llave de renovación recién rotada. ChatGPT renueva
+ * desde varios servidores a la vez (y reintenta si no ve la respuesta): sin
+ * gracia, el segundo intento parecía robo y se cerraba la conexión entera.
+ * Dentro de la gracia se emite otro par; pasado, el reúso sigue cerrándola.
+ */
+export const REFRESH_REUSE_GRACE_MS = 60 * 1000;
 
 /** Una llave más corta que esto ni se busca. */
-export const MIN_TOKEN_LENGTH = 24;
+const MIN_TOKEN_LENGTH = 24;
 
 export const SCOPES = ["read", "write"] as const;
 export type Scope = (typeof SCOPES)[number];
@@ -126,7 +133,7 @@ export function roleMayConnect(role: string, settings: ConnectorSettings): boole
  * ============================================================ */
 
 /** De la más nueva a la más vieja. Se responde con la del cliente si la conocemos. */
-export const MCP_PROTOCOL_VERSIONS = ["2026-07-28", "2025-11-25", "2025-06-18", "2025-03-26"] as const;
+const MCP_PROTOCOL_VERSIONS = ["2026-07-28", "2025-11-25", "2025-06-18", "2025-03-26"] as const;
 
 export function negotiateProtocolVersion(requested: unknown): string {
   return typeof requested === "string" && (MCP_PROTOCOL_VERSIONS as readonly string[]).includes(requested)
@@ -141,7 +148,7 @@ export const RPC_INVALID_PARAMS = -32602;
 export const RPC_INTERNAL = -32603;
 
 export type RpcId = string | number;
-export type RpcRequest = { jsonrpc: "2.0"; id?: RpcId; method: string; params?: Record<string, unknown> };
+type RpcRequest = { jsonrpc: "2.0"; id?: RpcId; method: string; params?: Record<string, unknown> };
 
 /** Lee un mensaje JSON-RPC; `null` si no tiene la forma (→ -32600). */
 export function parseRpc(raw: unknown): RpcRequest | null {
@@ -267,10 +274,6 @@ export function authorizationServerMetadata(baseUrl: string) {
   };
 }
 
-/** `scope` de OAuth («read write») → alcances válidos. */
-export function parseScopeParam(raw: string | null | undefined): Scope[] {
-  return normalizeScopes((raw ?? "").split(/\s+/).filter(Boolean));
-}
 
 /** 047 PR 4 — Tope del nombre de la IA («Joe»), igual que el CHECK de la BD. */
 export const ASSISTANT_NAME_MAX = 30;
@@ -285,7 +288,7 @@ export function normalizeAssistantName(name: string | null | undefined): string 
 }
 
 /** 047 PR 5 — «Qué hizo tu IA»: cada herramienta en palabras de la pantalla. */
-export const ACTION_LABEL: Record<string, string> = {
+const ACTION_LABEL: Record<string, string> = {
   list_chats: "Revisó la lista de chats",
   read_chat: "Leyó un chat",
   list_stages: "Revisó las etapas",
@@ -346,6 +349,10 @@ export const ACTION_LABEL: Record<string, string> = {
   move_document: "Movió un documento de grupo",
   create_upload_link: "Te pidió subir archivos con un enlace",
   check_upload_link: "Revisó los archivos que subiste",
+  list_bookings: "Revisó la agenda",
+  find_free_slots: "Buscó horarios libres",
+  book_appointment: "Agendó una cita",
+  update_appointment: "Cambió una cita",
 };
 
 /** PR 6 — Acciones que se resaltan en «Qué hizo tu IA» (salen del CRM o llegan a muchos). */

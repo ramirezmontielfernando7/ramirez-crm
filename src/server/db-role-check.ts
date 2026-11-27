@@ -20,7 +20,7 @@ import { logger } from "@/lib/log";
  * activo; `false` = no. Solo un sí/no, sin nombres de usuarios.
  */
 
-export type DbRoleCheck = { user: string; superuser: boolean; bypassRls: boolean; safe: boolean };
+type DbRoleCheck = { user: string; superuser: boolean; bypassRls: boolean; safe: boolean };
 
 const log = logger("boot");
 

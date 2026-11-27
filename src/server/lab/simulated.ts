@@ -43,7 +43,7 @@ export type SimClient = {
 };
 
 /** Lo que se guarda en `agent_test_case.hallazgos` desde 0070. */
-export type SimReview = { notas: string[]; arreglo: string | null };
+type SimReview = { notas: string[]; arreglo: string | null };
 
 const clientSchema = z.object({
   nombre: z.string().trim().min(1).max(80),
@@ -166,7 +166,7 @@ const reviewSchema = z.object({
   arreglo: z.string().nullable().optional(),
 });
 
-export type ReviewOutcome =
+type ReviewOutcome =
   | { status: "done"; veredicto: "verde" | "amarillo" | "rojo"; review: SimReview }
   | { status: "judge_failed"; detail: string };
 

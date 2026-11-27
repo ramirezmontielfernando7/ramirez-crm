@@ -5,8 +5,11 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   ArrowLeft,
+  Bot,
   Bell,
   CalendarDays,
+  Clock3,
+  Download,
   Eye,
   MessageCircle,
   MessageSquare,
@@ -78,6 +81,7 @@ const GROUPS: readonly Group[] = [
       },
       { id: "team", label: "Equipo y permisos", icon: Users, keywords: "miembros roles personas invitar asesores chats nuevos", pages: [{ slug: "team", label: "Miembros y roles" }] },
       { id: "ads", label: "Anuncios (Meta)", icon: Target, keywords: "capi atribución anuncios", pages: [{ slug: "ads", label: "Anuncios (CAPI)" }] },
+      { id: "datos", label: "Mis datos", icon: Download, keywords: "exportar descargar respaldo contactos chats csv zip cancelar", pages: [{ slug: "mis-datos", label: "Mis datos" }] },
       { id: "uso", label: "Uso y plan", icon: Wallet, keywords: "consumo ia plan límites", pages: [{ slug: "uso", label: "Uso y plan" }] },
     ],
   },
@@ -89,12 +93,14 @@ const GROUPS: readonly Group[] = [
       { id: "loss", label: "Motivos de pérdida", icon: X, keywords: "perdidos pipeline", pages: [{ slug: "loss-reasons", label: "Motivos de pérdida" }] },
       { id: "calendar", label: "Agenda y conectores", icon: CalendarDays, keywords: "zoom meet citas", pages: [{ slug: "calendar", label: "Conectores de agenda" }] },
       { id: "team-chat", label: "Chat de equipo", icon: MessageSquare, keywords: "grupos supervisión", pages: [{ slug: "team-chat", label: "Chat de equipo" }] },
+      { id: "auto", label: "Mensajes automáticos", icon: Clock3, keywords: "bienvenida fuera de horario ausencia horario olvidados sin respuesta aviso", pages: [{ slug: "auto-mensajes", label: "Mensajes automáticos" }] },
       { id: "opt-out", label: "Bajas automáticas", icon: Shield, keywords: "stop baja darse de baja palabras respuesta", pages: [{ slug: "opt-out", label: "Bajas automáticas" }] },
     ],
   },
   {
     label: "IA conectada",
     items: [
+      { id: "quien", label: "Quién contesta", icon: Bot, keywords: "ia agente encender apagar cerebro externo bot api", pages: [{ slug: "quien-contesta", label: "Quién contesta" }] },
       { id: "mi-ia", label: "Mi IA", icon: Plug, keywords: "conector mcp claude chatgpt", pages: [{ slug: "mi-ia", label: "Mi IA" }] },
       { id: "conector", label: "Conector del equipo", icon: SlidersHorizontal, keywords: "propietario roles tope", pages: [{ slug: "conector-ia", label: "Ajustes del conector" }] },
     ],
@@ -139,7 +145,7 @@ const href = (slug: string) => `/settings/${slug}`;
 type Resolved = { item: Item; pages: Page[]; to: string };
 
 /** Los grupos con solo los renglones que existen para quien mira. */
-export function settingsGroups(visible: (slug: string) => boolean): { label: string; items: Resolved[] }[] {
+function settingsGroups(visible: (slug: string) => boolean): { label: string; items: Resolved[] }[] {
   return GROUPS.map((g) => ({
     label: g.label,
     items: g.items.flatMap((item): Resolved[] => {
@@ -161,6 +167,7 @@ export function SettingsShell({
   directConnection = false,
   miNumero = false,
   conectorIa = false,
+  agente = false,
   templates = true,
   allowed,
   children,
@@ -174,6 +181,8 @@ export function SettingsShell({
   miNumero?: boolean;
   /** 047 — IA conectada, solo con el complemento. */
   conectorIa?: boolean;
+  /** Módulo Agente — «Quién contesta» solo con él. */
+  agente?: boolean;
   /** 030 (PR 4) — con Campañas encendido, Plantillas vive en Marketing. */
   templates?: boolean;
   /** 020 — páginas que el rol puede abrir (`/settings/<clave>`); lo decide el servidor. */
@@ -190,6 +199,7 @@ export function SettingsShell({
     if (slug === "direct-connection" && !directConnection) return false;
     if ((slug === "my-number" || slug === "mi-numero") && !miNumero) return false;
     if ((slug === "mi-ia" || slug === "conector-ia") && !conectorIa) return false;
+    if (slug === "quien-contesta" && !agente) return false;
     if (slug === "templates" && !templates) return false;
     return !allowed || allowed.includes(slug);
   });
@@ -263,7 +273,8 @@ export function SettingsShell({
             </div>
           ))}
         </nav>
-        <div className={cn("min-w-0", mobileList && "max-lg:hidden")}>
+        {/* Pulido F: todas las páginas de Ajustes con el mismo ancho. */}
+        <div className={cn("min-w-0 max-w-4xl", mobileList && "max-lg:hidden")}>
           {current && (
             <div className="mb-3 flex items-center gap-2 lg:hidden" data-testid="settings-detail-head">
               <Link href="/settings" aria-label="Volver a Ajustes" className="-ml-2 flex h-10 w-10 items-center justify-center rounded-full active:bg-row-hover">

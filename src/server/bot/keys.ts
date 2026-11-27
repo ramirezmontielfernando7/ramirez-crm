@@ -16,9 +16,9 @@ const log = logger("bot");
  * la llave en claro solo existe al crearla (se imprime una vez).
  */
 
-export const BOT_KEY_PREFIX = "vbk_";
+const BOT_KEY_PREFIX = "vbk_";
 /** Una llave más corta que esto no se busca (igual que antes con la env). */
-export const MIN_KEY_LENGTH = 16;
+const MIN_KEY_LENGTH = 16;
 
 export function hashBotKey(key: string): string {
   return createHash("sha256").update(key, "utf8").digest("hex");

@@ -11,6 +11,7 @@ import { PageShell } from "@/components/ui/page-shell";
 import { formatBytes } from "@/components/inbox/helpers";
 import { DestinationBadges, DestinationToggle } from "@/components/library/destinations";
 import { KnowledgeEditor } from "./knowledge-editor";
+import { EmptyState } from "@/components/ui/empty-state";
 
 const DATE = new Intl.DateTimeFormat("es-MX", {
   day: "numeric",
@@ -26,7 +27,10 @@ const DATE = new Intl.DateTimeFormat("es-MX", {
  * («💬 Envío en chat» y/o «🤖 Lectura IA (RAG)») y quien puede los enciende o
  * apaga desde ahí, sin volver a subirlo.
  */
-export function KnowledgeClient() {
+/** La pestaña «Para que lea la IA» solo existe si la instancia tiene Documentos (`KB_DOCS`). */
+const SIN_DOCUMENTOS = ["/lab/documentos"] as const;
+
+export function KnowledgeClient({ documents = true }: { documents?: boolean } = {}) {
   const viewer = useViewer();
   const canManage = viewer.can("knowledge.manage");
   const [entries, setEntries] = useState<KnowledgeEntryDto[]>([]);
@@ -106,7 +110,7 @@ export function KnowledgeClient() {
 
   async function remove(entry: KnowledgeEntryDto) {
     const aviso = entry.rag
-      ? `¿Borrar «${entry.title}» de la Biblioteca? El agente lo seguirá leyendo (Lectura IA); para que deje de leerlo, apágala antes o bórralo en Estudio de IA → Documentos.`
+      ? `¿Borrar «${entry.title}» de la Biblioteca? El agente lo seguirá leyendo (Lectura IA); para que deje de leerlo, apágala antes o bórralo en Biblioteca → Para que lea la IA.`
       : `¿Borrar «${entry.title}»? No se puede deshacer.`;
     if (!window.confirm(aviso)) return;
     const res = await fetchJson(`/api/knowledge/${entry.id}`, {
@@ -124,8 +128,9 @@ export function KnowledgeClient() {
 
   return (
     <PageShell
-      pillar="pipeline"
+      pillar="knowledge"
       variant="fluid"
+      hideSections={documents ? undefined : SIN_DOCUMENTOS}
       actions={
         canManage ? (
           <Button size="sm" onClick={() => setEditing("new")}>
@@ -261,20 +266,27 @@ export function KnowledgeClient() {
           ))}
         </aside>
         <div className="min-w-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6">
-          {loaded && shown.length === 0 ? (
-            <div className="mx-auto mt-16 max-w-sm text-center">
-              <BookOpen className="mx-auto mb-3 h-8 w-8 text-text-3" strokeWidth={1.5} />
-              <p className="font-semibold">
-                {filtering ? "Nada coincide con la búsqueda" : "Aún no hay conocimientos"}
-              </p>
-              <p className="mt-1 text-sm text-text-3">
-                {filtering
+          {loaded && error && shown.length === 0 ? (
+            <EmptyState
+              className="mt-4"
+              icon={BookOpen}
+              title="No pudimos cargar tus conocimientos"
+              description="Tu material sigue guardado. Revisa tu conexión e inténtalo de nuevo."
+              action={<Button variant="outline" onClick={() => void refetch()}>Reintentar</Button>}
+            />
+          ) : loaded && shown.length === 0 ? (
+            <EmptyState
+              className="mt-4"
+              icon={BookOpen}
+              title={filtering ? "Nada coincide con la búsqueda" : "Aún no hay conocimientos"}
+              description={
+                filtering
                   ? "Prueba con otra palabra o quita el filtro de etiqueta."
                   : canManage
                     ? "Sube catálogos, fichas técnicas o políticas, o escribe respuestas tipo. Tu equipo las envía desde cualquier chat."
-                    : "Cuando tu equipo agregue material, lo verás aquí y podrás enviarlo desde la Bandeja."}
-              </p>
-            </div>
+                    : "Cuando tu equipo agregue material, lo verás aquí y podrás enviarlo desde la Bandeja."
+              }
+            />
           ) : (
             <ul className={view === "list" ? "flex flex-col gap-2" : "grid gap-4 sm:grid-cols-2 xl:grid-cols-3"}>
               {shown.map((e) => (

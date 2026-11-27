@@ -121,7 +121,7 @@ export function phoneFromDirect(raw: string): string {
 
 /* ───────── Límites de envío y fila ───────── */
 
-export type SlotLimits = {
+type SlotLimits = {
   enabled: boolean;
   minIntervalSeconds: number;
   perChatPerMinute: number;
@@ -220,11 +220,11 @@ function safeJson(v: unknown): string {
   }
 }
 
-export const BRAKE_FAILURES = 2;
-export const BRAKE_WINDOW_MS = 24 * HOUR;
-export const BRAKE_PAUSE_MS = 24 * HOUR;
+const BRAKE_FAILURES = 2;
+const BRAKE_WINDOW_MS = 24 * HOUR;
+const BRAKE_PAUSE_MS = 24 * HOUR;
 
-export type BrakeState = {
+type BrakeState = {
   disconnectCount: number;
   disconnectWindowStart: Date | null;
   pausedUntil: Date | null;

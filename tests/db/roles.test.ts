@@ -10,7 +10,15 @@ import { getSql, getSystemSql } from "@/lib/db";
 const usaRoles = new URL(process.env.DATABASE_URL!).username === "vocero_app";
 
 /** Igual que SOLO_SISTEMA en scripts/migrate.mjs. */
-const SOLO_SISTEMA = ["webhook_unrouted", "webhook_inbox", "platform_admin", "platform_audit_log", "account_link_token", "evolution_server", "ai_oauth_client", "platform_ai_defaults", "platform_ai_model_price", "platform_plan_catalog"];
+const SOLO_SISTEMA = [
+  "webhook_unrouted", "webhook_inbox", "platform_admin", "platform_audit_log", "account_link_token", "evolution_server",
+  "ai_oauth_client", "platform_ai_defaults", "platform_ai_model_price", "platform_plan_catalog", "platform_setting",
+  // Auditoría 2026-11: better-auth y controles de plataforma.
+  "session", "account", "verification", "platform_kill_switch", "platform_broadcast", "platform_ai_pricing",
+];
+
+/** Igual que SOLO_LECTURA_APP en scripts/migrate.mjs. */
+const SOLO_LECTURA_APP = ["user"];
 
 describe("roles de base de datos (0026)", () => {
   it("vocero_app no es superusuario ni salta RLS; vocero_system sí salta RLS", async () => {
@@ -31,6 +39,7 @@ describe("roles de base de datos (0026)", () => {
       cross join (values ('vocero_app'), ('vocero_system')) as r(rol)
       where t.schemaname = 'public'
         and not (r.rol = 'vocero_app' and t.tablename = any(${SOLO_SISTEMA}))
+        and not (r.rol = 'vocero_app' and t.tablename = any(${SOLO_LECTURA_APP}))
         and not (
           has_table_privilege(r.rol, format('public.%I', t.tablename), 'select')
           and has_table_privilege(r.rol, format('public.%I', t.tablename), 'insert')
@@ -50,6 +59,33 @@ describe("roles de base de datos (0026)", () => {
           or has_table_privilege('vocero_app', format('public.%I', t.tablename), 'insert'))
     `;
     expect(fila?.con).toEqual([]);
+  });
+
+  it("Auditoría 2026-11: vocero_app lee `user` pero no puede escribirla", async () => {
+    const filas = await getSystemSql()<{ tabla: string; leer: boolean; escribir: boolean }[]>`
+      select t.tablename::text as tabla,
+        has_table_privilege('vocero_app', format('public.%I', t.tablename), 'select') as leer,
+        (has_table_privilege('vocero_app', format('public.%I', t.tablename), 'insert')
+          or has_table_privilege('vocero_app', format('public.%I', t.tablename), 'update')
+          or has_table_privilege('vocero_app', format('public.%I', t.tablename), 'delete')) as escribir
+      from pg_tables t
+      where t.schemaname = 'public' and t.tablename = any(${SOLO_LECTURA_APP})
+      order by 1
+    `;
+    expect(filas).toEqual(SOLO_LECTURA_APP.map((tabla) => ({ tabla, leer: true, escribir: false })));
+  });
+
+  it("Auditoría 2026-11: topes de tiempo por rol (transacciones olvidadas, consultas desbocadas)", async () => {
+    const filas = await getSystemSql()<{ rol: string; config: string[] }[]>`
+      select r.rolname as rol, coalesce(s.setconfig, '{}') as config
+      from pg_roles r left join pg_db_role_setting s on s.setrole = r.oid and s.setdatabase = 0
+      where r.rolname in ('vocero_app', 'vocero_system') order by 1
+    `;
+    const app = filas.find((f) => f.rol === "vocero_app")?.config ?? [];
+    const sys = filas.find((f) => f.rol === "vocero_system")?.config ?? [];
+    expect(app).toEqual(expect.arrayContaining(["statement_timeout=120s", "idle_in_transaction_session_timeout=300s"]));
+    expect(sys).toEqual(expect.arrayContaining(["idle_in_transaction_session_timeout=300s"]));
+    expect(sys.some((c) => c.startsWith("statement_timeout="))).toBe(false);
   });
 
   it("ninguno de los dos puede hacer TRUNCATE ni es dueño de nada", async () => {

@@ -228,7 +228,7 @@ export function KnowledgeEditor({
                   value={groupId}
                   onChange={(e) => setGroupId(e.target.value)}
                   aria-label="Grupo de documentos"
-                  className="h-8 rounded-sm border bg-background px-2 text-sm"
+                  className="h-8 rounded-md border border-input bg-background px-2 text-sm"
                   data-testid="knowledge-rag-group"
                 >
                   {groups.map((g) => (

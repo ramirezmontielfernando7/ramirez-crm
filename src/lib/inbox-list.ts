@@ -51,11 +51,13 @@ export type ListFilters = {
   /** "all" | "mine" | "unassigned" | <userId>. Solo cambia algo para quien ve todo. */
   owner: string;
   channel: Channel | "all";
+  /** 0080: número oficial de WhatsApp por el que habla el chat ("all" = todos). */
+  number: string;
 };
 
 export type ListQuery = ListFilters & { view: InboxView; status: ListStatus };
 
-export const DEFAULT_FILTERS: ListFilters = { q: "", stage: "all", tag: ALL_TAGS, owner: "all", channel: "all" };
+export const DEFAULT_FILTERS: ListFilters = { q: "", stage: "all", tag: ALL_TAGS, owner: "all", channel: "all", number: "all" };
 
 /** Lo que la Bandeja pide, como parámetros de URL (solo lo que filtra). */
 export function listQueryParams(q: Partial<ListQuery>): URLSearchParams {
@@ -68,6 +70,7 @@ export function listQueryParams(q: Partial<ListQuery>): URLSearchParams {
   if (q.tag && q.tag !== ALL_TAGS) p.set("tag", q.tag);
   if (q.owner && q.owner !== "all") p.set("assigned", q.owner);
   if (q.channel && q.channel !== "all") p.set("channel", q.channel);
+  if (q.number && q.number !== "all") p.set("number", q.number);
   return p;
 }
 
@@ -80,6 +83,7 @@ export function parseListFilters(p: URLSearchParams): ListFilters {
     tag: (p.get("tag") ?? "").slice(0, 64) || ALL_TAGS,
     owner: (p.get("assigned") ?? "").slice(0, 64) || "all",
     channel: channel && isChannel(channel) ? channel : "all",
+    number: (p.get("number") ?? "").slice(0, 64) || "all",
   };
 }
 
@@ -113,6 +117,7 @@ export function matchesListQuery(c: ConversationDto, q: ListQuery, viewerId: str
     if (!ok) return false;
   }
   if (q.channel !== "all" && c.channel !== q.channel) return false;
+  if (q.number !== "all" && c.waNumberId !== q.number) return false;
   if (q.view === "campaigns") return true;
   if (q.status === "archived") return isArchived(c);
   if (isArchived(c)) return false;

@@ -229,7 +229,7 @@ export function LabClient() {
       </LabActions>
 
       <p className="flex items-center gap-2 border-b border-warning-soft bg-warning-tint px-4 py-2 text-[13px] text-warning-text sm:px-6">
-        <ShieldCheck className="h-4 w-4 shrink-0" aria-hidden /> Sandbox: estos clientes son simulados; nada se envía ni se agenda de verdad.
+        <ShieldCheck className="h-4 w-4 shrink-0" aria-hidden /> Modo prueba: estos clientes son simulados; nada se envía ni se agenda de verdad.
         {running && progress && progress.total > 0 && (
           <span className="ml-auto text-xs" data-testid="lab-sim-progress">
             {progress.done} de {progress.total}

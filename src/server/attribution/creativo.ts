@@ -97,7 +97,7 @@ function origenDelMock(): string | null {
  * 5xx, un 429, el tiempo); `permanente` no va a cambiar por insistir (host no
  * permitido, no es imagen, demasiado grande, 404).
  */
-export type Descarga =
+type Descarga =
   | { ok: true; data: Buffer; mimeType: string }
   | { ok: false; falla: "transitoria" | "permanente" };
 

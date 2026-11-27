@@ -17,7 +17,7 @@ import { readKnowledgeFile, type KnowledgeRow } from "./store";
  * no participa), la supervisión de solo lectura y sus límites de adjuntos.
  * El selector de la UI (`KnowledgePicker`) es el mismo para los dos.
  */
-export type KnowledgeTarget =
+type KnowledgeTarget =
   | {
       kind: "whatsapp_conversation";
       organizationId: string;

@@ -19,7 +19,7 @@ import { currentOrganizationId } from "@/lib/request-context";
  * Un test estático (`tests/unit/log-guard.test.ts`) prohíbe `console.*` en el
  * código de servidor fuera de este archivo.
  */
-export type LogFields = {
+type LogFields = {
   /** Organización; si falta, la del contexto de la request (si hay). */
   org?: string | null;
   /** Error: se registra con describeError, jamás crudo. */

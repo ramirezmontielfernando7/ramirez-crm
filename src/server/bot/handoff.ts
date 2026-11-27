@@ -8,7 +8,7 @@
  * enojó" en vez de "hostilidad".
  */
 
-export const HANDOFF_REASONS = [
+const HANDOFF_REASONS = [
   "cliente",
   "modelo",
   "error",
@@ -16,7 +16,7 @@ export const HANDOFF_REASONS = [
   "hostilidad",
 ] as const;
 
-export type HandoffReason = (typeof HANDOFF_REASONS)[number];
+type HandoffReason = (typeof HANDOFF_REASONS)[number];
 
 export function toHandoffReason(raw: string | undefined | null): HandoffReason {
   const v = raw?.trim().toLowerCase() ?? "";

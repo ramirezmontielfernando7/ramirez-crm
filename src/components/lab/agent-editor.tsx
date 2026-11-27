@@ -110,7 +110,7 @@ export function AgentEditor({ id, documents = false }: { id: string; documents?:
 
   useEffect(() => {
     void load();
-    // Las versiones dan el número («Publicado v3», «Publicar v4») y la pestaña «Versiones».
+    // Las versiones alimentan la pestaña «Versiones».
     void loadVersions();
   }, [load, loadVersions]);
 
@@ -167,7 +167,7 @@ export function AgentEditor({ id, documents = false }: { id: string; documents?:
     if (!r.ok) return setError(r.message);
     setAgent(r.data.agent);
     setCfg(r.data.agent.draft);
-    setNote(agent?.isGeneral ? "Publicado. Ya atiende a tus clientes." : "Publicado.");
+    setNote(agent?.isGeneral ? "Publicado. Tu agente principal ya usa estos cambios." : "Publicado. Asígnalo a una etapa para que atienda.");
     void loadVersions();
     void load();
   }
@@ -221,8 +221,6 @@ export function AgentEditor({ id, documents = false }: { id: string; documents?:
 
   const kbKey = String(cfg.useSharedKb);
   const status = dirty ? "Cambios sin guardar" : STATUS_LABEL[agent.status];
-  const publishedCount = versions?.filter((v) => v.action === "publish").length ?? null;
-  const vLabel = (n: number | null) => (n ? ` v${n}` : "");
   const sections = [
     { id: "identidad", label: "Identidad" },
     { id: "tono", label: "Tono" },
@@ -278,10 +276,10 @@ export function AgentEditor({ id, documents = false }: { id: string; documents?:
   );
 
   const badges = renaming ? null : (
-    <span className="hidden shrink-0 items-center gap-1.5 md:flex">
+    <span className="hidden shrink-0 items-center gap-1.5 xl:flex">
       {agent.isGeneral && <Badge variant="default">General</Badge>}
       {agent.status !== "draft" ? (
-        <Badge variant="success">Publicado{vLabel(publishedCount)}</Badge>
+        <Badge variant="success">Publicado</Badge>
       ) : (
         <Badge variant="secondary">Borrador</Badge>
       )}
@@ -294,7 +292,7 @@ export function AgentEditor({ id, documents = false }: { id: string; documents?:
   );
 
   const modeTabs = (
-    <div role="group" aria-label="Cómo configurar" className="inline-flex rounded-lg border bg-subtle p-0.5">
+    <div role="group" aria-label="Cómo configurar" className="inline-flex max-w-full overflow-x-auto rounded-lg border bg-subtle p-0.5">
       {(
         [
           ["creator", "Creador"],
@@ -311,7 +309,7 @@ export function AgentEditor({ id, documents = false }: { id: string; documents?:
             setTab("config");
           }}
           className={cn(
-            "rounded-md px-3 py-1 text-[13px] font-medium",
+            "rounded-md px-2 py-1 text-[13px] font-medium xl:px-3",
             mode === m ? "bg-card text-foreground shadow-sm" : "text-text-2 hover:text-foreground"
           )}
         >
@@ -323,14 +321,14 @@ export function AgentEditor({ id, documents = false }: { id: string; documents?:
 
   const actions = (
     <>
-      <span className="hidden text-xs text-text-3 lg:inline" title={status}>
+      <span className="hidden whitespace-nowrap text-xs text-text-3 2xl:inline" title={status}>
         {dirty ? "Cambios sin guardar" : `Guardado ${timeAgo(agent.updatedAt)}`}
       </span>
       <Button variant="outline" size="sm" onClick={() => void saveDraft()} disabled={busy || !dirty}>
         Guardar borrador
       </Button>
       <Button size="sm" onClick={() => setDialog("publish")} disabled={busy || !pending}>
-        Publicar{vLabel(publishedCount === null ? null : publishedCount + 1)}
+        {draftOnly ? "Publicar" : "Publicar cambios"}
       </Button>
     </>
   );
@@ -553,9 +551,9 @@ export function AgentEditor({ id, documents = false }: { id: string; documents?:
               : `Cambia: ${changedFields(norm(cfg), agent.published).join(", ") || "nada (solo se vuelve a registrar)"}.`}
           </p>
           {agent.isGeneral ? (
-            <p>Este es el agente general: desde ahora atenderá a tus clientes con estos cambios.</p>
+            <p>Este es tu agente principal: cuando tu IA esté encendida, contestará a tus clientes con estos cambios.</p>
           ) : (
-            <p>Los agentes que no son el general no atienden clientes todavía; puedes evaluarlos en el Laboratorio.</p>
+            <p>Este agente todavía no contesta a nadie. Para que atienda, asígnalo a una etapa en «Asignación por etapa».</p>
           )}
           {!summary?.lastRun && <p>Todavía no has evaluado a este agente. Puedes probarlo antes en la pestaña «Pruebas».</p>}
         </ConfirmDialog>

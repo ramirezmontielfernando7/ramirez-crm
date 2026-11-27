@@ -12,7 +12,7 @@ const log = logger("ai-connector");
  * de un mensaje ni datos del cliente: herramienta, resultado, sobre qué chat
  * o contacto y un resumen corto.
  */
-export type ActionEntry = {
+type ActionEntry = {
   organizationId: string;
   userId: string;
   connectionId: string;
@@ -142,7 +142,7 @@ export async function settleDailySend(
   }
 }
 
-export type ActionView = {
+type ActionView = {
   id: string;
   at: string;
   tool: string;
@@ -162,7 +162,7 @@ export type ActionView = {
   contactName: string | null;
 };
 
-export const ACTIONS_PAGE = 50;
+const ACTIONS_PAGE = 50;
 
 /**
  * 047 PR 5 — «Qué hizo tu IA». `mine`: lo de la persona (su IA). `team`:

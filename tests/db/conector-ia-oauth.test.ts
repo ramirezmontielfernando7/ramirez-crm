@@ -29,6 +29,9 @@ vi.mock("@/lib/auth/session", async (importOriginal) => {
   };
 });
 
+// Sin red hacia chatgpt.com (como cuando su protección anti-bots rechaza al servidor).
+vi.mock("node:dns/promises", () => ({ lookup: async () => { throw new Error("sin red"); } }));
+
 const sys = () => getSystemDb();
 let A: Awaited<ReturnType<typeof crearOrganizacion>>;
 const u = { owner: "", ana: "" };
@@ -208,16 +211,25 @@ describe("047 PR 3 — iniciar sesión con OAuth", () => {
       .where(and(eq(schema.aiConnection.organizationId, A.id), eq(schema.aiConnection.kind, "oauth")));
     expect(cx).toMatchObject({ userId: u.ana, name: "Claude", clientId, scopes: ["read", "write"] });
 
-    // Renovar rota; reusar la vieja cierra la conexión entera.
+    // Renovar rota; reusar la vieja dentro de la gracia (ChatGPT renueva dos veces) da otro par.
     const r1 = await post("oauth/token", { grant_type: "refresh_token", refresh_token: tok.body!.refresh_token, client_id: clientId }, true);
     expect(r1.status).toBe(200);
     expect(await mcp(r1.body!.access_token)).toBe(200);
+    const gracia = await post("oauth/token", { grant_type: "refresh_token", refresh_token: tok.body!.refresh_token, client_id: clientId }, true);
+    expect(gracia.status).toBe(200);
+    expect(await mcp(gracia.body!.access_token)).toBe(200);
+    expect(await mcp(r1.body!.access_token)).toBe(200);
+    // Pasada la gracia, reusarla cierra la conexión entera.
+    await sys()
+      .update(schema.aiToken)
+      .set({ revokedAt: new Date(Date.now() - 5 * 60_000) })
+      .where(eq(schema.aiToken.tokenHash, (await import("@/server/ai-connector/keys")).hashToken(tok.body!.refresh_token)));
     const reuso = await post("oauth/token", { grant_type: "refresh_token", refresh_token: tok.body!.refresh_token, client_id: clientId }, true);
     expect(reuso.body!.error).toBe("invalid_grant");
     expect(await mcp(r1.body!.access_token)).toBe(401);
   });
 
-  it("DF-08: dos renovaciones simultáneas consumen la llave una sola vez", async () => {
+  it("DF-08: dos renovaciones simultáneas consumen la llave una sola vez y ninguna cierra la conexión", async () => {
     state.session = sessionContext(u.ana, A.id, "asesor");
     const { r, verifier } = await iniciarSesion(clientId);
     const code = new URL(r.body!.redirect).searchParams.get("code")!;
@@ -241,13 +253,15 @@ describe("047 PR 3 — iniciar sesión con OAuth", () => {
     try {
       const input = { refreshToken: tok.body!.refresh_token as string, clientId };
       const results = await Promise.all([oauth.refreshTokens(input), oauth.refreshTokens(input)]);
-      const winners = results.filter((result) => "access_token" in result);
-      expect(winners).toHaveLength(1);
-      expect(results.filter((result) => "error" in result)).toEqual([
-        expect.objectContaining({ error: "invalid_grant" }),
-      ]);
-      // El perdedor es un reúso: también invalida el par emitido por el ganador.
-      if ("access_token" in winners[0]!) expect(await mcp(winners[0].access_token)).toBe(401);
+      // La misma app renovando en paralelo (ChatGPT): las dos reciben su par y la conexión sigue viva.
+      const pairs = results.filter((result) => "access_token" in result);
+      expect(pairs).toHaveLength(2);
+      for (const p of pairs) if ("access_token" in p) expect(await mcp(p.access_token)).toBe(200);
+      const [rt] = await sys()
+        .select({ revokedAt: schema.aiToken.revokedAt })
+        .from(schema.aiToken)
+        .where(eq(schema.aiToken.tokenHash, (await import("@/server/ai-connector/keys")).hashToken(input.refreshToken)));
+      expect(rt!.revokedAt).not.toBeNull();
     } finally {
       spy.mockRestore();
     }
@@ -336,6 +350,51 @@ describe("047 PR 3 — iniciar sesión con OAuth", () => {
     const sin = await POST(new Request("http://localhost/api/mcp", { method: "POST", body: "{}" }));
     expect(sin.status).toBe(401);
     expect(sin.headers.get("access-control-expose-headers")).toContain("www-authenticate");
+  });
+
+  it("como ChatGPT con CIMD: sus metadatos no se pueden leer, state largo y resource → llaves", async () => {
+    const clientId = "https://chatgpt.com/oauth/cb_test123/client.json";
+    const redirect = "https://chatgpt.com/connector/oauth/cb_test123";
+    state.session = sessionContext(u.ana, A.id, "asesor");
+    const { verifier, challenge } = pkce();
+    const params = {
+      response_type: "code",
+      client_id: clientId,
+      redirect_uri: redirect,
+      code_challenge: challenge,
+      code_challenge_method: "S256",
+      state: "s".repeat(1500),
+      scope: "read write",
+      resource: "http://localhost:3000/api/mcp",
+    };
+    const r = await post("oauth/authorize", { params, decision: "approve", scopes: ["read", "write"] });
+    expect(r.status).toBe(200);
+    const back = new URL(r.body!.redirect);
+    expect(back.origin + back.pathname).toBe(redirect);
+    expect(back.searchParams.get("state")).toBe(params.state);
+    expect(back.searchParams.get("iss")).toBe("http://localhost:3000");
+    const tok = await post(
+      "oauth/token",
+      {
+        grant_type: "authorization_code",
+        code: back.searchParams.get("code")!,
+        redirect_uri: redirect,
+        code_verifier: verifier,
+        client_id: clientId,
+        resource: "http://localhost:3000/api/mcp",
+      },
+      true
+    );
+    expect(tok.status).toBe(200);
+    expect(await mcp(tok.body!.access_token as string)).toBe(200);
+
+    // A otra dirección (aunque parezca de ChatGPT) nunca.
+    const bad = await post("oauth/authorize", {
+      params: { ...params, redirect_uri: "https://chatgpt.com.evil.example/cb" },
+      decision: "approve",
+      scopes: ["read"],
+    });
+    expect(bad.status).toBe(422);
   });
 
   it("si el Propietario apaga el conector, ni se acepta ni se renueva", async () => {

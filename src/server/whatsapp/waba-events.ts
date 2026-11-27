@@ -18,8 +18,8 @@ const log = logger("webhook-waba");
  * La forma de cada `value` NO está verificada contra la documentación
  * oficial (ver docs/campanas-v2-meta.md): se lee con tolerancia.
  */
-export const WABA_FIELDS = ["phone_number_quality_update", "account_update", "template_category_update"] as const;
-export type WabaField = (typeof WABA_FIELDS)[number];
+const WABA_FIELDS = ["phone_number_quality_update", "account_update", "template_category_update"] as const;
+type WabaField = (typeof WABA_FIELDS)[number];
 
 export function isWabaField(field: string | undefined): field is WabaField {
   return (WABA_FIELDS as readonly string[]).includes(field ?? "");
@@ -66,6 +66,6 @@ export async function processWabaEvent(
 }
 
 /** `account_update` con `event: PARTNER_REMOVED` (el negocio desconectó la app). */
-export function isPartnerRemoved(value: Record<string, unknown>): boolean {
+function isPartnerRemoved(value: Record<string, unknown>): boolean {
   return typeof value.event === "string" && value.event.trim().toUpperCase() === "PARTNER_REMOVED";
 }

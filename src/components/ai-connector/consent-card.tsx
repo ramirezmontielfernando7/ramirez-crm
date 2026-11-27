@@ -55,8 +55,8 @@ export function ConsentCard({
       </CardHeader>
       <CardContent className="space-y-4">
         <ul className="space-y-2 text-sm text-text-2">
-          <Item ok>Ver tus chats, contactos, etapas y tareas, igual que tú en la Bandeja</Item>
-          <Item ok={write}>Enviar mensajes, poner etiquetas, mover etapas y crear tareas por ti</Item>
+          <Item ok>Ver tus chats, contactos, etapas, tareas y citas, igual que tú en el CRM</Item>
+          <Item ok={write}>Enviar mensajes, poner etiquetas, mover etapas, crear tareas y agendar citas por ti</Item>
           {advanced.labels.length > 0 ? (
             <>
               <Item ok>

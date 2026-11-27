@@ -134,6 +134,13 @@ async function main() {
     body: JSON.stringify({ wabaId: WABA, phoneNumberId: PN, token: `tok-meta-${RUN}` }),
   });
   ok("conexión WhatsApp guardada", conn.res.ok, JSON.stringify(conn.json));
+  // Con varios números, conectar uno nuevo AGREGA: este guion trabaja con el
+  // principal, así que deja solo el suyo (antes conectar reemplazaba).
+  const estado = await api("/api/settings/whatsapp");
+  for (const n of estado.json?.numbers ?? []) {
+    if (n.phoneNumberId === PN) continue;
+    await api(`/api/settings/whatsapp/numbers/${encodeURIComponent(n.phoneNumberId)}`, { method: "DELETE" });
+  }
 
   /* ------------------------------------------------------------ */
   console.log("\n== 1. Estados del mensaje: horas, precios, failed tardío, 131049 ==");

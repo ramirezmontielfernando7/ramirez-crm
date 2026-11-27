@@ -19,7 +19,7 @@
  *
  * PR A2 (pantallas, con navegador real — sección 5b):
  *  - «Agente» sale del menú con Laboratorio encendido y /agent sigue vivo con
- *    su enlace a «Gestionar todos los agentes».
+ *    su enlace a «Ver todos tus agentes en Agentes IA».
  *  - /lab (Agentes): el general fijo arriba; crear un agente desde la pantalla;
  *    vista previa tipo chat con chips y «Por qué respondió así»; guardar
  *    borrador, publicar (con resumen), renombrar, cargar una versión al
@@ -301,16 +301,25 @@ async function main() {
     ok("el menú tiene Laboratorio y ya no «Agente»", (await page.locator('nav a[href="/lab"]').count()) > 0 && (await page.locator('nav a[href="/agent"]').count()) === 0);
     ok("portada del creador o lista con el general arriba", portada || /General/.test((await page.locator('[role="row"]').nth(1).innerText()) ?? ""));
 
-    // /agent sigue vivo y enlaza al Laboratorio.
+    // Con Laboratorio, /agent ya no es una pantalla aparte: lleva a Agentes IA, y el
+    // interruptor general y el cerebro externo viven en Ajustes → Quién contesta.
     await page.goto(`${BASE}/agent`);
-    await page.getByText("Agente de IA").first().waitFor();
-    ok("/agent sigue editando al general y enlaza al Laboratorio", (await page.getByRole("link", { name: /Gestionar todos los agentes/ }).count()) === 1);
+    await page.waitForURL(/\/lab(\?|$)/);
+    ok("/agent con Laboratorio redirige a Agentes IA", /\/lab/.test(page.url()));
+    await page.goto(`${BASE}/settings/quien-contesta`);
+    await page.getByRole("switch", { name: "Agente encendido" }).waitFor();
+    ok("Ajustes → Quién contesta trae el interruptor general", (await page.getByRole("switch", { name: "Agente encendido" }).count()) === 1);
 
     // Crear desde la pantalla.
     await page.goto(`${BASE}/lab`);
     await page.locator('[data-testid="creator-landing"], [data-testid="create-agent"]').first().waitFor();
     if ((await page.getByTestId("creator-landing").count()) > 0) await page.getByRole("button", { name: "Usar el formulario" }).click();
-    else await page.getByTestId("create-agent").click();
+    else {
+      await page.getByTestId("create-agent").click();
+      // Paquete B: con varios agentes en el plan, primero se le pone nombre (vacío = «Agente nuevo N»).
+      const nombrar = page.getByRole("dialog").getByRole("button", { name: "Crear y configurar" });
+      if (await nombrar.waitFor({ timeout: 5000 }).then(() => true, () => false)) await nombrar.click();
+    }
     await page.waitForURL(/\/lab\/agents\//);
     await page.getByText(/Agente nuevo/).first().waitFor();
     const idUi = page.url().split("/lab/agents/")[1].split("?")[0];
@@ -341,10 +350,10 @@ async function main() {
     await page.getByText(/Borrador guardado/).waitFor();
     const trasGuardar = (await api(`/api/lab/agents/${idUi}`)).json?.agent;
     ok("guardar borrador no publica", trasGuardar?.status === "draft" && trasGuardar?.published === null, JSON.stringify(trasGuardar?.status));
-    await page.getByRole("button", { name: /^Publicar( v\d+)?$/ }).click();
+    await page.getByRole("button", { name: /^Publicar( cambios)?$/ }).click();
     await page.getByRole("dialog").getByText(/primera vez/).waitFor();
     await page.getByRole("dialog").getByRole("button", { name: "Publicar" }).click();
-    await page.getByText(/^Publicado\.$/).waitFor();
+    await page.getByText(/^Publicado\. /).waitFor();
     const trasPublicar = (await api(`/api/lab/agents/${idUi}`)).json?.agent;
     ok("publicar desde la pantalla deja el agente publicado", trasPublicar?.status === "published" && Boolean(trasPublicar?.published));
 

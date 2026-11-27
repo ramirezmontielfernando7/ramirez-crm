@@ -7,7 +7,8 @@ import { companyChat, scopedContacts, type Access } from "@/lib/db/tenant";
  * que la IA contestó en los últimos 7 días y cuántos se resolvieron sin pasar
  * a una persona; y el total contra la semana anterior. El chat sin agente
  * anotado (antes de 031 o del cerebro externo) cuenta para el general, igual
- * que en la auditoría del asistente (`assistant/audit.ts`).
+ * que en la auditoría del asistente (`assistant/audit.ts`). Las respuestas de
+ * los datos de ejemplo (`wamid.demo.*`) no cuentan (auditoría UX 2026-11, B).
  */
 export type AgentStatsDto = {
   perAgent: Record<string, { chats: number; resolved: number }>;
@@ -25,6 +26,7 @@ export async function agentStats(access: Access, now = new Date()): Promise<Agen
   const repliedIn = (from: Date, to: Date) => sql`exists (
     select 1 from message m
     where m.conversation_id = ${c.id} and m.direction = 'out' and m.ai_generated = true
+      and (m.wa_message_id is null or m.wa_message_id not like 'wamid.demo.%')
       and m.created_at >= ${from.toISOString()}::timestamp and m.created_at < ${to.toISOString()}::timestamp
   )`;
   const thisWeek = repliedIn(since, now);

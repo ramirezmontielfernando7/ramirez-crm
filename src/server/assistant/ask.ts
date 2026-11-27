@@ -20,7 +20,7 @@ const log = logger("asistente");
 /** Una pregunta a la vez por persona: una sola no puede multiplicar el gasto. */
 const enCurso = new Set<string>();
 
-export type AskOutcome =
+type AskOutcome =
   | { ok: true; threadId: string; question: AssistantMessageDto; answer: AssistantMessageDto }
   | { ok: false; status: number; code: string; message: string };
 

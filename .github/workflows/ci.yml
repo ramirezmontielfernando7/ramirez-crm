@@ -15,6 +15,9 @@ on:
       - ".claude/**"
       - "**/*.png"
       - "**/*.jpg"
+      - "**/*.md"
+      - "docs/**"
+      - "specs/**"
   push:
     branches: [main]
     paths-ignore:
@@ -24,6 +27,9 @@ on:
       - ".claude/**"
       - "**/*.png"
       - "**/*.jpg"
+      - "**/*.md"
+      - "docs/**"
+      - "specs/**"
 
 # Tres pushes seguidos a un PR no necesitan tres corridas: manda la última.
 # En `main` no se cancela nada — ahí el historial de qué pasó importa.
@@ -251,15 +257,21 @@ jobs:
           - name: organizaciones y módulos
             scripts: "e2e-multiorg e2e-credenciales e2e-modulos"
           - name: plataforma
-            scripts: "e2e-plataforma"
+            scripts: "e2e-plataforma e2e-plataforma-vender"
           - name: campañas y datos de Meta
             scripts: "e2e-datos-meta e2e-campanas-v2 e2e-etiquetas-limpias"
           - name: agentes, navegación y trabajo
-            scripts: "e2e-navegacion e2e-apariencia e2e-agentes e2e-pausa-agentes e2e-trabajo"
-          - name: Bandeja y responsive
+            scripts: "e2e-navegacion e2e-apariencia e2e-agentes e2e-pausa-agentes e2e-trabajo e2e-primeros-pasos"
+          # Espera ~2 min un temporizador real (chats olvidados): va solo
+          # para no alargar la fila de arriba.
+          - name: mensajes automáticos
+            scripts: "e2e-mensajes-automaticos"
+          - name: Bandeja
+            scripts: "e2e-numero-nuevo e2e-bandeja-capsulas e2e-bandeja-virtual e2e-bandeja-paginada"
+          - name: responsive y varios números
             # conectar-facebook va al final: su login cuenta contra el freno por
             # IP (FR-062) que usan los guiones de arriba.
-            scripts: "e2e-numero-nuevo e2e-bandeja-capsulas e2e-bandeja-virtual e2e-bandeja-paginada e2e-responsive e2e-conectar-facebook"
+            scripts: "e2e-responsive e2e-conectar-facebook e2e-varios-numeros"
           - name: documentos (RAG) y apagado
             rag: true
             scripts: ""
@@ -286,8 +298,23 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       # e2e-plataforma recorre /platform y los enlaces con un navegador real.
+      # El navegador se guarda entre corridas: solo se descarga si cambia
+      # la versión de Playwright (las dependencias del sistema sí se instalan).
+      - name: versión de Playwright
+        id: pw
+        run: echo "v=$(pnpm exec playwright --version | awk '{print $2}')" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@v4
+        id: pwcache
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.pw.outputs.v }}
       - name: chromium para Playwright
-        run: pnpm exec playwright install --with-deps chromium
+        run: |
+          if [ "${{ steps.pwcache.outputs.cache-hit }}" = "true" ]; then
+            pnpm exec playwright install-deps chromium
+          else
+            pnpm exec playwright install --with-deps chromium
+          fi
       - name: .env de pruebas (mocks, secretos desechables)
         run: |
           {
@@ -379,6 +406,16 @@ jobs:
       - name: e2e de apagado limpio (SIGTERM a mitad de una campaña)
         if: ${{ matrix.shard.rag }}
         run: node --env-file=.env scripts/e2e-apagado.mjs
+      # S-09 (2026-11): la CSP ya es obligatoria. Si el navegador bloqueó
+      # algo en cualquier vuelta (lo reporta a /api/csp-report), falla. El
+      # reporte falso que manda e2e-plataforma (host evil.example) no cuenta.
+      - name: CSP sin bloqueos en toda la corrida
+        run: |
+          if grep -h "la CSP bloqueó" app*.log 2>/dev/null | grep -v "evil.example"; then
+            echo "::error::La CSP bloqueó algo durante el e2e (ver arriba qué directiva y host)"
+            exit 1
+          fi
+          echo "sin bloqueos de la CSP"
       - name: logs de la app
         if: ${{ failure() }}
         run: tail -n 200 app1.log app2.log app3.log || true

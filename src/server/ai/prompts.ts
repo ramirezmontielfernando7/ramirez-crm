@@ -10,7 +10,7 @@ type KbEntry = Pick<typeof schema.kbEntry.$inferSelect, "kind" | "question" | "a
 export const DOCS_MARKER = "DOCUMENTOS DEL NEGOCIO";
 
 /** 035 — Fragmentos recuperados para este turno + el nonce que los delimita. */
-export type PromptDocs = { nonce: string; chunks: { title: string; content: string }[] };
+type PromptDocs = { nonce: string; chunks: { title: string; content: string }[] };
 
 /**
  * 035 — La sección de documentos. El contenido es DATO, no instrucciones:
@@ -86,7 +86,7 @@ export function buildAgentSystemPrompt(input: {
   const stageNames = input.stages.map((s) => s.name).join(" | ");
   const agendaLines = input.agenda
     ? [
-        '- {"action":"offer_slots","reply":"..."} — ofrecer horarios para agendar (reply es solo la frase de entrada; los horarios los pone el sistema).',
+        '- {"action":"offer_slots","reply":"...","date":"AAAA-MM-DD"} — ofrecer horarios para agendar (reply es solo la frase de entrada; los horarios los pone el sistema). "date" es opcional: ponlo solo si el cliente pidió un día concreto.',
         '- {"action":"book_slot","startUtc":"<uno de los horarios que el sistema ofreció, en ISO UTC>","reply":"..."} — agendar el horario que el cliente eligió.',
       ]
     : [];
@@ -94,6 +94,7 @@ export function buildAgentSystemPrompt(input: {
     ? [
         "- NUNCA escribas tú los horarios ni los inventes: usa offer_slots y el sistema pega los reales.",
         "- book_slot solo acepta un horario que el sistema ofreció antes en ESTA conversación. Si el cliente pide otro, vuelve a ofrecer con offer_slots.",
+        '- Si el cliente pide un día concreto («el martes», «el 24», «mañana»), usa offer_slots con "date" de ESE día (calcúlalo con la fecha de hoy que te da el sistema). Nunca le repitas horarios de otro día como si fueran los que pidió.',
         "- Si el cliente quiere CANCELAR una cita → handoff: esa decisión no es tuya.",
       ]
     : [];

@@ -169,6 +169,8 @@ async function main() {
   await page.fill("#org-name", NAME_B);
   await page.fill("#owner-name", OWNER_B.name);
   await page.fill("#owner-email", OWNER_B.email);
+  // Auditoría UX 2026-11 (21): el plan se elige siempre; «Personalizado» = los de fábrica de la instancia.
+  await page.getByTestId("platform-create-profile").selectOption("personalizado");
   await page.getByTestId("platform-create-org").click();
   await page.getByTestId("platform-link-url").waitFor({ timeout: 20000 });
   const activacion = (await page.getByTestId("platform-link-url").innerText()).trim();
@@ -309,12 +311,12 @@ async function main() {
 
   console.log("\n== 8 · Cabeceras de seguridad ==");
   const h = (await A.call("GET", "/login")).headers;
-  ok("HSTS de 1 día", h["strict-transport-security"] === "max-age=86400", h["strict-transport-security"]);
+  ok("HSTS de 1 año (S-09)", h["strict-transport-security"] === "max-age=31536000", h["strict-transport-security"]);
   ok("X-Frame-Options: DENY", h["x-frame-options"] === "DENY");
   ok("nosniff", h["x-content-type-options"] === "nosniff");
   ok("Referrer-Policy", h["referrer-policy"] === "strict-origin-when-cross-origin");
-  ok("CSP en modo reporte, con frame-ancestors", /frame-ancestors 'none'/.test(h["content-security-policy-report-only"] ?? ""));
-  ok("frame-ancestors aplicado", /frame-ancestors 'none'/.test(h["content-security-policy"] ?? ""));
+  ok("CSP obligatoria (S-09), sin modo reporte", !h["content-security-policy-report-only"]);
+  ok("CSP completa: frame-ancestors, default-src y reportes", /frame-ancestors 'none'/.test(h["content-security-policy"] ?? "") && /default-src 'self'/.test(h["content-security-policy"] ?? "") && /report-uri \/api\/csp-report/.test(h["content-security-policy"] ?? ""), h["content-security-policy"]);
   const rep = await A.call("POST", "/api/csp-report", { "csp-report": { "violated-directive": "img-src", "blocked-uri": "https://evil.example/x.png?tel=5512345678" } });
   ok("/api/csp-report acepta reportes (204)", rep.status === 204);
 
@@ -365,11 +367,11 @@ async function consumoEnPlataforma(A, B, orgB) {
   const fila = page.getByTestId(`platform-org-${orgB}`);
   await fila.waitFor({ timeout: 30000 });
   ok("la fila cerrada muestra IA del mes", /tokens/.test(await fila.getByTestId("platform-org-ai").first().innerText()));
-  ok("…almacenamiento aproximado («sin tope» hasta los límites)", /KB · sin tope/.test(await fila.getByTestId("platform-org-storage").first().innerText()));
+  ok("…almacenamiento aproximado («sin tope» hasta los límites)", /KB · sin límite/.test(await fila.getByTestId("platform-org-storage").first().innerText()));
   ok("…y módulos activos «x/13»", /^\d+\/13$/.test((await fila.getByTestId("platform-org-modules-count").last().innerText()).trim()));
   // 040: estado y plan guardado en la fila (la etiqueta amigable).
   const [{ plan_key: planB } = {}] = await sql`select plan_key from organization_plan where organization_id = ${orgB}`;
-  const PLAN_TXT = { esencial: "Plan Esencial", pro: "Plan Pro", ultra: "Plan Ultra", custom: "Personalizado" };
+  const PLAN_TXT = { inicio: "Plan Inicio", esencial: "Plan Esencial", pro: "Plan Pro", ultra: "Plan Ultra", custom: "Personalizado" };
   ok("040: la fila dice su estado y su plan guardado", (await fila.getByTestId("platform-org-status").innerText()) === "Activa" && (await fila.getByTestId("platform-org-plan").innerText()) === PLAN_TXT[planB ?? "custom"], String(planB));
   ok("la tabla no muestra interruptores", (await fila.getByTestId("platform-modules").count()) === 0);
   ok("040: filtros rápidos por estado", await (async () => {
@@ -467,7 +469,7 @@ async function topesYAvisos(A, B, orgB) {
   const form = page.getByTestId("platform-limits");
   await form.waitFor({ timeout: 30000 });
   const [{ plan_key: planB } = {}] = await sql`select plan_key from organization_plan where organization_id = ${orgB}`;
-  const PLAN_TXT = { esencial: "Plan Esencial", pro: "Plan Pro", ultra: "Plan Ultra", custom: "Personalizado" };
+  const PLAN_TXT = { inicio: "Plan Inicio", esencial: "Plan Esencial", pro: "Plan Pro", ultra: "Plan Ultra", custom: "Personalizado" };
   ok("040: los topes dicen el plan guardado", (await form.getByTestId("platform-plan").getAttribute("data-plan")) === (planB ?? "custom") && (await form.getByTestId("platform-plan").innerText()) === PLAN_TXT[planB ?? "custom"], String(planB));
   ok("un tope sin valor propio dice de dónde hereda", /Hereda:/.test(await form.getByTestId("platform-limit-members").getAttribute("placeholder")));
   await form.getByTestId("platform-limit-members").fill("1");
@@ -494,15 +496,15 @@ async function topesYAvisos(A, B, orgB) {
   ok("0070: …y 404 a los demás", (await B.call("GET", "/api/platform/ai-settings")).status === 404);
   // 0073: catálogo de planes (precios en pesos) que edita la plataforma y ve la Propietaria.
   const pl0 = await A.call("GET", "/api/platform/plans");
-  ok("0073: «Planes y precios» responde al administrador con los de fábrica", pl0.status === 200 && pl0.json?.catalog?.pro?.priceMonthlyMxn === 899 && pl0.json?.catalog?.esencial?.priceMonthlyMxn === 499 && pl0.json?.catalog?.ultra?.priceMonthlyMxn === 1799, JSON.stringify(pl0.json?.catalog?.pro));
+  ok("0073: «Planes y precios» responde al administrador con los de fábrica", pl0.status === 200 && pl0.json?.catalog?.pro?.priceMonthlyMxn === 1999 && pl0.json?.catalog?.esencial?.priceMonthlyMxn === 999 && pl0.json?.catalog?.ultra?.priceMonthlyMxn === 2999 && pl0.json?.catalog?.inicio?.priceMonthlyMxn === 499, JSON.stringify(pl0.json?.catalog?.pro));
   ok("0073: …y 404 a los demás", (await B.call("GET", "/api/platform/plans")).status === 404 && (await B.call("PUT", "/api/platform/plans", { scope: "pro", priceMonthlyMxn: 1 })).status === 404);
   const pl1 = await A.call("PUT", "/api/platform/plans", { scope: "pro", priceMonthlyMxn: 1099 });
-  ok("0073: el administrador cambia un precio", pl1.status === 200 && pl1.json?.catalog?.pro?.priceMonthlyMxn === 1099 && pl1.json?.catalog?.ultra?.priceMonthlyMxn === 1799);
+  ok("0073: el administrador cambia un precio", pl1.status === 200 && pl1.json?.catalog?.pro?.priceMonthlyMxn === 1099 && pl1.json?.catalog?.ultra?.priceMonthlyMxn === 2999);
   const pl2 = await B.call("GET", "/api/usage/plans");
   ok("0073: la Propietaria ve el precio nuevo y su plan", pl2.status === 200 && pl2.json?.catalog?.pro?.priceMonthlyMxn === 1099 && typeof pl2.json?.current === "string", JSON.stringify(pl2.json?.current));
   ok("0073: la bitácora registra el cambio de planes", (await sql`select 1 from platform_audit_log where action = 'plans.changed'`).length >= 1);
   const pl3 = await A.call("PUT", "/api/platform/plans", { scope: "pro", priceMonthlyMxn: null });
-  ok("0073: volver al precio de fábrica", pl3.status === 200 && pl3.json?.catalog?.pro?.priceMonthlyMxn === 899);
+  ok("0073: volver al precio de fábrica", pl3.status === 200 && pl3.json?.catalog?.pro?.priceMonthlyMxn === 1999);
   ok("0073: un precio negativo se rechaza (422)", (await A.call("PUT", "/api/platform/plans", { scope: "pro", priceMonthlyMxn: -5 })).status === 422);
   // El almacenamiento exacto (en bytes) por la API: la pantalla lo pide en GB.
   const put = await A.call("PUT", `/api/platform/organizations/${orgB}/limits`, { storageBytes: tope });
@@ -606,8 +608,9 @@ async function planesGuardados(A) {
   await page.waitForURL(new RegExp(`/platform/organizaciones/${orgP}$`));
   await page.getByTestId("platform-template-esencial").waitFor({ timeout: 20000 });
   ok("la plantilla actual está marcada", (await page.getByTestId("platform-template-pro").getAttribute("aria-pressed")) === "true");
-  page.once("dialog", (d) => void d.accept());
+  // 048: el cambio de plan abre una vista previa (qué se enciende/apaga) y se aplica con su botón.
   await page.getByTestId("platform-template-esencial").click();
+  await page.getByTestId("platform-plan-preview-apply").click();
   ok("la plantilla «Esencial» deja plan_key = esencial", await hasta(async () => (await guardado()) === "esencial"));
   ok("…y la ficha dice «Plan Esencial»", await hasta(async () => (await page.getByTestId("platform-detail-badge").getByTestId("platform-org-plan").innerText()) === "Plan Esencial"));
   const sw = page.getByTestId("platform-module-agenda").getByRole("switch");
@@ -745,7 +748,7 @@ async function usoYPlan(A, B, orgB) {
   ok("…se abre como ventana (sin cambiar de página)", /\/inbox/.test(page.url()));
   const pantalla = page.getByTestId("usage-plan");
   await pantalla.waitFor({ timeout: 30000 });
-  const PLAN_TXT = { esencial: "Plan Esencial", pro: "Plan Pro", ultra: "Plan Ultra", custom: "Personalizado" };
+  const PLAN_TXT = { inicio: "Plan Inicio", esencial: "Plan Esencial", pro: "Plan Pro", ultra: "Plan Ultra", custom: "Personalizado" };
   ok("la pantalla dice el plan («Plan Esencial», «Plan Pro», «Plan Ultra» o «Personalizado»)", (await page.getByTestId("usage-plan-name").innerText()).trim() === PLAN_TXT[planB ?? "custom"]);
   ok("IA del mes contra su tope", /\/ 1 M tokens/.test(await page.getByTestId("usage-plan-ai-meter").innerText()));
   ok("personas contra su tope", /\/ 3 personas/.test(await page.getByTestId("usage-plan-members-meter").innerText()));
@@ -874,7 +877,7 @@ async function asistenteBase(A, B, orgB) {
   await page.getByTestId("assistant-notice-accept").click();
   await guardado;
   ok("«Entendido, continuar» la cierra", await aviso.waitFor({ state: "detached", timeout: 10000 }).then(() => true, () => false));
-  ok("el banner fijo sigue a la vista", /consume bastante crédito de IA/.test(await page.getByTestId("assistant-cost-banner").innerText()));
+  ok("el banner fijo sigue a la vista", /usa crédito de IA de tu plan/.test(await page.getByTestId("assistant-cost-banner").innerText()));
   ok("el estado: disponible", (await page.getByTestId("assistant-status").getAttribute("data-state")) === "available");
   await page.screenshot({ path: "scratch/e2e-asistente.png", fullPage: true }).catch(() => null);
   await page.reload();
@@ -887,12 +890,17 @@ async function asistenteBase(A, B, orgB) {
   await page.reload();
   await page.getByTestId("assistant-status").waitFor({ timeout: 30000 });
   ok("…y se recuerda al volver", (await page.getByTestId("assistant-cost-banner").count()) === 0);
-  // Acceso rápido desde otra pantalla: botón discreto y Ctrl+K.
-  await page.goto(`${BASE}/inbox`);
+  // Acceso rápido desde otra pantalla: botón discreto y Ctrl+K («Buscar» → «Preguntar al asistente»).
+  await page.goto(`${BASE}/pipeline`);
   await page.getByTestId("assistant-launcher").waitFor({ timeout: 30000 });
   await page.keyboard.press("Control+k");
-  ok("Ctrl+K abre el panel rápido del asistente", await page.getByTestId("assistant-quick").waitFor({ timeout: 15000 }).then(() => true, () => false));
-  await page.getByTestId("assistant-quick-input").fill("¿Cómo va mi equipo?");
+  await page.getByTestId("command-palette").waitFor({ timeout: 15000 });
+  await page.getByTestId("command-palette").getByRole("combobox").fill("¿Cómo va mi equipo?");
+  await page.getByRole("option", { name: /Preguntar al asistente/ }).click();
+  ok("Ctrl+K → «Preguntar al asistente» abre el panel rápido", await page.getByTestId("assistant-quick").waitFor({ timeout: 15000 }).then(() => true, () => false));
+  ok("…con la pregunta ya escrita", (await page.getByTestId("assistant-quick-input").inputValue()) === "¿Cómo va mi equipo?");
+  // El cuadro se habilita cuando llega el estado del asistente; antes, Enter no hace nada.
+  for (let i = 0; i < 60 && !(await page.getByTestId("assistant-quick-input").isEnabled()); i++) await page.waitForTimeout(250);
   await page.getByTestId("assistant-quick-input").press("Enter");
   ok("…y contesta ahí mismo", await page.getByTestId("assistant-quick-answer").waitFor({ timeout: 120000 }).then(() => true, () => false));
   await page.screenshot({ path: "scratch/e2e-asistente-rapido.png" }).catch(() => null);
@@ -1026,7 +1034,10 @@ async function costoAsistente(orgId) {
 async function asistenteMotor(A, B, orgB) {
   console.log("\n== 4g · Asistente interno: motor (038 PR 2) ==");
   await A.call("POST", `/api/platform/organizations/${orgB}/modules`, { asistente: true });
-  await A.call("PUT", `/api/platform/organizations/${orgB}/limits`, { assistantTokens: 200_000, aiTokens: 1_000_000, usageVisibility: "percent" });
+  // Presupuesto de PRUEBA para toda la sección (~40 preguntas). Cada herramienta
+  // del conector viaja en el prompt del asistente (paridad): con más herramientas
+  // cada pregunta cuesta un poco más, así que el presupuesto deja margen.
+  await A.call("PUT", `/api/platform/organizations/${orgB}/limits`, { assistantTokens: 400_000, aiTokens: 1_000_000, usageVisibility: "percent" });
   await B.call("POST", "/api/assistant/notice", {});
 
   // Datos de B con nombre, teléfono, correo y una orden escondida en el texto.
@@ -1177,7 +1188,7 @@ async function asistenteMotor(A, B, orgB) {
   ok("tope propio agotado: no pregunta y lo dice", r9.status === 409 && /agotó su crédito/.test(r9.json?.error?.message ?? ""), `${r9.status} ${JSON.stringify(r9.json)}`);
   const turnosAntes = (await costoAsistente(orgB)).turnos;
   ok("…y no se llamó al modelo", turnosAntes === (await costoAsistente(orgB)).turnos);
-  await A.call("PUT", `/api/platform/organizations/${orgB}/limits`, { assistantTokens: 200_000 });
+  await A.call("PUT", `/api/platform/organizations/${orgB}/limits`, { assistantTokens: 400_000 });
   const borrar = await B.call("DELETE", `/api/assistant/threads/${threadId}`);
   ok("la Propietaria borra una conversación", borrar.status === 200 && (await B.call("GET", `/api/assistant/threads/${threadId}`)).status === 404);
   await A.call("POST", `/api/platform/organizations/${orgB}/modules`, { asistente: false });

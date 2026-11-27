@@ -15,12 +15,18 @@ type MessageStatus = "pending" | "sent" | "delivered" | "read" | "failed";
  * Desde qué estados se puede llegar a cada uno. El orden es monotónico: un
  * `delivered` tardío no pisa `read`, y (Campañas v2) un `failed` tardío no
  * pisa un `delivered` ni un `read`: si Meta ya confirmó la entrega, un fallo
- * que llega después no la deshace. `failed` es terminal.
+ * que llega después no la deshace.
+ *
+ * S-11 (fase 2, 2026-11): al revés también. Los avisos de Meta se procesan
+ * después de responder y pueden aplicarse en cualquier orden; si un
+ * `delivered`/`read` llega DESPUÉS de un `failed` del mismo mensaje, la
+ * entrega es la verdad (el cliente lo tiene) y gana. Desde `failed` solo se
+ * sale hacia `delivered`/`read`, nunca a `sent` ni de vuelta a `failed`.
  */
 export const ALLOWED_FROM: Record<Exclude<MessageStatus, "pending">, MessageStatus[]> = {
   sent: ["pending"],
-  delivered: ["pending", "sent"],
-  read: ["pending", "sent", "delivered"],
+  delivered: ["pending", "sent", "failed"],
+  read: ["pending", "sent", "delivered", "failed"],
   failed: ["pending", "sent"],
 };
 
@@ -94,7 +100,7 @@ export async function applyStatusUpdate(
     .set(
       next === "failed"
         ? { status: next, error, errorCode, failedAt: at }
-        : { status: next, error: null, errorCode: null }
+        : { status: next, error: null, errorCode: null, failedAt: null }
     )
     .where(scoped(schema.message.organizationId, organizationId, byWamid, inArray(schema.message.status, ALLOWED_FROM[next])))
     .returning({

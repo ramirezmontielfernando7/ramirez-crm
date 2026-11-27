@@ -158,10 +158,7 @@ describe("pantallas del Laboratorio", () => {
 
   it("todas las páginas de /lab exigen permiso y módulo en el servidor", () => {
     for (const p of [
-      "app/(app)/lab/layout.tsx",
-      "app/(app)/lab/page.tsx",
       "app/(app)/lab/evaluaciones/page.tsx",
-      "app/(app)/lab/agents/[id]/page.tsx",
       // 035
       "app/(app)/lab/documentos/page.tsx",
       // 037
@@ -170,6 +167,12 @@ describe("pantallas del Laboratorio", () => {
       const src = leer(p);
       expect(src, p).toContain('requirePagePermission("agent.manage")');
       expect(src, p).toContain('requireModulePage("lab")');
+    }
+    // Esencial: Mis agentes y el editor (creador + vista previa) piden el Agente, no el Laboratorio.
+    for (const p of ["app/(app)/lab/layout.tsx", "app/(app)/lab/page.tsx", "app/(app)/lab/agents/[id]/page.tsx"]) {
+      const src = leer(p);
+      expect(src, p).toContain('requirePagePermission("agent.manage")');
+      expect(src, p).toContain('requireModulePage("agent")');
     }
   });
 

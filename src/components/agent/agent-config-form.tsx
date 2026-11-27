@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
  * El nombre es opcional en el Laboratorio (`nameLabel`, `namePlaceholder`,
  * `nameHelp`); `showName={false}` lo oculta cuando el editor ya lo pide aparte.
  */
-export type AgentConfigFields = {
+type AgentConfigFields = {
   name: string;
   tone: string | null;
   instructions: string | null;

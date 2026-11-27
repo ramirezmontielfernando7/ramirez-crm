@@ -91,7 +91,7 @@ export async function listTasks(
 }
 
 /** Una tarea que quien pide puede ver; si no, null (→ 404). */
-export async function getTask(v: Viewer, id: string): Promise<Row | null> {
+async function getTask(v: Viewer, id: string): Promise<Row | null> {
   const [row] = await getDb()
     .select()
     .from(schema.workTask)
@@ -137,7 +137,7 @@ async function checkAssignee(organizationId: string, userId: string | null | und
   }
 }
 
-export type TaskInput = {
+type TaskInput = {
   title: string;
   description?: string | null;
   dueAt?: Date | null;
@@ -168,7 +168,7 @@ export async function createTask(v: Viewer, input: TaskInput): Promise<TaskDto> 
   return (await serialize(v, [row!]))[0]!;
 }
 
-export type TaskPatch = Partial<TaskInput> & { done?: boolean };
+type TaskPatch = Partial<TaskInput> & { done?: boolean };
 
 /** null = no existe para quien pide (404); "forbidden" = la ve pero no la puede tocar. */
 export async function updateTask(v: Viewer, id: string, patch: TaskPatch): Promise<TaskDto | null | "forbidden"> {

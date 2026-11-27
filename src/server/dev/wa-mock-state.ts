@@ -4,7 +4,7 @@
  * outbox en memoria es suficiente para las aserciones del self-test.
  */
 
-export type OutboxEntry = {
+type OutboxEntry = {
   n: number;
   phoneNumberId: string;
   to: string;
@@ -47,7 +47,7 @@ export type MockTemplate = {
  * Campañas v2 — Salud de un número en el "panel de Meta" simulado. Sin
  * entrada, el número está sano (GREEN, TIER_1K, CONNECTED).
  */
-export type MockPhoneHealth = {
+type MockPhoneHealth = {
   quality_rating?: string;
   status?: string;
   name_status?: string;
@@ -64,7 +64,7 @@ export type MockPhoneHealth = {
  * endpoint es un 200 con `events_received: 0`, donde un campo mal puesto se ve
  * idéntico a uno bien puesto.
  */
-export type CapiMockEvent = {
+type CapiMockEvent = {
   n: number;
   datasetId: string;
   eventName: string;
@@ -80,7 +80,7 @@ export type CapiMockEvent = {
  * pueda comprobar que guardar la conexión NO borra el override de un cerebro
  * externo: en Meta, un POST sin cuerpo lo elimina, y el mock hace lo mismo.
  */
-export type MockWabaSubscription = {
+type MockWabaSubscription = {
   overrideCallbackUri: string | null;
 };
 

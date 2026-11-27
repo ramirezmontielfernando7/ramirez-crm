@@ -17,7 +17,7 @@ export type { SealedValue };
 
 export type OpenFailure = "decrypt_failed" | "key_unavailable";
 
-export type Opened = { ok: true; value: string } | { ok: false; error: OpenFailure; keyVersion: number };
+type Opened = { ok: true; value: string } | { ok: false; error: OpenFailure; keyVersion: number };
 
 export function seal(plain: string): SealedValue {
   return sealSecret(plain);

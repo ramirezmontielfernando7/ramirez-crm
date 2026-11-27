@@ -14,6 +14,8 @@ const prefixes = {
   leadStageEvent: "lse",
   lossReason: "lrs",
   quickReply: "qr",
+  payment: "pay",
+  broadcast: "bc",
   // 047 — conector de IA
   aiConnection: "aic",
   aiToken: "ait",
@@ -94,11 +96,12 @@ const prefixes = {
   directNumber: "dnum",
   conversationAccess: "cacc",
   conversationAccessLog: "cavl",
+  mobilePushDevice: "mpd",
   user: "usr",
   account: "acc",
 } as const;
 
-export type IdKind = keyof typeof prefixes;
+type IdKind = keyof typeof prefixes;
 
 export function newId(kind: IdKind): string {
   return `${prefixes[kind]}_${nano()}`;

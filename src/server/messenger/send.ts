@@ -13,7 +13,7 @@ import { sendZernioMessage } from "@/server/zernio";
  * los mismos errores tipados que el resto del CRM ya interpreta.
  */
 
-export type MessengerSendResult = { platformMessageId: string };
+type MessengerSendResult = { platformMessageId: string };
 
 /**
  * Cuerpo del envío por Meta. Separado para poder afirmarlo en una prueba sin

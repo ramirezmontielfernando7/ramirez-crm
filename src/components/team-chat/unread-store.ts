@@ -121,7 +121,7 @@ export function ensureAudio() {
   }
 }
 
-export type ChimeOptions = { tone?: "suave" | "campana" | "burbuja"; volume?: number };
+type ChimeOptions = { tone?: "suave" | "campana" | "burbuja"; volume?: number };
 
 /**
  * Notas cortas generadas en el navegador (sin archivos ni CDN). Por defecto,

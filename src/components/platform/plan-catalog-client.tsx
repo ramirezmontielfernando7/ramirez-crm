@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { CATALOG_SCOPES, type CatalogScope, type PlanCatalog, type PlanCatalogEntry } from "@/lib/plan-catalog";
+import { PLATFORM_MODULE_LABEL, PLATFORM_MODULE_TOGGLES, type PlanProfiles, type PlatformModuleToggle } from "@/lib/platform-modules";
 import { api } from "./api";
 
 /**
@@ -15,14 +16,84 @@ import { api } from "./api";
  * valor de fábrica. Los topes reales de cada empresa se fijan en su ficha.
  */
 
-type Data = { catalog: PlanCatalog; defaults: PlanCatalog };
+type Data = {
+  catalog: PlanCatalog;
+  defaults: PlanCatalog;
+  contactWhatsapp: string | null;
+  /** 048 — Qué módulos trae cada plan (editable) y los de fábrica. */
+  modules: PlanProfiles;
+  modulesDefaults: PlanProfiles;
+  modulesCustom: CatalogScope[];
+};
+type Toggles = Record<PlatformModuleToggle, boolean>;
+const sameToggles = (a: Toggles, b: Toggles) => PLATFORM_MODULE_TOGGLES.every((k) => a[k] === b[k]);
+
+/**
+ * 048 — Qué módulos trae el plan: se usan al dar de alta una empresa con ese
+ * plan y en «Cambiar de plan» de su ficha. Las empresas que ya existen no
+ * cambian solas.
+ */
+function PlanModules({ scope, value, factory, onChange }: { scope: CatalogScope; value: Toggles; factory: Toggles; onChange: (t: Toggles) => void }) {
+  const custom = !sameToggles(value, factory);
+  return (
+    <fieldset className="space-y-1.5 rounded-md border bg-subtle p-3" data-testid={`platform-plan-${scope}-modules`}>
+      <legend className="px-1 text-sm font-medium">
+        Qué módulos trae{" "}
+        <span className="text-xs font-normal text-text-3">
+          ({PLATFORM_MODULE_TOGGLES.filter((k) => value[k]).length}/{PLATFORM_MODULE_TOGGLES.length}
+          {custom ? ", cambiado a mano" : ", de fábrica"})
+        </span>
+      </legend>
+      <div className="grid gap-1 sm:grid-cols-2 xl:grid-cols-1">
+        {PLATFORM_MODULE_TOGGLES.map((k) => (
+          <label key={k} className="flex items-center gap-2 text-xs">
+            <input
+              type="checkbox"
+              checked={value[k]}
+              disabled={k === "lab" && !value.agent}
+              onChange={(e) => {
+                const next = { ...value, [k]: e.target.checked };
+                if (!next.agent) next.lab = false;
+                onChange(next);
+              }}
+              data-testid={`platform-plan-${scope}-module-${k}`}
+            />
+            <span className={value[k] !== factory[k] ? "font-medium text-brand-text" : undefined}>{PLATFORM_MODULE_LABEL[k]}</span>
+          </label>
+        ))}
+      </div>
+      {custom && (
+        <button type="button" className="text-xs text-text-2 underline underline-offset-2" onClick={() => onChange({ ...factory })}>
+          Volver a los de fábrica
+        </button>
+      )}
+      <p className="text-[11px] text-text-3">Vale para altas nuevas y para «Cambiar de plan». Las empresas que ya tienen este plan no cambian solas.</p>
+    </fieldset>
+  );
+}
 
 const num = (s: string): number | null => (s.trim() === "" ? null : Number(s.replace(/[,\s$]/g, "")));
 
 type Form = ReturnType<typeof toForm>;
 
 /** Un plan como tarjeta: nombre, frase, precios, implementación y lo que incluye. */
-function PlanCard({ scope, base, f, setF }: { scope: CatalogScope; base: PlanCatalogEntry; f: Form; setF: (f: Form) => void }) {
+function PlanCard({
+  scope,
+  base,
+  f,
+  setF,
+  modules,
+  factory,
+  setModules,
+}: {
+  scope: CatalogScope;
+  base: PlanCatalogEntry;
+  f: Form;
+  setF: (f: Form) => void;
+  modules: Toggles;
+  factory: Toggles;
+  setModules: (t: Toggles) => void;
+}) {
   const field = (id: keyof Form & string, label: string, placeholder: string, hint?: string) => (
     <div className="min-w-0 space-y-1">
       <Label className="text-sm" htmlFor={`plan-${scope}-${id}`}>{label}</Label>
@@ -65,6 +136,7 @@ function PlanCard({ scope, base, f, setF }: { scope: CatalogScope; base: PlanCat
         <input type="checkbox" checked={f.recommended} onChange={(e) => setF({ ...f, recommended: e.target.checked })} data-testid={`platform-plan-${scope}-recommended`} />
         Marcar como «Más elegido» (solo uno a la vez)
       </label>
+      <PlanModules scope={scope} value={modules} factory={factory} onChange={setModules} />
     </li>
   );
 }
@@ -86,14 +158,19 @@ function toForm(e: PlanCatalogEntry) {
 export function PlanCatalogCard() {
   const [data, setData] = useState<Data | null>(null);
   const [forms, setForms] = useState<Record<string, Form> | null>(null);
+  const [mods, setMods] = useState<PlanProfiles | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  /** 0077: el WhatsApp de «¿Necesitas más?» tal como se escribe. */
+  const [contact, setContact] = useState("");
 
   const load = useCallback(async () => {
     const r = await api<Data>("/api/platform/plans");
     if (r.ok && r.data) {
       setData(r.data);
       setForms(Object.fromEntries(CATALOG_SCOPES.map((k) => [k, toForm(r.data!.catalog[k])])));
+      setMods(r.data.modules);
+      setContact(r.data.contactWhatsapp ?? "");
     } else setError(r.error);
   }, []);
   useEffect(() => {
@@ -132,11 +209,26 @@ export function PlanCatalogCard() {
       const r = await api<Data>("/api/platform/plans", { method: "PUT", body: JSON.stringify({ scope, ...body }) });
       if (!r.ok || !r.data) return setError(r.error ?? "No se pudo guardar.");
       last = r.data;
+      // 048: los módulos del plan, solo si cambiaron (igual a fábrica = sin guardar nada propio).
+      const want = mods?.[scope];
+      if (want && data && !sameToggles(want, last.modules[scope])) {
+        const value = sameToggles(want, data.modulesDefaults[scope]) ? null : want;
+        const m = await api<Data>("/api/platform/plans", { method: "PUT", body: JSON.stringify({ scope, modules: value }) });
+        if (!m.ok || !m.data) return setError(m.error ?? "No se pudieron guardar los módulos del plan.");
+        last = m.data;
+      }
+    }
+    if ((last?.contactWhatsapp ?? "") !== contact.trim()) {
+      const r = await api<Data>("/api/platform/plans", { method: "PUT", body: JSON.stringify({ contactWhatsapp: contact.trim() || null }) });
+      if (!r.ok || !r.data) return setError(r.error ?? "No se pudo guardar el WhatsApp de contacto.");
+      last = r.data;
+      setContact(r.data.contactWhatsapp ?? "");
     }
     setError(null);
     if (last) {
       setData(last);
       setForms(Object.fromEntries(CATALOG_SCOPES.map((k) => [k, toForm(last!.catalog[k])])));
+      setMods(last.modules);
     }
     setSaved(true);
   }
@@ -155,12 +247,37 @@ export function PlanCatalogCard() {
           </Button>
         </div>
       </div>
-      {!data || !forms ? (
+      {data && (
+        <div className="max-w-md space-y-1 rounded-xl border bg-card p-4">
+          <Label className="text-sm" htmlFor="platform-contact-whatsapp">WhatsApp de contacto</Label>
+          <Input
+            id="platform-contact-whatsapp"
+            inputMode="tel"
+            value={contact}
+            placeholder="55 1234 5678"
+            onChange={(e) => setContact(e.target.value)}
+            data-testid="platform-contact-whatsapp"
+          />
+          <p className="text-[11px] text-text-3">
+            Sale como «Escríbenos por WhatsApp» en Uso y plan y en «Mejora tu plan». 10 dígitos de México o el número completo con país; vacío = solo «Escríbenos».
+          </p>
+        </div>
+      )}
+      {!data || !forms || !mods ? (
         <p className={error ? "text-sm text-destructive" : "text-sm text-text-2"}>{error ?? "Cargando…"}</p>
       ) : (
-        <ul className="grid gap-4 lg:grid-cols-3">
+        <ul className="grid gap-4 lg:grid-cols-2 xl:grid-cols-4">
           {CATALOG_SCOPES.map((scope) => (
-            <PlanCard key={scope} scope={scope} base={data.defaults[scope]} f={forms[scope]!} setF={(f) => setForms({ ...forms, [scope]: f })} />
+            <PlanCard
+              key={scope}
+              scope={scope}
+              base={data.defaults[scope]}
+              f={forms[scope]!}
+              setF={(f) => setForms({ ...forms, [scope]: f })}
+              modules={mods[scope]}
+              factory={data.modulesDefaults[scope]}
+              setModules={(t) => setMods({ ...mods, [scope]: t })}
+            />
           ))}
         </ul>
       )}

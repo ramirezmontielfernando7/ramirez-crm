@@ -1,3 +1,4 @@
+import { isKilled } from "@/server/platform-controls/store";
 import { eq, gt, inArray, isNotNull, isNull, lt, lte, ne, sql } from "drizzle-orm";
 import { getDb, getSystemDb, schema, withTenant } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
@@ -28,7 +29,7 @@ import {
 } from "@/lib/evolution/client";
 import { logger } from "@/lib/log";
 import { runWithOrganization } from "@/lib/request-context";
-import { orgHasWhatsAppConnection } from "@/server/credentials";
+import { listWhatsAppNumbers, orgHasWhatsAppConnection } from "@/server/credentials";
 import { getDirectConnection, openDirectTarget } from "@/server/credentials/direct-instance";
 import { publish } from "@/server/events/bus";
 import { serializeMessage } from "@/server/inbox/ingest";
@@ -72,6 +73,7 @@ import { getDirectSettings } from "./settings";
  * empresa) y sus avisos en vivo van solo a su dueño (`number.*`).
  */
 
+
 const log = logger("direct-connection");
 
 /** Falla del envío directo, en el vocabulario de `SendError` (para no tocar las rutas). */
@@ -102,7 +104,7 @@ export { DIRECT_TIMEOUT_TEXT };
  */
 export async function directRouteFor(
   organizationId: string,
-  conversation: { channel: string; connectionMode: string | null; lastInboundAt: Date | null; groupJid?: string | null },
+  conversation: { channel: string; connectionMode: string | null; lastInboundAt: Date | null; groupJid?: string | null; waPhoneNumberId?: string | null },
   allowDirect: boolean,
   now = new Date(),
   opts: { ai?: boolean } = {}
@@ -117,6 +119,18 @@ export async function directRouteFor(
       getDirectConnection(organizationId),
       orgHasWhatsAppConnection(organizationId),
     ]);
+    // 0080: con varios números oficiales el dispositivo vinculado es de UNO.
+    // Un chat que habla por otro número jamás sale por él (saldría desde un
+    // teléfono equivocado): va por Meta.
+    if (!conversation.groupJid && conversation.waPhoneNumberId && connection?.phoneNumber) {
+      const numbers = await listWhatsAppNumbers(organizationId);
+      if (numbers.length > 1) {
+        const chatNumber = numbers.find((n) => n.phoneNumberId === conversation.waPhoneNumberId);
+        if (chatNumber?.displayPhoneNumber && !samePhone(chatNumber.displayPhoneNumber, connection.phoneNumber)) {
+          return { via: "meta" };
+        }
+      }
+    }
     return routeFor({
       moduleOn: true,
       allowDirect,
@@ -191,6 +205,11 @@ async function recentDirectSends(organizationId: string, now: Date, directNumber
  */
 export async function sendDirect(input: DirectOutgoing): Promise<DirectResult> {
   const { organizationId, conversationId } = input;
+  // 048: interruptor de emergencia de la plataforma (empresa y «Mi número»).
+  // Lo que ya estaba en la fila sigue su curso; lo nuevo no entra.
+  if (await isKilled("direct_send")) {
+    throw new DirectSendFailure("not_connected", "Los envíos por conexión directa están en pausa por mantenimiento de la plataforma. Intenta más tarde.");
+  }
   const settings = await getDirectSettings(organizationId);
   const now = new Date();
   const scope = input.number ?? null;
@@ -478,7 +497,7 @@ function queue(): QueueState {
 }
 
 /** Agenda la salida de un mensaje en fila. Mismo mensaje = un solo timer. */
-export function scheduleDispatch(organizationId: string, messageId: string, at: Date): void {
+function scheduleDispatch(organizationId: string, messageId: string, at: Date): void {
   const q = queue();
   if (q.timers.has(messageId) || isShuttingDown()) return;
   const delay = Math.max(0, at.getTime() - Date.now());
@@ -585,4 +604,10 @@ export function resetDirectQueueForTests(): void {
   if (!q) return;
   for (const t of q.timers.values()) clearTimeout(t);
   q.timers.clear();
+}
+
+/** Mismo teléfono comparando los últimos 10 dígitos (52 y 521 de México no estorban). */
+function samePhone(a: string, b: string): boolean {
+  const last10 = (v: string) => v.replace(/\D/g, "").slice(-10);
+  return last10(a) !== "" && last10(a) === last10(b);
 }

@@ -9,7 +9,7 @@ import { isNavMode, type NavMode } from "@/lib/preferences";
  * preferencia original de dos, que se sigue escribiendo (colapsado u oculto =
  * `true`) para que nada que la lea se rompa.
  */
-export type UserPreferences = { navMode: NavMode | null; navCollapsed: boolean | null };
+type UserPreferences = { navMode: NavMode | null; navCollapsed: boolean | null };
 
 export async function getUserPreferences(
   organizationId: string,

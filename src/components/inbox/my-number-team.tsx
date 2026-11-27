@@ -15,7 +15,7 @@ import { formatTime, previewText } from "./helpers";
  * su dueño deja pedir.
  */
 
-export type TeamChat = {
+type TeamChat = {
   id: string;
   contactName: string;
   phone: string | null;
@@ -23,15 +23,15 @@ export type TeamChat = {
   lastMessageAt: string | null;
   clientMarkedAt: string | null;
 };
-export type CompanyNumber = { numberId: string; ownerName: string; label: string | null; chats: TeamChat[] };
-export type Requestable = {
+type CompanyNumber = { numberId: string; ownerName: string; label: string | null; chats: TeamChat[] };
+type Requestable = {
   conversationId: string;
   ownerName: string;
   contactName: string;
   since: string;
   access: "none" | "pending" | "granted" | "rejected";
 };
-export type TeamNumbers = { companyNumbers: CompanyNumber[]; requestable: Requestable[] };
+type TeamNumbers = { companyNumbers: CompanyNumber[]; requestable: Requestable[] };
 
 const day = new Intl.DateTimeFormat("es-MX", { day: "numeric", month: "short" });
 

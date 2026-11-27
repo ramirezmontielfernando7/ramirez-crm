@@ -27,7 +27,7 @@ import { kbForConfig, resolveAgentForTurn, withStageAgent, type AgentOverride } 
 import { recordTurnAgent } from "@/server/agents/handover";
 import { PAUSE_HANDOFF_REASON, turnIsPaused } from "@/lib/agent-pause";
 import { agendaEnabled } from "@/server/agenda/flag";
-import { bookSlot, offerSlots } from "@/server/agenda/agent";
+import { bookSlot, lineaDeHoy, offerSlots } from "@/server/agenda/agent";
 import { getOffers, mapaDeHuecosParaModelo } from "@/server/agenda/offers";
 import { logger } from "@/lib/log";
 import { currentOrganizationId, runWithOrganization } from "@/lib/request-context";
@@ -116,13 +116,13 @@ async function executeTurn(conversationId: string): Promise<void> {
  * 031 — Opciones del turno. `agentOverride`: el Laboratorio (evaluaciones)
  * fija la config y el conocimiento a evaluar en vez de resolverlos.
  */
-export type TurnOptions = { agentOverride?: AgentOverride };
+type TurnOptions = { agentOverride?: AgentOverride };
 
 type Conversation = typeof schema.conversation.$inferSelect;
 type Stage = { id: string; name: string };
 
 /** Lo que necesita `decideTurn`: todo en memoria, nada de la BD. */
-export type DecideInput = {
+type DecideInput = {
   organizationId: string;
   /** "agent" en conversaciones reales; "lab" en el Laboratorio y la vista previa. */
   kind: "agent" | "lab";
@@ -311,6 +311,10 @@ async function loadTurnContext(conversationId: string, opts: TurnOptions): Promi
    */
   const ofertas = agenda ? await getOffers(organizationId, conversationId) : [];
   const mapaDeHuecos = mapaDeHuecosParaModelo(ofertas);
+  // Sin la fecha de hoy, «el martes» no se puede convertir en un día: el agente
+  // acababa repitiendo los horarios del primer día libre (Laboratorio, nov 2026).
+  const hoyAgenda = agenda ? await lineaDeHoy(organizationId) : null;
+  const colaAgenda = [hoyAgenda, mapaDeHuecos].filter(Boolean).join("\n\n") || null;
 
   const turnHistory = history
     .filter((m) => m.text)
@@ -337,7 +341,7 @@ async function loadTurnContext(conversationId: string, opts: TurnOptions): Promi
       stages,
       agenda,
       history: turnHistory,
-      tail: mapaDeHuecos,
+      tail: colaAgenda,
       docs,
     },
   };
@@ -478,6 +482,7 @@ async function executeAction(
               organizationId,
               conversationId,
               intro: action.reply,
+              date: action.date,
             })
           : await bookSlot({
               organizationId,

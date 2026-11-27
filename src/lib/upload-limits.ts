@@ -44,7 +44,7 @@ export const RAG_EXTRACT_MAX_BYTES = 50 * MB;
 export const HEAVY_UPLOAD_BYTES = 10 * MB;
 export const MAX_HEAVY_UPLOADS = 3;
 
-export type OutgoingKind = "image" | "audio" | "video" | "document";
+type OutgoingKind = "image" | "audio" | "video" | "document";
 
 /** «4.3 MB», «850 KB»: para los mensajes. */
 export function formatSize(bytes: number): string {
@@ -79,28 +79,27 @@ export function kindFromMime(mime: string): OutgoingKind {
   return "document";
 }
 
-/** Qué decir cuando un archivo pasa el límite de WhatsApp de su tipo. */
-const WA_TOO_LARGE: Record<OutgoingKind, (size: number) => string> = {
-  image: (s) =>
-    `La foto pesa ${formatSize(s)} y WhatsApp solo acepta fotos de hasta 5 MB. Redúcela o mándala en PDF.`,
-  audio: (s) => `El audio pesa ${formatSize(s)} y WhatsApp solo acepta audios de hasta 16 MB.`,
-  video: (s) =>
-    `El video pesa ${formatSize(s)} y WhatsApp solo acepta videos de hasta 16 MB. Recórtalo o comparte un enlace (Drive, YouTube).`,
-  document: (s) => `El archivo pesa ${formatSize(s)} y WhatsApp solo acepta archivos de hasta 100 MB.`,
-};
+/** Qué decir cuando un archivo pasa hasta el límite de los documentos. */
+const WA_TOO_LARGE = (size: number) =>
+  `El archivo pesa ${formatSize(size)} y WhatsApp solo acepta archivos de hasta ${formatSize(WA_MEDIA_RULES.document.maxBytes)}. Recórtalo o comparte un enlace (Drive, YouTube).`;
 
-export type UploadProblem = { code: "too_large" | "unsupported_type"; message: string };
+type UploadProblem = { code: "too_large" | "unsupported_type"; message: string };
 
 /**
  * ¿Se puede mandar por WhatsApp? Devuelve el tipo de mensaje o el problema,
  * con el mensaje para la persona. Los formatos que WhatsApp no acepta como su
  * tipo nativo (p. ej. image/bmp) van como documento, igual que en la app.
+ *
+ * Tope máximo: una foto de más de 5 MB o un audio/video de más de 16 MB no
+ * caben como foto/audio/video, pero SÍ como documento (hasta 100 MB, tanto
+ * por Meta como por el dispositivo vinculado). En vez de rechazarlos salen
+ * como documento (`asDocument`), sin perder calidad.
  */
 export function checkOutgoing(
   mime: string,
   size: number,
   fileName = ""
-): { ok: true; kind: OutgoingKind } | ({ ok: false } & UploadProblem) {
+): { ok: true; kind: OutgoingKind; asDocument?: true } | ({ ok: false } & UploadProblem) {
   if (!/^[\w.-]+\/[\w.+-]+$/.test(mime)) {
     return { ok: false, code: "unsupported_type", message: "Tipo de archivo no reconocido" };
   }
@@ -108,8 +107,11 @@ export function checkOutgoing(
     return { ok: false, code: "unsupported_type", message: ACTIVE_CONTENT_MESSAGE };
   }
   const kind = kindFromMime(mime);
+  if (size > WA_MEDIA_RULES.document.maxBytes) {
+    return { ok: false, code: "too_large", message: WA_TOO_LARGE(size) };
+  }
   if (size > WA_MEDIA_RULES[kind].maxBytes) {
-    return { ok: false, code: "too_large", message: WA_TOO_LARGE[kind](size) };
+    return { ok: true, kind: "document", asDocument: true };
   }
   return { ok: true, kind };
 }

@@ -62,24 +62,24 @@ Módulos por organización (PR 3): [specs/029-modulos-por-organizacion](../specs
 
 | Cabecera | Valor | Aplicada |
 |---|---|---|
-| `Strict-Transport-Security` | `max-age=86400` (1 día, sin subdominios) | sí; se sube en un PR posterior |
+| `Strict-Transport-Security` | `max-age=31536000` (1 año, sin subdominios ni preload) | sí (S-09, 2026-11) |
 | `X-Frame-Options` | `DENY` | sí |
-| `Content-Security-Policy` | `frame-ancestors 'none'` | sí, salvo en adjuntos y favicon (mandan su propia CSP `sandbox`) |
-| `Content-Security-Policy-Report-Only` | política completa (ver `src/lib/security/headers.ts`) | **solo reporta** |
+| `Content-Security-Policy` | política completa (ver `src/lib/security/headers.ts`), con `frame-ancestors 'none'` | **obligatoria** desde S-09 (2026-11), salvo en adjuntos y favicon (mandan su propia CSP `sandbox`) |
 | `X-Content-Type-Options` | `nosniff` | sí |
 | `Referrer-Policy` | `strict-origin-when-cross-origin` | sí |
 | `Permissions-Policy` | sin cámara, micrófono, geolocalización, pago ni USB | sí |
 
-Lo que una CSP estricta podría romper, y por qué empieza en modo reporte:
+Lo que una CSP estricta podría romper (y por qué todavía lleva `'unsafe-inline'`):
 
 - Los scripts que Next mete en línea para hidratar la página (por eso lleva
   `'unsafe-inline'`; quitarlo exige *nonces*).
 - El `<style>` en línea del acento de marca.
 - Las vistas previas `blob:`/`data:` de adjuntos (ya permitidas).
 
-Nada de Vocero usa iframes, cámara ni micrófono. Los reportes salen en el log
-como `[csp] la CSP bloquearía algo directiva=… bloqueado=<host>`. Tras una
-semana sin reportes, se vuelve obligatoria en un PR chico.
+Nada de Vocero usa iframes, cámara ni micrófono. Lo que el navegador bloquea
+sale en el log como `[csp] la CSP bloqueó algo directiva=… bloqueado=<host>`,
+y el job e2e del CI falla si aparece uno solo en toda la corrida. Si en
+producción algo deja de verse por la CSP, ese log dice qué host sumar.
 
 ## Módulos por organización (PR 3)
 

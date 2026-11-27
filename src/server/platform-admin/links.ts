@@ -8,7 +8,7 @@ import { runWithOrganization } from "@/lib/request-context";
 import { logger } from "@/lib/log";
 import { revokeConnectionsOfUser } from "@/server/ai-connector/keys";
 import { postSystemNotice } from "@/server/team-chat/messages";
-import { recordPlatformAudit, type AuditActor } from "./audit";
+import { recordPlatformAudit } from "./audit";
 
 /**
  * Fase 3, PR 2 — Enlaces de un solo uso para que una persona ponga SU
@@ -28,10 +28,10 @@ import { recordPlatformAudit, type AuditActor } from "./audit";
  * correo transaccional (conector opcional, más adelante).
  */
 
-export const LINK_TTL_MS = { activate: 72 * 60 * 60 * 1000, reset: 2 * 60 * 60 * 1000 } as const;
+const LINK_TTL_MS = { activate: 72 * 60 * 60 * 1000, reset: 2 * 60 * 60 * 1000 } as const;
 export const MIN_PASSWORD_LENGTH = 8;
 
-export type LinkPurpose = keyof typeof LINK_TTL_MS;
+type LinkPurpose = keyof typeof LINK_TTL_MS;
 
 const log = logger("platform");
 
@@ -78,12 +78,34 @@ export async function createAccountLink(
   return { url: linkUrl(purpose, token), expiresAt };
 }
 
-export type LinkInfo =
+/**
+ * Auditoría UX 2026-11 (13) — El Propietario invita a alguien de SU equipo (o
+ * le da un enlace nuevo si olvidó su contraseña) sin pasar contraseñas a
+ * mano: un enlace `activate` de 72 h que él manda por WhatsApp. Solo para
+ * cuentas que pertenecen ÚNICAMENTE a esa organización: el correo es único
+ * en toda la instancia, y el dueño de un negocio jamás debe poder fijarle la
+ * contraseña a alguien que también trabaja en otro.
+ */
+export async function createTeamLink(
+  organizationId: string,
+  userId: string,
+  createdBy: string
+): Promise<{ url: string; expiresAt: Date } | { error: "other_org" | "not_member" }> {
+  const memberships = await sys()
+    .select({ organizationId: schema.member.organizationId })
+    .from(schema.member)
+    .where(eq(schema.member.userId, userId));
+  if (!memberships.some((m) => m.organizationId === organizationId)) return { error: "not_member" };
+  if (memberships.some((m) => m.organizationId !== organizationId)) return { error: "other_org" };
+  return createAccountLink(userId, "activate", createdBy);
+}
+
+type LinkInfo =
   | { ok: true; purpose: LinkPurpose; name: string; emailMasked: string }
   | { ok: false; reason: "invalid" | "used" | "expired" };
 
 /** `ana@ejemplo.com` → `a••@ejemplo.com`: para que la persona reconozca su cuenta. */
-export function maskEmail(email: string): string {
+function maskEmail(email: string): string {
   const [user = "", domain = ""] = email.split("@");
   return `${user.slice(0, 1)}${"•".repeat(Math.max(2, Math.min(user.length - 1, 6)))}@${domain}`;
 }
@@ -109,7 +131,7 @@ export async function inspectAccountLink(token: string, now = new Date()): Promi
   return { ok: true, purpose: row.purpose, name: row.name, emailMasked: maskEmail(row.email) };
 }
 
-export type Consume = { ok: true; purpose: LinkPurpose } | { ok: false; reason: "invalid" | "used" | "expired" | "weak_password" };
+type Consume = { ok: true; purpose: LinkPurpose } | { ok: false; reason: "invalid" | "used" | "expired" | "weak_password" };
 
 /** Usa el enlace: fija la contraseña nueva y lo quema. */
 export async function consumeAccountLink(input: {
@@ -204,4 +226,4 @@ export async function consumeAccountLink(input: {
   return { ok: true, purpose: used.purpose };
 }
 
-export type { AuditActor };
+;

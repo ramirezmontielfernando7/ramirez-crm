@@ -17,9 +17,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import Link from "next/link";
 import { PageShell } from "@/components/ui/page-shell";
-import { useViewer } from "@/components/viewer-context";
 
 type Profile = {
   enabled: boolean;
@@ -44,8 +42,6 @@ export function AgentClient() {
   const [entries, setEntries] = useState<KbEntry[]>([]);
   const [kbSize, setKbSize] = useState<{ chars: number; warnAt: number; warning: boolean } | null>(null);
   const [saved, setSaved] = useState(false);
-  const viewer = useViewer();
-  const labOn = viewer.hasModule("lab") && viewer.can("agent.manage");
   // «Quién responde»: se refresca solo, porque la última llamada del cerebro
   // externo y su /health cambian sin que nadie toque esta pantalla.
   const [brain, setBrain] = useState<BrainStatusDto | null>(null);
@@ -138,15 +134,6 @@ export function AgentClient() {
 
       <AgentPauseBar />
 
-      {labOn && (
-        <p className="mx-4 mt-4 text-sm text-muted-foreground sm:mx-6">
-          Esta pantalla edita el agente general.{" "}
-          <Link href="/lab" className="font-medium text-brand-ink underline-offset-2 hover:underline">
-            Gestionar todos los agentes → Laboratorio
-          </Link>
-        </p>
-      )}
-
       {brain && (
         <div className="mx-4 mt-4 sm:mx-6 sm:mt-6">
           <BrainStatusCard status={brain} />
@@ -167,12 +154,12 @@ export function AgentClient() {
       {aiCallout === "configurar" && (
         <div className="mx-4 mt-4 rounded-lg border border-brand-soft bg-brand-tint p-5 text-center sm:mx-6 sm:mt-6 sm:p-6">
           <Sparkles className="mx-auto mb-2 h-8 w-8 text-primary" />
-          <p className="font-medium">Configura tu proveedor de IA para activar el agente</p>
+          <p className="font-medium">El servicio de IA de tu cuenta aún no está activo</p>
+          {/* Auditoría UX 2026-11 (B): sin nombres de variables. Quien opera la
+              instancia lo activa con OPENROUTER_API_TOKEN y OPENROUTER_MODEL. */}
           <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">
-            Agrega <code className="rounded bg-secondary px-1">OPENROUTER_API_TOKEN</code> y{" "}
-            <code className="rounded bg-secondary px-1">OPENROUTER_MODEL</code> a las variables
-            de entorno de la instancia y reiníciala. Mientras tanto puedes dejar listo el
-            comportamiento y el conocimiento aquí abajo.
+            Escríbenos y lo activamos. Mientras tanto puedes dejar listo el comportamiento y el
+            conocimiento aquí abajo.
           </p>
         </div>
       )}
@@ -261,7 +248,7 @@ function KbSection({
       <CardHeader>
         <div className="flex items-center justify-between">
           <div>
-            <CardTitle>Knowledge base</CardTitle>
+            <CardTitle>Lo que sabe tu agente</CardTitle>
             <CardDescription>
               La única fuente de verdad del agente: lo que no está aquí, no lo
               afirma.

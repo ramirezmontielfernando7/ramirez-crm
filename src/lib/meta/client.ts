@@ -12,7 +12,7 @@ import { normalizeMx } from "@/lib/meta/mx";
  * colgada dejaba al despachador de campañas (y al apagado) esperando para
  * siempre.
  */
-export const META_TIMEOUT_MS = 20_000;
+const META_TIMEOUT_MS = 20_000;
 
 export class MetaApiError extends Error {
   status: number;

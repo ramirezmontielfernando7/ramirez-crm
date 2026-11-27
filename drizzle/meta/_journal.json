@@ -519,6 +519,55 @@
       "when": 1794261600000,
       "tag": "0074_grupos_whatsapp",
       "breakpoints": true
+    },
+    {
+      "idx": 75,
+      "version": "7",
+      "when": 1794348000000,
+      "tag": "0075_invitacion_created_at",
+      "breakpoints": true
+    },
+    {
+      "idx": 76,
+      "version": "7",
+      "when": 1794434400000,
+      "tag": "0076_plan_inicio",
+      "breakpoints": true
+    },
+    {
+      "idx": 77,
+      "version": "7",
+      "when": 1794520800000,
+      "tag": "0077_contacto_plataforma",
+      "breakpoints": true
+    },
+    {
+      "idx": 78,
+      "version": "7",
+      "when": 1794560000000,
+      "tag": "0078_plataforma_vender",
+      "breakpoints": true
+    },
+    {
+      "idx": 79,
+      "version": "7",
+      "when": 1794600000000,
+      "tag": "0079_mensajes_automaticos",
+      "breakpoints": true
+    },
+    {
+      "idx": 80,
+      "version": "7",
+      "when": 1794640000000,
+      "tag": "0080_varios_numeros",
+      "breakpoints": true
+    },
+    {
+      "idx": 81,
+      "version": "7",
+      "when": 1795392000000,
+      "tag": "0081_mobile_push_devices",
+      "breakpoints": true
     }
   ]
 }

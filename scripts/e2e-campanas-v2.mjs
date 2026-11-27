@@ -134,6 +134,11 @@ async function main() {
     body: JSON.stringify({ wabaId: "WABA-E2E", phoneNumberId: "PN-E2E", token: "tok-e2e" }),
   });
   ok("WhatsApp conectado", conn.res.ok, conn.text);
+  // 0080: conectar AGREGA un número; este guion trabaja con el principal, así
+  // que deja solo el suyo (antes conectar reemplazaba).
+  for (const n of (await api("/api/settings/whatsapp")).json?.numbers ?? []) {
+    if (n.phoneNumberId !== "PN-E2E") await api(`/api/settings/whatsapp/numbers/${encodeURIComponent(n.phoneNumberId)}`, { method: "DELETE" });
+  }
   const list = await api("/api/campaigns");
   if (list.res.status === 404) {
     console.error("El módulo Campañas está apagado para esta organización: enciéndelo (CAMPAIGNS=on o /platform).");
@@ -702,7 +707,7 @@ async function main() {
     page.on("dialog", (d) => void d.accept());
 
     await page.goto(`${BASE}/campaigns`, { timeout: 180000 });
-    ok("pestañas Campañas / Audiencias / Métricas", await page.getByRole("navigation", { name: "Secciones de Marketing" }).isVisible());
+    ok("pestañas Campañas / Audiencias / Métricas", await page.getByRole("navigation", { name: "Secciones de Campañas" }).isVisible());
     const banner = page.getByTestId("campaign-pause-banner");
     ok("aviso de pausa de seguridad visible", await banner.waitFor({ timeout: 45000 }).then(() => true, () => false));
 
@@ -724,6 +729,9 @@ async function main() {
     ok("UI Ajustes: «Frecuencia de marketing» con 7 días", (await dias.inputValue()) === "7");
     // 038 (PR 6): el aviso 131050 en el panel del contacto, y quitarlo.
     await page.goto(`${BASE}/inbox?contact=${mkId(mk[2])}`, { timeout: 180000, waitUntil: "domcontentloaded" });
+    // Paquete C: bajo 1536 px Detalles arranca cerrado; se abre con su botón.
+    const abrirDetalles = page.getByRole("button", { name: "Mostrar detalles" });
+    if (await abrirDetalles.first().waitFor({ timeout: 45000 }).then(() => true, () => false)) await abrirDetalles.first().click();
     const mas = page.getByRole("button", { name: "Más detalles" });
     if (await mas.first().waitFor({ timeout: 45000 }).then(() => true, () => false)) await mas.first().click();
     const aviso = page.getByText(/Dejó de recibir promociones de tu negocio desde WhatsApp/).first();

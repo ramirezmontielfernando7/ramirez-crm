@@ -17,7 +17,7 @@ import { useCallback, useEffect, useRef } from "react";
  * `touch-callout: none` y `user-select: none` (ver `longPressStyle`).
  */
 
-export const LONG_PRESS_MS = 500;
+const LONG_PRESS_MS = 500;
 const MOVE_TOLERANCE = 8;
 
 export const longPressClass =

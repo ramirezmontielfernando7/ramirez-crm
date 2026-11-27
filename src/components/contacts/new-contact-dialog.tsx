@@ -232,7 +232,7 @@ export function NewContactDialog({
             disabled={!listo || saving || stages.length === 0}
             onClick={() => void guardar()}
           >
-            {saving ? "Guardando…" : "Crear contacto"}
+            {saving ? "Guardando…" : title === "Nuevo prospecto" ? "Crear prospecto" : "Crear contacto"}
           </Button>
         </div>
       </div>

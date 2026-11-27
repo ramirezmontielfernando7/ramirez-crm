@@ -27,7 +27,7 @@ export class KbError extends Error {
   }
 }
 
-export type KbInput =
+type KbInput =
   | { kind: "qa"; question: string; answer: string }
   | { kind: "block"; content: string };
 

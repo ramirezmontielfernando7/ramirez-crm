@@ -8,7 +8,7 @@ import { logger } from "@/lib/log";
 
 const log = logger("writing-assist");
 
-export type RewriteResult =
+type RewriteResult =
   | { ok: true; text: string }
   | { ok: false; error: "not_configured" | "provider_error" | "invalid_output" | "quota_exceeded" };
 

@@ -1,6 +1,6 @@
 import { withAuth } from "@/lib/api";
 import { getEffectiveLimits } from "@/server/limits";
-import { getPlanCatalog } from "@/server/plan-catalog/store";
+import { getPlanCatalog, getPlatformContact } from "@/server/plan-catalog/store";
 
 export const dynamic = "force-dynamic";
 
@@ -12,7 +12,12 @@ export const dynamic = "force-dynamic";
 export const GET = withAuth(
   async (session) => {
     const limits = await getEffectiveLimits(session.organizationId);
-    return Response.json({ current: limits.planKey, catalog: await getPlanCatalog() });
+    return Response.json({
+      current: limits.planKey,
+      catalog: await getPlanCatalog(),
+      // 0077: el WhatsApp de «¿Necesitas más?» (null = solo «Escríbenos»).
+      contactWhatsapp: await getPlatformContact(),
+    });
   },
   { permission: "usage.read" }
 );

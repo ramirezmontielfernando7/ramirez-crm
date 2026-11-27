@@ -10,7 +10,7 @@ export type QuickReplyDto = { id: string; shortcut: string; body: string };
 
 export const SHORTCUT_MAX = 30;
 export const BODY_MAX = 4096;
-export const SHORTCUT_RE = /^[a-z0-9_-]{1,30}$/;
+const SHORTCUT_RE = /^[a-z0-9_-]{1,30}$/;
 
 /** Lo que aceptan `POST /api/quick-replies` y su `PATCH` (parcial). */
 export const quickReplySchema = z.object({

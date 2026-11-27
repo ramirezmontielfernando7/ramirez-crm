@@ -18,9 +18,10 @@ import { envModuleDefaults } from "@/server/modules/defaults";
 import { ModuleDependencyError, updateOrgModules, type ModulesPatch } from "@/server/modules/store";
 import { profileOfPlan, type PlanOption } from "@/lib/modules/registry";
 import type { EffectiveLimits, LimitsPatch } from "@/lib/limits";
-import { PLATFORM_MODULE_TOGGLES, type PlatformModuleToggle } from "@/lib/platform-modules";
+import { PLATFORM_MODULE_TOGGLES, planToggles, type PlatformModuleToggle } from "@/lib/platform-modules";
+import { getPlanProfiles } from "@/server/plan-catalog/store";
 import { runWithOrganization } from "@/lib/request-context";
-import { assertModulesWithinLimit, getEffectiveLimits, LimitError, saveOrgLimits, syncPlanKey } from "@/server/limits";
+import { applyPlanCaps, assertModulesWithinLimit, getEffectiveLimits, LimitError, saveOrgLimits, syncPlanKey } from "@/server/limits";
 import { checkAllAlerts, checkModuleAlerts } from "@/server/limits/alerts";
 
 /**
@@ -32,7 +33,7 @@ import { checkAllAlerts, checkModuleAlerts } from "@/server/limits/alerts";
  * Pool de sistema: la plataforma está por encima de las organizaciones.
  */
 
-export const PURGE_GRACE_DAYS = 30;
+const PURGE_GRACE_DAYS = 30;
 
 export class PlatformError extends Error {
   constructor(
@@ -50,7 +51,7 @@ function sys(): Db {
   return getSystemDb();
 }
 
-export type OrganizationSummary = {
+type OrganizationSummary = {
   id: string;
   name: string;
   slug: string | null;
@@ -70,7 +71,7 @@ export type OrganizationSummary = {
  * Fase 3, PR 3 — Los módulos opcionales de una organización tal como los ve
  * y edita /platform. Solo interruptores: ningún dato del negocio.
  */
-export type ModulesDto = {
+type ModulesDto = {
   campaigns: boolean;
   agenda: boolean;
   atribucion: boolean;
@@ -97,7 +98,7 @@ export type ModulesDto = {
   conectorIa: boolean;
 };
 
-export function modulesDto(m: OrgModules): ModulesDto {
+function modulesDto(m: OrgModules): ModulesDto {
   return {
     campaigns: m.campaigns,
     agenda: m.agenda,
@@ -161,7 +162,7 @@ export async function listOrganizations(): Promise<OrganizationSummary[]> {
   }));
 }
 
-export type OrganizationMember = { userId: string; name: string; email: string; role: string };
+type OrganizationMember = { userId: string; name: string; email: string; role: string };
 
 /** Las personas de una organización (nombre, correo y rol; nada más). */
 export async function listMembers(organizationId: string): Promise<OrganizationMember[]> {
@@ -174,7 +175,7 @@ export async function listMembers(organizationId: string): Promise<OrganizationM
 }
 
 /** `Mi Negocio Ñandú` → `mi-negocio-nandu-k3x9` (único por el sufijo). */
-export function slugFor(name: string): string {
+function slugFor(name: string): string {
   const base = name
     .normalize("NFD")
     .replace(/[̀-ͯ]/g, "")
@@ -219,10 +220,13 @@ export async function createOrganization(
   // Nadie conoce esta contraseña: solo existe para que la cuenta no quede sin
   // credencial. La persona pone la suya con el enlace de activación.
   const unusable = await hashPassword(randomBytes(32).toString("base64url"));
+  // 048: lo que trae el plan HOY (editable en «Planes y precios»).
+  const profile = profileOfPlan(input.profile);
+  const toggles = profile ? planToggles(profile, await getPlanProfiles()) : undefined;
   try {
     await db.transaction(async (tx) => {
       await tx.insert(schema.organization).values({ id: organizationId, name, slug: slugFor(name) });
-      await seedOrganization(tx as unknown as Db, organizationId, profileOfPlan(input.profile));
+      await seedOrganization(tx as unknown as Db, organizationId, profile, toggles);
       await tx.insert(schema.user).values({ id: userId, name: ownerName, email, emailVerified: false });
       await tx.insert(schema.account).values({
         id: newId("account"),
@@ -243,7 +247,10 @@ export async function createOrganization(
 
   // 040: el plan guardado nace con lo que quedó en sus 13 interruptores
   // (el del perfil elegido, o el que coincida con los del entorno).
-  await syncPlanKey(organizationId, modulesDto(await getOrgModules(organizationId)));
+  const planKeyAlta = await syncPlanKey(organizationId, modulesDto(await getOrgModules(organizationId)));
+  // Hallazgo de la auditoría: los topes de personas y almacenamiento del plan
+  // se aplican desde el alta (antes solo se aplicaba el de IA).
+  await applyPlanCaps(organizationId, planKeyAlta);
 
   const link = await createAccountLink(userId, "activate", actor?.userId ?? null);
   await recordPlatformAudit({
@@ -259,7 +266,7 @@ export async function createOrganization(
   return { organizationId, activationUrl: link.url, expiresAt: link.expiresAt };
 }
 
-export type StatusAction = "suspend" | "reactivate" | "delete" | "restore";
+type StatusAction = "suspend" | "reactivate" | "delete" | "restore";
 
 const TRANSITIONS: Record<StatusAction, { from: OrgStatus[]; to: OrgStatus; audit: "organization.suspended" | "organization.reactivated" | "organization.deleted" | "organization.restored" }> = {
   suspend: { from: ["active"], to: "suspended", audit: "organization.suspended" },
@@ -323,7 +330,7 @@ export async function changeOrganizationStatus(
   return { status: t.to, purgeAfter };
 }
 
-export type ModulesChange = Partial<Omit<ModulesDto, "campaignSendRate">> & {
+type ModulesChange = Partial<Omit<ModulesDto, "campaignSendRate">> & {
   campaignSendRate?: number | null;
 };
 
@@ -397,6 +404,7 @@ export async function changeOrganizationModules(
   // 040: el plan guardado sigue a los 13 interruptores.
   const planAntes = (await runWithOrganization(organizationId, () => getEffectiveLimits(organizationId))).planKey;
   const planKey = await syncPlanKey(organizationId, a);
+  if (planAntes !== planKey) await applyPlanCaps(organizationId, planKey, planAntes);
   const cambios = (Object.keys(a) as (keyof ModulesDto)[]).filter((k) => de[k] !== a[k]);
   if (cambios.length > 0) {
     await recordPlatformAudit({

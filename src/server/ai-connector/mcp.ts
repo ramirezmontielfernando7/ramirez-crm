@@ -27,7 +27,7 @@ const log = logger("ai-connector");
  * para clientes de revisiones anteriores.
  */
 
-export type McpCaller = {
+type McpCaller = {
   session: SessionContext;
   connectionId: string;
   scopes: Scope[];

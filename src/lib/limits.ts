@@ -22,9 +22,10 @@ export const STORAGE_MODE_LABEL: Record<StorageMode, string> = {
  * sincroniza en el alta y en cada cambio de módulos o topes desde /platform.
  * `custom` = «Personalizado» (una combinación a la medida).
  */
-export const PLAN_KEYS = ["esencial", "pro", "ultra", "custom"] as const;
+export const PLAN_KEYS = ["inicio", "esencial", "pro", "ultra", "custom"] as const;
 export type PlanKey = (typeof PLAN_KEYS)[number];
 export const PLAN_LABEL: Record<PlanKey, string> = {
+  inicio: "Plan Inicio",
   esencial: "Plan Esencial",
   pro: "Plan Pro",
   ultra: "Plan Ultra",

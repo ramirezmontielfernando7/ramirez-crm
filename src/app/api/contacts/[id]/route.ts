@@ -76,7 +76,7 @@ const patchSchema = z.object({
    * corrige, y mandar la ficha entera haría que el último en guardar le
    * borrara lo recién descubierto al otro.
    */
-  ficha: z.record(z.unknown()).optional(),
+  ficha: z.record(z.string(), z.unknown()).optional(),
   /**
    * 021 — Consentimiento para envíos masivos. Solo una persona lo cambia
    * aquí; es la única vía que puede revertir un `opt_out` (la importación no).

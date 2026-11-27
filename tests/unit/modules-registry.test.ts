@@ -16,6 +16,7 @@ import {
   activeSection,
   availableSections,
   defaultLayout,
+  navGroupStarts,
   normalizeLayout,
   pillarOfPath,
   resolveNav,
@@ -72,27 +73,30 @@ describe("registro de módulos", () => {
     expect([...new Set(Object.values(SETTINGS_TAB_PERMISSION))].sort()).toEqual([...(ajustes.permissions ?? [])].sort());
   });
 
-  it("039: los planes Esencial, Pro y Ultra: cada uno incluye al anterior y respetan la dependencia", () => {
-    const { esencial, pro, ultra } = MODULE_PROFILES;
+  it("039: los planes Inicio, Esencial, Pro y Ultra: cada uno incluye al anterior y respetan la dependencia", () => {
+    const { inicio, esencial, pro, ultra } = MODULE_PROFILES;
     for (const p of Object.values(MODULE_PROFILES)) {
       if (p.modules.lab) expect(p.modules.agent).toBe(true);
       // Los 13 interruptores de /platform, todos definidos.
       expect(Object.keys(p.modules)).toHaveLength(13);
     }
     const enc = (m: Record<string, boolean>) => Object.keys(m).filter((k) => m[k]);
+    for (const k of enc(inicio.modules)) expect(esencial.modules[k as keyof typeof esencial.modules], k).toBe(true);
     for (const k of enc(esencial.modules)) expect(pro.modules[k as keyof typeof pro.modules], k).toBe(true);
     for (const k of enc(pro.modules)) expect(ultra.modules[k as keyof typeof ultra.modules], k).toBe(true);
-    // Esencial: Bandeja (con equipo), CRM (Tareas, Notas, Biblioteca), sin IA.
-    expect(esencial.modules).toMatchObject({ team_chat: true, trabajo: true, knowledge: true, agent: false, lab: false, asistente: false, campaigns: false });
-    // Pro: + IA, Agenda, CAPI, Instagram y Messenger.
-    expect(pro.modules).toMatchObject({ agent: true, lab: true, agenda: true, atribucion: true, instagram: true, messenger: true, campaigns: false, asistente: false });
+    // Inicio: solo Bandeja con chat de equipo (embudo y contactos son núcleo), sin IA.
+    expect(inicio.modules).toMatchObject({ team_chat: true, trabajo: false, knowledge: false, results: false, agent: false, lab: false });
+    // Esencial: + Tareas, Notas, Biblioteca, Resultados y UN agente (creador + prueba en vivo) sin Laboratorio.
+    expect(esencial.modules).toMatchObject({ team_chat: true, trabajo: true, knowledge: true, results: true, agent: true, lab: false, asistente: false, campaigns: false });
+    // Pro: + Estudio de IA completo, Agenda y CAPI; Instagram y Messenger fuera de la oferta.
+    expect(pro.modules).toMatchObject({ agent: true, lab: true, agenda: true, atribucion: true, instagram: false, messenger: false, campaigns: false, asistente: false });
     // Ultra: + Campañas y el Asistente interno (el 13.º).
     expect(ultra.modules).toMatchObject({ campaigns: true, asistente: true });
-    expect(enc(ultra.modules)).toHaveLength(13);
+    expect(enc(ultra.modules)).toHaveLength(11);
   });
 
   it("039: «Personalizado» no es plantilla (valen el entorno y los 13 a mano)", () => {
-    expect(PLAN_OPTIONS).toEqual(["esencial", "pro", "ultra", "personalizado"]);
+    expect(PLAN_OPTIONS).toEqual(["inicio", "esencial", "pro", "ultra", "personalizado"]);
     expect(profileOfPlan("personalizado")).toBeUndefined();
     expect(profileOfPlan(undefined)).toBeUndefined();
     expect(profileOfPlan("pro")).toBe("pro");
@@ -120,46 +124,65 @@ describe("registro de módulos", () => {
 describe("menú por rol", () => {
   const rutas = (r: ReturnType<typeof resolveNav>) => r.main.map((m) => r.hrefs[m.key]);
 
-  it("039: el menú son 5 pilares + Ajustes, y cada rol ve los suyos", () => {
+  it("2026-11: el menú en tres grupos + Ajustes, y cada rol ve los suyos", () => {
     const esperado: Record<Role, string[]> = {
-      owner: ["Bandeja", "CRM Comercial", "Estudio de IA", "Marketing", "Resultados", "Asistente"],
-      coordinador: ["Bandeja", "CRM Comercial", "Marketing", "Resultados"],
-      asesor: ["Bandeja", "CRM Comercial"],
+      owner: ["Bandeja", "Ventas", "Contactos", "Agenda", "Biblioteca", "Campañas", "Resultados", "Agentes IA", "Asistente"],
+      coordinador: ["Bandeja", "Ventas", "Contactos", "Agenda", "Biblioteca", "Campañas", "Resultados"],
+      asesor: ["Bandeja", "Ventas", "Contactos", "Agenda", "Biblioteca"],
     };
     for (const role of ROLES) {
       const nav = resolveNav({ role, modules: TODOS, can: canRole(role), layout: null });
       expect(nav.main.map((m) => m.label), role).toEqual(esperado[role]);
       expect(nav.settings, role).toBe(role !== "asesor");
     }
-    expect(NAV_MODULES.map((m) => m.key)).toEqual(["inbox", "pipeline", "lab", "campaigns", "results", "asistente", "settings"]);
+    expect(NAV_MODULES.map((m) => m.key)).toEqual([
+      "inbox", "pipeline", "contacts", "agenda", "knowledge", "campaigns", "results", "lab", "asistente", "settings",
+    ]);
+  });
+
+  it("2026-11: los títulos de grupo solo con grupos juntos", () => {
+    expect(navGroupStarts(["inbox", "pipeline", "contacts", "campaigns", "lab"])).toEqual(["dia", null, null, "crecer", "ia"]);
+    // Un solo grupo (el Asesor): sin títulos.
+    expect(navGroupStarts(["inbox", "pipeline", "contacts"])).toEqual([null, null, null]);
+    // Reordenado a mano y mezclado: sin títulos.
+    expect(navGroupStarts(["inbox", "campaigns", "pipeline"])).toEqual([null, null, null]);
   });
 
   it("039: las pestañas de cada pilar, en orden y sin rutas repetidas", () => {
     const pestañas = (key: ModuleKey) => (moduleDef(key).sections ?? []).map((s) => s.route);
     expect(pestañas("inbox")).toEqual(["/inbox", "/chat"]);
-    expect(pestañas("pipeline")).toEqual(["/pipeline", "/contacts", "/bookings", "/trabajo/tareas", "/knowledge"]);
-    expect(pestañas("lab")).toEqual(["/lab", "/agent", "/lab/documentos", "/lab/asignacion", "/lab/evaluaciones"]);
+    expect(pestañas("pipeline")).toEqual(["/pipeline"]);
+    expect(pestañas("contacts")).toEqual(["/contacts"]);
+    expect(pestañas("agenda")).toEqual(["/trabajo/tareas", "/bookings", "/trabajo/notas"]);
+    expect(pestañas("knowledge")).toEqual(["/knowledge", "/lab/documentos"]);
+    expect(pestañas("lab")).toEqual(["/lab", "/lab/asignacion", "/lab/evaluaciones"]);
     expect(pestañas("campaigns")).toEqual(["/campaigns", "/campaigns/audiences", "/campaigns/templates", "/campaigns/metrics"]);
     expect(pestañas("results")).toEqual(["/results"]);
     expect(pestañas("asistente")).toEqual(["/asistente"]);
     const todas = NAV_MODULES.flatMap((m) => (m.sections ?? []).map((s) => s.route));
     expect(new Set(todas).size).toBe(todas.length);
     // Ningún módulo absorbido conserva renglón propio.
-    for (const k of ["team_chat", "agenda", "contacts", "knowledge", "agent", "trabajo"] as const) {
+    for (const k of ["team_chat", "agent", "trabajo"] as const) {
       expect(moduleDef(k).route, k).toBeNull();
     }
   });
 
   it("039: el renglón lleva a la primera pestaña que se puede abrir", () => {
-    // Estudio de IA: con Laboratorio, /lab; sin él (Agente encendido), /agent.
+    // Estudio de IA: siempre /lab; sin Laboratorio (Esencial) solo «Mis agentes», un agente.
     const con = resolveNav({ role: "owner", modules: TODOS, can: canRole("owner"), layout: null });
     expect(con.hrefs.lab).toBe("/lab");
     const sinLab = effectiveModules(new Set<ModuleKey>(["team_chat", "knowledge", "results", "agent"]));
     const a = resolveNav({ role: "owner", modules: sinLab, can: canRole("owner"), layout: null });
-    expect(a.hrefs.lab).toBe("/agent");
-    expect(availableSections(moduleDef("lab"), sinLab, canRole("owner")).map((s) => s.route)).toEqual(["/agent"]);
-    // Con Laboratorio, la pestaña del agente general cede su lugar.
-    expect(availableSections(moduleDef("lab"), TODOS, canRole("owner")).map((s) => s.route)).not.toContain("/agent");
+    expect(a.hrefs.lab).toBe("/lab");
+    expect(availableSections(moduleDef("lab"), sinLab, canRole("owner")).map((s) => s.route)).toEqual(["/lab"]);
+    // Con Laboratorio, las demás pestañas de Agentes IA también aparecen.
+    expect(availableSections(moduleDef("lab"), TODOS, canRole("owner")).map((s) => s.route)).toContain("/lab/evaluaciones");
+    // Agenda: sin Citas (Esencial) lleva a Tareas; solo con Citas, a Citas.
+    expect(con.hrefs.agenda).toBe("/trabajo/tareas");
+    const soloCitas = effectiveModules(new Set<ModuleKey>(["agenda"]));
+    expect(resolveNav({ role: "owner", modules: soloCitas, can: canRole("owner"), layout: null }).hrefs.agenda).toBe("/bookings");
+    // Biblioteca: el Asesor solo ve «Para enviar en chats».
+    expect(availableSections(moduleDef("knowledge"), TODOS, canRole("asesor")).map((s) => s.route)).toEqual(["/knowledge"]);
     // Sin agente: no hay Estudio de IA.
     const sinIa = effectiveModules(new Set<ModuleKey>(["team_chat", "results"]));
     expect(resolveNav({ role: "owner", modules: sinIa, can: canRole("owner"), layout: null }).main.map((m) => m.key)).not.toContain("lab");
@@ -172,14 +195,13 @@ describe("menú por rol", () => {
     expect(resolveNav({ role: "coordinador", modules: soloAsistente, can: canRole("coordinador"), layout: null }).main.map((m) => m.key)).not.toContain("asistente");
   });
 
-  it("039: el CRM Comercial y la Bandeja siempre existen; sus pestañas siguen a sus módulos", () => {
+  it("2026-11: Bandeja, Ventas y Contactos siempre existen; Agenda y Biblioteca siguen a sus módulos", () => {
     const nada = effectiveModules(new Set());
     const nav = resolveNav({ role: "asesor", modules: nada, can: canRole("asesor"), layout: null });
-    expect(rutas(nav)).toEqual(["/inbox", "/pipeline"]);
+    expect(rutas(nav)).toEqual(["/inbox", "/pipeline", "/contacts"]);
     expect(availableSections(moduleDef("inbox"), nada, canRole("asesor")).map((s) => s.label)).toEqual(["Clientes"]);
-    expect(availableSections(moduleDef("pipeline"), nada, canRole("asesor")).map((s) => s.label)).toEqual(["Pipeline", "Contactos"]);
-    const todo = availableSections(moduleDef("pipeline"), TODOS, canRole("asesor")).map((s) => s.label);
-    expect(todo).toEqual(["Pipeline", "Contactos", "Agenda", "Tareas y notas", "Biblioteca"]);
+    const todo = availableSections(moduleDef("agenda"), TODOS, canRole("asesor")).map((s) => s.label);
+    expect(todo).toEqual(["Tareas", "Citas", "Notas"]);
   });
 
   it("039: la pestaña activa es la de la ruta más larga que contiene a la página", () => {
@@ -187,26 +209,32 @@ describe("menú por rol", () => {
     expect(activeSection(mkt, "/campaigns")?.label).toBe("Campañas");
     expect(activeSection(mkt, "/campaigns/c_123")?.label).toBe("Campañas");
     expect(activeSection(mkt, "/campaigns/audiences")?.label).toBe("Audiencias");
-    const crm = moduleDef("pipeline").sections!;
-    expect(activeSection(crm, "/trabajo/notas")?.label).toBe("Tareas y notas");
-    expect(activeSection(crm, "/bookings")?.label).toBe("Agenda");
+    const agenda = moduleDef("agenda").sections!;
+    expect(activeSection(agenda, "/trabajo/notas")?.label).toBe("Notas");
+    expect(activeSection(agenda, "/trabajo")?.label).toBe("Tareas");
+    expect(activeSection(agenda, "/bookings")?.label).toBe("Citas");
     const lab = moduleDef("lab").sections!;
     expect(activeSection(lab, "/lab/agents/ag_1")?.label).toBe("Mis agentes");
-    expect(activeSection(lab, "/lab/documentos/grp_1")?.label).toBe("Conocimiento");
     expect(pillarOfPath("/chat")?.key).toBe("inbox");
-    expect(pillarOfPath("/knowledge")?.key).toBe("pipeline");
+    expect(pillarOfPath("/knowledge")?.key).toBe("knowledge");
+    // Los Documentos de la IA son de la Biblioteca, no de Agentes IA (/lab).
+    expect(pillarOfPath("/lab/documentos/grp_1")?.key).toBe("knowledge");
+    expect(pillarOfPath("/lab/evaluaciones")?.key).toBe("lab");
+    expect(pillarOfPath("/contacts")?.key).toBe("contacts");
     expect(pillarOfPath("/asistente")?.key).toBe("asistente");
     expect(pillarOfPath("/settings/team")).toBeUndefined();
   });
 
-  it("039: un menú guardado con claves viejas (sin renglón) se normaliza a los pilares", () => {
+  it("un menú guardado antes de 2026-11 recibe los renglones nuevos en su lugar de fábrica", () => {
     const viejo = [
-      { key: "contacts", hidden: false },
       { key: "team_chat", hidden: true },
       { key: "results", hidden: false },
       { key: "inbox", hidden: false },
+      { key: "pipeline", hidden: false },
     ];
-    expect(normalizeLayout(viejo, "owner").map((i) => i.key)).toEqual(["results", "inbox", "pipeline", "lab", "campaigns", "asistente", "settings"]);
+    expect(normalizeLayout(viejo, "owner").map((i) => i.key)).toEqual([
+      "results", "lab", "asistente", "inbox", "pipeline", "contacts", "agenda", "knowledge", "campaigns", "settings",
+    ]);
   });
 
   it("un módulo apagado no aparece aunque el menú guardado lo muestre", () => {
@@ -230,7 +258,7 @@ describe("menú por rol", () => {
       { key: "campaigns", hidden: true },
     ];
     const nav = resolveNav({ role: "coordinador", modules: TODOS, can: canRole("coordinador"), layout });
-    expect(nav.main.map((m) => m.key)).toEqual(["pipeline", "inbox", "results"]);
+    expect(nav.main.map((m) => m.key)).toEqual(["pipeline", "contacts", "agenda", "knowledge", "inbox", "results"]);
   });
 
   it("normaliza: descarta claves desconocidas y repetidas, agrega las nuevas y deja Ajustes al final", () => {
@@ -238,7 +266,9 @@ describe("menú por rol", () => {
       [{ key: "settings", hidden: false }, { key: "x" }, { key: "inbox", hidden: true }, { key: "inbox", hidden: false }, { key: "instagram" }],
       "coordinador"
     );
-    expect(items.map((i) => i.key)).toEqual(["inbox", "pipeline", "lab", "campaigns", "results", "asistente", "settings"]);
+    expect(items.map((i) => i.key)).toEqual([
+      "inbox", "pipeline", "contacts", "agenda", "knowledge", "campaigns", "results", "lab", "asistente", "settings",
+    ]);
     expect(items[0]).toEqual({ key: "inbox", hidden: true });
   });
 

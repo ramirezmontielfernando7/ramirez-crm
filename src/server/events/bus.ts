@@ -102,7 +102,7 @@ export type TeamSseEvent =
       audience: readonly string[];
     };
 
-export function isTeamEvent(event: SseEvent): event is TeamSseEvent {
+function isTeamEvent(event: SseEvent): event is TeamSseEvent {
   return event.type === "team.message" || event.type === "team.thread";
 }
 
@@ -123,7 +123,7 @@ export type NumberSseEvent =
       audience: readonly string[];
     };
 
-export function isNumberEvent(event: SseEvent): event is NumberSseEvent {
+function isNumberEvent(event: SseEvent): event is NumberSseEvent {
   return event.type === "number.message" || event.type === "number.conversation";
 }
 
@@ -145,6 +145,12 @@ function getBus(): EventEmitter {
 
 export function publish(organizationId: string, event: SseEvent): void {
   getBus().emit(`org:${organizationId}`, event);
+  // The optional connector never blocks or changes SSE or message ingestion.
+  if (event.type !== "message.new" || !process.env.FCM_SERVICE_ACCOUNT_JSON?.trim()) return;
+  const message = event.data.message as { id?: unknown; direction?: unknown } | null;
+  if (message?.direction !== "in" || typeof message.id !== "string") return;
+  const job = { organizationId, conversationId: event.data.conversationId, messageId: message.id };
+  void import("@/server/mobile-push/dispatch").then(({ enqueueMobilePush }) => enqueueMobilePush(job)).catch(() => {});
 }
 
 export function subscribe(

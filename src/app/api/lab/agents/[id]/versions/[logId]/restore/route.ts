@@ -9,7 +9,7 @@ type Params = { params: Promise<{ id: string; logId: string }> };
 
 /** 031 (D8) — Carga una versión al BORRADOR; nunca a producción. */
 export const POST = withAuth(async (session, _req: Request, ctx: Params) => {
-  const off = (await moduleOff(session.organizationId, "lab")) ?? (await moduleOff(session.organizationId, "agent"));
+  const off = await moduleOff(session.organizationId, "agent");
   if (off) return off;
   const { id, logId } = await ctx.params;
   return withAgentErrors(async () =>

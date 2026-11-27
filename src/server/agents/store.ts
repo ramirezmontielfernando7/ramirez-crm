@@ -18,6 +18,7 @@ import { syncGeneralToProfile } from "./mirror";
 import { removeAgentStages } from "./assignments";
 import { pauseScope } from "@/lib/agent-pause";
 import { logger } from "@/lib/log";
+import { orgHasModule } from "@/server/modules";
 import { existingGroupIds, settleAgentDocuments } from "@/server/kb-docs/store";
 
 const log = logger("agentes");
@@ -31,8 +32,15 @@ const log = logger("agentes");
 
 /** D6 — Agentes activos (no archivados) por organización. */
 export const MAX_ACTIVE_AGENTS = 20;
+/** Plan Esencial (agente sin Laboratorio): UN solo agente, el general. */
+const MAX_AGENTS_WITHOUT_LAB = 1;
 
-export type AgentErrorCode = "agent_limit" | "agent_general" | "not_published" | "not_found" | "unknown_group";
+/** Cuántos agentes activos admite la organización (con Laboratorio, 20; sin él, 1). */
+export async function maxAgentsFor(organizationId: string): Promise<number> {
+  return (await orgHasModule(organizationId, "lab")) ? MAX_ACTIVE_AGENTS : MAX_AGENTS_WITHOUT_LAB;
+}
+
+type AgentErrorCode = "agent_limit" | "agent_general" | "not_published" | "not_found" | "unknown_group";
 
 export class AgentError extends Error {
   constructor(readonly code: AgentErrorCode, message: string) {
@@ -190,7 +198,7 @@ export async function listAgents(organizationId: string): Promise<AgentSummary[]
  * que hoy responde cada uno (lo publicado, o el borrador si nunca se
  * publicó). SOLO LECTURA: a diferencia de `listAgents`, no garantiza el general.
  */
-export type AgentForAudit = {
+type AgentForAudit = {
   id: string;
   name: string;
   isGeneral: boolean;
@@ -241,14 +249,20 @@ export async function createAgent(input: {
 }): Promise<AgentDetail> {
   const { organizationId } = input;
   await ensureGeneralAgent(organizationId);
+  const max = await maxAgentsFor(organizationId);
   return withTenant(organizationId, async (tx) => {
     await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`agent:${organizationId}`}))`);
     const [{ n } = { n: 0 }] = await tx
       .select({ n: count() })
       .from(schema.agent)
       .where(scoped(schema.agent.organizationId, organizationId, isNull(schema.agent.archivedAt)));
-    if (n >= MAX_ACTIVE_AGENTS) {
-      throw new AgentError("agent_limit", `Llegaste al máximo de ${MAX_ACTIVE_AGENTS} agentes activos`);
+    if (n >= max) {
+      throw new AgentError(
+        "agent_limit",
+        max === MAX_AGENTS_WITHOUT_LAB
+          ? "Tu plan incluye 1 agente de IA. Para tener varios, sube de plan."
+          : `Llegaste al máximo de ${max} agentes activos`
+      );
     }
     let draft = emptyConfig();
     if (input.duplicateOf) {
@@ -475,7 +489,20 @@ export async function restoreVersion(
  * (`loadTurnContext`): traspaso a una persona, nunca silencio.
  * --------------------------------------------------------------------- */
 
-export type OrgPauseState = { paused: boolean; pausedAt: string | null };
+type OrgPauseState = { paused: boolean; pausedAt: string | null };
+
+/**
+ * Auditoría UX 2026-11 (paquete B) — el interruptor GLOBAL de la IA
+ * (`agent_profile.enabled`), para que el Estudio de IA diga la verdad.
+ */
+export async function getOrgAiEnabled(organizationId: string): Promise<boolean> {
+  const [row] = await getDb()
+    .select({ enabled: schema.agentProfile.enabled })
+    .from(schema.agentProfile)
+    .where(scoped(schema.agentProfile.organizationId, organizationId))
+    .limit(1);
+  return !!row?.enabled;
+}
 
 export async function getOrgPause(organizationId: string): Promise<OrgPauseState> {
   const [row] = await getDb()
@@ -559,7 +586,7 @@ export async function setAgentPaused(
  * contrato de siempre: guardar = publicar, como antes de 031.
  * --------------------------------------------------------------------- */
 
-export type LegacyProfile = {
+type LegacyProfile = {
   enabled: boolean;
   name: string;
   displayName: string | null;
@@ -589,7 +616,7 @@ export async function getLegacyProfile(organizationId: string): Promise<LegacyPr
   };
 }
 
-export type LegacyPatch = {
+type LegacyPatch = {
   enabled?: boolean;
   name?: string | null;
   tone?: string | null;

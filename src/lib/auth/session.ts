@@ -1,15 +1,19 @@
 import { cache } from "react";
 import { headers } from "next/headers";
 import { getAuth } from "@/lib/auth";
+import { mobileBearerHeaders } from "@/lib/auth/mobile";
 import { can, type Permission } from "@/lib/auth/permissions";
 import type { Access } from "@/lib/db/tenant";
 import { resolveMembership } from "@/server/auth/on-signup";
 import { runWithOrganization } from "@/lib/request-context";
 import { delegatedGrants } from "@/server/team-chat/settings";
 import { isOrgActive } from "@/server/platform-admin/org-status";
+import { getChatView } from "@/server/chat-visibility";
+import type { ChatView } from "@/lib/chat-visibility";
 
 export type SessionContext = {
   userId: string;
+  sessionId?: string;
   organizationId: string;
   role: string;
   /** 020 — qué datos de clientes ve esta sesión (ver `scopedContacts`). */
@@ -33,7 +37,8 @@ export function sessionContext(
   userId: string,
   organizationId: string,
   role: string,
-  grants: readonly Permission[] = []
+  grants: readonly Permission[] = [],
+  chatView: ChatView = "own"
 ): SessionContext {
   return {
     userId,
@@ -44,6 +49,7 @@ export function sessionContext(
       organizationId,
       userId,
       seesAll: can({ role }, "scope.all"),
+      chatView,
     },
   };
 }
@@ -63,9 +69,12 @@ export async function requireSession(): Promise<SessionContext> {
  * Fuera de un render de servidor (rutas de API) `cache` no guarda nada y se
  * consulta como siempre.
  */
-export const getAuthSession = cache(async () =>
-  getAuth().api.getSession({ headers: await headers() })
-);
+async function readAuthSession(requestHeaders: Headers) {
+  const translated = await mobileBearerHeaders(requestHeaders);
+  return getAuth().api.getSession({ headers: translated ?? requestHeaders });
+}
+
+export const getAuthSession = cache(async () => readAuthSession(await headers()));
 
 type AuthSession = NonNullable<Awaited<ReturnType<typeof getAuthSession>>>;
 
@@ -86,15 +95,18 @@ async function contextOf(session: AuthSession): Promise<SessionContext> {
   if (!(await isOrgActive(membership.organizationId))) {
     throw new UnauthorizedError("Organización suspendida");
   }
-  return sessionContext(
+  const context = sessionContext(
     session.user.id,
     membership.organizationId,
     membership.role,
     // PR 3: la organización ya se sabe; su ajuste se lee a su nombre.
     await runWithOrganization(membership.organizationId, () =>
       delegatedGrants(membership.organizationId, membership.role)
-    )
+    ),
+    // Qué chats ve un asesor (ajuste de la empresa; los demás roles ya ven todo).
+    can({ role: membership.role }, "scope.all") ? "own" : await getChatView(membership.organizationId)
   );
+  return { ...context, sessionId: session.session.id };
 }
 
 const requireSessionOnce = cache(async (): Promise<SessionContext> => {
@@ -111,7 +123,7 @@ const requireSessionOnce = cache(async (): Promise<SessionContext> => {
  * (no es lo mismo que «ya no tiene sesión»).
  */
 export async function sessionFromHeaders(h: Headers): Promise<SessionContext | null> {
-  const session = await getAuth().api.getSession({ headers: h });
+  const session = await readAuthSession(h);
   if (!session) return null;
   try {
     return await contextOf(session);

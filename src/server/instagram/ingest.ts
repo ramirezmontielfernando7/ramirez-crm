@@ -25,7 +25,7 @@ const log = logger("ig");
  * todos los canales que entran por esa API. Se re-exporta para no tocar a
  * quien ya la importaba de aquí.
  */
-export { isValidZernioSignature } from "@/server/zernio";
+;
 
 export async function processZernioEvent(payload: unknown): Promise<void> {
   const evt = payload as ZernioEvent;

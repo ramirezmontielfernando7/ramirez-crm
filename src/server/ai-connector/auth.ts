@@ -1,5 +1,7 @@
-import { bearerToken, resourceMetadataUrl, roleMayConnect, type Scope } from "@/lib/ai-connector";
+import { bearerToken, resourceMetadataUrl, roleMayConnect, SCOPES, type Scope } from "@/lib/ai-connector";
 import { sessionContext, type SessionContext } from "@/lib/auth/session";
+import { can } from "@/lib/auth/permissions";
+import { getChatView } from "@/server/chat-visibility";
 import { getEnv } from "@/lib/env";
 import { checkRateLimit, clientIp } from "@/lib/rate-limit";
 import { runWithOrganization } from "@/lib/request-context";
@@ -22,11 +24,11 @@ import { resolveToken, touchConnection } from "@/server/ai-connector/keys";
  */
 
 /** Por conexión: 120 llamadas por minuto (2/s sostenidos). */
-export const MCP_BUDGET = { windowMs: 60_000, max: 120 };
+const MCP_BUDGET = { windowMs: 60_000, max: 120 };
 /** Llaves FALLIDAS por IP: 30/min y luego 429 (como `/api/bot/*`). */
-export const MCP_AUTH_FAILURES = { windowMs: 60_000, max: 30 };
+const MCP_AUTH_FAILURES = { windowMs: 60_000, max: 30 };
 
-export type McpAuth =
+type McpAuth =
   | { ok: true; session: SessionContext; connectionId: string; scopes: Scope[]; assistantName: string | null }
   | { ok: false; response: Response };
 
@@ -35,10 +37,10 @@ function jsonError(status: number, code: string, message: string, headers: Recor
 }
 
 /** 401 con el puntero a los metadatos (RFC 9728 §5.1): así la IA sabe dónde iniciar sesión. */
-export function unauthorized(message = "Falta una llave válida de Dashfort"): Response {
+function unauthorized(message = "Falta una llave válida de Dashfort"): Response {
   const metadata = resourceMetadataUrl(getEnv().APP_BASE_URL);
   return jsonError(401, "invalid_token", message, {
-    "WWW-Authenticate": `Bearer resource_metadata="${metadata}"`,
+    "WWW-Authenticate": `Bearer resource_metadata="${metadata}", scope="${SCOPES.join(" ")}"`,
   });
 }
 
@@ -76,10 +78,14 @@ export async function requireMcpToken(req: Request): Promise<McpAuth> {
     return { ok: false, response: jsonError(429, "rate_limited", "Demasiadas solicitudes: espera un minuto") };
   }
   const grants = await runWithOrganization(organizationId, () => delegatedGrants(organizationId, membership.role));
+  // Qué chats ve un asesor (ajuste de la empresa): la IA ve lo mismo que la persona en la Bandeja.
+  const chatView = can({ role: membership.role }, "scope.all")
+    ? "own"
+    : await runWithOrganization(organizationId, () => getChatView(organizationId));
   await runWithOrganization(organizationId, () => touchConnection(connectionId, organizationId));
   return {
     ok: true,
-    session: sessionContext(userId, organizationId, membership.role, grants),
+    session: sessionContext(userId, organizationId, membership.role, grants, chatView),
     connectionId,
     scopes,
     assistantName: resolved.assistantName,

@@ -19,6 +19,7 @@ import { faviconHref } from "@/lib/favicon";
 import { normalizeThemePreference, THEME_BAR_COLOR, THEME_COOKIE } from "@/lib/theme";
 import { getViewerBrandingContext } from "@/server/branding";
 import "./globals.css";
+import { RegisterServiceWorker } from "@/components/register-sw";
 
 // Fase D: Geist, Plus Jakarta Sans y DM Sans vienen de paquetes npm
 // (@fontsource-variable, empaquetados con la app: sin Google Fonts en
@@ -47,6 +48,8 @@ const plexMono = localFont({
   ],
   variable: "--font-mono",
   display: "swap",
+  // Solo etiquetas y horas: que no se precargue en cada pantalla (celular lento).
+  preload: false,
 });
 
 export const dynamic = "force-dynamic";
@@ -117,7 +120,10 @@ export default async function RootLayout({
           }}
         />
       </head>
-      <body className="font-sans">{children}</body>
+      <body className="font-sans">
+        {children}
+        <RegisterServiceWorker />
+      </body>
     </html>
   );
 }

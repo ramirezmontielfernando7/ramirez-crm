@@ -29,7 +29,7 @@ export const HISTORY_EXCHANGES = 4;
 /** Largo máximo de la pregunta. */
 export const MAX_QUESTION_CHARS = 1000;
 /** Lo más que se guarda de cada resultado para mostrarlo como fuente. */
-export const MAX_SOURCE_RESULT_CHARS = 6000;
+const MAX_SOURCE_RESULT_CHARS = 6000;
 /** Días que se conservan las conversaciones del asistente (decisión del dueño). */
 export const THREAD_RETENTION_DAYS = 90;
 
@@ -73,7 +73,6 @@ export const assistantStepSchema = z.discriminatedUnion("action", [
       .max(50),
   }),
 ]);
-export type AssistantStep = z.infer<typeof assistantStepSchema>;
 
 /** Una consulta que corrió para contestar, tal como se le muestra al Propietario. */
 export type AssistantSource = {
@@ -176,7 +175,7 @@ export const THREAD_BULK_MAX = 50;
 // Enmascarado
 // ---------------------------------------------------------------------------
 
-export type MaskKind = "contact" | "member";
+type MaskKind = "contact" | "member";
 
 const KIND_LABEL: Record<MaskKind | "phone" | "email", string> = {
   contact: "CONTACTO",

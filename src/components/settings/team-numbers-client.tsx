@@ -92,15 +92,15 @@ export function TeamNumbersClient() {
   const full = team.inUse >= team.max;
 
   return (
-    <div className="max-w-3xl space-y-4" data-testid="team-numbers">
+    <div className="space-y-5" data-testid="team-numbers">
       <div className="space-y-1">
-        <h2 className="flex items-center gap-2 text-lg font-semibold">
+        <h2 className="flex items-center gap-2 text-[22px] font-semibold tracking-tight">
           Números del equipo
           <Badge variant="secondary" data-testid="team-numbers-in-use">
             {team.inUse} de {team.max}
           </Badge>
         </h2>
-        <p className="text-sm text-muted-foreground">{MI_NUMERO_TEXT.teamIntro}</p>
+        <p className="text-[13.5px] leading-relaxed text-text-2">{MI_NUMERO_TEXT.teamIntro}</p>
       </div>
 
       <Card>

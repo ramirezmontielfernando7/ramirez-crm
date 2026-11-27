@@ -23,6 +23,7 @@ import {
   type ValidationResult,
   type ValidRow,
 } from "@/server/contacts-io/validate";
+import { forgetInboxCounts } from "@/server/inbox/counts-memo";
 
 /**
  * 021 — Importación de contactos desde CSV.
@@ -138,7 +139,7 @@ export async function findOptOutConflicts(organizationId: string, rows: ValidRow
 }
 
 /** Un contacto de la importación (nuevo o existente) y su fila del archivo. */
-export type ImportedMember = { contactId: string; row: ValidRow; created: boolean };
+type ImportedMember = { contactId: string; row: ValidRow; created: boolean };
 
 type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
 
@@ -415,6 +416,7 @@ export async function importValidated(input: {
     }
   }
 
+  forgetInboxCounts(input.organizationId);
   return {
     totalRows: validation.totalRows,
     created: createdIds.length,

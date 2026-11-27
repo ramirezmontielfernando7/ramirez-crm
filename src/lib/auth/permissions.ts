@@ -78,6 +78,11 @@ const statements = {
    */
   usage: ["read"],
   /**
+   * 049 — «Exportar todos mis datos» (contactos, embudo, chats y mensajes en
+   * un ZIP). Solo el Propietario: es TODA la base de clientes.
+   */
+  data: ["export"],
+  /**
    * 038 — Usar el asistente interno (preguntas sobre los datos propios; solo
    * lectura). Solo el Propietario, y solo si la plataforma encendió el módulo.
    */
@@ -120,6 +125,7 @@ const owner = ac.newRole({
   work: ["manage"],
   conversation: ["delete"],
   usage: ["read"],
+  data: ["export"],
   assistant: ["use"],
   direct_connection: ["mode", "link", "limits"],
   mi_numero: ["manage"],
@@ -193,6 +199,7 @@ export type Permission =
   | "work.manage"
   | "conversation.delete"
   | "usage.read"
+  | "data.export"
   | "assistant.use"
   | "direct_connection.mode"
   | "direct_connection.link"

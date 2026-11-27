@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useViewer } from "@/components/viewer-context";
 
-export type Assignee = { userId: string; name: string; role: string; assignedCount: number };
+type Assignee = { userId: string; name: string; role: string; assignedCount: number };
 
 /**
  * 020 — El equipo al que se le pueden asignar chats. Solo se pide si quien

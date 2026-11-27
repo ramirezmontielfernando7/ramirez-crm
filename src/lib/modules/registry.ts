@@ -80,6 +80,13 @@ export type NavSection = {
   also?: readonly string[];
 };
 
+export type NavGroup = "dia" | "crecer" | "ia";
+export const NAV_GROUP_LABEL: Record<NavGroup, string> = {
+  dia: "Día a día",
+  crecer: "Crecer",
+  ia: "Inteligencia artificial",
+};
+
 export type ModuleDef = {
   key: ModuleKey;
   label: string;
@@ -106,6 +113,14 @@ export type ModuleDef = {
   /** Ajustes va anclado abajo: se oculta, pero no se reordena. */
   pinnedBottom?: boolean;
   /**
+   * 2026-11 — Grupo del menú lateral («Día a día», «Crecer», «Inteligencia
+   * artificial»). Solo se pintan los títulos si hay más de un grupo y cada
+   * uno queda junto (un menú reordenado a mano los mezcla: sin títulos).
+   */
+  group?: NavGroup;
+  /** Otros nombres con los que alguien lo busca (el buscador ⌘K; p. ej. el nombre viejo). */
+  aka?: string;
+  /**
    * 039 — Pilar del menú: sus pestañas, en orden. El renglón existe si
    * CUALQUIERA se puede abrir (módulo encendido + permiso) y se pinta activo
    * en todas sus rutas.
@@ -122,8 +137,15 @@ const ALL: readonly Role[] = ["owner", "coordinador", "asesor"];
  * sigue valiendo, y las demás claves (que ya no tienen renglón) se descartan
  * al normalizarlo. Ninguna ruta cambia de dirección: los pilares solo
  * agrupan pantallas que ya existen como pestañas.
+ *
+ * 2026-11 (nuevo orden del menú, aprobado por Fer): lo que la gente busca por
+ * su nombre tiene renglón propio — Contactos, Agenda (Tareas, Citas, Notas) y
+ * Biblioteca (que también junta lo que lee la IA) — en tres grupos. Las claves
+ * nuevas (`contacts`, `agenda`, `knowledge`) ya existían como módulos; las
+ * rutas siguen siendo las mismas.
  */
 export const MODULES: readonly ModuleDef[] = [
+  // ── Día a día (2026-11, nuevo orden del menú): lo que usa todo el equipo.
   {
     key: "inbox",
     label: "Bandeja",
@@ -133,6 +155,7 @@ export const MODULES: readonly ModuleDef[] = [
     defaultRoles: ALL,
     requires: [],
     badges: ["inbox", "team"],
+    group: "dia",
     sections: [
       { label: "Clientes", route: "/inbox", module: "inbox" },
       // 025 — Comunicación interna: junto a la Bandeja, porque se usa atendiendo.
@@ -141,76 +164,124 @@ export const MODULES: readonly ModuleDef[] = [
   },
   {
     key: "pipeline",
-    label: "CRM Comercial",
+    label: "Ventas",
+    aka: "CRM Comercial Pipeline Embudo",
     route: "/pipeline",
     icon: "Kanban",
     core: true,
     defaultRoles: ALL,
     requires: [],
-    sections: [
-      { label: "Pipeline", route: "/pipeline", module: "pipeline" },
-      { label: "Contactos", route: "/contacts", module: "contacts" },
-      // 015 — Citas: sigue en /bookings y su módulo es `agenda`.
-      { label: "Agenda", route: "/bookings", module: "agenda" },
-      // 033 — Tareas y Notas (módulo `trabajo`), en /trabajo/*.
-      { label: "Tareas y notas", route: "/trabajo/tareas", module: "trabajo", also: ["/trabajo"] },
-      // 024 — Material que el equipo envía (Conocimientos).
-      { label: "Biblioteca", route: "/knowledge", module: "knowledge" },
-    ],
+    group: "dia",
+    sections: [{ label: "Pipeline", route: "/pipeline", module: "pipeline" }],
   },
   {
-    key: "lab",
-    label: "Estudio de IA",
-    route: "/lab",
-    icon: "FlaskConical",
+    key: "contacts",
+    label: "Contactos",
+    aka: "Clientes CRM Comercial",
+    route: "/contacts",
+    icon: "Users",
+    core: true,
+    defaultRoles: ALL,
+    requires: [],
+    group: "dia",
+    sections: [{ label: "Contactos", route: "/contacts", module: "contacts" }],
+  },
+  // Tareas, Citas y Notas: «qué tengo pendiente». Sin el módulo Agenda (plan
+  // Esencial) el renglón sigue con Tareas y Notas; sin `trabajo`, solo Citas.
+  {
+    key: "agenda",
+    label: "Agenda",
+    aka: "Pendientes Trabajo CRM Comercial",
+    route: "/trabajo/tareas",
+    icon: "CalendarDays",
     core: false,
-    permissions: ["agent.manage"],
-    defaultRoles: ["owner"],
-    // El Laboratorio evalúa al agente: sin agente no hay nada que evaluar.
-    requires: ["agent"],
+    defaultRoles: ALL,
+    requires: [],
+    group: "dia",
     sections: [
-      // El editor (/lab/agents/[id]) cuenta como parte de Mis agentes.
-      { label: "Mis agentes", route: "/lab", module: "lab", permissions: ["agent.manage"], also: ["/lab/agents"] },
-      // Sin Laboratorio, el agente general de siempre (/agent sigue vivo).
-      { label: "Mi agente", route: "/agent", module: "agent", permissions: ["agent.manage"], unless: "lab" },
-      { label: "Conocimiento", route: "/lab/documentos", module: "lab", permissions: ["agent.manage"] },
-      { label: "Asignación por etapa", route: "/lab/asignacion", module: "lab", permissions: ["agent.manage"] },
-      { label: "Pruebas", route: "/lab/evaluaciones", module: "lab", permissions: ["agent.manage"] },
+      // 033 — Tareas y Notas (módulo `trabajo`), en /trabajo/*.
+      { label: "Tareas", route: "/trabajo/tareas", module: "trabajo", also: ["/trabajo"] },
+      // 015 — Citas: sigue en /bookings y su módulo es `agenda`.
+      { label: "Citas", route: "/bookings", module: "agenda" },
+      { label: "Notas", route: "/trabajo/notas", module: "trabajo" },
     ],
   },
+  // 040 — UN archivo, dos destinos: lo que el equipo envía (024) y lo que lee
+  // la IA (035, antes «Conocimiento» del Estudio de IA).
+  {
+    key: "knowledge",
+    label: "Biblioteca",
+    aka: "Conocimiento Documentos Archivos Material",
+    route: "/knowledge",
+    icon: "BookOpen",
+    core: false,
+    defaultRoles: ALL,
+    requires: [],
+    group: "dia",
+    sections: [
+      { label: "Para enviar en chats", route: "/knowledge", module: "knowledge" },
+      { label: "Para que lea la IA", route: "/lab/documentos", module: "lab", permissions: ["agent.manage"] },
+    ],
+  },
+  // ── Crecer.
   {
     key: "campaigns",
-    label: "Marketing",
+    label: "Campañas",
+    aka: "Marketing Difusión",
     route: "/campaigns",
     icon: "Megaphone",
     core: false,
     permissions: ["campaigns.manage"],
     defaultRoles: ["owner", "coordinador"],
     requires: [],
+    group: "crecer",
     sections: [
       { label: "Campañas", route: "/campaigns", module: "campaigns", permissions: ["campaigns.manage"] },
       { label: "Audiencias", route: "/campaigns/audiences", module: "campaigns", permissions: ["campaigns.manage"] },
       // 030 (PR 4): antes en Ajustes → Plantillas (que ahora redirige aquí).
-      { label: "Plantillas WhatsApp", route: "/campaigns/templates", module: "campaigns", permissions: ["templates.manage"] },
-      { label: "Métricas y costos", route: "/campaigns/metrics", module: "campaigns", permissions: ["campaigns.manage"] },
+      { label: "Plantillas", route: "/campaigns/templates", module: "campaigns", permissions: ["templates.manage"] },
+      { label: "Métricas", route: "/campaigns/metrics", module: "campaigns", permissions: ["campaigns.manage"] },
     ],
   },
   // 019 — Primero se atiende y se organiza, luego se mide.
   {
     key: "results",
     label: "Resultados",
+    aka: "Inteligencia Reportes Embudo",
     route: "/results",
     icon: "ChartColumn",
     core: false,
     permissions: ["results.read"],
     defaultRoles: ["owner", "coordinador"],
     requires: [],
+    group: "crecer",
     sections: [
       { label: "Resultados y embudo", route: "/results", module: "results", permissions: ["results.read"] },
     ],
   },
-  // 038 — Asistente interno (premium, solo el Propietario): su propio renglón
-  // del menú; rediseño 2026-11: al final de los pilares, después de Resultados.
+  // ── Inteligencia artificial.
+  {
+    key: "lab",
+    label: "Agentes IA",
+    aka: "Estudio de IA Laboratorio Agente",
+    route: "/lab",
+    icon: "BotMessageSquare",
+    core: false,
+    permissions: ["agent.manage"],
+    defaultRoles: ["owner"],
+    // El Laboratorio evalúa al agente: sin agente no hay nada que evaluar.
+    requires: ["agent"],
+    group: "ia",
+    sections: [
+      // El editor (/lab/agents/[id]) cuenta como parte de Mis agentes.
+      // Esencial (sin Laboratorio): UN agente con el creador y la prueba en
+      // vivo; el resto de las pestañas piden el Laboratorio (Pro).
+      { label: "Mis agentes", route: "/lab", module: "agent", permissions: ["agent.manage"], also: ["/lab/agents"] },
+      { label: "Asignación por etapa", route: "/lab/asignacion", module: "lab", permissions: ["agent.manage"] },
+      { label: "Pruebas", route: "/lab/evaluaciones", module: "lab", permissions: ["agent.manage"] },
+    ],
+  },
+  // 038 — Asistente interno (premium, solo el Propietario).
   {
     key: "asistente",
     label: "Asistente",
@@ -220,6 +291,7 @@ export const MODULES: readonly ModuleDef[] = [
     permissions: ["assistant.use"],
     defaultRoles: ["owner"],
     requires: [],
+    group: "ia",
     sections: [{ label: "Asistente", route: "/asistente", module: "asistente", permissions: ["assistant.use"] }],
   },
   {
@@ -229,16 +301,13 @@ export const MODULES: readonly ModuleDef[] = [
     icon: "Settings",
     core: true,
     // Basta una pestaña que se pueda abrir (ver SETTINGS_TAB_PERMISSION).
-    permissions: ["settings.manage", "templates.manage", "users.read", "tags.manage", "team_chat.create_groups", "usage.read", "direct_connection.link", "mi_numero.manage", "pipeline.edit"],
+    permissions: ["settings.manage", "templates.manage", "users.read", "tags.manage", "team_chat.create_groups", "usage.read", "direct_connection.link", "mi_numero.manage", "pipeline.edit", "agent.manage", "data.export"],
     defaultRoles: ["owner", "coordinador"],
     requires: [],
     pinnedBottom: true,
   },
   // 039 — Sin renglón propio: viven como pestañas de un pilar (arriba).
   { key: "team_chat", label: "Chat de equipo", route: null, icon: "MessagesSquare", core: false, defaultRoles: ALL, requires: [] },
-  { key: "agenda", label: "Agenda (Citas)", route: null, icon: "CalendarDays", core: false, defaultRoles: ALL, requires: [] },
-  { key: "contacts", label: "Contactos", route: null, icon: "Users", core: true, defaultRoles: ALL, requires: [] },
-  { key: "knowledge", label: "Biblioteca", route: null, icon: "BookOpen", core: false, defaultRoles: ALL, requires: [] },
   {
     key: "agent",
     label: "Agente",
@@ -270,16 +339,10 @@ export function isModuleKey(value: unknown): value is ModuleKey {
 
 /** Los que tienen entrada en el menú, en el orden por defecto. */
 export const NAV_MODULES: readonly ModuleDef[] = MODULES.filter((m) => m.route !== null);
-export type NavKey = ModuleKey;
 
 /** Núcleo: Bandeja, Contactos, Pipeline y Ajustes. */
 export const CORE_MODULES: readonly ModuleKey[] = MODULES.filter((m) => m.core).map((m) => m.key);
 
-/**
- * Los módulos que la plataforma puede apagar y cuya columna nueva nace en la
- * 0034 encendida (las organizaciones que ya existen no pierden nada).
- */
-export const TOGGLEABLE_0034 = ["knowledge", "lab", "agent", "team_chat", "results"] as const;
 
 /**
  * 039 — Planes comerciales (perfiles de alta): SOLO una plantilla para los 13
@@ -296,11 +359,11 @@ export const TOGGLEABLE_0034 = ["knowledge", "lab", "agent", "team_chat", "resul
  *   «Varios agentes» es el Laboratorio (ya en Pro): hoy no hay un interruptor
  *   aparte que limite cuántos.
  */
-const ESENCIAL = {
+const INICIO = {
   team_chat: true,
-  knowledge: true,
-  results: true,
-  trabajo: true,
+  knowledge: false,
+  results: false,
+  trabajo: false,
   agent: false,
   lab: false,
   agenda: false,
@@ -311,21 +374,23 @@ const ESENCIAL = {
   campaigns: false,
   asistente: false,
 } as const;
+// Esencial: el creador del agente con prueba en vivo, de UN solo agente
+// (`agent` sin `lab`; el tope de uno lo pone `createAgent`).
+const ESENCIAL = { ...INICIO, knowledge: true, results: true, trabajo: true, agent: true } as const;
+// Instagram y Messenger quedan fuera de la oferta hasta probarlos.
 const PRO = {
   ...ESENCIAL,
-  agent: true,
   lab: true,
   agenda: true,
   atribucion: true,
-  instagram: true,
-  messenger: true,
   customNav: true,
 } as const;
 const ULTRA = { ...PRO, campaigns: true, asistente: true } as const;
 
-export type ProfileModules = { readonly [K in keyof typeof ESENCIAL]: boolean };
+export type ProfileModules = { readonly [K in keyof typeof INICIO]: boolean };
 
 export const MODULE_PROFILES = {
+  inicio: { label: "Inicio", modules: INICIO as ProfileModules },
   esencial: { label: "Esencial", modules: ESENCIAL as ProfileModules },
   pro: { label: "Pro", modules: PRO as ProfileModules },
   ultra: { label: "Ultra", modules: ULTRA as ProfileModules },
@@ -333,9 +398,10 @@ export const MODULE_PROFILES = {
 export type ModuleProfile = keyof typeof MODULE_PROFILES;
 
 /** Lo que /platform ofrece al crear: los tres planes o «Personalizado» (sin plantilla). */
-export const PLAN_OPTIONS = ["esencial", "pro", "ultra", "personalizado"] as const;
+export const PLAN_OPTIONS = ["inicio", "esencial", "pro", "ultra", "personalizado"] as const;
 export type PlanOption = (typeof PLAN_OPTIONS)[number];
 export const PLAN_LABEL: Record<PlanOption, string> = {
+  inicio: "Inicio",
   esencial: "Esencial",
   pro: "Pro",
   ultra: "Ultra",

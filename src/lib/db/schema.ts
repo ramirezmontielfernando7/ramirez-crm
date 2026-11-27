@@ -57,6 +57,28 @@ export const session = pgTable("session", {
   activeOrganizationId: text("active_organization_id"),
 });
 
+export const mobilePushDevices = pgTable("mobile_push_devices", {
+  id: text("id").primaryKey(),
+  organizationId: text("organization_id").notNull().references(() => organization.id, { onDelete: "cascade" }),
+  userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+  sessionId: text("session_id").notNull().references(() => session.id, { onDelete: "cascade" }),
+  tokenHash: text("token_hash").notNull(),
+  tokenCipher: text("token_cipher").notNull(),
+  tokenIv: text("token_iv").notNull(),
+  tokenTag: text("token_tag").notNull(),
+  keyVersion: integer("key_version").notNull().default(1),
+  platform: text("platform", { enum: ["android"] }).notNull().default("android"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  lastSeenAt: timestamp("last_seen_at").notNull().defaultNow(),
+  revokedAt: timestamp("revoked_at"),
+}, (t) => [
+  uniqueIndex("mobile_push_devices_org_user_token_uq").on(t.organizationId, t.userId, t.tokenHash),
+  uniqueIndex("mobile_push_devices_active_token_uq").on(t.tokenHash).where(sql`${t.revokedAt} IS NULL`),
+  index("mobile_push_devices_session_idx").on(t.sessionId),
+  index("mobile_push_devices_seen_idx").on(t.lastSeenAt),
+  check("mobile_push_devices_platform_ck", sql`${t.platform} = 'android'`),
+]);
+
 export const account = pgTable("account", {
   id: text("id").primaryKey(),
   accountId: text("account_id").notNull(),
@@ -188,6 +210,8 @@ export const invitation = pgTable("invitation", {
   inviterId: text("inviter_id")
     .notNull()
     .references(() => user.id, { onDelete: "cascade" }),
+  // 0075: better-auth 1.7 la exige al arrancar (revisa el esquema).
+  createdAt: timestamp("created_at").notNull().defaultNow(),
 }, (t) => [
   // Fase 1 (H20): la app no usa invitaciones todavía (Fase 3), pero el
   // filtro por organización es el que aplicará RLS en el PR 4.
@@ -756,6 +780,12 @@ export const conversation = pgTable(
       .notNull()
       .default("whatsapp"),
     /**
+     * 0080 — Por qué número OFICIAL de la empresa habla este chat (el último
+     * por el que escribió el contacto). NULL = el principal. Las respuestas
+     * salen por este número.
+     */
+    waPhoneNumberId: text("wa_phone_number_id"),
+    /**
      * 014: identificador del hilo en la plataforma de origen. Zernio entrega
      * un conversationId opaco ("no asumas su formato") que hace falta para
      * responder; WhatsApp no lo necesita y queda null.
@@ -833,6 +863,12 @@ export const conversation = pgTable(
     clientMarkedBy: text("client_marked_by").references(() => user.id, { onDelete: "set null" }),
     /** 0061: la persona ya contestó «¿Es cliente?» con «No» en este chat: la barra no vuelve a salir. */
     clientPromptDismissedAt: timestamp("client_prompt_dismissed_at"),
+    /** 049 — cuándo salió la bienvenida automática de este chat (una sola vez). */
+    autoWelcomeAt: timestamp("auto_welcome_at"),
+    /** 049 — el último «fuera de horario» automático (como mucho uno cada 12 h). */
+    autoAwayAt: timestamp("auto_away_at"),
+    /** 049 — el último aviso de «chat olvidado» (uno por mensaje del cliente). */
+    forgottenAlertedAt: timestamp("forgotten_alerted_at"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },
@@ -954,6 +990,12 @@ export const message = pgTable(
      * (que trae su propio `wa_message_id`) sin mostrarlo dos veces.
      */
     altMessageId: text("alt_message_id"),
+    /**
+     * 049 — Mensaje AUTOMÁTICO sin IA (`welcome` | `away`). No cuenta como
+     * respuesta de una persona (ni para el aviso de chats olvidados ni para
+     * el tiempo de primera respuesta). NULL = lo escribió alguien o la IA.
+     */
+    autoKind: text("auto_kind"),
     /** 0055 — saliente detenido por los límites de envío: sale a esta hora («En cola»). */
     queuedUntil: timestamp("queued_until"),
     /**
@@ -1086,6 +1128,13 @@ export const metaCredentials = pgTable(
     phoneNumberId: text("phone_number_id").notNull(),
     displayPhoneNumber: text("display_phone_number"),
     verifiedName: text("verified_name"),
+    /**
+     * 0080 — Nombre que la empresa le pone al número («Ventas», «Sucursal
+     * Centro»). Es lo que se ve en la Bandeja; NULL = se muestra el teléfono.
+     */
+    label: text("label"),
+    /** 0080 — Color de la etiqueta del número (clave de `TAG_COLORS`); NULL = automático por orden. */
+    color: text("color"),
     tokenCipher: text("token_cipher").notNull(),
     tokenIv: text("token_iv").notNull(),
     tokenTag: text("token_tag").notNull(),
@@ -1101,10 +1150,9 @@ export const metaCredentials = pgTable(
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },
   (t) => [
-    // Un número por organización POR AHORA (decisión de la Fase 3). Para
-    // varios números basta con quitar este índice: la WABA ya es de UNA
-    // organización por `whatsapp_business_account`.
-    uniqueIndex("meta_credentials_org_uq").on(t.organizationId),
+    // 0080: VARIOS números oficiales por organización (antes uno:
+    // `meta_credentials_org_uq`). El «principal» es el más antiguo.
+    index("meta_credentials_org_idx").on(t.organizationId, t.createdAt),
     // El webhook enruta por phone_number_id: debe ser único en la instancia.
     uniqueIndex("meta_credentials_phone_uq").on(t.phoneNumberId),
     // H8: la WABA declarada es de ESTA organización (y de ninguna otra).
@@ -3085,7 +3133,7 @@ export const organizationPlan = pgTable(
     updatedBy: text("updated_by").references(() => user.id, { onDelete: "set null" }),
   },
   (t) => [
-    check("organization_plan_key_chk", sql`${t.planKey} in ('esencial', 'pro', 'ultra', 'custom')`),
+    check("organization_plan_key_chk", sql`${t.planKey} in ('inicio', 'esencial', 'pro', 'ultra', 'custom')`),
     check("organization_plan_storage_mode_chk", sql`${t.storageMode} in ('warn', 'block_uploads')`),
     check("organization_plan_max_members_chk", sql`${t.maxMembers} is null or ${t.maxMembers} >= 0`),
     check("organization_plan_storage_chk", sql`${t.storageLimitBytes} is null or ${t.storageLimitBytes} >= 0`),
@@ -3340,6 +3388,23 @@ export const messagingSettings = pgTable(
      * (solo atiende los que ya existen). APAGADO por defecto.
      */
     advisorNewChatsBlocked: boolean("advisor_new_chats_blocked").notNull().default(false),
+    /**
+     * 049 — Mensajes automáticos SIN IA: bienvenida (primer mensaje de un chat
+     * nuevo) y «fuera de horario» (una vez cada 12 h por chat). El horario es
+     * propio (`auto_hours`, una ventana por día; hora de pared en `auto_timezone`).
+     * APAGADOS por defecto; sin fila = apagados.
+     */
+    welcomeEnabled: boolean("welcome_enabled").notNull().default(false),
+    welcomeText: text("welcome_text"),
+    awayEnabled: boolean("away_enabled").notNull().default(false),
+    awayText: text("away_text"),
+    autoHours: jsonb("auto_hours"),
+    autoTimezone: text("auto_timezone").notNull().default("America/Mexico_City"),
+    /**
+     * 049 — Aviso de chats olvidados: horas sin respuesta a partir de las
+     * cuales se avisa al asesor (y a quien ve todo). NULL = sin aviso.
+     */
+    forgottenAlertHours: integer("forgotten_alert_hours"),
     updatedBy: text("updated_by").references(() => user.id, { onDelete: "set null" }),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },
@@ -4477,7 +4542,7 @@ export const platformAiDefaults = pgTable(
     updatedBy: text("updated_by").references(() => user.id, { onDelete: "set null" }),
   },
   (t) => [
-    check("platform_ai_defaults_scope_chk", sql`${t.scope} in ('instance', 'esencial', 'pro', 'ultra')`),
+    check("platform_ai_defaults_scope_chk", sql`${t.scope} in ('instance', 'inicio', 'esencial', 'pro', 'ultra')`),
     check("platform_ai_defaults_agent_effort_chk", sql`${t.agentEffort} is null or ${t.agentEffort} in ('none', 'low', 'medium', 'high')`),
     check("platform_ai_defaults_creator_effort_chk", sql`${t.creatorEffort} is null or ${t.creatorEffort} in ('none', 'low', 'medium', 'high')`),
     check("platform_ai_defaults_usd_chk", sql`${t.monthlyUsdLimit} is null or ${t.monthlyUsdLimit} >= 0`),
@@ -4504,10 +4569,139 @@ export const platformPlanCatalog = pgTable(
     storageGb: integer("storage_gb"),
     features: jsonb("features").$type<string[]>(),
     recommended: boolean("recommended"),
+    /**
+     * 0078 (048) — Qué módulos trae el plan (los 13 interruptores de /platform,
+     * claves de `PLATFORM_MODULE_TOGGLES`). NULL = los de fábrica de
+     * `src/lib/modules/registry.ts` (`FACTORY_PLAN_PROFILES`).
+     */
+    modules: jsonb("modules").$type<Record<string, boolean>>(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
     updatedBy: text("updated_by").references(() => user.id, { onDelete: "set null" }),
   },
-  (t) => [check("platform_plan_catalog_scope_chk", sql`${t.scope} in ('esencial', 'pro', 'ultra')`)]
+  (t) => [check("platform_plan_catalog_scope_chk", sql`${t.scope} in ('inicio', 'esencial', 'pro', 'ultra')`)]
+);
+
+/**
+ * 0077 — Ajustes de la PLATAFORMA (sin organización), clave → valor. Hoy solo
+ * `contact_whatsapp`: el número que el cliente ve en «¿Necesitas más?». Solo
+ * pool de sistema; ÚNICA puerta `src/server/plan-catalog/store.ts`.
+ */
+export const platformSetting = pgTable(
+  "platform_setting",
+  {
+    key: text("key", { enum: ["contact_whatsapp"] }).primaryKey(),
+    value: text("value"),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+    updatedBy: text("updated_by").references(() => user.id, { onDelete: "set null" }),
+  },
+  (t) => [
+    check("platform_setting_key_chk", sql`${t.key} in ('contact_whatsapp')`),
+    check("platform_setting_value_chk", sql`${t.value} is null or length(${t.value}) <= 200`),
+  ]
+);
+
+/**
+ * 0078 (048) — Cobro a mano mientras no hay pasarela: prueba gratis con fecha
+ * de fin, «pagado hasta», días de gracia y la IA extra del mes
+ * («restablecer IA»: `ai_bonus_usd` vale solo en `ai_bonus_month`). Sin fila
+ * = la organización no lleva cobro desde Plataforma y opera como siempre.
+ * Lo escribe solo el administrador de plataforma; ÚNICA puerta
+ * `src/server/billing/store.ts`. Reglas puras en `src/lib/billing.ts`.
+ */
+export const organizationBilling = pgTable(
+  "organization_billing",
+  {
+    organizationId: text("organization_id")
+      .primaryKey()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    trialEndsAt: timestamp("trial_ends_at"),
+    paidUntil: timestamp("paid_until"),
+    graceDays: integer("grace_days").notNull().default(5),
+    aiBonusUsd: numeric("ai_bonus_usd", { precision: 12, scale: 4 }),
+    aiBonusMonth: text("ai_bonus_month"),
+    note: text("note"),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+    updatedBy: text("updated_by").references(() => user.id, { onDelete: "set null" }),
+  },
+  (t) => [
+    check("organization_billing_grace_chk", sql`${t.graceDays} between 0 and 60`),
+    check("organization_billing_bonus_chk", sql`${t.aiBonusUsd} is null or ${t.aiBonusUsd} >= 0`),
+    check("organization_billing_bonus_month_chk", sql`${t.aiBonusMonth} is null or ${t.aiBonusMonth} ~ '^[0-9]{4}-[0-9]{2}$'`),
+    check("organization_billing_note_chk", sql`${t.note} is null or char_length(${t.note}) <= 500`),
+  ]
+);
+
+/** 0078 (048) — Bitácora de pagos y extras registrados a mano en Plataforma. */
+export const organizationPayment = pgTable(
+  "organization_payment",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    kind: text("kind", { enum: ["plan", "ai_reset", "extra_person", "extra_storage", "onboarding", "other"] }).notNull(),
+    amountMxn: integer("amount_mxn").notNull().default(0),
+    months: integer("months"),
+    quantity: integer("quantity").notNull().default(1),
+    note: text("note"),
+    paidAt: timestamp("paid_at").notNull().defaultNow(),
+    recordedBy: text("recorded_by").references(() => user.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    index("organization_payment_org_idx").on(t.organizationId, t.paidAt.desc()),
+    check(
+      "organization_payment_kind_chk",
+      sql`${t.kind} in ('plan', 'ai_reset', 'extra_person', 'extra_storage', 'onboarding', 'other')`
+    ),
+    check("organization_payment_amount_chk", sql`${t.amountMxn} between 0 and 10000000`),
+    check("organization_payment_months_chk", sql`${t.months} is null or ${t.months} between 1 and 36`),
+    check("organization_payment_quantity_chk", sql`${t.quantity} between 1 and 100`),
+    check("organization_payment_note_chk", sql`${t.note} is null or char_length(${t.note}) <= 300`),
+  ]
+);
+
+/**
+ * 0078 (048) — Interruptores de emergencia para TODAS las organizaciones a la
+ * vez (por ejemplo, apagar campañas si Meta tiene un problema). Tabla de
+ * PLATAFORMA, solo pool de sistema; ÚNICA puerta `src/server/platform-controls/`.
+ */
+export const platformKillSwitch = pgTable(
+  "platform_kill_switch",
+  {
+    key: text("key", { enum: ["ai", "campaigns", "direct_send"] }).primaryKey(),
+    active: boolean("active").notNull().default(false),
+    reason: text("reason"),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+    updatedBy: text("updated_by").references(() => user.id, { onDelete: "set null" }),
+  },
+  (t) => [
+    check("platform_kill_switch_key_chk", sql`${t.key} in ('ai', 'campaigns', 'direct_send')`),
+    check("platform_kill_switch_reason_chk", sql`${t.reason} is null or char_length(${t.reason}) <= 300`),
+  ]
+);
+
+/**
+ * 0078 (048) — Aviso a todos los clientes (franja de mantenimiento o
+ * novedades). Vigente = sin `ended_at`, ya empezó y no ha pasado `ends_at`.
+ * Tabla de PLATAFORMA, solo pool de sistema.
+ */
+export const platformBroadcast = pgTable(
+  "platform_broadcast",
+  {
+    id: text("id").primaryKey(),
+    message: text("message").notNull(),
+    level: text("level", { enum: ["info", "warning"] }).notNull().default("info"),
+    startsAt: timestamp("starts_at").notNull().defaultNow(),
+    endsAt: timestamp("ends_at"),
+    endedAt: timestamp("ended_at"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    createdBy: text("created_by").references(() => user.id, { onDelete: "set null" }),
+  },
+  (t) => [
+    check("platform_broadcast_level_chk", sql`${t.level} in ('info', 'warning')`),
+    check("platform_broadcast_message_chk", sql`char_length(${t.message}) between 1 and 300`),
+  ]
 );
 
 /**

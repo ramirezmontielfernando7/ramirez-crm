@@ -25,9 +25,9 @@ const HEADER = [
 ];
 
 /** Tope defensivo: más que esto no cabe en una hoja de cálculo útil. */
-export const EXPORT_MAX = 50_000;
+const EXPORT_MAX = 50_000;
 
-export type ExportQuery = { q?: string; stage?: string; includeArchived?: boolean; filter: ContactFilter };
+type ExportQuery = { q?: string; stage?: string; includeArchived?: boolean; filter: ContactFilter };
 
 /**
  * 021 — Los contactos que ve quien exporta (`scopedContacts`), en CSV, con

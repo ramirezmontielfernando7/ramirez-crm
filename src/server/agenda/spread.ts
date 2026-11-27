@@ -19,7 +19,7 @@ import type { AvailableSlot } from "@/server/agenda/availability";
  * enseñado dejaba al agente sin alternativas legítimas que aceptar.
  */
 
-export type SpreadSlot = AvailableSlot & {
+type SpreadSlot = AvailableSlot & {
   /** Día del slot en la zona del negocio (YYYY-MM-DD). */
   dayIso: string;
   /** El día EN PALABRAS: "hoy miércoles 5 de agosto". */
@@ -79,14 +79,14 @@ export function spreadByDay(
  * - `full`: abre, pero no queda nada libre (o ya no da el aviso mínimo).
  * - `past` / `beyond_horizon`: fuera de lo que se puede agendar.
  */
-export type EstadoDelDia =
+type EstadoDelDia =
   | "available"
   | "closed"
   | "full"
   | "past"
   | "beyond_horizon";
 
-export type ConsultaDeHuecos = {
+type ConsultaDeHuecos = {
   /** El día pedido, o null si es el reparto de siempre. */
   date: string | null;
   /** Solo con `date`. */

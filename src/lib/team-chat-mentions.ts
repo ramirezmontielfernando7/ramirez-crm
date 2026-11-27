@@ -17,9 +17,9 @@
  */
 
 /** Marcador guardado. El id es un nanoid con prefijo (`cv_…`). */
-export const MENTION_TOKEN = /@\[chat:([a-z0-9_]{1,64})\]/g;
+const MENTION_TOKEN = /@\[chat:([a-z0-9_]{1,64})\]/g;
 /** Marcador guardado de un compañero (ids de Better Auth: alfanuméricos). */
-export const USER_MENTION_TOKEN = /@\[user:([A-Za-z0-9_-]{1,64})\]/g;
+const USER_MENTION_TOKEN = /@\[user:([A-Za-z0-9_-]{1,64})\]/g;
 /** Cualquier marcador guardado (chat o compañero), en orden de aparición. */
 const ANY_TOKEN = /@\[(chat|user):([A-Za-z0-9_-]{1,64})\]/g;
 /** Marcador que viaja al cliente (por posición en `mentions`). */
@@ -103,7 +103,7 @@ export function previewWithoutMentions(body: string): string {
 }
 
 /** Para pintar: el texto partido en trozos de texto y menciones. */
-export type BodyPart = { type: "text"; text: string } | { type: "mention"; mention: MentionDto };
+type BodyPart = { type: "text"; text: string } | { type: "mention"; mention: MentionDto };
 
 export function splitBody(body: string, mentions: readonly MentionDto[]): BodyPart[] {
   const parts: BodyPart[] = [];

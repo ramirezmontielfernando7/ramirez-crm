@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import { eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { apiError, parseBody, withAuth } from "@/lib/api";
@@ -11,6 +12,7 @@ import { assertCanAddMember } from "@/server/limits";
 import { checkMemberAlerts } from "@/server/limits/alerts";
 import { limitBlocked } from "@/server/limits/http";
 import { checkRateLimit, clientIp } from "@/lib/rate-limit";
+import { createTeamLink } from "@/server/platform-admin/links";
 
 export const dynamic = "force-dynamic";
 
@@ -47,7 +49,12 @@ export const GET = withAuth(async (session) => {
 const createSchema = z.object({
   name: z.string().trim().min(1).max(120),
   email: z.string().trim().email(),
-  password: z.string().min(8).max(128),
+  /**
+   * Auditoría UX 2026-11 (13): opcional. Sin contraseña (lo de la pantalla),
+   * la cuenta nace con una al azar que nadie conoce y se devuelve un enlace de
+   * activación de 72 h para mandarlo por WhatsApp. Con contraseña, como antes.
+   */
+  password: z.string().min(8).max(128).optional(),
   /** 020: por defecto, asesor. Propietario hay uno y no se crea desde aquí. */
   role: z
     .enum(ASSIGNABLE_ROLES as [Role, ...Role[]])
@@ -61,7 +68,7 @@ const createSchema = z.object({
  */
 const TEAM_SIGNUP_LIMIT = { windowMs: 10 * 60 * 1000, max: 30 };
 
-/** Alta de cuenta de equipo (owner only): email + contraseña temporal (FR-061). */
+/** Alta de cuenta de equipo (owner only): enlace de activación o contraseña temporal (FR-061). */
 /** ¿El correo es de alguien que ya es miembro de esta organización? */
 async function isMemberEmail(organizationId: string, email: string): Promise<boolean> {
   const rows = await getDb()
@@ -98,7 +105,7 @@ export const POST = withAuth(async (session, req: Request) => {
         body: {
           name: body.data.name,
           email: body.data.email,
-          password: body.data.password,
+          password: body.data.password ?? randomBytes(24).toString("base64url"),
         },
         // El límite por IP de registro (FR-062) cuenta a quien da el alta.
         // Sin esto, toda alta de equipo caía en la IP "local": un solo cubo
@@ -139,5 +146,11 @@ export const POST = withAuth(async (session, req: Request) => {
     .onConflictDoNothing();
   await checkMemberAlerts(session.organizationId);
 
-  return Response.json({ ok: true }, { status: 201 });
+  if (body.data.password) return Response.json({ ok: true }, { status: 201 });
+  const link = await createTeamLink(session.organizationId, newUserId, session.userId);
+  if ("error" in link) return Response.json({ ok: true }, { status: 201 });
+  return Response.json(
+    { ok: true, link: { url: link.url, expiresAt: link.expiresAt.toISOString() } },
+    { status: 201 }
+  );
 }, { permission: "users.manage" });

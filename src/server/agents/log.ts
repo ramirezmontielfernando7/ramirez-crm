@@ -6,7 +6,7 @@ import { scoped } from "@/lib/db/tenant";
 import type { AgentConfig } from "./config";
 
 /** 031 — Cuántas versiones se guardan por agente. */
-export const VERSIONS_KEPT = 30;
+const VERSIONS_KEPT = 30;
 
 export type PublishAction = "publish" | "restore" | "legacy_put" | "make_general";
 

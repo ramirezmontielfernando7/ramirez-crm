@@ -42,7 +42,7 @@ export const BOT_API_BUDGET = { windowMs: 60_000, max: 1200 };
  */
 export const BOT_AUTH_FAILURES = { windowMs: 60_000, max: 30 };
 
-export type BotAuth =
+type BotAuth =
   | { ok: true; organizationId: string }
   | { ok: false; response: Response };
 
