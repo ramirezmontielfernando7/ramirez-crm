@@ -6,6 +6,7 @@ import { GET as history, POST as send } from "@/app/api/conversations/[id]/messa
 import { PUT as react } from "@/app/api/conversations/[id]/messages/[messageId]/reaction/route";
 import { POST as mockGraph } from "@/app/api/dev/wa-mock/graph/[...path]/route";
 import { getAuth } from "@/lib/auth";
+import { resetEnvCacheForTests } from "@/lib/env";
 import { getSql, getSystemDb, schema } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
 import { subscribe, type SseEvent } from "@/server/events/bus";
@@ -66,6 +67,9 @@ function inbound(chat: typeof chats[number], eventId: string, emoji: string, opt
 
 beforeAll(async () => {
   vi.stubEnv("WA_MOCK_ENABLED", "true");
+  // La prueba reenvía solo lo que apunta a este origen hacia el handler real de wa-mock.
+  vi.stubEnv("META_GRAPH_BASE_URL", base);
+  resetEnvCacheForTests();
   const [role] = await getSql()`select current_user as name, rolbypassrls, rolsuper from pg_roles where rolname=current_user`;
   expect(role).toEqual({ name: "vocero_app", rolbypassrls: false, rolsuper: false });
   for (const name of ["Anotaciones A", "Anotaciones B"]) orgs.push(await crearOrganizacion(name));
