@@ -62,7 +62,11 @@ import { RemotePipeline } from "./RemotePipeline";
 
 import { RemoteAttachmentComposer } from "./RemoteAttachments";
 import { RemoteTimeline } from "./RemoteTimeline";
-import { RemoteMessageActions } from "./RemoteMessageActions";
+import {
+  RemoteMessageActions,
+  ReplyQuoteBar,
+  type ReplyQuote,
+} from "./RemoteMessageActions";
 import { AreaChat, AreaList } from "./RemoteInboxAreas";
 import {
   connectedOwnNumber,
@@ -1116,8 +1120,6 @@ function RemoteChat({
   );
 }
 
-type ReplyQuote = { id: string; title: string; preview: string };
-
 function quoteOf(row: WireMessage): ReplyQuote {
   return {
     id: row.id,
@@ -1387,28 +1389,11 @@ function RemoteTextComposer({
       {repository.allowSend && (
         <>
           {quote && (
-            <View
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                gap: 6,
-                borderLeftWidth: 3,
-                borderColor: colors.accent,
-                paddingLeft: 8,
-              }}
-            >
-              <View style={{ flex: 1 }}>
-                <Text kind="meta" weight="semibold">
-                  {"Respondiendo a " + quote.title}
-                </Text>
-                <Text kind="meta" numberOfLines={2}>
-                  {quote.preview}
-                </Text>
-              </View>
-              <Button variant="ghost" disabled={pending} onPress={clearQuote}>
-                Quitar cita
-              </Button>
-            </View>
+            <ReplyQuoteBar
+              quote={quote}
+              disabled={pending}
+              clear={clearQuote}
+            />
           )}
           <Field
             label="Mensaje"

@@ -1,5 +1,6 @@
 import React, { useRef, useState } from "react";
 import { View } from "react-native";
+import { useTheme } from "../theme/ThemeProvider";
 import { Banner, Button, Text } from "../components/ui";
 import {
   RemoteHttpError,
@@ -103,6 +104,45 @@ export function RemoteMessageActions({
           Quitar mi reacción
         </Button>
       )}
+    </View>
+  );
+}
+
+export type ReplyQuote = { id: string; title: string; preview: string };
+
+/** The quote shown above the composer; removing it sends a plain message. */
+export function ReplyQuoteBar({
+  quote,
+  disabled,
+  clear,
+}: {
+  quote: ReplyQuote;
+  disabled: boolean;
+  clear: () => void;
+}) {
+  const { colors } = useTheme();
+  return (
+    <View
+      style={{
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 6,
+        borderLeftWidth: 3,
+        borderColor: colors.accent,
+        paddingLeft: 8,
+      }}
+    >
+      <View style={{ flex: 1 }}>
+        <Text kind="meta" weight="semibold">
+          {"Respondiendo a " + quote.title}
+        </Text>
+        <Text kind="meta" numberOfLines={2}>
+          {quote.preview}
+        </Text>
+      </View>
+      <Button variant="ghost" disabled={disabled} onPress={clear}>
+        Quitar cita
+      </Button>
     </View>
   );
 }
