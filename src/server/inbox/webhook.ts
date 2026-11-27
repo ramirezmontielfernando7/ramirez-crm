@@ -159,6 +159,8 @@ export type WebhookMessage = {
   timestamp: string;
   type: string;
   text?: { body: string };
+  context?: { id?: string };
+  reaction?: { message_id: string; emoji: string };
   /**
    * Campañas v2 — toque en un botón de respuesta rápida de una plantilla
    * (`type: "button"`). Se ingiere como texto: es la respuesta del cliente.

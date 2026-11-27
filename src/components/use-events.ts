@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 
 type EventHandlers = {
+  onMessageReaction?: (data: { conversationId: string; messageId: string }) => void;
   onMessageNew?: (data: { conversationId: string; message: unknown }) => void;
   onMessageStatus?: (data: {
     conversationId: string;
@@ -69,6 +70,7 @@ type EventHandlers = {
 
 /** Los tipos de evento que la app escucha (contrato sse.md). */
 const EVENT_TYPES = {
+  "message.reaction": "onMessageReaction",
   "message.new": "onMessageNew",
   "message.status": "onMessageStatus",
   "conversation.updated": "onConversationUpdated",

@@ -1,5 +1,6 @@
 "use client";
 
+import { quotePreview } from "@/lib/customer-message-annotations";
 import { fetchJson } from "@/lib/fetch-json";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
@@ -59,6 +60,7 @@ type PendingOut = {
   id: string;
   conversationId: string;
   text: string;
+  replyTo?: MessageDto["replyTo"];
   createdAt: string;
 };
 
@@ -109,6 +111,7 @@ export function InboxClient({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [messages, setMessages] = useState<MessageDto[]>([]);
   const [pending, setPending] = useState<PendingOut[]>([]);
+  const [replying, setReplying] = useState<MessageDto | null>(null);
   // Arranca cerrado: en pantallas angostas el panel de detalles es un cajón
   // ENCIMA del hilo, así que abrirlo por defecto taparía la conversación. El
   // efecto de abajo lo abre solo si de veras hay tres columnas de ancho.
@@ -435,16 +438,20 @@ export function InboxClient({
     [reloadList, refetchCounts]
   );
 
+  const historyRequest = useRef(0);
   const refetchMessages = useCallback(async (conversationId: string) => {
+    if (selectedIdRef.current !== conversationId) return;
+    const request = ++historyRequest.current;
     const res = await fetch(
       `/api/conversations/${conversationId}/messages`
     ).catch(() => null);
+    if (request !== historyRequest.current || selectedIdRef.current !== conversationId) return;
     if (!res?.ok) {
       if (selectedIdRef.current === conversationId) setHeaderNotice("No pudimos cargar los mensajes de este chat. Intenta de nuevo.");
       return;
     }
     const data = (await res.json()) as { messages: MessageDto[] };
-    if (selectedIdRef.current === conversationId) setMessages(data.messages);
+    if (request === historyRequest.current && selectedIdRef.current === conversationId) setMessages(data.messages);
   }, []);
 
   // Estable para que `ConversationList` (memoizada) no se repinte de más.
@@ -496,7 +503,9 @@ export function InboxClient({
   });
   const select = useCallback(
     (id: string, conv?: ConversationDto) => {
+      selectedIdRef.current = id;
       setSelectedId(id);
+      setReplying(null);
       setOpenConv(conv ?? conversationsRef.current?.find((c) => c.id === id) ?? null);
       setMessages([]);
       void refetchMessages(id);
@@ -551,6 +560,7 @@ export function InboxClient({
     onMessageNew: ({ conversationId, message }) => {
       if (selectedIdRef.current === conversationId) {
         const m = message as MessageDto;
+        if (m.hasQuote) void refetchMessages(conversationId);
         setMessages((prev) =>
           prev.some((x) => x.id === m.id) ? prev : [...prev, m]
         );
@@ -563,6 +573,9 @@ export function InboxClient({
       scheduleRefresh((b) => b.addConversation(conversationId));
       // Un entrante nuevo puede crear/mover el lead: refresca el panel.
       setDetailRev((v) => v + 1);
+    },
+    onMessageReaction: ({ conversationId }) => {
+      if (selectedIdRef.current === conversationId) void refetchMessages(conversationId);
     },
     onMessageStatus: ({ conversationId, messageId, status, error }) => {
       if (selectedIdRef.current !== conversationId) return;
@@ -642,6 +655,7 @@ export function InboxClient({
         origin: "operator",
         media: null,
         createdAt: p.createdAt,
+        replyTo: p.replyTo,
       })),
     ];
   }, [messages, pending, selectedId]);
@@ -657,6 +671,11 @@ export function InboxClient({
       const conversationId = selectedIdRef.current;
       if (!conversationId) return "Sin conversación seleccionada";
 
+      const quote = replying?.conversationId === conversationId ? replying : null;
+      if (quote) setReplying(null);
+      const restoreQuote = () => {
+        if (quote && selectedIdRef.current === conversationId) setReplying((current) => current ?? quote);
+      };
       const tmpId = `tmp_${++tmpSeq.current}`;
       setPending((prev) => [
         ...prev,
@@ -665,6 +684,9 @@ export function InboxClient({
           conversationId,
           text,
           createdAt: new Date().toISOString(),
+          ...(quote ? { replyTo: {
+            id: quote.id, direction: quote.direction, type: quote.type, preview: quotePreview(quote.text, quote.type),
+          } } : {}),
         },
       ]);
       const drop = () => setPending((prev) => prev.filter((p) => p.id !== tmpId));
@@ -673,10 +695,11 @@ export function InboxClient({
         const res = await fetch(`/api/conversations/${conversationId}/messages`, {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ text }),
+          body: JSON.stringify({ text, ...(quote ? { replyToMessageId: quote.id } : {}) }),
         }).catch(() => null);
         if (!res) {
           drop();
+          restoreQuote();
           return "Sin conexión con el servidor";
         }
         if (!res.ok) {
@@ -684,7 +707,13 @@ export function InboxClient({
             error?: { message?: string };
           } | null;
           drop();
+          restoreQuote();
           return data?.error?.message ?? "No se pudo enviar el mensaje";
+        }
+        if (quote) {
+          const result = await res.json().catch(() => null) as { replyApplied?: boolean } | null;
+          if (result?.replyApplied === false && selectedIdRef.current === conversationId)
+            setHeaderNotice("El mensaje se envió sin cita porque el canal no admite esa referencia.");
         }
         // Primero traer el mensaje real, después quitar el provisional: al
         // revés, la burbuja parpadearía.
@@ -698,8 +727,24 @@ export function InboxClient({
       sendQueue.current = queued.catch(() => null);
       return queued;
     },
-    [refetchMessages, refreshConversation]
+    [refetchMessages, refreshConversation, replying]
   );
+
+  const reactToMessage = useCallback(async (message: MessageDto, emoji: string) => {
+    const id = selectedIdRef.current;
+    if (id !== message.conversationId) return;
+    const res = await fetch(`/api/conversations/${id}/messages/${message.id}/reaction`, {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ emoji }),
+    }).catch(() => null);
+    if (selectedIdRef.current !== id) return;
+    if (res?.ok) await refetchMessages(id);
+    else {
+      const data = await res?.json().catch(() => null) as { error?: { message?: string } } | null;
+      if (selectedIdRef.current === id) setHeaderNotice(data?.error?.message ?? "No se pudo confirmar la reacción.");
+    }
+  }, [refetchMessages]);
 
   const patchConversation = useCallback(
     async (patch: { aiEnabled?: boolean; reactivate?: boolean }) => {
@@ -902,13 +947,19 @@ export function InboxClient({
                   message="Aún no conectas tu WhatsApp. Lo que escribas aquí no le llegará al cliente."
                 />
               )}
-              <MessageThread messages={thread} />
+              <MessageThread messages={thread} incomingName={selected.contact.name}
+                onReply={setReplying} onReact={selected.channel === "whatsapp" ? reactToMessage : undefined} />
             </m.div>
             <Composer
               conversation={selected}
               freeTextOutsideWindow={freeTextOutsideWindow(direct, selected)}
               directHint={!direct?.metaless}
               onSend={sendText}
+              reply={replying?.conversationId === selected.id ? {
+                sender: replying.direction === "out" ? "Tú" : selected.contact.name,
+                preview: quotePreview(replying.text, replying.type),
+              } : undefined}
+              onCancelReply={() => setReplying(null)}
               onSent={() => {
                 const id = selectedIdRef.current;
                 if (!id) return;

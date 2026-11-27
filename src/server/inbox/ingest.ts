@@ -36,6 +36,8 @@ import { joinDirectEcho } from "@/server/direct-connection/echo";
 import { logger } from "@/lib/log";
 import { runWithOrganization } from "@/lib/request-context";
 
+import { ingestCustomerReaction } from "./message-annotations";
+
 const log = logger("webhook");
 
 /** Tipos de contenido soportados; el resto se ignora sin error. */
@@ -268,7 +270,7 @@ export async function processMessagesValue(value: WebhookValue): Promise<void> {
       // plantilla es una respuesta del cliente; entra como texto (así lo ve
       // también en su WhatsApp) y cuenta para la baja por palabra clave.
       const button = msg.type === "button" ? (msg.button?.text ?? msg.button?.payload ?? "").trim() : null;
-      if (!button && !SUPPORTED_TYPES.has(msg.type)) continue; // reacciones, etc.: ignorar
+      if (!button && msg.type !== "reaction" && !SUPPORTED_TYPES.has(msg.type)) continue;
       const resolved = resolveIdentity(msg, value.contacts);
       if (!resolved) {
         // Mensaje sin NINGUNA identidad utilizable (ni teléfono ni BSUID):
@@ -277,10 +279,19 @@ export async function processMessagesValue(value: WebhookValue): Promise<void> {
         continue;
       }
       try {
+        if (msg.type === "reaction") {
+          if (msg.reaction) await ingestCustomerReaction({
+            organizationId, waPhoneNumberId: phoneNumberId, identity: resolved,
+            eventId: msg.id, target: msg.reaction.message_id,
+            emoji: msg.reaction.emoji, timestamp: msg.timestamp,
+          });
+          continue;
+        }
         await ingestInboundMessage({
           organizationId,
           identity: resolved,
           waMessageId: msg.id,
+          replyToWaMessageId: typeof msg.context?.id === "string" && msg.context.id.length <= 512 ? msg.context.id || null : null,
           type: button ? "text" : msg.type,
           text: button || (msg.text?.body ?? null),
           timestamp: msg.timestamp,
@@ -499,6 +510,7 @@ async function ingestInboundMessageInOrg(input: {
   organizationId: string;
   identity: ResolvedIdentity;
   waMessageId: string;
+  replyToWaMessageId?: string | null;
   type: string;
   text: string | null;
   timestamp: string;
@@ -561,6 +573,7 @@ async function ingestInboundMessageInOrg(input: {
         organizationId,
         conversationId: conversation.id,
         waMessageId: input.waMessageId,
+        replyToWaMessageId: input.replyToWaMessageId ?? null,
         direction: "in",
         type: input.type,
         text: input.text,
@@ -660,6 +673,7 @@ export function serializeMessage(
     id: m.id,
     conversationId: m.conversationId,
     direction: m.direction,
+    ...(m.replyToWaMessageId ? { hasQuote: true } : {}),
     groupSender: m.groupSender,
     groupSenderId: m.groupSenderId,
     type: m.type,

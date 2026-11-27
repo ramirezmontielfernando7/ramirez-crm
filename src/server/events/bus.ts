@@ -7,6 +7,7 @@ import { EventEmitter } from "node:events";
  */
 
 export type SseEvent =
+  | { type: "message.reaction"; data: { conversationId: string; messageId: string } }
   | { type: "message.new"; data: { conversationId: string; message: unknown } }
   | {
       type: "message.status";

@@ -2,7 +2,9 @@ import { z } from "zod";
 import { apiError, parseBody, withAuth } from "@/lib/api";
 import { getConversation, listMessages } from "@/server/inbox/queries";
 import { serializeMessage } from "@/server/inbox/ingest";
+import { SEND_ERROR_STATUS } from "@/server/inbox/send-http";
 import { SendError, sendStructured, sendText } from "@/server/inbox/send";
+import { annotations, messageById } from "@/server/inbox/message-annotations";
 import { CHAT_TEXT_MAX } from "@/lib/message-length";
 
 export const dynamic = "force-dynamic";
@@ -22,8 +24,13 @@ export const GET = withAuth(async (session, req: Request, ctx: Params) => {
     id,
     since && !Number.isNaN(since.getTime()) ? since : undefined
   );
+  const details = await annotations(session.access, id, messages.map((row) => row.message));
   return Response.json({
-    messages: messages.map((r) => serializeMessage(r.message, r.media)),
+    messages: messages.map(({ message, media }) => {
+      const quote = message.replyToWaMessageId ? details.quoted.get(message.replyToWaMessageId) : undefined;
+      const { hasQuote: _hasQuote, ...dto } = serializeMessage(message, media);
+      return { ...dto, reactions: details.visibleReactions.get(message.id) ?? [], replyTo: quote?.id === message.id ? null : quote ?? null };
+    }),
   });
 });
 
@@ -34,6 +41,7 @@ const sendSchema = z.union([
     type: z.literal("text").optional(),
     // Hasta 65,536 (lo de la app de WhatsApp): por Meta sale en partes de 4,096.
     text: z.string().trim().min(1).max(CHAT_TEXT_MAX),
+    replyToMessageId: z.string().regex(/^[A-Za-z0-9_-]{1,64}$/).optional(),
   }),
   z.object({
     type: z.literal("location"),
@@ -58,15 +66,6 @@ const sendSchema = z.union([
   }),
 ]);
 
-const SEND_ERROR_STATUS: Record<SendError["code"], number> = {
-  sandbox_violation: 403,
-  not_connected: 409,
-  reconnect_required: 409,
-  window_closed: 409,
-  meta_error: 422,
-  meta_unavailable: 503,
-  upload_failed: 502,
-};
 
 export const POST = withAuth(async (session, req: Request, ctx: Params) => {
   const { id } = await ctx.params;
@@ -79,12 +78,16 @@ export const POST = withAuth(async (session, req: Request, ctx: Params) => {
 
   try {
     const data = body.data;
+    const quoteId = "text" in data ? data.replyToMessageId : undefined;
+    const replyTo = quoteId ? await messageById(session.access, id, quoteId) : undefined;
+    if (quoteId && !replyTo) return apiError(404, "not_found", "Mensaje no encontrado");
     const result =
       "text" in data
         ? await sendText({
             conversationId: id,
             organizationId: session.organizationId,
             text: data.text,
+            replyTo,
             // Conexión directa (PR 3): una persona escribiendo puede salir
             // por el dispositivo vinculado si el chat está en ese modo.
             allowDirect: true,
@@ -104,6 +107,7 @@ export const POST = withAuth(async (session, req: Request, ctx: Params) => {
             });
     return Response.json({
       messageId: result.messageId,
+      ...(result.replyApplied !== undefined ? { replyApplied: result.replyApplied } : {}),
       ...(result.queuedUntil ? { queuedUntil: result.queuedUntil.toISOString() } : {}),
     });
   } catch (err) {

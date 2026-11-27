@@ -93,6 +93,8 @@ export function buildInboundPayload(input: {
   text?: string;
   waMessageId?: string;
   timestamp?: number;
+  context?: { id: string };
+  reaction?: { message_id: string; emoji: string };
 } & MockMediaInput &
   MockReferralInput) {
   const type = input.type ?? "text";
@@ -104,6 +106,8 @@ export function buildInboundPayload(input: {
   if (input.from) message.from = input.from;
   if (input.fromUserId) message.from_user_id = input.fromUserId;
   applyMockContent(message, type, input);
+  if (input.context) message.context = input.context;
+  if (type === "reaction" && input.reaction) message.reaction = input.reaction;
 
   // 016 — El referral solo viaja cuando la conversación nació de un anuncio, y
   // normalmente solo en el primer mensaje. Se arma igual que el real para que

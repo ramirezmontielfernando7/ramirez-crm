@@ -20,6 +20,8 @@ const schema = z
     text: z.string().optional(),
     waMessageId: z.string().optional(),
     timestamp: z.number().optional(),
+    context: z.object({ id: z.string().min(1).max(512) }).strict().optional(),
+    reaction: z.object({ message_id: z.string().min(1).max(512), emoji: z.string().max(48) }).strict().optional(),
     // 008 — adjuntos simulados
     mediaId: z.string().optional(),
     mimeType: z.string().optional(),

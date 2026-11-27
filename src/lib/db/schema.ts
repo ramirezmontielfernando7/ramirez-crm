@@ -933,6 +933,7 @@ export const message = pgTable(
       .notNull(),
     /** ID de WhatsApp — UNIQUE (idempotencia). Nullable en salientes de prueba. */
     waMessageId: text("wa_message_id").unique(),
+    replyToWaMessageId: text("reply_to_wa_message_id"),
     groupSender: text("group_sender"),
     groupSenderId: text("group_sender_id"),
     direction: text("direction", { enum: ["in", "out"] }).notNull(),
@@ -1040,6 +1041,36 @@ export const message = pgTable(
   ]
 );
 
+
+export const messageReaction = pgTable("message_reaction", {
+  id: text("id").primaryKey(),
+  organizationId: text("organization_id").notNull().references(() => organization.id, { onDelete: "cascade" }),
+  messageId: text("message_id").notNull(),
+  conversationId: text("conversation_id").notNull(),
+  direction: text("direction", { enum: ["in", "out"] }).notNull(),
+  emoji: text("emoji").notNull(),
+  waReactionMessageId: text("wa_reaction_message_id").unique(),
+  seenWaIds: text("seen_wa_ids").array().notNull().default(sql`'{}'`),
+  eventAt: timestamp("event_at"),
+  pendingEmoji: text("pending_emoji"),
+  pendingAt: timestamp("pending_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+}, (t) => [
+  check("message_reaction_direction_check", sql`${t.direction} in ('in', 'out')`),
+  unique("message_reaction_message_direction_uq").on(t.messageId, t.direction),
+  index("message_reaction_org_conv_idx").on(t.organizationId, t.conversationId, t.messageId),
+  foreignKey({
+    name: "message_reaction_org_message_fk",
+    columns: [t.organizationId, t.messageId],
+    foreignColumns: [message.organizationId, message.id],
+  }).onDelete("cascade"),
+  foreignKey({
+    name: "message_reaction_org_conv_fk",
+    columns: [t.organizationId, t.conversationId],
+    foreignColumns: [conversation.organizationId, conversation.id],
+  }).onDelete("cascade"),
+]);
 
 /**
  * PR 1 Fase 3 (H8) — De qué organización es cada WABA. `waba_id` es ÚNICO en

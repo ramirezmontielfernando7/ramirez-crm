@@ -287,6 +287,7 @@ const FILTRADAS: [string, Method][] = [
   ["conversations/[id]/messages", "GET"],
   ["conversations/[id]/messages", "POST"],
   ["conversations/[id]/messages/media", "POST"],
+  ["conversations/[id]/messages/[messageId]/reaction", "PUT"],
   ["conversations/[id]/messages/template", "POST"],
   // 024: enviar una entrada de Conocimientos = escribir en el chat (getConversation).
   ["conversations/[id]/messages/knowledge", "POST"],
