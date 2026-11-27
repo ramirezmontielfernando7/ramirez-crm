@@ -35,6 +35,8 @@ unset PUBLIC_FIREBASE_CLIENT
 unset EXPO_PUBLIC_ALLOW_SEND
 if [[ $EXPO_PUBLIC_MODE == production ]]; then
   export EXPO_PUBLIC_API_URL=https://dash.demfort.com
+  # Envío real (WhatsApp) solo en producción y solo si la solicitud lo pide; es lo que usa la app instalada.
+  [[ ${ALLOW_SEND:-false} != true ]] || export EXPO_PUBLIC_ALLOW_SEND=true
 else
   unset EXPO_PUBLIC_API_URL
 fi

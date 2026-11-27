@@ -32,6 +32,10 @@ on:
         type: choice
         options: [demo, production]
         default: demo
+      allow_send:
+        description: Build with real sending enabled (EXPO_PUBLIC_ALLOW_SEND); only applies to the production profile
+        type: boolean
+        default: true
 permissions: {}
 jobs:
   register:
@@ -53,6 +57,7 @@ jobs:
       VERSION_CODE: ${{ inputs.version_code }}
       SIGNING_MODE: ${{ inputs.mode }}
       EXPO_PUBLIC_MODE: ${{ inputs.profile }}
+      ALLOW_SEND: ${{ inputs.allow_send }}
       EXPO_NO_TELEMETRY: '1'
       CI: '1'
     steps:
