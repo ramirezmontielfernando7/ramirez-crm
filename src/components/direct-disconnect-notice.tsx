@@ -1,5 +1,6 @@
 import { isNull } from "drizzle-orm";
 import Link from "next/link";
+import { DismissibleNotice } from "@/components/dismissible-notice";
 import { can } from "@/lib/auth/permissions";
 import type { SessionContext } from "@/lib/auth/session";
 import { DIRECT_TEXT } from "@/lib/direct-connection";
@@ -30,11 +31,11 @@ export async function DirectDisconnectNotice({ session }: { session: SessionCont
     return null;
   }
   return (
-    <div className="border-b bg-card px-4 py-2 text-xs" role="status" data-testid="direct-disconnect-notice">
+    <DismissibleNotice id="direct-disconnect" testId="direct-disconnect-notice">
       {DIRECT_TEXT.disconnected}{" "}
       <Link href="/settings/direct-connection" className="underline">
         Vincular
       </Link>
-    </div>
+    </DismissibleNotice>
   );
 }
