@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { DismissibleNotice } from "@/components/dismissible-notice";
 import type { SessionContext } from "@/lib/auth/session";
 import { myNumber } from "@/server/mi-numero/numbers";
 import { orgHasMiNumero } from "@/server/modules";
@@ -23,13 +24,13 @@ export async function MyNumberSetupNotice({ session }: { session: SessionContext
   }
   if (!step) return null;
   return (
-    <div className="border-b bg-card px-4 py-2 text-xs" role="status" data-testid="my-number-setup-notice">
+    <DismissibleNotice id={`my-number-${step}`} testId="my-number-setup-notice">
       {step === "accept"
         ? "Autorizaron un número de WhatsApp para ti. Lee el aviso y acéptalo para vincularlo."
         : "Tu número de WhatsApp está autorizado. Escanea tu código para vincularlo."}{" "}
       <Link href="/settings/my-number" className="underline">
         {step === "accept" ? "Ver aviso" : "Vincular"}
       </Link>
-    </div>
+    </DismissibleNotice>
   );
 }

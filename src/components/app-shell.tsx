@@ -57,6 +57,7 @@ export function AppShell({
   myNumber = false,
   teamNumbers = false,
   newChatsBlocked = false,
+  notices,
   children,
 }: {
   branding: Branding;
@@ -91,6 +92,13 @@ export function AppShell({
   /** Mi número (046, PR 7) — ¿supervisa números del equipo? Lo decide el servidor. */
   teamNumbers?: boolean;
   newChatsBlocked?: boolean;
+  /**
+   * Avisos de una línea que van ARRIBA del contenido (dispositivo
+   * desconectado, «Mi número» por vincular). Fuera de `<main>`: dentro, la
+   * pantalla mide el 100% de `<main>` MÁS el aviso y su parte de abajo
+   * (las cajas de texto del creador de IA, del chat…) queda cortada.
+   */
+  notices?: React.ReactNode;
   children: React.ReactNode;
 }) {
   // Los proveedores van POR ENCIMA del estado del menú: si vivieran dentro de
@@ -110,6 +118,7 @@ export function AppShell({
           platform={platform}
           nav={nav}
           navMode={navMode}
+          notices={notices}
         >
           {children}
         </ShellFrame>
@@ -133,6 +142,7 @@ function ShellFrame({
   platform,
   nav,
   navMode,
+  notices,
   children,
 }: {
   branding: Branding;
@@ -144,6 +154,7 @@ function ShellFrame({
   platform: boolean;
   nav?: NavEntries;
   navMode: NavMode;
+  notices?: React.ReactNode;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -312,6 +323,7 @@ function ShellFrame({
           <CampaignPauseBanner campaigns={campaigns} />
           {/* 036 (PR 3a): avisos de consumo al 80 % y 100 % de los topes (solo el Propietario). */}
           <UsageAlertBanner />
+          {notices}
           <main className="relative min-h-0 min-w-0 flex-1 overflow-hidden">
             {children}
             {moreOpen && (

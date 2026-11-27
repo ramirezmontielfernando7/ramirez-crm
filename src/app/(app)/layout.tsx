@@ -82,11 +82,15 @@ export default async function AppLayout({
       myNumber={ownNumber}
       teamNumbers={teamNumbers}
       newChatsBlocked={newChatsBlocked}
+      notices={
+        <>
+          <DirectDisconnectNotice session={session} />
+          <MyNumberSetupNotice session={session} />
+        </>
+      }
     >
       {!cookieJar.get(SPLASH_COOKIE) && <AppSplash />}
       <BackToExit />
-      <DirectDisconnectNotice session={session} />
-      <MyNumberSetupNotice session={session} />
       {children}
     </AppShell>
   );
