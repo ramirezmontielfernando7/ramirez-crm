@@ -174,7 +174,10 @@ export function AreaChat({
     setError("");
     const active = generation.current;
     try {
-      const response = await repository.sendTeamText(row.id, draft);
+      const response =
+        area === "number"
+          ? await repository.sendNumberText(row.id, draft)
+          : await repository.sendTeamText(row.id, draft);
       if (generation.current !== active || response === null) return;
       setDraft("");
       await load();
@@ -223,13 +226,17 @@ export function AreaChat({
         expired={expired}
         appearance={appearance}
       />
-      {area === "team" && repository.allowSend && canPost ? (
+      {repository.allowSend && canPost ? (
         <View style={{ paddingHorizontal: 12, paddingBottom: 6 }}>
           <Field
-            label="Mensaje para el equipo"
+            label={
+              area === "number"
+                ? "Mensaje desde mi número"
+                : "Mensaje para el equipo"
+            }
             value={draft}
             onChangeText={setDraft}
-            maxLength={20_000}
+            maxLength={area === "number" ? 4_096 : 20_000}
             multiline
             editable={!sending && !uncertain}
           />
@@ -252,7 +259,11 @@ export function AreaChat({
               disabled={sending || !draft.trim()}
               onPress={() => void send()}
             >
-              {sending ? "Enviando…" : "Enviar al equipo"}
+              {sending
+                ? "Enviando…"
+                : area === "number"
+                  ? "Enviar desde mi número"
+                  : "Enviar al equipo"}
             </Button>
           )}
         </View>

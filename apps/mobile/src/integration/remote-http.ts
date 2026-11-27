@@ -55,7 +55,12 @@ import {
   type RemoteAttachment,
 } from "./remote-media";
 
-import { allowsInboxAreaRequest, inboxHistoryPath } from "./remote-inbox-areas";
+import {
+  allowsInboxAreaRequest,
+  inboxHistoryPath,
+  numberMessagesPath,
+  reactionPath,
+} from "./remote-inbox-areas";
 import { isPushToken, pushRoutes } from "./remote-push";
 
 type Method = "GET" | "POST" | "PATCH" | "PUT";
@@ -130,6 +135,7 @@ type RemoteErrorCode =
   | "TOO_MANY_REQUESTS"
   | "SESSION_EXPIRED"
   | "window_closed"
+  | "reaction_pending"
   | "slot_taken"
   | "not_connected"
   | "reconnect_required"
@@ -144,6 +150,7 @@ function errorCode(raw: unknown): RemoteErrorCode | undefined {
   return raw === "ORGANIZATION_SUSPENDED" ||
     raw === "organization_suspended" ||
     raw === "window_closed" ||
+    raw === "reaction_pending" ||
     raw === "slot_taken" ||
     raw === "meta_unavailable" ||
     raw === "meta_error" ||
@@ -164,6 +171,14 @@ const historyPath = /^\/api\/conversations\/[a-zA-Z0-9_-]{1,200}\/messages$/;
 const templatePath =
   /^\/api\/conversations\/[a-zA-Z0-9_-]{1,200}\/messages\/template$/;
 const conversationPath = /^\/api\/conversations\/[a-zA-Z0-9_-]{1,200}$/;
+
+const reactionShape =
+  /^(?:\p{Regional_Indicator}{2}|[0-9#*]\uFE0F?\u20E3|\p{Extended_Pictographic}(?:\uFE0F|\p{Emoji_Modifier})?(?:\u200D\p{Extended_Pictographic}(?:\uFE0F|\p{Emoji_Modifier})?)*)$/u;
+
+/** Empty removes the reaction; otherwise one emoji (flags, skin tones, ZWJ). */
+export function isReactionEmoji(value: string): boolean {
+  return value === "" || (value.length <= 32 && reactionShape.test(value));
+}
 
 export function remoteSendEnabled(raw: string | undefined): boolean {
   return raw === "true";
@@ -411,6 +426,38 @@ export class RemoteAuthRepository implements AuthRepository<RemoteSession> {
     });
   }
 
+  /** One emoji, or "" to remove it. One tap is one request. */
+  reactToMessage(conversationId: string, messageId: string, emoji: string) {
+    return this.updateCrm(async (request) => {
+      if (!isReactionEmoji(emoji)) throw new RemoteHttpError(422);
+      const value = crmRecord(
+        await request("PUT", reactionPath(conversationId, messageId), {
+          emoji,
+        }),
+      );
+      if (value.ok !== true) throw new RemoteHttpError(502);
+      return { changed: value.changed === true };
+    });
+  }
+
+  /** Text from "Mi número" through the existing web route. */
+  sendNumberText(chatId: string, raw: string) {
+    return this.updateCrm(async (request) => {
+      const text = raw.trim();
+      if (!text || text.length > 65_536) throw new RemoteHttpError(422);
+      const value = crmRecord(
+        await request("POST", numberMessagesPath(chatId), { text }),
+      );
+      if (typeof value.messageId !== "string" || !value.messageId)
+        throw new RemoteHttpError(502);
+      return {
+        queued:
+          typeof value.queuedUntil === "string" &&
+          Number.isFinite(Date.parse(value.queuedUntil)),
+      };
+    });
+  }
+
   async setPushDevice(token: string, register: boolean) {
     if (!isPushToken(token)) throw new RemoteHttpError(422);
     const path = register ? pushRoutes.register : pushRoutes.unregister;
@@ -481,11 +528,17 @@ export class RemoteAuthRepository implements AuthRepository<RemoteSession> {
   async sendText(
     id: string,
     draft: string,
-  ): Promise<{ queued: boolean } | null> {
+    replyToMessageId?: string,
+  ): Promise<{ queued: boolean; replyApplied?: boolean } | null> {
     if (!this.allowSend || !conversationId.test(id) || /\s/.test(id))
       throw new RemoteHttpError(403);
     const text = draft.trim();
     if (!text || text.length > REMOTE_TEXT_MAX) throw new RemoteHttpError(422);
+    if (
+      replyToMessageId !== undefined &&
+      !/^[A-Za-z0-9_-]{1,64}$/.test(replyToMessageId)
+    )
+      throw new RemoteHttpError(422);
     if (this.sending) return null;
 
     this.sending = true;
@@ -493,10 +546,11 @@ export class RemoteAuthRepository implements AuthRepository<RemoteSession> {
       const value = (await this.authenticatedRequest(
         "POST",
         `/api/conversations/${id}/messages`,
-        { text },
+        replyToMessageId ? { text, replyToMessageId } : { text },
       )) as {
         messageId?: unknown;
         queuedUntil?: unknown;
+        replyApplied?: unknown;
       };
       if (typeof value?.messageId !== "string" || !value.messageId)
         throw new RemoteHttpError(502);
@@ -504,6 +558,9 @@ export class RemoteAuthRepository implements AuthRepository<RemoteSession> {
         queued:
           typeof value.queuedUntil === "string" &&
           Number.isFinite(Date.parse(value.queuedUntil)),
+        ...(replyToMessageId && typeof value.replyApplied === "boolean"
+          ? { replyApplied: value.replyApplied }
+          : {}),
       };
     } finally {
       this.sending = false;

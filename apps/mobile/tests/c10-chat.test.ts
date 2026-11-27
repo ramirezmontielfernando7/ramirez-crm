@@ -149,7 +149,6 @@ test("the extended allowlist accepts only the scoped read paths and gated team t
   for (const path of [
     team + "?before=msg_1",
     own,
-    "/api/my-number/chats/cv_demo/messages",
     "/api/settings/my-number",
     "/api/team-chat/threads",
     "/api/team-chat/messages/msg_1/reactions",

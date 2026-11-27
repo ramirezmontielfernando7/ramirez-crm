@@ -76,7 +76,7 @@ test("C3 extends only POST text and PATCH read for valid IDs", () => {
     "/api/conversations/%2e%2e",
     "/api/conversations",
     "/api/contacts",
-    "/api/my-number/chats/cv_sample/messages",
+    "/api/my-number/chats/cv_sample/messages?x=1",
     "/api/mobile/session/revoke/../session",
     "//external.example/api/conversations/cv_sample/messages",
   ]) {

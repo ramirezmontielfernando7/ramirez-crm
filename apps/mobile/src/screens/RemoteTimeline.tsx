@@ -8,6 +8,7 @@ import React, {
 } from "react";
 import {
   FlatList,
+  Pressable,
   StyleSheet,
   View,
   type ListRenderItemInfo,
@@ -61,12 +62,14 @@ const Bubble = memo(function Bubble({
   repository,
   expired,
   jump,
+  onAction,
 }: RemotePageProps & {
   item: WireMessage;
   startsDay: boolean;
   grouped: boolean;
   appearance: ChatStyle;
   jump: (id: string) => void;
+  onAction?: (item: WireMessage) => void;
 }) {
   const { colors } = useTheme();
   const out = item.direction === "out";
@@ -96,7 +99,18 @@ const Bubble = memo(function Bubble({
           <Text kind="meta">{dayLabel(item.createdAt)}</Text>
         </View>
       )}
-      <View
+      <Pressable
+        onLongPress={onAction ? () => onAction(item) : undefined}
+        delayLongPress={350}
+        accessibilityHint={
+          onAction ? "Mantén pulsado para responder o reaccionar" : undefined
+        }
+        accessibilityActions={
+          onAction
+            ? [{ name: "longpress", label: "Responder o reaccionar" }]
+            : []
+        }
+        onAccessibilityAction={() => onAction?.(item)}
         style={{
           alignSelf: out ? "flex-end" : "flex-start",
           maxWidth: chatStyle ? "88%" : "86%",
@@ -175,15 +189,24 @@ const Bubble = memo(function Bubble({
               { backgroundColor: colors.surface, borderColor: colors.border },
             ]}
           >
-            {item.reactions.map(({ emoji, count }) => (
-              <Text key={emoji} kind="meta">
+            {item.reactions.map(({ emoji, count, from }) => (
+              <Text
+                key={emoji + (from ?? "")}
+                kind="meta"
+                accessibilityLabel={
+                  from
+                    ? `${from === "in" ? "El cliente" : "El equipo"} reaccionó con ${emoji}`
+                    : undefined
+                }
+              >
                 {emoji}
                 {count > 1 ? " " + count : ""}
+                {from ? (from === "in" ? " Cliente" : " Equipo") : ""}
               </Text>
             ))}
           </View>
         )}
-      </View>
+      </Pressable>
     </View>
   );
 });
@@ -196,12 +219,14 @@ export function RemoteTimeline({
   appearance,
   repository,
   expired,
+  onAction,
 }: RemotePageProps & {
   messages: readonly WireMessage[];
   busy: boolean;
   refresh: () => void;
   older?: () => void;
   appearance: ChatStyle;
+  onAction?: (item: WireMessage) => void;
 }) {
   const { colors } = useTheme();
   const list = useRef<FlatList<WireMessage>>(null);
@@ -275,12 +300,13 @@ export function RemoteTimeline({
           grouped={followsSameSender(item, previous)}
           appearance={appearance}
           jump={jump}
+          onAction={onAction}
           repository={repository}
           expired={expired}
         />
       );
     },
-    [messages, hidden, appearance, jump, repository, expired],
+    [messages, hidden, appearance, jump, onAction, repository, expired],
   );
   const hasLocal = hidden + rows.length < messages.length;
   const loadOlder = useCallback(() => {

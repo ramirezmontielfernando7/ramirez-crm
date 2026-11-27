@@ -28,7 +28,11 @@ export type WireMessage = Readonly<{
   sender?: string;
   senderKey?: string;
   sticker?: boolean;
-  reactions?: readonly { emoji: string; count: number }[];
+  reactions?: readonly {
+    emoji: string;
+    count: number;
+    from?: "in" | "out";
+  }[];
   quote?: { messageId: string; title: string; preview: string };
 }>;
 export function messagesResponse(
@@ -51,12 +55,29 @@ export function messagesResponse(
       throw new IntegrationError("invalid");
     const attachment = attachmentFromWire(m.media);
     const media = m.media ? record(m.media) : undefined;
+    const replyTo =
+      m.replyTo && typeof m.replyTo === "object" && !Array.isArray(m.replyTo)
+        ? record(m.replyTo)
+        : undefined;
+    const serverQuote =
+      replyTo &&
+      typeof replyTo.id === "string" &&
+      /^[A-Za-z0-9_-]{1,200}$/.test(replyTo.id) &&
+      (replyTo.direction === "in" || replyTo.direction === "out") &&
+      typeof replyTo.preview === "string"
+        ? {
+            messageId: replyTo.id,
+            title: replyTo.direction === "in" ? "Cliente" : "Equipo",
+            preview: replyTo.preview.slice(0, 180),
+          }
+        : undefined;
     const quote =
       m.quote && typeof m.quote === "object" && !Array.isArray(m.quote)
         ? record(m.quote)
         : undefined;
     const quoted =
-      quote &&
+      serverQuote ??
+      (quote &&
       typeof quote.messageId === "string" &&
       /^[A-Za-z0-9_-]{1,200}$/.test(quote.messageId) &&
       typeof quote.title === "string" &&
@@ -66,22 +87,30 @@ export function messagesResponse(
             title: quote.title.slice(0, 100),
             preview: quote.preview.slice(0, 180),
           }
-        : undefined;
-    const reactions = Array.isArray(m.reactions)
-      ? m.reactions.slice(0, 12).flatMap((value) => {
-          if (!value || typeof value !== "object" || Array.isArray(value))
-            return [];
-          const { emoji, count } = record(value);
-          return typeof emoji === "string" &&
-            emoji.length <= 16 &&
-            /\p{Extended_Pictographic}/u.test(emoji) &&
-            typeof count === "number" &&
-            Number.isSafeInteger(count) &&
-            count > 0
-            ? [{ emoji, count }]
-            : [];
-        })
-      : [];
+        : undefined);
+    const reactions: { emoji: string; count: number; from?: "in" | "out" }[] =
+      Array.isArray(m.reactions)
+        ? m.reactions.slice(0, 12).flatMap((value) => {
+            if (!value || typeof value !== "object" || Array.isArray(value))
+              return [];
+            const { emoji, count, direction } = record(value);
+            if (
+              (direction === "in" || direction === "out") &&
+              typeof emoji === "string" &&
+              emoji.length <= 16 &&
+              /\p{Extended_Pictographic}/u.test(emoji)
+            )
+              return [{ emoji, count: 1, from: direction }];
+            return typeof emoji === "string" &&
+              emoji.length <= 16 &&
+              /\p{Extended_Pictographic}/u.test(emoji) &&
+              typeof count === "number" &&
+              Number.isSafeInteger(count) &&
+              count > 0
+              ? [{ emoji, count }]
+              : [];
+          })
+        : [];
     return Object.freeze({
       ...(attachment
         ? {
@@ -94,7 +123,10 @@ export function messagesResponse(
         ? {
             reactions: [
               ...new Map(
-                reactions.map((reaction) => [reaction.emoji, reaction]),
+                reactions.map((reaction) => [
+                  reaction.emoji + (reaction.from ?? ""),
+                  reaction,
+                ]),
               ).values(),
             ],
           }

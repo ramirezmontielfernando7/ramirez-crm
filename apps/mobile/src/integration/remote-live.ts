@@ -7,6 +7,7 @@ export class StreamingUnavailable extends Error {}
 const eventNames = new Set([
   "message.new",
   "message.status",
+  "message.reaction",
   "conversation.updated",
   "assignment.changed",
   "participants.changed",

@@ -62,6 +62,7 @@ import { RemotePipeline } from "./RemotePipeline";
 
 import { RemoteAttachmentComposer } from "./RemoteAttachments";
 import { RemoteTimeline } from "./RemoteTimeline";
+import { RemoteMessageActions } from "./RemoteMessageActions";
 import { AreaChat, AreaList } from "./RemoteInboxAreas";
 import {
   connectedOwnNumber,
@@ -953,6 +954,8 @@ function RemoteChat({
   const revision = useRef(0);
   const { error, setError, fail } = useFailure(expired);
   const [readError, setReadError] = useState("");
+  const [quote, setQuote] = useState<ReplyQuote>();
+  const { open: openLayer, close: closeLayer } = useLayers();
   const mounted = useRef(false);
   const refresh = useCallback(
     async (silent = false) => {
@@ -1030,6 +1033,31 @@ function RemoteChat({
   useEffect(() => {
     void mark();
   }, [mark]);
+  useEffect(() => setQuote(undefined), [chat.id]);
+  const onAction = useMemo(
+    () =>
+      repository.allowSend
+        ? (item: WireMessage) => {
+            Keyboard.dismiss();
+            openLayer({
+              kind: "sheet",
+              title: "Mensaje",
+              content: (
+                <RemoteMessageActions
+                  item={item}
+                  chatId={chat.id}
+                  repository={repository}
+                  expired={expired}
+                  refresh={() => refresh(true)}
+                  close={closeLayer}
+                  reply={(row) => setQuote(quoteOf(row))}
+                />
+              ),
+            });
+          }
+        : undefined,
+    [chat.id, closeLayer, expired, openLayer, refresh, repository],
+  );
 
   return (
     <Screen>
@@ -1073,8 +1101,11 @@ function RemoteChat({
         appearance={appearance}
         repository={repository}
         expired={expired}
+        onAction={onAction}
       />
       <RemoteTextComposer
+        quote={quote}
+        clearQuote={() => setQuote(undefined)}
         repository={repository}
         chat={chat}
         expired={expired}
@@ -1085,13 +1116,27 @@ function RemoteChat({
   );
 }
 
+type ReplyQuote = { id: string; title: string; preview: string };
+
+function quoteOf(row: WireMessage): ReplyQuote {
+  return {
+    id: row.id,
+    title: row.direction === "in" ? "Cliente" : "Equipo",
+    preview: (row.text ?? "").trim().slice(0, 120) || "Adjunto",
+  };
+}
+
 function RemoteTextComposer({
+  quote,
+  clearQuote,
   repository,
   chat,
   expired,
   refresh,
   refreshChat,
 }: {
+  quote?: ReplyQuote;
+  clearQuote: () => void;
   repository: RemoteAuthRepository;
   chat: WireConversation;
   refreshChat: () => Promise<boolean>;
@@ -1217,10 +1262,14 @@ function RemoteTextComposer({
     setNotice("");
     setFailure(undefined);
     try {
-      const result = await repository.sendText(chat.id, draft);
+      const result = await repository.sendText(chat.id, draft, quote?.id);
       if (!mounted.current || !result) return;
       setDraft("");
-      setNotice(result.queued ? "Mensaje en cola." : "Mensaje enviado.");
+      clearQuote();
+      setNotice(
+        (result.queued ? "Mensaje en cola." : "Mensaje enviado.") +
+          (result.replyApplied === false ? " Enviado sin cita." : ""),
+      );
       await refresh();
     } catch (reason) {
       if (!mounted.current) return;
@@ -1337,6 +1386,30 @@ function RemoteTextComposer({
       </View>
       {repository.allowSend && (
         <>
+          {quote && (
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 6,
+                borderLeftWidth: 3,
+                borderColor: colors.accent,
+                paddingLeft: 8,
+              }}
+            >
+              <View style={{ flex: 1 }}>
+                <Text kind="meta" weight="semibold">
+                  {"Respondiendo a " + quote.title}
+                </Text>
+                <Text kind="meta" numberOfLines={2}>
+                  {quote.preview}
+                </Text>
+              </View>
+              <Button variant="ghost" disabled={pending} onPress={clearQuote}>
+                Quitar cita
+              </Button>
+            </View>
+          )}
           <Field
             label="Mensaje"
             placeholder="Escribe un mensaje"

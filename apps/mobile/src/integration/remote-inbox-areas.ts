@@ -10,6 +10,13 @@ const pagedHistory = new RegExp(
   `^/api/(?:team-chat/threads|my-number/chats)/${idPattern}/messages(?:\\?before=${idPattern})?$`,
 );
 
+const numberMessages = new RegExp(
+  `^/api/my-number/chats/${idPattern}/messages$`,
+);
+const reactionPattern = new RegExp(
+  `^/api/conversations/${idPattern}/messages/${idPattern}/reaction$`,
+);
+
 export function allowsInboxAreaRequest(
   method: string,
   path: string,
@@ -22,7 +29,18 @@ export function allowsInboxAreaRequest(
       path === "/api/my-number/chats" ||
       pagedHistory.test(path)
     );
-  return method === "POST" && writes && teamHistory.test(path);
+  if (!writes) return false;
+  if (method === "POST")
+    return teamHistory.test(path) || numberMessages.test(path);
+  return method === "PUT" && reactionPattern.test(path);
+}
+
+export function reactionPath(conversationId: string, messageId: string) {
+  return `/api/conversations/${inboxAreaId(conversationId)}/messages/${inboxAreaId(messageId)}/reaction`;
+}
+
+export function numberMessagesPath(chatId: string) {
+  return `/api/my-number/chats/${inboxAreaId(chatId)}/messages`;
 }
 
 export function inboxAreaId(value: unknown) {
@@ -103,7 +121,7 @@ export function areaHistory(raw: unknown, area: "team" | "number", id: string) {
     return {
       messages: messagesResponse(body, id),
       more: body.more === true,
-      canPost: false,
+      canPost: true,
     };
   const messages: WireMessage[] = crmArray(body.messages).map((entry) => {
     const msg = crmRecord(entry);

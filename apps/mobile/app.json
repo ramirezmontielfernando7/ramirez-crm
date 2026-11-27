@@ -2,7 +2,7 @@
   "expo": {
     "name": "Dashfort Dev",
     "slug": "dashfort-mobile-dev",
-    "version": "0.2.2",
+    "version": "0.2.3",
     "scheme": "dashfort-dev",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
@@ -24,7 +24,7 @@
         "android.permission.USE_EXACT_ALARM"
       ],
       "googleServicesFile": "./google-services.json",
-      "versionCode": 13
+      "versionCode": 14
     },
     "plugins": [
       "expo-router",
